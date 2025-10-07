@@ -180,6 +180,7 @@ export interface ProjectMessage {
 
 // Enhanced User type with role and login source
 export interface EnhancedUser {
+  id?: string; // Add user's auth ID (UUID)
   email: string;
   name?: string;
   profileId?: string; // Optional: ID of the associated BorrowerProfile

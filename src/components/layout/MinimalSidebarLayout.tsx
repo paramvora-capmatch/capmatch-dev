@@ -46,7 +46,7 @@ const MinimalSidebarLayout: React.FC<MinimalSidebarLayoutProps> = ({ children, t
               className="flex items-center space-x-2"
               onClick={() => {
                 try {
-                  sessionStorage.setItem('navigatingFromApp', 'true');
+                  sessionStorage.setItem('navigatingToHome', 'true');
                 } catch (error) {
                   console.warn('Could not set navigation flag:', error);
                 }

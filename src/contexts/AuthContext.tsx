@@ -73,53 +73,75 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setIsLoading(true);
-      if (event === "SIGNED_IN" && session && session.user) {
-        const { user: authUser } = session;
-        // The role is stored in user_metadata which we set during sign-up/sign-in
-        const role = authUser.user_metadata.role || "borrower";
-        const loginSource = authUser.user_metadata.loginSource || "direct";
-
-        const enhancedUser: EnhancedUser = {
-          email: authUser.email!,
-          role,
-          loginSource,
-          lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
-          name: authUser.user_metadata.name,
-        };
-
-        await storageService.setItem("user", enhancedUser);
-        setUser(enhancedUser);
-        setLoginSource(loginSource);
-
-        // This is the new trigger point for first-time setup!
-        // A new user is detected if their account was created very recently.
-        const isNewUser =
-          new Date().getTime() - new Date(authUser.created_at!).getTime() <
-          60 * 1000; // Signed up within the last minute
-
-        if (isNewUser && role === "borrower") {
-          console.log(
-            "[Auth] New borrower signed in, triggering first-time setup."
-          );
-          // The other contexts will now detect the new user and create a profile/project automatically.
+      try {
+        if (event === "SIGNED_IN") {
+          sessionStorage.setItem('justLoggedIn', 'true');
         }
-      } else if (event === "SIGNED_OUT") {
-        await storageService.removeItem("user");
-        setUser(null);
-        setLoginSource("direct");
-        borrowerProfileContext.resetProfileState?.();
-        projectContext.resetProjectState?.();
-      } else if (event === "INITIAL_SESSION" && session && session.user) {
-        // This handles re-hydrating the session when the user comes back to the app
-        const { user: authUser } = session;
-        const role = authUser.user_metadata.role || "borrower";
-        setUser({
-          email: authUser.email!,
-          role,
-          lastLogin: new Date(authUser.last_sign_in_at!),
-        });
+        if (event === "SIGNED_IN" && session && session.user) {
+          const { user: authUser } = session;
+
+          // Fetch the role from our public.profiles table
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', authUser.id)
+            .single();
+
+          if (error || !profile) {
+            console.error("Error fetching user profile or profile not found:", error);
+            // Fallback or sign out user
+            await supabase.auth.signOut();
+            // Don't return here, let finally block handle loading state
+          } else {
+            const role = profile.role as 'borrower' | 'advisor' | 'lender' | 'admin';
+            const loginSource = authUser.user_metadata.loginSource || "direct";
+
+            const enhancedUser: EnhancedUser = {
+              id: authUser.id,
+              email: authUser.email!,
+              role,
+              loginSource,
+              lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
+              name: authUser.user_metadata.name,
+            };
+
+            await storageService.setItem("user", enhancedUser);
+            setUser(enhancedUser);
+            setLoginSource(loginSource);
+
+            // This is the new trigger point for first-time setup!
+            // A new user is detected if their account was created very recently.
+            const isNewUser =
+              new Date().getTime() - new Date(authUser.created_at!).getTime() <
+              60 * 1000; // Signed up within the last minute
+
+            if (isNewUser && role === "borrower") {
+              console.log(
+                "[Auth] New borrower signed in, triggering first-time setup."
+              );
+              // The other contexts will now detect the new user and create a profile/project automatically.
+            }
+          }
+        } else if (event === "SIGNED_OUT") {
+          await storageService.removeItem("user");
+          setUser(null);
+          setLoginSource("direct");
+          borrowerProfileContext.resetProfileState?.();
+          projectContext.resetProjectState?.();
+        } else if (event === "INITIAL_SESSION" && session && session.user) {
+          // This handles re-hydrating the session when the user comes back to the app
+          const { user: authUser } = session;
+          const role = authUser.user_metadata.role || "borrower";
+          setUser({
+            id: authUser.id,
+            email: authUser.email!,
+            role,
+            lastLogin: new Date(authUser.last_sign_in_at!),
+          });
+        }
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return () => {
@@ -219,10 +241,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           setIsLoading(true);
           setLoginSource(source);
           await handleTestData(email);
+          const demoUserIds: { [key: string]: string } = {
+            'borrower1@example.com': '00000000-0000-0000-0000-000000000001',
+            'borrower2@example.com': '00000000-0000-0000-0000-000000000002',
+            'advisor1@capmatch.com': '00000000-0000-0000-0000-000000000003',
+            'admin@capmatch.com':    '00000000-0000-0000-0000-000000000004',
+            'lender1@example.com':   '00000000-0000-0000-0000-000000000005',
+          };
           const detectedRole = email.includes("admin@capmatch.com")
             ? "admin"
             : role;
           const newUser: EnhancedUser = {
+            id: demoUserIds[email] || `demo-user-${email}`,
             email,
             lastLogin: new Date(),
             role: detectedRole,

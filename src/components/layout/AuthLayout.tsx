@@ -20,7 +20,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
             className="flex items-center"
             onClick={() => {
               try {
-                sessionStorage.setItem('navigatingFromApp', 'true');
+                sessionStorage.setItem('navigatingToHome', 'true');
               } catch (error) {
                 console.warn('Could not set navigation flag:', error);
               }

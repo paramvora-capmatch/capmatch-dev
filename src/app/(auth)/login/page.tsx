@@ -78,20 +78,7 @@ const EmailForm = ({ role, onBack }: { role: Role; onBack: () => void }) => {
     }
   }, [searchParams]);
 
-  // Check for existing user session
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      if (user.role === "advisor") {
-        router.push("/advisor/dashboard");
-      } else if (user.role === "admin") {
-        router.push("/advisor/dashboard");
-      } else if (user.role === "lender") {
-        router.push("/lender/dashboard");
-      } else {
-        router.push("/dashboard");
-      }
-    }
-  }, [isAuthenticated, router, user]);
+  // The new <AuthRedirector /> component now handles redirecting logged-in users.
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
