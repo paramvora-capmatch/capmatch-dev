@@ -79,8 +79,8 @@ export interface ProjectProfile {
   propertyAddressZip: string;
   assetType: string;
   projectDescription: string;
-  projectPhase: ProjectPhase;
-  loanAmountRequested: number;
+  projectPhase?: ProjectPhase;
+  loanAmountRequested?: number;
   loanType: string;
   targetLtvPercent: number;
   targetLtcPercent: number;
@@ -93,12 +93,12 @@ export interface ProjectProfile {
   purchasePrice: number | null;
   totalProjectCost: number | null;
   capexBudget: number | null;
-  propertyNoiT12: number | null;
-  stabilizedNoiProjected: number | null;
-  exitStrategy: ExitStrategy;
+  propertyNoiT12?: number | null;
+  stabilizedNoiProjected?: number | null;
+  exitStrategy?: ExitStrategy;
   businessPlanSummary: string;
   marketOverviewSummary: string;
-  equityCommittedPercent: number;
+  equityCommittedPercent?: number;
   projectStatus: ProjectStatus;
   completenessPercent: number;
   internalAdvisorNotes: string;
@@ -184,6 +184,6 @@ export interface EnhancedUser {
   name?: string;
   profileId?: string; // Optional: ID of the associated BorrowerProfile
   lastLogin: Date;
-  role: 'borrower' | 'advisor' | 'admin';
+  role: 'borrower' | 'advisor' | 'lender' | 'admin';
   loginSource?: 'direct' | 'lenderline'; // Added login source tracking
 }

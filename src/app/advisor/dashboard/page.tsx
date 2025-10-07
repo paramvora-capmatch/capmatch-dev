@@ -376,7 +376,7 @@ export default function AdvisorDashboardPage() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-700">
-                                ${project.loanAmountRequested.toLocaleString()}
+                                ${(project.loanAmountRequested || 0).toLocaleString()}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">

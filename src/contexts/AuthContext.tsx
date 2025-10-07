@@ -15,7 +15,7 @@ interface AuthContextProps {
   isAuthenticated: boolean;
   isLoading: boolean;
   loginSource: 'direct' | 'lenderline';
-  login: (email: string, source?: 'direct' | 'lenderline', role?: 'borrower' | 'advisor' | 'admin') => Promise<void>;
+  login: (email: string, source?: 'direct' | 'lenderline', role?: 'borrower' | 'advisor' | 'lender' | 'admin') => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<EnhancedUser>) => void; // Keep updateUser definition
 }
@@ -217,14 +217,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
   const login = useCallback(async (
       email: string,
       source: 'direct' | 'lenderline' = 'direct',
-      role: 'borrower' | 'advisor' | 'admin' = 'borrower'
+      role: 'borrower' | 'advisor' | 'lender' | 'admin' = 'borrower'
     ) => {
     if (!projectContext || !borrowerProfileContext) { /* ... error handling ... */ throw new Error("Init error"); }
     try {
       setIsLoading(true); setLoginSource(source);
       await handleTestData(email); // Handle test users first
 
-      const detectedRole = email.includes('admin')?'admin':email.includes('advisor')?'advisor':role;
+      // Prioritize the explicitly passed role. The admin check is an override for specific emails.
+      const detectedRole = email.includes('admin@capmatch.com') ? 'admin' : role;
       const newUser: EnhancedUser = { email, lastLogin: new Date(), role: detectedRole, loginSource: source };
       if (detectedRole !== 'borrower') { /* set name */ const nm = email.match(/([^@]+)@/); if(nm) newUser.name = nm[1].split('.').map(p=>p[0].toUpperCase()+p.slice(1)).join(' '); }
 
