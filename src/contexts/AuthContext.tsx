@@ -126,8 +126,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
           await storageService.removeItem("user");
           setUser(null);
           setLoginSource("direct");
-          borrowerProfileContext.resetProfileState?.();
-          projectContext.resetProjectState?.();
         } else if (event === "INITIAL_SESSION" && session && session.user) {
           // This handles re-hydrating the session when the user comes back to the app
           const { user: authUser } = session;

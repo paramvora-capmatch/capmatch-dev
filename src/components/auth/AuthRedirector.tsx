@@ -21,13 +21,9 @@ export const AuthRedirector = () => {
 
     const justLoggedIn = sessionStorage.getItem('justLoggedIn');
 
-    if (isAuthenticated && user && (isAuthPage || (isHomePage && justLoggedIn))) {
-      console.log(`[AuthRedirector] User authenticated on auth-sensitive page. Redirecting...`);
-
-      if (isHomePage && justLoggedIn) {
-        sessionStorage.removeItem('justLoggedIn');
-      }
-
+    const performRedirect = () => {
+      if (!user) return;
+      console.log(`[AuthRedirector] Redirecting user with role: ${user.role}`);
       switch (user.role) {
         case 'borrower':
           router.replace('/dashboard');
@@ -41,6 +37,20 @@ export const AuthRedirector = () => {
           break;
         default:
           router.replace('/dashboard'); // Fallback
+      }
+    };
+
+    if (isAuthenticated && user) {
+      // Case 1: An already logged-in user navigates to the login page. Redirect them away.
+      if (isAuthPage) {
+        performRedirect();
+      }
+
+      // Case 2: A user just logged in via magic link and was redirected to the homepage.
+      // Perform the one-time redirect to their dashboard.
+      else if (isHomePage && justLoggedIn) {
+        sessionStorage.removeItem('justLoggedIn');
+        performRedirect();
       }
     }
   }, [isAuthenticated, isLoading, user, pathname, router]);

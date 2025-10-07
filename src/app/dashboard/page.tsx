@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
@@ -33,11 +33,9 @@ export default function DashboardPage() {
   } = useProjects();
   const { borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
 
-  const [hasCheckedForNewUser, setHasCheckedForNewUser] = useState(false);
-  const [hasAttemptedRedirect, setHasAttemptedRedirect] = useState(false);
-
   // Combined loading state check
   const combinedLoading = authLoading || projectsLoading || profileLoading;
+  const initialLoadComplete = useRef(false);
 
   // Single function to handle project redirects with session storage check (keyed per user)
   const handleProjectRedirect = (project: any, reason: string) => {
@@ -47,7 +45,6 @@ export default function DashboardPage() {
     if (!hasRedirected) {
       console.log(`Dashboard: ${reason}, redirecting to: ${project.id}`);
       sessionStorage.setItem(key, "true");
-      setHasAttemptedRedirect(true);
       router.replace(`/project/workspace/${project.id}`);
       return true; // Indicate redirect was performed
     } else {
@@ -65,7 +62,11 @@ export default function DashboardPage() {
       return;
     }
 
-    // Once core contexts are loaded
+    // Mark initial load as complete once all contexts are ready for the first time
+    if (!initialLoadComplete.current) {
+      initialLoadComplete.current = true;
+    }
+
     console.log(
       `Dashboard: Contexts loaded. User: ${user?.role}, Projects: ${
         projects.length
@@ -73,10 +74,9 @@ export default function DashboardPage() {
     );
 
     // Check if this is a new borrower who needs to be redirected to their project
-    if (user?.role === "borrower" && !hasCheckedForNewUser) {
-      setHasCheckedForNewUser(true);
+    if (user?.role === "borrower") {
       console.log(
-        `Dashboard: Checking new borrower status. Projects count: ${projects.length}`
+        `Dashboard: Checking borrower status. Projects count: ${projects.length}`
       );
 
       // If no projects exist yet, wait for auto-creation and then redirect
@@ -126,7 +126,6 @@ export default function DashboardPage() {
         console.log(
           `Dashboard: Performing redirect to /project/workspace/${targetProjectId}`
         );
-        setHasAttemptedRedirect(true);
         router.replace(`/project/workspace/${targetProjectId}`);
       } else {
         console.warn(
@@ -142,31 +141,7 @@ export default function DashboardPage() {
     projects,
     loginSource,
     router,
-    hasCheckedForNewUser,
     borrowerProfile,
-  ]);
-
-  // Additional effect to watch for project creation
-  useEffect(() => {
-    if (
-      user?.role === "borrower" &&
-      hasCheckedForNewUser &&
-      autoCreatedFirstProjectThisSession &&
-      projects.length === 1 &&
-      !hasAttemptedRedirect
-    ) {
-      const targetProject = projects[0];
-      handleProjectRedirect(
-        targetProject,
-        "Auto-created project detected after initial check"
-      );
-    }
-  }, [
-    projects,
-    user,
-    hasCheckedForNewUser,
-    hasAttemptedRedirect,
-    router,
     autoCreatedFirstProjectThisSession,
   ]);
 
@@ -238,8 +213,8 @@ export default function DashboardPage() {
   };
 
   // --- Render Logic ---
-  if (combinedLoading || hasAttemptedRedirect) {
-    // Show loader if loading or a redirect has been initiated
+  // Show loader ONLY on the very first load. After that, the page remains visible during background refreshes.
+  if (!initialLoadComplete.current) {
     return (
       <div className="flex h-screen items-center justify-center bg-gradient-to-br from-blue-50/40 to-blue-100/60">
         <LoadingOverlay isLoading={false} />

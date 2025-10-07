@@ -1,5 +1,3 @@
-// src/contexts/ProjectContext.tsx
-
 "use client";
 
 import React, {
@@ -230,7 +228,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
     setAutoCreatedFirstProjectThisSession,
   ] = useState(false);
 
-  const { user } = useAuth();
+  const { user, isLoading: authIsLoading } = useAuth();
   const borrowerProfileContext = useContext(BorrowerProfileContext);
 
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -482,10 +480,18 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   // useEffect to Load User's Projects
   useEffect(() => {
     const loadUserProjects = async () => {
+      // Explicitly wait for both auth and profile contexts to finish their initial loading.
+      if (
+        authIsLoading ||
+        (user?.role === "borrower" && borrowerProfileContext.isLoading)
+      ) {
+        setIsLoading(true);
+        return;
+      }
+
       const currentProfile = borrowerProfileContext.borrowerProfile;
-      // If there's no user, or if the user is a borrower but their profile hasn't loaded yet,
-      // we are not ready to fetch projects. Clear state and mark as not loading.
-      if (!user || (user.role === 'borrower' && !currentProfile)) {
+      // Now that upstream contexts are stable, we can make a decision.
+      if (!user || (user.role === "borrower" && !currentProfile)) {
         resetProjectState();
         setIsLoading(false);
         return;
@@ -529,6 +535,8 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   }, [
     user,
     borrowerProfileContext.borrowerProfile,
+    authIsLoading,
+    borrowerProfileContext.isLoading,
     calculateProgress,
     resetProjectState,
   ]);
@@ -726,7 +734,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
         throw new Error("[ProjectContext] Borrower profile must be loaded.");
 
       if (!user?.id) {
-        throw new Error("Cannot create project: User auth ID is missing.");
+        throw new Error("Cannot create project: User is not authenticated.");
       }
 
       const now = new Date().toISOString();

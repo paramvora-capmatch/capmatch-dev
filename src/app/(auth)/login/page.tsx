@@ -57,6 +57,7 @@ const RoleCard = ({
 const EmailForm = ({ role, onBack }: { role: Role; onBack: () => void }) => {
   const [email, setEmail] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
 
@@ -83,9 +84,11 @@ const EmailForm = ({ role, onBack }: { role: Role; onBack: () => void }) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
+    setIsSubmitting(true);
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setValidationError("Please enter a valid email address.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -108,6 +111,8 @@ const EmailForm = ({ role, onBack }: { role: Role; onBack: () => void }) => {
           ? err.message
           : "An error occurred. Please try again."
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -282,7 +287,7 @@ const EmailForm = ({ role, onBack }: { role: Role; onBack: () => void }) => {
               variant="primary"
               fullWidth
               size="lg"
-              isLoading={authLoading}
+              isLoading={authLoading || isSubmitting}
             >
               Continue
             </Button>
