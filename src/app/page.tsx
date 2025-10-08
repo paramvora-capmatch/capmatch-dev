@@ -30,7 +30,7 @@ export default function HomePage() {
     filters,
     setFilters,
     selectLender,
-    refreshLenders
+    loadLenders
   } = useLenders();
 
 
@@ -89,7 +89,7 @@ export default function HomePage() {
 
   useEffect(() => { if (splashComplete) { const t = setTimeout(() => { setContentVisible(true); setTimeout(() => { setTextAnimation(p => ({ ...p, part1Visible: true })); setHeaderTextVisible(true); }, 300); setTimeout(() => setTextAnimation(p => ({ ...p, part2Visible: true })), 800); setTimeout(() => setTextAnimation(p => ({ ...p, part3Visible: true })), 1300); }, 100); return () => clearTimeout(t); } }, [splashComplete]);
 
-  useEffect(() => { const load = async () => { try { await refreshLenders(); } catch (e) { console.error("Err load lenders:", e); } }; load(); }, [refreshLenders]);
+  useEffect(() => { const load = async () => { try { await loadLenders(); } catch (e) { console.error("Err load lenders:", e); } }; load(); }, [loadLenders]);
 
 
 

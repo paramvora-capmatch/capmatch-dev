@@ -247,14 +247,11 @@ export default function AdvisorDashboardPage() {
                     variant="outline"
                     leftIcon={<LogOut size={16} />}
                     onClick={async () => {
-                        try {
                         await logout();
-                        console.log('You have been successfully signed out');
-                        router.push('/');
-                        } catch (error) {
-                        console.error('Failed to sign out:', error);
-                        console.error('Failed to sign out. Please try again.');
-                        }
+                        // The redirect is now handled automatically by the
+                        // RoleBasedRoute component when the auth state changes to logged out.
+                        // Manually pushing the router here was causing issues.
+                        console.log('Logout initiated...');
                     }}
                     >
                     Sign Out

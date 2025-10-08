@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
-import { useBorrowerProfile } from '../../hooks/useBorrowerProfile';
+import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
 import { useAuth } from "../../hooks/useAuth"; // Import useAuth for logout
 
 import { LoadingOverlay } from "../../components/ui/LoadingOverlay";
@@ -24,33 +24,39 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isLoading: authLoading, loginSource, logout } = useAuth(); // Get logout
+  const { user, loginSource, logout, isLoading: authLoading } = useAuth(); // Get user, logout, and auth loading state
   const {
     projects,
-    isLoading: projectsLoading,
     createProject,
     autoCreatedFirstProjectThisSession,
+    isLoading: projectsLoading,
   } = useProjects();
   const { borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
 
+  // State to track if the initial loading cycle has completed.
+  // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+
   const combinedLoading = authLoading || projectsLoading || profileLoading;
-  const initialLoadComplete = useRef(false);
 
   // Control Flow Logic & Loading
   useEffect(() => {
-    if (combinedLoading) {
+    // If still loading, do nothing.
+    if (combinedLoading && !initialLoadComplete) {
       return;
     }
 
-    if (!initialLoadComplete.current) {
-      initialLoadComplete.current = true;
+    // Once loading is finished for the first time, mark it.
+    if (!combinedLoading && !initialLoadComplete) {
+      setInitialLoadComplete(true);
     }
 
     // Key redirect logic for new users
     if (
       user?.role === "borrower" &&
       projects.length === 1 &&
-      autoCreatedFirstProjectThisSession
+      autoCreatedFirstProjectThisSession &&
+      initialLoadComplete // Ensure initial load is complete before redirecting
     ) {
       const targetProject = projects[0];
       // Use a session-based flag to ensure this redirect only happens once per login session.
@@ -69,12 +75,13 @@ export default function DashboardPage() {
     }
   }, [
     user,
-    combinedLoading,
     projects,
     loginSource,
     router,
     borrowerProfile,
     autoCreatedFirstProjectThisSession,
+    initialLoadComplete,
+    combinedLoading,
   ]);
 
   // Handle creating a new project
@@ -94,8 +101,10 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     try {
       // Clear all session-specific flags on logout
-      const keysToRemove = Object.keys(sessionStorage).filter(key => key.startsWith('hasAutoRedirected'));
-      keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      const keysToRemove = Object.keys(sessionStorage).filter((key) =>
+        key.startsWith("hasAutoRedirected")
+      );
+      keysToRemove.forEach((key) => sessionStorage.removeItem(key));
       await logout();
       console.log("Signed out successfully.");
       router.push("/login"); // Redirect to login after logout
@@ -105,32 +114,8 @@ export default function DashboardPage() {
   };
 
   // --- Render Logic ---
-  // Show loader ONLY on the very first load. After that, the page remains visible during background refreshes.
-  if (!initialLoadComplete.current) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-blue-50/40 to-blue-100/60">
-        <LoadingOverlay isLoading={false} />
-        <div className="flex flex-col items-center text-gray-600">
-          <div className="relative">
-            <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-            <div className="absolute inset-0 bg-blue-200 rounded-full blur-lg opacity-20 animate-pulse"></div>
-          </div>
-          <span className="text-lg font-medium">Loading Dashboard...</span>
-          <div className="mt-2 flex space-x-1">
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-            <div
-              className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
-              style={{ animationDelay: "0.1s" }}
-            ></div>
-            <div
-              className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"
-              style={{ animationDelay: "0.2s" }}
-            ></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // The main loading spinner is now handled by ClientAppProviders.
+  // By the time this component renders, all data is ready.
 
   return (
     <RoleBasedRoute roles={["borrower"]}>
@@ -139,7 +124,7 @@ export default function DashboardPage() {
         <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-700 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-300/60 via-purple-300/60 via-pink-200/60 via-white/40 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-2000 ease-in-out"></div>
         </div>
-        <LoadingOverlay isLoading={false} />
+        <LoadingOverlay isLoading={combinedLoading} />
 
         {/* Enhanced Header with CapMatch Logo */}
         <header className="bg-white/90 backdrop-blur-lg shadow-lg border-b border-gray-200 sticky top-0 z-10">
@@ -229,10 +214,7 @@ export default function DashboardPage() {
             {projects.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {projects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                  />
+                  <ProjectCard key={project.id} project={project} />
                 ))}
               </div>
             ) : (

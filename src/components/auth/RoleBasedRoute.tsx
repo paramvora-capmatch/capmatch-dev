@@ -45,7 +45,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
       setHasChecked(true);
     }
 
-  }, [isLoading, isAuthenticated, user, roles, router, redirectTo, hasChecked]);
+  }, [isLoading, isAuthenticated, user, roles, router, redirectTo]);
 
   // While the initial check is pending on first load, show a full-page loader.
   if (!hasChecked) {
