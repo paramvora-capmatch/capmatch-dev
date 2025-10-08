@@ -272,4 +272,5 @@ export interface EnhancedUser {
   lastLogin: Date;
   role: "borrower" | "advisor" | "lender" | "admin";
   loginSource?: "direct" | "lenderline"; // Added login source tracking
+  isDemo?: boolean; // Flag for demo users
 }

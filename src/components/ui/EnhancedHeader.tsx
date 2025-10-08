@@ -12,7 +12,6 @@ import { cn } from '@/utils/cn';
 interface EnhancedHeaderProps {
   scrolled: boolean;
   logoRef?: MutableRefObject<HTMLImageElement | null>;
-  visible?: boolean;
   textVisible?: boolean;
   logoHidden?: boolean;
 }
@@ -20,7 +19,6 @@ interface EnhancedHeaderProps {
 export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
   scrolled,
   logoRef,
-  visible = true,
   textVisible = false,
   logoHidden = false
 }) => {
@@ -114,8 +112,8 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 
         <motion.div 
           initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: visible ? 1 : 0, x: visible ? 0 : 20 }}
-          transition={{ duration: 0.6, delay: visible ? 0.2 : 0, ease: "easeOut" }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
           className="hidden md:flex items-center space-x-6"
         >
           <nav className="flex items-center space-x-6">
@@ -154,8 +152,8 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
 
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: visible ? 1 : 0, scale: visible ? 1 : 0.8 }}
-          transition={{ duration: 0.6, delay: visible ? 0.3 : 0, ease: "easeOut" }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
           className={cn(
             "md:hidden p-2 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded transition-colors",
             scrolled ? "text-gray-700" : "text-white"
@@ -168,7 +166,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
         </motion.button>
       </div>
 
-      {mobileMenuOpen && visible && (
+      {mobileMenuOpen && (
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}

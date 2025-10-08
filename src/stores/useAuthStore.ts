@@ -10,6 +10,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   loginSource: "direct" | "lenderline";
+  isDemo: boolean;
 }
 
 interface AuthActions {
@@ -35,6 +36,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   isAuthenticated: false,
   isLoading: true,
   loginSource: "direct",
+  isDemo: false,
   _setUser: (user) => set({ user, isAuthenticated: !!user }),
   _setLoading: (isLoading) => set({ isLoading }),
 
@@ -84,9 +86,14 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
               loginSource,
               lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
               name: authUser.user_metadata.name,
+              isDemo: false, // Real Supabase users are not demo users
             };
-            await storageService.setItem("user", enhancedUser);
-            set({ user: enhancedUser, isAuthenticated: true, loginSource });
+            set({
+              user: enhancedUser,
+              isAuthenticated: true,
+              loginSource,
+              isDemo: false,
+            });
             console.log(
               `[AuthStore] ✅ Set user: ${enhancedUser.email} with role ${enhancedUser.role}`
             );
@@ -102,9 +109,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         }
         // If there's no session, the user is logged out.
         else if (event === "SIGNED_OUT" || !session) {
-          // Handle both explicit sign-out and initial state with no user
-          await storageService.removeItem("user");
-          set({ user: null, isAuthenticated: false, loginSource: "direct" });
+          set({
+            user: null,
+            isAuthenticated: false,
+            loginSource: "direct",
+            isDemo: false,
+          });
           console.log("[AuthStore] ✅ User signed out or no session found.");
           get()._setLoading(false);
         }
@@ -184,10 +194,15 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           lastLogin: new Date(),
           role,
           loginSource: source,
+          isDemo: true, // This is a demo user
         };
 
-        await storageService.setItem("user", newUser);
-        set({ user: newUser, isAuthenticated: true, loginSource: source });
+        set({
+          user: newUser,
+          isAuthenticated: true,
+          loginSource: source,
+          isDemo: true,
+        });
         sessionStorage.setItem("justLoggedIn", "true");
       } else if (demoAccounts.includes(email) && password !== "password123") {
         throw new Error("Invalid password for demo account.");
@@ -234,6 +249,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     console.log("[AuthStore] Logout initiated.");
     try {
       const { error } = await supabase.auth.signOut();
+      // Also clear local storage for demo users on logout
+      if (get().isDemo) {
+        const user = get().user;
+        if (user) await storageService.clearUserSpecificData(user.email);
+      }
+
       if (error) {
         console.error("Supabase signOut error:", error.message);
       }
@@ -247,12 +268,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     set((state) => {
       if (!state.user) return state;
       const updatedUser = { ...state.user, ...userData };
-      storageService
-        .setItem("user", updatedUser)
-        .catch((err) => console.error("Storage update failed:", err));
       return {
         user: updatedUser,
         loginSource: updatedUser.loginSource || state.loginSource,
+        // isDemo state is set at login and shouldn't change here
+        isDemo: state.isDemo,
       };
     });
   },

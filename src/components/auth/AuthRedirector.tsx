@@ -1,9 +1,9 @@
 // src/components/auth/AuthRedirector.tsx
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { usePathname, useRouter } from "next/navigation";
 
 export const AuthRedirector = () => {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -16,27 +16,27 @@ export const AuthRedirector = () => {
       return;
     }
 
-    const isAuthPage = pathname === '/login';
-    const isHomePage = pathname === '/';
+    const isAuthPage = pathname === "/login";
+    const isHomePage = pathname === "/";
 
-    const justLoggedIn = sessionStorage.getItem('justLoggedIn');
+    const justLoggedIn = sessionStorage.getItem("justLoggedIn");
 
     const performRedirect = () => {
       if (!user) return;
       console.log(`[AuthRedirector] Redirecting user with role: ${user.role}`);
       switch (user.role) {
-        case 'borrower':
-          router.replace('/dashboard');
+        case "borrower":
+          router.replace("/dashboard");
           break;
-        case 'advisor':
-        case 'admin':
-          router.replace('/advisor/dashboard');
+        case "advisor":
+        case "admin":
+          router.replace("/advisor/dashboard");
           break;
-        case 'lender':
-          router.replace('/lender/dashboard');
+        case "lender":
+          router.replace("/lender/dashboard");
           break;
         default:
-          router.replace('/dashboard'); // Fallback
+          router.replace("/dashboard"); // Fallback
       }
     };
 
@@ -46,10 +46,10 @@ export const AuthRedirector = () => {
         performRedirect();
       }
 
-      // Case 2: A user just logged in via magic link and was redirected to the homepage.
+      // Case 2: A user just logged in via magic link or password and was redirected to the homepage.
       // Perform the one-time redirect to their dashboard.
-      else if (isHomePage && justLoggedIn) {
-        sessionStorage.removeItem('justLoggedIn');
+      if (isHomePage && justLoggedIn) {
+        sessionStorage.removeItem("justLoggedIn");
         performRedirect();
       }
     }

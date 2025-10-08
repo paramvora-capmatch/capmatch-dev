@@ -1,41 +1,15 @@
 // src/components/ui/SplashScreen.tsx
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useRef } from "react";
+import { motion } from "framer-motion";
 
 interface SplashScreenProps {
-  onComplete?: () => void;
-  onLogoAnimationStart?: (position: { x: number, y: number, width: number, height: number }) => void;
+  // No props needed for a simple hydration loader
 }
 
-export const SplashScreen: React.FC<SplashScreenProps> = ({ 
-  onComplete,
-  onLogoAnimationStart 
-}) => {
+export const SplashScreen: React.FC<SplashScreenProps> = () => {
   const logoRef = useRef<HTMLImageElement>(null);
-
-  // Run the effect exactly once when component mounts
-  useEffect(() => {
-    // Schedule the completion and animation after 2 seconds
-    const timer = setTimeout(() => {
-      if (logoRef.current && onLogoAnimationStart) {
-        // Get the position of the logo element
-        const rect = logoRef.current.getBoundingClientRect();
-        onLogoAnimationStart({
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height
-        });
-      }
-
-      onComplete?.();
-    }, 2000);
-    
-    // Clean up timer if component unmounts
-    return () => clearTimeout(timer);
-  }, [onComplete, onLogoAnimationStart]);
 
   return (
     <motion.div

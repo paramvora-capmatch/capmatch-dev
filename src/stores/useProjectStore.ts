@@ -173,23 +173,34 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
         set({ isLoading: true });
       }
       try {
-        const { data: userProjects, error } = await supabase
-          .from("projects")
-          .select("*");
-        if (error) throw error;
+        let userProjects: ProjectProfile[] = [];
 
-        const projectsWithProgress = (userProjects as ProjectProfile[]).map(
-          (p) => ({
-            ...p,
-            borrowerProfileId: borrowerProfile?.id || "",
-            ...get().calculateProgress(p),
-          })
-        );
+        if (user.isDemo) {
+          console.log("[ProjectStore] Loading projects from local storage for demo user.");
+          const allProjects = await storageService.getItem<ProjectProfile[]>('projects') || [];
+          userProjects = allProjects.filter(p => p.borrowerProfileId === borrowerProfile?.id);
+        } else {
+          console.log("[ProjectStore] Loading projects from Supabase for real user.");
+          const { data, error } = await supabase
+            .from("projects")
+            .select("*")
+            .eq('owner_id', user.id); // Filter by owner
+          if (error) throw error;
+          userProjects = data as ProjectProfile[];
+        }
+
+        const projectsWithProgress = userProjects.map((p) => ({
+          ...p,
+          borrowerProfileId: borrowerProfile?.id || "",
+          ...get().calculateProgress(p),
+        }));
+
         set({ projects: projectsWithProgress });
 
         // Auto-create first project for new users
         const { autoCreatedFirstProfileThisSession } =
           useBorrowerProfileStore.getState();
+
         if (
           user.role === "borrower" &&
           projectsWithProgress.length === 0 &&
@@ -238,46 +249,75 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
     createProject: async (projectData: Partial<ProjectProfile>) => {
       const { user } = useAuthStore.getState();
-      // The RLS policy on the 'projects' table ensures only an authenticated user can insert.
-      // The check for borrowerProfile here is client-side and not necessary for the DB operation.
       if (!user) throw new Error("User must be logged in to create a project.");
+      const borrowerProfile = useBorrowerProfileStore.getState().borrowerProfile;
+      if (!borrowerProfile) throw new Error("Borrower profile must exist to create a project.");
 
-      const dataToInsert = projectProfileToDbProject({
+      const now = new Date().toISOString();
+      const newProjectData: ProjectProfile = {
+        id: `proj_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        borrowerProfileId: borrowerProfile.id,
+        assignedAdvisorUserId: 'advisor1@capmatch.com', // Default advisor
         projectName:
           projectData.projectName || `New Project ${get().projects.length + 1}`,
         assetType: projectData.assetType || "Multifamily",
+        projectStatus: 'Info Gathering',
+        createdAt: now,
+        updatedAt: now,
         ...projectData,
-      });
+        // Ensure required fields have defaults if not provided
+        propertyAddressStreet: projectData.propertyAddressStreet || '',
+        propertyAddressCity: projectData.propertyAddressCity || '',
+        propertyAddressState: projectData.propertyAddressState || '',
+        propertyAddressCounty: projectData.propertyAddressCounty || '',
+        propertyAddressZip: projectData.propertyAddressZip || '',
+        projectDescription: projectData.projectDescription || '',
+        loanType: projectData.loanType || '',
+        targetLtvPercent: projectData.targetLtvPercent || 0,
+        targetLtcPercent: projectData.targetLtcPercent || 0,
+        amortizationYears: projectData.amortizationYears || 0,
+        interestOnlyPeriodMonths: projectData.interestOnlyPeriodMonths || 0,
+        interestRateType: projectData.interestRateType || 'Not Specified',
+        targetCloseDate: projectData.targetCloseDate || '',
+        useOfProceeds: projectData.useOfProceeds || '',
+        recoursePreference: projectData.recoursePreference || 'Flexible',
+        purchasePrice: projectData.purchasePrice || null,
+        totalProjectCost: projectData.totalProjectCost || null,
+        capexBudget: projectData.capexBudget || null,
+        businessPlanSummary: projectData.businessPlanSummary || '',
+        marketOverviewSummary: projectData.marketOverviewSummary || '',
+        completenessPercent: 0,
+        internalAdvisorNotes: '',
+        borrowerProgress: 0,
+        projectProgress: 0,
+      };
 
-      // FIX: Explicitly set owner_id for RLS policy
-      dataToInsert.owner_id = user.id;
+      if (user.isDemo) {
+        const allProjects = await storageService.getItem<ProjectProfile[]>('projects') || [];
+        await storageService.setItem('projects', [...allProjects, newProjectData]);
+      } else {
+        const dataToInsert = projectProfileToDbProject(newProjectData);
+        dataToInsert.owner_id = user.id; // RLS
+        delete dataToInsert.id; // DB generates UUID
 
-      const { data: insertedProject, error } = await supabase
-        .from("projects")
-        .insert(dataToInsert)
-        .select()
-        .single();
+        const { data: insertedProject, error } = await supabase
+          .from("projects")
+          .insert(dataToInsert)
+          .select()
+          .single();
 
-      if (error) {
-        console.error("[ProjectStore] Error creating project:", error);
-        throw error;
+        if (error) throw error;
+        Object.assign(newProjectData, insertedProject); // Update with DB generated ID
       }
 
-      const newProject = {
-        ...(insertedProject as ProjectProfile),
-        borrowerProfileId:
-          useBorrowerProfileStore.getState().borrowerProfile?.id || "", // Safely get profile ID
-      };
-      const finalProject = {
-        ...newProject,
-        ...get().calculateProgress(newProject),
-      };
+      const finalProject = { ...newProjectData, ...get().calculateProgress(newProjectData) };
 
       set((state) => ({ projects: [...state.projects, finalProject] }));
       return finalProject;
     },
 
     updateProject: async (id, updates) => {
+      const { user } = useAuthStore.getState();
       const projectToUpdate = get().getProject(id);
       if (!projectToUpdate) return null;
 
@@ -299,38 +339,46 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
             : state.activeProject,
       }));
 
-      const updatesForDb = projectProfileToDbProject(updates);
-      const { data, error } = await supabase
-        .from("projects")
-        .update(updatesForDb)
-        .eq("id", id)
-        .select()
-        .single();
+      if (user?.isDemo) {
+        const allProjects = await storageService.getItem<ProjectProfile[]>('projects') || [];
+        const updatedProjects = allProjects.map(p => p.id === id ? finalUpdatedProject : p);
+        await storageService.setItem('projects', updatedProjects);
+        console.log(`[ProjectStore] Updated demo project ${id} in storage.`);
+        return finalUpdatedProject;
+      } else {
+        const updatesForDb = projectProfileToDbProject(updates);
+        const { data, error } = await supabase
+          .from("projects")
+          .update(updatesForDb)
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) {
-        console.error(`[ProjectStore] Error updating project ${id}:`, error);
-        // Revert optimistic update
-        set((state) => ({
-          projects: state.projects.map((p) =>
-            p.id === id ? projectToUpdate : p
-          ),
-          activeProject:
-            state.activeProject?.id === id
-              ? projectToUpdate
-              : state.activeProject,
-        }));
-        throw error;
+        if (error) {
+          console.error(`[ProjectStore] Error updating project ${id}:`, error);
+          // Revert optimistic update
+          set((state) => ({
+            projects: state.projects.map((p) => (p.id === id ? projectToUpdate : p)),
+            activeProject: state.activeProject?.id === id ? projectToUpdate : state.activeProject,
+          }));
+          throw error;
+        }
+        console.log(`[ProjectStore] Updated project ${id} in DB.`);
+        return data as ProjectProfile;
       }
-
-      console.log(`[ProjectStore] Updated project ${id} in DB.`);
-      return data as ProjectProfile;
     },
 
     deleteProject: async (id) => {
-      const { error } = await supabase.from("projects").delete().eq("id", id);
-      if (error) {
-        console.error(`[ProjectStore] Failed to delete project ${id}:`, error);
-        return false;
+      const { user } = useAuthStore.getState();
+      if (user?.isDemo) {
+        const allProjects = await storageService.getItem<ProjectProfile[]>('projects') || [];
+        await storageService.setItem('projects', allProjects.filter(p => p.id !== id));
+      } else {
+        const { error } = await supabase.from("projects").delete().eq("id", id);
+        if (error) {
+          console.error(`[ProjectStore] Failed to delete project ${id}:`, error);
+          return false;
+        }
       }
       set((state) => ({
         projects: state.projects.filter((p) => p.id !== id),
@@ -408,12 +456,8 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 useBorrowerProfileStore.subscribe((profileState, prevProfileState) => {
   // Trigger project loading only when a borrower's profile has just finished loading.
   const { user } = useAuthStore.getState();
-  if (
-    user?.role === "borrower" &&
-    prevProfileState.isLoading &&
-    !profileState.isLoading &&
-    profileState.borrowerProfile
-  ) {
+  // Trigger project loading when a borrower's profile loading state changes from true to false.
+  if (user?.role === "borrower" && prevProfileState.isLoading && !profileState.isLoading) {
     console.log(
       "[Subscription] Profile load finished. Triggering project load."
     );

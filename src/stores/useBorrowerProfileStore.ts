@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { storageService } from "@/lib/storage";
 import { useAuthStore } from "./useAuthStore";
 import { BorrowerProfile, Principal } from "@/types/enhanced-types";
+import { supabase } from "../../lib/supabaseClient";
 
 interface BorrowerProfileState {
   borrowerProfile: BorrowerProfile | null;
@@ -17,7 +18,7 @@ interface BorrowerProfileActions {
     profileData: Partial<BorrowerProfile>
   ) => Promise<BorrowerProfile>;
   updateBorrowerProfile: (
-    updates: Partial<BorrowerProfile>,
+    updates: Partial<BorrowerProfile>
   ) => Promise<BorrowerProfile | null>;
   addPrincipal: (principal: Partial<Principal>) => Promise<Principal>;
   updatePrincipal: (
@@ -109,16 +110,37 @@ export const useBorrowerProfileStore = create<
       user.email
     );
     try {
-      const profiles =
-        (await storageService.getItem<BorrowerProfile[]>("borrowerProfiles")) ||
-        [];
-      const currentProfile = profiles.find((p) => p.userId === user.email);
+      let currentProfile: BorrowerProfile | undefined | null = null;
+
+      if (user.isDemo) {
+        console.log(
+          "[BorrowerProfileStore] Loading profile from local storage for demo user."
+        );
+        const profiles =
+          (await storageService.getItem<BorrowerProfile[]>(
+            "borrowerProfiles"
+          )) || [];
+        currentProfile = profiles.find((p) => p.userId === user.email);
+      } else {
+        console.log(
+          "[BorrowerProfileStore] Loading profile from Supabase for real user."
+        );
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        if (error && error.code !== "PGRST116") throw error; // PGRST116 = no rows found
+        currentProfile = data;
+      }
 
       if (currentProfile) {
         console.log(
           `[BorrowerProfileStore] ✅ Found existing profile: ${currentProfile.id}`
         );
         set({ borrowerProfile: currentProfile });
+        // Principals are always in local storage for demo, and in Supabase for real users
+        // For now, let's assume they are only local for demo.
         const allPrincipals =
           (await storageService.getItem<Principal[]>("principals")) || [];
         set({
@@ -187,13 +209,23 @@ export const useBorrowerProfileStore = create<
 
     set({ borrowerProfile: newProfile, principals: [] });
 
-    const profiles =
-      (await storageService.getItem<BorrowerProfile[]>("borrowerProfiles")) ||
-      [];
-    await storageService.setItem("borrowerProfiles", [
-      ...profiles.filter((p) => p.userId !== user.email),
-      newProfile,
-    ]);
+    if (user.isDemo) {
+      const profiles =
+        (await storageService.getItem<BorrowerProfile[]>("borrowerProfiles")) ||
+        [];
+      await storageService.setItem("borrowerProfiles", [
+        ...profiles.filter((p) => p.userId !== user.email),
+        newProfile,
+      ]);
+    } else {
+      // For real users, this data is in the 'profiles' table, updated via Supabase functions or direct calls.
+      // This create function is mainly for the demo flow. A real user's profile is created on sign up.
+      // We can add logic here to update the Supabase profile if needed.
+      // For now, let's assume this is mostly for demo mode.
+      console.warn(
+        "[BorrowerProfileStore] createBorrowerProfile is primarily for demo users. Real user profiles are created at sign-up."
+      );
+    }
 
     console.log(
       `[BorrowerProfileStore] Created profile ${newProfile.id} for ${user.email}`
@@ -202,6 +234,7 @@ export const useBorrowerProfileStore = create<
   },
 
   updateBorrowerProfile: async (updates) => {
+    const { user } = useAuthStore.getState();
     const { borrowerProfile, principals } = get();
     if (!borrowerProfile) return null;
 
@@ -215,14 +248,27 @@ export const useBorrowerProfileStore = create<
     set({ borrowerProfile: updatedProfile });
 
     try {
-      const profiles =
-        (await storageService.getItem<BorrowerProfile[]>("borrowerProfiles")) ||
-        [];
-      const updatedProfiles = profiles.map((p) =>
-        p.id === borrowerProfile.id ? borrowerProfile : p
-      );
-      await storageService.setItem("borrowerProfiles", updatedProfiles);
-      set({ profileChanges: false });
+      if (user?.isDemo) {
+        const profiles =
+          (await storageService.getItem<BorrowerProfile[]>(
+            "borrowerProfiles"
+          )) || [];
+        const updatedProfiles = profiles.map((p) =>
+          p.id === updatedProfile.id ? updatedProfile : p
+        );
+        await storageService.setItem("borrowerProfiles", updatedProfiles);
+      } else {
+        // For real users, we would update the 'profiles' table in Supabase
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            // map fields here... for now, let's assume it's just for demo.
+            // full_legal_name: updatedProfile.fullLegalName, ...
+          })
+          .eq("id", user.id);
+        if (error) throw error;
+      }
+
       console.log(`[BorrowerProfileStore] Saved profile: ${updatedProfile.id}`);
       return updatedProfile;
     } catch (error) {
@@ -230,7 +276,6 @@ export const useBorrowerProfileStore = create<
       return null;
     }
   },
-
 
   addPrincipal: async (principalData) => {
     const { borrowerProfile } = get();
@@ -261,12 +306,19 @@ export const useBorrowerProfileStore = create<
     }));
 
     // Save principals to storage
-    const allPrincipals = (await storageService.getItem<Principal[]>("principals")) || [];
-    await storageService.setItem("principals", [...allPrincipals, newPrincipal]);
+    const allPrincipals =
+      (await storageService.getItem<Principal[]>("principals")) || [];
+    await storageService.setItem("principals", [
+      ...allPrincipals,
+      newPrincipal,
+    ]);
 
     // Recalculate and save profile completeness
     const updatedProfile = { ...borrowerProfile };
-    updatedProfile.completenessPercent = calculateCompleteness(updatedProfile, get().principals);
+    updatedProfile.completenessPercent = calculateCompleteness(
+      updatedProfile,
+      get().principals
+    );
     await get().updateBorrowerProfile(updatedProfile);
 
     return newPrincipal;
@@ -289,8 +341,11 @@ export const useBorrowerProfileStore = create<
       return { principals: newPrincipals, profileChanges: true };
     });
 
-    const allPrincipals = (await storageService.getItem<Principal[]>("principals")) || [];
-    const updatedAllPrincipals = allPrincipals.map(p => p.id === id ? updatedPrincipal! : p);
+    const allPrincipals =
+      (await storageService.getItem<Principal[]>("principals")) || [];
+    const updatedAllPrincipals = allPrincipals.map((p) =>
+      p.id === id ? updatedPrincipal! : p
+    );
     await storageService.setItem("principals", updatedAllPrincipals);
 
     return updatedPrincipal;
@@ -302,13 +357,20 @@ export const useBorrowerProfileStore = create<
       principals: state.principals.filter((p) => p.id !== id),
     }));
 
-    const allPrincipals = (await storageService.getItem<Principal[]>("principals")) || [];
-    await storageService.setItem("principals", allPrincipals.filter(p => p.id !== id));
+    const allPrincipals =
+      (await storageService.getItem<Principal[]>("principals")) || [];
+    await storageService.setItem(
+      "principals",
+      allPrincipals.filter((p) => p.id !== id)
+    );
 
     if (borrowerProfile) {
-        const updatedProfile = { ...borrowerProfile };
-        updatedProfile.completenessPercent = calculateCompleteness(updatedProfile, get().principals);
-        await get().updateBorrowerProfile(updatedProfile);
+      const updatedProfile = { ...borrowerProfile };
+      updatedProfile.completenessPercent = calculateCompleteness(
+        updatedProfile,
+        get().principals
+      );
+      await get().updateBorrowerProfile(updatedProfile);
     }
     return true;
   },
@@ -340,4 +402,3 @@ useAuthStore.subscribe((authState, prevAuthState) => {
     useBorrowerProfileStore.getState().resetProfileState();
   }
 });
-
