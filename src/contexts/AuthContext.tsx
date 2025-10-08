@@ -28,10 +28,15 @@ interface AuthContextProps {
   isAuthenticated: boolean;
   isLoading: boolean;
   loginSource: "direct" | "lenderline";
-  login: (
+  signInWithPassword: (
     email: string,
-    source?: "direct" | "lenderline",
-    role?: "borrower" | "advisor" | "lender" | "admin"
+    password: string,
+    source?: "direct" | "lenderline"
+  ) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    source?: "direct" | "lenderline"
   ) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<EnhancedUser>) => void; // Keep updateUser definition
@@ -43,7 +48,8 @@ export const AuthContext = createContext<AuthContextProps>({
   isAuthenticated: false,
   isLoading: true,
   loginSource: "direct",
-  login: async () => {},
+  signInWithPassword: async () => {},
+  signUp: async () => {},
   logout: () => {},
   updateUser: () => {},
 });
@@ -217,68 +223,92 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     [storageService, loginSource]
   );
 
-  // Login function
-  const login = useCallback(
+  // Sign In with Password
+  const signInWithPassword = useCallback(
     async (
       email: string,
-      source: "direct" | "lenderline" = "direct",
-      role: "borrower" | "advisor" | "lender" | "admin" = "borrower"
+      password: string,
+      source: "direct" | "lenderline" = "direct"
     ) => {
       try {
         const demoAccounts = [
-          'borrower1@example.com',
-          'borrower2@example.com',
-          'advisor1@capmatch.com',
-          'admin@capmatch.com',
-          'lender1@example.com'
+          "borrower1@example.com",
+          "borrower2@example.com",
+          "advisor1@capmatch.com",
+          "admin@capmatch.com",
+          "lender1@example.com",
         ];
 
-        // For demo accounts, we use a mock login. For real emails, we trigger Supabase.
-        if (demoAccounts.includes(email)) {
-          console.log(`[Auth] Using mock login for: ${email}`);
+        // For demo accounts, we use a mock login with a hardcoded password.
+        if (demoAccounts.includes(email) && password === "password123") {
+          console.log(`[Auth] Using mock sign-in for: ${email}`);
           setIsLoading(true);
           setLoginSource(source);
           await handleTestData(email);
+
           const demoUserIds: { [key: string]: string } = {
-            'borrower1@example.com': '00000000-0000-0000-0000-000000000001',
-            'borrower2@example.com': '00000000-0000-0000-0000-000000000002',
-            'advisor1@capmatch.com': '00000000-0000-0000-0000-000000000003',
-            'admin@capmatch.com':    '00000000-0000-0000-0000-000000000004',
-            'lender1@example.com':   '00000000-0000-0000-0000-000000000005',
+            "borrower1@example.com": "00000000-0000-0000-0000-000000000001",
+            "borrower2@example.com": "00000000-0000-0000-0000-000000000002",
+            "advisor1@capmatch.com": "00000000-0000-0000-0000-000000000003",
+            "admin@capmatch.com": "00000000-0000-0000-0000-000000000004",
+            "lender1@example.com": "00000000-0000-0000-0000-000000000005",
           };
-          const detectedRole = email.includes("admin@capmatch.com")
-            ? "admin"
-            : role;
+
+          let role: "borrower" | "advisor" | "admin" | "lender" = "borrower";
+          if (email.includes("admin@capmatch.com")) role = "admin";
+          else if (email.includes("advisor")) role = "advisor";
+          else if (email.includes("lender")) role = "lender";
+
           const newUser: EnhancedUser = {
             id: demoUserIds[email] || `demo-user-${email}`,
             email,
             lastLogin: new Date(),
-            role: detectedRole,
+            role: role,
             loginSource: source,
           };
           await storageService.setItem("user", newUser);
           setUser(newUser);
           setIsLoading(false);
+          sessionStorage.setItem('justLoggedIn', 'true');
+        } else if (demoAccounts.includes(email) && password !== "password123") {
+          throw new Error("Invalid password for demo account.");
         } else {
-          console.log(`[Auth] Triggering magic link for: ${email}`);
-          const { error } = await supabase.auth.signInWithOtp({
-            email,
-            options: {
-              data: { role, loginSource: source },
-              emailRedirectTo: window.location.origin,
-            },
-          });
+          console.log(`[Auth] Signing in with password for: ${email}`);
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
           if (error) throw error;
-          // The UI will show "Check your email". No state change here.
+          // onAuthStateChange will handle setting user state
         }
       } catch (error) {
-        console.error("[Auth] Login process failed:", error);
+        console.error("[Auth] Sign in process failed:", error);
         setIsLoading(false); // Ensure loading is stopped on error
         throw error;
       }
     },
     [storageService]
   );
+
+  // Sign Up function
+  const signUp = useCallback(async (email: string, password: string, source: "direct" | "lenderline" = "direct") => {
+    try {
+      console.log(`[Auth] Signing up: ${email}`);
+      let role: "borrower" | "advisor" | "admin" = "borrower";
+      if (email === 'advisor1@capmatch.com') role = 'advisor';
+      else if (email === 'admin@capmatch.com') role = 'admin';
+
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { role, loginSource: source },
+        },
+      });
+      if (error) throw error;
+      // onAuthStateChange will handle setting user state and creating profile via trigger
+    } catch (error) {
+      console.error("[Auth] Sign up process failed:", error);
+      throw error;
+    }
+  }, []);
 
   // Logout function
   const logout = useCallback(async () => {
@@ -316,7 +346,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         isAuthenticated: !!user,
         isLoading,
         loginSource,
-        login,
+        signInWithPassword,
+        signUp,
         logout,
         updateUser,
       }}
