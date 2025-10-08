@@ -152,8 +152,25 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           return;
         }
 
-        // For actual sign-in/sign-out events, show loading
-        if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        // Get current state to check if user is already authenticated
+        const currentState = get();
+        const isAlreadyAuthenticated =
+          currentState.isAuthenticated && currentState.user;
+
+        // Only show loading for actual authentication changes, not re-validation
+        if (event === "SIGNED_IN" && !isAlreadyAuthenticated) {
+          // This is a fresh login, show loading
+          set({ isLoading: true });
+          console.log(
+            "[AuthStore] 🔒 Fresh login detected, setting loading state"
+          );
+        } else if (event === "SIGNED_IN" && isAlreadyAuthenticated) {
+          // User is already logged in, this is just a session revalidation (e.g., tab switch)
+          console.log(
+            "[AuthStore] ✓ Session revalidation (user already authenticated)"
+          );
+          return; // Don't process this event, user is already set up
+        } else if (event === "SIGNED_OUT") {
           set({ isLoading: true });
         }
 
@@ -218,6 +235,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       });
 
       authSubscription = subscription;
+      console.log("[AuthStore] 🎧 Auth listener registered");
     });
 
     // Return cleanup function
