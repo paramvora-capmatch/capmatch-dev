@@ -10,7 +10,7 @@ import AuthLayout from "../../../components/layout/AuthLayout";
 import { Form, FormGroup } from "../../../components/ui/Form";
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
-import { Sparkles, Mail, Lock } from "lucide-react";
+import { Sparkles, Mail, Lock, Chrome } from "lucide-react";
 
 import { LoadingOverlay } from "../../../components/ui/LoadingOverlay";
 
@@ -20,7 +20,12 @@ const LoginForm = () => {
   const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signInWithPassword, signUp, isLoading: authLoading } = useAuth();
+  const {
+    signInWithPassword,
+    signUp,
+    signInWithGoogle,
+    isLoading: authLoading,
+  } = useAuth();
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -115,6 +120,16 @@ const LoginForm = () => {
             />
           </FormGroup>
 
+          <Button
+            type="submit"
+            variant="primary"
+            fullWidth
+            size="lg"
+            isLoading={authLoading || isSubmitting}
+          >
+            Continue with Email
+          </Button>
+
           {/* Quick Login Buttons */}
           <div className="space-y-3 pt-2">
             <p className="text-center text-xs text-gray-500">
@@ -148,14 +163,28 @@ const LoginForm = () => {
             </div>
           </div>
 
+          <div className="relative my-4">
+            <div
+              className="absolute inset-0 flex items-center"
+              aria-hidden="true"
+            >
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-gray-500">Or</span>
+            </div>
+          </div>
+
           <Button
-            type="submit"
-            variant="primary"
+            type="button"
+            variant="outline"
             fullWidth
             size="lg"
-            isLoading={authLoading || isSubmitting}
+            onClick={() => signInWithGoogle(loginSource)}
+            leftIcon={<Chrome className="h-5 w-5" />}
+            isLoading={authLoading}
           >
-            Continue
+            Sign in with Google
           </Button>
 
           <p className="text-center text-sm text-gray-600">

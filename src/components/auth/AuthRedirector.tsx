@@ -6,7 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePathname, useRouter } from "next/navigation";
 
 export const AuthRedirector = () => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, justLoggedIn, clearJustLoggedIn } =
+    useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -18,8 +19,6 @@ export const AuthRedirector = () => {
 
     const isAuthPage = pathname === "/login";
     const isHomePage = pathname === "/";
-
-    const justLoggedIn = sessionStorage.getItem("justLoggedIn");
 
     const performRedirect = () => {
       if (!user) return;
@@ -49,11 +48,11 @@ export const AuthRedirector = () => {
       // Case 2: A user just logged in via magic link or password and was redirected to the homepage.
       // Perform the one-time redirect to their dashboard.
       if (isHomePage && justLoggedIn) {
-        sessionStorage.removeItem("justLoggedIn");
+        clearJustLoggedIn(); // Clear the flag in the store
         performRedirect();
       }
     }
-  }, [isAuthenticated, isLoading, user, pathname, router]);
+  }, [isAuthenticated, isLoading, user, pathname, router, justLoggedIn, clearJustLoggedIn]);
 
   return null; // This component does not render anything
 };
