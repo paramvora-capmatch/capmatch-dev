@@ -45,7 +45,6 @@ const borrower1Project1: ProjectProfile = {
   borrowerProfileId: borrower1ProfileId,
   assignedAdvisorUserId: 'advisor1@capmatch.com', // Assign one for consistency
   projectName: 'Downtown Highrise Acquisition',
-  name: 'Downtown Highrise Acquisition', // legacy
   propertyAddressStreet: '1 Market St',
   propertyAddressCity: 'San Francisco',
   propertyAddressState: 'CA',
@@ -122,7 +121,6 @@ const borrower2Project1: ProjectProfile = {
   borrowerProfileId: borrower2ProfileId,
   assignedAdvisorUserId: 'advisor2@capmatch.com',
   projectName: 'Warehouse Development',
-  name: 'Warehouse Development', // legacy
   propertyAddressStreet: '789 Industrial Ave',
   propertyAddressCity: 'Dallas',
   propertyAddressState: 'TX',

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
-import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
+import { useBorrowerProfile } from '../../hooks/useBorrowerProfile';
 import { useAuth } from "../../hooks/useAuth"; // Import useAuth for logout
 
 import { LoadingOverlay } from "../../components/ui/LoadingOverlay";
@@ -15,6 +15,7 @@ import {
   PlusCircle,
   Loader2,
   Home,
+  Trash2,
   Link,
   FileText,
   LogOut,
@@ -27,113 +28,44 @@ export default function DashboardPage() {
   const {
     projects,
     isLoading: projectsLoading,
-    activeProject,
-    setActiveProject,
+    createProject,
     autoCreatedFirstProjectThisSession,
   } = useProjects();
   const { borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
 
-  // Combined loading state check
   const combinedLoading = authLoading || projectsLoading || profileLoading;
   const initialLoadComplete = useRef(false);
 
-  // Single function to handle project redirects with session storage check (keyed per user)
-  const handleProjectRedirect = (project: any, reason: string) => {
-    const email = user?.email || "anonymous";
-    const key = `hasAutoRedirected:${email}`;
-    const hasRedirected = sessionStorage.getItem(key);
-    if (!hasRedirected) {
-      console.log(`Dashboard: ${reason}, redirecting to: ${project.id}`);
-      sessionStorage.setItem(key, "true");
-      router.replace(`/project/workspace/${project.id}`);
-      return true; // Indicate redirect was performed
-    } else {
-      console.log(
-        `Dashboard: Auto-redirect has already occurred this session for this user. Staying on dashboard.`
-      );
-      return false; // Indicate no redirect was performed
-    }
-  };
-
   // Control Flow Logic & Loading
   useEffect(() => {
-    // Don't run redirect logic until all initial loading is potentially complete
     if (combinedLoading) {
       return;
     }
 
-    // Mark initial load as complete once all contexts are ready for the first time
     if (!initialLoadComplete.current) {
       initialLoadComplete.current = true;
     }
 
-    console.log(
-      `Dashboard: Contexts loaded. User: ${user?.role}, Projects: ${
-        projects.length
-      }, Profile: ${!!borrowerProfile}`
-    );
-
-    // Check if this is a new borrower who needs to be redirected to their project
-    if (user?.role === "borrower") {
-      console.log(
-        `Dashboard: Checking borrower status. Projects count: ${projects.length}`
-      );
-
-      // If no projects exist yet, wait for auto-creation and then redirect
-      if (projects.length === 0) {
+    // Key redirect logic for new users
+    if (
+      user?.role === "borrower" &&
+      projects.length === 1 &&
+      autoCreatedFirstProjectThisSession
+    ) {
+      const targetProject = projects[0];
+      // Use a session-based flag to ensure this redirect only happens once per login session.
+      const hasRedirectedKey = `hasAutoRedirected:${user.email}`;
+      if (!sessionStorage.getItem(hasRedirectedKey)) {
         console.log(
-          "Dashboard: New borrower detected, waiting for project creation..."
+          `Dashboard: New user with auto-created project. Redirecting to workspace...`
         );
-        waitForProjectCreation();
-        return;
-      } else if (projects.length === 1 && autoCreatedFirstProjectThisSession) {
-        // If they have exactly one project AND it was auto-created this session, redirect to it
-        const targetProject = projects[0];
-        if (
-          handleProjectRedirect(
-            targetProject,
-            "Auto-created project this session, redirecting"
-          )
-        ) {
-          return;
-        }
+        sessionStorage.setItem(hasRedirectedKey, "true");
+        router.replace(`/project/workspace/${targetProject.id}`);
       } else {
         console.log(
-          `Dashboard: Borrower has ${projects.length} projects or existing project from storage, staying on dashboard for selection`
+          "Dashboard: Auto-redirect has already happened this session. Staying on dashboard."
         );
       }
-      // If they have multiple projects, stay on dashboard to let them choose
-    }
-
-    // Handle lenderline redirects
-    const needsLenderlineRedirect =
-      user?.role === "borrower" && loginSource === "lenderline";
-    if (needsLenderlineRedirect) {
-      let targetProjectId: string | null = null;
-
-      if (loginSource === "lenderline") {
-        const sortedProjects = [...projects].sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        if (sortedProjects.length > 0) targetProjectId = sortedProjects[0].id;
-        console.log(
-          `Dashboard: Redirecting from LenderLine to newest project: ${targetProjectId}`
-        );
-      }
-
-      if (targetProjectId) {
-        console.log(
-          `Dashboard: Performing redirect to /project/workspace/${targetProjectId}`
-        );
-        router.replace(`/project/workspace/${targetProjectId}`);
-      } else {
-        console.warn(
-          "Dashboard: Cannot determine target project ID for redirect. Staying on dashboard."
-        );
-      }
-    } else {
-      console.log("Dashboard: Rendering dashboard content.");
     }
   }, [
     user,
@@ -145,66 +77,26 @@ export default function DashboardPage() {
     autoCreatedFirstProjectThisSession,
   ]);
 
-  // Wait for project creation and redirect to project workspace
-  const waitForProjectCreation = async () => {
+  // Handle creating a new project
+  const handleCreateNewProject = async () => {
     try {
-      console.log("Dashboard: Starting to wait for project creation...");
-      let attempts = 0;
-      const maxAttempts = 40; // 20 seconds max wait
-
-      while (attempts < maxAttempts) {
-        // Check if we have a project
-        if (projects.length > 0) {
-          if (autoCreatedFirstProjectThisSession) {
-            const targetProject = projects[0]; // Get the first/only project
-            handleProjectRedirect(
-              targetProject,
-              "Project created! Redirecting to project workspace"
-            );
-          } else {
-            // Project loaded from storage, stay on dashboard
-            console.log(
-              "Dashboard: Project loaded from storage, staying on dashboard"
-            );
-          }
-          return;
-        }
-
-        console.log(
-          `Dashboard: Waiting for project creation... attempt ${
-            attempts + 1
-          }/${maxAttempts}`
-        );
-        // Wait a bit and try again
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        attempts++;
-      }
-
-      // If we still don't have a project after waiting, show a message and let user manually navigate
-      console.warn(
-        "Dashboard: Project creation timeout, showing manual navigation option"
-      );
-      console.warn(
-        "Project creation is taking longer than expected. You can manually navigate to your project once it appears."
-      );
+      const newProject = await createProject({
+        projectName: `New Project ${projects.length + 1}`,
+      });
+      // Redirect to the workspace page for the new project
+      router.push(`/project/workspace/${newProject.id}`);
     } catch (error) {
-      console.error("Dashboard: Error waiting for project creation:", error);
-    }
-  };
-
-  // Manual navigation to project (fallback)
-  const navigateToProject = () => {
-    if (projects.length > 0) {
-      const targetProject = projects[0];
-      router.push(`/project/workspace/${targetProject.id}`);
+      console.error("Failed to create new project:", error);
     }
   };
 
   // Handle Logout
   const handleLogout = async () => {
     try {
+      // Clear all session-specific flags on logout
+      const keysToRemove = Object.keys(sessionStorage).filter(key => key.startsWith('hasAutoRedirected'));
+      keysToRemove.forEach(key => sessionStorage.removeItem(key));
       await logout();
-      sessionStorage.removeItem("hasAutoRedirected"); // Clear redirect flag
       console.log("Signed out successfully.");
       router.push("/login"); // Redirect to login after logout
     } catch (error) {
@@ -325,19 +217,22 @@ export default function DashboardPage() {
               </div>
 
               <Button
-                variant="primary"
-                leftIcon={<Sparkles size={18} />}
-                onClick={() => router.push("/")}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-200 px-6"
+                variant="secondary"
+                leftIcon={<PlusCircle size={18} />}
+                onClick={handleCreateNewProject}
+                className="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 shadow-sm hover:shadow-md transition-all duration-200 px-6"
               >
-                Find New Lenders
+                Create New Project
               </Button>
             </div>
 
             {projects.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {projects.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                  />
                 ))}
               </div>
             ) : (

@@ -24,6 +24,58 @@ import {
 import { getAdvisorById } from "../../lib/enhancedMockApiService";
 import { supabase } from "../../lib/supabaseClient";
 
+// Helper function to map camelCase keys from the application to snake_case keys for the database.
+const projectProfileToDbProject = (
+  profileData: Partial<ProjectProfile>
+): any => {
+  const dbData: { [key: string]: any } = {};
+  // This map defines the conversion from the JS object key to the DB column name.
+  const keyMap: { [key in keyof ProjectProfile]?: string } = {
+    projectName: "project_name",
+    assetType: "asset_type",
+    assignedAdvisorUserId: "assigned_advisor_user_id",
+    propertyAddressStreet: "property_address_street",
+    propertyAddressCity: "property_address_city",
+    propertyAddressState: "property_address_state",
+    propertyAddressCounty: "property_address_county",
+    propertyAddressZip: "property_address_zip",
+    projectDescription: "project_description",
+    projectPhase: "project_phase",
+    loanAmountRequested: "loan_amount_requested",
+    loanType: "loan_type",
+    targetLtvPercent: "target_ltv_percent",
+    targetLtcPercent: "target_ltc_percent",
+    amortizationYears: "amortization_years",
+    interestOnlyPeriodMonths: "interest_only_period_months",
+    interestRateType: "interest_rate_type",
+    targetCloseDate: "target_close_date",
+    useOfProceeds: "use_of_proceeds",
+    recoursePreference: "recourse_preference",
+    purchasePrice: "purchase_price",
+    totalProjectCost: "total_project_cost",
+    capexBudget: "capex_budget",
+    propertyNoiT12: "property_noi_t12",
+    stabilizedNoiProjected: "stabilized_noi_projected",
+    exitStrategy: "exit_strategy",
+    businessPlanSummary: "business_plan_summary",
+    marketOverviewSummary: "market_overview_summary",
+    equityCommittedPercent: "equity_committed_percent",
+    projectStatus: "project_status",
+    completenessPercent: "completeness_percent",
+    internalAdvisorNotes: "internal_advisor_notes",
+    borrowerProgress: "borrower_progress",
+    projectProgress: "project_progress",
+  };
+
+  for (const key in profileData) {
+    const mappedKey = keyMap[key as keyof ProjectProfile];
+    if (mappedKey) {
+      dbData[mappedKey] = profileData[key as keyof ProjectProfile];
+    }
+  }
+  return dbData;
+};
+
 // Define context interface
 interface ProjectContextProps {
   projects: ProjectProfile[];
@@ -94,7 +146,6 @@ const defaultProject: ProjectProfile = {
   borrowerProfileId: "",
   assignedAdvisorUserId: null,
   projectName: "",
-  name: "",
   propertyAddressStreet: "",
   propertyAddressCity: "",
   propertyAddressState: "",
@@ -129,8 +180,6 @@ const defaultProject: ProjectProfile = {
   projectProgress: 0,
   createdAt: "",
   updatedAt: "",
-  projectSections: {},
-  borrowerSections: {},
 };
 
 // Default Context value
@@ -230,6 +279,11 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
 
   const { user, isLoading: authIsLoading } = useAuth();
   const borrowerProfileContext = useContext(BorrowerProfileContext);
+  const {
+    borrowerProfile,
+    isLoading: profileIsLoading,
+    autoCreatedFirstProfileThisSession: profileAutoCreated,
+  } = borrowerProfileContext;
 
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedRef = useRef<string | null>(null);
@@ -480,18 +534,14 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   // useEffect to Load User's Projects
   useEffect(() => {
     const loadUserProjects = async () => {
-      // Explicitly wait for both auth and profile contexts to finish their initial loading.
-      if (
-        authIsLoading ||
-        (user?.role === "borrower" && borrowerProfileContext.isLoading)
-      ) {
+      // Wait for auth and profile loading to be complete
+      if (authIsLoading || (user?.role === "borrower" && profileIsLoading)) {
         setIsLoading(true);
         return;
       }
 
-      const currentProfile = borrowerProfileContext.borrowerProfile;
-      // Now that upstream contexts are stable, we can make a decision.
-      if (!user || (user.role === "borrower" && !currentProfile)) {
+      // If no user, or a borrower without a profile, there are no projects.
+      if (!user || (user.role === "borrower" && !borrowerProfile)) {
         resetProjectState();
         setIsLoading(false);
         return;
@@ -499,25 +549,24 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
 
       setIsLoading(true);
       try {
-        // RLS automatically filters to only this user's projects!
+        // RLS on the 'projects' table will automatically filter projects for the logged-in user.
         const { data: userProjects, error } = await supabase
           .from("projects")
           .select("*");
 
         if (error) throw error;
 
-        if (user.role === "borrower" && currentProfile) {
-          // For borrowers, the RLS policy on the 'projects' table automatically handles filtering.
-          // The data fetched above is already correct.
-        } else if (user.role === "advisor" || user.role === "admin") {
-          // We will implement advisor project fetching logic in a later step.
-          // For now, they will see an empty list, which is correct.
-        }
-        const projectsWithProgress = userProjects.map((p) => ({
-          ...p,
-          ...calculateProgress(p),
-        }));
+        // Supabase returns snake_case, but the JS client can map to camelCase if types are right.
+        // The type `ProjectProfile` is camelCase.
+        const projectsWithProgress = (userProjects as ProjectProfile[]).map(
+          (p) => ({
+            ...p,
+            ...calculateProgress(p),
+          })
+        );
         setProjects(projectsWithProgress);
+
+        // If the current active project is no longer in the fetched list, clear it.
         if (
           activeProject &&
           !projectsWithProgress.some((p) => p.id === activeProject.id)
@@ -525,8 +574,11 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
           setActiveProject(null);
         }
       } catch (error) {
-        console.error("[ProjectContext] Failed to load projects:", error);
-        setProjects([]);
+        console.error(
+          "[ProjectContext] Failed to load projects from Supabase:",
+          error
+        );
+        setProjects([]); // Clear projects on error
       } finally {
         setIsLoading(false);
       }
@@ -534,9 +586,9 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
     loadUserProjects();
   }, [
     user,
-    borrowerProfileContext.borrowerProfile,
+    borrowerProfile,
     authIsLoading,
-    borrowerProfileContext.isLoading,
+    profileIsLoading,
     calculateProgress,
     resetProjectState,
   ]);
@@ -729,167 +781,101 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
   // Create Project
   const createProject = useCallback(
     async (projectData: Partial<ProjectProfile>): Promise<ProjectProfile> => {
-      const currentProfile = borrowerProfileContext.borrowerProfile;
-      if (user?.role === "borrower" && !currentProfile)
-        throw new Error("[ProjectContext] Borrower profile must be loaded.");
+      if (!user) throw new Error("User must be logged in to create a project.");
+      if (user.role === "borrower" && !borrowerProfile)
+        throw new Error("Borrower profile is required to create a project.");
 
-      if (!user?.id) {
-        throw new Error("Cannot create project: User is not authenticated.");
-      }
+      // Prepare the data for insertion by converting keys to snake_case.
+      const dataToInsert = projectProfileToDbProject({
+        projectName:
+          projectData.projectName || `New Project ${projects.length + 1}`,
+        assetType: projectData.assetType || "Multifamily", // Default for required field
+        ...projectData,
+      });
 
-      const now = new Date().toISOString();
-      const uniqueId = generateUniqueId();
       const advisors = [
         { id: "advisor1@capmatch.com" },
         { id: "advisor2@capmatch.com" },
-        { id: "advisor3@capmatch.com" },
       ];
-      const randomAdvisor =
-        advisors[Math.floor(Math.random() * advisors.length)];
-
-      // Calculate next project number based on current state projects for this user
-      const currentUserProjects = projects.filter(
-        (p) => p.borrowerProfileId === currentProfile?.id
-      );
-      const nextProjectNumber = currentUserProjects.length + 1;
-      const defaultProjectName = `Unnamed Project ${nextProjectNumber}`;
-
-      const newProjectDataForDb = {
-        project_name: projectData.projectName || defaultProjectName,
-        asset_type: projectData.assetType || "Multifamily", // Ensure NOT NULL constraint is met
-        owner_id: user.id, // This satisfies the RLS policy
-      };
-
-      if (!newProjectDataForDb.owner_id) {
-        throw new Error("Cannot create project: User is not authenticated.");
-      }
-
-      // For new users (not borrower1/borrower2), start with 0% progress
-      const isTestUser =
-        user?.email === "borrower1@example.com" ||
-        user?.email === "borrower2@example.com";
-
       const { data: insertedProject, error } = await supabase
         .from("projects")
-        .insert(newProjectDataForDb)
+        .insert(dataToInsert)
         .select()
         .single();
 
-      if (error) throw error;
-
-      const newProject = insertedProject as ProjectProfile;
-
-      // Now calculate progress after the project is created
-      if (isTestUser) {
-        const progress = calculateProgress(newProject);
-        newProject.borrowerProgress = progress.borrowerProgress;
-        newProject.projectProgress = progress.projectProgress;
-        newProject.completenessPercent = progress.totalProgress;
-      } else {
-        newProject.borrowerProgress = 0;
-        newProject.projectProgress = 0;
-        newProject.completenessPercent = 0;
+      if (error) {
+        console.error(
+          "[ProjectContext] Error creating project in Supabase:",
+          error
+        );
+        throw error;
       }
 
-      setProjects((prevProjects) => [...prevProjects, newProject]);
-      setActiveProject(newProject); // Set new project active
+      // The returned project from Supabase should be castable to ProjectProfile.
+      const newProject = insertedProject as ProjectProfile;
+
+      // Calculate progress for the new project
+      const progress = calculateProgress(newProject);
+      const finalProject = { ...newProject, ...progress };
+
+      setProjects((prevProjects) => [...prevProjects, finalProject]);
+      setActiveProject(finalProject);
+
       console.log(
-        `[ProjectContext] Created: "${newProject.project_name}" (ID: ${newProject.id})`
+        `[ProjectContext] Created project in DB: "${finalProject.projectName}" (ID: ${finalProject.id})`
       );
-      return newProject;
+      return finalProject;
     },
-    [user, borrowerProfileContext.borrowerProfile, projects, calculateProgress]
+    [user, borrowerProfile, projects, calculateProgress, supabase]
   ); // dependencies reviewed
 
   // --------------------------------------------------------
   // Auto-create first project for new borrower accounts
   // --------------------------------------------------------
   useEffect(() => {
-    if (isLoading) return; // Wait for initial load
-    if (!user || user.role !== "borrower") return;
-    if (!borrowerProfileContext.borrowerProfile) return; // Need profile
-    // This check is now handled by the main useEffect loading projects from Supabase.
-    // If Supabase returns 0 projects, this flow can continue.
-    if (autoCreatedFirstProjectThisSession) return; // Prevent multiple auto-creations in same session
+    // This effect should run only after we know for sure if projects exist or not.
+    if (isLoading || authIsLoading || profileIsLoading) return;
 
-    console.log(
-      "[ProjectContext] Auto-create effect triggered for user:",
-      user.email
-    );
-
-    (async () => {
-      try {
-        // 1️⃣ Double-check storage to avoid duplicates
-        const profile = borrowerProfileContext.borrowerProfile;
-        if (!profile) return; // Safety check
-
-        // This logic is now handled by the main useEffect loading projects from Supabase.
-        // If Supabase returns 0 projects, this flow can continue.
-        const { data: projectsFromDb } = await supabase
-          .from("projects")
-          .select("id");
-        if (projectsFromDb && projectsFromDb.length > 0) {
-          console.log(
-            `[ProjectContext] Found ${projectsFromDb.length} existing projects in DB, skipping auto-create.`
-          );
-          setProjects(projectsFromDb as ProjectProfile[]);
-          // setActiveProject(projectsFromDb[0] as ProjectProfile); // Set first project as active
-          setAutoCreatedFirstProjectThisSession(false);
-          return; // nothing to create
-        }
-
-        // 2️⃣ Still none → create first project
-        console.log(
-          "[ProjectContext] No existing projects found, creating first project"
-        );
-        // For new users (not borrower1/borrower2), create completely empty project
-        const isTestUser =
-          user.email === "borrower1@example.com" ||
-          user.email === "borrower2@example.com";
-
-        if (isTestUser) {
-          // For test users, create project with default name
-          await createProject({ projectName: "Unnamed Project 1" });
-        } else {
-          // For new users, create project with truly minimal data - no defaults
+    // Conditions to trigger auto-creation:
+    // 1. We have a borrower user with a profile
+    // 2. They have ZERO projects
+    // 3. We haven't already done this in the current session
+    // 4. The profile was also just auto-created (this signals a brand new user)
+    if (
+      user?.role === "borrower" &&
+      borrowerProfile &&
+      projects.length === 0 &&
+      !autoCreatedFirstProjectThisSession &&
+      profileAutoCreated
+    ) {
+      console.log(
+        "[ProjectContext] New borrower detected, auto-creating first project..."
+      );
+      (async () => {
+        try {
           await createProject({
-            projectName: "New Project",
-            projectDescription: "",
-            assetType: "",
-            projectPhase: undefined,
-            loanAmountRequested: undefined,
-            loanType: "",
-            targetLtvPercent: undefined,
-            targetLtcPercent: undefined,
-            amortizationYears: undefined,
-            interestOnlyPeriodMonths: undefined,
-            interestRateType: undefined,
-            targetCloseDate: "",
-            useOfProceeds: "",
-            recoursePreference: undefined,
-            purchasePrice: null,
-            totalProjectCost: null,
-            capexBudget: null,
-            propertyNoiT12: null,
-            stabilizedNoiProjected: null,
-            exitStrategy: undefined,
-            businessPlanSummary: "",
-            marketOverviewSummary: "",
-            equityCommittedPercent: undefined,
+            projectName: "My First Project",
+            projectStatus: "Info Gathering",
           });
+          setAutoCreatedFirstProjectThisSession(true);
+          console.log(
+            "[ProjectContext] Auto-created first project successfully."
+          );
+        } catch (err) {
+          console.error("[ProjectContext] Auto-create project failed:", err);
         }
-        setAutoCreatedFirstProjectThisSession(true); // Set flag to true after successful auto-creation
-        console.log("[ProjectContext] Auto-created first project successfully");
-      } catch (err) {
-        console.error("[ProjectContext] Auto-create project failed:", err);
-      }
-    })();
+      })();
+    }
   }, [
     isLoading,
+    authIsLoading,
+    profileIsLoading,
     user,
-    borrowerProfileContext.borrowerProfile,
+    borrowerProfile,
+    projects.length,
     createProject,
-    calculateProgress,
+    autoCreatedFirstProjectThisSession,
+    profileAutoCreated,
   ]);
 
   // Update Project
@@ -899,40 +885,64 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
       updates: Partial<ProjectProfile>,
       manual = false
     ): Promise<ProjectProfile | null> => {
-      let updatedProject: ProjectProfile | null = null;
-      let originalStatus: ProjectStatus | undefined;
-      setProjects((prevProjects) => {
-        const i = prevProjects.findIndex((p) => p.id === id);
-        if (i === -1) return prevProjects;
-        const now = new Date().toISOString();
-        originalStatus = prevProjects[i].projectStatus;
-        updatedProject = { ...prevProjects[i], ...updates, updatedAt: now };
-        const progress = calculateProgress(updatedProject);
-        updatedProject.borrowerProgress = progress.borrowerProgress;
-        updatedProject.projectProgress = progress.projectProgress;
-        updatedProject.completenessPercent = progress.totalProgress;
-        const list = [...prevProjects];
-        list[i] = updatedProject;
-        return list;
-      });
-      if (updatedProject) {
-        if (activeProject?.id === id) {
-          setActiveProject(updatedProject);
-        } // Update active state too
-        if (manual) {
-          lastSavedRef.current = JSON.stringify(updatedProject);
-          setProjectChanges(false);
-        } else if (activeProject?.id === id) {
-          setProjectChanges(false);
-        } // Reset changes on non-manual update of active project
-        if (updates.projectStatus && updates.projectStatus !== originalStatus) {
-          await addStatusMessage(id, updates.projectStatus);
-        }
+      const projectToUpdate = projects.find((p) => p.id === id);
+      if (!projectToUpdate) {
+        console.error(
+          `[ProjectContext] Cannot update: Project with ID ${id} not found.`
+        );
+        return null;
       }
-      return updatedProject;
+
+      const now = new Date().toISOString();
+      const updatedData = { ...projectToUpdate, ...updates, updatedAt: now };
+
+      const progress = calculateProgress(updatedData);
+      const finalUpdatedProject = { ...updatedData, ...progress };
+
+      // Convert camelCase keys from the 'updates' object to snake_case for the database.
+      const updatesForDb = projectProfileToDbProject(updates);
+
+      // Optimistic UI update
+      setProjects((prev) =>
+        prev.map((p) => (p.id === id ? finalUpdatedProject : p))
+      );
+      if (activeProject?.id === id) {
+        setActiveProject(finalUpdatedProject);
+      }
+
+      const { data, error } = await supabase
+        .from("projects")
+        .update(updatesForDb) // Pass the snake_case object to Supabase
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(
+          `[ProjectContext] Error updating project ${id} in Supabase:`,
+          error
+        );
+        // Revert optimistic update on error
+        setProjects((prev) =>
+          prev.map((p) => (p.id === id ? projectToUpdate : p))
+        );
+        if (activeProject?.id === id) {
+          setActiveProject(projectToUpdate);
+        }
+        throw error;
+      }
+
+      console.log(`[ProjectContext] Updated project ${id} in DB.`);
+
+      if (manual) {
+        lastSavedRef.current = JSON.stringify(finalUpdatedProject);
+        setProjectChanges(false);
+      }
+
+      return data as ProjectProfile;
     },
-    [activeProject, calculateProgress, addStatusMessage]
-  ); // projects removed dependency
+    [projects, activeProject, calculateProgress, supabase]
+  );
 
   // Delete Project
   const deleteProject = useCallback(
@@ -941,19 +951,96 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
         const { error } = await supabase.from("projects").delete().eq("id", id);
         if (error) throw error;
 
-        setProjects((prevProjects) => prevProjects.filter((p) => p.id !== id)); // Update local state
+        // Update local state after successful deletion
+        setProjects((prevProjects) => prevProjects.filter((p) => p.id !== id));
         if (activeProject?.id === id) {
           setActiveProject(null);
-        } // Clear active if deleted
+        }
 
-        console.log(`[ProjectContext] Deleted project ${id}`);
+        console.log(`[ProjectContext] Deleted project ${id} from DB.`);
         return true;
       } catch (error) {
-        console.error(`[ProjectContext] Failed delete project ${id}:`, error);
+        console.error(
+          `[ProjectContext] Failed to delete project ${id}:`,
+          error
+        );
         return false;
       }
     },
     [activeProject]
+  );
+
+  // Auto Save Project (now with DB update)
+  useEffect(() => {
+    if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current);
+
+    const performAutoSave = async () => {
+      if (!activeProject || !projectChanges) return;
+
+      const projectStateStr = JSON.stringify(activeProject);
+      if (projectStateStr === lastSavedRef.current) {
+        setProjectChanges(false);
+        return;
+      }
+
+      try {
+        console.log(
+          `[ProjectContext] Auto-saving project: ${activeProject.projectName}`
+        );
+        // updateProject handles the DB interaction and optimistic UI update.
+        // We pass the entire activeProject state as the "updates".
+        const savedProject = await updateProject(
+          activeProject.id,
+          activeProject
+        );
+
+        if (savedProject) {
+          // After successful save, update the last saved ref and clear changes flag
+          lastSavedRef.current = JSON.stringify(savedProject);
+          setProjectChanges(false);
+        }
+      } catch (error) {
+        console.error("[ProjectContext] Auto-save to DB failed:", error);
+        // Don't clear the changes flag, so it will try again.
+      }
+    };
+
+    if (projectChanges) {
+      autoSaveTimerRef.current = setTimeout(
+        performAutoSave,
+        AUTO_SAVE_INTERVAL
+      );
+    }
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [activeProject, projectChanges, updateProject]);
+
+  // Get Project function
+  const getProject = useCallback(
+    (id: string) => projects.find((p) => p.id === id) || null,
+    [projects]
+  );
+
+  // Set Active Project and Load Data
+  const setActiveProjectAndLoadData = useCallback(
+    (project: ProjectProfile | null) => {
+      if (project?.id === activeProject?.id) return; // Avoid reload if same project
+
+      // Before switching, perform a final save if there are pending changes
+      if (projectChanges && activeProject) {
+        console.log(
+          `[ProjectContext] Saving changes for ${activeProject.projectName} before switching.`
+        );
+        updateProject(activeProject.id, activeProject, true);
+      }
+
+      setActiveProject(project);
+      setProjectChanges(false);
+      lastSavedRef.current = project ? JSON.stringify(project) : null;
+    },
+    [activeProject?.id, projectChanges, activeProject, updateProject]
   );
 
   // Add Document Requirement
@@ -1189,18 +1276,6 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
     [storageService]
   );
 
-  // Set Active Project and Load Data
-  const setActiveProjectAndLoadData = useCallback(
-    (project: ProjectProfile | null) => {
-      if (project?.id === activeProject?.id) return; // Avoid reload if same project
-      setActiveProject(project);
-      setProjectChanges(false);
-      lastSavedRef.current = project ? JSON.stringify(project) : null;
-      // Loading data now handled by useEffect watching activeProject
-    },
-    [activeProject?.id]
-  ); // Dependency changed
-
   return (
     <ProjectContext.Provider
       value={{
@@ -1213,7 +1288,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({
         createProject,
         updateProject,
         deleteProject,
-        getProject: (id: string) => projects.find((p) => p.id === id) || null,
+        getProject,
         setActiveProject: setActiveProjectAndLoadData,
         addProjectMessage,
         addDocumentRequirement,
