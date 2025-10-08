@@ -68,7 +68,6 @@ interface ProjectState {
   projectMessages: ProjectMessage[];
   projectPrincipals: ProjectPrincipal[];
   documentRequirements: ProjectDocumentRequirement[];
-  projectChanges: boolean;
   autoCreatedFirstProjectThisSession: boolean;
 }
 
@@ -79,8 +78,7 @@ interface ProjectActions {
   ) => Promise<ProjectProfile>;
   updateProject: (
     id: string,
-    updates: Partial<ProjectProfile>,
-    manual?: boolean
+    updates: Partial<ProjectProfile>
   ) => Promise<ProjectProfile | null>;
   deleteProject: (id: string) => Promise<boolean>;
   getProject: (id: string) => ProjectProfile | null;
@@ -90,8 +88,6 @@ interface ProjectActions {
     senderType?: "Borrower" | "Advisor" | "System",
     senderId?: string
   ) => Promise<ProjectMessage>;
-  setProjectChanges: (hasChanges: boolean) => void;
-  autoSaveProject: () => Promise<void>;
   resetProjectState: () => void;
   calculateProgress: (project: ProjectProfile) => {
     borrowerProgress: number;
@@ -108,7 +104,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
     projectMessages: [],
     projectPrincipals: [],
     documentRequirements: [],
-    projectChanges: false,
     autoCreatedFirstProjectThisSession: false,
 
     resetProjectState: () => {
@@ -119,7 +114,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
         projectMessages: [],
         projectPrincipals: [],
         documentRequirements: [],
-        projectChanges: false,
         autoCreatedFirstProjectThisSession: false,
         isLoading: false,
       });
@@ -221,16 +215,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
     getProject: (id) => get().projects.find((p) => p.id === id) || null,
 
     setActiveProject: (project) => {
-      const { activeProject, projectChanges, autoSaveProject } = get();
+      const { activeProject } = get();
       if (project?.id === activeProject?.id) return;
 
-      if (projectChanges && activeProject) {
-        console.log(
-          `[ProjectStore] Saving changes for ${activeProject.projectName} before switching.`
-        );
-        autoSaveProject();
-      }
-      set({ activeProject: project, projectChanges: false });
+      set({ activeProject: project });
       // Load related data for the new active project
       if (project) {
         // This logic can be expanded to fetch from DB if not using local storage for these
@@ -248,9 +236,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
       }
     },
 
-    setProjectChanges: (hasChanges) => set({ projectChanges: hasChanges }),
-
-    createProject: async (projectData) => {
+    createProject: async (projectData: Partial<ProjectProfile>) => {
       const { user } = useAuthStore.getState();
       // The RLS policy on the 'projects' table ensures only an authenticated user can insert.
       // The check for borrowerProfile here is client-side and not necessary for the DB operation.
@@ -291,7 +277,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
       return finalProject;
     },
 
-    updateProject: async (id, updates, manual = false) => {
+    updateProject: async (id, updates) => {
       const projectToUpdate = get().getProject(id);
       if (!projectToUpdate) return null;
 
@@ -311,7 +297,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
           state.activeProject?.id === id
             ? finalUpdatedProject
             : state.activeProject,
-        projectChanges: !manual,
       }));
 
       const updatesForDb = projectProfileToDbProject(updates);
@@ -338,25 +323,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
       }
 
       console.log(`[ProjectStore] Updated project ${id} in DB.`);
-      if (manual) {
-        set({ projectChanges: false });
-      }
       return data as ProjectProfile;
-    },
-
-    autoSaveProject: async () => {
-      const { activeProject, projectChanges, updateProject } = get();
-      if (!activeProject || !projectChanges) return;
-
-      try {
-        console.log(
-          `[ProjectStore] Auto-saving project: ${activeProject.projectName}`
-        );
-        await updateProject(activeProject.id, activeProject); // `updateProject` handles DB and state
-        set({ projectChanges: false });
-      } catch (error) {
-        console.error("[ProjectStore] Auto-save to DB failed:", error);
-      }
     },
 
     deleteProject: async (id) => {
@@ -454,7 +421,3 @@ useBorrowerProfileStore.subscribe((profileState, prevProfileState) => {
   }
 });
 
-// Setup auto-saving interval
-setInterval(() => {
-  useProjectStore.getState().autoSaveProject();
-}, 5000);

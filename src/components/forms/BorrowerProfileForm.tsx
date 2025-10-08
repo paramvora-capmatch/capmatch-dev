@@ -1,7 +1,7 @@
 // src/components/forms/BorrowerProfileForm.tsx
 'use client';
 
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useContext, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -52,8 +52,6 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     addPrincipal = async () => { throw new Error("addPrincipal not available"); },
     updatePrincipal = async () => { throw new Error("updatePrincipal not available"); },
     removePrincipal = async () => { throw new Error("removePrincipal not available"); },
-    setProfileChanges = () => {}, // Default to no-op
-    autoSaveBorrowerProfile = async () => {} // Default to no-op
   } = borrowerProfileHookData || {}; // Handle hook returning undefined initially
 
 
@@ -64,6 +62,7 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
   const [formData, setFormData] = useState<Partial<BorrowerProfile>>({});
   const [principalFormData, setPrincipalFormData] = useState<Partial<Principal>>({ principalRoleDefault: 'Key Principal' });
   const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize form
   useEffect(() => {
@@ -71,28 +70,50 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     setFormData(borrowerProfile ? { ...borrowerProfile } : { ...defaultData });
   }, [borrowerProfile, user?.email]);
 
+  // Debounced auto-save effect for profile form
+  useEffect(() => {
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+
+    debounceTimeout.current = setTimeout(async () => {
+      if (borrowerProfile && JSON.stringify(formData) !== JSON.stringify(borrowerProfile)) {
+        try {
+          console.log(`[ProfileForm] Auto-saving profile: ${formData.fullLegalName}`);
+          await updateBorrowerProfile(formData);
+        } catch (error) {
+          console.error('[ProfileForm] Auto-save failed:', error);
+        }
+      }
+    }, 2000); // 2-second debounce
+
+    return () => {
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
+      }
+    };
+  }, [formData, borrowerProfile, updateBorrowerProfile]);
+
   // Input change handlers
-  const handleInputChange = (field: keyof BorrowerProfile, value: any) => { setFormData(prev => ({ ...prev, [field]: value })); setProfileChanges(true); };
+  const handleInputChange = (field: keyof BorrowerProfile, value: any) => { setFormData(prev => ({ ...prev, [field]: value })); };
   const handlePrincipalInputChange = (field: keyof Principal, value: any) => { setPrincipalFormData(prev => ({ ...prev, [field]: value })); };
   const resetPrincipalForm = () => { setPrincipalFormData({ principalRoleDefault: 'Key Principal' }); }; // Reset with default role
 
   // --- Submit Profile - Safest Context Access ---
   const handleProfileSubmit = async () => {
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     try {
       setFormSaved(true);
-      // Await auto-save to process current formData
-      await autoSaveBorrowerProfile();
-      // Give context state a moment to potentially update after auto-save
-      await new Promise(res => setTimeout(res, 50));
+      await updateBorrowerProfile(formData);
 
               console.log('Profile changes saved.');
-      setFormSaved(false);
 
       if (onComplete) {
          // **Safest Check:** Access the profile directly from the hook data again *after* await
          const finalProfileState = borrowerProfileHookData?.borrowerProfile;
          if (finalProfileState) {
-              onComplete(finalProfileState);
+              // The state might not have updated yet from the async call, so pass formData
+              onComplete({ ...finalProfileState, ...formData });
          } else {
               console.warn("Profile still not available in context after save for onComplete.");
               onComplete(null); // Call onComplete with null to indicate potential issue
@@ -101,8 +122,9 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     } catch (error) {
       console.error('Error saving borrower profile:', error);
               console.error('Failed to save profile.');
-      setFormSaved(false);
        if (onComplete) onComplete(null); // Indicate failure in callback
+    } finally {
+      setTimeout(() => setFormSaved(false), 2000);
     }
   };
 
@@ -136,8 +158,8 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     // Step 5: Key Principals (JSX - Optional, uses ButtonSelect for Role)
     { id: 'principals', title: 'Key Principals', isOptional: true, component: ( <Card> <CardHeader><h2 className="text-xl font-semibold flex items-center"><Award className="mr-2"/> Key Principals (Opt)</h2></CardHeader> <CardContent className="p-4 space-y-6"><div className="border rounded p-4 bg-gray-50"><h3 className="text-lg font-semibold mb-4">Add Principal</h3><div className="grid md:grid-cols-2 gap-4"><FormGroup> <Input id="pName" label="Name" value={principalFormData.principalLegalName || ''} onChange={(e)=>handlePrincipalInputChange('principalLegalName',e.target.value)} required/> </FormGroup><FormGroup> <ButtonSelect label="Role" options={principalRoleOptions} selectedValue={principalFormData.principalRoleDefault||'Key Principal'} onSelect={(v)=>handlePrincipalInputChange('principalRoleDefault',v as PrincipalRole)} required/> </FormGroup><FormGroup> <Input id="pEmail" type="email" label="Email" value={principalFormData.principalEmail || ''} onChange={(e)=>handlePrincipalInputChange('principalEmail',e.target.value)}/> </FormGroup><FormGroup> <Input id="pOwn" type="number" label="Ownership (%)" value={principalFormData.ownershipPercentage?.toString()||''} onChange={(e)=>handlePrincipalInputChange('ownershipPercentage',Number(e.target.value||0))} min="0" max="100"/> </FormGroup><div className="md:col-span-2"><FormGroup><label className="block text-sm mb-1">Bio (Opt)</label><textarea id="pBio" value={principalFormData.principalBio||''} onChange={(e)=>handlePrincipalInputChange('principalBio',e.target.value)} rows={2} className="w-full border rounded p-2"/> </FormGroup></div></div><Button onClick={handleAddPrincipal} variant="secondary" isLoading={isAddingPrincipal} disabled={isAddingPrincipal || !borrowerProfile?.id} className="mt-3">Add</Button></div> {principals.length>0 && <div className="mt-4"><h3 className="text-lg font-semibold mb-2">Added Principals</h3><ul className="space-y-2">{principals.map(p=><li key={p.id} className="flex justify-between items-center border p-2 rounded bg-white"><span className="text-sm">{p.principalLegalName} ({p.principalRoleDefault} - {p.ownershipPercentage}%)</span><Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-100 px-1 py-0.5 h-auto" onClick={()=>handleRemovePrincipal(p.id)}>Remove</Button></li>)}</ul></div>}</CardContent> </Card> ) },
     // Step 6: Review & Save (JSX)
-    { id: 'review', title: 'Review & Save', component: ( <Card> <CardHeader><h2 className="text-xl font-semibold flex items-center"><CheckCircle className="mr-2"/> Review & Save</h2></CardHeader> <CardContent className="p-4 space-y-6"><div className="p-3 bg-blue-50 rounded text-sm border border-blue-100">Review details. Changes auto-save. Click below to manually confirm save and finish.</div><Button onClick={handleProfileSubmit} isLoading={formSaved} disabled={formSaved}>Save Profile</Button></CardContent> </Card> ) },
-  ], [formData, principals, principalFormData, isAddingPrincipal, formSaved, handleInputChange, handleProfileSubmit, handleAddPrincipal, handleRemovePrincipal, handlePrincipalInputChange, borrowerProfile?.id]) // Dependencies reviewed
+    { id: 'review', title: 'Review & Save', component: ( <Card> <CardHeader><h2 className="text-xl font-semibold flex items-center"><CheckCircle className="mr-2"/> Review & Save</h2></CardHeader> <CardContent className="p-4 space-y-6"><div className="p-3 bg-blue-50 rounded text-sm border border-blue-100">Review details. Changes auto-save. Click below to manually confirm save and finish.</div><Button onClick={handleProfileSubmit} isLoading={formSaved} disabled={formSaved} className="min-w-[140px]">{formSaved ? 'Saved!' : 'Save & Finish'}</Button></CardContent> </Card> ) },
+  ], [formData, principals, principalFormData, isAddingPrincipal, formSaved, handleInputChange, handleProfileSubmit, handleAddPrincipal, handleRemovePrincipal, handlePrincipalInputChange, borrowerProfile?.id, borrowerProfileHookData]) // Dependencies reviewed
 
 
   return (

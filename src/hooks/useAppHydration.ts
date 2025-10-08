@@ -10,24 +10,36 @@ import { useProjectStore } from '@/stores/useProjectStore';
  * `isHydrated` boolean. This solves race conditions on initial load and refresh.
  */
 export const useAppHydration = () => {
-  const [isHydrated, setIsHydrated] = useState(false);
-
   // Get loading states from all relevant stores
   const isAuthLoading = useAuthStore((state) => state.isLoading);
   const isProfileLoading = useBorrowerProfileStore((state) => state.isLoading);
   const isProjectsLoading = useProjectStore((state) => state.isLoading);
-
   const user = useAuthStore((state) => state.user);
 
-  // Determine the combined loading state
-  const isLoading = isAuthLoading || (user?.role === 'borrower' && (isProfileLoading || isProjectsLoading));
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    if (!isLoading) {
-      setIsHydrated(true);
-      console.log('[useAppHydration] ✅ App is hydrated. All stores loaded.');
+    // The master loading check.
+
+    // 1. If auth is still loading, we are definitely not hydrated.
+    if (isAuthLoading) {
+      return; // Wait for auth to resolve first.
     }
-  }, [isLoading]);
+
+    // 2. Once auth is done, check the user's role.
+    if (user?.role === 'borrower') {
+      // For borrowers, we are hydrated only when their specific data is also loaded.
+      if (!isProfileLoading && !isProjectsLoading) {
+        setIsHydrated(true);
+        console.log('[useAppHydration] ✅ App is hydrated for BORROWER.');
+      }
+    } else {
+      // For non-borrowers (advisors, admins) or logged-out guests,
+      // hydration is complete as soon as auth is resolved.
+      setIsHydrated(true);
+      console.log('[useAppHydration] ✅ App is hydrated for NON-BORROWER or GUEST.');
+    }
+  }, [isAuthLoading, isProfileLoading, isProjectsLoading, user]);
 
   return isHydrated;
 };

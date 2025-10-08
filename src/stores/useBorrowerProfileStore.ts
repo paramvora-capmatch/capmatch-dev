@@ -8,7 +8,6 @@ interface BorrowerProfileState {
   borrowerProfile: BorrowerProfile | null;
   principals: Principal[];
   isLoading: boolean;
-  profileChanges: boolean;
   autoCreatedFirstProfileThisSession: boolean;
 }
 
@@ -19,7 +18,6 @@ interface BorrowerProfileActions {
   ) => Promise<BorrowerProfile>;
   updateBorrowerProfile: (
     updates: Partial<BorrowerProfile>,
-    manual?: boolean
   ) => Promise<BorrowerProfile | null>;
   addPrincipal: (principal: Partial<Principal>) => Promise<Principal>;
   updatePrincipal: (
@@ -27,8 +25,6 @@ interface BorrowerProfileActions {
     updates: Partial<Principal>
   ) => Promise<Principal | null>;
   removePrincipal: (id: string) => Promise<boolean>;
-  setProfileChanges: (hasChanges: boolean) => void;
-  autoSaveBorrowerProfile: () => Promise<void>;
   resetProfileState: () => void;
 }
 
@@ -86,7 +82,6 @@ export const useBorrowerProfileStore = create<
   borrowerProfile: null,
   principals: [],
   isLoading: true,
-  profileChanges: false,
   autoCreatedFirstProfileThisSession: false,
 
   resetProfileState: () => {
@@ -94,7 +89,6 @@ export const useBorrowerProfileStore = create<
     set({
       borrowerProfile: null,
       principals: [],
-      profileChanges: false,
       autoCreatedFirstProfileThisSession: false,
       isLoading: false, // Done loading an empty state
     });
@@ -207,9 +201,7 @@ export const useBorrowerProfileStore = create<
     return newProfile;
   },
 
-  setProfileChanges: (hasChanges) => set({ profileChanges: hasChanges }),
-
-  updateBorrowerProfile: async (updates, manual = false) => {
+  updateBorrowerProfile: async (updates) => {
     const { borrowerProfile, principals } = get();
     if (!borrowerProfile) return null;
 
@@ -222,25 +214,6 @@ export const useBorrowerProfileStore = create<
 
     set({ borrowerProfile: updatedProfile });
 
-    if (manual) {
-      const profiles =
-        (await storageService.getItem<BorrowerProfile[]>("borrowerProfiles")) ||
-        [];
-      const updatedProfiles = profiles.map((p) =>
-        p.id === updatedProfile.id ? updatedProfile : p
-      );
-      await storageService.setItem("borrowerProfiles", updatedProfiles);
-      set({ profileChanges: false });
-    } else {
-      set({ profileChanges: true });
-    }
-    return updatedProfile;
-  },
-
-  autoSaveBorrowerProfile: async () => {
-    const { borrowerProfile, profileChanges } = get();
-    if (!borrowerProfile || !profileChanges) return;
-
     try {
       const profiles =
         (await storageService.getItem<BorrowerProfile[]>("borrowerProfiles")) ||
@@ -250,13 +223,14 @@ export const useBorrowerProfileStore = create<
       );
       await storageService.setItem("borrowerProfiles", updatedProfiles);
       set({ profileChanges: false });
-      console.log(
-        `[BorrowerProfileStore] Auto-saved profile: ${borrowerProfile.fullLegalName}`
-      );
+      console.log(`[BorrowerProfileStore] Saved profile: ${updatedProfile.id}`);
+      return updatedProfile;
     } catch (error) {
-      console.error("[BorrowerProfileStore] Auto-save failed:", error);
+      console.error("[BorrowerProfileStore] Save failed:", error);
+      return null;
     }
   },
+
 
   addPrincipal: async (principalData) => {
     const { borrowerProfile } = get();
@@ -284,9 +258,17 @@ export const useBorrowerProfileStore = create<
 
     set((state) => ({
       principals: [...state.principals, newPrincipal],
-      profileChanges: true,
     }));
-    await get().autoSaveBorrowerProfile();
+
+    // Save principals to storage
+    const allPrincipals = (await storageService.getItem<Principal[]>("principals")) || [];
+    await storageService.setItem("principals", [...allPrincipals, newPrincipal]);
+
+    // Recalculate and save profile completeness
+    const updatedProfile = { ...borrowerProfile };
+    updatedProfile.completenessPercent = calculateCompleteness(updatedProfile, get().principals);
+    await get().updateBorrowerProfile(updatedProfile);
+
     return newPrincipal;
   },
 
@@ -306,16 +288,28 @@ export const useBorrowerProfileStore = create<
       });
       return { principals: newPrincipals, profileChanges: true };
     });
-    await get().autoSaveBorrowerProfile();
+
+    const allPrincipals = (await storageService.getItem<Principal[]>("principals")) || [];
+    const updatedAllPrincipals = allPrincipals.map(p => p.id === id ? updatedPrincipal! : p);
+    await storageService.setItem("principals", updatedAllPrincipals);
+
     return updatedPrincipal;
   },
 
   removePrincipal: async (id) => {
+    const { borrowerProfile } = get();
     set((state) => ({
       principals: state.principals.filter((p) => p.id !== id),
-      profileChanges: true,
     }));
-    await get().autoSaveBorrowerProfile();
+
+    const allPrincipals = (await storageService.getItem<Principal[]>("principals")) || [];
+    await storageService.setItem("principals", allPrincipals.filter(p => p.id !== id));
+
+    if (borrowerProfile) {
+        const updatedProfile = { ...borrowerProfile };
+        updatedProfile.completenessPercent = calculateCompleteness(updatedProfile, get().principals);
+        await get().updateBorrowerProfile(updatedProfile);
+    }
     return true;
   },
 }));
@@ -347,7 +341,3 @@ useAuthStore.subscribe((authState, prevAuthState) => {
   }
 });
 
-// Setup auto-saving interval
-setInterval(() => {
-  useBorrowerProfileStore.getState().autoSaveBorrowerProfile();
-}, 5000);

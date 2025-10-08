@@ -54,15 +54,15 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           const authUser = session!.user;
           const currentUser = get().user;
 
-          // Avoid reprocessing if user is already in state and this is just a refresh event.
-          // We only want to re-run the logic if the user has been updated.
+          // On refresh, a SIGNED_IN event fires. If we already have this user in state,
+          // we can skip the expensive profile fetch and just finish loading.
           if (
             currentUser &&
             currentUser.id === authUser.id &&
-            event !== "USER_UPDATED"
+            event === "SIGNED_IN"
           ) {
             console.log(
-              `[AuthStore] ✅ User ${authUser.email} already in state. No change needed for event: ${event}.`
+              `[AuthStore] ✅ User ${authUser.email} already in state during SIGNED_IN (refresh). Finalizing auth check.`
             );
             get()._setLoading(false); // We are done loading.
             return;

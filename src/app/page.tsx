@@ -1,7 +1,7 @@
 // src/app/page.tsx
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SplashScreen } from '../components/ui/SplashScreen';
@@ -81,11 +81,11 @@ export default function HomePage() {
     }
   }, []); // Run only once on component mount
 
-  const handleLogoAnimationStart = (pos: { x: number, y: number, width: number, height: number }) => { 
+  const handleLogoAnimationStart = useCallback((pos: { x: number, y: number, width: number, height: number }) => {
     setLogoStartPosition(pos); 
     setLogoAnimating(true); 
     setHeaderLogoHidden(true);
-  };
+  }, []);
 
   useEffect(() => { if (splashComplete) { const t = setTimeout(() => { setContentVisible(true); setTimeout(() => { setTextAnimation(p => ({ ...p, part1Visible: true })); setHeaderTextVisible(true); }, 300); setTimeout(() => setTextAnimation(p => ({ ...p, part2Visible: true })), 800); setTimeout(() => setTextAnimation(p => ({ ...p, part3Visible: true })), 1300); }, 100); return () => clearTimeout(t); } }, [splashComplete]);
 
@@ -122,7 +122,7 @@ export default function HomePage() {
     }
   };
 
-  const handleLogoAnimationComplete = () => {
+  const handleLogoAnimationComplete = useCallback(() => {
     setLogoAnimating(false);
     setHeaderLogoHidden(false);
     try {
@@ -132,11 +132,15 @@ export default function HomePage() {
     }
     // Small delay to ensure smooth transition
     setTimeout(() => setHeaderVisible(true), 100);
-  };
+  }, []);
+
+  const handleSplashComplete = useCallback(() => {
+    setSplashComplete(true);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      {!splashComplete && ( <SplashScreen onComplete={() => setSplashComplete(true)} onLogoAnimationStart={handleLogoAnimationStart} /> )}
+      {!splashComplete && ( <SplashScreen onComplete={handleSplashComplete} onLogoAnimationStart={handleLogoAnimationStart} /> )}
 
       {/* Always render header so target ref exists for animation; keep logo hidden until handoff */}
       <EnhancedHeader 
