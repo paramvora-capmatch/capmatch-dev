@@ -77,6 +77,41 @@ const calculateCompleteness = (
   return Math.min(100, Math.round((filledCount / maxPoints) * 100));
 };
 
+const createDefaultBorrowerProfile = (
+  userId: string,
+  email: string,
+  fullName?: string | null
+): BorrowerProfile => {
+  const now = new Date().toISOString();
+  return {
+    id: userId,
+    userId: email,
+    fullLegalName: fullName || "",
+    primaryEntityName: "",
+    primaryEntityStructure: "LLC",
+    contactEmail: email,
+    contactPhone: "",
+    contactAddress: "",
+    bioNarrative: "",
+    linkedinUrl: "",
+    websiteUrl: "",
+    yearsCREExperienceRange: "0-2",
+    assetClassesExperience: [],
+    geographicMarketsExperience: [],
+    totalDealValueClosedRange: "N/A",
+    existingLenderRelationships: "",
+    creditScoreRange: "N/A",
+    netWorthRange: "<$1M",
+    liquidityRange: "<$100k",
+    bankruptcyHistory: false,
+    foreclosureHistory: false,
+    litigationHistory: false,
+    completenessPercent: 0,
+    createdAt: now,
+    updatedAt: now,
+  };
+};
+
 export const useBorrowerProfileStore = create<
   BorrowerProfileState & BorrowerProfileActions
 >((set, get) => ({
@@ -110,7 +145,7 @@ export const useBorrowerProfileStore = create<
       user.email
     );
     try {
-      let currentProfile: BorrowerProfile | undefined | null = null;
+      let profileToSet: BorrowerProfile | undefined | null = null;
 
       if (user.isDemo) {
         console.log(
@@ -120,32 +155,53 @@ export const useBorrowerProfileStore = create<
           (await storageService.getItem<BorrowerProfile[]>(
             "borrowerProfiles"
           )) || [];
-        currentProfile = profiles.find((p) => p.userId === user.email);
+        profileToSet = profiles.find((p) => p.userId === user.email);
       } else {
         console.log(
           "[BorrowerProfileStore] Loading profile from Supabase for real user."
         );
         const { data, error } = await supabase
           .from("profiles")
-          .select("*")
+          .select("id, email, full_name")
           .eq("id", user.id)
           .single();
         if (error && error.code !== "PGRST116") throw error; // PGRST116 = no rows found
-        currentProfile = data;
+
+        if (data) {
+          const extendedProfile = await storageService.getItem<BorrowerProfile>(
+            `borrowerProfile_${user.id}`
+          );
+          if (extendedProfile) {
+            profileToSet = {
+              ...extendedProfile,
+              id: data.id,
+              userId: data.email,
+              contactEmail: data.email,
+              fullLegalName: data.full_name || extendedProfile.fullLegalName,
+            };
+          } else {
+            profileToSet = createDefaultBorrowerProfile(
+              data.id,
+              data.email,
+              data.full_name
+            );
+            set({ autoCreatedFirstProfileThisSession: true });
+          }
+        }
       }
 
-      if (currentProfile) {
+      if (profileToSet) {
         console.log(
-          `[BorrowerProfileStore] ✅ Found existing profile: ${currentProfile.id}`
+          `[BorrowerProfileStore] ✅ Found existing profile: ${profileToSet.id}`
         );
-        set({ borrowerProfile: currentProfile });
+        set({ borrowerProfile: profileToSet });
         // Principals are always in local storage for demo, and in Supabase for real users
         // For now, let's assume they are only local for demo.
         const allPrincipals =
           (await storageService.getItem<Principal[]>("principals")) || [];
         set({
           principals: allPrincipals.filter(
-            (p) => p.borrowerProfileId === currentProfile.id
+            (p) => p.borrowerProfileId === profileToSet!.id
           ),
         });
       } else {
@@ -176,40 +232,20 @@ export const useBorrowerProfileStore = create<
     const { user } = useAuthStore.getState();
     if (!user) throw new Error("User must be logged in");
 
-    const now = new Date().toISOString();
-    const newProfile: BorrowerProfile = {
-      id: generateUniqueId("profile"),
-      userId: user.email,
-      fullLegalName: profileData.fullLegalName || "",
-      primaryEntityName: profileData.primaryEntityName || "",
-      primaryEntityStructure: profileData.primaryEntityStructure || "LLC",
-      contactEmail: user.email,
-      contactPhone: "",
-      contactAddress: "",
-      bioNarrative: "",
-      linkedinUrl: "",
-      websiteUrl: "",
-      yearsCREExperienceRange: "0-2",
-      assetClassesExperience: [],
-      geographicMarketsExperience: [],
-      totalDealValueClosedRange: "N/A",
-      existingLenderRelationships: "",
-      creditScoreRange: "N/A",
-      netWorthRange: "<$1M",
-      liquidityRange: "<$100k",
-      bankruptcyHistory: false,
-      foreclosureHistory: false,
-      litigationHistory: false,
-      completenessPercent: 0,
-      createdAt: now,
-      updatedAt: now,
-      ...profileData,
-    };
+    const newProfile = createDefaultBorrowerProfile(
+      user.id || generateUniqueId("profile"),
+      user.email,
+      user.name
+    );
+    Object.assign(newProfile, profileData);
+
     newProfile.completenessPercent = calculateCompleteness(newProfile, []);
 
     set({ borrowerProfile: newProfile, principals: [] });
 
     if (user.isDemo) {
+      newProfile.id = generateUniqueId("profile"); // Ensure demo profile has unique ID
+      newProfile.userId = user.email; // Demo users are identified by email
       const profiles =
         (await storageService.getItem<BorrowerProfile[]>("borrowerProfiles")) ||
         [];
@@ -217,13 +253,10 @@ export const useBorrowerProfileStore = create<
         ...profiles.filter((p) => p.userId !== user.email),
         newProfile,
       ]);
-    } else {
-      // For real users, this data is in the 'profiles' table, updated via Supabase functions or direct calls.
-      // This create function is mainly for the demo flow. A real user's profile is created on sign up.
-      // We can add logic here to update the Supabase profile if needed.
-      // For now, let's assume this is mostly for demo mode.
+    } else if (user) {
+      // For real users, a default profile is created in memory and will be saved to local storage on first update.
       console.warn(
-        "[BorrowerProfileStore] createBorrowerProfile is primarily for demo users. Real user profiles are created at sign-up."
+        "[BorrowerProfileStore] createBorrowerProfile called for real user. A default profile is created in memory and will be saved to local storage on first update."
       );
     }
 
@@ -248,25 +281,28 @@ export const useBorrowerProfileStore = create<
     set({ borrowerProfile: updatedProfile });
 
     try {
-      if (user?.isDemo) {
+      if (user?.isDemo && user.email) {
         const profiles =
           (await storageService.getItem<BorrowerProfile[]>(
             "borrowerProfiles"
           )) || [];
         const updatedProfiles = profiles.map((p) =>
-          p.id === updatedProfile.id ? updatedProfile : p
+          p.userId === user.email ? updatedProfile : p
         );
         await storageService.setItem("borrowerProfiles", updatedProfiles);
-      } else {
-        // For real users, we would update the 'profiles' table in Supabase
-        const { error } = await supabase
+      } else if (user) {
+        // For real users, update the 'profiles' table with relevant fields
+        const { error: dbError } = await supabase
           .from("profiles")
-          .update({
-            // map fields here... for now, let's assume it's just for demo.
-            // full_legal_name: updatedProfile.fullLegalName, ...
-          })
+          .update({ full_name: updatedProfile.fullLegalName })
           .eq("id", user.id);
-        if (error) throw error;
+        if (dbError) throw dbError;
+
+        // And save the full extended profile to user-specific local storage
+        await storageService.setItem(
+          `borrowerProfile_${user.id}`,
+          updatedProfile
+        );
       }
 
       console.log(`[BorrowerProfileStore] Saved profile: ${updatedProfile.id}`);
@@ -338,8 +374,10 @@ export const useBorrowerProfileStore = create<
         }
         return p;
       });
-      return { principals: newPrincipals, profileChanges: true };
+      return { principals: newPrincipals };
     });
+
+    if (!updatedPrincipal) return null;
 
     const allPrincipals =
       (await storageService.getItem<Principal[]>("principals")) || [];
@@ -378,27 +416,48 @@ export const useBorrowerProfileStore = create<
 
 // Subscribe to auth store to automatically load or reset the profile
 useAuthStore.subscribe((authState, prevAuthState) => {
-  // On login/session hydration
-  if (
-    authState.user &&
-    !authState.isLoading &&
-    (authState.user?.id !== prevAuthState.user?.id || prevAuthState.isLoading)
-  ) {
-    if (authState.user.role === "borrower") {
+  const currentUser = authState.user;
+  const prevUser = prevAuthState.user;
+  const wasLoading = prevAuthState.isLoading;
+  const isLoading = authState.isLoading;
+  const currentProfileUserId =
+    useBorrowerProfileStore.getState().borrowerProfile?.userId;
+
+  // Case 1: User logged out
+  if (!currentUser && prevUser) {
+    console.log(
+      "[ProfileStore Subscription] 👋 User logged out. Resetting profile state."
+    );
+    useBorrowerProfileStore.getState().resetProfileState();
+    return;
+  }
+
+  // Case 2: Non-borrower logged in
+  if (currentUser && !isLoading && currentUser.role !== "borrower") {
+    console.log(
+      "[ProfileStore Subscription] ℹ️ Non-borrower user. Resetting profile state."
+    );
+    useBorrowerProfileStore.getState().resetProfileState();
+    return;
+  }
+
+  // Case 3: Borrower user ready to load (auth just finished loading OR user changed)
+  if (currentUser && !isLoading && currentUser.role === "borrower") {
+    // Only trigger if:
+    // a) Auth was loading and now isn't (fresh auth completion)
+    // b) User changed (different ID)
+    // c) No profile loaded yet for this user
+    const shouldLoad =
+      wasLoading || // Auth just completed
+      (prevUser && currentUser.id !== prevUser.id) || // User switched
+      currentProfileUserId !== currentUser.email; // Profile not loaded for current user
+
+    if (shouldLoad) {
       console.log(
-        "[Subscription] Auth user detected. Triggering profile load."
+        "[ProfileStore Subscription] 🔄 Triggering profile load for borrower:",
+        currentUser.email
       );
       useBorrowerProfileStore.getState().loadBorrowerProfile();
-    } else {
-      // If the logged-in user is not a borrower, there's no profile to load.
-      // Resetting the state clears any previous borrower's data and sets loading to false.
-      console.log(
-        "[Subscription] Non-borrower user detected. Resetting profile state."
-      );
-      useBorrowerProfileStore.getState().resetProfileState();
     }
-  } // On logout
-  else if (!authState.user && prevAuthState.user) {
-    useBorrowerProfileStore.getState().resetProfileState();
   }
 });
