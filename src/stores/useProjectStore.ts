@@ -317,6 +317,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					"Borrower profile must exist to create a project."
 				);
 
+			if (get().projects.length === 0) {
+				set({ autoCreatedFirstProjectThisSession: true });
+			}
+
 			let advisorId: string | null = null;
 			if (user.isDemo) {
 				advisorId = "advisor1@capmatch.com";
@@ -324,14 +328,19 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// For real users, query for an advisor to assign
 				const { data: advisors, error: advisorError } = await supabase
 					.from("profiles")
-					.select("id") // select the UUID
-					.eq("role", "advisor")
-					.limit(1);
+					.select("id")
+					.eq("email", "real.advisor@capmatch.com")
+					.single();
 
 				if (advisorError) {
 					console.error(
 						"Error fetching advisor to assign:",
 						advisorError
+					);
+				} else if (advisors) {
+					advisorId = advisors.id; // this is a UUID
+					console.log(
+						`[ProjectStore] Assigning advisor with ID: ${advisorId}`
 					);
 				} else if (advisors && advisors.length > 0) {
 					advisorId = advisors[0].id; // this is a UUID
@@ -339,9 +348,16 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						`[ProjectStore] Assigning advisor with ID: ${advisorId}`
 					);
 				} else {
-					console.warn(
-						"[ProjectStore] No advisors found in the database to assign to the new project."
-					);
+					console.warn("[ProjectStore] Specific advisor 'real.advisor@capmatch.com' not found. Assigning first available advisor.");
+					const { data: fallbackAdvisors, error: fallbackError } = await supabase
+						.from("profiles")
+						.select("id")
+						.eq("role", "advisor")
+						.limit(1);
+					if (fallbackError) console.error("Fallback advisor fetch failed:", fallbackError);
+					else if (fallbackAdvisors && fallbackAdvisors.length > 0) {
+						advisorId = fallbackAdvisors[0].id;
+					} else console.warn("[ProjectStore] No advisors found at all.");
 				}
 			}
 
