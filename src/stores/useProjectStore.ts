@@ -215,25 +215,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				}));
 
 				set({ projects: projectsWithProgress });
-
-				// Auto-create first project for new users
-				const { autoCreatedFirstProfileThisSession } =
-					useBorrowerProfileStore.getState();
-
-				if (
-					user.role === "borrower" &&
-					projectsWithProgress.length === 0 &&
-					autoCreatedFirstProfileThisSession
-				) {
-					console.log(
-						"[ProjectStore] New borrower detected, auto-creating first project..."
-					);
-					await get().createProject({
-						projectName: "My First Project",
-						projectStatus: "Info Gathering",
-					});
-					set({ autoCreatedFirstProjectThisSession: true });
-				}
 			} catch (error) {
 				console.error("[ProjectStore] Failed to load projects:", error);
 				set({ projects: [] });
