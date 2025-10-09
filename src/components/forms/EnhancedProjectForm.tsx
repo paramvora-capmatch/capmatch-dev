@@ -367,7 +367,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Requested Loan Amount ($)" 
                       value={formData.loanAmountRequested?.toString() || ''} 
-                      onChange={(e) => handleInputChange('loanAmountRequested', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('loanAmountRequested', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 10000000" 
                       required 
                       data-field-id="loanAmountRequested"
@@ -410,7 +410,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Target LTV (%)" 
                       value={formData.targetLtvPercent?.toString() || ''} 
-                      onChange={(e) => handleInputChange('targetLtvPercent', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('targetLtvPercent', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 70" 
                       required 
                       data-field-id="targetLtvPercent"
@@ -429,7 +429,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Target LTC (%) (Construction/Dev)" 
                       value={formData.targetLtcPercent?.toString() || ''} 
-                      onChange={(e) => handleInputChange('targetLtcPercent', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('targetLtcPercent', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 80" 
                       data-field-id="targetLtcPercent"
                       data-field-type="number"
@@ -449,7 +449,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Amortization (Years)" 
                       value={formData.amortizationYears?.toString() || ''} 
-                      onChange={(e) => handleInputChange('amortizationYears', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('amortizationYears', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 30" 
                       data-field-id="amortizationYears"
                       data-field-type="number"
@@ -467,7 +467,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Interest-Only Period (Months)" 
                       value={formData.interestOnlyPeriodMonths?.toString() || ''} 
-                      onChange={(e) => handleInputChange('interestOnlyPeriodMonths', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('interestOnlyPeriodMonths', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 36" 
                       data-field-id="interestOnlyPeriodMonths"
                       data-field-type="number"
@@ -638,7 +638,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     type="number" 
                     label="Equity Committed (%)" 
                     value={formData.equityCommittedPercent?.toString() || ''} 
-                    onChange={(e) => handleInputChange('equityCommittedPercent', e.target.value ? Number(e.target.value) : 0)} 
+                    onChange={(e) => handleInputChange('equityCommittedPercent', e.target.value ? Number(e.target.value) : null)}
                     placeholder="e.g., 100" 
                     data-field-id="equityCommittedPercent"
                     data-field-type="number"
@@ -658,7 +658,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                      type="number" 
                      label="Current/T12 NOI ($)" 
                      value={formData.propertyNoiT12?.toString() || ''} 
-                     onChange={(e) => handleInputChange('propertyNoiT12', e.target.value ? Number(e.target.value) : null)} 
+                     onChange={(e) => handleInputChange('propertyNoiT12', e.target.value ? Number(e.target.value) : null)}
                      placeholder="e.g., 450000" 
                      data-field-id="propertyNoiT12"
                      data-field-type="number"
@@ -676,7 +676,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                      type="number" 
                      label="Projected Stabilized NOI ($)" 
                      value={formData.stabilizedNoiProjected?.toString() || ''} 
-                     onChange={(e) => handleInputChange('stabilizedNoiProjected', e.target.value ? Number(e.target.value) : null)} 
+                     onChange={(e) => handleInputChange('stabilizedNoiProjected', e.target.value ? Number(e.target.value) : null)}
                      placeholder="e.g., 750000" 
                      data-field-id="stabilizedNoiProjected"
                      data-field-type="number"
