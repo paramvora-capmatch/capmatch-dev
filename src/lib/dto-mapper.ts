@@ -1,5 +1,9 @@
 // src/lib/dto-mapper.ts
-import { ProjectProfile } from '@/types/enhanced-types';
+import {
+	BorrowerProfile,
+	Principal,
+	ProjectProfile,
+} from "@/types/enhanced-types";
 
 /**
  * Maps a project object from the database (snake_case) to the application's ProjectProfile model (camelCase).
@@ -50,4 +54,68 @@ export const dbProjectToProjectProfile = (dbProject: any): ProjectProfile => {
     projectSections: {},
     borrowerSections: {},
   };
+};
+
+/**
+ * Maps a borrower object from the database to the application's BorrowerProfile model.
+ * @param dbBorrower - The borrower data from Supabase.
+ * @param user - The authenticated user object containing email.
+ * @returns A BorrowerProfile object.
+ */
+export const dbBorrowerToBorrowerProfile = (
+	dbBorrower: any,
+	user: { email: string; name?: string }
+): BorrowerProfile => {
+	return {
+		id: dbBorrower.id,
+		userId: user.email,
+		contactEmail: user.email,
+		fullLegalName: dbBorrower.full_legal_name || user.name || "",
+		primaryEntityName: dbBorrower.primary_entity_name || "",
+		primaryEntityStructure: dbBorrower.primary_entity_structure || "LLC",
+		contactPhone: dbBorrower.contact_phone || "",
+		contactAddress: dbBorrower.contact_address || "",
+		bioNarrative: dbBorrower.bio_narrative || "",
+		linkedinUrl: dbBorrower.linkedin_url || "",
+		websiteUrl: dbBorrower.website_url || "",
+		yearsCREExperienceRange: dbBorrower.years_cre_experience_range || "0-2",
+		assetClassesExperience: dbBorrower.asset_classes_experience || [],
+		geographicMarketsExperience: dbBorrower.geographic_markets_experience || [],
+		totalDealValueClosedRange: dbBorrower.total_deal_value_closed_range || "N/A",
+		existingLenderRelationships: dbBorrower.existing_lender_relationships || "",
+		creditScoreRange: dbBorrower.credit_score_range || "N/A",
+		netWorthRange: dbBorrower.net_worth_range || "<$1M",
+		liquidityRange: dbBorrower.liquidity_range || "<$100k",
+		bankruptcyHistory: dbBorrower.bankruptcy_history || false,
+		foreclosureHistory: dbBorrower.foreclosure_history || false,
+		litigationHistory: dbBorrower.litigation_history || false,
+		createdAt: dbBorrower.created_at,
+		updatedAt: dbBorrower.updated_at,
+		completenessPercent: 0, // Will be recalculated
+	};
+};
+
+/**
+ * Maps a principal object from the database to the application's Principal model.
+ * @param dbPrincipal - The principal data from Supabase.
+ * @returns A Principal object.
+ */
+export const dbPrincipalToPrincipal = (dbPrincipal: any): Principal => {
+	return {
+		id: dbPrincipal.id,
+		borrowerProfileId: dbPrincipal.borrower_profile_id,
+		principalLegalName: dbPrincipal.principal_legal_name,
+		principalRoleDefault: dbPrincipal.principal_role_default,
+		principalBio: dbPrincipal.principal_bio,
+		principalEmail: dbPrincipal.principal_email,
+		ownershipPercentage: dbPrincipal.ownership_percentage,
+		creditScoreRange: dbPrincipal.credit_score_range,
+		netWorthRange: dbPrincipal.net_worth_range,
+		liquidityRange: dbPrincipal.liquidity_range,
+		bankruptcyHistory: dbPrincipal.bankruptcy_history,
+		foreclosureHistory: dbPrincipal.foreclosure_history,
+		pfsDocumentId: dbPrincipal.pfs_document_id,
+		createdAt: dbPrincipal.created_at,
+		updatedAt: dbPrincipal.updated_at,
+	};
 };

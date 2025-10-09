@@ -3,6 +3,10 @@ import { create } from "zustand";
 import { storageService } from "@/lib/storage";
 import { useAuthStore } from "./useAuthStore";
 import { BorrowerProfile, Principal } from "@/types/enhanced-types";
+import {
+	dbBorrowerToBorrowerProfile,
+	dbPrincipalToPrincipal,
+} from "@/lib/dto-mapper";
 import { supabase } from "../../lib/supabaseClient";
 
 interface BorrowerProfileState {
@@ -132,9 +136,10 @@ export const useBorrowerProfileStore = create<
 	loadBorrowerProfile: async () => {
 		const { user } = useAuthStore.getState();
 		if (!user || user.role !== "borrower") {
-			get().resetProfileState();
+			useBorrowerProfileStore.getState().resetProfileState();
 			return;
 		}
+
 		// Only set loading if there's no profile for the current user yet.
 		if (get().borrowerProfile?.userId !== user.email) {
 			set({ isLoading: true });
@@ -144,7 +149,8 @@ export const useBorrowerProfileStore = create<
 			user.email
 		);
 		try {
-			let profileToSet: BorrowerProfile | undefined | null = null;
+			let profileToSet: BorrowerProfile | null = null;
+			let principalsToSet: Principal[] = [];
 
 			if (user.isDemo) {
 				console.log(
@@ -155,38 +161,61 @@ export const useBorrowerProfileStore = create<
 						"borrowerProfiles"
 					)) || [];
 				profileToSet = profiles.find((p) => p.userId === user.email);
+
+				if (profileToSet) {
+					const allPrincipals =
+						(await storageService.getItem<Principal[]>(
+							"principals"
+						)) || [];
+					principalsToSet = allPrincipals.filter(
+						(p) => p.borrowerProfileId === profileToSet!.id
+					);
+				}
 			} else {
 				console.log(
 					"[BorrowerProfileStore] Loading profile from Supabase for real user."
 				);
-				const { data, error } = await supabase
-					.from("profiles")
-					.select("id, email, full_name")
-					.eq("id", user.id)
-					.single();
-				if (error && error.code !== "PGRST116") throw error; // PGRST116 = no rows found
+				const { data: borrowerData, error: borrowerError } =
+					await supabase
+						.from("borrowers")
+						.select("*")
+						.eq("id", user.id)
+						.single();
 
-				if (data) {
-					const extendedProfile =
-						await storageService.getItem<BorrowerProfile>(
-							`borrowerProfile_${user.id}`
-						);
-					if (extendedProfile) {
-						profileToSet = {
-							...extendedProfile,
-							id: data.id,
-							userId: data.email,
-							contactEmail: data.email,
-							fullLegalName:
-								data.full_name || extendedProfile.fullLegalName,
-						};
-					} else {
-						profileToSet = createDefaultBorrowerProfile(
-							data.id,
-							data.email,
-							data.full_name
-						);
-					}
+				if (borrowerError && borrowerError.code !== "PGRST116")
+					throw borrowerError;
+
+				let finalBorrowerData = borrowerData;
+				// If no profile exists (e.g., first login for an old user before trigger was added), create it.
+				if (!borrowerData) {
+					console.log(
+						`[BorrowerProfileStore] No borrower profile found for ${user.id}, creating one.`
+					);
+					const { data: newBorrowerData, error: insertError } =
+						await supabase
+							.from("borrowers")
+							.insert({ id: user.id, full_legal_name: user.name })
+							.select()
+							.single();
+					if (insertError) throw insertError;
+					finalBorrowerData = newBorrowerData;
+				}
+
+				if (finalBorrowerData) {
+					profileToSet = dbBorrowerToBorrowerProfile(
+						finalBorrowerData,
+						user
+					);
+
+					const { data: principalsData, error: principalsError } =
+						await supabase
+							.from("principals")
+							.select("*")
+							.eq("borrower_profile_id", finalBorrowerData.id);
+					if (principalsError) throw principalsError;
+					principalsToSet = principalsData.map(
+						dbPrincipalToPrincipal
+					);
 				}
 			}
 
@@ -194,16 +223,13 @@ export const useBorrowerProfileStore = create<
 				console.log(
 					`[BorrowerProfileStore] ✅ Found existing profile: ${profileToSet.id}`
 				);
-				set({ borrowerProfile: profileToSet });
-				// Principals are always in local storage for demo, and in Supabase for real users
-				// For now, let's assume they are only local for demo.
-				const allPrincipals =
-					(await storageService.getItem<Principal[]>("principals")) ||
-					[];
+				profileToSet.completenessPercent = calculateCompleteness(
+					profileToSet,
+					principalsToSet
+				);
 				set({
-					principals: allPrincipals.filter(
-						(p) => p.borrowerProfileId === profileToSet!.id
-					),
+					borrowerProfile: profileToSet,
+					principals: principalsToSet,
 				});
 			} else {
 				// Auto-create profile for new user
@@ -248,9 +274,8 @@ export const useBorrowerProfileStore = create<
 
 		set({ borrowerProfile: newProfile, principals: [] });
 
+		// This function should now only be used for demo users, as the trigger/load handles real users.
 		if (user.isDemo) {
-			newProfile.id = generateUniqueId("profile"); // Ensure demo profile has unique ID
-			newProfile.userId = user.email; // Demo users are identified by email
 			const profiles =
 				(await storageService.getItem<BorrowerProfile[]>(
 					"borrowerProfiles"
@@ -259,10 +284,9 @@ export const useBorrowerProfileStore = create<
 				...profiles.filter((p) => p.userId !== user.email),
 				newProfile,
 			]);
-		} else if (user) {
-			// For real users, a default profile is created in memory and will be saved to local storage on first update.
+		} else {
 			console.warn(
-				"[BorrowerProfileStore] createBorrowerProfile called for real user. A default profile is created in memory and will be saved to local storage on first update."
+				"[BorrowerProfileStore] createBorrowerProfile called for a real user. This should be handled by the trigger on new user signup."
 			);
 		}
 
@@ -304,18 +328,47 @@ export const useBorrowerProfileStore = create<
 					updatedProfiles
 				);
 			} else if (user) {
-				// For real users, update the 'profiles' table with relevant fields
+				// For real users, update the 'borrowers' table
+				const dbUpdates = {
+					updated_at: now,
+					full_legal_name: updatedProfile.fullLegalName,
+					primary_entity_name: updatedProfile.primaryEntityName,
+					primary_entity_structure:
+						updatedProfile.primaryEntityStructure,
+					contact_phone: updatedProfile.contactPhone,
+					contact_address: updatedProfile.contactAddress,
+					bio_narrative: updatedProfile.bioNarrative,
+					linkedin_url: updatedProfile.linkedinUrl,
+					website_url: updatedProfile.websiteUrl,
+					years_cre_experience_range:
+						updatedProfile.yearsCREExperienceRange,
+					asset_classes_experience:
+						updatedProfile.assetClassesExperience,
+					geographic_markets_experience:
+						updatedProfile.geographicMarketsExperience,
+					total_deal_value_closed_range:
+						updatedProfile.totalDealValueClosedRange,
+					existing_lender_relationships:
+						updatedProfile.existingLenderRelationships,
+					credit_score_range: updatedProfile.creditScoreRange,
+					net_worth_range: updatedProfile.netWorthRange,
+					liquidity_range: updatedProfile.liquidityRange,
+					bankruptcy_history: updatedProfile.bankruptcyHistory,
+					foreclosure_history: updatedProfile.foreclosureHistory,
+					litigation_history: updatedProfile.litigationHistory,
+				};
 				const { error: dbError } = await supabase
-					.from("profiles")
-					.update({ full_name: updatedProfile.fullLegalName })
+					.from("borrowers")
+					.update(dbUpdates)
 					.eq("id", user.id);
 				if (dbError) throw dbError;
 
-				// And save the full extended profile to user-specific local storage
-				await storageService.setItem(
-					`borrowerProfile_${user.id}`,
-					updatedProfile
-				);
+				// Also update full_name in profiles table to keep it in sync for other parts of the app
+				const { error: profileDbError } = await supabase
+					.from("profiles")
+					.update({ full_name: updatedProfile.fullLegalName })
+					.eq("id", user.id);
+				if (profileDbError) throw profileDbError;
 			}
 
 			console.log(
@@ -329,6 +382,7 @@ export const useBorrowerProfileStore = create<
 	},
 
 	addPrincipal: async (principalData) => {
+		const { user } = useAuthStore.getState();
 		const { borrowerProfile } = get();
 		if (!borrowerProfile) throw new Error("Profile must exist");
 
@@ -356,13 +410,35 @@ export const useBorrowerProfileStore = create<
 			principals: [...state.principals, newPrincipal],
 		}));
 
-		// Save principals to storage
-		const allPrincipals =
-			(await storageService.getItem<Principal[]>("principals")) || [];
-		await storageService.setItem("principals", [
-			...allPrincipals,
-			newPrincipal,
-		]);
+		if (user?.isDemo) {
+			const allPrincipals =
+				(await storageService.getItem<Principal[]>("principals")) || [];
+			await storageService.setItem("principals", [
+				...allPrincipals,
+				newPrincipal,
+			]);
+		} else {
+			const { data, error } = await supabase
+				.from("principals")
+				.insert({
+					borrower_profile_id: newPrincipal.borrowerProfileId,
+					principal_legal_name: newPrincipal.principalLegalName,
+					principal_role_default: newPrincipal.principalRoleDefault,
+					principal_bio: newPrincipal.principalBio,
+					principal_email: newPrincipal.principalEmail,
+					ownership_percentage: newPrincipal.ownershipPercentage,
+					credit_score_range: newPrincipal.creditScoreRange,
+					net_worth_range: newPrincipal.netWorthRange,
+					liquidity_range: newPrincipal.liquidityRange,
+					bankruptcy_history: newPrincipal.bankruptcyHistory,
+					foreclosure_history: newPrincipal.foreclosureHistory,
+					pfs_document_id: newPrincipal.pfsDocumentId,
+				})
+				.select()
+				.single();
+			if (error) throw error;
+			newPrincipal.id = data.id; // Update with DB-generated ID
+		}
 
 		// Recalculate and save profile completeness
 		const updatedProfile = { ...borrowerProfile };
@@ -376,6 +452,7 @@ export const useBorrowerProfileStore = create<
 	},
 
 	updatePrincipal: async (id, updates) => {
+		const { user } = useAuthStore.getState();
 		let updatedPrincipal: Principal | null = null;
 		set((state) => {
 			const newPrincipals = state.principals.map((p) => {
@@ -394,28 +471,59 @@ export const useBorrowerProfileStore = create<
 
 		if (!updatedPrincipal) return null;
 
-		const allPrincipals =
-			(await storageService.getItem<Principal[]>("principals")) || [];
-		const updatedAllPrincipals = allPrincipals.map((p) =>
-			p.id === id ? updatedPrincipal! : p
-		);
-		await storageService.setItem("principals", updatedAllPrincipals);
+		if (user?.isDemo) {
+			const allPrincipals =
+				(await storageService.getItem<Principal[]>("principals")) || [];
+			const updatedAllPrincipals = allPrincipals.map((p) =>
+				p.id === id ? updatedPrincipal! : p
+			);
+			await storageService.setItem("principals", updatedAllPrincipals);
+		} else {
+			const { error } = await supabase
+				.from("principals")
+				.update({
+					principal_legal_name: updatedPrincipal.principalLegalName,
+					principal_role_default:
+						updatedPrincipal.principalRoleDefault,
+					principal_bio: updatedPrincipal.principalBio,
+					principal_email: updatedPrincipal.principalEmail,
+					ownership_percentage: updatedPrincipal.ownershipPercentage,
+					credit_score_range: updatedPrincipal.creditScoreRange,
+					net_worth_range: updatedPrincipal.netWorthRange,
+					liquidity_range: updatedPrincipal.liquidityRange,
+					bankruptcy_history: updatedPrincipal.bankruptcyHistory,
+					foreclosure_history: updatedPrincipal.foreclosureHistory,
+					pfs_document_id: updatedPrincipal.pfsDocumentId,
+					updated_at: updatedPrincipal.updatedAt,
+				})
+				.eq("id", id);
+			if (error) throw error;
+		}
 
 		return updatedPrincipal;
 	},
 
 	removePrincipal: async (id) => {
+		const { user } = useAuthStore.getState();
 		const { borrowerProfile } = get();
 		set((state) => ({
 			principals: state.principals.filter((p) => p.id !== id),
 		}));
 
-		const allPrincipals =
-			(await storageService.getItem<Principal[]>("principals")) || [];
-		await storageService.setItem(
-			"principals",
-			allPrincipals.filter((p) => p.id !== id)
-		);
+		if (user?.isDemo) {
+			const allPrincipals =
+				(await storageService.getItem<Principal[]>("principals")) || [];
+			await storageService.setItem(
+				"principals",
+				allPrincipals.filter((p) => p.id !== id)
+			);
+		} else {
+			const { error } = await supabase
+				.from("principals")
+				.delete()
+				.eq("id", id);
+			if (error) throw error;
+		}
 
 		if (borrowerProfile) {
 			const updatedProfile = { ...borrowerProfile };

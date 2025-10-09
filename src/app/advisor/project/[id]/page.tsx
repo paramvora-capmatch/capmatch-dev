@@ -34,7 +34,10 @@ import {
 import { generateProjectFeedback } from '../../../../../lib/enhancedMockApiService';
 import { storageService } from '../../../../../lib/storage';
 import { supabase } from '../../../../../lib/supabaseClient';
-import { dbProjectToProjectProfile } from '../../../../../lib/dto-mapper';
+import {
+	dbBorrowerToBorrowerProfile,
+	dbProjectToProjectProfile,
+} from "../../../../../lib/dto-mapper";
 
 export default function AdvisorProjectDetailPage() {
   const router = useRouter();
@@ -83,44 +86,19 @@ export default function AdvisorProjectDetailPage() {
               const profile = allProfiles?.find(p => p.id === foundProject!.borrowerProfileId);
               if (profile) setBorrowerProfile(profile);
           } else {
-              const { data: profileData, error: profileError } = await supabase
-                  .from('profiles')
-                  .select('id, email, full_name')
-                  .eq('id', foundProject.borrowerProfileId)
-                  .single();
-              if (profileError) throw profileError;
+			const { data: borrowerData, error: borrowerError } = await supabase
+				.from("borrowers")
+				.select("*, profiles (email, full_name)")
+				.eq("id", foundProject.borrowerProfileId)
+				.single();
+			if (borrowerError) throw borrowerError;
 
-              if (profileData) {
-                  // Create a partial but functional BorrowerProfile for the advisor view
-                  const partialProfile: BorrowerProfile = {
-                      id: profileData.id,
-                      userId: profileData.email,
-                      fullLegalName: profileData.full_name || profileData.email,
-                      primaryEntityName: 'N/A',
-                      primaryEntityStructure: 'LLC',
-                      contactEmail: profileData.email,
-                      contactPhone: 'N/A',
-                      contactAddress: 'N/A',
-                      bioNarrative: '',
-                      linkedinUrl: '',
-                      websiteUrl: '',
-                      yearsCREExperienceRange: 'N/A',
-                      assetClassesExperience: [],
-                      geographicMarketsExperience: [],
-                      totalDealValueClosedRange: 'N/A',
-                      existingLenderRelationships: '',
-                      creditScoreRange: 'N/A',
-                      netWorthRange: 'N/A',
-                      liquidityRange: 'N/A',
-                      bankruptcyHistory: false,
-                      foreclosureHistory: false,
-                      litigationHistory: false,
-                      completenessPercent: 0,
-                      createdAt: new Date().toISOString(),
-                      updatedAt: new Date().toISOString(),
-                  };
-                  setBorrowerProfile(partialProfile);
-              }
+			if (borrowerData) {
+				// @ts-ignore
+				const user = { email: borrowerData.profiles.email, name: borrowerData.profiles.full_name };
+				const fullProfile = dbBorrowerToBorrowerProfile(borrowerData, user);
+				setBorrowerProfile(fullProfile);
+			}
           }
 
           // Messages and docs are still from local storage, which is fine for now.
