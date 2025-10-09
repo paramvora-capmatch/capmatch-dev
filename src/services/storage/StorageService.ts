@@ -6,8 +6,6 @@ export interface StorageService {
   setItem<T>(key: string, value: T): Promise<void>;
   removeItem(key: string): Promise<void>;
   clear(): Promise<void>;
-  // Add method to clear data associated with a specific user/profile
-  clearUserSpecificData(userId: string, profileId?: string): Promise<void>;
 }
 
 // Local Storage implementation
@@ -75,53 +73,6 @@ async clear(): Promise<void> {
     });
   } catch (error) {
     console.error('Error clearing localStorage:', error);
-    throw error;
-  }
-}
-
-// Method to clear data specifically for a user (profile and associated projects)
-async clearUserSpecificData(userId: string, profileId?: string): Promise<void> {
-  try {
-    // Ensure this runs only in the browser
-    if (typeof window === 'undefined') return;
-
-    // 1. Clear Borrower Profile directly associated with userId
-    const profiles = await this.getItem<BorrowerProfile[]>('borrowerProfiles') || [];
-    let userProfileId = profileId;
-    const profileToRemove = profiles.find(p => p.userId === userId);
-    if (profileToRemove) {
-        userProfileId = profileToRemove.id; // Get the ID if not passed
-        const updatedProfiles = profiles.filter(p => p.userId !== userId);
-        await this.setItem('borrowerProfiles', updatedProfiles);
-        console.log(`Cleared profile for user ${userId}`);
-    }
-
-    // 2. Clear Projects associated with the profileId
-    if (userProfileId) {
-        const projects = await this.getItem<ProjectProfile[]>('projects') || [];
-        const updatedProjects = projects.filter(p => p.borrowerProfileId !== userProfileId);
-        if (projects.length !== updatedProjects.length) {
-            await this.setItem('projects', updatedProjects);
-            console.log(`Cleared projects for profile ${userProfileId}`);
-        }
-
-         // 3. Clear other associated data like messages, principals, docs if needed
-         // Example for messages (repeat for others if they exist and store projectId)
-         const messages = await this.getItem<ProjectMessage[]>('projectMessages') || [];
-         const projectsToClearIds = projects.filter(p => p.borrowerProfileId === userProfileId).map(p => p.id);
-         if (projectsToClearIds.length > 0) {
-             const updatedMessages = messages.filter(m => !projectsToClearIds.includes(m.projectId));
-             if (messages.length !== updatedMessages.length) {
-                 await this.setItem('projectMessages', updatedMessages);
-                 console.log(`Cleared messages for projects associated with profile ${userProfileId}`);
-             }
-         }
-    } else {
-        console.log(`No profile ID found or provided for user ${userId}, cannot clear associated projects.`);
-    }
-
-  } catch (error) {
-    console.error(`Error clearing user-specific data for ${userId}:`, error);
     throw error;
   }
 }
@@ -199,39 +150,6 @@ async clear(): Promise<void> {
     });
   } catch (error) {
     console.error('Error clearing secure storage:', error);
-    throw error;
-  }
-}
-
- // Implement clearUserSpecificData for consistency (uses LocalStorageService logic)
- async clearUserSpecificData(userId: string, profileId?: string): Promise<void> {
-  try {
-    if (typeof window === 'undefined') return;
-
-    const profiles = await this.getItem<BorrowerProfile[]>('borrowerProfiles') || [];
-    let userProfileId = profileId;
-    const profileToRemove = profiles.find(p => p.userId === userId);
-    if (profileToRemove) {
-        userProfileId = profileToRemove.id;
-        const updatedProfiles = profiles.filter(p => p.userId !== userId);
-        await this.setItem('borrowerProfiles', updatedProfiles);
-    }
-
-    if (userProfileId) {
-        const projects = await this.getItem<ProjectProfile[]>('projects') || [];
-        const updatedProjects = projects.filter(p => p.borrowerProfileId !== userProfileId);
-        await this.setItem('projects', updatedProjects);
-
-        // Clear associated messages etc.
-        const messages = await this.getItem<ProjectMessage[]>('projectMessages') || [];
-         const projectsToClearIds = projects.filter(p => p.borrowerProfileId === userProfileId).map(p => p.id);
-         if (projectsToClearIds.length > 0) {
-             const updatedMessages = messages.filter(m => !projectsToClearIds.includes(m.projectId));
-              await this.setItem('projectMessages', updatedMessages);
-         }
-    }
-  } catch (error) {
-    console.error(`Error clearing user-specific data for ${userId}:`, error);
     throw error;
   }
 }

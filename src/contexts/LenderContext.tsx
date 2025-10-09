@@ -1,12 +1,18 @@
 // src/contexts/LenderContext.tsx
 
-'use client';
+"use client";
 
-import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getLenders } from '../services/api/lenderService';
-import { calculateMatchScores } from '../utils/lenderUtils';
-import { LenderProfile } from '../types/lender';
-import { StorageService } from '../services/storage/StorageService';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { getLenders } from "../services/api/lenderService";
+import { calculateMatchScores } from "../utils/lenderUtils";
+import { LenderProfile } from "../types/lender";
+import { StorageService } from "../services/storage/StorageService";
 
 // Define filters interface
 export interface LenderFilters {
@@ -40,8 +46,8 @@ export const LenderContext = createContext<LenderContextProps>({
   filteredLenders: [],
   isLoading: true,
   filters: {
-    asset_types: ['Multifamily'],
-    deal_types: ['Refinance'],
+    asset_types: ["Multifamily"],
+    deal_types: ["Refinance"],
     capital_types: [],
     debt_ranges: [],
     locations: [],
@@ -61,18 +67,20 @@ interface LenderProviderProps {
   storageService: StorageService;
 }
 
-export const LenderProvider: React.FC<LenderProviderProps> = ({ 
-  children, 
-  storageService 
+export const LenderProvider: React.FC<LenderProviderProps> = ({
+  children,
+  storageService,
 }) => {
   const [lenders, setLenders] = useState<LenderProfile[]>([]);
   const [filteredLenders, setFilteredLenders] = useState<LenderProfile[]>([]);
   const [savedLenders, setSavedLenders] = useState<LenderProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedLender, setSelectedLender] = useState<LenderProfile | null>(null);
+  const [selectedLender, setSelectedLender] = useState<LenderProfile | null>(
+    null
+  );
   const [filters, setFiltersState] = useState<LenderFilters>({
-    asset_types: ['Multifamily'],
-    deal_types: ['Refinance'],
+    asset_types: ["Multifamily"],
+    deal_types: ["Refinance"],
     capital_types: [],
     debt_ranges: [],
     locations: [],
@@ -87,7 +95,7 @@ export const LenderProvider: React.FC<LenderProviderProps> = ({
         setLenders(lenderData);
         setFilteredLenders(lenderData);
       } catch (error) {
-        console.error('Failed to load lenders:', error);
+        console.error("Failed to load lenders:", error);
       } finally {
         setIsLoading(false);
       }
@@ -100,12 +108,14 @@ export const LenderProvider: React.FC<LenderProviderProps> = ({
   useEffect(() => {
     const loadSavedLenders = async () => {
       try {
-        const savedLenderData = await storageService.getItem<LenderProfile[]>('savedLenders');
+        const savedLenderData = await storageService.getItem<LenderProfile[]>(
+          "savedLenders"
+        );
         if (savedLenderData) {
           setSavedLenders(savedLenderData);
         }
       } catch (error) {
-        console.error('Failed to load saved lenders:', error);
+        console.error("Failed to load saved lenders:", error);
       }
     };
 
@@ -128,7 +138,9 @@ export const LenderProvider: React.FC<LenderProviderProps> = ({
       }
 
       const scoredLenders = calculateMatchScores(lenders, filters);
-      setFilteredLenders(scoredLenders.sort((a, b) => b.match_score - a.match_score));
+      setFilteredLenders(
+        scoredLenders.sort((a, b) => b.match_score - a.match_score)
+      );
     };
 
     applyFilters();
@@ -136,9 +148,9 @@ export const LenderProvider: React.FC<LenderProviderProps> = ({
 
   // Set filters
   const setFilters = useCallback((newFilters: Partial<LenderFilters>) => {
-    setFiltersState(prevFilters => ({
+    setFiltersState((prevFilters) => ({
       ...prevFilters,
-      ...newFilters
+      ...newFilters,
     }));
   }, []);
 
@@ -159,31 +171,39 @@ export const LenderProvider: React.FC<LenderProviderProps> = ({
   }, []);
 
   // Save a lender to favorites
-  const saveLender = useCallback(async (lender: LenderProfile) => {
-    try {
-      // Check if lender is already saved
-      if (!savedLenders.some(saved => saved.lender_id === lender.lender_id)) {
-        const updatedSavedLenders = [...savedLenders, lender];
-        setSavedLenders(updatedSavedLenders);
-        await storageService.setItem('savedLenders', updatedSavedLenders);
+  const saveLender = useCallback(
+    async (lender: LenderProfile) => {
+      try {
+        // Check if lender is already saved
+        if (
+          !savedLenders.some((saved) => saved.lender_id === lender.lender_id)
+        ) {
+          const updatedSavedLenders = [...savedLenders, lender];
+          setSavedLenders(updatedSavedLenders);
+          await storageService.setItem("savedLenders", updatedSavedLenders);
+        }
+      } catch (error) {
+        console.error("Failed to save lender:", error);
       }
-    } catch (error) {
-      console.error('Failed to save lender:', error);
-    }
-  }, [savedLenders, storageService]);
+    },
+    [savedLenders, storageService]
+  );
 
   // Remove a lender from favorites
-  const removeSavedLender = useCallback(async (lenderId: number) => {
-    try {
-      const updatedSavedLenders = savedLenders.filter(
-        lender => lender.lender_id !== lenderId
-      );
-      setSavedLenders(updatedSavedLenders);
-      await storageService.setItem('savedLenders', updatedSavedLenders);
-    } catch (error) {
-      console.error('Failed to remove saved lender:', error);
-    }
-  }, [savedLenders, storageService]);
+  const removeSavedLender = useCallback(
+    async (lenderId: number) => {
+      try {
+        const updatedSavedLenders = savedLenders.filter(
+          (lender) => lender.lender_id !== lenderId
+        );
+        setSavedLenders(updatedSavedLenders);
+        await storageService.setItem("savedLenders", updatedSavedLenders);
+      } catch (error) {
+        console.error("Failed to remove saved lender:", error);
+      }
+    },
+    [savedLenders, storageService]
+  );
 
   // Refresh lenders data
   const refreshLenders = useCallback(async () => {
@@ -193,29 +213,33 @@ export const LenderProvider: React.FC<LenderProviderProps> = ({
       setLenders(lenderData);
       // Apply current filters to new data
       const scoredLenders = calculateMatchScores(lenderData, filters);
-      setFilteredLenders(scoredLenders.sort((a, b) => b.match_score - a.match_score));
+      setFilteredLenders(
+        scoredLenders.sort((a, b) => b.match_score - a.match_score)
+      );
     } catch (error) {
-      console.error('Failed to refresh lenders:', error);
+      console.error("Failed to refresh lenders:", error);
     } finally {
       setIsLoading(false);
     }
   }, [filters]);
 
   return (
-    <LenderContext.Provider value={{
-      lenders,
-      filteredLenders,
-      isLoading,
-      filters,
-      selectedLender,
-      setFilters,
-      resetFilters,
-      selectLender,
-      saveLender,
-      removeSavedLender,
-      savedLenders,
-      refreshLenders,
-    }}>
+    <LenderContext.Provider
+      value={{
+        lenders,
+        filteredLenders,
+        isLoading,
+        filters,
+        selectedLender,
+        setFilters,
+        resetFilters,
+        selectLender,
+        saveLender,
+        removeSavedLender,
+        savedLenders,
+        refreshLenders,
+      }}
+    >
       {children}
     </LenderContext.Provider>
   );

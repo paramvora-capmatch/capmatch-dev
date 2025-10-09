@@ -1,193 +1,207 @@
 // src/app/(auth)/login/page.tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '../../../hooks/useAuth';
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "../../../hooks/useAuth";
+import { motion, AnimatePresence } from "framer-motion";
 
-import AuthLayout from '../../../components/layout/AuthLayout';
-import { Form, FormGroup } from '../../../components/ui/Form';
-import { Input } from '../../../components/ui/Input';
-import { Button } from '../../../components/ui/Button';
-import { Sparkles, Mail } from 'lucide-react';
+import AuthLayout from "../../../components/layout/AuthLayout";
+import { Form, FormGroup } from "../../../components/ui/Form";
+import { Input } from "../../../components/ui/Input";
+import { Button } from "../../../components/ui/Button";
+import { Sparkles, Mail, Lock, Chrome } from "lucide-react";
 
-import { LoadingOverlay } from '../../../components/ui/LoadingOverlay';
+import { LoadingOverlay } from "../../../components/ui/LoadingOverlay";
 
-// Separate component for login form to handle search params
 const LoginForm = () => {
-  const [email, setEmail] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
-  const { login, isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    signInWithPassword,
+    signUp,
+    signInWithGoogle,
+    isLoading: authLoading,
+  } = useAuth();
 
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const [loginSource, setLoginSource] = useState<'direct' | 'lenderline'>('direct');
+  const [loginSource, setLoginSource] = useState<"direct" | "lenderline">(
+    "direct"
+  );
 
   // Determine login source from query parameter on mount
   useEffect(() => {
-    const sourceParam = searchParams.get('from');
-    if (sourceParam === 'lenderline') {
-      setLoginSource('lenderline');
-      console.log("Login source detected: lenderline");
+    const sourceParam = searchParams.get("from");
+    if (sourceParam === "lenderline") {
+      setLoginSource("lenderline");
     } else {
-      setLoginSource('direct');
-      console.log("Login source detected: direct");
+      setLoginSource("direct");
     }
   }, [searchParams]);
-
-  // Check for existing user session
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      if (user.role === 'advisor') {
-        router.push('/advisor/dashboard');
-      } else if (user.role === 'admin') {
-        router.push('/admin/dashboard');
-      } else {
-        router.push('/dashboard');
-      }
-    }
-  }, [isAuthenticated, router, user]);
-
-
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
+    setIsSubmitting(true);
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setValidationError('Please enter a valid email address.');
+      setValidationError("Please enter a valid email address.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (password.length < 6) {
+      setValidationError("Password must be at least 6 characters long.");
+      setIsSubmitting(false);
       return;
     }
 
     try {
-      const isAdvisor = email.includes('advisor') || email.endsWith('@capmatch.com');
-      const isAdmin = email.includes('admin@capmatch.com');
-      const role: 'borrower' | 'advisor' | 'admin' = isAdmin ? 'admin' : isAdvisor ? 'advisor' : 'borrower';
-
-      await login(email, loginSource, role);
-
-      console.log('Successfully signed in!');
-
-      if (role === 'advisor') {
-        router.push('/advisor/dashboard');
-      } else if (role === 'admin') {
-        router.push('/admin/dashboard');
+      if (isSignUp) {
+        await signUp(email, password, loginSource);
       } else {
-        router.push('/dashboard');
+        await signInWithPassword(email, password, loginSource);
       }
-
-        } catch (err) {
+    } catch (err) {
       console.error("Login Error:", err);
-      console.error(err instanceof Error ? err.message : 'An error occurred during login. Please try again.');
+      setValidationError(
+        err instanceof Error
+          ? err.message
+          : "An error occurred. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="w-full max-w-md">
-      <div className="bg-white rounded-xl shadow-xl overflow-hidden transform transition-all hover:scale-[1.01] duration-300">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="h-6 w-6" />
-            <h2 className="text-2xl font-bold">CapMatch Deal Room™</h2>
-          </div>
-          <p className="mt-2 opacity-90">Sign in to access your projects and lender matches</p>
+    <div className="bg-white rounded-xl shadow-xl overflow-hidden p-8">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center space-x-2 mb-2">
+          <Sparkles className="h-6 w-6 text-blue-600" />
+          <h2 className="text-2xl font-bold text-gray-800">
+            Welcome to CapMatch
+          </h2>
         </div>
+        <p className="text-gray-600">
+          {isSignUp
+            ? "Create an account to get started."
+            : "Sign in to access your dashboard."}
+        </p>
+      </div>
+      <div>
+        <Form onSubmit={handleLogin} className="space-y-6">
+          <FormGroup>
+            <Input
+              id="email"
+              type="email"
+              label="Email Address"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              leftIcon={<Mail className="h-5 w-5 text-gray-400" />}
+              required
+            />
+          </FormGroup>
+          <FormGroup>
+            <Input
+              id="password"
+              type="password"
+              label="Password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={validationError || undefined}
+              leftIcon={<Lock className="h-5 w-5 text-gray-400" />}
+              required
+            />
+          </FormGroup>
 
-        <div className="p-6">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-800">Sign In / Sign Up</h3>
-            <p className="text-gray-600 text-sm mt-1">
-              Enter your email to continue
+          <Button
+            type="submit"
+            variant="primary"
+            fullWidth
+            size="lg"
+            isLoading={authLoading || isSubmitting}
+          >
+            Continue with Email
+          </Button>
+
+          {/* Quick Login Buttons */}
+          <div className="space-y-3 pt-2">
+            <p className="text-center text-xs text-gray-500">
+              Or use a demo account (password: password123):
             </p>
-          </div>
-
-          <Form onSubmit={handleLogin} className="space-y-4">
-            <FormGroup>
-              <Input
-                id="email"
-                type="email"
-                label="Email Address"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                error={validationError || undefined}
-                leftIcon={<Mail className="h-5 w-5 text-gray-400" />}
-                required
-              />
-            </FormGroup>
-
-            {/* Quick Login Buttons */}
-            <div className="space-y-3">
-              <div className="flex space-x-3 justify-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1 max-w-[calc(50%-6px)] h-12"
-                  onClick={async () => {
-                    try {
-                      const role: 'borrower' = 'borrower';
-                      await login('borrower1@example.com', loginSource, role);
-                      
-                      console.log('Successfully signed in!');
-                      
-                      router.push('/dashboard');
-                    } catch (err) {
-                      console.error("Login Error:", err);
-                      console.error(err instanceof Error ? err.message : 'An error occurred during login. Please try again.');
-                    }
-                  }}
-                  disabled={authLoading}
-                >
-                  {authLoading ? 'Signing in...' : 'borrower1@example.com'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1 max-w-[calc(50%-6px)] h-12"
-                  onClick={async () => {
-                    try {
-                      const role: 'borrower' = 'borrower';
-                      await login('borrower2@example.com', loginSource, role);
-                      
-                      console.log('Successfully signed in!');
-                      
-                      router.push('/dashboard');
-                    } catch (err) {
-                      console.error("Login Error:", err);
-                      console.error(err instanceof Error ? err.message : 'An error occurred during login. Please try again.');
-                    }
-                  }}
-                  disabled={authLoading}
-                >
-                  {authLoading ? 'Signing in...' : 'borrower2@example.com'}
-                </Button>
-              </div>
-              
-              <div className="flex space-x-3 text-sm justify-center">
-                <div className="flex-1 max-w-[calc(50%-6px)] text-center text-gray-600">
-                  Full profile with Live OM
-                </div>
-                <div className="flex-1 max-w-[calc(50%-6px)] text-center text-gray-600">
-                  Partial profile
-                </div>
-              </div>
+            <div className="flex space-x-3 justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setEmail("borrower1@example.com");
+                  setPassword("password123");
+                }}
+                disabled={authLoading}
+              >
+                Demo Borrower 1
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setEmail("advisor1@capmatch.com");
+                  setPassword("password123");
+                }}
+                disabled={authLoading}
+              >
+                Demo Advisor
+              </Button>
             </div>
+          </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              fullWidth
-              isLoading={authLoading}
+          <div className="relative my-4">
+            <div
+              className="absolute inset-0 flex items-center"
+              aria-hidden="true"
             >
-              Continue
-            </Button>
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-gray-500">Or</span>
+            </div>
+          </div>
 
-            <p className="text-center text-xs text-gray-500 mt-4">
-              By continuing, you agree to our Terms of Service and Privacy Policy.
-            </p>
-          </Form>
-        </div>
+          <Button
+            type="button"
+            variant="outline"
+            fullWidth
+            size="lg"
+            onClick={() => signInWithGoogle(loginSource)}
+            leftIcon={<Chrome className="h-5 w-5" />}
+            isLoading={authLoading}
+          >
+            Sign in with Google
+          </Button>
+
+          <p className="text-center text-sm text-gray-600">
+            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            <button
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
+              {isSignUp ? "Sign In" : "Sign Up"}
+            </button>
+          </p>
+
+          <p className="text-center text-xs text-gray-500 pt-2">
+            By continuing, you agree to our Terms of Service and Privacy Policy.
+          </p>
+        </Form>
       </div>
     </div>
   );
@@ -197,9 +211,15 @@ const LoginForm = () => {
 export default function LoginPage() {
   return (
     <AuthLayout>
-              <LoadingOverlay isLoading={false} />
-        <Suspense fallback={<div className="w-full max-w-md">Loading...</div>}>
-        <LoginForm />
+      <LoadingOverlay isLoading={false} />
+      <Suspense
+        fallback={
+          <div className="w-full max-w-md animate-pulse bg-gray-200 h-96 rounded-xl"></div>
+        }
+      >
+        <div className="w-full max-w-md">
+          <LoginForm />
+        </div>
       </Suspense>
     </AuthLayout>
   );

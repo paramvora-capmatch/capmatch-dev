@@ -34,6 +34,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(initialStep);
   // Internal completion tracking for visual state
   const [internallyCompletedSteps, setInternallyCompletedSteps] = useState<Record<string, boolean>>({});
+  const numSteps = steps.length; // Memoize the number of steps
 
   // Initialize internal completion based on external prop (if provided)
   useEffect(() => {
@@ -48,7 +49,8 @@ export const FormWizard: React.FC<FormWizardProps> = ({
          initialCompleted[steps[i].id] = true;
      }
     setInternallyCompletedSteps(initialCompleted);
-  }, [steps, initialStep]); // Rerun if steps or initialStep change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialStep, numSteps]); // Rerun only if initialStep or number of steps changes
 
 
   const currentStep = steps[currentStepIndex];

@@ -2,25 +2,24 @@
 'use client';
 
 import React from 'react';
-import { AuthProvider } from '../../contexts/AuthContext';
-import { BorrowerProfileProvider } from '../../contexts/BorrowerProfileContext';
-import { ProjectProvider } from '../../contexts/ProjectContext';
-import { LenderProvider } from '../../contexts/LenderContext';
-import { createStorageService } from '../../services/storage/StorageService';
-
-// Initialize storage service
-const storageService = createStorageService(false, 'capmatch_'); // Set to true for encrypted storage
+import { AuthRedirector } from '../auth/AuthRedirector';
+import { useAppHydration } from '@/hooks/useAppHydration';
+import { SplashScreen } from '../ui/SplashScreen';
 
 export const ClientAppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isHydrated = useAppHydration();
+
+  if (!isHydrated) {
+    // Show a full-screen splash/loader until the app is hydrated
+    // Note: The SplashScreen itself has a timeout, but this hook will keep it
+    // visible until all stores confirm they are loaded.
+    return <SplashScreen />;
+  }
+
   return (
-    <AuthProvider storageService={storageService}>
-      <BorrowerProfileProvider storageService={storageService}>
-        <ProjectProvider storageService={storageService}>
-          <LenderProvider storageService={storageService}>
-            {children}
-          </LenderProvider>
-        </ProjectProvider>
-      </BorrowerProfileProvider>
-    </AuthProvider>
+    <>
+      <AuthRedirector />
+      {children}
+    </>
   );
 };

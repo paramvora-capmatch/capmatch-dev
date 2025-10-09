@@ -3,8 +3,9 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/Button';
-import { ChevronRight, CheckCircle, Zap, Calendar, Building, Star, TrendingUp } from 'lucide-react'; // Added Star, TrendingUp
+import { ChevronRight, CheckCircle, Trash2, Calendar, Building, Star, TrendingUp } from 'lucide-react'; // Added Trash2
 import { ProjectProfile } from '@/types/enhanced-types';
+import { useProjects } from '@/hooks/useProjects';
 
 interface ProjectCardProps {
   project: ProjectProfile;
@@ -12,6 +13,7 @@ interface ProjectCardProps {
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
   const router = useRouter();
+  const { deleteProject } = useProjects();
 
   const completeness = project.completenessPercent || 0;
   const isComplete = completeness === 100;
@@ -24,6 +26,20 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
         if (isNaN(date.getTime())) return 'Invalid Date';
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     } catch (e) { return 'Invalid Date'; }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click navigation
+    if (window.confirm(`Are you sure you want to delete "${project.projectName}"? This action cannot be undone.`)) {
+      try {
+        await deleteProject(project.id);
+        // Optionally show a success toast message here
+        console.log('Project deleted successfully');
+      } catch (error) {
+        console.error("Failed to delete project:", error);
+        // Optionally show an error toast message here
+      }
+    }
   };
 
   // Enhanced status color helper with gradients
@@ -65,18 +81,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
 
         <CardContent className="p-6 flex flex-col flex-grow">
           {/* Enhanced Header: Name and Status */}
-          <div className="flex justify-between items-start mb-4">
+          <div className="flex justify-between items-start mb-4 gap-2">
             <h3 className="text-xl font-bold text-gray-800 truncate mr-3 group-hover:text-blue-800 transition-colors duration-200" title={project.projectName || 'Unnamed Project'}>
               {project.projectName || 'Unnamed Project'}
             </h3>
-            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm ${getStatusColorClasses(project.projectStatus)}`}>
-              {project.projectStatus === 'Closed' ? (
-                <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-              ) : (
-                <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
-              )}
-              {project.projectStatus}
-            </span>
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm ${getStatusColorClasses(project.projectStatus)}`}>
+                {project.projectStatus === 'Closed' ? (
+                  <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                ) : (
+                  <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                {project.projectStatus}
+              </span>
+               <Button variant="ghost" size="icon" onClick={handleDelete} className="h-7 w-7 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-full">
+                 <Trash2 size={14} />
+               </Button>
+            </div>
           </div>
 
           {/* Enhanced Details Section */}

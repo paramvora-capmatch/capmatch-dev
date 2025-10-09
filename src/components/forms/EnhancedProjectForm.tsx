@@ -1,7 +1,7 @@
 // src/components/forms/EnhancedProjectForm.tsx
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react'; // Added useMemo
+import React, { useState, useEffect, useMemo, useRef } from 'react'; // Added useMemo
 import { useRouter } from 'next/navigation';
 import { FormWizard, Step } from '../ui/FormWizard';
 import { Card, CardContent, CardHeader } from '../ui/card';
@@ -69,12 +69,13 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
   onFormDataChange
 }) => {
   const router = useRouter();
-  const { updateProject, setProjectChanges, autoSaveProject } = useProjects(); // Use updateProject
+  const { updateProject } = useProjects(); // Use updateProject
 
 
   // Form state initialized from existingProject prop
   const [formData, setFormData] = useState<ProjectProfile>(existingProject);
   const [formSaved, setFormSaved] = useState(false); // State for save button feedback
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
 
   // Update local form state if the existingProject prop changes externally
@@ -84,30 +85,56 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
     onFormDataChange?.(existingProject);
   }, [existingProject, onFormDataChange]);
 
+  // Debounced auto-save effect
+  useEffect(() => {
+    // This effect handles auto-saving. It runs whenever formData changes.
+    // To prevent saving on every keystroke, it uses a debounce mechanism.
+
+    // 1. Clear any existing timer. This is crucial. If the user types again
+    //    within the timeout period, the previous save is cancelled.
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+
+    // 2. Set a new timer to trigger the save after a delay (e.g., 2 seconds).
+    debounceTimeout.current = setTimeout(async () => {
+      // 3. Before saving, check if there are actual changes compared to the initial prop.
+      //    This prevents saving if the component re-renders without data changes.
+      if (JSON.stringify(formData) !== JSON.stringify(existingProject)) {
+        try {
+          console.log(`[ProjectForm] Auto-saving project: ${formData.projectName}`);
+          // 4. Call the updateProject action from the store with the latest form data.
+          await updateProject(formData.id, formData);
+        } catch (error) {
+          console.error('[ProjectForm] Auto-save failed:', error);
+        }
+      }
+    }, 2000); // 2-second debounce delay
+
+    // 5. Cleanup: When the component unmounts or dependencies change,
+    //    clear the timeout to prevent memory leaks or unwanted saves.
+    return () => {
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
+      }
+    };
+  }, [formData, existingProject, updateProject]);
+
   // Handle form field changes
   const handleInputChange = (field: keyof ProjectProfile, value: any) => {
     const newFormData = { ...formData, [field]: value };
     setFormData(newFormData);
-    setProjectChanges(true); // Indicate unsaved changes
-    
     // Notify parent component of form data changes for AskAI
     onFormDataChange?.(newFormData);
   };
 
   // Handle form submission (manual save via button)
   const handleFormSubmit = async () => {
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     try {
         setFormSaved(true); // Indicate loading/saving
-        // Ensure auto-save triggers first if there are pending changes
-        await autoSaveProject();
-
-        // Optionally call updateProject again for a final explicit save if needed,
-        // but autoSaveProject should handle persisting the latest formData state.
-        // const updatedProject = await updateProject(formData.id, formData, true); // Manual flag true
-
-        // Let's rely on auto-save for now and just provide feedback
-        console.log('Project changes saved.');
-
+        await updateProject(formData.id, formData);
+        console.log('Project changes manually saved.');
         if (onComplete) {
             // Pass the current formData state which reflects the latest changes
             onComplete(formData);
@@ -340,7 +367,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Requested Loan Amount ($)" 
                       value={formData.loanAmountRequested?.toString() || ''} 
-                      onChange={(e) => handleInputChange('loanAmountRequested', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('loanAmountRequested', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 10000000" 
                       required 
                       data-field-id="loanAmountRequested"
@@ -383,7 +410,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Target LTV (%)" 
                       value={formData.targetLtvPercent?.toString() || ''} 
-                      onChange={(e) => handleInputChange('targetLtvPercent', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('targetLtvPercent', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 70" 
                       required 
                       data-field-id="targetLtvPercent"
@@ -402,7 +429,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Target LTC (%) (Construction/Dev)" 
                       value={formData.targetLtcPercent?.toString() || ''} 
-                      onChange={(e) => handleInputChange('targetLtcPercent', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('targetLtcPercent', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 80" 
                       data-field-id="targetLtcPercent"
                       data-field-type="number"
@@ -422,7 +449,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Amortization (Years)" 
                       value={formData.amortizationYears?.toString() || ''} 
-                      onChange={(e) => handleInputChange('amortizationYears', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('amortizationYears', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 30" 
                       data-field-id="amortizationYears"
                       data-field-type="number"
@@ -440,7 +467,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       type="number" 
                       label="Interest-Only Period (Months)" 
                       value={formData.interestOnlyPeriodMonths?.toString() || ''} 
-                      onChange={(e) => handleInputChange('interestOnlyPeriodMonths', e.target.value ? Number(e.target.value) : 0)} 
+                      onChange={(e) => handleInputChange('interestOnlyPeriodMonths', e.target.value ? Number(e.target.value) : null)}
                       placeholder="e.g., 36" 
                       data-field-id="interestOnlyPeriodMonths"
                       data-field-type="number"
@@ -611,7 +638,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     type="number" 
                     label="Equity Committed (%)" 
                     value={formData.equityCommittedPercent?.toString() || ''} 
-                    onChange={(e) => handleInputChange('equityCommittedPercent', e.target.value ? Number(e.target.value) : 0)} 
+                    onChange={(e) => handleInputChange('equityCommittedPercent', e.target.value ? Number(e.target.value) : null)}
                     placeholder="e.g., 100" 
                     data-field-id="equityCommittedPercent"
                     data-field-type="number"
@@ -631,7 +658,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                      type="number" 
                      label="Current/T12 NOI ($)" 
                      value={formData.propertyNoiT12?.toString() || ''} 
-                     onChange={(e) => handleInputChange('propertyNoiT12', e.target.value ? Number(e.target.value) : null)} 
+                     onChange={(e) => handleInputChange('propertyNoiT12', e.target.value ? Number(e.target.value) : null)}
                      placeholder="e.g., 450000" 
                      data-field-id="propertyNoiT12"
                      data-field-type="number"
@@ -649,7 +676,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                      type="number" 
                      label="Projected Stabilized NOI ($)" 
                      value={formData.stabilizedNoiProjected?.toString() || ''} 
-                     onChange={(e) => handleInputChange('stabilizedNoiProjected', e.target.value ? Number(e.target.value) : null)} 
+                     onChange={(e) => handleInputChange('stabilizedNoiProjected', e.target.value ? Number(e.target.value) : null)}
                      placeholder="e.g., 750000" 
                      data-field-id="stabilizedNoiProjected"
                      data-field-type="number"
@@ -767,7 +794,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
              {/* Add a summary display of formData if needed */}
              {/* ... Summary ... */}
              <div className="flex justify-center mt-6">
-                 <Button variant="primary" onClick={handleFormSubmit} isLoading={formSaved} disabled={formSaved}>
+                 <Button variant="primary" onClick={handleFormSubmit} isLoading={formSaved} disabled={formSaved} className="min-w-[120px]">
                      {formSaved ? 'Saved!' : 'Save Changes'}
                  </Button>
              </div>

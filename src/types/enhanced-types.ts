@@ -1,12 +1,46 @@
 // src/types/enhanced-types.ts
 
 // Borrower Profile Types
-export type EntityStructure = 'LLC' | 'LP' | 'S-Corp' | 'C-Corp' | 'Sole Proprietorship' | 'Trust' | 'Other';
-export type ExperienceRange = '0-2' | '3-5' | '6-10' | '11-15' | '16+';
-export type DealValueRange = '<$10M' | '$10M-$50M' | '$50M-$100M' | '$100M-$250M' | '$250M-$500M' | '$500M+' | 'N/A';
-export type CreditScoreRange = '<600' | '600-649' | '650-699' | '700-749' | '750-799' | '800+' | 'N/A';
-export type NetWorthRange = '<$1M' | '$1M-$5M' | '$5M-$10M' | '$10M-$25M' | '$25M-$50M' | '$50M-$100M' | '$100M+';
-export type LiquidityRange = '<$100k' | '$100k-$500k' | '$500k-$1M' | '$1M-$5M' | '$5M-$10M' | '$10M+';
+export type EntityStructure =
+  | "LLC"
+  | "LP"
+  | "S-Corp"
+  | "C-Corp"
+  | "Sole Proprietorship"
+  | "Trust"
+  | "Other";
+export type ExperienceRange = "0-2" | "3-5" | "6-10" | "11-15" | "16+";
+export type DealValueRange =
+  | "<$10M"
+  | "$10M-$50M"
+  | "$50M-$100M"
+  | "$100M-$250M"
+  | "$250M-$500M"
+  | "$500M+"
+  | "N/A";
+export type CreditScoreRange =
+  | "<600"
+  | "600-649"
+  | "650-699"
+  | "700-749"
+  | "750-799"
+  | "800+"
+  | "N/A";
+export type NetWorthRange =
+  | "<$1M"
+  | "$1M-$5M"
+  | "$5M-$10M"
+  | "$10M-$25M"
+  | "$25M-$50M"
+  | "$50M-$100M"
+  | "$100M+";
+export type LiquidityRange =
+  | "<$100k"
+  | "$100k-$500k"
+  | "$500k-$1M"
+  | "$1M-$5M"
+  | "$5M-$10M"
+  | "$10M+";
 
 export interface BorrowerProfile {
   id: string;
@@ -37,7 +71,15 @@ export interface BorrowerProfile {
 }
 
 // Principal Types
-export type PrincipalRole = 'Managing Member' | 'General Partner' | 'Developer' | 'Sponsor' | 'Key Principal' | 'Guarantor' | 'Limited Partner' | 'Other';
+export type PrincipalRole =
+  | "Managing Member"
+  | "General Partner"
+  | "Developer"
+  | "Sponsor"
+  | "Key Principal"
+  | "Guarantor"
+  | "Limited Partner"
+  | "Other";
 
 export interface Principal {
   id: string;
@@ -58,16 +100,37 @@ export interface Principal {
 }
 
 // Project Types
-export type ProjectPhase = 'Acquisition' | 'Refinance' | 'Construction' | 'Bridge' | 'Development' | 'Value-Add' | 'Other';
-export type InterestRateType = 'Fixed' | 'Floating' | 'Not Specified';
-export type RecoursePreference = 'Full Recourse' | 'Partial Recourse' | 'Non-Recourse' | 'Flexible';
-export type ExitStrategy = 'Sale' | 'Refinance' | 'Long-Term Hold' | 'Undecided';
-export type ProjectStatus = 'Draft' | 'Info Gathering' | 'Advisor Review' | 'Matches Curated' | 'Introductions Sent' | 'Term Sheet Received' | 'Closed' | 'Withdrawn' | 'Stalled';
+export type ProjectPhase =
+  | "Acquisition"
+  | "Refinance"
+  | "Construction"
+  | "Bridge"
+  | "Development"
+  | "Value-Add"
+  | "Other";
+export type InterestRateType = "Fixed" | "Floating" | "Not Specified";
+export type RecoursePreference =
+  | "Full Recourse"
+  | "Partial Recourse"
+  | "Non-Recourse"
+  | "Flexible";
+export type ExitStrategy =
+  | "Sale"
+  | "Refinance"
+  | "Long-Term Hold"
+  | "Undecided";
+export type ProjectStatus =
+  | "Draft"
+  | "Info Gathering"
+  | "Advisor Review"
+  | "Matches Curated"
+  | "Introductions Sent"
+  | "Term Sheet Received"
+  | "Closed"
+  | "Withdrawn"
+  | "Stalled";
 
 export interface ProjectProfile {
-  projectSections: any;
-  borrowerSections: any;
-  name: any;
   id: string;
   borrowerProfileId: string;
   assignedAdvisorUserId: string | null;
@@ -79,15 +142,15 @@ export interface ProjectProfile {
   propertyAddressZip: string;
   assetType: string;
   projectDescription: string;
-  projectPhase: ProjectPhase;
-  loanAmountRequested: number;
+  projectPhase?: ProjectPhase;
+  loanAmountRequested: number | null;
   loanType: string;
-  targetLtvPercent: number;
-  targetLtcPercent: number;
-  amortizationYears: number;
-  interestOnlyPeriodMonths: number;
+  targetLtvPercent: number | null;
+  targetLtcPercent: number | null;
+  amortizationYears: number | null;
+  interestOnlyPeriodMonths: number | null;
   interestRateType: InterestRateType;
-  targetCloseDate: string;
+  targetCloseDate: string | null;
   useOfProceeds: string;
   recoursePreference: RecoursePreference;
   purchasePrice: number | null;
@@ -95,10 +158,10 @@ export interface ProjectProfile {
   capexBudget: number | null;
   propertyNoiT12: number | null;
   stabilizedNoiProjected: number | null;
-  exitStrategy: ExitStrategy;
+  exitStrategy?: ExitStrategy;
   businessPlanSummary: string;
   marketOverviewSummary: string;
-  equityCommittedPercent: number;
+  equityCommittedPercent: number | null;
   projectStatus: ProjectStatus;
   completenessPercent: number;
   internalAdvisorNotes: string;
@@ -106,6 +169,8 @@ export interface ProjectProfile {
   projectProgress: number; // Keep for backward compatibility
   createdAt: string;
   updatedAt: string;
+  projectSections?: any; // Add for consistency with mock data
+  borrowerSections?: any; // Add for consistency with mock data
 }
 
 // Project Principal Types
@@ -121,8 +186,23 @@ export interface ProjectPrincipal {
 }
 
 // Document Types
-export type DocumentCategory = 'PFS' | 'SREO' | 'Tax Returns' | 'Entity Docs' | 'Rent Roll' | 'Financials' | 'Pro Forma' | 
-  'Plans' | 'Budget' | 'Market Study' | 'Appraisal' | 'Environmental' | 'Title' | 'Survey' | 'Purchase Agreement' | 'Other';
+export type DocumentCategory =
+  | "PFS"
+  | "SREO"
+  | "Tax Returns"
+  | "Entity Docs"
+  | "Rent Roll"
+  | "Financials"
+  | "Pro Forma"
+  | "Plans"
+  | "Budget"
+  | "Market Study"
+  | "Appraisal"
+  | "Environmental"
+  | "Title"
+  | "Survey"
+  | "Purchase Agreement"
+  | "Other";
 
 export interface Document {
   id: string;
@@ -138,7 +218,14 @@ export interface Document {
 }
 
 // Document Requirement Status
-export type DocumentRequirementStatus = 'Required' | 'Pending Upload' | 'Uploaded' | 'In Review' | 'Approved' | 'Rejected' | 'Not Applicable';
+export type DocumentRequirementStatus =
+  | "Required"
+  | "Pending Upload"
+  | "Uploaded"
+  | "In Review"
+  | "Approved"
+  | "Rejected"
+  | "Not Applicable";
 
 export interface ProjectDocumentRequirement {
   id: string;
@@ -172,7 +259,7 @@ export interface ProjectMessage {
   id: string;
   projectId: string;
   senderId: string;
-  senderType: 'Borrower' | 'Advisor' | 'System'; // Added System type
+  senderType: "Borrower" | "Advisor" | "System"; // Added System type
   message: string;
   // isRead: boolean; // REMOVED
   createdAt: string;
@@ -180,10 +267,12 @@ export interface ProjectMessage {
 
 // Enhanced User type with role and login source
 export interface EnhancedUser {
+  id?: string; // Add user's auth ID (UUID)
   email: string;
   name?: string;
   profileId?: string; // Optional: ID of the associated BorrowerProfile
   lastLogin: Date;
-  role: 'borrower' | 'advisor' | 'admin';
-  loginSource?: 'direct' | 'lenderline'; // Added login source tracking
+  role: "borrower" | "advisor" | "lender" | "admin";
+  loginSource?: "direct" | "lenderline"; // Added login source tracking
+  isDemo?: boolean; // Flag for demo users
 }
