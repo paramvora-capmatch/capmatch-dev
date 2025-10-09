@@ -32,6 +32,9 @@ import {
   ProjectDocumentRequirement
 } from '../../../../types/enhanced-types';
 import { generateProjectFeedback } from '../../../../../lib/enhancedMockApiService';
+import { storageService } from '../../../../../lib/storage';
+import { supabase } from '../../../../../lib/supabaseClient';
+import { dbProjectToProjectProfile } from '../../../../../lib/dto-mapper';
 
 export default function AdvisorProjectDetailPage() {
   const router = useRouter();
@@ -54,60 +57,92 @@ export default function AdvisorProjectDetailPage() {
       try {
         setIsLoadingData(true);
 
-        
         const projectId = params?.id as string;
         if (!projectId) {
           router.push('/advisor/dashboard');
           return;
         }
-        
-        // Get project
-        const allProjects = localStorage.getItem('capmatch_projects');
-        if (allProjects) {
-          const projects = JSON.parse(allProjects) as ProjectProfile[];
-          const foundProject = projects.find(p => p.id === projectId);
-          
-          if (foundProject) {
-            setProject(foundProject);
-            setSelectedStatus(foundProject.projectStatus);
-            
-            // Get borrower profile
-            const allProfiles = localStorage.getItem('capmatch_borrowerProfiles');
-            if (allProfiles) {
-              const profiles = JSON.parse(allProfiles) as BorrowerProfile[];
-              const profile = profiles.find(p => p.id === foundProject.borrowerProfileId);
-              if (profile) {
-                setBorrowerProfile(profile);
-              }
-            }
-            
-            // Get messages
-            const allMessages = localStorage.getItem('capmatch_projectMessages');
-            if (allMessages) {
-              const messageList = JSON.parse(allMessages) as ProjectMessage[];
-              const projectMessages = messageList
-                .filter(m => m.projectId === projectId)
-                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-              
-              setMessages(projectMessages);
-            }
-            
-            // Get document requirements
-            const allRequirements = localStorage.getItem('capmatch_documentRequirements');
-            if (allRequirements) {
-              const requirements = JSON.parse(allRequirements) as ProjectDocumentRequirement[];
-              const projectRequirements = requirements.filter(r => r.projectId === projectId);
-              
-              setDocumentRequirements(projectRequirements);
-            }
+
+        let foundProject: ProjectProfile | undefined | null = null;
+        if (user.isDemo) {
+          const allProjects = await storageService.getItem<ProjectProfile[]>('projects');
+          foundProject = allProjects?.find(p => p.id === projectId);
+        } else {
+          const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
+          if (error) throw error;
+          if (data) foundProject = dbProjectToProjectProfile(data);
+        }
+
+        if (foundProject) {
+          setProject(foundProject);
+          setSelectedStatus(foundProject.projectStatus);
+
+          // Get borrower profile
+          if (user.isDemo) {
+              const allProfiles = await storageService.getItem<BorrowerProfile[]>('borrowerProfiles');
+              const profile = allProfiles?.find(p => p.id === foundProject!.borrowerProfileId);
+              if (profile) setBorrowerProfile(profile);
           } else {
-                    console.error('Project not found');
-            router.push('/advisor/dashboard');
+              const { data: profileData, error: profileError } = await supabase
+                  .from('profiles')
+                  .select('id, email, full_name')
+                  .eq('id', foundProject.borrowerProfileId)
+                  .single();
+              if (profileError) throw profileError;
+
+              if (profileData) {
+                  // Create a partial but functional BorrowerProfile for the advisor view
+                  const partialProfile: BorrowerProfile = {
+                      id: profileData.id,
+                      userId: profileData.email,
+                      fullLegalName: profileData.full_name || profileData.email,
+                      primaryEntityName: 'N/A',
+                      primaryEntityStructure: 'LLC',
+                      contactEmail: profileData.email,
+                      contactPhone: 'N/A',
+                      contactAddress: 'N/A',
+                      bioNarrative: '',
+                      linkedinUrl: '',
+                      websiteUrl: '',
+                      yearsCREExperienceRange: 'N/A',
+                      assetClassesExperience: [],
+                      geographicMarketsExperience: [],
+                      totalDealValueClosedRange: 'N/A',
+                      existingLenderRelationships: '',
+                      creditScoreRange: 'N/A',
+                      netWorthRange: 'N/A',
+                      liquidityRange: 'N/A',
+                      bankruptcyHistory: false,
+                      foreclosureHistory: false,
+                      litigationHistory: false,
+                      completenessPercent: 0,
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                  };
+                  setBorrowerProfile(partialProfile);
+              }
           }
+
+          // Messages and docs are still from local storage, which is fine for now.
+          const allMessages = await storageService.getItem<ProjectMessage[]>('projectMessages');
+          if (allMessages) {
+            const projectMessages = allMessages
+              .filter(m => m.projectId === projectId)
+              .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            setMessages(projectMessages);
+          }
+
+          const allRequirements = await storageService.getItem<ProjectDocumentRequirement[]>('documentRequirements');
+          if (allRequirements) {
+            const projectRequirements = allRequirements.filter(r => r.projectId === projectId);
+            setDocumentRequirements(projectRequirements);
+          }
+        } else {
+          console.error('Project not found');
+          router.push('/advisor/dashboard');
         }
       } catch (error) {
         console.error('Error loading project data:', error);
-        console.error('Failed to load project data');
       } finally {
         setIsLoadingData(false);
 
@@ -173,15 +208,12 @@ export default function AdvisorProjectDetailPage() {
       
       // Save to local storage
       const allProjects = localStorage.getItem('capmatch_projects');
-      if (allProjects) {
-        const projects = JSON.parse(allProjects) as ProjectProfile[];
-        const updatedProjects = projects.map(p => 
-          p.id === project.id ? updatedProject : p
-        );
-        
-        localStorage.setItem('capmatch_projects', JSON.stringify(updatedProjects));
-      }
-      
+      const projects = allProjects ? (JSON.parse(allProjects) as ProjectProfile[]) : [];
+      const updatedProjects = projects.map(p =>
+        p.id === project.id ? updatedProject : p
+      );
+      localStorage.setItem('capmatch_projects', JSON.stringify(updatedProjects));
+
       setProject(updatedProject);
       setSelectedStatus(newStatus);
       
@@ -235,11 +267,8 @@ export default function AdvisorProjectDetailPage() {
       setMessages(updatedMessages);
       
       // Save to storage
-      const allMessages = localStorage.getItem('capmatch_projectMessages') 
-        ? JSON.parse(localStorage.getItem('capmatch_projectMessages') || '[]') as ProjectMessage[]
-        : [];
-      
-      localStorage.setItem('capmatch_projectMessages', JSON.stringify([...allMessages, newProjectMessage]));
+      const allMessages = await storageService.getItem<ProjectMessage[]>('projectMessages') || [];
+      await storageService.setItem('projectMessages', [...allMessages, newProjectMessage]);
       
       // Clear input if not a system message
       if (!isSystemMessage) {

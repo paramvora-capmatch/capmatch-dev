@@ -169,6 +169,8 @@ export interface ProjectProfile {
   projectProgress: number; // Keep for backward compatibility
   createdAt: string;
   updatedAt: string;
+  projectSections?: any; // Add for consistency with mock data
+  borrowerSections?: any; // Add for consistency with mock data
 }
 
 // Project Principal Types

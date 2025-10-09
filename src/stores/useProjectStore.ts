@@ -262,16 +262,27 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
       if (!borrowerProfile)
         throw new Error("Borrower profile must exist to create a project.");
 
-      // For real users, we can't query other user's UUIDs due to RLS.
-      // Set to null and let an admin/backend process assign it later.
-      // For demo users, we can keep using the email string as it's just local storage.
-      let advisorId: string | null = user.isDemo
-        ? "advisor1@capmatch.com"
-        : null;
-      if (!user.isDemo) {
-        console.log(
-          "[ProjectStore] Real user detected. Setting assigned advisor to null initially due to RLS policies."
-        );
+      let advisorId: string | null = null;
+      if (user.isDemo) {
+        advisorId = "advisor1@capmatch.com";
+      } else {
+        // For real users, query for an advisor to assign
+        const { data: advisors, error: advisorError } = await supabase
+          .from("profiles")
+          .select("id") // select the UUID
+          .eq("role", "advisor")
+          .limit(1);
+
+        if (advisorError) {
+          console.error("Error fetching advisor to assign:", advisorError);
+        } else if (advisors && advisors.length > 0) {
+          advisorId = advisors[0].id; // this is a UUID
+          console.log(`[ProjectStore] Assigning advisor with ID: ${advisorId}`);
+        } else {
+          console.warn(
+            "[ProjectStore] No advisors found in the database to assign to the new project."
+          );
+        }
       }
 
       const now = new Date().toISOString();
