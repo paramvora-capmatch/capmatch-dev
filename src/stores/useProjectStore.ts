@@ -1,7 +1,7 @@
 // src/stores/useProjectStore.ts
 import { create } from "zustand";
-import { dbProjectToProjectProfile } from "@/lib/dto-mapper";
-import { supabase } from "../../lib/supabaseClient";
+import { dbMessageToProjectMessage, dbProjectToProjectProfile } from "@/lib/dto-mapper";
+import { RealtimeChannel, supabase } from "../../lib/supabaseClient";
 import { storageService } from "@/lib/storage";
 import { useAuthStore } from "./useAuthStore";
 import { useBorrowerProfileStore } from "./useBorrowerProfileStore";
@@ -79,6 +79,7 @@ interface ProjectState {
 	projectPrincipals: ProjectPrincipal[];
 	documentRequirements: ProjectDocumentRequirement[];
 	autoCreatedFirstProjectThisSession: boolean;
+	messageSubscription: RealtimeChannel | null;
 }
 
 interface ProjectActions {
@@ -94,11 +95,11 @@ interface ProjectActions {
 	getProject: (id: string) => ProjectProfile | null;
 	setActiveProject: (project: ProjectProfile | null) => void;
 	addProjectMessage: (
-		message: string,
-		senderType?: "Borrower" | "Advisor" | "System",
-		senderId?: string
-	) => Promise<ProjectMessage>;
+		message: string
+	) => Promise<void>;
 	resetProjectState: () => void;
+	subscribeToMessages: (projectId: string) => void;
+	unsubscribeFromMessages: () => void;
 	calculateProgress: (project: ProjectProfile) => {
 		borrowerProgress: number;
 		projectProgress: number;
@@ -115,6 +116,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		projectPrincipals: [],
 		documentRequirements: [],
 		autoCreatedFirstProjectThisSession: false,
+		messageSubscription: null,
 
 		resetProjectState: () => {
 			console.log("[ProjectStore] Resetting state.");
@@ -125,6 +127,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				projectPrincipals: [],
 				documentRequirements: [],
 				autoCreatedFirstProjectThisSession: false,
+				messageSubscription: null,
 				isLoading: false,
 			});
 		},
@@ -225,25 +228,81 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 		getProject: (id) => get().projects.find((p) => p.id === id) || null,
 
-		setActiveProject: (project) => {
-			const { activeProject } = get();
+		unsubscribeFromMessages: () => {
+			const { messageSubscription } = get();
+			if (messageSubscription) {
+				supabase.removeChannel(messageSubscription);
+				set({ messageSubscription: null });
+			}
+		},
+
+		subscribeToMessages: (projectId: string) => {
+			get().unsubscribeFromMessages(); // Unsubscribe from any previous channel
+
+			const channel = supabase
+				.channel(`project-messages-${projectId}`)
+				.on<any>(
+					"postgres_changes",
+					{
+						event: "INSERT",
+						schema: "public",
+						table: "project_messages",
+						filter: `project_id=eq.${projectId}`,
+					},
+					async (payload) => {
+						const newMessagePayload = payload.new;
+
+						// Fetch sender info to determine role
+						const { data: senderProfile, error } = await supabase
+							.from("profiles")
+							.select("role")
+							.eq("id", newMessagePayload.sender_id)
+							.single();
+
+						if (error) {
+							console.error("Error fetching sender for new message:", error);
+							return;
+						}
+
+						const newMessage = dbMessageToProjectMessage({
+							...newMessagePayload,
+							sender: senderProfile,
+						});
+
+						set((state) => ({
+							projectMessages: [...state.projectMessages, newMessage],
+						}));
+					}
+				)
+				.subscribe();
+
+			set({ messageSubscription: channel });
+		},
+
+		setActiveProject: async (project) => {
+			const { activeProject, unsubscribeFromMessages, subscribeToMessages } = get();
 			if (project?.id === activeProject?.id) return;
 
-			set({ activeProject: project });
-			// Load related data for the new active project
+			unsubscribeFromMessages();
+
+			set({ activeProject: project, projectMessages: [] });
+
 			if (project) {
-				// This logic can be expanded to fetch from DB if not using local storage for these
-				storageService
-					.getItem<ProjectMessage[]>("projectMessages")
-					.then((all) =>
-						set({
-							projectMessages: (all || []).filter(
-								(m) => m.projectId === project.id
-							),
-						})
-					);
-			} else {
-				set({ projectMessages: [] });
+				// Fetch initial messages for the new active project from DB
+				const { data, error } = await supabase
+					.from("project_messages")
+					.select("*, sender:profiles(role)")
+					.eq("project_id", project.id)
+					.order("created_at", { ascending: true });
+
+				if (error) {
+					console.error("Error fetching initial messages:", error);
+				} else {
+					const messages = data.map(dbMessageToProjectMessage);
+					set({ projectMessages: messages });
+				}
+
+				subscribeToMessages(project.id);
 			}
 		},
 
@@ -467,56 +526,22 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			return true;
 		},
 
-		addProjectMessage: async (
-			message,
-			senderType = "Borrower",
-			senderId
-		) => {
+		addProjectMessage: async (message) => {
 			const { activeProject } = get();
 			const { user } = useAuthStore.getState();
-			if (!activeProject) throw new Error("No active project");
+			if (!activeProject || !user || !user.id)
+				throw new Error("No active project or user ID");
 
-			let finalSenderId = senderId;
-			if (!finalSenderId) {
-				if (senderType === "Borrower")
-					finalSenderId = user?.email || "borrower";
-				else if (senderType === "Advisor")
-					finalSenderId =
-						activeProject.assignedAdvisorUserId || "advisor";
-				else finalSenderId = "system";
+			const { error } = await supabase.from("project_messages").insert({
+				project_id: activeProject.id,
+				sender_id: user.id,
+				message: message,
+			});
+
+			if (error) {
+				console.error("Error sending message:", error);
+				throw error;
 			}
-
-			const newMessage: ProjectMessage = {
-				id: `msg_${Date.now()}`,
-				projectId: activeProject.id,
-				senderId: finalSenderId,
-				senderType,
-				message,
-				createdAt: new Date().toISOString(),
-			};
-
-			set((state) => ({
-				projectMessages: [...state.projectMessages, newMessage],
-			}));
-
-			const allMessages =
-				(await storageService.getItem<ProjectMessage[]>(
-					"projectMessages"
-				)) || [];
-			await storageService.setItem("projectMessages", [
-				...allMessages,
-				newMessage,
-			]);
-
-			if (
-				activeProject.projectStatus === "Draft" &&
-				senderType === "Borrower"
-			) {
-				get().updateProject(activeProject.id, {
-					projectStatus: "Info Gathering",
-				});
-			}
-			return newMessage;
 		},
 	})
 );

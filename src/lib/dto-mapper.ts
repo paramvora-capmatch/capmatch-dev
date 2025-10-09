@@ -1,5 +1,6 @@
 // src/lib/dto-mapper.ts
 import {
+	ProjectMessage,
 	BorrowerProfile,
 	Principal,
 	ProjectProfile,
@@ -119,3 +120,26 @@ export const dbPrincipalToPrincipal = (dbPrincipal: any): Principal => {
 		updatedAt: dbPrincipal.updated_at,
 	};
 };
+
+/**
+ * Maps a message object from the database to the application's ProjectMessage model.
+ * Expects a joined `sender:profiles(...)` object.
+ * @param dbMessage - The message data object from Supabase.
+ * @returns A ProjectMessage object.
+ */
+export const dbMessageToProjectMessage = (dbMessage: any): ProjectMessage => {
+	const senderType =
+		dbMessage.sender?.role === "advisor"
+			? "Advisor"
+			: dbMessage.sender?.role === "borrower"
+			? "Borrower"
+			: "System";
+
+	return {
+		id: dbMessage.id,
+		projectId: dbMessage.project_id,
+		senderId: dbMessage.sender_id,
+		senderType: senderType,
+		message: dbMessage.message,
+		createdAt: dbMessage.created_at,
+	};

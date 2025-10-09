@@ -7,8 +7,8 @@ import remarkGfm from 'remark-gfm';
 import { useAskAI } from '../../hooks/useAskAI';
 import { useProjects } from '../../hooks/useProjects';
 import { useAuth } from '../../hooks/useAuth';
-import { ProjectMessage } from '../../types/enhanced-types';
-import { getAdvisorById, generateAdvisorMessage } from '../../../lib/enhancedMockApiService';
+import { ProjectMessage } from '../../types/enhanced-types';;
+import { getAdvisorById } from '../../../lib/enhancedMockApiService';
 import { cn } from '@/utils/cn';
 import { AIContextBuilder } from '../../services/aiContextBuilder';
 import { PresetQuestion } from '../../types/ask-ai-types';
@@ -28,7 +28,6 @@ interface ConsolidatedSidebarProps {
   formData: any;
   droppedFieldId?: string | null;
   onFieldProcessed?: () => void;
-  welcomeMessageGenerated?: boolean; // Add this prop
 }
 
 type TabType = 'ai-assistant' | 'advisor';
@@ -38,7 +37,6 @@ export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
   formData, 
   droppedFieldId, 
   onFieldProcessed,
-  welcomeMessageGenerated = false // Add this prop with default value
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('advisor');
   
@@ -62,13 +60,6 @@ export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
   const [advisorName, setAdvisorName] = useState('Your Capital Advisor');
   const [isLoadingAdvisor, setIsLoadingAdvisor] = useState(false);
   const [localMessages, setLocalMessages] = useState<ProjectMessage[]>([]);
-  // Remove welcome message generation state and logic - now handled by parent
-  // const [welcomeMessageGenerated, setWelcomeMessageGenerated] = useState(() => {
-  //   if (typeof window !== 'undefined') {
-  //     return localStorage.getItem(`capmatch_welcomeGenerated_${projectId}`) === 'true';
-  //   }
-  //   return false;
-  // });
 
   // Handle field drop from AskAIProvider
   useEffect(() => {
@@ -150,66 +141,16 @@ Provide actionable advice that helps me make the best decision for my project.`;
     loadData();
   }, [projectId, getProject]);
 
-  // Remove the welcome message generation effect entirely
-  // useEffect(() => {
-  //   const generateWelcomeMessage = async () => {
-  //     if (!welcomeMessageGenerated && localMessages.length === 0 && activeTab === 'advisor') {
-  //       try {
-  //         const project = getProject(projectId);
-  //         if (project && project.assignedAdvisorUserId) {
-  //           const welcomeMessage = await generateAdvisorMessage(
-  //             project.assignedAdvisorUserId,
-  //             projectId,
-  //             {
-  //               assetType: project.assetType,
-  //               dealType: project.loanType,
-  //               loanAmount: project.loanAmountRequested,
-  //               stage: project.projectPhase
-  //             }
-  //           );
-  //           if (welcomeMessage) {
-  //             await addProjectMessage(welcomeMessage, 'Advisor', project.assignedAdvisorUserId);
-  //             setWelcomeMessageGenerated(true);
-  //             if (typeof window !== 'undefined') {
-  //               localStorage.setItem(`capmatch_welcomeGenerated_${projectId}`, 'true');
-  //             }
-  //           }
-  //         }
-  //       } catch (error) {
-  //         console.error('Failed to generate welcome message:', error);
-  //       }
-  //     }
-  //   };
-
-  //   generateWelcomeMessage();
-  // }, [welcomeMessageGenerated, localMessages.length, activeTab, projectId, getProject, addProjectMessage]);
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    const project = getProject(projectId);
-    if (project && project.assignedAdvisorUserId) {
-      try {
-        const advisorMessage = await generateAdvisorMessage(
-          project.assignedAdvisorUserId,
-          projectId,
-          {
-            assetType: project.assetType,
-            dealType: project.loanType,
-            loanAmount: project.loanAmountRequested,
-            stage: project.projectPhase
-          }
-        );
-        if (advisorMessage) {
-          await addProjectMessage(advisorMessage, 'Borrower', user?.email);
-        }
-      } catch (error) {
+    try {
+        await addProjectMessage(newMessage);
+        setNewMessage('');
+    } catch (error) {
         console.error('Failed to send message:', error);
-      }
     }
-
-    setNewMessage('');
   };
 
   const scrollToBottom = (containerRef: React.RefObject<HTMLDivElement | null>) => {
@@ -323,23 +264,6 @@ Provide actionable advice that helps me make the best decision for my project.`;
                           </div>
                         </div>
                       ))
-                    ) : welcomeMessageGenerated ? (
-                      // Show welcome message placeholder when no messages but welcome was generated
-                      <div className="flex justify-start space-x-2 animate-fadeIn">
-                        <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-gradient-to-r from-gray-100 to-gray-50 text-gray-800 border border-gray-200">
-                          <div className="font-medium text-xs mb-1">
-                            {advisorName}
-                          </div>
-                          <div className="text-gray-500 italic flex items-center">
-                            <div className="animate-pulse flex space-x-1 mr-2">
-                              <div className="h-1 w-1 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                              <div className="h-1 w-1 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                              <div className="h-1 w-1 bg-gray-400 rounded-full animate-bounce"></div>
-                            </div>
-                            Welcome message loading...
-                          </div>
-                        </div>
-                      </div>
                     ) : (
                       // Show no messages state
                       <div className="text-center py-8 text-gray-500 animate-fadeIn">

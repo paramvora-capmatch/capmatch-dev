@@ -34,6 +34,7 @@ import {
 	getAdvisorById,
 } from "../../../../lib/enhancedMockApiService";
 import {
+	BorrowerProfile,
 	Advisor,
 	ProjectProfile,
 	ProjectMessage,
@@ -41,7 +42,10 @@ import {
 } from "../../../types/enhanced-types";
 import { storageService } from "@/lib/storage";
 import { supabase } from "../../../../lib/supabaseClient";
-import { dbProjectToProjectProfile } from "@/lib/dto-mapper";
+import {
+	dbMessageToProjectMessage,
+	dbProjectToProjectProfile,
+} from "@/lib/dto-mapper";
 
 export default function AdvisorDashboardPage() {
 	const router = useRouter();
@@ -212,24 +216,21 @@ export default function AdvisorDashboardPage() {
 					setStatusCounts(counts);
 				}
 
-				// Get recent messages
-				const allMessages = await storageService.getItem<
-					ProjectMessage[]
-				>("projectMessages");
-				if (allMessages) {
-					// Get messages for assigned projects
-					if (assignedProjects.length > 0) {
-						const projectIds = assignedProjects.map((p) => p.id);
-						const relevantMessages = allMessages
-							.filter((m) => projectIds.includes(m.projectId))
-							.sort(
-								(a, b) =>
-									new Date(b.createdAt).getTime() -
-									new Date(a.createdAt).getTime()
-							)
-							.slice(0, 5);
+				// Get recent messages from Supabase
+				if (assignedProjects.length > 0) {
+					const projectIds = assignedProjects.map((p) => p.id);
+					const { data: messagesData, error: messagesError } =
+						await supabase
+							.from("project_messages")
+							.select("*, sender:profiles(role, full_name)")
+							.in("project_id", projectIds)
+							.order("created_at", { ascending: false })
+							.limit(5);
 
-						setRecentMessages(relevantMessages);
+					if (messagesError) throw messagesError;
+
+					if (messagesData) {
+						setRecentMessages(messagesData.map(dbMessageToProjectMessage));
 					}
 				}
 			} catch (error) {

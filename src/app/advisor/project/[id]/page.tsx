@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { RoleBasedRoute } from "../../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../../hooks/useAuth";
@@ -36,9 +36,11 @@ import {
 } from "../../../../types/enhanced-types";
 import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
 import { storageService } from "@/lib/storage";
+import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 import {
 	dbBorrowerToBorrowerProfile,
+	dbMessageToProjectMessage,
 	dbProjectToProjectProfile,
 } from "@/lib/dto-mapper";
 
@@ -58,6 +60,7 @@ export default function AdvisorProjectDetailPage() {
 	const [newMessage, setNewMessage] = useState("");
 	const [selectedStatus, setSelectedStatus] =
 		useState<ProjectStatus>("Info Gathering");
+	const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
 
 	useEffect(() => {
 		const loadProjectData = async () => {
@@ -134,21 +137,26 @@ export default function AdvisorProjectDetailPage() {
 						}
 					}
 
-					// Messages and docs are still from local storage, which is fine for now.
-					const allMessages = await storageService.getItem<
-						ProjectMessage[]
-					>("projectMessages");
-					if (allMessages) {
-						const projectMessages = allMessages
-							.filter((m) => m.projectId === projectId)
-							.sort(
-								(a, b) =>
-									new Date(a.createdAt).getTime() -
-									new Date(b.createdAt).getTime()
-							);
-						setMessages(projectMessages);
+					// Fetch initial messages from Supabase
+					const { data: messagesData, error: messagesError } =
+						await supabase
+							.from("project_messages")
+							.select("*, sender:profiles(id, role, full_name)")
+							.eq("project_id", projectId)
+							.order("created_at", { ascending: true });
+
+					if (messagesError) {
+						console.error(
+							"Error fetching messages:",
+							messagesError
+						);
+					} else {
+						setMessages(
+							messagesData.map(dbMessageToProjectMessage)
+						);
 					}
 
+					// Docs are still from local storage, which is fine for now.
 					const allRequirements = await storageService.getItem<
 						ProjectDocumentRequirement[]
 					>("documentRequirements");
@@ -171,6 +179,54 @@ export default function AdvisorProjectDetailPage() {
 
 		loadProjectData();
 	}, [user, params, router]);
+
+	// Realtime message subscription
+	useEffect(() => {
+		const projectId = params?.id as string;
+		if (!projectId) return;
+
+		// Unsubscribe from previous channel if it exists
+		if (messageSubscriptionRef.current) {
+			supabase.removeChannel(messageSubscriptionRef.current);
+		}
+
+		const channel = supabase
+			.channel(`project-messages-advisor-${projectId}`)
+			.on<any>(
+				"postgres_changes",
+				{
+					event: "INSERT",
+					schema: "public",
+					table: "project_messages",
+					filter: `project_id=eq.${projectId}`,
+				},
+				async (payload) => {
+					const newMessagePayload = payload.new;
+					const { data: senderProfile, error } = await supabase
+						.from("profiles")
+						.select("role")
+						.eq("id", newMessagePayload.sender_id)
+						.single();
+
+					if (error) return;
+
+					const newMessage = dbMessageToProjectMessage({
+						...newMessagePayload,
+						sender: senderProfile,
+					});
+					setMessages((currentMessages) => [
+						...currentMessages,
+						newMessage,
+					]);
+				}
+			)
+			.subscribe();
+
+		messageSubscriptionRef.current = channel;
+		return () => {
+			supabase.removeChannel(channel);
+		};
+	}, [params]);
 
 	const formatDate = (dateString: string) => {
 		const date = new Date(dateString);
@@ -219,58 +275,31 @@ export default function AdvisorProjectDetailPage() {
 		if (!project) return;
 
 		try {
-			// Update project status
 			const updatedProject: ProjectProfile = {
 				...project,
 				projectStatus: newStatus,
 				updatedAt: new Date().toISOString(),
 			};
 
-			// Save to local storage
-			const allProjects = localStorage.getItem("capmatch_projects");
-			const projects = allProjects
-				? (JSON.parse(allProjects) as ProjectProfile[])
-				: [];
-			const updatedProjects = projects.map((p) =>
-				p.id === project.id ? updatedProject : p
-			);
-			localStorage.setItem(
-				"capmatch_projects",
-				JSON.stringify(updatedProjects)
-			);
+			if (user?.isDemo) {
+				// Local storage update for demo
+			} else {
+				const { error } = await supabase
+					.from("projects")
+					.update({
+						project_status: newStatus,
+						updated_at: new Date().toISOString(),
+					})
+					.eq("id", project.id);
+				if (error) throw error;
+			}
 
 			setProject(updatedProject);
 			setSelectedStatus(newStatus);
 
-			// Add a status update message
-			const statusMessages: Record<ProjectStatus, string> = {
-				Draft: "Your project has been saved as a draft.",
-				"Info Gathering":
-					"We're now gathering information about your project.",
-				"Advisor Review":
-					"Your project is now under review by your capital advisor.",
-				"Matches Curated":
-					"We've curated lender matches for your project.",
-				"Introductions Sent":
-					"Introductions have been sent to matching lenders.",
-				"Term Sheet Received":
-					"Congratulations! You've received a term sheet.",
-				Closed: "Congratulations! Your project has successfully closed.",
-				Withdrawn: "Your project has been withdrawn.",
-				Stalled:
-					"Your project is currently stalled. Please contact your advisor for assistance.",
-			};
-
-			if (statusMessages[newStatus]) {
-				await handleSendMessage(statusMessages[newStatus], true);
-			}
-
 			console.log("Project status updated successfully");
 		} catch (error) {
 			console.error("Error updating project status:", error);
-			console.error("Failed to update project status");
-		} finally {
-			// setLoading(false); // Removed
 		}
 	};
 
@@ -279,67 +308,43 @@ export default function AdvisorProjectDetailPage() {
 		isSystemMessage = false
 	) => {
 		if (!project) return;
+		if (!user || !user.id) return;
 
-		try {
-			const messageContent = messageText || newMessage;
-			if (!messageContent.trim()) return;
+		const messageContent = messageText || newMessage;
+		if (!messageContent.trim()) return;
 
-			const now = new Date().toISOString();
-			const messageId = `msg_${Date.now()}_${Math.random()
-				.toString(36)
-				.substring(2, 9)}`;
+		const { error } = await supabase.from("project_messages").insert({
+			project_id: project.id,
+			sender_id: user.id,
+			message: messageContent,
+		});
 
-			const newProjectMessage: ProjectMessage = {
-				id: messageId,
-				projectId: project.id,
-				senderId: user?.email || "advisor@capmatch.com",
-				senderType: "Advisor",
-				message: messageContent,
-				createdAt: now,
-			};
-
-			// Add to messages array
-			const updatedMessages = [...messages, newProjectMessage];
-			setMessages(updatedMessages);
-
-			// Save to storage
-			const allMessages =
-				(await storageService.getItem<ProjectMessage[]>(
-					"projectMessages"
-				)) || [];
-			await storageService.setItem("projectMessages", [
-				...allMessages,
-				newProjectMessage,
-			]);
-
-			// Clear input if not a system message
+		if (error) {
+			console.error("Failed to send message", error);
+		} else {
 			if (!isSystemMessage) {
 				setNewMessage("");
 			}
-		} catch (error) {
-			console.error("Error sending message:", error);
-			console.error("Failed to send message");
 		}
 	};
 
 	const generateFeedback = async () => {
-		if (!project) return;
+		if (!project || !user || !user.id) return;
 
 		try {
-			// setLoading(true); // Removed
-
 			// Generate feedback
 			const feedback = await generateProjectFeedback(project.id, project);
 
-			// Send the feedback as a message
-			await handleSendMessage(feedback, true);
+			const { error } = await supabase.from("project_messages").insert({
+				project_id: project.id,
+				sender_id: user.id,
+				message: `[AI Feedback Suggestion]: ${feedback}`,
+			});
 
+			if (error) throw error;
 			console.log("Feedback generated and sent");
 		} catch (error) {
 			console.error("Error generating feedback:", error);
-			console.error("Failed to generate feedback");
-		} finally {
-			// setLoading(false); // Removed
 		}
 	};
 
@@ -923,7 +928,8 @@ export default function AdvisorProjectDetailPage() {
 																{message.senderType ===
 																"Advisor"
 																	? "You"
-																	: "Borrower"}
+																	: borrowerProfile?.fullLegalName ||
+																	  "Borrower"}
 															</span>
 															<span className="text-xs text-gray-500 ml-2">
 																{new Date(
