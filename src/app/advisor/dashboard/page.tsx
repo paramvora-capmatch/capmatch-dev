@@ -222,7 +222,7 @@ export default function AdvisorDashboardPage() {
 					const { data: messagesData, error: messagesError } =
 						await supabase
 							.from("project_messages")
-							.select("*, sender:profiles(role, full_name)")
+							.select("*")
 							.in("project_id", projectIds)
 							.order("created_at", { ascending: false })
 							.limit(5);
@@ -230,7 +230,13 @@ export default function AdvisorDashboardPage() {
 					if (messagesError) throw messagesError;
 
 					if (messagesData) {
-						setRecentMessages(messagesData.map(dbMessageToProjectMessage));
+						const mappedMessages = messagesData.map(msg => {
+							const senderRole = msg.sender_id === user.id ? 'advisor' : 'borrower';
+							return dbMessageToProjectMessage({
+								...msg, sender: { role: senderRole }
+							});
+						});
+						setRecentMessages(mappedMessages);
 					}
 				}
 			} catch (error) {

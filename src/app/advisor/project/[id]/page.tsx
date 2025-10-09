@@ -141,7 +141,7 @@ export default function AdvisorProjectDetailPage() {
 					const { data: messagesData, error: messagesError } =
 						await supabase
 							.from("project_messages")
-							.select("*, sender:profiles(id, role, full_name)")
+							.select("*")
 							.eq("project_id", projectId)
 							.order("created_at", { ascending: true });
 
@@ -151,9 +151,11 @@ export default function AdvisorProjectDetailPage() {
 							messagesError
 						);
 					} else {
-						setMessages(
-							messagesData.map(dbMessageToProjectMessage)
-						);
+						const mappedMessages = messagesData.map(msg => {
+							const senderRole = msg.sender_id === user.id ? 'advisor' : 'borrower';
+							return dbMessageToProjectMessage({ ...msg, sender: { role: senderRole } });
+						});
+						setMessages(mappedMessages);
 					}
 
 					// Docs are still from local storage, which is fine for now.
@@ -183,7 +185,7 @@ export default function AdvisorProjectDetailPage() {
 	// Realtime message subscription
 	useEffect(() => {
 		const projectId = params?.id as string;
-		if (!projectId) return;
+		if (!projectId || !user) return;
 
 		// Unsubscribe from previous channel if it exists
 		if (messageSubscriptionRef.current) {
@@ -200,20 +202,18 @@ export default function AdvisorProjectDetailPage() {
 					table: "project_messages",
 					filter: `project_id=eq.${projectId}`,
 				},
-				async (payload) => {
+				(payload) => {
 					const newMessagePayload = payload.new;
-					const { data: senderProfile, error } = await supabase
-						.from("profiles")
-						.select("role")
-						.eq("id", newMessagePayload.sender_id)
-						.single();
-
-					if (error) return;
+					const senderRole =
+						newMessagePayload.sender_id === user.id
+							? "advisor"
+							: "borrower";
 
 					const newMessage = dbMessageToProjectMessage({
 						...newMessagePayload,
-						sender: senderProfile,
+						sender: { role: senderRole },
 					});
+
 					setMessages((currentMessages) => [
 						...currentMessages,
 						newMessage,
@@ -226,7 +226,7 @@ export default function AdvisorProjectDetailPage() {
 		return () => {
 			supabase.removeChannel(channel);
 		};
-	}, [params]);
+	}, [params, user]);
 
 	const formatDate = (dateString: string) => {
 		const date = new Date(dateString);
@@ -382,8 +382,10 @@ export default function AdvisorProjectDetailPage() {
 
 					<main className="p-6">
 						<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+							{/* Main Content Column */}
+							<div className="lg:col-span-2 space-y-6">
 							{/* Project Information */}
-							<Card className="lg:col-span-2 shadow-sm">
+							<Card className="shadow-sm">
 								<CardHeader className="border-b bg-gray-50">
 									<div className="flex justify-between items-center">
 										<h2 className="text-lg font-semibold text-gray-800 flex items-center">
@@ -635,6 +637,83 @@ export default function AdvisorProjectDetailPage() {
 								</CardContent>
 							</Card>
 
+							{/* Document Requirements */}
+							<Card className="shadow-sm">
+								<CardHeader className="border-b bg-gray-50">
+									<h2 className="text-lg font-semibold text-gray-800 flex items-center">
+										<FileText className="h-5 w-5 mr-2 text-blue-600" />
+										Document Requirements
+									</h2>
+								</CardHeader>
+								<CardContent className="p-0">
+									{documentRequirements.length > 0 ? (
+										<div className="overflow-x-auto">
+											<table className="min-w-full divide-y divide-gray-200">
+												<thead className="bg-gray-50">
+													<tr>
+														<th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+															Document Type
+														</th>
+														<th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+															Status
+														</th>
+													</tr>
+												</thead>
+												<tbody className="bg-white divide-y divide-gray-200">
+													{documentRequirements.map(
+														(req) => (
+															<tr key={req.id}>
+																<td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+																	{
+																		req.requiredDocType
+																	}
+																</td>
+																<td className="px-4 py-3 whitespace-nowrap">
+																	<span
+																		className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+																			req.status ===
+																			"Approved"
+																				? "bg-green-100 text-green-800"
+																				: req.status ===
+																				  "Rejected"
+																				? "bg-red-100 text-red-800"
+																				: req.status ===
+																				  "Uploaded"
+																				? "bg-blue-100 text-blue-800"
+																				: req.status ===
+																				  "In Review"
+																				? "bg-amber-100 text-amber-800"
+																				: req.status ===
+																				  "Not Applicable"
+																				? "bg-gray-100 text-gray-800"
+																				: "bg-gray-100 text-gray-800"
+																		}`}
+																	>
+																		{
+																			req.status
+																		}
+																	</span>
+																</td>
+															</tr>
+														)
+													)}
+												</tbody>
+											</table>
+										</div>
+									) : (
+										<div className="text-center py-8">
+											<p className="text-gray-500">
+												No document requirements
+											</p>
+										</div>
+									)}
+								</CardContent>
+							</Card>
+							</div>
+
+
+							{/* Sidebar Column */}
+							<div className="lg:col-span-1 space-y-6">
 							{/* Borrower Information */}
 							<Card className="shadow-sm">
 								<CardHeader className="border-b bg-gray-50">
@@ -796,114 +875,16 @@ export default function AdvisorProjectDetailPage() {
 								</CardContent>
 							</Card>
 
-							{/* Document Requirements */}
-							<Card className="lg:col-span-3 shadow-sm">
-								<CardHeader className="border-b bg-gray-50">
-									<h2 className="text-lg font-semibold text-gray-800 flex items-center">
-										<FileText className="h-5 w-5 mr-2 text-blue-600" />
-										Document Requirements
-									</h2>
-								</CardHeader>
-								<CardContent className="p-0">
-									{documentRequirements.length > 0 ? (
-										<div className="overflow-x-auto">
-											<table className="min-w-full divide-y divide-gray-200">
-												<thead className="bg-gray-50">
-													<tr>
-														<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-															Document Type
-														</th>
-														<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-															Status
-														</th>
-														<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-															Notes
-														</th>
-														<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-															Due Date
-														</th>
-														<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-															Last Updated
-														</th>
-													</tr>
-												</thead>
-												<tbody className="bg-white divide-y divide-gray-200">
-													{documentRequirements.map(
-														(req) => (
-															<tr key={req.id}>
-																<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-																	{
-																		req.requiredDocType
-																	}
-																</td>
-																<td className="px-6 py-4 whitespace-nowrap">
-																	<span
-																		className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-																			req.status ===
-																			"Approved"
-																				? "bg-green-100 text-green-800"
-																				: req.status ===
-																				  "Rejected"
-																				? "bg-red-100 text-red-800"
-																				: req.status ===
-																				  "Uploaded"
-																				? "bg-blue-100 text-blue-800"
-																				: req.status ===
-																				  "In Review"
-																				? "bg-amber-100 text-amber-800"
-																				: req.status ===
-																				  "Not Applicable"
-																				? "bg-gray-100 text-gray-800"
-																				: "bg-gray-100 text-gray-800"
-																		}`}
-																	>
-																		{
-																			req.status
-																		}
-																	</span>
-																</td>
-																<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-																	{req.notes ||
-																		"-"}
-																</td>
-																<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-																	{req.dueDate
-																		? formatDate(
-																				req.dueDate
-																		  )
-																		: "-"}
-																</td>
-																<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-																	{formatDate(
-																		req.lastUpdated
-																	)}
-																</td>
-															</tr>
-														)
-													)}
-												</tbody>
-											</table>
-										</div>
-									) : (
-										<div className="text-center py-8">
-											<p className="text-gray-500">
-												No document requirements
-											</p>
-										</div>
-									)}
-								</CardContent>
-							</Card>
-
 							{/* Message Board */}
-							<Card className="lg:col-span-3 shadow-sm">
+							<Card className="shadow-sm flex flex-col">
 								<CardHeader className="border-b bg-gray-50">
 									<h2 className="text-lg font-semibold text-gray-800 flex items-center">
 										<MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
 										Project Message Board
 									</h2>
 								</CardHeader>
-								<CardContent className="p-4">
-									<div className="flex flex-col space-y-6 max-h-96 overflow-y-auto mb-4 p-2">
+								<CardContent className="p-4 flex-1 flex flex-col">
+									<div className="flex-1 space-y-4 overflow-y-auto mb-4 p-2 border rounded bg-gray-50/50 min-h-[300px]">
 										{messages.length > 0 ? (
 											messages.map((message, index) => (
 												<div
@@ -916,7 +897,7 @@ export default function AdvisorProjectDetailPage() {
 													}`}
 												>
 													<div
-														className={`max-w-3/4 rounded-lg px-4 py-2 ${
+														className={`max-w-[85%] rounded-lg px-3 py-2 shadow-sm ${
 															message.senderType ===
 															"Advisor"
 																? "bg-blue-100 text-blue-900"
@@ -924,7 +905,7 @@ export default function AdvisorProjectDetailPage() {
 														}`}
 													>
 														<div className="flex items-center mb-1">
-															<span className="text-xs font-medium">
+															<span className="text-xs font-semibold">
 																{message.senderType ===
 																"Advisor"
 																	? "You"
@@ -954,7 +935,7 @@ export default function AdvisorProjectDetailPage() {
 
 									<div className="flex space-x-2">
 										<textarea
-											className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+											className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
 											placeholder="Type your message here..."
 											rows={2}
 											value={newMessage}
@@ -982,6 +963,7 @@ export default function AdvisorProjectDetailPage() {
 									</div>
 								</CardContent>
 							</Card>
+							</div>
 						</div>
 					</main>
 				</div>
