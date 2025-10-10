@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 // *** CORRECTED IMPORT ***
 import MinimalSidebarLayout from "../../components/layout/MinimalSidebarLayout";
+import { useAuth } from '@/hooks/useAuth';
 import { BorrowerProfileForm } from "../../components/forms/BorrowerProfileForm";
 
 import { useProjects } from "../../hooks/useProjects";
 import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
 
 import { BorrowerProfile } from "../../types/enhanced-types";
+import { DocumentManager } from '@/components/documents/DocumentManager';
 import { Loader2 } from "lucide-react";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay"; // Import LoadingOverlay
 
@@ -21,6 +23,7 @@ export default function ProfilePage() {
 	// Use context hook, providing a fallback empty object if context is not ready
 	const { borrowerProfile, isLoading: profileLoading } =
 		useBorrowerProfile() || { borrowerProfile: null, isLoading: true };
+	const { user } = useAuth();
 
 	// Handle profile completion from the form's onComplete callback
 	const handleProfileComplete = async (profile: BorrowerProfile | null) => {
@@ -74,20 +77,32 @@ export default function ProfilePage() {
 						</span>
 					</div>
 				) : (
-					<div className="max-w-5xl mx-auto">
-						<div className="mb-6 p-4 bg-white rounded shadow-sm border">
-							<p className="text-gray-600">
-								Your borrower profile is used across all your
-								projects. Complete it thoroughly to help match
-								you with appropriate lenders. Changes are
-								auto-saved.
-							</p>
+					<>
+						<div className="max-w-5xl mx-auto">
+							<div className="mb-6 p-4 bg-white rounded shadow-sm border">
+								<p className="text-gray-600">
+									Your borrower profile is used across all your
+									projects. Complete it thoroughly to help match
+									you with appropriate lenders. Changes are
+									auto-saved.
+								</p>
+							</div>
+							{/* Pass the completion handler */}
+							<BorrowerProfileForm
+								onComplete={handleProfileComplete}
+							/>
 						</div>
-						{/* Pass the completion handler */}
-						<BorrowerProfileForm
-							onComplete={handleProfileComplete}
-						/>
-					</div>
+
+						<div className="max-w-5xl mx-auto mt-8">
+							<DocumentManager
+								bucketId={user?.id || null}
+								folderPath="borrower_docs"
+								title="My Borrower Documents"
+								canUpload={true}
+								canDelete={true}
+							/>
+						</div>
+					</>
 				)}
 			</MinimalSidebarLayout>
 		</RoleBasedRoute>

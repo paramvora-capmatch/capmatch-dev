@@ -35,6 +35,7 @@ import {
 	ProjectDocumentRequirement,
 } from "../../../../types/enhanced-types";
 import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
+import { DocumentManager } from '@/components/documents/DocumentManager';
 import { storageService } from "@/lib/storage";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
@@ -709,6 +710,23 @@ export default function AdvisorProjectDetailPage() {
 									)}
 								</CardContent>
 							</Card>
+
+							{/* Project Documents */}
+							<Card className="shadow-sm">
+								<CardContent className="p-0">
+									{project && (
+										<DocumentManager
+											bucketId={project.borrowerProfileId}
+											folderPath={project.id}
+											title="Project-Specific Documents"
+											canUpload={true} // Advisors can upload
+											canDelete={true} // Advisors can manage
+										/>
+									)}
+								</CardContent>
+							</Card>
+
+
 							</div>
 
 
@@ -871,6 +889,21 @@ export default function AdvisorProjectDetailPage() {
 												Borrower profile not found
 											</p>
 										</div>
+									)}
+								</CardContent>
+							</Card>
+
+							{/* Borrower Documents */}
+							<Card className="shadow-sm">
+								<CardContent className="p-0">
+									{project && (
+										<DocumentManager
+											bucketId={project.borrowerProfileId}
+											folderPath="borrower_docs"
+											title="General Borrower Documents"
+											canUpload={true} // Advisors can upload
+											canDelete={true} // Advisors can manage
+										/>
 									)}
 								</CardContent>
 							</Card>

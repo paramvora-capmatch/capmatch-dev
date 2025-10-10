@@ -1,6 +1,9 @@
 // src/stores/useProjectStore.ts
 import { create } from "zustand";
-import { dbMessageToProjectMessage, dbProjectToProjectProfile } from "@/lib/dto-mapper";
+import {
+	dbMessageToProjectMessage,
+	dbProjectToProjectProfile,
+} from "@/lib/dto-mapper";
 import { RealtimeChannel, supabase } from "../../lib/supabaseClient";
 import { storageService } from "@/lib/storage";
 import { useAuthStore } from "./useAuthStore";
@@ -10,7 +13,6 @@ import {
 	ProjectMessage,
 	ProjectPrincipal,
 	ProjectDocumentRequirement,
-	ProjectStatus,
 } from "@/types/enhanced-types";
 
 const projectProfileToDbProject = (
@@ -94,9 +96,7 @@ interface ProjectActions {
 	deleteProject: (id: string) => Promise<boolean>;
 	getProject: (id: string) => ProjectProfile | null;
 	setActiveProject: (project: ProjectProfile | null) => void;
-	addProjectMessage: (
-		message: string
-	) => Promise<void>;
+	addProjectMessage: (message: string) => Promise<void>;
 	resetProjectState: () => void;
 	subscribeToMessages: (projectId: string) => void;
 	unsubscribeFromMessages: () => void;
@@ -260,7 +260,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 							.single();
 
 						if (error) {
-							console.error("Error fetching sender for new message:", error);
+							console.error(
+								"Error fetching sender for new message:",
+								error
+							);
 							return;
 						}
 
@@ -270,7 +273,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						});
 
 						set((state) => ({
-							projectMessages: [...state.projectMessages, newMessage],
+							projectMessages: [
+								...state.projectMessages,
+								newMessage,
+							],
 						}));
 					}
 				)
@@ -280,7 +286,11 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		setActiveProject: async (project) => {
-			const { activeProject, unsubscribeFromMessages, subscribeToMessages } = get();
+			const {
+				activeProject,
+				unsubscribeFromMessages,
+				subscribeToMessages,
+			} = get();
 			if (project?.id === activeProject?.id) return;
 
 			unsubscribeFromMessages();
@@ -348,16 +358,26 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						`[ProjectStore] Assigning advisor with ID: ${advisorId}`
 					);
 				} else {
-					console.warn("[ProjectStore] Specific advisor 'real.advisor@capmatch.com' not found. Assigning first available advisor.");
-					const { data: fallbackAdvisors, error: fallbackError } = await supabase
-						.from("profiles")
-						.select("id")
-						.eq("role", "advisor")
-						.limit(1);
-					if (fallbackError) console.error("Fallback advisor fetch failed:", fallbackError);
+					console.warn(
+						"[ProjectStore] Specific advisor 'real.advisor@capmatch.com' not found. Assigning first available advisor."
+					);
+					const { data: fallbackAdvisors, error: fallbackError } =
+						await supabase
+							.from("profiles")
+							.select("id")
+							.eq("role", "advisor")
+							.limit(1);
+					if (fallbackError)
+						console.error(
+							"Fallback advisor fetch failed:",
+							fallbackError
+						);
 					else if (fallbackAdvisors && fallbackAdvisors.length > 0) {
 						advisorId = fallbackAdvisors[0].id;
-					} else console.warn("[ProjectStore] No advisors found at all.");
+					} else
+						console.warn(
+							"[ProjectStore] No advisors found at all."
+						);
 				}
 			}
 
@@ -428,6 +448,33 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 				if (error) throw error;
 				Object.assign(newProjectData, insertedProject); // Update with DB generated ID
+			}
+
+			// After project creation, create its dedicated folder in storage
+			if (!user.isDemo) {
+				const borrowerBucketId = borrowerProfile.id;
+				const projectFolderId = newProjectData.id;
+				const keepFilePath = `${projectFolderId}/.keep`;
+
+				const { error: storageError } = await supabase.storage
+					.from(borrowerBucketId)
+					.upload(keepFilePath, new Blob([""]), {
+						contentType: "text/plain",
+						upsert: true, // Use upsert to prevent errors if folder/file already exists
+					});
+
+				if (storageError) {
+					// This is a non-critical error. The project is created, but the folder is not.
+					// Log the error for debugging but don't throw, allowing the app to continue.
+					console.error(
+						`[ProjectStore] Failed to create storage folder for project ${projectFolderId}:`,
+						storageError
+					);
+				} else {
+					console.log(
+						`[ProjectStore] Created storage folder for project ${projectFolderId}.`
+					);
+				}
 			}
 
 			const finalProject = {
