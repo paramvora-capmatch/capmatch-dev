@@ -14,7 +14,7 @@ import {
 	FileSpreadsheet,
 } from "lucide-react";
 import { ProjectProfile } from "@/types/enhanced-types";
-import { useProjects } from "@/hooks/useProjects";
+import { useProjectStore as useProjects } from "@/stores/useProjectStore";
 
 interface ProjectCardProps {
 	project: ProjectProfile;

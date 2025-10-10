@@ -7,6 +7,7 @@ import { FileObject } from '@supabase/storage-js';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
 import { FileText, Upload, Download, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface DocumentManagerProps {
   bucketId: string | null;
@@ -103,36 +104,48 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         )}
 
         <div className="flex-1 overflow-y-auto">
-            {isLoading && files.length === 0 ? (
+            {isLoading ? (
                 <div className="flex justify-center items-center h-full">
                     <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
                 </div>
             ) : files.length > 0 ? (
-                <ul className="space-y-2">
-                    {files.map((file) => (
-                        <li key={file.id} className="flex items-center justify-between p-2 bg-white border rounded-md hover:bg-gray-50">
-                            <div className="flex items-center truncate">
-                                <FileText className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
-                                <div className="truncate">
-                                    <p className="text-sm font-medium text-gray-800 truncate" title={file.name}>{file.name}</p>
-                                    <p className="text-xs text-gray-500">
-                                        {formatFileSize(file.metadata.size)} • {formatDate(file.created_at)}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => downloadFile(file.name)} title="Download">
-                                    <Download size={16} />
-                                </Button>
-                                {canDelete && (
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50" onClick={() => handleDelete(file.name)} title="Delete">
-                                        <Trash2 size={16} />
-                                    </Button>
-                                )}
-                            </div>
-                        </li>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {files.map((file, index) => (
+                        <motion.div
+                          key={file.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                        >
+                            <Card className="hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
+                                <CardContent className="p-4 flex-1 flex flex-col">
+                                    <div className="flex items-start">
+                                        <div className="p-2 bg-blue-50 rounded-lg mr-3">
+                                          <FileText className="h-6 w-6 text-blue-600" />
+                                        </div>
+                                        <div className="flex-1 truncate">
+                                            <p className="text-sm font-semibold text-gray-800 truncate" title={file.name}>{file.name}</p>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                {formatFileSize(file.metadata.size)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-2">Uploaded: {formatDate(file.created_at)}</p>
+                                    <div className="mt-auto pt-3 flex items-center justify-end space-x-1">
+                                        <Button variant="ghost" size="sm" onClick={() => downloadFile(file.name)} title="Download">
+                                            <Download size={16} className="mr-1" /> Download
+                                        </Button>
+                                        {canDelete && (
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50" onClick={() => handleDelete(file.name)} title="Delete">
+                                                <Trash2 size={16} />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
                     ))}
-                </ul>
+                </div>
             ) : (
                 <div className="text-center py-8 text-gray-500">
                     <p>No documents found.</p>
