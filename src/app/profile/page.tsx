@@ -4,8 +4,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
-// *** CORRECTED IMPORT ***
-import MinimalSidebarLayout from "../../components/layout/MinimalSidebarLayout";
+import DashboardLayout from "../../components/layout/DashboardLayout";
 import { useAuth } from '@/hooks/useAuth';
 import { BorrowerProfileForm } from "../../components/forms/BorrowerProfileForm";
 
@@ -13,7 +12,6 @@ import { useProjects } from "../../hooks/useProjects";
 import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
 
 import { BorrowerProfile } from "../../types/enhanced-types";
-import { DocumentManager } from '@/components/documents/DocumentManager';
 import { Loader2 } from "lucide-react";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay"; // Import LoadingOverlay
 
@@ -59,14 +57,7 @@ export default function ProfilePage() {
 
 	return (
 		<RoleBasedRoute roles={["borrower"]}>
-			{/* *** USE CORRECT LAYOUT *** */}
-			<MinimalSidebarLayout
-				title={
-					borrowerProfile
-						? "Update Borrower Profile"
-						: "Create Borrower Profile"
-				}
-			>
+			<DashboardLayout title="My Profile">
 				<LoadingOverlay isLoading={false} />{" "}
 				{/* Display loading overlay based on UI context */}
 				{profileLoading ? ( // Check profile specific loading state
@@ -92,19 +83,9 @@ export default function ProfilePage() {
 								onComplete={handleProfileComplete}
 							/>
 						</div>
-
-						<div className="max-w-5xl mx-auto mt-8">
-							<DocumentManager
-								bucketId={user?.id || null}
-								folderPath="borrower_docs"
-								title="My Borrower Documents"
-								canUpload={true}
-								canDelete={true}
-							/>
-						</div>
 					</>
 				)}
-			</MinimalSidebarLayout>
+			</DashboardLayout>
 		</RoleBasedRoute>
 	);
 }

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { ArrowLeft, Download, Home, PanelRightOpen } from 'lucide-react';
+import { ArrowLeft, Download, Home, PanelRightOpen, ChevronLeft } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { OMChatSidebar } from './OMChatSidebar';
 
@@ -50,10 +50,10 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => window.history.back()}
+                                    onClick={() => router.back()}
                                         className="mr-2"
                                     >
-                                        <ArrowLeft className="h-4 w-4" />
+                                    <ChevronLeft className="h-4 w-4" />
                                     </Button>
                                 )}
                                 
