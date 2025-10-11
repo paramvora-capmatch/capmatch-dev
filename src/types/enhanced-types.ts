@@ -254,14 +254,13 @@ export interface Advisor {
   updatedAt: string;
 }
 
-// Message Types (REMOVED isRead)
+// Message Types
 export interface ProjectMessage {
   id: string;
   projectId: string;
   senderId: string;
   senderType: "Borrower" | "Advisor" | "System"; // Added System type
   message: string;
-  // isRead: boolean; // REMOVED
   createdAt: string;
 }
 

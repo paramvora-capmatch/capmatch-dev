@@ -36,50 +36,57 @@ const generateUniqueId = (prefix: string): string =>
 	`${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
 const calculateCompleteness = (
-	profile: BorrowerProfile | null,
-	principals: Principal[]
+    profile: BorrowerProfile | null,
+    principals: Principal[]
 ): number => {
-	if (!profile) return 0;
-	const requiredFields: (keyof BorrowerProfile)[] = [
-		"fullLegalName",
-		"primaryEntityName",
-		"primaryEntityStructure",
-		"contactEmail",
-		"contactPhone",
-		"contactAddress",
-		"yearsCREExperienceRange",
-		"assetClassesExperience",
-		"geographicMarketsExperience",
-		"creditScoreRange",
-		"netWorthRange",
-		"liquidityRange",
-	];
-	let filledCount = 0;
-	requiredFields.forEach((field) => {
-		const value = profile[field];
-		if (
-			value &&
-			(Array.isArray(value)
-				? value.length > 0
-				: String(value).trim() !== "")
-		)
-			filledCount++;
-	});
-	const optionalFields: (keyof BorrowerProfile)[] = [
-		"bioNarrative",
-		"linkedinUrl",
-		"websiteUrl",
-		"totalDealValueClosedRange",
-		"existingLenderRelationships",
-	];
-	optionalFields.forEach((field) => {
-		const value = profile[field];
-		if (value && String(value).trim() !== "") filledCount += 0.5;
-	});
-	if (principals.length > 0)
-		filledCount += 1 + Math.min(principals.length, 3) * 0.5;
-	const maxPoints = requiredFields.length + optionalFields.length * 0.5 + 2.5;
-	return Math.min(100, Math.round((filledCount / maxPoints) * 100));
+    if (!profile) return 0;
+
+    const requiredFields: (keyof BorrowerProfile)[] = [
+        "fullLegalName", "primaryEntityName", "primaryEntityStructure", "contactEmail", "contactPhone",
+        "contactAddress", "yearsCREExperienceRange", "assetClassesExperience", "geographicMarketsExperience",
+        "creditScoreRange", "netWorthRange", "liquidityRange",
+    ];
+
+    let filledCount = 0;
+
+    requiredFields.forEach((field) => {
+        const value = profile[field];
+
+        // Check if the field is considered filled
+        const isFilled = value && (Array.isArray(value) ? value.length > 0 : String(value).trim() !== "");
+        if (!isFilled) return;
+
+        // Check for placeholder values that shouldn't count for a new user.
+        // These heuristics assume if a basic text field isn't filled, the default dropdowns are not intentional choices.
+        if (field === 'primaryEntityStructure' && value === 'LLC' && !profile.primaryEntityName) return;
+        if (field === 'yearsCREExperienceRange' && value === '0-2' && !profile.fullLegalName) return;
+        if (field === 'creditScoreRange' && value === 'N/A' && !profile.contactPhone) return;
+        if (field === 'netWorthRange' && value === '<$1M' && !profile.contactAddress) return;
+        if (field === 'liquidityRange' && value === '<$100k' && !profile.contactAddress) return;
+
+        // If it passes all checks, count it
+        filledCount++;
+    });
+
+    // Optional fields logic
+    const optionalFields: (keyof BorrowerProfile)[] = [
+        "bioNarrative", "linkedinUrl", "websiteUrl", "totalDealValueClosedRange", "existingLenderRelationships",
+    ];
+
+    optionalFields.forEach((field) => {
+        const value = profile[field];
+        if (value && String(value).trim() !== "") {
+            if (field === 'totalDealValueClosedRange' && value === 'N/A') return;
+            filledCount += 0.5;
+        }
+    });
+
+    if (principals.length > 0) {
+        filledCount += 1 + Math.min(principals.length, 3) * 0.5;
+    }
+
+    const maxPoints = requiredFields.length + optionalFields.length * 0.5 + 2.5;
+    return Math.min(100, Math.round((filledCount / maxPoints) * 100));
 };
 
 const createDefaultBorrowerProfile = (

@@ -92,51 +92,6 @@ export const getAdvisorById = async (id: string): Promise<Advisor | null> => {
   );
 };
 
-// Mock auto message generation
-export const generateAdvisorMessage = async (
-  advisorId: string,
-  projectId: string,
-  context: {
-    assetType?: string;
-    dealType?: string;
-    loanAmount?: number;
-    stage?: string;
-  }
-): Promise<string> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 800));
-
-  // Get the advisor
-  const advisor = await getAdvisorById(advisorId);
-
-  if (!advisor) {
-    return "Hello! I'm your Capital Markets Advisor. How can I help with your project today?";
-  }
-
-  // Create a personalized message based on context
-  if (context.assetType && context.dealType) {
-    return `Hello! I'm ${
-      advisor.name
-    }, your dedicated Capital Markets Advisor at CapMatch. 
-    I see you're working on a ${context.assetType} ${context.dealType} project${
-      context.loanAmount
-        ? ` with a target loan amount of $${(
-            context.loanAmount / 1000000
-          ).toFixed(1)}M`
-        : ""
-    }. 
-    As a specialist in ${advisor.specialties.join(
-      ", "
-    )}, I'm excited to help you find the perfect financing solution. 
-    Please complete your Project Resume so we can match you with the ideal capital providers. Let me know if you have any questions!`;
-  } else {
-    return `Hello! I'm ${advisor.name}, your dedicated Capital Markets Advisor at CapMatch with ${advisor.yearsExperience} years of experience.
-    I'm here to help you find the ideal financing for your commercial real estate project. 
-    Please complete your Project Resume so we can match you with suitable lenders. 
-    Don't hesitate to reach out if you have any questions or need assistance.`;
-  }
-};
-
 // Mock API for automated feedback
 export const generateProjectFeedback = async (
   projectId: string,

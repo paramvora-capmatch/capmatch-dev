@@ -1,308 +1,243 @@
 // src/components/dashboard/MessagePanel.tsx
-'use client';
+"use client";
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader } from '../ui/card';
-import { Button } from '../ui/Button';
-import { MessageSquare, Send, ChevronRight } from 'lucide-react';
-import { useProjects } from '../../hooks/useProjects';
-import { ProjectMessage } from '../../types/enhanced-types';
-// Remove generateAdvisorMessage import since it's no longer needed
-// import { getAdvisorById, generateAdvisorMessage } from '../../../lib/enhancedMockApiService';
-import { getAdvisorById } from '../../../lib/enhancedMockApiService';
-import { useAuth } from '../../hooks/useAuth'; // Import useAuth
-import { cn } from '@/utils/cn';
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader } from "../ui/card";
+import { Button } from "../ui/Button";
+import { MessageSquare, Send, ChevronRight } from "lucide-react";
+import { useProjects } from "../../hooks/useProjects";
+import { ProjectMessage } from "../../types/enhanced-types";
+import { getAdvisorById } from "../../../lib/enhancedMockApiService";
+import { cn } from "@/utils/cn";
 
 interface MessagePanelProps {
-  projectId: string;
-  fullHeight?: boolean;
+	projectId: string;
+	fullHeight?: boolean;
 }
 
-export const MessagePanel: React.FC<MessagePanelProps> = ({ 
-  projectId,
-  fullHeight = false
+export const MessagePanel: React.FC<MessagePanelProps> = ({
+	projectId,
+	fullHeight = false,
 }) => {
-  const router = useRouter();
-  // projectMessages is now specific to the activeProject in context
-  // For a general panel, we might need a way to fetch messages specifically for this ID
-  // Let's assume for now this panel might only appear when the project IS active,
-  // or adjust useProjects hook later if needed.
-  const { getProject, projectMessages, addProjectMessage, activeProject, setActiveProject } = useProjects();
-  const { user } = useAuth(); // Get current user
-  const [newMessage, setNewMessage] = useState('');
-  const [advisorName, setAdvisorName] = useState('Your Capital Advisor');
-  const [advisorAvatar, setAdvisorAvatar] = useState(''); // Keep avatar state if used
-  const [isLoadingAdvisor, setIsLoadingAdvisor] = useState(false);
-  const [localMessages, setLocalMessages] = useState<ProjectMessage[]>([]);
-  // Remove welcome message generation state since it's now handled by parent
-  // const [welcomeMessageGenerated, setWelcomeMessageGenerated] = useState(() => {
-  //   if (typeof window !== 'undefined') {
-  //     return localStorage.getItem(`capmatch_welcomeGenerated_${projectId}`) === 'true';
-  //   }
-  //   return false;
-  // });
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messageContainerRef = useRef<HTMLDivElement>(null);
-  // Remove welcome generation progress ref since it's no longer needed
-  // const welcomeGenerationInProgress = useRef(false);
+	const router = useRouter();
+	// projectMessages is now specific to the activeProject in context
+	// For a general panel, we might need a way to fetch messages specifically for this ID
+	// Let's assume for now this panel might only appear when the project IS active,
+	// or adjust useProjects hook later if needed.
+	const {
+		getProject,
+		projectMessages,
+		addProjectMessage,
+		activeProject,
+		setActiveProject,
+	} = useProjects();
+	const [newMessage, setNewMessage] = useState("");
+	const [advisorName, setAdvisorName] = useState("Your Capital Advisor");
+	const [advisorAvatar, setAdvisorAvatar] = useState(""); // Keep avatar state if used
+	const [isLoadingAdvisor, setIsLoadingAdvisor] = useState(false);
+	const [localMessages, setLocalMessages] = useState<ProjectMessage[]>([]);
+	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const messageContainerRef = useRef<HTMLDivElement>(null);
 
-  // Remove welcome message generation helper function
-  // const setWelcomeGeneratedWithStorage = useCallback((value: boolean) => {
-  //   setWelcomeMessageGenerated(value);
-  //   if (typeof window !== 'undefined') {
-  //     if (value) {
-  //       localStorage.setItem(`capmatch_welcomeGenerated_${projectId}`, 'true');
-  //     } else {
-  //       localStorage.removeItem(`capmatch_welcomeGenerated_${projectId}`);
-  //     }
-  //   }
-  // }, [projectId]);
+	const scrollToBottom = () => {
+		// Scroll the message container to the bottom instead of using scrollIntoView
+		if (messageContainerRef.current) {
+			messageContainerRef.current.scrollTop =
+				messageContainerRef.current.scrollHeight;
+		}
+	};
 
-  const scrollToBottom = () => {
-    // Scroll the message container to the bottom instead of using scrollIntoView
-    if (messageContainerRef.current) {
-      messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
-    }
-  };
+	useEffect(() => {
+		scrollToBottom();
+	}, [localMessages]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [localMessages]);
+	// Get the specific project for this panel
+	const project = getProject(projectId);
 
-  // Get the specific project for this panel
-  const project = getProject(projectId);
+	// Effect to update local messages when the active project matches this panel's project
+	useEffect(() => {
+		if (activeProject?.id === projectId) {
+			setLocalMessages(projectMessages);
+		}
+		// If the active project changes and *doesn't* match, the message list won't update here
+		// This might be okay if the panel is only shown for the active project context
+		// Or we need a dedicated message fetcher per panel instance.
+	}, [projectMessages, activeProject, projectId]);
 
-   // Effect to update local messages when the active project matches this panel's project
-   useEffect(() => {
-    if (activeProject?.id === projectId) {
-      setLocalMessages(projectMessages);
-    }
-    // If the active project changes and *doesn't* match, the message list won't update here
-    // This might be okay if the panel is only shown for the active project context
-    // Or we need a dedicated message fetcher per panel instance.
-  }, [projectMessages, activeProject, projectId]);
+	// Get advisor information and ensure project is active
+	useEffect(() => {
+		const loadData = async () => {
+			if (project) {
+				// Set this project as active if it's not already
+				// Be cautious if multiple panels are rendered - this could cause loops
+				// setActiveProject(project);
 
+				if (project.assignedAdvisorUserId) {
+					setIsLoadingAdvisor(true);
+					try {
+						const advisor = await getAdvisorById(
+							project.assignedAdvisorUserId
+						);
+						if (advisor) {
+							setAdvisorName(advisor.name);
+							// setAdvisorAvatar(advisor.avatar); // Uncomment if avatar is used
+						}
+					} catch (error) {
+						console.error("Error fetching advisor info:", error);
+						setAdvisorName("Capital Advisor"); // Fallback name
+					} finally {
+						setIsLoadingAdvisor(false);
+					}
+				} else {
+					setAdvisorName("Capital Advisor"); // Default if none assigned
+				}
+			}
+		};
 
-  // Get advisor information and ensure project is active
-  useEffect(() => {
-    const loadData = async () => {
-      if (project) {
-          // Set this project as active if it's not already
-          // Be cautious if multiple panels are rendered - this could cause loops
-          // setActiveProject(project);
+		loadData();
+	}, [project]); // Depend only on the project prop
 
-        if (project.assignedAdvisorUserId) {
-          setIsLoadingAdvisor(true);
-          try {
-            const advisor = await getAdvisorById(project.assignedAdvisorUserId);
-            if (advisor) {
-              setAdvisorName(advisor.name);
-              // setAdvisorAvatar(advisor.avatar); // Uncomment if avatar is used
-            }
-          } catch (error) {
-            console.error('Error fetching advisor info:', error);
-            setAdvisorName('Capital Advisor'); // Fallback name
-          } finally {
-              setIsLoadingAdvisor(false);
-          }
-        } else {
-            setAdvisorName('Capital Advisor'); // Default if none assigned
-        }
-      }
-    };
+	// Handle sending a message
+	const handleSendMessage = async () => {
+		// Ensure the project context is active for sending messages
+		if (
+			!activeProject ||
+			activeProject.id !== projectId ||
+			!newMessage.trim()
+		)
+			return;
 
-    loadData();
-  }, [project]); // Depend only on the project prop
+		try {
+			// Use context function
+			await addProjectMessage(newMessage);
+			setNewMessage("");
+		} catch (error) {
+			console.error("Error sending message:", error);
+			// Optionally show UI feedback for error
+		}
+	};
 
-  // Generate welcome message if no messages exist *for the active project*
-  // This logic is now handled by the parent ProjectWorkspace component
-  // useEffect(() => {
-  //   const generateWelcome = async () => {
-  //       // Ensure this runs only for the currently active project matching the panel
-  //       // and that we haven't already generated a welcome message for this project
-  //       if (
-  //         activeProject && 
-  //         activeProject.id === projectId && 
-  //         localMessages.length === 0 && 
-  //         activeProject.assignedAdvisorUserId && 
-  //         !isLoadingAdvisor &&
-  //         // !welcomeMessageGenerated && // Removed welcomeMessageGenerated
-  //         // !welcomeGenerationInProgress.current // Removed welcomeGenerationInProgress
-  //       ) {
-  //         try {
-  //           // Set ref immediately to prevent race conditions
-  //           // welcomeGenerationInProgress.current = true; // Removed welcomeGenerationInProgress
-  //           
-  //           // Double-check localStorage to prevent race conditions
-  //           const storageFlag = typeof window !== 'undefined' 
-  //             ? localStorage.getItem(`capmatch_welcomeGenerated_${projectId}`) === 'true'
-  //             : false;
-  //           
-  //           if (storageFlag) {
-  //             // Another instance already generated the message
-  //             // setWelcomeGeneratedWithStorage(true); // Removed setWelcomeGeneratedWithStorage
-  //             // welcomeGenerationInProgress.current = false; // Removed welcomeGenerationInProgress
-  //             return;
-  //           }
-  //           
-  //           // Set flag to prevent duplicate generation (now persisted in localStorage)
-  //           // setWelcomeGeneratedWithStorage(true); // Removed setWelcomeGeneratedWithStorage
-  //           
-  //           // Generate a welcome message
-  //           const welcomeMessageText = await generateAdvisorMessage(
-  //               activeProject.assignedAdvisorUserId,
-  //               activeProject.id,
-  //               {
-  //               assetType: activeProject.assetType,
-  //               dealType: activeProject.projectPhase,
-  //               loanAmount: activeProject.loanAmountRequested,
-  //               stage: activeProject.projectStatus
-  //               }
-  //           );
+	if (!project) {
+		return (
+			<Card className="shadow-sm">
+				<CardContent className="p-4 text-gray-500">
+					Loading project...
+				</CardContent>
+			</Card>
+		); // Or some loading state
+	}
 
-  //            // Use addProjectMessage context function
-  //            await addProjectMessage(welcomeMessageText, 'Advisor', activeProject.assignedAdvisorUserId);
-  //            console.log("Generated welcome message for " + projectId);
-  //            
-  //            // Reset ref after successful completion
-  //            // welcomeGenerationInProgress.current = false; // Removed welcomeGenerationInProgress
+	return (
+		<Card className={cn("shadow-sm", fullHeight && "h-full flex flex-col")}>
+			<CardHeader className="pb-3 border-b flex justify-between items-center bg-gray-50">
+				<div className="flex items-center">
+					<MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
+					<h2 className="text-lg font-semibold text-gray-800">
+						Message Your Advisor
+					</h2>
+				</div>
+				{/* Link to the new workspace page */}
+				<Button
+					variant="outline"
+					size="sm"
+					rightIcon={<ChevronRight size={16} />}
+					onClick={() =>
+						router.push(`/project/workspace/${projectId}`)
+					}
+				>
+					View/Edit Project
+				</Button>
+			</CardHeader>
 
-  //       } catch (error) {
-  //           console.error('Error generating welcome message:', error);
-  //           // Reset flag on error so it can be retried
-  //           // setWelcomeGeneratedWithStorage(false); // Removed setWelcomeGeneratedWithStorage
-  //           // Reset ref on error
-  //           // welcomeGenerationInProgress.current = false; // Removed welcomeGenerationInProgress
-  //       }
-  //       }
-  //   };
+			<CardContent className="p-4">
+				{/* Display localMessages which should reflect the active project's messages if IDs match */}
+				<div
+					className="space-y-4 max-h-64 overflow-y-auto mb-4 border rounded p-2 bg-gray-50"
+					ref={messageContainerRef}
+				>
+					{localMessages.length > 0 ? (
+						localMessages.map((message: ProjectMessage) => (
+							<div
+								key={message.id}
+								className={`flex ${
+									message.senderType === "Borrower"
+										? "justify-end"
+										: "justify-start"
+								}`}
+							>
+								<div
+									className={`max-w-[80%] rounded-lg px-3 py-2 shadow-sm ${
+										message.senderType === "Borrower"
+											? "bg-blue-100 text-blue-900"
+											: message.senderType === "Advisor"
+											? "bg-gray-100 text-gray-900"
+											: "bg-yellow-50 text-yellow-800 italic text-sm" // System message style
+									}`}
+								>
+									{message.senderType !== "System" && (
+										<div className="flex items-center mb-1">
+											<span className="text-xs font-medium">
+												{/* Display 'You' or Advisor Name */}
+												{message.senderType ===
+												"Borrower"
+													? "You"
+													: advisorName}
+											</span>
+											<span className="text-xs text-gray-500 ml-2">
+												{new Date(
+													message.createdAt
+												).toLocaleString()}
+											</span>
+										</div>
+									)}
+									<p
+										className={`text-sm whitespace-pre-line ${
+											message.senderType === "System"
+												? "text-center"
+												: ""
+										}`}
+									>
+										{message.message}
+									</p>
+								</div>
+							</div>
+						))
+					) : (
+						<div className="text-center py-4">
+							<p className="text-gray-500">No messages yet.</p>
+						</div>
+					)}
+					<div ref={messagesEndRef} />
+				</div>
 
-  //   // Only generate if advisor info is loaded and messages are confirmed empty
-  //   if (!isLoadingAdvisor) {
-  //      generateWelcome();
-  //   }
-  // }, [activeProject, projectId, localMessages, isLoadingAdvisor]); // Removed welcomeMessageGenerated, setWelcomeGeneratedWithStorage
-
-  // Reset welcome message flag when switching projects - no longer needed
-  // useEffect(() => {
-  //   // Reset flag only when actually switching to a different project
-  //   const currentFlag = typeof window !== 'undefined' 
-  //     ? localStorage.getItem(`capmatch_welcomeGenerated_${projectId}`) === 'true'
-  //     : false;
-  //   // setWelcomeMessageGenerated(currentFlag); // Removed setWelcomeMessageGenerated
-  // }, [projectId]);
-
-  // Cleanup effect to reset ref when component unmounts or project changes - no longer needed
-  // useEffect(() => {
-  //   return () => {
-  //     // Reset the ref when component unmounts or project changes
-  //     // welcomeGenerationInProgress.current = false; // Removed welcomeGenerationInProgress
-  //   };
-  // }, [projectId]);
-
-  // Handle sending a message
-  const handleSendMessage = async () => {
-    // Ensure the project context is active for sending messages
-    if (!activeProject || activeProject.id !== projectId || !newMessage.trim()) return;
-
-    try {
-      // Use context function, defaulting sender to 'Borrower'
-      await addProjectMessage(newMessage, 'Borrower', user?.email);
-      setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      // Optionally show UI feedback for error
-    }
-  };
-
-  if (!project) {
-      return <Card className="shadow-sm"><CardContent className="p-4 text-gray-500">Loading project...</CardContent></Card>; // Or some loading state
-  }
-
-  return (
-    <Card className={cn("shadow-sm", fullHeight && "h-full flex flex-col")}>
-      <CardHeader className="pb-3 border-b flex justify-between items-center bg-gray-50">
-        <div className="flex items-center">
-          <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
-          <h2 className="text-lg font-semibold text-gray-800">Message Your Advisor</h2>
-        </div>
-        {/* Link to the new workspace page */}
-        <Button
-          variant="outline"
-          size="sm"
-          rightIcon={<ChevronRight size={16} />}
-          onClick={() => router.push(`/project/workspace/${projectId}`)}
-        >
-          View/Edit Project
-        </Button>
-      </CardHeader>
-
-      <CardContent className="p-4">
-        {/* Display localMessages which should reflect the active project's messages if IDs match */}
-        <div className="space-y-4 max-h-64 overflow-y-auto mb-4 border rounded p-2 bg-gray-50" ref={messageContainerRef}>
-          {localMessages.length > 0 ? (
-            localMessages.map((message: ProjectMessage) => (
-              <div
-                key={message.id}
-                className={`flex ${message.senderType === 'Borrower' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-lg px-3 py-2 shadow-sm ${
-                    message.senderType === 'Borrower'
-                      ? 'bg-blue-100 text-blue-900'
-                      : message.senderType === 'Advisor'
-                      ? 'bg-gray-100 text-gray-900'
-                      : 'bg-yellow-50 text-yellow-800 italic text-sm' // System message style
-                  }`}
-                >
-                  {message.senderType !== 'System' && (
-                     <div className="flex items-center mb-1">
-                        <span className="text-xs font-medium">
-                        {/* Display 'You' or Advisor Name */}
-                        {message.senderType === 'Borrower' ? 'You' : advisorName}
-                        </span>
-                        <span className="text-xs text-gray-500 ml-2">
-                        {new Date(message.createdAt).toLocaleString()}
-                        </span>
-                    </div>
-                  )}
-                  <p className={`text-sm whitespace-pre-line ${message.senderType === 'System' ? 'text-center' : ''}`}>
-                    {message.message}
-                  </p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-4">
-              <p className="text-gray-500">No messages yet.</p>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <div className="flex space-x-2">
-          <textarea
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            placeholder="Type your message here..."
-            rows={2}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            // Disable if the current panel's project isn't the active one
-            disabled={activeProject?.id !== projectId}
-          />
-          <Button
-            onClick={handleSendMessage}
-            disabled={!newMessage.trim() || activeProject?.id !== projectId}
-            leftIcon={<Send size={16} />}
-          >
-            Send
-          </Button>
-        </div>
-         {activeProject?.id !== projectId && (
-            <p className="text-xs text-red-600 mt-1">Select this project via the dashboard to send messages.</p>
-        )}
-      </CardContent>
-    </Card>
-  );
+				<div className="flex space-x-2">
+					<textarea
+						className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+						placeholder="Type your message here..."
+						rows={2}
+						value={newMessage}
+						onChange={(e) => setNewMessage(e.target.value)}
+						// Disable if the current panel's project isn't the active one
+						disabled={activeProject?.id !== projectId}
+					/>
+					<Button
+						onClick={handleSendMessage}
+						disabled={
+							!newMessage.trim() ||
+							activeProject?.id !== projectId
+						}
+						leftIcon={<Send size={16} />}
+					>
+						Send
+					</Button>
+				</div>
+				{activeProject?.id !== projectId && (
+					<p className="text-xs text-red-600 mt-1">
+						Select this project via the dashboard to send messages.
+					</p>
+				)}
+			</CardContent>
+		</Card>
+	);
 };
