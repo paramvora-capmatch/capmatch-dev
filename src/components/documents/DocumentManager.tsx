@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useStorage } from '@/hooks/useStorage';
+import { useStorageWithRBAC } from '@/hooks/useStorageWithRBAC';
 import { FileObject } from '@supabase/storage-js';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
@@ -15,6 +15,7 @@ interface DocumentManagerProps {
   title: string;
   canUpload?: boolean;
   canDelete?: boolean;
+  projectId?: string; // Add projectId for RBAC
 }
 
 const formatFileSize = (bytes: number) => {
@@ -36,8 +37,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   title,
   canUpload = true,
   canDelete = true,
+  projectId,
 }) => {
-  const { files, isLoading, error, uploadFile, downloadFile, deleteFile } = useStorage(bucketId, folderPath);
+  const { files, isLoading, error, uploadFile, downloadFile, deleteFile } = useStorageWithRBAC(bucketId, folderPath, projectId);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);

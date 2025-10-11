@@ -133,32 +133,56 @@ const LoginForm = () => {
           {/* Quick Login Buttons */}
           <div className="space-y-3 pt-2">
             <p className="text-center text-xs text-gray-500">
-              Or use a demo account (password: password123):
+              Or use a test account (password: password123):
             </p>
-            <div className="flex space-x-3 justify-center">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1"
+                className="text-xs"
+                onClick={() => {
+                  setEmail("owner@test.com");
+                  setPassword("password123");
+                }}
+                disabled={authLoading}
+              >
+                Test Owner
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-xs"
+                onClick={() => {
+                  setEmail("member@test.com");
+                  setPassword("password123");
+                }}
+                disabled={authLoading}
+              >
+                Test Member
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-xs"
+                onClick={() => {
+                  setEmail("advisor@test.com");
+                  setPassword("password123");
+                }}
+                disabled={authLoading}
+              >
+                Test Advisor
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="text-xs"
                 onClick={() => {
                   setEmail("borrower1@example.com");
                   setPassword("password123");
                 }}
                 disabled={authLoading}
               >
-                Demo Borrower 1
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setEmail("advisor1@capmatch.com");
-                  setPassword("password123");
-                }}
-                disabled={authLoading}
-              >
-                Demo Advisor
+                Demo Borrower
               </Button>
             </div>
           </div>

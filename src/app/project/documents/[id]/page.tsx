@@ -77,11 +77,12 @@ export default function ProjectDocumentsPage() {
 				</div>
 
 				<DocumentManager
-					bucketId={user?.id || null} // Borrower's own bucket
+					bucketId={project.entityId || null} // Entity-based bucket
 					folderPath={project.id} // Project-specific folder
 					title="Project Documents"
 					canUpload={true}
 					canDelete={true}
+					projectId={project.id} // Pass projectId for RBAC
 				/>
 			</DashboardLayout>
 		</RoleBasedRoute>

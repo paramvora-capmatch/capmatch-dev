@@ -68,6 +68,11 @@ export interface BorrowerProfile {
   completenessPercent: number;
   createdAt: string;
   updatedAt: string;
+  // RBAC additions
+  entityId: string;
+  masterProfileId?: string | null;
+  lastSyncedAt?: string;
+  customFields?: string[];
 }
 
 // Principal Types
@@ -133,6 +138,7 @@ export type ProjectStatus =
 export interface ProjectProfile {
   id: string;
   borrowerProfileId: string;
+  entityId: string;
   assignedAdvisorUserId: string | null;
   projectName: string;
   propertyAddressStreet: string;
@@ -171,6 +177,7 @@ export interface ProjectProfile {
   updatedAt: string;
   projectSections?: any; // Add for consistency with mock data
   borrowerSections?: any; // Add for consistency with mock data
+  // RBAC additions
 }
 
 // Project Principal Types
@@ -274,4 +281,51 @@ export interface EnhancedUser {
   role: "borrower" | "advisor" | "lender" | "admin";
   loginSource?: "direct" | "lenderline"; // Added login source tracking
   isDemo?: boolean; // Flag for demo users
+  // RBAC additions
+  activeEntityId?: string | null; // for context switching
+  entityMemberships?: BorrowerEntityMember[]; // loaded on login
+}
+
+// RBAC Types
+export interface BorrowerEntity {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
+export type EntityMemberRole = 'owner' | 'member';
+export type InviteStatus = 'pending' | 'active' | 'removed';
+
+export interface BorrowerEntityMember {
+  id: string;
+  entityId: string;
+  userId: string;
+  role: EntityMemberRole;
+  invitedBy: string;
+  invitedAt: string;
+  inviteToken?: string;
+  inviteExpiresAt?: string;
+  acceptedAt?: string | null;
+  status: InviteStatus;
+  userEmail?: string;
+  userName?: string;
+  projectPermissions?: string[]; // Array of project IDs for member role
+  invitedEmail?: string; // Email that was invited (for pending invites)
+  inviterEmail?: string; // Email of person who sent invite
+  inviterName?: string; // Name of person who sent invite
+}
+
+export type PermissionType = 'file' | 'folder';
+
+export interface DocumentPermission {
+  id: string;
+  entityId: string;
+  projectId: string;
+  documentPath: string;
+  userId: string;
+  grantedBy: string;
+  grantedAt: string;
+  permissionType: PermissionType;
 }
