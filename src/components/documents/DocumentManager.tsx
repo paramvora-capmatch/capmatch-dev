@@ -6,7 +6,7 @@ import { useStorageWithRBAC } from '@/hooks/useStorageWithRBAC';
 import { FileObject } from '@supabase/storage-js';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
-import { FileText, Upload, Download, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, Upload, Download, Trash2, Loader2, AlertCircle, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DocumentPermissionModal } from '../modals/DocumentPermissionModal';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -104,6 +104,21 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     });
   };
 
+  const handleChangePermissions = (fileName: string) => {
+    const filePath = folderPath ? `${folderPath}/${fileName}` : fileName;
+    setPermissionModal({
+      isOpen: true,
+      fileName: fileName,
+      filePath: filePath
+    });
+  };
+
+  const handleDeleteFromDropdown = async (fileName: string) => {
+    if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
+      await deleteFile(fileName);
+    }
+  };
+
   return (
     <Card className="shadow-sm h-full flex flex-col">
       <CardHeader className="border-b bg-gray-50">
@@ -161,40 +176,59 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
                 </div>
             ) : files.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
                     {files.map((file, index) => (
                         <motion.div
                           key={file.id}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.3, delay: index * 0.05 }}
+                          className="relative"
                         >
-                            <Card className="hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
-                                <CardContent className="p-4 flex-1 flex flex-col">
-                                    <div className="flex items-start">
-                                        <div className="p-2 bg-blue-50 rounded-lg mr-3">
-                                          <FileText className="h-6 w-6 text-blue-600" />
-                                        </div>
-                                        <div className="flex-1 truncate">
-                                            <p className="text-sm font-semibold text-gray-800 truncate" title={file.name}>{file.name}</p>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                {formatFileSize(file.metadata.size)}
-                                            </p>
-                                        </div>
+                            <div className="group flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                                <div className="flex items-center flex-1 min-w-0">
+                                    <div className="p-2 bg-blue-50 rounded-lg mr-3 flex-shrink-0">
+                                        <FileText className="h-5 w-5 text-blue-600" />
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-2">Uploaded: {formatDate(file.created_at)}</p>
-                                    <div className="mt-auto pt-3 flex items-center justify-end space-x-1">
-                                        <Button variant="ghost" size="sm" onClick={() => downloadFile(file.name)} title="Download">
-                                            <Download size={16} className="mr-1" /> Download
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-800 truncate" title={file.name}>
+                                            {file.name}
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center space-x-1 flex-shrink-0">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                                        onClick={() => downloadFile(file.name)}
+                                        title="Download"
+                                    >
+                                        <Download size={16} />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                        onClick={() => handleChangePermissions(file.name)}
+                                        title="Change permissions"
+                                    >
+                                        <Settings size={16} />
+                                    </Button>
+                                    {canDelete && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                            onClick={() => handleDeleteFromDropdown(file.name)}
+                                            title="Delete"
+                                        >
+                                            <Trash2 size={16} />
                                         </Button>
-                                        {canDelete && (
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50" onClick={() => handleDelete(file.name)} title="Delete">
-                                                <Trash2 size={16} />
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    )}
+                                </div>
+                            </div>
                         </motion.div>
                     ))}
                 </div>
