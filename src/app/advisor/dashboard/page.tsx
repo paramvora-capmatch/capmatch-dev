@@ -37,14 +37,12 @@ import {
 	BorrowerProfile,
 	Advisor,
 	ProjectProfile,
-	ProjectMessage,
 	ProjectStatus,
 	ProjectMember,
 } from "../../../types/enhanced-types";
 import { storageService } from "@/lib/storage";
 import { supabase } from "../../../../lib/supabaseClient";
 import {
-	dbMessageToProjectMessage,
 	dbProjectToProjectProfile,
 } from "@/lib/dto-mapper";
 

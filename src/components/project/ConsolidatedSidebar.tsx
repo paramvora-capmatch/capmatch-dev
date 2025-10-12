@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 import { useAskAI } from '../../hooks/useAskAI';
 import { useProjects } from '../../hooks/useProjects';
 import { useAuth } from '../../hooks/useAuth';
-import { ProjectMessage } from '../../types/enhanced-types';;
+import { Message } from '../../types/enhanced-types';;
 import { getAdvisorById } from '../../../lib/enhancedMockApiService';
 import { cn } from '@/utils/cn';
 import { AIContextBuilder } from '../../services/aiContextBuilder';
@@ -60,7 +60,6 @@ export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
   const [newMessage, setNewMessage] = useState('');
   const [advisorName, setAdvisorName] = useState('Your Capital Advisor');
   const [isLoadingAdvisor, setIsLoadingAdvisor] = useState(false);
-  const [localMessages, setLocalMessages] = useState<ProjectMessage[]>([]);
 
   // Handle field drop from AskAIProvider
   useEffect(() => {
@@ -113,13 +112,6 @@ Provide actionable advice that helps me make the best decision for my project.`;
     }
   }, [fieldContext, aiMessages.length, aiLoading, isBuildingContext, sendMessage]);
 
-  // Message panel effects
-  useEffect(() => {
-    if (activeProject?.id === projectId) {
-      setLocalMessages(projectMessages);
-    }
-  }, [projectMessages, activeProject, projectId]);
-
   // Get advisor information
   useEffect(() => {
     const loadData = async () => {
@@ -160,7 +152,7 @@ Provide actionable advice that helps me make the best decision for my project.`;
     if (messageContainerRef.current) {
       messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
     }
-  }, [localMessages, aiMessages]);
+  }, [projectMessages, aiMessages]);
 
   return (
     <Card className="h-full flex flex-col transition-all duration-300 hover:shadow-md hover:shadow-blue-100/20 relative overflow-hidden group">
@@ -213,29 +205,29 @@ Provide actionable advice that helps me make the best decision for my project.`;
           <div className="h-full flex flex-col animate-fadeIn px-3 pt-3">
             <div className="flex-1 min-h-0">
               <div className="h-full overflow-y-auto space-y-3 pr-1" ref={messageContainerRef}>
-                {localMessages.length > 0 ? (
-                  localMessages.map((message) => (
+                {projectMessages.length > 0 ? (
+                  projectMessages.map((message) => (
                     <div
                       key={message.id}
                       className={cn(
                         "flex space-x-2 animate-fadeInUp",
-                        message.senderType === 'Borrower' ? "justify-end" : "justify-start"
+                        message.sender_id === user?.id ? "justify-end" : "justify-start"
                       )}
                     >
                       <div
                         className={cn(
                           "max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm",
-                          message.senderType === 'Borrower'
+                          message.sender_id === user?.id
                             ? "bg-blue-600 text-white"
                             : "bg-gray-100 text-gray-800 border border-gray-200"
                         )}
                       >
                         <div className="font-medium text-xs mb-1">
-                          {message.senderType === 'Borrower' ? 'You' : advisorName}
+                          {message.sender_id === user?.id ? 'You' : (message.sender?.full_name || message.sender?.email)}
                         </div>
                         <div>{message.message}</div>
                         <div className="text-xs opacity-70 mt-1 text-right">
-                          {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                     </div>

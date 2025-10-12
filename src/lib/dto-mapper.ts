@@ -1,6 +1,5 @@
 // src/lib/dto-mapper.ts
 import {
-	ProjectMessage,
 	BorrowerProfile,
 	Principal,
 	ProjectProfile,

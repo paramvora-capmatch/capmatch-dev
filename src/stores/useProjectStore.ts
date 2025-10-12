@@ -1,9 +1,6 @@
 // src/stores/useProjectStore.ts
 import { create } from "zustand";
-import {
-  dbMessageToProjectMessage,
-  dbProjectToProjectProfile,
-} from "@/lib/dto-mapper";
+import { dbProjectToProjectProfile } from "@/lib/dto-mapper";
 import { supabase } from "../../lib/supabaseClient";
 import { storageService } from "@/lib/storage";
 import { useAuthStore } from "./useAuthStore";
@@ -11,10 +8,13 @@ import { useBorrowerProfileStore } from "./useBorrowerProfileStore";
 import {
   ProjectProfile,
   ProjectMessage,
+  Message,
+  ChatThread,
   ProjectPrincipal,
   ProjectMember,
   ProjectDocumentRequirement,
 } from "@/types/enhanced-types";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 const projectProfileToDbProject = (
   profileData: Partial<ProjectProfile>
@@ -73,6 +73,9 @@ interface ProjectState {
   isLoading: boolean;
   activeProject: ProjectProfile | null;
   autoCreatedFirstProjectThisSession: boolean;
+  projectMessages: Message[];
+  activeThread: ChatThread | null;
+  isMessagesLoading: boolean;
 }
 
 interface ProjectActions {
@@ -93,13 +96,19 @@ interface ProjectActions {
     projectProgress: number;
     totalProgress: number;
   };
+  addProjectMessage: (messageText: string) => Promise<void>;
 }
+
+let messageChannel: RealtimeChannel | null = null;
 
 export const useProjectStore = create<ProjectState & ProjectActions>(
   (set, get) => ({
     projects: [],
     isLoading: true,
     activeProject: null,
+    projectMessages: [],
+    activeThread: null,
+    isMessagesLoading: false,
     autoCreatedFirstProjectThisSession: false,
 
     resetProjectState: () => {
@@ -108,8 +117,15 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
         projects: [],
         activeProject: null,
         autoCreatedFirstProjectThisSession: false,
+        projectMessages: [],
+        activeThread: null,
+        isMessagesLoading: false,
         isLoading: false,
       });
+      if (messageChannel) {
+        supabase.removeChannel(messageChannel);
+        messageChannel = null;
+      }
     },
 
     calculateProgress: (project) => {
@@ -205,11 +221,67 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
     getProject: (id) => get().projects.find((p) => p.id === id) || null,
 
-    setActiveProject: async (project) => {
-      const { activeProject } = get();
+    setActiveProject: async (project: ProjectProfile | null) => {
+      const { activeProject, activeThread } = get();
       if (project?.id === activeProject?.id) return;
 
-      set({ activeProject: project });
+      // Unsubscribe from old channel if it exists
+      if (messageChannel) {
+        supabase.removeChannel(messageChannel);
+        messageChannel = null;
+      }
+
+      set({
+        activeProject: project,
+        projectMessages: [],
+        activeThread: null,
+        isMessagesLoading: !!project
+      });
+
+      if (!project) return;
+
+      try {
+        // 1. Fetch threads for the project
+        const { data: threads, error: threadsError } = await supabase
+          .from('chat_threads')
+          .select('*')
+          .eq('project_id', project.id);
+
+        if (threadsError) throw threadsError;
+
+        if (threads && threads.length > 0) {
+          const threadToActivate = threads[0] as ChatThread;
+          set({ activeThread: threadToActivate });
+
+          // 2. Fetch messages for the active thread
+          const { data: messages, error: messagesError } = await supabase
+            .from('messages')
+            .select('*, sender:profiles(full_name, email, role)')
+            .eq('thread_id', threadToActivate.id)
+            .order('created_at', { ascending: true });
+
+          if (messagesError) throw messagesError;
+          set({ projectMessages: messages as Message[] });
+
+          // 3. Subscribe to new messages
+          messageChannel = supabase.channel(`messages-${threadToActivate.id}`)
+            .on<Message>(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${threadToActivate.id}` },
+                async (payload) => {
+                    const { data: sender, error } = await supabase.from('profiles').select('full_name, email, role').eq('id', payload.new.sender_id).single();
+                    if(error) console.error(error);
+                    const newMessage = { ...payload.new, sender } as Message;
+                    set(state => ({ projectMessages: [...state.projectMessages, newMessage] }));
+                }
+            )
+            .subscribe();
+        }
+      } catch (error) {
+        console.error("[ProjectStore] Failed to load project messages:", error);
+      } finally {
+        set({ isMessagesLoading: false });
+      }
     },
 
     createProject: async (projectData: Partial<ProjectProfile>) => {
@@ -441,6 +513,23 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
           state.activeProject?.id === id ? null : state.activeProject,
       }));
       return true;
+    },
+
+    addProjectMessage: async (messageText: string) => {
+      const { activeThread } = get();
+      const { user } = useAuthStore.getState();
+      if (!messageText.trim() || !activeThread || !user) return;
+
+      const { error } = await supabase.from('messages').insert({
+          thread_id: activeThread.id,
+          sender_id: user.id,
+          message: messageText,
+      });
+
+      if (error) {
+          console.error("[ProjectStore] Failed to send message:", error);
+          throw error;
+      }
     },
   })
 );
