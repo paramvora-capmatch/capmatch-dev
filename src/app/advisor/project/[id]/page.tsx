@@ -519,9 +519,7 @@ export default function AdvisorProjectDetailPage() {
 																	Amount
 																	Requested:
 																</span>{" "}
-																{formatCurrency(
-																	project.loanAmountRequested ?? 0
-																)}
+																{project.loanAmountRequested ? formatCurrency(project.loanAmountRequested) : "Not specified"}
 															</p>
 															<p className="text-sm text-gray-800">
 																<span className="font-medium">

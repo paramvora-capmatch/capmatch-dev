@@ -15,6 +15,7 @@ export const dbProjectToProjectProfile = (dbProject: any): ProjectProfile => {
   return {
     id: dbProject.id,
     borrowerProfileId: dbProject.owner_id, // Map owner_id to borrowerProfileId
+    entityId: dbProject.entity_id, // Map entity_id to entityId
     assignedAdvisorUserId: dbProject.assigned_advisor_user_id,
     projectName: dbProject.project_name,
     propertyAddressStreet: dbProject.property_address_street,
@@ -93,6 +94,11 @@ export const dbBorrowerToBorrowerProfile = (
 		createdAt: dbBorrower.created_at,
 		updatedAt: dbBorrower.updated_at,
 		completenessPercent: 0, // Will be recalculated
+		// RBAC additions
+		entityId: dbBorrower.entity_id,
+		masterProfileId: dbBorrower.master_profile_id,
+		lastSyncedAt: dbBorrower.last_synced_at,
+		customFields: dbBorrower.custom_fields || [],
 	};
 };
 
@@ -143,3 +149,4 @@ export const dbMessageToProjectMessage = (dbMessage: any): ProjectMessage => {
 		message: dbMessage.message,
 		createdAt: dbMessage.created_at,
 	};
+};

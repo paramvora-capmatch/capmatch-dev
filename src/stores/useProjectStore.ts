@@ -4,7 +4,8 @@ import {
 	dbMessageToProjectMessage,
 	dbProjectToProjectProfile,
 } from "@/lib/dto-mapper";
-import { RealtimeChannel, supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { storageService } from "@/lib/storage";
 import { useAuthStore } from "./useAuthStore";
 import { useBorrowerProfileStore } from "./useBorrowerProfileStore";
@@ -22,7 +23,7 @@ const projectProfileToDbProject = (
 	const keyMap: { [key in keyof ProjectProfile]?: string } = {
 		projectName: "project_name",
 		assetType: "asset_type",
-		borrowerProfileId: "owner_id",
+		// borrowerProfileId: "owner_id", // Removed - projects owned by entities, not users
 		entityId: "entity_id",
 		assignedAdvisorUserId: "assigned_advisor_user_id",
 		propertyAddressStreet: "property_address_street",
@@ -408,7 +409,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				id: `proj_${Date.now()}_${Math.random()
 					.toString(36)
 					.substring(2, 9)}`,
-				borrowerProfileId: borrowerProfile.id,
+				// borrowerProfileId: borrowerProfile.id, // Removed - projects owned by entities
 				entityId: activeEntity.id,
 				assignedAdvisorUserId: advisorId,
 				projectName: `New Project ${get().projects.length + 1}`,
@@ -664,6 +665,26 @@ useBorrowerProfileStore.subscribe((profileState, prevProfileState) => {
 	if (user?.role === "borrower" && wasLoading && !isLoading && profile) {
 		console.log(
 			"[ProjectStore Subscription] Profile load finished. Triggering project load."
+		);
+		useProjectStore.getState().loadUserProjects();
+	}
+});
+
+// Subscribe to entity memberships changes to reload projects
+useAuthStore.subscribe((authState, prevAuthState) => {
+	const { user } = authState;
+	const prevEntityMemberships = prevAuthState.entityMemberships;
+	const currentEntityMemberships = authState.entityMemberships;
+
+	// Trigger project loading when:
+	// 1. User is a borrower
+	// 2. Entity memberships changed (loaded or updated)
+	// 3. User is authenticated
+	if (user?.role === "borrower" && user?.id && 
+		prevEntityMemberships !== currentEntityMemberships && 
+		currentEntityMemberships && currentEntityMemberships.length > 0) {
+		console.log(
+			"[ProjectStore Subscription] Entity memberships loaded. Triggering project load."
 		);
 		useProjectStore.getState().loadUserProjects();
 	}

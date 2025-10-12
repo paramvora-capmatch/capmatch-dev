@@ -137,7 +137,7 @@ export type ProjectStatus =
 
 export interface ProjectProfile {
   id: string;
-  borrowerProfileId: string;
+  borrowerProfileId?: string; // Made optional - projects owned by entities
   entityId: string;
   assignedAdvisorUserId: string | null;
   projectName: string;

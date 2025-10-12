@@ -20,7 +20,9 @@ export const useStorageWithRBAC = (
   const { checkDocumentPermission } = useDocumentPermissionStore();
 
   const listFiles = useCallback(async () => {
-    if (!bucketId || !user || !user.id || !activeEntity) return;
+    if (!bucketId || !user || !user.id || !activeEntity) {
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
@@ -67,7 +69,8 @@ export const useStorageWithRBAC = (
       );
       
       // Remove null entries (files without permission)
-      setFiles(filteredFiles.filter(file => file !== null) as FileObject[]);
+      const visibleFiles = filteredFiles.filter(file => file !== null) as FileObject[];
+      setFiles(visibleFiles);
       
     } catch (e: any) {
       setError(e.message);
@@ -83,6 +86,11 @@ export const useStorageWithRBAC = (
 
   const uploadFile = async (file: File) => {
     if (!bucketId || !user || !user.id || !activeEntity) {
+      console.error('[useStorageWithRBAC] Upload failed - missing required data:', {
+        bucketId,
+        userId: user?.id,
+        activeEntityId: activeEntity?.id
+      });
       setError("Bucket ID, user, or active entity is not available.");
       return null;
     }
@@ -102,11 +110,18 @@ export const useStorageWithRBAC = (
 
       if (error) throw error;
       
-      // If this is a project document and user is a member, grant them permission
+      // Note: Permission granting is now handled through the DocumentPermissionModal
+      // Entity owners will see the modal to grant access to members
+      // Entity members automatically get permission for files they upload
       if (projectId && currentEntityRole === 'member') {
-        // Note: In a real implementation, you'd want to ask the owner to grant permission
-        // For now, we'll auto-grant permission to the uploader
-        console.log(`Auto-granting permission for ${filePath} to user ${user.id}`);
+        // Auto-grant permission to the uploader (members can access their own uploads)
+        try {
+          const { grantPermission } = useDocumentPermissionStore.getState();
+          await grantPermission(projectId, user.id!, filePath, 'file');
+        } catch (permError) {
+          console.error('Error granting permission:', permError);
+          // Don't fail the upload if permission granting fails
+        }
       }
       
       await listFiles(); // Refresh file list

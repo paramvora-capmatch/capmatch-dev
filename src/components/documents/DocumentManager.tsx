@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
 import { FileText, Upload, Download, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { DocumentPermissionModal } from '../modals/DocumentPermissionModal';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface DocumentManagerProps {
   bucketId: string | null;
@@ -40,8 +42,18 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   projectId,
 }) => {
   const { files, isLoading, error, uploadFile, downloadFile, deleteFile } = useStorageWithRBAC(bucketId, folderPath, projectId);
+  const { user, activeEntity, currentEntityRole } = useAuthStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [permissionModal, setPermissionModal] = useState<{
+    isOpen: boolean;
+    fileName: string;
+    filePath: string;
+  }>({
+    isOpen: false,
+    fileName: '',
+    filePath: ''
+  });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,11 +65,28 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const handleUpload = async () => {
     if (!selectedFile) return;
     setIsUploading(true);
-    await uploadFile(selectedFile);
-    setSelectedFile(null);
-    setIsUploading(false);
-    if (fileInputRef.current) {
+    
+    try {
+      const result = await uploadFile(selectedFile);
+      
+      if (result && currentEntityRole === 'owner' && projectId && activeEntity) {
+        // Show permission modal for entity owners
+        const filePath = folderPath ? `${folderPath}/${selectedFile.name}` : selectedFile.name;
+        setPermissionModal({
+          isOpen: true,
+          fileName: selectedFile.name,
+          filePath: filePath
+        });
+      }
+      
+      setSelectedFile(null);
+      if (fileInputRef.current) {
         fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -65,6 +94,14 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
       await deleteFile(fileName);
     }
+  };
+
+  const handleClosePermissionModal = () => {
+    setPermissionModal({
+      isOpen: false,
+      fileName: '',
+      filePath: ''
+    });
   };
 
   return (
@@ -101,7 +138,20 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         {error && (
             <div className="my-2 p-3 bg-red-50 text-red-700 border border-red-200 rounded-md flex items-center">
                 <AlertCircle className="h-5 w-5 mr-2" />
-                <p className="text-sm">{error}</p>
+                <div className="text-sm">
+                  <p className="font-medium">{error}</p>
+                  {error.includes('Bucket ID, user, or active entity is not available') && (
+                    <div className="mt-2 text-xs">
+                      <p>Debug info:</p>
+                      <ul className="list-disc list-inside ml-2">
+                        <li>Bucket ID: {bucketId || 'null'}</li>
+                        <li>User: {user ? `${user.email} (${user.id})` : 'null'}</li>
+                        <li>Active Entity: {activeEntity ? `${activeEntity.name} (${activeEntity.id})` : 'null'}</li>
+                        <li>Project ID: {projectId || 'null'}</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
             </div>
         )}
 
@@ -155,6 +205,19 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             )}
         </div>
       </CardContent>
+
+      {/* Permission Modal */}
+      {permissionModal.isOpen && projectId && activeEntity && user && (
+        <DocumentPermissionModal
+          isOpen={permissionModal.isOpen}
+          onClose={handleClosePermissionModal}
+          fileName={permissionModal.fileName}
+          filePath={permissionModal.filePath}
+          projectId={projectId}
+          entityId={activeEntity.id}
+          uploaderId={user.id!}
+        />
+      )}
     </Card>
   );
 };
