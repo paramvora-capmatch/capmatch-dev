@@ -7,6 +7,7 @@ import {
   EntityMemberRole, 
   InviteStatus 
 } from '../types/enhanced-types';
+import { dbMemberToBorrowerEntityMember } from '../lib/dto-mapper';
 
 interface EntityState {
   currentEntity: BorrowerEntity | null;
@@ -98,8 +99,9 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
       // Process members data to flatten profile information
       const processedMembers = members?.map((member: any) => {
         const profile = memberProfiles?.find(p => p.id === member.user_id);
+        const mappedMember = dbMemberToBorrowerEntityMember(member);
         return {
-          ...member,
+          ...mappedMember,
           userEmail: profile?.email || member.invited_email, // Fallback to invited_email
           userName: profile?.full_name
         };
@@ -109,8 +111,9 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
       const processedInvites = invites?.map((invite: any) => {
         const profile = memberProfiles?.find(p => p.id === invite.user_id);
         const inviterProfile = inviterProfiles?.find(p => p.id === invite.invited_by);
+        const mappedInvite = dbMemberToBorrowerEntityMember(invite);
         return {
-          ...invite,
+          ...mappedInvite,
           userEmail: profile?.email || invite.invited_email, // Fallback to invited email if no profile
           userName: profile?.full_name,
           inviterEmail: inviterProfile?.email,
@@ -120,8 +123,8 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
 
       // Check if current user is owner
       const currentUserId = (await supabase.auth.getUser()).data.user?.id;
-      const isOwner = processedMembers.some((member: any) => 
-        member.user_id === currentUserId && member.role === 'owner'
+      const isOwner = processedMembers.some((member: BorrowerEntityMember) => 
+        member.userId === currentUserId && member.role === 'owner'
       ) || false;
 
       set({

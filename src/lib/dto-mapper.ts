@@ -4,6 +4,7 @@ import {
 	BorrowerProfile,
 	Principal,
 	ProjectProfile,
+	BorrowerEntityMember,
 } from "@/types/enhanced-types";
 
 /**
@@ -148,5 +149,31 @@ export const dbMessageToProjectMessage = (dbMessage: any): ProjectMessage => {
 		senderType: senderType,
 		message: dbMessage.message,
 		createdAt: dbMessage.created_at,
+	};
+};
+
+/**
+ * Maps a borrower entity member object from the database (snake_case) to the application's BorrowerEntityMember model (camelCase).
+ * @param dbMember - The member data object from Supabase.
+ * @returns A BorrowerEntityMember object.
+ */
+export const dbMemberToBorrowerEntityMember = (dbMember: any): BorrowerEntityMember => {
+	return {
+		id: dbMember.id,
+		entityId: dbMember.entity_id,
+		userId: dbMember.user_id,
+		role: dbMember.role,
+		invitedBy: dbMember.invited_by,
+		invitedAt: dbMember.invited_at,
+		inviteToken: dbMember.invite_token,
+		inviteExpiresAt: dbMember.invite_expires_at,
+		acceptedAt: dbMember.accepted_at,
+		status: dbMember.status,
+		userEmail: dbMember.user_email,
+		userName: dbMember.user_name,
+		projectPermissions: dbMember.project_permissions,
+		invitedEmail: dbMember.invited_email,
+		inviterEmail: dbMember.inviter_email,
+		inviterName: dbMember.inviter_name,
 	};
 };

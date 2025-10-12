@@ -177,31 +177,53 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
 
   checkDocumentPermission: async (entityId: string, projectId: string, documentPath: string, userId: string) => {
     try {
+      console.log('🔍 [checkDocumentPermission] Input:', { entityId, projectId, documentPath, userId });
+      
       // First check if we have the permissions loaded locally
       const { permissions } = get();
       const projectPermissions = permissions.get(projectId) || [];
       
+      console.log('🔍 [checkDocumentPermission] Local permissions:', { projectPermissionsLength: projectPermissions.length });
+      
       // If we have permissions loaded, use the local check
       if (projectPermissions.length > 0) {
-        return get().checkAccess(projectId, documentPath, userId);
+        const hasAccess = get().checkAccess(projectId, documentPath, userId);
+        console.log('🔍 [checkDocumentPermission] Local check result:', hasAccess);
+        return hasAccess;
       }
       
       // Otherwise, query the database directly
+      const folderPath = documentPath.split('/')[0];
+      const query = `document_path.eq.${documentPath},document_path.eq.*,and(permission_type.eq.folder,document_path.like.${folderPath}%)`;
+      
+      console.log('🔍 [checkDocumentPermission] Database query:', { 
+        entityId, 
+        projectId, 
+        userId, 
+        documentPath, 
+        folderPath, 
+        query 
+      });
+      
       const { data: permission, error } = await supabase
         .from('document_permissions')
         .select('*')
         .eq('entity_id', entityId)
         .eq('project_id', projectId)
         .eq('user_id', userId)
-        .or(`document_path.eq.${documentPath},document_path.eq.*,and(permission_type.eq.folder,document_path.like.${documentPath.split('/')[0]}%)`)
+        .or(query)
         .limit(1);
+
+      console.log('🔍 [checkDocumentPermission] Database result:', { permission, error });
 
       if (error) {
         console.error('Error checking document permission:', error);
         return false;
       }
 
-      return permission && permission.length > 0;
+      const hasPermission = permission && permission.length > 0;
+      console.log('🔍 [checkDocumentPermission] Final result:', hasPermission);
+      return hasPermission;
     } catch (error) {
       console.error('Error checking document permission:', error);
       return false;
