@@ -519,9 +519,7 @@ export default function AdvisorProjectDetailPage() {
 																	Amount
 																	Requested:
 																</span>{" "}
-																{formatCurrency(
-																	project.loanAmountRequested
-																)}
+																{project.loanAmountRequested ? formatCurrency(project.loanAmountRequested) : "Not specified"}
 															</p>
 															<p className="text-sm text-gray-800">
 																<span className="font-medium">
@@ -716,11 +714,12 @@ export default function AdvisorProjectDetailPage() {
 								<CardContent className="p-0">
 									{project && (
 										<DocumentManager
-											bucketId={project.borrowerProfileId}
+											bucketId={project.entityId}
 											folderPath={project.id}
 											title="Project-Specific Documents"
 											canUpload={true} // Advisors can upload
 											canDelete={true} // Advisors can manage
+											projectId={project.id}
 										/>
 									)}
 								</CardContent>
@@ -898,7 +897,7 @@ export default function AdvisorProjectDetailPage() {
 								<CardContent className="p-0">
 									{project && (
 										<DocumentManager
-											bucketId={project.borrowerProfileId}
+											bucketId={project.entityId}
 											folderPath="borrower_docs"
 											title="General Borrower Documents"
 											canUpload={true} // Advisors can upload

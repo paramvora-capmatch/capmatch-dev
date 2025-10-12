@@ -29,6 +29,14 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
 
     const authorized = isAuthenticated && user && roles.includes(user.role);
 
+    console.log('[RoleBasedRoute] 🔍 Debug:', {
+      isAuthenticated,
+      userRole: user?.role,
+      requiredRoles: roles,
+      authorized,
+      userEmail: user?.email
+    });
+
     if (authorized) {
       setIsAuthorized(true);
     } else {

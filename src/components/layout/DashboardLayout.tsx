@@ -4,7 +4,7 @@
 import React, { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, PlusCircle, LayoutGrid, User, Folder } from 'lucide-react';
+import { LogOut, PlusCircle, LayoutGrid, User, Folder, Users } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 
@@ -39,6 +39,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { label: 'Dashboard', icon: <LayoutGrid size={18} />, href: '/dashboard' },
     { label: 'My Profile', icon: <User size={18} />, href: '/profile' },
     { label: 'Documents', icon: <Folder size={18} />, href: '/documents' },
+    { label: 'Team', icon: <Users size={18} />, href: '/team' },
   ];
 
   return (

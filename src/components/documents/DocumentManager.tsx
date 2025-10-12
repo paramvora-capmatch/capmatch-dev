@@ -2,12 +2,14 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useStorage } from '@/hooks/useStorage';
+import { useStorageWithRBAC } from '@/hooks/useStorageWithRBAC';
 import { FileObject } from '@supabase/storage-js';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
-import { FileText, Upload, Download, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, Upload, Download, Trash2, Loader2, AlertCircle, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { DocumentPermissionModal } from '../modals/DocumentPermissionModal';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface DocumentManagerProps {
   bucketId: string | null;
@@ -15,6 +17,7 @@ interface DocumentManagerProps {
   title: string;
   canUpload?: boolean;
   canDelete?: boolean;
+  projectId?: string; // Add projectId for RBAC
 }
 
 const formatFileSize = (bytes: number) => {
@@ -36,10 +39,21 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   title,
   canUpload = true,
   canDelete = true,
+  projectId,
 }) => {
-  const { files, isLoading, error, uploadFile, downloadFile, deleteFile } = useStorage(bucketId, folderPath);
+  const { files, isLoading, error, uploadFile, downloadFile, deleteFile } = useStorageWithRBAC(bucketId, folderPath, projectId);
+  const { user, activeEntity, currentEntityRole } = useAuthStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [permissionModal, setPermissionModal] = useState<{
+    isOpen: boolean;
+    fileName: string;
+    filePath: string;
+  }>({
+    isOpen: false,
+    fileName: '',
+    filePath: ''
+  });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,15 +65,55 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const handleUpload = async () => {
     if (!selectedFile) return;
     setIsUploading(true);
-    await uploadFile(selectedFile);
-    setSelectedFile(null);
-    setIsUploading(false);
-    if (fileInputRef.current) {
+    
+    try {
+      const result = await uploadFile(selectedFile);
+      
+      if (result && currentEntityRole === 'owner' && projectId && activeEntity) {
+        // Show permission modal for entity owners
+        const filePath = folderPath ? `${folderPath}/${selectedFile.name}` : selectedFile.name;
+        setPermissionModal({
+          isOpen: true,
+          fileName: selectedFile.name,
+          filePath: filePath
+        });
+      }
+      
+      setSelectedFile(null);
+      if (fileInputRef.current) {
         fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleDelete = async (fileName: string) => {
+    if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
+      await deleteFile(fileName);
+    }
+  };
+
+  const handleClosePermissionModal = () => {
+    setPermissionModal({
+      isOpen: false,
+      fileName: '',
+      filePath: ''
+    });
+  };
+
+  const handleChangePermissions = (fileName: string) => {
+    const filePath = folderPath ? `${folderPath}/${fileName}` : fileName;
+    setPermissionModal({
+      isOpen: true,
+      fileName: fileName,
+      filePath: filePath
+    });
+  };
+
+  const handleDeleteFromDropdown = async (fileName: string) => {
     if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
       await deleteFile(fileName);
     }
@@ -99,7 +153,20 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         {error && (
             <div className="my-2 p-3 bg-red-50 text-red-700 border border-red-200 rounded-md flex items-center">
                 <AlertCircle className="h-5 w-5 mr-2" />
-                <p className="text-sm">{error}</p>
+                <div className="text-sm">
+                  <p className="font-medium">{error}</p>
+                  {error.includes('Bucket ID, user, or active entity is not available') && (
+                    <div className="mt-2 text-xs">
+                      <p>Debug info:</p>
+                      <ul className="list-disc list-inside ml-2">
+                        <li>Bucket ID: {bucketId || 'null'}</li>
+                        <li>User: {user ? `${user.email} (${user.id})` : 'null'}</li>
+                        <li>Active Entity: {activeEntity ? `${activeEntity.name} (${activeEntity.id})` : 'null'}</li>
+                        <li>Project ID: {projectId || 'null'}</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
             </div>
         )}
 
@@ -109,40 +176,59 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
                 </div>
             ) : files.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
                     {files.map((file, index) => (
                         <motion.div
                           key={file.id}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.3, delay: index * 0.05 }}
+                          className="relative"
                         >
-                            <Card className="hover:shadow-lg transition-shadow duration-200 h-full flex flex-col">
-                                <CardContent className="p-4 flex-1 flex flex-col">
-                                    <div className="flex items-start">
-                                        <div className="p-2 bg-blue-50 rounded-lg mr-3">
-                                          <FileText className="h-6 w-6 text-blue-600" />
-                                        </div>
-                                        <div className="flex-1 truncate">
-                                            <p className="text-sm font-semibold text-gray-800 truncate" title={file.name}>{file.name}</p>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                {formatFileSize(file.metadata.size)}
-                                            </p>
-                                        </div>
+                            <div className="group flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                                <div className="flex items-center flex-1 min-w-0">
+                                    <div className="p-2 bg-blue-50 rounded-lg mr-3 flex-shrink-0">
+                                        <FileText className="h-5 w-5 text-blue-600" />
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-2">Uploaded: {formatDate(file.created_at)}</p>
-                                    <div className="mt-auto pt-3 flex items-center justify-end space-x-1">
-                                        <Button variant="ghost" size="sm" onClick={() => downloadFile(file.name)} title="Download">
-                                            <Download size={16} className="mr-1" /> Download
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-gray-800 truncate" title={file.name}>
+                                            {file.name}
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center space-x-1 flex-shrink-0">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                                        onClick={() => downloadFile(file.name)}
+                                        title="Download"
+                                    >
+                                        <Download size={16} />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                        onClick={() => handleChangePermissions(file.name)}
+                                        title="Change permissions"
+                                    >
+                                        <Settings size={16} />
+                                    </Button>
+                                    {canDelete && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                            onClick={() => handleDeleteFromDropdown(file.name)}
+                                            title="Delete"
+                                        >
+                                            <Trash2 size={16} />
                                         </Button>
-                                        {canDelete && (
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50" onClick={() => handleDelete(file.name)} title="Delete">
-                                                <Trash2 size={16} />
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    )}
+                                </div>
+                            </div>
                         </motion.div>
                     ))}
                 </div>
@@ -153,6 +239,19 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             )}
         </div>
       </CardContent>
+
+      {/* Permission Modal */}
+      {permissionModal.isOpen && projectId && activeEntity && user && (
+        <DocumentPermissionModal
+          isOpen={permissionModal.isOpen}
+          onClose={handleClosePermissionModal}
+          fileName={permissionModal.fileName}
+          filePath={permissionModal.filePath}
+          projectId={projectId}
+          entityId={activeEntity.id}
+          uploaderId={user.id!}
+        />
+      )}
     </Card>
   );
 };

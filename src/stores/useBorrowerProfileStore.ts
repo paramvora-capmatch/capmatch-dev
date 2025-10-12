@@ -189,8 +189,10 @@ export const useBorrowerProfileStore = create<
 						.eq("id", user.id)
 						.single();
 
-				if (borrowerError && borrowerError.code !== "PGRST116")
+				if (borrowerError && borrowerError.code !== "PGRST116") {
+					console.error("[BorrowerProfileStore] Error fetching borrower profile:", borrowerError);
 					throw borrowerError;
+				}
 
 				let finalBorrowerData = borrowerData;
 				// If no profile exists (e.g., first login for an old user before trigger was added), create it.
@@ -219,7 +221,12 @@ export const useBorrowerProfileStore = create<
 							.from("principals")
 							.select("*")
 							.eq("borrower_profile_id", finalBorrowerData.id);
-					if (principalsError) throw principalsError;
+					
+					if (principalsError) {
+						console.error("[BorrowerProfileStore] Error fetching principals:", principalsError);
+						throw principalsError;
+					}
+					
 					principalsToSet = principalsData.map(
 						dbPrincipalToPrincipal
 					);

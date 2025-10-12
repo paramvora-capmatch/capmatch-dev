@@ -26,7 +26,7 @@ export default function DocumentsPage() {
 							</p>
 						</div>
 						<DocumentManager
-							bucketId={user.id || null}
+							bucketId={user.activeEntityId || null}
 							folderPath="borrower_docs"
 							title="General Borrower Documents"
 							canUpload={true}

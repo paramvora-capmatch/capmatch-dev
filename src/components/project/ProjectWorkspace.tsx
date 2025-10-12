@@ -166,13 +166,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 					{/* Right Column: Documents */}
 					<div className="lg:col-span-2">
-						<DocumentManager
-							bucketId={user?.id || null}
-							folderPath={projectId}
-							title="Project Documents"
-							canUpload={true}
-							canDelete={true}
-						/>
+					<DocumentManager
+						bucketId={activeProject?.entityId || null}
+						folderPath={projectId}
+						title="Project Documents"
+						canUpload={true}
+						canDelete={true}
+						projectId={projectId}
+					/>
 					</div>
 				</div>
 

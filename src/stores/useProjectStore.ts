@@ -4,7 +4,8 @@ import {
 	dbMessageToProjectMessage,
 	dbProjectToProjectProfile,
 } from "@/lib/dto-mapper";
-import { RealtimeChannel, supabase } from "../../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { storageService } from "@/lib/storage";
 import { useAuthStore } from "./useAuthStore";
 import { useBorrowerProfileStore } from "./useBorrowerProfileStore";
@@ -22,7 +23,8 @@ const projectProfileToDbProject = (
 	const keyMap: { [key in keyof ProjectProfile]?: string } = {
 		projectName: "project_name",
 		assetType: "asset_type",
-		borrowerProfileId: "owner_id",
+		// borrowerProfileId: "owner_id", // Removed - projects owned by entities, not users
+		entityId: "entity_id",
 		assignedAdvisorUserId: "assigned_advisor_user_id",
 		propertyAddressStreet: "property_address_street",
 		propertyAddressCity: "property_address_city",
@@ -170,7 +172,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			return {
 				borrowerProgress: totalProgress,
 				projectProgress: totalProgress,
-				completenessPercent: totalProgress,
+				totalProgress: totalProgress,
 			};
 		},
 
@@ -203,12 +205,33 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					console.log(
 						"[ProjectStore] Loading projects from Supabase for real user."
 					);
-					const { data, error } = await supabase
-						.from("projects")
-						.select("*")
-						.eq("owner_id", user.id); // Filter by owner
-					if (error) throw error;
-					userProjects = data.map(dbProjectToProjectProfile);
+					
+					// Get user's entity memberships to filter projects
+					const { data: memberships, error: membershipError } = await supabase
+						.from('borrower_entity_members')
+						.select('entity_id')
+						.eq('user_id', user.id)
+						.eq('status', 'active');
+					
+					if (membershipError) throw membershipError;
+					
+					if (memberships && memberships.length > 0) {
+						const entityIds = memberships.map(m => m.entity_id);
+						const { data, error } = await supabase
+							.from("projects")
+							.select("*")
+							.in("entity_id", entityIds); // Filter by entity memberships
+						if (error) throw error;
+						userProjects = data.map(dbProjectToProjectProfile);
+					} else {
+						// Fallback to old logic if no entity memberships found
+						const { data, error } = await supabase
+							.from("projects")
+							.select("*")
+							.eq("owner_id", user.id);
+						if (error) throw error;
+						userProjects = data.map(dbProjectToProjectProfile);
+					}
 				}
 
 				const projectsWithProgress = userProjects.map((p) => ({
@@ -317,7 +340,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		createProject: async (projectData: Partial<ProjectProfile>) => {
-			const { user } = useAuthStore.getState();
+			const { user, activeEntity } = useAuthStore.getState();
 			if (!user)
 				throw new Error("User must be logged in to create a project.");
 			const borrowerProfile =
@@ -325,6 +348,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			if (!borrowerProfile)
 				throw new Error(
 					"Borrower profile must exist to create a project."
+				);
+			if (!activeEntity)
+				throw new Error(
+					"Must be part of an entity to create a project."
 				);
 
 			if (get().projects.length === 0) {
@@ -349,11 +376,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					);
 				} else if (advisors) {
 					advisorId = advisors.id; // this is a UUID
-					console.log(
-						`[ProjectStore] Assigning advisor with ID: ${advisorId}`
-					);
-				} else if (advisors && advisors.length > 0) {
-					advisorId = advisors[0].id; // this is a UUID
 					console.log(
 						`[ProjectStore] Assigning advisor with ID: ${advisorId}`
 					);
@@ -387,7 +409,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				id: `proj_${Date.now()}_${Math.random()
 					.toString(36)
 					.substring(2, 9)}`,
-				borrowerProfileId: borrowerProfile.id,
+				// borrowerProfileId: borrowerProfile.id, // Removed - projects owned by entities
+				entityId: activeEntity.id,
 				assignedAdvisorUserId: advisorId,
 				projectName: `New Project ${get().projects.length + 1}`,
 				assetType: "Multifamily",
@@ -450,29 +473,22 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				Object.assign(newProjectData, insertedProject); // Update with DB generated ID
 			}
 
-			// After project creation, create its dedicated folder in storage
-			if (!user.isDemo) {
-				const borrowerBucketId = borrowerProfile.id;
+			// After project creation, create its dedicated folder in entity storage
+			if (!user.isDemo && activeEntity) {
+				const { createProjectFolder } = await import('../lib/entityStorage');
 				const projectFolderId = newProjectData.id;
-				const keepFilePath = `${projectFolderId}/.keep`;
-
-				const { error: storageError } = await supabase.storage
-					.from(borrowerBucketId)
-					.upload(keepFilePath, new Blob([""]), {
-						contentType: "text/plain",
-						upsert: true, // Use upsert to prevent errors if folder/file already exists
-					});
-
-				if (storageError) {
+				
+				const success = await createProjectFolder(activeEntity.id, projectFolderId);
+				
+				if (!success) {
 					// This is a non-critical error. The project is created, but the folder is not.
 					// Log the error for debugging but don't throw, allowing the app to continue.
 					console.error(
-						`[ProjectStore] Failed to create storage folder for project ${projectFolderId}:`,
-						storageError
+						`[ProjectStore] Failed to create storage folder for project ${projectFolderId} in entity ${activeEntity.id}`
 					);
 				} else {
 					console.log(
-						`[ProjectStore] Created storage folder for project ${projectFolderId}.`
+						`[ProjectStore] Created storage folder for project ${projectFolderId} in entity ${activeEntity.id}`
 					);
 				}
 			}
@@ -649,6 +665,26 @@ useBorrowerProfileStore.subscribe((profileState, prevProfileState) => {
 	if (user?.role === "borrower" && wasLoading && !isLoading && profile) {
 		console.log(
 			"[ProjectStore Subscription] Profile load finished. Triggering project load."
+		);
+		useProjectStore.getState().loadUserProjects();
+	}
+});
+
+// Subscribe to entity memberships changes to reload projects
+useAuthStore.subscribe((authState, prevAuthState) => {
+	const { user } = authState;
+	const prevEntityMemberships = prevAuthState.entityMemberships;
+	const currentEntityMemberships = authState.entityMemberships;
+
+	// Trigger project loading when:
+	// 1. User is a borrower
+	// 2. Entity memberships changed (loaded or updated)
+	// 3. User is authenticated
+	if (user?.role === "borrower" && user?.id && 
+		prevEntityMemberships !== currentEntityMemberships && 
+		currentEntityMemberships && currentEntityMemberships.length > 0) {
+		console.log(
+			"[ProjectStore Subscription] Entity memberships loaded. Triggering project load."
 		);
 		useProjectStore.getState().loadUserProjects();
 	}
