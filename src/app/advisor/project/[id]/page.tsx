@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { RoleBasedRoute } from "../../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../../hooks/useAuth";
@@ -20,30 +20,24 @@ import {
 	User,
 	MessageSquare,
 	Calendar,
-	Clock,
-	CheckCircle,
 	Building,
 	MapPin,
 	DollarSign,
-	Send,
 } from "lucide-react";
 import {
 	BorrowerProfile,
 	ProjectProfile,
 	ProjectStatus,
-	ProjectMessage,
 	ProjectDocumentRequirement,
 } from "../../../../types/enhanced-types";
-import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
 import { DocumentManager } from '@/components/documents/DocumentManager';
 import { storageService } from "@/lib/storage";
-import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 import {
 	dbBorrowerToBorrowerProfile,
-	dbMessageToProjectMessage,
 	dbProjectToProjectProfile,
 } from "@/lib/dto-mapper";
+import { ProjectChat } from "@/components/project/ProjectChat";
 
 export default function AdvisorProjectDetailPage() {
 	const router = useRouter();
@@ -53,15 +47,12 @@ export default function AdvisorProjectDetailPage() {
 	const [project, setProject] = useState<ProjectProfile | null>(null);
 	const [borrowerProfile, setBorrowerProfile] =
 		useState<BorrowerProfile | null>(null);
-	const [messages, setMessages] = useState<ProjectMessage[]>([]);
 	const [documentRequirements, setDocumentRequirements] = useState<
 		ProjectDocumentRequirement[]
 	>([]);
 	const [isLoadingData, setIsLoadingData] = useState(true);
-	const [newMessage, setNewMessage] = useState("");
 	const [selectedStatus, setSelectedStatus] =
 		useState<ProjectStatus>("Info Gathering");
-	const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
 
 	useEffect(() => {
 		const loadProjectData = async () => {
@@ -138,37 +129,6 @@ export default function AdvisorProjectDetailPage() {
 						}
 					}
 
-					// Fetch initial messages from Supabase
-					const { data: messagesData, error: messagesError } =
-						await supabase
-							.from("project_messages")
-							.select("*")
-							.eq("project_id", projectId)
-							.order("created_at", { ascending: true });
-
-					if (messagesError) {
-						console.error(
-							"Error fetching messages:",
-							messagesError
-						);
-					} else {
-						const mappedMessages = messagesData.map(msg => {
-							const senderRole = msg.sender_id === user.id ? 'advisor' : 'borrower';
-							return dbMessageToProjectMessage({ ...msg, sender: { role: senderRole } });
-						});
-						setMessages(mappedMessages);
-					}
-
-					// Docs are still from local storage, which is fine for now.
-					const allRequirements = await storageService.getItem<
-						ProjectDocumentRequirement[]
-					>("documentRequirements");
-					if (allRequirements) {
-						const projectRequirements = allRequirements.filter(
-							(r) => r.projectId === projectId
-						);
-						setDocumentRequirements(projectRequirements);
-					}
 				} else {
 					console.error("Project not found");
 					router.push("/advisor/dashboard");
@@ -181,52 +141,6 @@ export default function AdvisorProjectDetailPage() {
 		};
 
 		loadProjectData();
-	}, [user, params, router]);
-
-	// Realtime message subscription
-	useEffect(() => {
-		const projectId = params?.id as string;
-		if (!projectId || !user) return;
-
-		// Unsubscribe from previous channel if it exists
-		if (messageSubscriptionRef.current) {
-			supabase.removeChannel(messageSubscriptionRef.current);
-		}
-
-		const channel = supabase
-			.channel(`project-messages-advisor-${projectId}`)
-			.on<any>(
-				"postgres_changes",
-				{
-					event: "INSERT",
-					schema: "public",
-					table: "project_messages",
-					filter: `project_id=eq.${projectId}`,
-				},
-				(payload) => {
-					const newMessagePayload = payload.new;
-					const senderRole =
-						newMessagePayload.sender_id === user.id
-							? "advisor"
-							: "borrower";
-
-					const newMessage = dbMessageToProjectMessage({
-						...newMessagePayload,
-						sender: { role: senderRole },
-					});
-
-					setMessages((currentMessages) => [
-						...currentMessages,
-						newMessage,
-					]);
-				}
-			)
-			.subscribe();
-
-		messageSubscriptionRef.current = channel;
-		return () => {
-			supabase.removeChannel(channel);
-		};
 	}, [params, user]);
 
 	const formatDate = (dateString: string) => {
@@ -301,51 +215,6 @@ export default function AdvisorProjectDetailPage() {
 			console.log("Project status updated successfully");
 		} catch (error) {
 			console.error("Error updating project status:", error);
-		}
-	};
-
-	const handleSendMessage = async (
-		messageText?: string,
-		isSystemMessage = false
-	) => {
-		if (!project) return;
-		if (!user || !user.id) return;
-
-		const messageContent = messageText || newMessage;
-		if (!messageContent.trim()) return;
-
-		const { error } = await supabase.from("project_messages").insert({
-			project_id: project.id,
-			sender_id: user.id,
-			message: messageContent,
-		});
-
-		if (error) {
-			console.error("Failed to send message", error);
-		} else {
-			if (!isSystemMessage) {
-				setNewMessage("");
-			}
-		}
-	};
-
-	const generateFeedback = async () => {
-		if (!project || !user || !user.id) return;
-
-		try {
-			// Generate feedback
-			const feedback = await generateProjectFeedback(project.id, project);
-
-			const { error } = await supabase.from("project_messages").insert({
-				project_id: project.id,
-				sender_id: user.id,
-				message: `[AI Feedback Suggestion]: ${feedback}`,
-			});
-
-			if (error) throw error;
-			console.log("Feedback generated and sent");
-		} catch (error) {
-			console.error("Error generating feedback:", error);
 		}
 	};
 
@@ -909,93 +778,9 @@ export default function AdvisorProjectDetailPage() {
 							</Card>
 
 							{/* Message Board */}
-							<Card className="shadow-sm flex flex-col">
-								<CardHeader className="border-b bg-gray-50">
-									<h2 className="text-lg font-semibold text-gray-800 flex items-center">
-										<MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
-										Project Message Board
-									</h2>
-								</CardHeader>
-								<CardContent className="p-4 flex-1 flex flex-col">
-									<div className="flex-1 space-y-4 overflow-y-auto mb-4 p-2 border rounded bg-gray-50/50 min-h-[300px]">
-										{messages.length > 0 ? (
-											messages.map((message, index) => (
-												<div
-													key={message.id}
-													className={`flex ${
-														message.senderType ===
-														"Advisor"
-															? "justify-end"
-															: "justify-start"
-													}`}
-												>
-													<div
-														className={`max-w-[85%] rounded-lg px-3 py-2 shadow-sm ${
-															message.senderType ===
-															"Advisor"
-																? "bg-blue-100 text-blue-900"
-																: "bg-gray-100 text-gray-900"
-														}`}
-													>
-														<div className="flex items-center mb-1">
-															<span className="text-xs font-semibold">
-																{message.senderType ===
-																"Advisor"
-																	? "You"
-																	: borrowerProfile?.fullLegalName ||
-																	  "Borrower"}
-															</span>
-															<span className="text-xs text-gray-500 ml-2">
-																{new Date(
-																	message.createdAt
-																).toLocaleString()}
-															</span>
-														</div>
-														<p className="text-sm whitespace-pre-line">
-															{message.message}
-														</p>
-													</div>
-												</div>
-											))
-										) : (
-											<div className="text-center py-8">
-												<p className="text-gray-500">
-													No messages yet
-												</p>
-											</div>
-										)}
-									</div>
-
-									<div className="flex space-x-2">
-										<textarea
-											className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
-											placeholder="Type your message here..."
-											rows={2}
-											value={newMessage}
-											onChange={(e) =>
-												setNewMessage(e.target.value)
-											}
-										/>
-										<div className="flex flex-col space-y-2">
-											<Button
-												onClick={() =>
-													handleSendMessage()
-												}
-												disabled={!newMessage.trim()}
-												leftIcon={<Send size={16} />}
-											>
-												Send
-											</Button>
-											<Button
-												variant="secondary"
-												onClick={generateFeedback}
-											>
-												Generate Feedback
-											</Button>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
+							<div className="h-[700px]"> {/* Give chat a fixed height */}
+								{project && <ProjectChat projectId={project.id} />}
+							</div>
 							</div>
 						</div>
 					</main>

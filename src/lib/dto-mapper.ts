@@ -15,7 +15,6 @@ export const dbProjectToProjectProfile = (dbProject: any): ProjectProfile => {
   return {
     id: dbProject.id,
     borrowerProfileId: dbProject.owner_id, // Map owner_id to borrowerProfileId
-    assignedAdvisorUserId: dbProject.assigned_advisor_user_id,
     projectName: dbProject.project_name,
     propertyAddressStreet: dbProject.property_address_street,
     propertyAddressCity: dbProject.property_address_city,
@@ -120,26 +119,3 @@ export const dbPrincipalToPrincipal = (dbPrincipal: any): Principal => {
 		updatedAt: dbPrincipal.updated_at,
 	};
 };
-
-/**
- * Maps a message object from the database to the application's ProjectMessage model.
- * Expects a joined `sender:profiles(...)` object.
- * @param dbMessage - The message data object from Supabase.
- * @returns A ProjectMessage object.
- */
-export const dbMessageToProjectMessage = (dbMessage: any): ProjectMessage => {
-	const senderType =
-		dbMessage.sender?.role === "advisor"
-			? "Advisor"
-			: dbMessage.sender?.role === "borrower"
-			? "Borrower"
-			: "System";
-
-	return {
-		id: dbMessage.id,
-		projectId: dbMessage.project_id,
-		senderId: dbMessage.sender_id,
-		senderType: senderType,
-		message: dbMessage.message,
-		createdAt: dbMessage.created_at,
-	};

@@ -10,7 +10,6 @@ import { RoleBasedRoute } from '../../../components/auth/RoleBasedRoute';
 import { useProjects } from '../../../hooks/useProjects';
 import { useBorrowerProfile } from '../../../hooks/useBorrowerProfile';
 
-
 import { LoadingOverlay } from '../../../components/ui/LoadingOverlay';
 import { BorrowerProfileForm } from '../../../components/forms/BorrowerProfileForm';
 import { MessagePanel } from '../../../components/dashboard/MessagePanel';
@@ -21,10 +20,6 @@ export default function ProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { getProject, isLoading, activeProject, setActiveProject } = useProjects();
-  const { borrowerProfile } = useBorrowerProfile();
-
-  
-  const [showProfileForm, setShowProfileForm] = useState(false);
   
 
 
@@ -93,53 +88,7 @@ export default function ProjectDetailPage() {
           </Button>
         </div>
         
-        {/* Borrower Profile Area */}
-        <div className="mb-8">
-          <Card className="shadow-sm">
-            <CardHeader className="border-b bg-gray-50 flex justify-between items-center pb-3">
-              <h2 className="text-xl font-semibold text-gray-800">Borrower Profile</h2>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowProfileForm(!showProfileForm)}
-              >
-                {showProfileForm ? 'Hide' : 'Edit'} Profile
-              </Button>
-            </CardHeader>
-            <CardContent className="p-4">
-              {showProfileForm ? (
-                <BorrowerProfileForm />
-              ) : (
-                <div>
-                  <div className="flex justify-between mb-4">
-                    <div className="text-gray-700">
-                      <p className="font-medium">{borrowerProfile?.fullLegalName || 'Complete your profile'}</p>
-                      <p className="text-sm text-gray-500">{borrowerProfile?.primaryEntityName}</p>
-                    </div>
-                    <div>
-                      <div className="flex items-center">
-                        <div className="h-2 bg-gray-200 rounded-full mr-2 w-24">
-                          <div 
-                            className={`h-full rounded-full ${
-                              (borrowerProfile?.completenessPercent || 0) === 100 ? 'bg-green-600' : 'bg-blue-600'
-                            }`}
-                            style={{ width: `${borrowerProfile?.completenessPercent || 0}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium">
-                          {borrowerProfile?.completenessPercent || 0}% Complete
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Split View Layout - 50/50 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Project Form - Left Side */}
           <div className="lg:col-span-2">
             <Card className="shadow-sm h-full">
@@ -153,14 +102,6 @@ export default function ProjectDetailPage() {
                 />
               </CardContent>
             </Card>
-          </div>
-          
-          {/* Message Panel - Right Side */}
-          <div className="lg:col-span-1">
-            <MessagePanel 
-              projectId={activeProject.id}
-              fullHeight={true}
-            />
           </div>
         </div>
       </DashboardLayout>

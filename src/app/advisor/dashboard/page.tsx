@@ -39,6 +39,7 @@ import {
 	ProjectProfile,
 	ProjectMessage,
 	ProjectStatus,
+	ProjectMember,
 } from "../../../types/enhanced-types";
 import { storageService } from "@/lib/storage";
 import { supabase } from "../../../../lib/supabaseClient";
@@ -53,7 +54,6 @@ export default function AdvisorDashboardPage() {
 
 	const [advisor, setAdvisor] = useState<Advisor | null>(null);
 	const [activeProjects, setActiveProjects] = useState<ProjectProfile[]>([]);
-	const [recentMessages, setRecentMessages] = useState<ProjectMessage[]>([]);
 	const [isLoadingData, setIsLoadingData] = useState(true);
 	const [borrowerData, setBorrowerData] = useState<
 		Record<string, { name: string; email: string }>
@@ -89,13 +89,26 @@ export default function AdvisorDashboardPage() {
 					if (advisorProfile) setAdvisor(advisorProfile);
 
 					const allProjects = await storageService.getItem<
-						ProjectProfile[]
+						ProjectProfile[] | null
 					>("projects");
-					if (allProjects) {
-						assignedProjects = allProjects.filter(
-							(p) => p.assignedAdvisorUserId === user.email
+					const allMembers = await storageService.getItem<
+						ProjectMember[] | null
+					>("project_members");
+
+					if (allProjects && allMembers) {
+						// In demo mode, user.id is the email
+						const advisorProjectIds = allMembers
+							.filter(m => m.user_id === user.id && m.role === 'advisor')
+							.map(m => m.project_id);
+
+						assignedProjects = allProjects.filter(p =>
+							advisorProjectIds.includes(p.id)
 						);
 						setActiveProjects(assignedProjects);
+					} else {
+						// Seed demo members if not present for demo advisor
+						const demoMembers: ProjectMember[] = [{ id: 'demomember_advisor1', project_id: 'borrower1_project_1', user_id: 'advisor1@capmatch.com', role: 'advisor', created_at: new Date().toISOString() } as any];
+						await storageService.setItem("project_members", demoMembers);
 					}
 				} else {
 					// --- REAL USER MODE ---
@@ -119,11 +132,21 @@ export default function AdvisorDashboardPage() {
 					};
 					setAdvisor(realAdvisorProfile);
 
+					// 1. Get project IDs where this user is a member
+					const { data: memberEntries, error: memberError } = await supabase
+						.from('project_members')
+						.select('project_id')
+						.eq('user_id', user.id);
+
+					if (memberError) throw memberError;
+					const projectIds = memberEntries.map(e => e.project_id);
+
+					// 2. Fetch the actual projects using the retrieved IDs
 					const { data: projectsData, error: projectsError } =
 						await supabase
 							.from("projects")
 							.select("*")
-							.eq("assigned_advisor_user_id", user.id);
+							.in('id', projectIds);
 
 					if (projectsError) throw projectsError;
 
@@ -214,30 +237,6 @@ export default function AdvisorDashboardPage() {
 					});
 
 					setStatusCounts(counts);
-				}
-
-				// Get recent messages from Supabase
-				if (assignedProjects.length > 0) {
-					const projectIds = assignedProjects.map((p) => p.id);
-					const { data: messagesData, error: messagesError } =
-						await supabase
-							.from("project_messages")
-							.select("*")
-							.in("project_id", projectIds)
-							.order("created_at", { ascending: false })
-							.limit(5);
-
-					if (messagesError) throw messagesError;
-
-					if (messagesData) {
-						const mappedMessages = messagesData.map(msg => {
-							const senderRole = msg.sender_id === user.id ? 'advisor' : 'borrower';
-							return dbMessageToProjectMessage({
-								...msg, sender: { role: senderRole }
-							});
-						});
-						setRecentMessages(mappedMessages);
-					}
 				}
 			} catch (error) {
 				console.error("Error loading advisor data:", error);
@@ -618,110 +617,6 @@ export default function AdvisorDashboardPage() {
 							)}
 						</div>
 
-						{/* Recent Messages */}
-						<div>
-							<div className="flex justify-between items-center mb-4">
-								<h2 className="text-xl font-semibold text-gray-800">
-									Recent Messages
-								</h2>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() =>
-										router.push("/advisor/messages")
-									}
-								>
-									View All Messages
-								</Button>
-							</div>
-
-							{recentMessages.length > 0 ? (
-								<div className="space-y-4">
-									{recentMessages.map((message) => {
-										const project = activeProjects.find(
-											(p) => p.id === message.projectId
-										);
-										return (
-											<Card
-												key={message.id}
-												className="shadow-sm"
-											>
-												<CardContent className="p-4">
-													<div className="flex items-start">
-														<div
-															className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-																message.senderType ===
-																"Advisor"
-																	? "bg-blue-100 text-blue-600"
-																	: "bg-gray-100 text-gray-600"
-															}`}
-														>
-															{message.senderType ===
-															"Advisor"
-																? "A"
-																: "B"}
-														</div>
-														<div className="ml-3 flex-1">
-															<div className="flex items-center justify-between">
-																<p className="text-sm font-medium text-gray-900">
-																	{
-																		message.senderType
-																	}{" "}
-																	{message.senderType ===
-																		"Borrower" &&
-																		"("}
-																	{message.senderType ===
-																		"Borrower" &&
-																		project?.projectName}
-																	{message.senderType ===
-																		"Borrower" &&
-																		")"}
-																</p>
-																<p className="text-xs text-gray-500">
-																	{new Date(
-																		message.createdAt
-																	).toLocaleString()}
-																</p>
-															</div>
-															<p className="mt-1 text-sm text-gray-700">
-																{message.message
-																	.length >
-																120
-																	? `${message.message.substring(
-																			0,
-																			120
-																	  )}...`
-																	: message.message}
-															</p>
-															<div className="mt-2 flex justify-end">
-																<Button
-																	variant="outline"
-																	size="sm"
-																	onClick={() =>
-																		router.push(
-																			`/advisor/project/${message.projectId}`
-																		)
-																	}
-																>
-																	Go to
-																	Project
-																</Button>
-															</div>
-														</div>
-													</div>
-												</CardContent>
-											</Card>
-										);
-									})}
-								</div>
-							) : (
-								<div className="bg-white p-6 rounded-lg shadow-sm text-center">
-									<p className="text-gray-500">
-										No recent messages
-									</p>
-								</div>
-							)}
-						</div>
 					</main>
 				</div>
 			</div>

@@ -43,7 +43,6 @@ const borrower1Project1Id = generateId('borrower1@example.com', 'project', 1);
 const borrower1Project1: ProjectProfile = {
   id: borrower1Project1Id,
   borrowerProfileId: borrower1ProfileId,
-  assignedAdvisorUserId: 'advisor1@capmatch.com', // Assign one for consistency
   projectName: 'Downtown Highrise Acquisition',
   propertyAddressStreet: '1 Market St',
   propertyAddressCity: 'San Francisco',
@@ -119,7 +118,6 @@ const borrower2Project1Id = generateId('borrower2@example.com', 'project', 1);
 const borrower2Project1: ProjectProfile = {
   id: borrower2Project1Id,
   borrowerProfileId: borrower2ProfileId,
-  assignedAdvisorUserId: 'advisor2@capmatch.com',
   projectName: 'Warehouse Development',
   propertyAddressStreet: '789 Industrial Ave',
   propertyAddressCity: 'Dallas',

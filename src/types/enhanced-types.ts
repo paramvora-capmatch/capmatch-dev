@@ -133,7 +133,6 @@ export type ProjectStatus =
 export interface ProjectProfile {
   id: string;
   borrowerProfileId: string;
-  assignedAdvisorUserId: string | null;
   projectName: string;
   propertyAddressStreet: string;
   propertyAddressCity: string;
@@ -254,7 +253,7 @@ export interface Advisor {
   updatedAt: string;
 }
 
-// Message Types
+// Old Message Type - will be deprecated
 export interface ProjectMessage {
   id: string;
   projectId: string;
@@ -262,6 +261,47 @@ export interface ProjectMessage {
   senderType: "Borrower" | "Advisor" | "System"; // Added System type
   message: string;
   createdAt: string;
+}
+
+// New Chat & Team Management Types
+export interface ChatThread {
+  id: string;
+  project_id: string;
+  permission_set_id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface Message {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  sender?: {
+    full_name: string | null;
+    email: string;
+    role: 'borrower' | 'advisor' | 'admin' | 'lender';
+  };
+  message: string;
+  created_at: string;
+}
+
+export interface ProjectMember {
+  id: string;
+  project_id: string;
+  user_id: string;
+  role: 'owner' | 'member' | 'advisor';
+  created_at: string;
+  profile?: {
+    full_name: string | null;
+    email: string;
+  }
+}
+
+export interface PermissionSet {
+    id: string;
+    project_id: string;
+    name: string;
+    created_at: string;
 }
 
 // Enhanced User type with role and login source
