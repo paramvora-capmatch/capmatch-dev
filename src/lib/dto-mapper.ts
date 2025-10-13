@@ -147,6 +147,8 @@ export const dbMessageToProjectMessage = (dbMessage: any): ProjectMessage => {
 		projectId: dbMessage.project_id,
 		senderId: dbMessage.sender_id,
 		senderType: senderType,
+		senderDisplayName: dbMessage.sender?.full_name || undefined,
+		senderEmail: dbMessage.sender?.email || undefined,
 		message: dbMessage.message,
 		createdAt: dbMessage.created_at,
 	};

@@ -96,7 +96,7 @@ export default function AdvisorProjectDetailPage() {
 					setProject(foundProject);
 					setSelectedStatus(foundProject.projectStatus);
 
-					// Get borrower profile
+						// Get borrower profile (guard against missing borrowerProfileId in entity model)
 					if (user.isDemo) {
 						const allProfiles = await storageService.getItem<
 							BorrowerProfile[]
@@ -105,16 +105,15 @@ export default function AdvisorProjectDetailPage() {
 							(p) => p.id === foundProject!.borrowerProfileId
 						);
 						if (profile) setBorrowerProfile(profile);
-					} else {
-						const { data: borrowerData, error: borrowerError } =
-							await supabase
+						} else if (foundProject.borrowerProfileId) {
+							const { data: borrowerData, error: borrowerError } = await supabase
 								.from("borrowers")
 								.select("*, profiles (email, full_name)")
 								.eq("id", foundProject.borrowerProfileId)
 								.single();
-						if (borrowerError) throw borrowerError;
+							if (borrowerError) throw borrowerError;
 
-						if (borrowerData) {
+							if (borrowerData) {
 							// @ts-ignore - `profiles` can be null if RLS on the profiles table is too restrictive for advisors.
 							const user = {
 								email:
@@ -136,6 +135,9 @@ export default function AdvisorProjectDetailPage() {
 							}
 							setBorrowerProfile(fullProfile);
 						}
+						} else {
+							// No borrowerProfileId available under entity model; skip fetch gracefully
+							setBorrowerProfile(null);
 					}
 
 					// Fetch initial messages from Supabase

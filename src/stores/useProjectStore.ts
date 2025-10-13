@@ -277,8 +277,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 						// Fetch sender info to determine role
 						const { data: senderProfile, error } = await supabase
-							.from("profiles")
-							.select("role")
+						.from("profiles")
+						.select("role, full_name, email")
 							.eq("id", newMessagePayload.sender_id)
 							.single();
 
@@ -324,7 +324,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// Fetch initial messages for the new active project from DB
 				const { data, error } = await supabase
 					.from("project_messages")
-					.select("*, sender:profiles(role)")
+					.select("*, sender:profiles(role,full_name,email)")
 					.eq("project_id", project.id)
 					.order("created_at", { ascending: true });
 

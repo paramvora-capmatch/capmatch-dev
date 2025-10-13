@@ -267,6 +267,9 @@ export interface ProjectMessage {
   projectId: string;
   senderId: string;
   senderType: "Borrower" | "Advisor" | "System"; // Added System type
+  // Optional display metadata resolved from profiles/entity membership
+  senderDisplayName?: string;
+  senderEmail?: string;
   message: string;
   createdAt: string;
 }

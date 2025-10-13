@@ -133,39 +133,42 @@ export default function AdvisorDashboardPage() {
 						);
 						setActiveProjects(assignedProjects);
 
-						if (assignedProjects.length > 0) {
-							const ownerIds = [
-								...new Set(
-									assignedProjects.map(
-										(p) => p.borrowerProfileId
-									)
-								),
-							];
-							const { data: borrowers, error: borrowersError } =
-								await supabase
-									.from("profiles")
-									.select("id, full_name, email")
-									.in("id", ownerIds);
+							if (assignedProjects.length > 0) {
+								const ownerIds = Array.from(
+									new Set(
+										assignedProjects
+											.map((p) => p.borrowerProfileId)
+											.filter(Boolean)
+										)
+								) as string[];
 
-							if (borrowersError) throw borrowersError;
+								if (ownerIds.length > 0) {
+									const { data: borrowers, error: borrowersError } =
+										await supabase
+											.from("profiles")
+											.select("id, full_name, email")
+											.in("id", ownerIds);
 
-							if (borrowers) {
-								const borrowerMap = borrowers.reduce(
-									(acc, b) => {
-										acc[b.id] = {
-											name: b.full_name || b.email,
-											email: b.email,
-										};
-										return acc;
-									},
-									{} as Record<
-										string,
-										{ name: string; email: string }
-									>
-								);
-								setBorrowerData(borrowerMap);
+									if (borrowersError) throw borrowersError;
+
+									if (borrowers) {
+										const borrowerMap = borrowers.reduce(
+											(acc, b) => {
+										acc[(b.id as string)] = {
+													name: b.full_name || b.email,
+													email: b.email,
+												};
+												return acc;
+											},
+											{} as Record<
+												string,
+												{ name: string; email: string }
+											>
+										);
+										setBorrowerData(borrowerMap);
+									}
+								}
 							}
-						}
 					}
 				}
 
@@ -541,14 +544,13 @@ export default function AdvisorDashboardPage() {
 															</td>
 															<td className="px-6 py-4 whitespace-nowrap">
 																<div className="text-sm text-gray-900">
-																	{user?.isDemo
-																		? project.borrowerProfileId.split(
-																				"_"
-																		  )[0]
-																		: borrowerData[
-																				project
-																					.borrowerProfileId
-																		  ]
+										{user?.isDemo
+											? (project.borrowerProfileId
+												? (project.borrowerProfileId as string).split("_")[0]
+												: "...")
+										: (project.borrowerProfileId
+											? borrowerData[project.borrowerProfileId as string]
+											: undefined)
 																				?.name ||
 																		  "..."}
 																</div>
