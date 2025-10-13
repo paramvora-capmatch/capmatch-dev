@@ -230,9 +230,9 @@ Provide actionable advice that helps me make the best decision for my project.`;
                             : "bg-gray-100 text-gray-800 border border-gray-200"
                         )}
                       >
-                        <div className="font-medium text-xs mb-1">
-                          {message.senderType === 'Borrower' ? 'You' : advisorName}
-                        </div>
+						<div className="font-medium text-xs mb-1 flex items-center space-x-2">
+						  <span>{message.senderDisplayName || (message.senderType === 'Advisor' ? advisorName : 'Team Member')}</span>
+						</div>
                         <div>{message.message}</div>
                         <div className="text-xs opacity-70 mt-1 text-right">
                           {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

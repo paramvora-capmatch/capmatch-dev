@@ -175,22 +175,16 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
 											: "bg-yellow-50 text-yellow-800 italic text-sm" // System message style
 									}`}
 								>
-									{message.senderType !== "System" && (
-										<div className="flex items-center mb-1">
-											<span className="text-xs font-medium">
-												{/* Display 'You' or Advisor Name */}
-												{message.senderType ===
-												"Borrower"
-													? "You"
-													: advisorName}
-											</span>
-											<span className="text-xs text-gray-500 ml-2">
-												{new Date(
-													message.createdAt
-												).toLocaleString()}
-											</span>
-										</div>
-									)}
+						{message.senderType !== "System" && (
+							<div className="flex items-center mb-1">
+								<span className="text-xs font-medium">
+									{message.senderDisplayName || (message.senderType === "Advisor" ? advisorName : "Team Member")}
+								</span>
+								<span className="text-xs text-gray-500 ml-2">
+									{new Date(message.createdAt).toLocaleString()}
+								</span>
+							</div>
+						)}
 									<p
 										className={`text-sm whitespace-pre-line ${
 											message.senderType === "System"
