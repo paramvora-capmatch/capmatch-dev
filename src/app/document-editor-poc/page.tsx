@@ -63,7 +63,7 @@ export default function DocumentEditorPOC() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 flex flex-col">
+    <div className="min-h-screen bg-gray-50 p-8 flex flex-col w-full">
       <div className="max-w-7xl mx-auto flex flex-col flex-grow w-full">
         {/* Header */}
         <div className="mb-8">
@@ -175,9 +175,11 @@ function OnlyOfficeEditor({ document, onClose }: OnlyOfficeEditorProps) {
         return;
       }
 
-      // NEW: Check if the container has a height. If not, wait and retry.
-      // This solves race conditions where the editor initializes before CSS flexbox has calculated the height.
-      if (editorContainerRef.current.clientHeight === 0) {
+      // Ensure the container has a non-zero height
+      const containerHeight =
+        editorContainerRef.current.getBoundingClientRect().height;
+      if (containerHeight < 100) {
+        // Increased threshold to ensure sufficient height
         setTimeout(initializeEditor, 100);
         return;
       }
@@ -194,6 +196,7 @@ function OnlyOfficeEditor({ document, onClose }: OnlyOfficeEditorProps) {
         fileName: document.name,
         fileType: document.fileType,
         documentType: document.documentType,
+        height: `${containerHeight}px`, // Pass the computed height
       };
 
       try {
@@ -209,11 +212,17 @@ function OnlyOfficeEditor({ document, onClose }: OnlyOfficeEditorProps) {
 
         const finalConfig = await response.json();
 
+        // Explicitly set height to match container
+        finalConfig.height = `${containerHeight}px`;
+
         // @ts-ignore
         const editor = new DocsAPI.DocEditor("onlyoffice-editor", finalConfig);
         // @ts-ignore
         window.docEditor = editor;
         setEditorReady(true);
+
+        // Force resize after initialization
+        window.dispatchEvent(new Event("resize"));
       } catch (error) {
         console.error("Error initializing OnlyOffice editor:", error);
         alert(
@@ -226,7 +235,6 @@ function OnlyOfficeEditor({ document, onClose }: OnlyOfficeEditorProps) {
       }
     };
 
-    // Give the script a moment to be available on window.DocsAPI
     const scriptCheckInterval = setInterval(() => {
       // @ts-ignore
       if (typeof window.DocsAPI !== "undefined" && window.DocsAPI.DocEditor) {
@@ -264,6 +272,7 @@ function OnlyOfficeEditor({ document, onClose }: OnlyOfficeEditorProps) {
         ref={editorContainerRef}
         id="onlyoffice-editor"
         className="w-full relative flex-grow"
+        style={{ minHeight: "600px" }} // Ensure minimum height
       >
         {isLoadingConfig && (
           <div className="absolute inset-0 flex items-center justify-center bg-white text-gray-600">

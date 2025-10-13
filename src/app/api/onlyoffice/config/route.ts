@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { fileName, fileType, documentType } = body;
+    const { fileName, fileType, documentType, height = "100%" } = body;
 
     if (!fileName || !fileType || !documentType) {
       return NextResponse.json(
@@ -24,19 +24,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For Docker on local dev, the container needs to reach the host machine.
-    // 'localhost' inside the container refers to the container itself.
-    // 'host.docker.internal' is a special DNS name that resolves to the host's IP.
     const host = "http://host.docker.internal:3000";
-
     const documentUrl = `${host}/samples/${fileName}`;
     const callbackUrl = `${host}/api/onlyoffice-callback`;
 
-    // This is the full config object that OnlyOffice needs
     const config = {
       document: {
         fileType: fileType,
-        key: `${fileName}-${Date.now()}`, // Unique key for each editing session
+        key: `${fileName}-${Date.now()}`,
         title: fileName,
         url: documentUrl,
         permissions: { edit: true, download: true, print: true },
@@ -49,16 +44,12 @@ export async function POST(request: NextRequest) {
         user: { id: "demo-user", name: "Demo User" },
         customization: { autosave: true, forcesave: true },
       },
-      height: "100%",
+      height: height, // Use provided height or default to "100%"
       width: "100%",
       type: "desktop",
     };
 
-    // Create the JWT by signing the entire config object
-    // OnlyOffice expects the token to be added to the top level of the config
     const token = jwt.sign(config, jwtSecret);
-
-    // Add the generated token to the config object
     const finalConfig = { ...config, token };
 
     return NextResponse.json(finalConfig);
