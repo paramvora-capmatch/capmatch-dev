@@ -14,11 +14,15 @@ import { cn } from '../../utils/cn';
 interface DashboardLayoutProps {
   children: ReactNode;
   title: string;
+  sidebarMinimal?: boolean;
+  sidebarLinks?: { label: string; icon: React.ReactNode; href: string }[];
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   title,
+  sidebarMinimal,
+  sidebarLinks: customSidebarLinks,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -35,12 +39,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     }
   };
 
-  const sidebarLinks = [
+  const defaultSidebarLinks = [
     { label: 'Dashboard', icon: <LayoutGrid size={18} />, href: '/dashboard' },
     { label: 'My Profile', icon: <User size={18} />, href: '/profile' },
     { label: 'Documents', icon: <Folder size={18} />, href: '/documents' },
     { label: 'Team', icon: <Users size={18} />, href: '/team' },
   ];
+  const sidebarLinks = customSidebarLinks ?? defaultSidebarLinks;
 
   return (
           <div className="flex h-screen bg-gray-50">

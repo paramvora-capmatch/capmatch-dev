@@ -17,7 +17,7 @@ const formatCurrency = (amount: number | null | undefined): string => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
 };
 // Helper to format date
-const formatDate = (dateString?: string): string => {
+const formatDate = (dateString?: string | null): string => {
     if (!dateString) return 'N/A'; try { return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); } catch (e) { return 'Invalid Date'; }
 };
 
@@ -64,7 +64,9 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({ project,
               <KeyValueDisplay label="Capital Type" value={project.loanType} isLarge={true}/>
               <KeyValueDisplay label="Project Phase" value={project.projectPhase} />
               <KeyValueDisplay label="Target LTV" value={`${project.targetLtvPercent || 0}%`} />
-              {project.targetLtcPercent > 0 && <KeyValueDisplay label="Target LTC" value={`${project.targetLtcPercent || 0}%`} />}
+              {(project.targetLtcPercent ?? 0) > 0 && (
+                <KeyValueDisplay label="Target LTC" value={`${project.targetLtcPercent ?? 0}%`} />
+              )}
               <KeyValueDisplay label="Amortization" value={`${project.amortizationYears || 0} Years`} />
               <KeyValueDisplay label="Interest-Only Period" value={`${project.interestOnlyPeriodMonths || 0} Months`} />
               <KeyValueDisplay label="Interest Rate Type" value={project.interestRateType} />
