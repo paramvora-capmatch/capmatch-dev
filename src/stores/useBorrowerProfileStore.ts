@@ -98,6 +98,7 @@ const createDefaultBorrowerProfile = (
 	return {
 		id: userId,
 		userId: email,
+		entityId: generateUniqueId("entity"),
 		fullLegalName: fullName || "",
 		primaryEntityName: "",
 		primaryEntityStructure: "LLC",
@@ -167,7 +168,7 @@ export const useBorrowerProfileStore = create<
 					(await storageService.getItem<BorrowerProfile[]>(
 						"borrowerProfiles"
 					)) || [];
-				profileToSet = profiles.find((p) => p.userId === user.email);
+				profileToSet = profiles.find((p) => p.userId === user.email) || null;
 
 				if (profileToSet) {
 					const allPrincipals =
@@ -467,22 +468,24 @@ export const useBorrowerProfileStore = create<
 
 	updatePrincipal: async (id, updates) => {
 		const { user } = useAuthStore.getState();
-		let updatedPrincipal: Principal | null = null;
+		let updatedPrincipalLocal: Principal | null = null;
 		set((state) => {
 			const newPrincipals = state.principals.map((p) => {
 				if (p.id === id) {
-					updatedPrincipal = {
+					const principal: Principal = {
 						...p,
 						...updates,
 						updatedAt: new Date().toISOString(),
 					};
-					return updatedPrincipal;
+					updatedPrincipalLocal = principal;
+					return principal;
 				}
 				return p;
 			});
 			return { principals: newPrincipals };
 		});
 
+		const updatedPrincipal = updatedPrincipalLocal as Principal | null;
 		if (!updatedPrincipal) return null;
 
 		if (user?.isDemo) {
@@ -493,22 +496,22 @@ export const useBorrowerProfileStore = create<
 			);
 			await storageService.setItem("principals", updatedAllPrincipals);
 		} else {
+			const p: Principal = updatedPrincipal;
 			const { error } = await supabase
 				.from("principals")
 				.update({
-					principal_legal_name: updatedPrincipal.principalLegalName,
-					principal_role_default:
-						updatedPrincipal.principalRoleDefault,
-					principal_bio: updatedPrincipal.principalBio,
-					principal_email: updatedPrincipal.principalEmail,
-					ownership_percentage: updatedPrincipal.ownershipPercentage,
-					credit_score_range: updatedPrincipal.creditScoreRange,
-					net_worth_range: updatedPrincipal.netWorthRange,
-					liquidity_range: updatedPrincipal.liquidityRange,
-					bankruptcy_history: updatedPrincipal.bankruptcyHistory,
-					foreclosure_history: updatedPrincipal.foreclosureHistory,
-					pfs_document_id: updatedPrincipal.pfsDocumentId,
-					updated_at: updatedPrincipal.updatedAt,
+					principal_legal_name: p.principalLegalName,
+					principal_role_default: p.principalRoleDefault,
+					principal_bio: p.principalBio,
+					principal_email: p.principalEmail,
+					ownership_percentage: p.ownershipPercentage,
+					credit_score_range: p.creditScoreRange,
+					net_worth_range: p.netWorthRange,
+					liquidity_range: p.liquidityRange,
+					bankruptcy_history: p.bankruptcyHistory,
+					foreclosure_history: p.foreclosureHistory,
+					pfs_document_id: p.pfsDocumentId,
+					updated_at: p.updatedAt,
 				})
 				.eq("id", id);
 			if (error) throw error;

@@ -2,7 +2,7 @@
 import { BorrowerProfile, ProjectProfile } from '../src/types/enhanced-types';
 
 // Helper to generate consistent IDs based on email and type
-const generateId = (email: string, type: 'profile' | 'project', index: number = 0): string => {
+const generateId = (email: string, type: 'profile' | 'project' | 'entity', index: number = 0): string => {
   const userPrefix = email.split('@')[0];
   return `${userPrefix}_${type}_${index}`;
 };
@@ -11,9 +11,11 @@ const now = new Date().toISOString();
 
 // --- Test User 1 Data (borrower1@example.com) ---
 const borrower1ProfileId = generateId('borrower1@example.com', 'profile');
+const borrower1EntityId = generateId('borrower1@example.com', 'entity');
 const borrower1Profile: BorrowerProfile = {
   id: borrower1ProfileId,
   userId: 'borrower1@example.com',
+  entityId: borrower1EntityId,
   fullLegalName: 'Borrower One Ventures LLC',
   primaryEntityName: 'Borrower One Ventures LLC',
   primaryEntityStructure: 'LLC',
@@ -43,6 +45,7 @@ const borrower1Project1Id = generateId('borrower1@example.com', 'project', 1);
 const borrower1Project1: ProjectProfile = {
   id: borrower1Project1Id,
   borrowerProfileId: borrower1ProfileId,
+  entityId: borrower1EntityId,
   assignedAdvisorUserId: 'advisor1@capmatch.com', // Assign one for consistency
   projectName: 'Downtown Highrise Acquisition',
   propertyAddressStreet: '1 Market St',
@@ -87,9 +90,11 @@ const borrower1Project1: ProjectProfile = {
 
 // --- Test User 2 Data (borrower2@example.com) ---
 const borrower2ProfileId = generateId('borrower2@example.com', 'profile');
+const borrower2EntityId = generateId('borrower2@example.com', 'entity');
 const borrower2Profile: BorrowerProfile = {
   id: borrower2ProfileId,
   userId: 'borrower2@example.com',
+  entityId: borrower2EntityId,
   fullLegalName: 'Borrower Two Properties',
   primaryEntityName: 'Borrower Two Properties',
   primaryEntityStructure: 'LP',
@@ -119,6 +124,7 @@ const borrower2Project1Id = generateId('borrower2@example.com', 'project', 1);
 const borrower2Project1: ProjectProfile = {
   id: borrower2Project1Id,
   borrowerProfileId: borrower2ProfileId,
+  entityId: borrower2EntityId,
   assignedAdvisorUserId: 'advisor2@capmatch.com',
   projectName: 'Warehouse Development',
   propertyAddressStreet: '789 Industrial Ave',
