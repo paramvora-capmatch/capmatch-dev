@@ -1,13 +1,13 @@
 // src/components/ui/EnhancedHeader.tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect, MutableRefObject } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { LogIn, Menu, X, Briefcase } from 'lucide-react'; // Added Briefcase for Process
-import { motion } from 'framer-motion';
-import { Button } from './Button';
-import { cn } from '@/utils/cn';
+import React, { useState, useEffect, MutableRefObject } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LogIn, Menu, X, Briefcase } from "lucide-react"; // Added Briefcase for Process
+import { motion } from "framer-motion";
+import { Button } from "./Button";
+import { cn } from "@/utils/cn";
 
 interface EnhancedHeaderProps {
   scrolled: boolean;
@@ -20,22 +20,25 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
   scrolled,
   logoRef,
   textVisible = false,
-  logoHidden = false
+  logoHidden = false,
 }) => {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (mobileMenuOpen && !(e.target instanceof Element && e.target.closest('header'))) {
-         setMobileMenuOpen(false);
+      if (
+        mobileMenuOpen &&
+        !(e.target instanceof Element && e.target.closest("header"))
+      ) {
+        setMobileMenuOpen(false);
       }
     };
 
     if (mobileMenuOpen) {
-        document.addEventListener('click', handleClickOutside);
+      document.addEventListener("click", handleClickOutside);
     }
-    return () => document.removeEventListener('click', handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, [mobileMenuOpen]);
 
   const toggleMobileMenu = (e?: React.MouseEvent) => {
@@ -46,14 +49,16 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
   const handleNav = (path: string, isSectionLink: boolean = false) => {
     setMobileMenuOpen(false);
     if (isSectionLink) {
-        // For section links, we need to ensure we are on the homepage first
-        if (typeof window !== 'undefined' && window.location.pathname === '/') {
-            document.getElementById(path.substring(1))?.scrollIntoView({ behavior: 'smooth' });
-        } else {
-            router.push('/' + path); // Navigate to homepage then scroll (can be improved)
-        }
+      // For section links, we need to ensure we are on the homepage first
+      if (typeof window !== "undefined" && window.location.pathname === "/") {
+        document
+          .getElementById(path.substring(1))
+          ?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        router.push("/" + path); // Navigate to homepage then scroll (can be improved)
+      }
     } else {
-        router.push(path);
+      router.push(path);
     }
   };
 
@@ -68,14 +73,14 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
     >
       <div className="container mx-auto flex justify-between items-center px-4">
         <div>
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="flex items-center"
             onClick={() => {
               try {
-                sessionStorage.setItem('navigatingFromApp', 'true');
+                sessionStorage.setItem("navigatingFromApp", "true");
               } catch (error) {
-                console.warn('Could not set navigation flag:', error);
+                console.warn("Could not set navigation flag:", error);
               }
             }}
           >
@@ -92,7 +97,9 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.onerror = null;
-                  target.outerHTML = `<span class=\"font-bold text-lg ${scrolled ? 'text-blue-700' : 'text-blue-800'}\">CapMatch</span>`;
+                  target.outerHTML = `<span class=\"font-bold text-lg ${
+                    scrolled ? "text-blue-700" : "text-blue-800"
+                  }\">CapMatch</span>`;
                 }}
               />
             </div>
@@ -102,7 +109,9 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
               transition={{ duration: 0.6 }}
               className={cn(
                 "ml-3 transition-all duration-300 font-bold",
-                scrolled ? "text-lg text-blue-700" : "text-2xl text-blue-700 drop-shadow-sm"
+                scrolled
+                  ? "text-lg text-blue-700"
+                  : "text-2xl text-blue-700 drop-shadow-sm"
               )}
             >
               CapMatch
@@ -110,29 +119,60 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
           </Link>
         </div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
           className="hidden md:flex items-center space-x-6"
         >
           <nav className="flex items-center space-x-6">
-            <Link href="/#lenderline-section" scroll={false} // Add scroll={false} for smooth scroll
-              onClick={(e) => { e.preventDefault(); document.getElementById('lenderline-section')?.scrollIntoView({ behavior: 'smooth' });}}
+            <Link
+              href="/#lenderline-section"
+              scroll={false} // Add scroll={false} for smooth scroll
+              onClick={(e) => {
+                e.preventDefault();
+                document
+                  .getElementById("lenderline-section")
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
               className={cn(
-              "text-sm font-medium transition-colors",
-              scrolled ? "text-gray-700 hover:text-blue-600" : "text-black hover:text-blue-700 drop-shadow-sm"
-            )}>
+                "text-sm font-medium transition-colors",
+                scrolled
+                  ? "text-gray-700 hover:text-blue-600"
+                  : "text-black hover:text-blue-700 drop-shadow-sm"
+              )}
+            >
               <span className="font-semibold">LenderLine</span>
               <sup className="text-xs">™</sup>
             </Link>
-            <Link href="/#process-section" scroll={false} // Add scroll={false}
-              onClick={(e) => { e.preventDefault(); document.getElementById('process-section')?.scrollIntoView({ behavior: 'smooth' });}}
+            <Link
+              href="/#process-section"
+              scroll={false} // Add scroll={false}
+              onClick={(e) => {
+                e.preventDefault();
+                document
+                  .getElementById("process-section")
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
               className={cn(
-              "text-sm font-medium transition-colors",
-              scrolled ? "text-gray-700 hover:text-blue-600" : "text-black hover:text-blue-700 drop-shadow-sm"
-            )}>
+                "text-sm font-medium transition-colors",
+                scrolled
+                  ? "text-gray-700 hover:text-blue-600"
+                  : "text-black hover:text-blue-700 drop-shadow-sm"
+              )}
+            >
               Process
+            </Link>
+            <Link
+              href="/document-editor-poc"
+              className={cn(
+                "text-sm font-medium transition-colors",
+                scrolled
+                  ? "text-gray-700 hover:text-blue-600"
+                  : "text-black hover:text-blue-700 drop-shadow-sm"
+              )}
+            >
+              Document Editor POC
             </Link>
           </nav>
 
@@ -140,13 +180,18 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
             variant="primary"
             size="sm"
             leftIcon={<LogIn size={16} />}
-            onClick={() => router.push('/login')}
+            onClick={() => router.push("/login")}
             className={cn(
-              scrolled ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-700 hover:bg-blue-800 shadow-lg",
+              scrolled
+                ? "bg-blue-600 hover:bg-blue-700"
+                : "bg-blue-700 hover:bg-blue-800 shadow-lg",
               "font-medium transition-colors duration-200"
             )}
           >
-            <span>Access <span className="font-bold">Deal Room</span><sup className="text-xs">™</sup></span>
+            <span>
+              Access <span className="font-bold">Deal Room</span>
+              <sup className="text-xs">™</sup>
+            </span>
           </Button>
         </motion.div>
 
@@ -167,7 +212,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
       </div>
 
       {mobileMenuOpen && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
@@ -176,10 +221,10 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
         >
           <div className="container mx-auto py-4 px-4">
             <nav className="flex flex-col space-y-4">
-               <Link
+              <Link
                 href="/#lenderline-section"
                 className="text-gray-700 hover:text-blue-600 py-2 text-sm font-medium block"
-                onClick={() => handleNav('#lenderline-section', true)}
+                onClick={() => handleNav("#lenderline-section", true)}
               >
                 <span className="font-semibold">LenderLine</span>
                 <sup className="text-xs">™</sup>
@@ -187,18 +232,28 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
               <Link
                 href="/#process-section"
                 className="text-gray-700 hover:text-blue-600 py-2 text-sm font-medium block"
-                onClick={() => handleNav('#process-section', true)}
+                onClick={() => handleNav("#process-section", true)}
               >
                 Process
+              </Link>
+              <Link
+                href="/document-editor-poc"
+                className="text-gray-700 hover:text-blue-600 py-2 text-sm font-medium block"
+                onClick={() => handleNav("/document-editor-poc")}
+              >
+                Document Editor POC
               </Link>
               <Button
                 variant="primary"
                 size="sm"
                 leftIcon={<LogIn size={16} />}
-                onClick={() => handleNav('/login')}
+                onClick={() => handleNav("/login")}
                 className="mt-2 w-full"
               >
-                <span>Access <span className="font-bold">Deal Room</span><sup className="text-xs">™</sup></span>
+                <span>
+                  Access <span className="font-bold">Deal Room</span>
+                  <sup className="text-xs">™</sup>
+                </span>
               </Button>
             </nav>
           </div>
