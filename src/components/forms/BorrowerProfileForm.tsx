@@ -21,7 +21,7 @@ import {
   NetWorthRange, LiquidityRange, Principal, PrincipalRole
 } from '../../types/enhanced-types';
 import { MultiSelect } from '../ui/MultiSelect';
-import { useBorrowerProfile } from '../../hooks/useBorrowerProfile';
+import { useBorrowerProfileStore } from '../../stores/useBorrowerProfileStore';
 
 interface BorrowerProfileFormProps {
   onComplete?: (profile: BorrowerProfile | null) => void; // Allow null in callback
@@ -42,17 +42,8 @@ const geographicMarketsOptions = [ "Northeast", "Mid-Atlantic", "Southeast", "Mi
 export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComplete }) => {
   const router = useRouter();
   const { user } = useAuth();
-  const borrowerProfileHookData = useBorrowerProfile(); // Use the hook
-   // **Safely destructure, providing fallback functions**
-   const {
-    borrowerProfile = null, // Default to null
-    principals = [], // Default to empty array
-    createBorrowerProfile = async () => { throw new Error("createBorrowerProfile not available"); }, // Throw error if called when not available
-    updateBorrowerProfile = async () => { throw new Error("updateBorrowerProfile not available"); },
-    addPrincipal = async () => { throw new Error("addPrincipal not available"); },
-    updatePrincipal = async () => { throw new Error("updatePrincipal not available"); },
-    removePrincipal = async () => { throw new Error("removePrincipal not available"); },
-  } = borrowerProfileHookData || {}; // Handle hook returning undefined initially
+  const { content: borrowerProfile, saveForProject } = useBorrowerProfileStore();
+  const principals: Principal[] = []; // Principals removed from new schema
 
 
 
@@ -80,7 +71,7 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
       if (borrowerProfile && JSON.stringify(formData) !== JSON.stringify(borrowerProfile)) {
         try {
           console.log(`[ProfileForm] Auto-saving profile: ${formData.fullLegalName}`);
-          await updateBorrowerProfile(formData);
+          await saveForProject(formData);
         } catch (error) {
           console.error('[ProfileForm] Auto-save failed:', error);
         }
@@ -92,7 +83,7 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [formData, borrowerProfile, updateBorrowerProfile]);
+  }, [formData, borrowerProfile, saveForProject]);
 
   // Input change handlers
   const handleInputChange = (field: keyof BorrowerProfile, value: any) => { setFormData(prev => ({ ...prev, [field]: value })); };
@@ -104,20 +95,13 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     try {
       setFormSaved(true);
-      await updateBorrowerProfile(formData);
+      await saveForProject(formData);
 
               console.log('Profile changes saved.');
 
       if (onComplete) {
-         // **Safest Check:** Access the profile directly from the hook data again *after* await
-         const finalProfileState = borrowerProfileHookData?.borrowerProfile;
-         if (finalProfileState) {
-              // The state might not have updated yet from the async call, so pass formData
-              onComplete({ ...finalProfileState, ...formData });
-         } else {
-              console.warn("Profile still not available in context after save for onComplete.");
-              onComplete(null); // Call onComplete with null to indicate potential issue
-         }
+         // Pass the updated formData as the profile
+         onComplete(formData as BorrowerProfile);
       }
     } catch (error) {
       console.error('Error saving borrower profile:', error);
@@ -128,20 +112,13 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     }
   };
 
-  // Add Principal
+  // Principals removed from new schema - these functions are no-ops
   const handleAddPrincipal = async () => {
-           if (!principalFormData.principalLegalName?.trim()) { console.warn('Enter principal name.'); return; }
-           if (!borrowerProfile?.id) { console.error('Save profile first.'); return; }
-    setIsAddingPrincipal(true);
-          try { await addPrincipal(principalFormData); console.log('Principal added.'); resetPrincipalForm(); }
-          catch (error) { console.error('Error adding principal:', error); console.error('Failed add principal.'); }
-    finally { setIsAddingPrincipal(false); }
+    console.warn('Principals are no longer supported in the new schema');
   };
 
-  // Remove Principal
   const handleRemovePrincipal = async (principalId: string) => {
-          try { await removePrincipal(principalId); console.log('Principal removed.'); }
-          catch (error) { console.error('Error removing principal:', error); console.error('Failed remove principal.'); }
+    console.warn('Principals are no longer supported in the new schema');
   };
 
 
@@ -159,7 +136,7 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     { id: 'principals', title: 'Key Principals', isOptional: true, component: ( <Card> <CardHeader><h2 className="text-xl font-semibold flex items-center"><Award className="mr-2"/> Key Principals (Opt)</h2></CardHeader> <CardContent className="p-4 space-y-6"><div className="border rounded p-4 bg-gray-50"><h3 className="text-lg font-semibold mb-4">Add Principal</h3><div className="grid md:grid-cols-2 gap-4"><FormGroup> <Input id="pName" label="Name" value={principalFormData.principalLegalName || ''} onChange={(e)=>handlePrincipalInputChange('principalLegalName',e.target.value)} required/> </FormGroup><FormGroup> <ButtonSelect label="Role" options={principalRoleOptions} selectedValue={principalFormData.principalRoleDefault||'Key Principal'} onSelect={(v)=>handlePrincipalInputChange('principalRoleDefault',v as PrincipalRole)} required/> </FormGroup><FormGroup> <Input id="pEmail" type="email" label="Email" value={principalFormData.principalEmail || ''} onChange={(e)=>handlePrincipalInputChange('principalEmail',e.target.value)}/> </FormGroup><FormGroup> <Input id="pOwn" type="number" label="Ownership (%)" value={principalFormData.ownershipPercentage?.toString()||''} onChange={(e)=>handlePrincipalInputChange('ownershipPercentage',Number(e.target.value||0))} min="0" max="100"/> </FormGroup><div className="md:col-span-2"><FormGroup><label className="block text-sm mb-1">Bio (Opt)</label><textarea id="pBio" value={principalFormData.principalBio||''} onChange={(e)=>handlePrincipalInputChange('principalBio',e.target.value)} rows={2} className="w-full border rounded p-2"/> </FormGroup></div></div><Button onClick={handleAddPrincipal} variant="secondary" isLoading={isAddingPrincipal} disabled={isAddingPrincipal || !borrowerProfile?.id} className="mt-3">Add</Button></div> {principals.length>0 && <div className="mt-4"><h3 className="text-lg font-semibold mb-2">Added Principals</h3><ul className="space-y-2">{principals.map(p=><li key={p.id} className="flex justify-between items-center border p-2 rounded bg-white"><span className="text-sm">{p.principalLegalName} ({p.principalRoleDefault} - {p.ownershipPercentage}%)</span><Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-100 px-1 py-0.5 h-auto" onClick={()=>handleRemovePrincipal(p.id)}>Remove</Button></li>)}</ul></div>}</CardContent> </Card> ) },
     // Step 6: Review & Save (JSX)
     { id: 'review', title: 'Review & Save', component: ( <Card> <CardHeader><h2 className="text-xl font-semibold flex items-center"><CheckCircle className="mr-2"/> Review & Save</h2></CardHeader> <CardContent className="p-4 space-y-6"><div className="p-3 bg-blue-50 rounded text-sm border border-blue-100">Review details. Changes auto-save. Click below to manually confirm save and finish.</div><Button onClick={handleProfileSubmit} isLoading={formSaved} disabled={formSaved} className="min-w-[140px]">{formSaved ? 'Saved!' : 'Save & Finish'}</Button></CardContent> </Card> ) },
-  ], [formData, principals, principalFormData, isAddingPrincipal, formSaved, handleInputChange, handleProfileSubmit, handleAddPrincipal, handleRemovePrincipal, handlePrincipalInputChange, borrowerProfile?.id, borrowerProfileHookData]) // Dependencies reviewed
+  ], [formData, principals, principalFormData, isAddingPrincipal, formSaved, handleInputChange, handleProfileSubmit, handleAddPrincipal, handleRemovePrincipal, handlePrincipalInputChange, borrowerProfile?.id]) // Dependencies reviewed
 
 
   return (

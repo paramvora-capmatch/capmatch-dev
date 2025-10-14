@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
 import { User, Edit, Check, X, Loader2 } from 'lucide-react';
 import { BorrowerProfile } from '@/types/enhanced-types';
-import { useBorrowerProfile } from '@/hooks/useBorrowerProfile';
+import { useBorrowerProfileStore } from '@/stores/useBorrowerProfileStore';
 
 interface ProfileSummaryCardProps {
   profile: BorrowerProfile | null;
@@ -14,7 +14,7 @@ interface ProfileSummaryCardProps {
 
 export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile, isLoading }) => {
   const router = useRouter();
-  const { updateBorrowerProfile, isLoading: isSaving } = useBorrowerProfile();
+  const { saveForProject, isLoading: isSaving } = useBorrowerProfileStore();
   
   // Inline editing state
   const [editingField, setEditingField] = useState<'name' | 'entity' | 'email' | null>(null);
@@ -78,7 +78,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
 
       console.log('Saving profile updates:', updates);
       
-      await updateBorrowerProfile(updates);
+      await saveForProject({ ...profile, ...updates });
       
       setEditingField(null);
       

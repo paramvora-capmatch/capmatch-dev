@@ -55,7 +55,6 @@ export const useStorageWithRBAC = (
           // For members, check document permissions
           if (currentEntityRole === 'member' && projectId) {
             const hasPermission = await checkDocumentPermission(
-              activeEntity.id,
               projectId!,
               filePath,
               user.id!
@@ -117,7 +116,7 @@ export const useStorageWithRBAC = (
         // Auto-grant permission to the uploader (members can access their own uploads)
         try {
           const { grantPermission } = useDocumentPermissionStore.getState();
-          await grantPermission(projectId, user.id!, filePath, 'file');
+          await grantPermission(projectId, user.id!, filePath);
         } catch (permError) {
           console.error('Error granting permission:', permError);
           // Don't fail the upload if permission granting fails
@@ -147,7 +146,6 @@ export const useStorageWithRBAC = (
       // Check permission before download
       if (currentEntityRole === 'member' && projectId) {
         const hasPermission = await checkDocumentPermission(
-          activeEntity.id,
           projectId!,
           filePath,
           user.id!

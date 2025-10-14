@@ -1,6 +1,12 @@
 // src/types/enhanced-types.ts
 
-// Borrower Profile Types
+// Core Schema Types - Updated to match new schema
+export type AppRole = 'borrower' | 'lender' | 'advisor';
+export type EntityType = 'borrower' | 'lender';
+export type EntityMemberRole = 'owner' | 'member';
+export type InviteStatus = 'pending' | 'accepted' | 'cancelled' | 'expired';
+
+// Legacy types for backward compatibility
 export type EntityStructure =
   | "LLC"
   | "LP"
@@ -42,6 +48,49 @@ export type LiquidityRange =
   | "$5M-$10M"
   | "$10M+";
 
+// New Core Profile Type (replaces BorrowerProfile)
+export interface Profile {
+  id: string; // UUID, FK to auth.users.id
+  created_at: string;
+  updated_at: string;
+  full_name?: string;
+  app_role: AppRole; // 'borrower', 'lender', or 'advisor'
+  active_entity_id?: string | null; // FK to entities.id, nullable for advisors
+}
+
+// New Entity Type (unified for borrower and lender organizations)
+export interface Entity {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  entity_type: EntityType; // 'borrower' or 'lender'
+}
+
+// New Entity Member Type
+export interface EntityMember {
+  entity_id: string;
+  user_id: string;
+  role: EntityMemberRole; // 'owner' or 'member'
+  created_at: string;
+}
+
+// New Invite Type
+export interface Invite {
+  id: string;
+  entity_id: string;
+  invited_by: string;
+  invited_email: string;
+  role: EntityMemberRole;
+  token: string;
+  status: InviteStatus;
+  initial_permissions?: any; // JSONB for pre-approved permissions
+  expires_at: string;
+  accepted_at?: string | null;
+  created_at: string;
+}
+
+// Legacy BorrowerProfile - kept for backward compatibility but deprecated
 export interface BorrowerProfile {
   id: string;
   userId: string;
@@ -135,6 +184,90 @@ export type ProjectStatus =
   | "Withdrawn"
   | "Stalled";
 
+// New Project Type (matches new schema)
+export interface Project {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  name: string;
+  owner_entity_id: string; // FK to entities.id
+  assigned_advisor_id?: string | null; // FK to profiles.id
+}
+
+// New Resume Types
+export interface BorrowerResume {
+  id: string;
+  entity_id: string; // FK to entities.id (1-to-1 with borrower entity)
+  content?: any; // JSONB
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectResume {
+  id: string;
+  project_id: string; // FK to projects.id (1-to-1 with project)
+  content?: any; // JSONB
+  created_at: string;
+  updated_at: string;
+}
+
+// New Document Permission Types
+export interface DocumentPermission {
+  id: string;
+  project_id: string; // FK to projects.id
+  user_id: string; // FK to profiles.id
+  document_path: string;
+  created_at: string;
+}
+
+export interface LenderDocumentAccess {
+  id: string;
+  project_id: string; // FK to projects.id
+  lender_entity_id: string; // FK to entities.id
+  document_path: string;
+  granted_by: string; // FK to profiles.id
+  created_at: string;
+}
+
+// New Chat Types
+export interface ChatThread {
+  id: string;
+  project_id: string; // FK to projects.id
+  topic?: string;
+  created_at: string;
+}
+
+export interface ChatThreadParticipant {
+  thread_id: string; // FK to chat_threads.id
+  user_id: string; // FK to profiles.id
+  created_at: string;
+}
+
+export interface ProjectMessage {
+  id: number; // BIGSERIAL
+  thread_id: string; // FK to chat_threads.id
+  user_id?: string | null; // FK to profiles.id (SET NULL on user delete)
+  content?: string;
+  created_at: string;
+}
+
+export interface MessageAttachment {
+  id: number; // BIGSERIAL
+  message_id: number; // FK to project_messages.id
+  document_path: string;
+  created_at: string;
+}
+
+export interface Notification {
+  id: number; // BIGSERIAL
+  user_id: string; // FK to profiles.id
+  content: string;
+  read_at?: string | null;
+  link_url?: string;
+  created_at: string;
+}
+
+// Legacy ProjectProfile - kept for backward compatibility but deprecated
 export interface ProjectProfile {
   id: string;
   borrowerProfileId?: string; // Made optional - projects owned by entities
@@ -261,8 +394,8 @@ export interface Advisor {
   updatedAt: string;
 }
 
-// Message Types
-export interface ProjectMessage {
+// Legacy Message Types - kept for backward compatibility but deprecated
+export interface LegacyProjectMessage {
   id: string;
   projectId: string;
   senderId: string;
@@ -274,22 +407,22 @@ export interface ProjectMessage {
   createdAt: string;
 }
 
-// Enhanced User type with role and login source
+// Enhanced User type with role and login source - Updated for new schema
 export interface EnhancedUser {
   id?: string; // Add user's auth ID (UUID)
   email: string;
   name?: string;
-  profileId?: string; // Optional: ID of the associated BorrowerProfile
+  profileId?: string; // Optional: ID of the associated Profile
   lastLogin: Date;
-  role: "borrower" | "advisor" | "lender" | "admin";
+  role: AppRole; // Now uses AppRole type
   loginSource?: "direct" | "lenderline"; // Added login source tracking
   isDemo?: boolean; // Flag for demo users
   // RBAC additions
   activeEntityId?: string | null; // for context switching
-  entityMemberships?: BorrowerEntityMember[]; // loaded on login
+  entityMemberships?: EntityMember[]; // loaded on login
 }
 
-// RBAC Types
+// Legacy RBAC Types - kept for backward compatibility but deprecated
 export interface BorrowerEntity {
   id: string;
   name: string;
@@ -297,9 +430,6 @@ export interface BorrowerEntity {
   updatedAt: string;
   createdBy: string;
 }
-
-export type EntityMemberRole = 'owner' | 'member';
-export type InviteStatus = 'pending' | 'active' | 'removed';
 
 export interface BorrowerEntityMember {
   id: string;
@@ -322,7 +452,8 @@ export interface BorrowerEntityMember {
 
 export type PermissionType = 'file' | 'folder';
 
-export interface DocumentPermission {
+// Legacy DocumentPermission - kept for backward compatibility but deprecated
+export interface LegacyDocumentPermission {
   id: string;
   entityId: string;
   projectId: string;

@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAskAI } from '../../hooks/useAskAI';
 import { useProjects } from '../../hooks/useProjects';
+import { useChatStore } from '../../stores/useChatStore';
 import { useAuth } from '../../hooks/useAuth';
 import { ProjectMessage } from '../../types/enhanced-types';;
 import { getAdvisorById } from '../../../lib/enhancedMockApiService';
@@ -55,8 +56,17 @@ export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
   } = useAskAI({ projectId, formData });
 
   // Message Panel state and hooks
-  const { getProject, projectMessages, addProjectMessage, activeProject } = useProjects();
+  const { getProject, activeProject } = useProjects();
   const { user } = useAuth();
+  const {
+    messages: projectMessages,
+    sendMessage: addProjectMessage,
+    loadThreadsForProject,
+    threads,
+    activeThreadId,
+    setActiveThread,
+    loadMessages
+  } = useChatStore();
   const [newMessage, setNewMessage] = useState('');
   const [advisorName, setAdvisorName] = useState('Your Capital Advisor');
   const [isLoadingAdvisor, setIsLoadingAdvisor] = useState(false);
@@ -113,6 +123,27 @@ Provide actionable advice that helps me make the best decision for my project.`;
     }
   }, [fieldContext, aiMessages.length, aiLoading, isBuildingContext, sendMessage]);
 
+  // Load threads and messages for this project
+  useEffect(() => {
+    if (projectId) {
+      loadThreadsForProject(projectId);
+    }
+  }, [projectId, loadThreadsForProject]);
+
+  // Set the first thread as active when threads load
+  useEffect(() => {
+    if (threads.length > 0 && !activeThreadId) {
+      setActiveThread(threads[0].id);
+    }
+  }, [threads, activeThreadId, setActiveThread]);
+
+  // Load messages when active thread changes
+  useEffect(() => {
+    if (activeThreadId) {
+      loadMessages(activeThreadId);
+    }
+  }, [activeThreadId, loadMessages]);
+
   // Message panel effects
   useEffect(() => {
     if (activeProject?.id === projectId) {
@@ -143,10 +174,10 @@ Provide actionable advice that helps me make the best decision for my project.`;
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!activeThreadId || !newMessage.trim()) return;
 
     try {
-        await addProjectMessage(newMessage);
+        await addProjectMessage(activeThreadId, newMessage.trim());
         setNewMessage('');
     } catch (error) {
         console.error('Failed to send message:', error);
@@ -219,23 +250,23 @@ Provide actionable advice that helps me make the best decision for my project.`;
                       key={message.id}
                       className={cn(
                         "flex space-x-2 animate-fadeInUp",
-                        message.senderType === 'Borrower' ? "justify-end" : "justify-start"
+                        message.user_id === user?.id ? "justify-end" : "justify-start"
                       )}
                     >
                       <div
                         className={cn(
                           "max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm",
-                          message.senderType === 'Borrower'
+                          message.user_id === user?.id
                             ? "bg-blue-600 text-white"
                             : "bg-gray-100 text-gray-800 border border-gray-200"
                         )}
                       >
 						<div className="font-medium text-xs mb-1 flex items-center space-x-2">
-						  <span>{message.senderDisplayName || (message.senderType === 'Advisor' ? advisorName : 'Team Member')}</span>
+						  <span>{message.user_id === user?.id ? 'You' : 'Team Member'}</span>
 						</div>
-                        <div>{message.message}</div>
+                        <div>{message.content}</div>
                         <div className="text-xs opacity-70 mt-1 text-right">
-                          {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                     </div>
