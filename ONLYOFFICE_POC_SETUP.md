@@ -10,13 +10,35 @@ This document outlines how to set up and test the OnlyOffice document editing pr
 
 ## Setup Steps
 
-### 1. Start OnlyOffice Document Server
+### 1. Configure Environment Variables
 
-Run the OnlyOffice Document Server using Docker:
+Create a `.env.local` file in the root of your project if you haven't already. You can copy the example file:
 
 ```bash
-docker run -i -t -d -p 8080:80 --name onlyoffice onlyoffice/documentserver
+cp .env.example .env.local
 ```
+
+Make sure the `ONLYOFFICE_JWT_SECRET` in your `.env.local` is a strong, random secret. For this example, we'll use the one from your file: `jup42HdwbkhSYhNXnoohsTsBTjB15y8W`.
+
+### 2. Start OnlyOffice Document Server
+
+You must start the OnlyOffice Docker container with the **same JWT secret** that is in your `.env.local` file.
+
+First, stop and remove any existing `onlyoffice` container:
+```bash
+docker rm -f onlyoffice
+```
+
+Then, run the new container with JWT enabled and the secret configured. Replace `your_jwt_secret_here` with the actual secret from your `.env.local` file:
+
+```bash
+docker run -i -t -d -p 8080:80 --name onlyoffice \
+    -e JWT_ENABLED=true \
+    -e JWT_SECRET=your_jwt_secret_here \
+    onlyoffice/documentserver
+```
+
+This command tells the OnlyOffice server to enable token validation (`JWT_ENABLED=true`) and what secret to use for that validation (`JWT_SECRET=...`).
 
 This will:
 - Download the OnlyOffice Document Server image (if not already downloaded)
@@ -33,13 +55,13 @@ You should see the container running.
 **Check OnlyOffice is accessible:**
 Open http://localhost:8080 in your browser. You should see the OnlyOffice welcome page.
 
-### 2. Start Your Next.js Application
+### 3. Start Your Next.js Application
 
 ```bash
 npm run dev
 ```
 
-### 3. Access the POC Page
+### 4. Access the POC Page
 
 Navigate to: http://localhost:3000/document-editor-poc
 
@@ -47,20 +69,19 @@ Navigate to: http://localhost:3000/document-editor-poc
 
 ### Basic Workflow
 
-1. **Upload Documents**
-   - Click "Choose Files" button
-   - Select one or more documents (DOCX, XLSX, PPTX, PDF, etc.)
-   - Documents will appear in the uploaded list
+1. **Prepare Sample Documents**
+   - Ensure you have `sample.docx`, `sample.xlsx`, `sample.pptx`, and `sample.pdf` files in the `/public/samples` directory of your project.
 
 2. **Edit Documents**
-   - Click "Edit Document" on any uploaded file
+   - On the POC page, a list of the sample documents will be displayed.
+   - Click "Edit Document" on any file to open it in the OnlyOffice editor.
    - The OnlyOffice editor will open in the same page
    - Make changes to the document
-   - Changes are auto-saved by OnlyOffice
+   - Changes are auto-saved by OnlyOffice. Check your Next.js application console to see callback logs when a document is saved.
 
 3. **Close Editor**
    - Click "Close Editor" to return to the document list
-   - You can edit another document or upload more
+   - You can then edit another document.
 
 ### Supported File Formats
 

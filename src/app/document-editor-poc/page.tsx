@@ -3,7 +3,15 @@
 import React, { useState, useRef } from "react";
 import Script from "next/script";
 import { Button } from "@/components/ui/Button";
-import { Upload, FileText, FileSpreadsheet, File, Edit, X } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  FileSpreadsheet,
+  File,
+  Edit,
+  X,
+  FileArchive,
+} from "lucide-react";
 
 interface SampleDocument {
   name: string;
@@ -47,6 +55,22 @@ export default function DocumentEditorPOC() {
       size: "9 KB",
       description: "Sample Excel Spreadsheet",
       icon: <FileSpreadsheet className="w-8 h-8 text-green-600" />,
+    },
+    {
+      name: "sample.pptx",
+      fileType: "pptx",
+      documentType: "presentation",
+      size: "25 KB",
+      description: "Sample PowerPoint Presentation",
+      icon: <FileArchive className="w-8 h-8 text-orange-600" />,
+    },
+    {
+      name: "sample.pdf",
+      fileType: "pdf",
+      documentType: "text", // For viewing/annotating
+      size: "15 KB",
+      description: "Sample PDF Document",
+      icon: <File className="w-8 h-8 text-red-600" />,
     },
   ];
 
@@ -135,8 +159,9 @@ export default function DocumentEditorPOC() {
                   </code>
                 </li>
                 <li>
-                  Place `sample.docx` and `sample.xlsx` files in your project's
-                  `/public/samples` directory.
+                  Place `sample.docx`, `sample.xlsx`, `sample.pptx`, and
+                  `sample.pdf` files in your project's `/public/samples`
+                  directory.
                 </li>
                 <li>Click "Edit Document" to open it in OnlyOffice editor</li>
                 <li>
