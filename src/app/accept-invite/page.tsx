@@ -82,11 +82,14 @@ export default function AcceptInvitePage() {
         return;
       }
 
+      // Use the accept-invite edge function with the new schema
       await acceptInvite(token);
       
-      // Redirect to appropriate dashboard
+      // Redirect to appropriate dashboard based on app_role
       if (user?.role === 'borrower') {
         router.push('/dashboard');
+      } else if (user?.role === 'advisor') {
+        router.push('/advisor/dashboard');
       } else {
         router.push('/');
       }
@@ -116,8 +119,10 @@ export default function AcceptInvitePage() {
 
     try {
       // Accept invite with password - this will create the account and accept the invite
-      await acceptInvite(token!, password);
+      // The accept-invite edge function handles both account creation and invite acceptance
+      await acceptInvite(token!);
       // Don't set isAccepting to false here - let the redirect happen
+      // Redirect will be handled by the edge function response or we'll redirect to a default page
       router.push('/dashboard');
     } catch (error) {
       console.error('[AcceptInvite] Error creating account and accepting invite:', error);

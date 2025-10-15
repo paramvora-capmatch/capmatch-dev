@@ -54,6 +54,7 @@ export interface Profile {
   created_at: string;
   updated_at: string;
   full_name?: string;
+  email: string;
   app_role: AppRole; // 'borrower', 'lender', or 'advisor'
   active_entity_id?: string | null; // FK to entities.id, nullable for advisors
 }

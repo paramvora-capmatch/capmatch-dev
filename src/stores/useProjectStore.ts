@@ -198,19 +198,27 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					"Must be part of an entity to create a project."
 				);
 
-			const now = new Date().toISOString();
-			// Define defaults first, then spread projectData to override them
+			// Use the create-project edge function
+			const { data, error } = await supabase.functions.invoke('create-project', {
+				body: {
+					name: projectData.projectName || `New Project ${get().projects.length + 1}`,
+					owner_entity_id: activeEntity.id
+				}
+			});
+
+			if (error) throw error;
+			if (!data?.project) throw new Error('Failed to create project');
+
+			// Convert the database project to ProjectProfile format
 			const newProjectData: ProjectProfile = {
-				id: `proj_${Date.now()}_${Math.random()
-					.toString(36)
-					.substring(2, 9)}`,
-				entityId: activeEntity.id,
-				assignedAdvisorUserId: null,
-				projectName: `New Project ${get().projects.length + 1}`,
+				id: data.project.id,
+				entityId: data.project.owner_entity_id,
+				assignedAdvisorUserId: data.project.assigned_advisor_id,
+				projectName: data.project.name,
 				assetType: "Multifamily",
 				projectStatus: "Info Gathering",
-				createdAt: now,
-				updatedAt: now,
+				createdAt: data.project.created_at,
+				updatedAt: data.project.updated_at,
 				propertyAddressStreet: "",
 				propertyAddressCity: "",
 				propertyAddressState: "",
@@ -243,18 +251,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// Spread the provided data to override defaults
 				...projectData,
 			};
-
-			const dataToInsert = projectProfileToDbProject(newProjectData);
-			delete dataToInsert.id; // DB generates UUID
-			const { data: insertedProject, error } = await supabase
-				.from("projects")
-				.insert(dataToInsert)
-				.select()
-				.single();
-			if (error) throw error;
-			Object.assign(newProjectData, insertedProject);
-
-			// Storage folder creation will be handled by a backend workflow if needed
 
 			const finalProject = {
 				...newProjectData,

@@ -20,11 +20,11 @@ import {
   User, 
   MoreVertical,
   Trash2,
-  Shield,
-  ShieldOff,
-  Settings
+  Settings,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
-import { BorrowerEntityMember, EntityMemberRole } from '@/types/enhanced-types';
+import { EntityMember, EntityMemberRole } from '@/types/enhanced-types';
 
 export default function TeamPage() {
   const { user, activeEntity, currentEntityRole } = useAuth();
@@ -38,15 +38,15 @@ export default function TeamPage() {
     inviteMember,
     cancelInvite,
     removeMember,
-    demoteOwnerToMember,
-    promoteMemberToOwner,
+    removeAndReinviteMember,
     clearError
   } = useEntityStore();
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showPermissionManager, setShowPermissionManager] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<BorrowerEntityMember | null>(null);
+  const [selectedMember, setSelectedMember] = useState<EntityMember | null>(null);
   const [showMemberMenu, setShowMemberMenu] = useState<string | null>(null);
+  const [showRoleChangeWarning, setShowRoleChangeWarning] = useState(false);
 
   useEffect(() => {
     if (activeEntity) {
@@ -79,27 +79,24 @@ export default function TeamPage() {
     }
   };
 
-  const handleDemoteOwner = async (memberId: string) => {
-    if (window.confirm('Are you sure you want to demote this owner to member? You will need to assign document permissions.')) {
-      try {
-        // For now, grant access to all projects - in real implementation, show permission selection UI
-        const allProjectIds: string[] = []; // Would get from projects store
-        await demoteOwnerToMember(memberId, allProjectIds);
-        setShowMemberMenu(null);
-      } catch (error) {
-        console.error('Failed to demote owner:', error);
-      }
-    }
+  const handleRoleChange = (member: EntityMember, newRole: EntityMemberRole) => {
+    setSelectedMember(member);
+    setShowRoleChangeWarning(true);
+    setShowMemberMenu(null);
   };
 
-  const handlePromoteMember = async (memberId: string) => {
-    if (window.confirm('Are you sure you want to promote this member to owner?')) {
-      try {
-        await promoteMemberToOwner(memberId);
-        setShowMemberMenu(null);
-      } catch (error) {
-        console.error('Failed to promote member:', error);
-      }
+  const handleConfirmRoleChange = async () => {
+    if (!selectedMember) return;
+    
+    const newRole = selectedMember.role === 'owner' ? 'member' : 'owner';
+    
+    try {
+      // Use the new removeAndReinviteMember method from the updated store
+      await removeAndReinviteMember(selectedMember.user_id, newRole);
+      setShowRoleChangeWarning(false);
+      setSelectedMember(null);
+    } catch (error) {
+      console.error('Failed to change role:', error);
     }
   };
 
@@ -125,6 +122,16 @@ export default function TeamPage() {
 
   const isInviteExpired = (expiresAt: string) => {
     return new Date(expiresAt) < new Date();
+  };
+
+  const getMemberDisplayName = (member: any) => {
+    // Use the userName from the processed member data
+    return member.userName || 'Unknown User';
+  };
+
+  const getMemberEmail = (member: any) => {
+    // Use the userEmail from the processed member data
+    return member.userEmail || 'user@example.com';
   };
 
   if (!activeEntity) {
@@ -186,7 +193,7 @@ export default function TeamPage() {
                 <div className="space-y-4">
                   {members.map((member) => (
                     <div
-                      key={member.id}
+                      key={member.user_id}
                       className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
                     >
                       <div className="flex items-center space-x-4">
@@ -200,7 +207,7 @@ export default function TeamPage() {
                         <div>
                           <div className="flex items-center space-x-2">
                             <p className="font-medium text-gray-900">
-                              {member.userName || member.userEmail}
+                              {getMemberDisplayName(member)}
                             </p>
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                               member.role === 'owner' 
@@ -210,26 +217,26 @@ export default function TeamPage() {
                               {member.role}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-500">{member.userEmail}</p>
+                          <p className="text-sm text-gray-500">{getMemberEmail(member)}</p>
                           <p className="text-xs text-gray-400">
-                            Joined {formatDate(member.acceptedAt || member.invitedAt)}
+                            Joined {formatDate(member.created_at)}
                           </p>
                         </div>
                       </div>
                       
-                      {isOwner && member.userId !== user?.id && (
+                      {isOwner && member.user_id !== user?.id && (
                         <div className="relative">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setShowMemberMenu(
-                              showMemberMenu === member.id ? null : member.id
+                              showMemberMenu === member.user_id ? null : member.user_id
                             )}
                           >
                             <MoreVertical size={16} />
                           </Button>
                           
-                          {showMemberMenu === member.id && (
+                          {showMemberMenu === member.user_id && (
                             <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                               <div className="py-1">
                                 <button
@@ -244,27 +251,17 @@ export default function TeamPage() {
                                   Manage Permissions
                                 </button>
                                 
-                                {member.role === 'owner' ? (
-                                  <button
-                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    onClick={() => handleDemoteOwner(member.id)}
-                                  >
-                                    <ShieldOff size={16} className="mr-2" />
-                                    Demote to Member
-                                  </button>
-                                ) : (
-                                  <button
-                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                    onClick={() => handlePromoteMember(member.id)}
-                                  >
-                                    <Shield size={16} className="mr-2" />
-                                    Promote to Owner
-                                  </button>
-                                )}
+                                <button
+                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                  onClick={() => handleRoleChange(member, member.role === 'owner' ? 'member' : 'owner')}
+                                >
+                                  <Settings size={16} className="mr-2" />
+                                  Change Role to {member.role === 'owner' ? 'Member' : 'Owner'}
+                                </button>
                                 
                                 <button
                                   className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                                  onClick={() => handleRemoveMember(member.id)}
+                                  onClick={() => handleRemoveMember(member.user_id)}
                                 >
                                   <Trash2 size={16} className="mr-2" />
                                   Remove Member
@@ -308,7 +305,7 @@ export default function TeamPage() {
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <p className="font-medium text-gray-900">{invite.userEmail}</p>
+                            <p className="font-medium text-gray-900">{invite.invited_email}</p>
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                               invite.role === 'owner' 
                                 ? 'bg-purple-100 text-purple-800' 
@@ -316,19 +313,19 @@ export default function TeamPage() {
                             }`}>
                               {invite.role}
                             </span>
-                            {isInviteExpired(invite.inviteExpiresAt!) && (
+                            {isInviteExpired(invite.expires_at) && (
                               <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
                                 Expired
                               </span>
                             )}
                           </div>
                           <p className="text-sm text-gray-500">
-                            Invited by {invite.inviterName || invite.inviterEmail || 'Unknown'}
+                            Invited by {(invite as any).inviterName || 'Unknown'}
                           </p>
                           <p className="text-xs text-gray-400">
-                            Invited {formatDate(invite.invitedAt)}
-                            {!isInviteExpired(invite.inviteExpiresAt!) && (
-                              <span> • Expires {formatDate(invite.inviteExpiresAt!)}</span>
+                            Invited {formatDate(invite.created_at)}
+                            {!isInviteExpired(invite.expires_at) && (
+                              <span> • Expires {formatDate(invite.expires_at)}</span>
                             )}
                           </p>
                         </div>
@@ -369,6 +366,59 @@ export default function TeamPage() {
             }}
             member={selectedMember}
           />
+        )}
+
+        {/* Role Change Warning Modal */}
+        {showRoleChangeWarning && selectedMember && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex items-center mb-4">
+                <AlertTriangle className="h-6 w-6 text-amber-500 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Change Member Role
+                </h3>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-gray-600 mb-3">
+                  To change <strong>{getMemberDisplayName(selectedMember)}</strong>'s role from <strong>{selectedMember.role}</strong> to <strong>{selectedMember.role === 'owner' ? 'member' : 'owner'}</strong>, they will need to be removed and re-invited.
+                </p>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <div className="flex">
+                    <Info className="h-5 w-5 text-blue-400 mr-2 mt-0.5" />
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium">What happens next:</p>
+                      <ul className="mt-1 list-disc list-inside space-y-1">
+                        <li>Member will be removed from the team</li>
+                        <li>All their document permissions will be revoked</li>
+                        <li>They will receive a new invitation with the updated role</li>
+                        <li>You can set their initial document permissions during re-invitation</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRoleChangeWarning(false);
+                    setSelectedMember(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleConfirmRoleChange}
+                >
+                  Confirm Role Change
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </DashboardLayout>
     </RoleBasedRoute>

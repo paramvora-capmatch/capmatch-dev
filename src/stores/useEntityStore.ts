@@ -78,11 +78,11 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
 
       if (invitesError) throw invitesError;
 
-      // Get user details for members
+      // Get user details for members - join with profiles to get full_name
       const memberUserIds = members?.map(m => m.user_id).filter(Boolean) || [];
       const { data: memberProfiles } = memberUserIds.length > 0 ? await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, app_role')
         .in('id', memberUserIds) : { data: [] };
 
       // Get user details for inviters
@@ -97,8 +97,9 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
         const profile = memberProfiles?.find(p => p.id === member.user_id);
         return {
           ...member,
-          userEmail: undefined, // Will need to get from auth.users separately
-          userName: profile?.full_name
+          userName: profile?.full_name || 'Unknown User',
+          userEmail: 'user@example.com', // Placeholder - would need auth.users access
+          userRole: profile?.app_role
         };
       }) || [];
 
@@ -107,7 +108,7 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
         const inviterProfile = inviterProfiles?.find(p => p.id === invite.invited_by);
         return {
           ...invite,
-          inviterName: inviterProfile?.full_name
+          inviterName: inviterProfile?.full_name || 'Unknown User'
         };
       }) || [];
 
@@ -142,35 +143,21 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
       const { currentEntity } = get();
       if (!currentEntity) throw new Error('No active entity');
 
-      const currentUserId = (await supabase.auth.getUser()).data.user?.id;
-      if (!currentUserId) throw new Error('User not authenticated');
+      // Use the create-invite edge function
+      const { data, error } = await supabase.functions.invoke('create-invite', {
+        body: {
+          entity_id: currentEntity.id,
+          invited_email: email,
+          role,
+          initial_permissions: initialPermissions || null
+        }
+      });
 
-      // Generate invite token
-      const inviteToken = crypto.randomUUID();
-      const inviteExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+      if (error) throw error;
+      if (!data?.invite) throw new Error('Failed to create invite');
 
-      // Create invite record
-      const inviteData = {
-        entity_id: currentEntity.id,
-        invited_by: currentUserId,
-        invited_email: email,
-        role,
-        token: inviteToken,
-        status: 'pending',
-        initial_permissions: initialPermissions,
-        expires_at: inviteExpiresAt
-      };
-      
-      const { data: invite, error: inviteError } = await supabase
-        .from('invites')
-        .insert(inviteData)
-        .select()
-        .single();
-
-      if (inviteError) throw inviteError;
-
-      // Generate invite link
-      const inviteLink = `${window.location.origin}/accept-invite?token=${inviteToken}`;
+      // Generate invite link using the token from the response
+      const inviteLink = `${window.location.origin}/accept-invite?token=${data.invite.token}`;
 
       set({ isLoading: false });
       return inviteLink;

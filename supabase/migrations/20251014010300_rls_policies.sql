@@ -25,6 +25,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+
 -- Checks if a user is the assigned advisor for a project
 CREATE OR REPLACE FUNCTION public.is_project_advisor(p_project_id UUID, p_user_id UUID)
 RETURNS BOOLEAN AS $$
@@ -113,7 +114,7 @@ FOR ALL USING (public.is_entity_owner(entity_id, auth.uid())) WITH CHECK (public
 CREATE POLICY "Owners can manage invites for their entities" ON public.invites
 FOR ALL USING (public.is_entity_owner(entity_id, auth.uid())) WITH CHECK (public.is_entity_owner(entity_id, auth.uid()));
 CREATE POLICY "Invited users can view their own pending invites" ON public.invites
-FOR SELECT USING (invited_email = (SELECT email FROM auth.users WHERE id = auth.uid()) AND status = 'pending');
+FOR SELECT USING (invited_email = (SELECT email FROM public.profiles WHERE id = auth.uid()) AND status = 'pending');
 
 -- Projects
 CREATE POLICY "Users can view projects they have access to" ON public.projects

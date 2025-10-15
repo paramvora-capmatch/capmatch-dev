@@ -24,12 +24,16 @@ CREATE TABLE public.profiles (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     full_name TEXT,
+    email TEXT NOT NULL,
     app_role TEXT NOT NULL CHECK (app_role IN ('borrower', 'lender', 'advisor')),
     active_entity_id UUID REFERENCES public.entities(id) ON DELETE SET NULL
 );
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
 CREATE INDEX idx_profiles_app_role ON public.profiles(app_role);
 CREATE INDEX idx_profiles_active_entity_id ON public.profiles(active_entity_id);
+CREATE INDEX idx_profiles_email ON public.profiles(email);
 
 -- Table to link users to entities with a specific role
 CREATE TABLE public.entity_members (

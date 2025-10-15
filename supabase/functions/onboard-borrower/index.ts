@@ -35,6 +35,7 @@ serve(async (req) => {
       .insert({ 
         id: newUser.id, 
         full_name: full_name, 
+        email: email,
         app_role: app_role 
       });
     if (profileError) throw new Error(`Profile Error: ${profileError.message}`);

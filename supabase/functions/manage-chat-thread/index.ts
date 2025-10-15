@@ -213,8 +213,91 @@ serve(async (req) => {
         status: 200,
       });
 
+    } else if (action === "get_thread") {
+      if (!project_id) {
+        throw new Error("project_id is required for getting threads");
+      }
+
+      // Verify user has access to the project
+      const { data: project, error: projectError } = await supabaseAdmin
+        .from("projects")
+        .select("id, owner_entity_id, assigned_advisor_id")
+        .eq("id", project_id)
+        .single();
+
+      if (projectError) {
+        throw new Error(`Failed to verify project access: ${projectError.message}`);
+      }
+
+      // Check if user can access this project (owner or advisor)
+      const isOwner = await supabaseAdmin.rpc('is_entity_owner', {
+        p_entity_id: project.owner_entity_id,
+        p_user_id: user.id
+      });
+
+      const isAdvisor = project.assigned_advisor_id === user.id;
+
+      if (!isOwner.data && !isAdvisor) {
+        throw new Error("You don't have permission to access threads for this project");
+      }
+
+      // Get existing thread for this project
+      const { data: thread, error: threadError } = await supabaseAdmin
+        .from("chat_threads")
+        .select("id, project_id, topic, created_at")
+        .eq("project_id", project_id)
+        .single();
+
+      if (threadError && threadError.code !== 'PGRST116') {
+        throw new Error(`Failed to get thread: ${threadError.message}`);
+      }
+
+      // If no thread exists, create one
+      if (!thread) {
+        const { data: newThread, error: createError } = await supabaseAdmin
+          .from("chat_threads")
+          .insert({
+            project_id,
+            topic: `Project: ${project_id}`
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          throw new Error(`Failed to create thread: ${createError.message}`);
+        }
+
+        // Add current user as participant
+        const { error: currentUserError } = await supabaseAdmin
+          .from("chat_thread_participants")
+          .insert({
+            thread_id: newThread.id,
+            user_id: user.id
+          });
+
+        if (currentUserError) {
+          throw new Error(`Failed to add current user as participant: ${currentUserError.message}`);
+        }
+
+        return new Response(JSON.stringify({ 
+          thread: newThread,
+          message: "Thread created and user added as participant"
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      return new Response(JSON.stringify({ 
+        thread,
+        message: "Thread retrieved successfully"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+
     } else {
-      throw new Error("Invalid action. Supported actions: create, add_participant, remove_participant");
+      throw new Error("Invalid action. Supported actions: create, get_thread, add_participant, remove_participant");
     }
 
   } catch (error) {

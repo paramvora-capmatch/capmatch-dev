@@ -66,23 +66,30 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
     set({ isLoading: true, error: null });
     
     try {
-      const { data: permission, error } = await supabase
-        .from('document_permissions')
-        .insert({
+      // Use the manage-document-access edge function
+      const { data, error } = await supabase.functions.invoke('manage-document-access', {
+        body: {
+          action: 'grant',
           project_id: projectId,
-          document_path: documentPath,
-          user_id: userId
-        })
-        .select()
-        .single();
+          document_paths: [documentPath],
+          target_user_id: userId
+        }
+      });
 
       if (error) throw error;
 
-      // Update local state
+      // Update local state - create a mock permission object for local state
       const { permissions: currentPermissions } = get();
       const projectPermissions = currentPermissions.get(projectId) || [];
+      const mockPermission = {
+        id: `temp_${Date.now()}`,
+        project_id: projectId,
+        user_id: userId,
+        document_path: documentPath,
+        created_at: new Date().toISOString()
+      };
       const newPermissions = new Map(currentPermissions);
-      newPermissions.set(projectId, [...projectPermissions, permission]);
+      newPermissions.set(projectId, [...projectPermissions, mockPermission]);
 
       set({ 
         permissions: newPermissions,
@@ -220,25 +227,30 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
     set({ isLoading: true, error: null });
     
     try {
-      // Prepare permissions for new schema
-      const permissions = documentPaths.map(documentPath => ({
-        project_id: projectId,
-        document_path: documentPath,
-        user_id: userId
-      }));
-
-      const { data: newPermissions, error } = await supabase
-        .from('document_permissions')
-        .insert(permissions)
-        .select();
+      // Use the manage-document-access edge function
+      const { data, error } = await supabase.functions.invoke('manage-document-access', {
+        body: {
+          action: 'grant',
+          project_id: projectId,
+          document_paths: documentPaths,
+          target_user_id: userId
+        }
+      });
 
       if (error) throw error;
 
-      // Update local state
+      // Update local state - create mock permission objects for local state
       const { permissions: currentPermissions } = get();
       const projectPermissions = currentPermissions.get(projectId) || [];
+      const mockPermissions = documentPaths.map((documentPath, index) => ({
+        id: `temp_${Date.now()}_${index}`,
+        project_id: projectId,
+        user_id: userId,
+        document_path: documentPath,
+        created_at: new Date().toISOString()
+      }));
       const newPermissionsMap = new Map(currentPermissions);
-      newPermissionsMap.set(projectId, [...projectPermissions, ...(newPermissions || [])]);
+      newPermissionsMap.set(projectId, [...projectPermissions, ...mockPermissions]);
 
       set({ 
         permissions: newPermissionsMap,
@@ -257,19 +269,31 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
     set({ isLoading: true, error: null });
     
     try {
-      const { error } = await supabase
-        .from('document_permissions')
-        .delete()
-        .eq('project_id', projectId)
-        .eq('user_id', userId);
+      // Get all document paths for this user in this project
+      const { permissions: currentPermissions } = get();
+      const projectPermissions = currentPermissions.get(projectId) || [];
+      const userPermissions = projectPermissions.filter(p => p.user_id === userId);
+      const documentPaths = userPermissions.map(p => p.document_path);
+
+      if (documentPaths.length === 0) {
+        set({ isLoading: false });
+        return;
+      }
+
+      // Use the manage-document-access edge function
+      const { data, error } = await supabase.functions.invoke('manage-document-access', {
+        body: {
+          action: 'revoke',
+          project_id: projectId,
+          document_paths: documentPaths,
+          target_user_id: userId
+        }
+      });
 
       if (error) throw error;
 
       // Update local state
-      const { permissions: currentPermissions } = get();
-      const projectPermissions = currentPermissions.get(projectId) || [];
       const filteredPermissions = projectPermissions.filter(p => p.user_id !== userId);
-      
       const newPermissions = new Map(currentPermissions);
       newPermissions.set(projectId, filteredPermissions);
 
