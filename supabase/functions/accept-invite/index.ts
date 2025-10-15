@@ -8,7 +8,9 @@ import { corsHeaders } from "../_shared/cors.ts";
   Request body:
   {
     token: string,
-    accept: boolean
+    accept: true,
+    password: string,
+    full_name: string
   }
   Behavior:
   - Verifies pending invite by token and expiry
@@ -23,9 +25,15 @@ serve(async (req: any) => {
   }
 
   try {
-    const { token, accept } = await req.json();
+    const { token, accept, password, full_name } = await req.json();
     if (!token) {
       return new Response(JSON.stringify({ error: "Missing token" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    if (accept !== true) {
+      return new Response(JSON.stringify({ error: "Invalid request", code: "invalid_request" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       });
@@ -35,23 +43,6 @@ serve(async (req: any) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
-
-    // Get the authed user from the request (JWT via functions.invoke)
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
-      });
-    }
-
-    const jwt = authHeader.replace("Bearer ", "");
-    const authed = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
-    );
-    // Set the auth for RLS reads where needed
-    authed.auth.setAuth(jwt);
 
     // Look up invite by token and ensure it's pending and not expired
     const { data: invite, error: inviteError } = await supabase
@@ -69,13 +60,80 @@ serve(async (req: any) => {
       });
     }
 
-    // Identify current user id via admin auth decode (service role) to avoid RLS complexity
-    const { data: authUser } = await supabase.auth.getUser(jwt);
-    const userId = authUser?.user?.id;
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "Could not resolve user" }), {
+    // Enforce: invites only for brand-new accounts
+    if (!invite.invited_email) {
+      return new Response(JSON.stringify({ error: "Invalid invite - no email", code: "invalid_invite" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 401,
+        status: 400,
+      });
+    }
+
+    // Guardrail: block if email already exists (profiles as proxy for auth.users)
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", invite.invited_email)
+      .maybeSingle();
+    if (existingProfile) {
+      return new Response(JSON.stringify({
+        error: "Email already registered",
+        code: "email_already_registered",
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 409,
+      });
+    }
+
+    // Require credentials to create the account
+    if (!password || typeof password !== "string" || password.length < 8) {
+      return new Response(JSON.stringify({ error: "Password required (min 8 chars)", code: "invalid_password" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+    if (!full_name || typeof full_name !== "string" || full_name.trim().length === 0) {
+      return new Response(JSON.stringify({ error: "Full name required", code: "invalid_full_name" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    // Create user account with password
+    const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
+      email: invite.invited_email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name }
+    });
+    if (createUserError || !newUser?.user) {
+      return new Response(JSON.stringify({
+        error: `Failed to create user account: ${createUserError?.message || 'Unknown error'}`,
+        code: "create_user_failed",
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
+
+    const userId = newUser.user.id;
+
+    // Create user profile
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .insert({
+        id: userId,
+        full_name,
+        email: invite.invited_email,
+        app_role: 'borrower'
+      });
+    if (profileError) {
+      await supabase.auth.admin.deleteUser(userId);
+      return new Response(JSON.stringify({
+        error: `Failed to create user profile: ${profileError.message}`,
+        code: "create_profile_failed",
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
       });
     }
 

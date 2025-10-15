@@ -36,6 +36,24 @@ serve(async (req) => {
       throw new Error("User must be an owner of the entity to create an invite.");
     }
     
+    // Block invites to existing users (one user -> one entity)
+    {
+      const { data: existingProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("email", invited_email)
+        .maybeSingle();
+      if (existingProfile) {
+        return new Response(JSON.stringify({
+          error: "Email already registered. Add this user to a project from the dashboard.",
+          code: "email_already_registered",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 409,
+        });
+      }
+    }
+
     // Server-side validation for initial_permissions (if provided)
     if (initial_permissions) {
       // For now, we'll just ensure it's a valid JSON.

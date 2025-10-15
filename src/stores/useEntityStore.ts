@@ -30,7 +30,7 @@ interface EntityActions {
   removeAndReinviteMember: (userId: string, newRole: EntityMemberRole, initialPermissions?: any) => Promise<string>;
   
   // Invitation handling
-  acceptInvite: (inviteToken: string) => Promise<void>;
+  acceptInvite: (params: { token: string; password: string; full_name: string }) => Promise<void>;
   validateInviteToken: (inviteToken: string) => Promise<{valid: boolean, entityName?: string, inviterName?: string}>;
   
   // Utility methods
@@ -290,15 +290,19 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
     }
   },
 
-  acceptInvite: async (inviteToken: string) => {
+  acceptInvite: async (params: { token: string; password: string; full_name: string }) => {
     set({ isLoading: true, error: null });
     
     try {
       // Delegate to edge function (handles validation, membership, permissions)
-      const { error } = await supabase.functions.invoke('accept-invite', {
-        body: { token: inviteToken, accept: true },
+      const { data, error } = await supabase.functions.invoke('accept-invite', {
+        body: { token: params.token, accept: true, password: params.password, full_name: params.full_name },
       });
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       set({ isLoading: false });
       
