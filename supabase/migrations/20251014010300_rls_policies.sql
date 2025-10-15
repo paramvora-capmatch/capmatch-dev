@@ -102,6 +102,8 @@ CREATE POLICY "Members can view their own entities" ON public.entities
 FOR SELECT USING (public.is_entity_member(id, auth.uid()));
 CREATE POLICY "Owners can update their own entities" ON public.entities
 FOR UPDATE USING (public.is_entity_owner(id, auth.uid())) WITH CHECK (public.is_entity_owner(id, auth.uid()));
+CREATE POLICY "Anyone can view entity names for invites" ON public.entities
+FOR SELECT USING (EXISTS (SELECT 1 FROM public.invites WHERE entity_id = entities.id AND status = 'pending' AND expires_at > now()));
 -- No one can delete entities through the API for safety. This must be done via a trusted server process.
 
 -- Entity Members
@@ -115,6 +117,8 @@ CREATE POLICY "Owners can manage invites for their entities" ON public.invites
 FOR ALL USING (public.is_entity_owner(entity_id, auth.uid())) WITH CHECK (public.is_entity_owner(entity_id, auth.uid()));
 CREATE POLICY "Invited users can view their own pending invites" ON public.invites
 FOR SELECT USING (invited_email = (SELECT email FROM public.profiles WHERE id = auth.uid()) AND status = 'pending');
+CREATE POLICY "Anyone can view invites by token" ON public.invites
+FOR SELECT USING (status = 'pending' AND expires_at > now());
 
 -- Projects
 CREATE POLICY "Users can view projects they have access to" ON public.projects
