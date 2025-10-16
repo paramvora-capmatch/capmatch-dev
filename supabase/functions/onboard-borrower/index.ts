@@ -54,6 +54,30 @@ serve(async (req) => {
       if (entityError) throw new Error(`Entity Error: ${entityError.message}`);
       if (!entityData) throw new Error("Entity not created.");
 
+      // Create a private storage bucket for this entity (id = entity id)
+      {
+        const { error: bucketError } = await supabaseAdmin.storage.createBucket(entityData.id, {
+          public: false,
+          fileSizeLimit: 200 * 1024 * 1024, // 200MB
+          allowedMimeTypes: [
+            "application/pdf",
+            "image/jpeg",
+            "image/png",
+            "image/gif",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "text/plain",
+            "application/zip",
+          ],
+        });
+        // If bucket exists already, ignore; otherwise fail fast
+        if (bucketError && bucketError.message && !bucketError.message.toLowerCase().includes("already exists")) {
+          throw new Error(`Bucket creation failed: ${bucketError.message}`);
+        }
+      }
+
       // Step 4: Make the user the owner of the entity
       const { error: memberError } = await supabaseAdmin
         .from("entity_members")

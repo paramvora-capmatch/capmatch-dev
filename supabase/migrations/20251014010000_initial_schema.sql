@@ -12,7 +12,7 @@ CREATE TABLE public.entities (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     entity_type TEXT NOT NULL CHECK (entity_type IN ('borrower', 'lender'))
 );
 CREATE TRIGGER update_entities_updated_at BEFORE UPDATE ON public.entities FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
