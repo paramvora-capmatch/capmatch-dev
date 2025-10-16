@@ -35,6 +35,7 @@ export default function AcceptInvitePage() {
   } | null>(null);
   
   // Account creation form state
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -76,20 +77,8 @@ export default function AcceptInvitePage() {
     setError(null);
 
     try {
-      if (!isAuthenticated) {
-        // User needs to create account first
-        setIsCreatingAccount(true);
-        return;
-      }
-
-      await acceptInvite(token);
-      
-      // Redirect to appropriate dashboard
-      if (user?.role === 'borrower') {
-        router.push('/dashboard');
-      } else {
-        router.push('/');
-      }
+      // Existing accounts cannot accept invites in the one-entity model
+      setError('This invite is for creating a new account. Ask the owner to add you to a project from the dashboard.');
     } catch (error) {
       console.error('Error accepting invite:', error);
       setError(error instanceof Error ? error.message : 'Failed to accept invitation');
@@ -101,13 +90,17 @@ export default function AcceptInvitePage() {
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!fullName.trim()) {
+      setPasswordError('Full name is required');
+      return;
+    }
     if (password !== confirmPassword) {
       setPasswordError('Passwords do not match');
       return;
     }
 
-    if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
       return;
     }
 
@@ -115,9 +108,8 @@ export default function AcceptInvitePage() {
     setPasswordError(null);
 
     try {
-      // Accept invite with password - this will create the account and accept the invite
-      await acceptInvite(token!, password);
-      // Don't set isAccepting to false here - let the redirect happen
+      // Create a new account and accept the invite (no existing account path)
+      await acceptInvite({ token: token!, password, full_name: fullName.trim() });
       router.push('/dashboard');
     } catch (error) {
       console.error('[AcceptInvite] Error creating account and accepting invite:', error);
@@ -234,6 +226,20 @@ export default function AcceptInvitePage() {
                 ) : (
                   /* Create Account Form */
                   <form onSubmit={handleCreateAccount} className="space-y-4">
+                    <div>
+                      <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        id="fullName"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter your full name"
+                        required
+                      />
+                    </div>
                     <div>
                       <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                         Password

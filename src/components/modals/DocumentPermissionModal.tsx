@@ -8,7 +8,8 @@ import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { useEntityStore } from '@/stores/useEntityStore';
 import { useDocumentPermissionStore } from '@/stores/useDocumentPermissionStore';
-import { BorrowerEntityMember } from '@/types/enhanced-types';
+import { EntityMember } from '@/types/enhanced-types';
+import { supabase } from '../../../lib/supabaseClient';
 
 interface DocumentPermissionModalProps {
   isOpen: boolean;
@@ -41,7 +42,7 @@ export const DocumentPermissionModal: React.FC<DocumentPermissionModalProps> = (
   // Filter out the uploader and owners from the members list using useMemo to prevent re-creation
   const otherMembers = useMemo(() => {
     const filtered = members.filter(member => {
-      return member.userId !== uploaderId && member.status === 'active' && member.role !== 'owner';
+      return member.user_id !== uploaderId && member.role !== 'owner';
     });
     
     console.log('🔍 [DocumentPermissionModal] Filtered members:', filtered.length, 'out of', members.length);
@@ -62,15 +63,14 @@ export const DocumentPermissionModal: React.FC<DocumentPermissionModalProps> = (
     const selectedSet = new Set<string>();
     
     for (const member of otherMembers) {
-      const memberId = member.userId;
+      const memberId = member.user_id;
       console.log('🔍 [DocumentPermissionModal] Checking permission for member:', { 
         memberId, 
-        email: member.userEmail,
         rawMember: member
       });
       
       try {
-        const hasPermission = await checkDocumentPermission(entityId, projectId, filePath, memberId);
+        const hasPermission = await checkDocumentPermission(projectId, filePath, memberId);
         console.log('🔍 [DocumentPermissionModal] Permission result:', { memberId, hasPermission });
         
         if (hasPermission) {
@@ -85,7 +85,7 @@ export const DocumentPermissionModal: React.FC<DocumentPermissionModalProps> = (
     console.log('🔍 [DocumentPermissionModal] Final permission sets:', { existingSet: Array.from(existingSet), selectedSet: Array.from(selectedSet) });
     setExistingPermissions(existingSet);
     setSelectedMembers(selectedSet);
-  }, [otherMembers, entityId, projectId, filePath, checkDocumentPermission]);
+  }, [otherMembers, projectId, filePath, checkDocumentPermission]);
 
   // Load members and check existing permissions when modal opens
   useEffect(() => {
@@ -129,7 +129,7 @@ export const DocumentPermissionModal: React.FC<DocumentPermissionModalProps> = (
   };
 
   const handleSelectAll = () => {
-    const allMemberIds = otherMembers.map(member => member.userId);
+    const allMemberIds = otherMembers.map(member => member.user_id);
     setSelectedMembers(new Set(allMemberIds));
   };
 
@@ -144,18 +144,31 @@ export const DocumentPermissionModal: React.FC<DocumentPermissionModalProps> = (
     try {
       // Handle both granting and revoking permissions
       for (const member of otherMembers) {
-        const memberId = member.userId;
+        const memberId = member.user_id;
         const isSelected = selectedMembers.has(memberId);
         const hadPermission = existingPermissions.has(memberId);
 
         if (isSelected && !hadPermission) {
           // Grant new permission
-          await grantPermission(projectId, memberId, filePath, 'file');
+          await grantPermission(projectId, memberId, filePath);
         } else if (!isSelected && hadPermission) {
-          // Revoke existing permission - we need to find the permission ID
-          // For now, we'll use a simple approach and grant/revoke based on selection
-          // This might need refinement based on your permission structure
-          await grantPermission(projectId, memberId, filePath, 'file');
+          // Revoke existing permission
+          // We need to find the permission ID first, but for now we'll use a workaround
+          // by calling the manage-document-access function directly
+          try {
+            const { data, error } = await supabase.functions.invoke('manage-document-access', {
+              body: {
+                action: 'revoke',
+                project_id: projectId,
+                document_paths: [filePath],
+                target_user_id: memberId
+              }
+            });
+            if (error) throw error;
+          } catch (revokeError) {
+            console.error('Error revoking permission:', revokeError);
+            // Continue with other permissions even if one fails
+          }
         }
       }
 
@@ -274,7 +287,7 @@ export const DocumentPermissionModal: React.FC<DocumentPermissionModalProps> = (
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {otherMembers.map((member) => {
-                      const memberId = member.userId;
+                      const memberId = member.user_id;
                       return (
                         <div
                           key={memberId}
@@ -288,10 +301,10 @@ export const DocumentPermissionModal: React.FC<DocumentPermissionModalProps> = (
                             <div className="flex items-center space-x-3">
                               <div>
                                 <p className="font-medium text-gray-800">
-                                  {member.userName || member.userEmail || 'Unknown User'}
+                                  {member.user_id}
                                 </p>
                                 <p className="text-sm text-gray-500">
-                                  {member.role} • {member.userEmail}
+                                  {member.role}
                                 </p>
                               </div>
                             </div>

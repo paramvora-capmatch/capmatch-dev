@@ -2,7 +2,13 @@
 import { create } from "zustand";
 import { supabase } from "../../lib/supabaseClient";
 import { storageService } from "@/lib/storage";
-import { EnhancedUser, BorrowerEntity, BorrowerEntityMember } from "@/types/enhanced-types";
+import { 
+  EnhancedUser, 
+  // New schema types
+  Profile,
+  Entity,
+  EntityMember
+} from "@/types/enhanced-types";
 import { mockProfiles, mockProjects } from "../../lib/mockData";
 
 interface AuthState {
@@ -12,9 +18,9 @@ interface AuthState {
   loginSource: "direct" | "lenderline";
   isDemo: boolean;
   justLoggedIn: boolean;
-  // RBAC additions
-  activeEntity: BorrowerEntity | null;
-  entityMemberships: BorrowerEntityMember[];
+  // RBAC additions - updated for new schema
+  activeEntity: Entity | null;
+  entityMemberships: EntityMember[];
   currentEntityRole: 'owner' | 'member' | null;
 }
 
@@ -38,8 +44,7 @@ interface AuthActions {
   clearJustLoggedIn: () => void;
   // RBAC additions
   loadEntityMemberships: () => Promise<void>;
-  switchEntityContext: (entityId: string) => Promise<void>;
-  getAvailableContexts: () => Array<{entityId: string, role: string, entityName: string}>;
+  acceptInvite: (token: string, accept?: boolean) => Promise<void>;
 }
 
 // Global singleton to ensure auth listener is set up only once across all navigations
@@ -54,7 +59,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   loginSource: "direct",
   isDemo: false,
   justLoggedIn: false,
-  // RBAC additions
+  // RBAC additions - updated for new schema
   activeEntity: null,
   entityMemberships: [],
   currentEntityRole: null,
@@ -98,12 +103,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
-            .select("role, full_name")
+            .select("app_role, full_name")
             .eq("id", authUser.id)
             .single();
 
           if (profile && !profileError) {
-            const role = profile.role as EnhancedUser["role"];
+            const role = (profile as any).app_role as EnhancedUser["role"];
             const loginSource = authUser.user_metadata.loginSource || "direct";
             const enhancedUser: EnhancedUser = {
               id: authUser.id,
@@ -123,8 +128,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
               isLoading: false,
             });
 
-            // Load entity memberships for borrower users
-            if (enhancedUser.role === 'borrower') {
+            // Load entity memberships for borrower/lender users
+            if (enhancedUser.role === 'borrower' || enhancedUser.role === 'lender') {
               get().loadEntityMemberships();
             }
 
@@ -220,12 +225,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             const authUser = session.user;
             const { data: profile, error } = await supabase
               .from("profiles")
-              .select("role, full_name")
+              .select("app_role, full_name")
               .eq("id", authUser.id)
               .single();
 
             if (profile && !error) {
-              const role = profile.role as EnhancedUser["role"];
+              const role = (profile as any).app_role as EnhancedUser["role"];
               const enhancedUser: EnhancedUser = {
                 id: authUser.id,
                 email: authUser.email!,
@@ -243,8 +248,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 isDemo: false,
               });
 
-              // Load entity memberships for borrower users
-              if (enhancedUser.role === 'borrower') {
+              // Load entity memberships for borrower/lender users
+              if (enhancedUser.role === 'borrower' || enhancedUser.role === 'lender') {
                 get().loadEntityMemberships();
               }
 
@@ -346,7 +351,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         };
 
         let role: EnhancedUser["role"] = "borrower";
-        if (email.includes("admin@capmatch.com")) role = "admin";
+        if (email.includes("admin@capmatch.com")) role = "advisor";
         else if (email.includes("advisor")) role = "advisor";
         else if (email.includes("lender")) role = "lender";
 
@@ -407,20 +412,39 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
   signUp: async (email, password, source = "direct") => {
     try {
-      console.log(`[Auth] 📝 Signing up: ${email}`);
-      let role: EnhancedUser["role"] = "borrower";
-      if (email.endsWith("@advisor.com")) role = "advisor";
+      console.log(`[Auth] 📝 Signing up via Edge Function: ${email}`);
 
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { role, loginSource: source },
-        },
+      // We are now calling our custom Edge Function
+      const { data, error } = await supabase.functions.invoke("onboard-borrower", {
+        body: { email, password, full_name: "New User" }, // Assuming a default name for now
       });
-      if (error) throw error;
+
+      if (error) {
+        // The error from the function might be a string or an object
+        const errorMessage = typeof error === 'object' && error !== null && 'message' in error ? error.message : String(error);
+        throw new Error(errorMessage);
+      }
+
+      // After a successful sign-up via edge function, the user is created
+      // but is not yet logged in on the client. We now sign them in.
+      if (data.user) {
+        console.log("[Auth] ✅ Sign-up successful, now signing in...");
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          throw signInError;
+        }
+        // The onAuthStateChange listener will now handle the SIGNED_IN event
+        // and set the user state correctly.
+      } else {
+        throw new Error("Sign up function returned no user data.");
+      }
+
     } catch (error) {
-      console.error("[Auth] ❌ Sign up failed:", error);
+      console.error("[Auth] ❌ Sign up flow failed:", error);
       throw error;
     }
   },
@@ -460,204 +484,52 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     if (!user || !user.id) return;
 
     try {
-      // Load entity memberships for borrower role
-      if (user.role === 'borrower') {
-        const { data: memberships, error } = await supabase
-          .from('active_entity_members')
-          .select('*')
-          .eq('user_id', user.id);
+      // Load entity memberships for all roles
+      const { data: memberships, error } = await supabase
+        .from('entity_members')
+        .select(`
+          *,
+          entities(*)
+        `)
+        .eq('user_id', user.id);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        const entityMemberships = memberships || [];
-        
-        // If no memberships found, check if user has pending invites first
-        if (entityMemberships.length === 0) {
-          console.log('[AuthStore] No entity memberships found, checking for pending invites');
-          
-          // Check if user has any pending invites by email
-          const { data: pendingInvites, error: inviteError } = await supabase
-            .from('borrower_entity_members')
-            .select('*')
-            .eq('invited_email', user.email)
-            .eq('status', 'pending');
-          
-          if (inviteError) {
-            console.error('[AuthStore] Error checking pending invites:', inviteError);
-          }
-          
-          // If user has pending invites, don't create a new entity
-          if (pendingInvites && pendingInvites.length > 0) {
-            console.log('[AuthStore] User has pending invites, not creating new entity');
-            // Set empty memberships so the user can see they need to accept invites
-            set({
-              entityMemberships: [],
-              activeEntity: null,
-              currentEntityRole: null
-            });
-            return;
-          }
-          
-          console.log('[AuthStore] No pending invites found, creating entity for new borrower user');
-          
-          // Create entity
-          const { data: entity, error: entityError } = await supabase
-            .from('borrower_entities')
-            .insert({
-              name: `${user.name || user.email}'s Entity`,
-              created_by: user.id
-            })
-            .select()
-            .single();
-          
-          if (entityError) throw entityError;
-          
-          // Create entity storage bucket
-          const { ensureEntityBucket, createBorrowerDocsFolder } = await import('../lib/entityStorage');
-          await ensureEntityBucket(entity.id);
-          await createBorrowerDocsFolder(entity.id);
-          
-          // Create owner membership
-          const { error: membershipError } = await supabase
-            .from('borrower_entity_members')
-            .insert({
-              entity_id: entity.id,
-              user_id: user.id,
-              role: 'owner',
-              invited_by: user.id,
-              invited_at: new Date().toISOString(),
-              accepted_at: new Date().toISOString(),
-              status: 'active'
-            });
-          
-          if (membershipError) throw membershipError;
-          
-          // Update profile with active entity
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({ active_entity_id: entity.id })
-            .eq('id', user.id);
-          
-          if (profileError) throw profileError;
-          
-          // Update borrower profile with entity
-          const { error: borrowerError } = await supabase
-            .from('borrowers')
-            .update({ entity_id: entity.id })
-            .eq('id', user.id);
-          
-          if (borrowerError) throw borrowerError;
-          
-          console.log('[AuthStore] ✅ Created entity and membership for new borrower user');
-          
-          // Reload memberships
-          const { data: newMemberships, error: reloadError } = await supabase
-            .from('active_entity_members')
-            .select('*')
-            .eq('user_id', user.id);
-          
-          if (reloadError) throw reloadError;
-          
-          entityMemberships.push(...(newMemberships || []));
-        }
-        
-        // Set active entity if user has active_entity_id in profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('active_entity_id')
-          .eq('id', user.id)
-          .single();
-
-        let activeEntity = null;
-        let currentEntityRole = null;
-
-        if (profile?.active_entity_id && entityMemberships.length > 0) {
-          const activeMembership = entityMemberships.find(
-            m => m.entity_id === profile.active_entity_id
-          );
-          
-          if (activeMembership) {
-            // Load entity details
-            const { data: entity } = await supabase
-              .from('borrower_entities')
-              .select('*')
-              .eq('id', profile.active_entity_id)
-              .single();
-
-            activeEntity = entity;
-            currentEntityRole = activeMembership.role;
-          }
-        } else if (entityMemberships.length > 0) {
-          // Set first entity as active if none is set
-          const firstMembership = entityMemberships[0];
-          const { data: entity } = await supabase
-            .from('borrower_entities')
-            .select('*')
-            .eq('id', firstMembership.entity_id)
-            .single();
-
-          activeEntity = entity;
-          currentEntityRole = firstMembership.role;
-
-          // Update profile with active entity
-          await supabase
-            .from('profiles')
-            .update({ active_entity_id: firstMembership.entity_id })
-            .eq('id', user.id);
-        }
-
-        set({
-          entityMemberships,
-          activeEntity,
-          currentEntityRole,
-        });
+      const entityMemberships = memberships || [];
+      
+      // If no memberships found, leave state empty (user may need to accept an invite)
+      if (entityMemberships.length === 0) {
+        set({ entityMemberships: [], activeEntity: null, currentEntityRole: null });
+        return;
       }
+
+      // Single-entity assumption: pick the first membership
+      const firstMembership = entityMemberships[0];
+      const activeEntity = (firstMembership as any).entities || null;
+      const currentEntityRole = firstMembership.role || null;
+
+      set({
+        entityMemberships,
+        activeEntity,
+        currentEntityRole,
+      });
     } catch (error) {
       console.error('Error loading entity memberships:', error);
     }
   },
 
-  switchEntityContext: async (entityId: string) => {
-    const { user, entityMemberships } = get();
-    if (!user || !user.id) return;
-
+  acceptInvite: async (token: string, accept: boolean = true) => {
     try {
-      const membership = entityMemberships.find(m => m.entityId === entityId);
-      if (!membership) throw new Error('Not a member of this entity');
-
-      // Load entity details
-      const { data: entity, error } = await supabase
-        .from('borrower_entities')
-        .select('*')
-        .eq('id', entityId)
-        .single();
-
-      if (error) throw error;
-
-      // Update profile with active entity
-      await supabase
-        .from('profiles')
-        .update({ active_entity_id: entityId })
-        .eq('id', user.id);
-
-      set({
-        activeEntity: entity,
-        currentEntityRole: membership.role,
+      const { data, error } = await supabase.functions.invoke('accept-invite', {
+        body: { token, accept },
       });
-    } catch (error) {
-      console.error('Error switching entity context:', error);
+      if (error) throw error;
+      // Refresh memberships after accepting/cancelling
+      await get().loadEntityMemberships();
+    } catch (e) {
+      console.error('[AuthStore] acceptInvite failed:', e);
+      throw e;
     }
-  },
-
-  getAvailableContexts: () => {
-    const { user, entityMemberships } = get();
-    if (!user || user.role !== 'borrower') return [];
-
-    return entityMemberships.map(membership => ({
-      entityId: membership.entityId,
-      role: membership.role,
-      entityName: 'Unknown Entity', // TODO: Fetch entity name separately if needed
-    }));
   },
 }));
 

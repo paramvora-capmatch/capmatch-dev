@@ -7,9 +7,12 @@ import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/Button";
 import { MessageSquare, Send, ChevronRight } from "lucide-react";
 import { useProjects } from "../../hooks/useProjects";
+import { useChatStore } from "../../stores/useChatStore";
 import { ProjectMessage } from "../../types/enhanced-types";
 import { getAdvisorById } from "../../../lib/enhancedMockApiService";
 import { cn } from "@/utils/cn";
+import { useAuth } from "../../hooks/useAuth";
+import { supabase } from "../../../lib/supabaseClient";
 
 interface MessagePanelProps {
 	projectId: string;
@@ -21,22 +24,32 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
 	fullHeight = false,
 }) => {
 	const router = useRouter();
+  const { user } = useAuth();
 	// projectMessages is now specific to the activeProject in context
 	// For a general panel, we might need a way to fetch messages specifically for this ID
 	// Let's assume for now this panel might only appear when the project IS active,
 	// or adjust useProjects hook later if needed.
 	const {
 		getProject,
-		projectMessages,
-		addProjectMessage,
 		activeProject,
 		setActiveProject,
 	} = useProjects();
+	
+	const {
+		messages: projectMessages,
+		sendMessage: addProjectMessage,
+		loadThreadsForProject,
+		threads,
+		activeThreadId,
+		setActiveThread,
+		loadMessages
+	} = useChatStore();
 	const [newMessage, setNewMessage] = useState("");
 	const [advisorName, setAdvisorName] = useState("Your Capital Advisor");
 	const [advisorAvatar, setAdvisorAvatar] = useState(""); // Keep avatar state if used
 	const [isLoadingAdvisor, setIsLoadingAdvisor] = useState(false);
 	const [localMessages, setLocalMessages] = useState<ProjectMessage[]>([]);
+  const [profileNameById, setProfileNameById] = useState<Record<string, string>>({});
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const messageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -52,17 +65,73 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
 		scrollToBottom();
 	}, [localMessages]);
 
+  // Load display names for message senders
+  useEffect(() => {
+    const loadSenderProfiles = async () => {
+      try {
+        const uniqueIds = Array.from(
+          new Set(
+            (localMessages || [])
+              .map((m) => m.user_id)
+              .filter((id): id is string => Boolean(id))
+          )
+        );
+
+        const missingIds = uniqueIds.filter((id) => !profileNameById[id]);
+        if (missingIds.length === 0) return;
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", missingIds);
+
+        if (error) throw error;
+
+        const newMap: Record<string, string> = { ...profileNameById };
+        (data || []).forEach((p: any) => {
+          if (p?.id) newMap[p.id] = p.full_name || "Team Member";
+        });
+        setProfileNameById(newMap);
+      } catch (e) {
+        // Non-fatal; keep fallbacks
+        // console.error("Failed loading sender profiles", e);
+      }
+    };
+
+    if (localMessages.length > 0) {
+      loadSenderProfiles();
+    }
+  }, [localMessages, profileNameById]);
+
 	// Get the specific project for this panel
 	const project = getProject(projectId);
+
+	// Load threads and messages for this project
+	useEffect(() => {
+		if (projectId) {
+			loadThreadsForProject(projectId);
+		}
+	}, [projectId, loadThreadsForProject]);
+
+	// Set the first thread as active when threads load
+	useEffect(() => {
+		if (threads.length > 0 && !activeThreadId) {
+			setActiveThread(threads[0].id);
+		}
+	}, [threads, activeThreadId, setActiveThread]);
+
+	// Load messages when active thread changes
+	useEffect(() => {
+		if (activeThreadId) {
+			loadMessages(activeThreadId);
+		}
+	}, [activeThreadId, loadMessages]);
 
 	// Effect to update local messages when the active project matches this panel's project
 	useEffect(() => {
 		if (activeProject?.id === projectId) {
 			setLocalMessages(projectMessages);
 		}
-		// If the active project changes and *doesn't* match, the message list won't update here
-		// This might be okay if the panel is only shown for the active project context
-		// Or we need a dedicated message fetcher per panel instance.
 	}, [projectMessages, activeProject, projectId]);
 
 	// Get advisor information and ensure project is active
@@ -100,17 +169,10 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
 
 	// Handle sending a message
 	const handleSendMessage = async () => {
-		// Ensure the project context is active for sending messages
-		if (
-			!activeProject ||
-			activeProject.id !== projectId ||
-			!newMessage.trim()
-		)
-			return;
+		if (!activeThreadId || !newMessage.trim()) return;
 
 		try {
-			// Use context function
-			await addProjectMessage(newMessage);
+			await addProjectMessage(activeThreadId, newMessage.trim());
 			setNewMessage("");
 		} catch (error) {
 			console.error("Error sending message:", error);
@@ -161,38 +223,30 @@ export const MessagePanel: React.FC<MessagePanelProps> = ({
 							<div
 								key={message.id}
 								className={`flex ${
-									message.senderType === "Borrower"
-										? "justify-end"
-										: "justify-start"
+									message.user_id === user?.id ? "justify-end" : "justify-start"
 								}`}
 							>
 								<div
 									className={`max-w-[80%] rounded-lg px-3 py-2 shadow-sm ${
-										message.senderType === "Borrower"
+										message.user_id === user?.id
 											? "bg-blue-100 text-blue-900"
-											: message.senderType === "Advisor"
-											? "bg-gray-100 text-gray-900"
-											: "bg-yellow-50 text-yellow-800 italic text-sm" // System message style
+											: "bg-gray-100 text-gray-900"
 									}`}
 								>
-						{message.senderType !== "System" && (
-							<div className="flex items-center mb-1">
-								<span className="text-xs font-medium">
-									{message.senderDisplayName || (message.senderType === "Advisor" ? advisorName : "Team Member")}
-								</span>
-								<span className="text-xs text-gray-500 ml-2">
-									{new Date(message.createdAt).toLocaleString()}
-								</span>
-							</div>
-						)}
+                            <div className="flex items-center mb-1">
+                                <span className="text-xs font-medium">
+                                    {message.user_id === user?.id
+                                        ? "You"
+                                        : (message.user_id ? (profileNameById[message.user_id] || "Team Member") : "Team Member")}
+                                </span>
+										<span className="text-xs text-gray-500 ml-2">
+											{new Date(message.created_at).toLocaleString()}
+										</span>
+									</div>
 									<p
-										className={`text-sm whitespace-pre-line ${
-											message.senderType === "System"
-												? "text-center"
-												: ""
-										}`}
+										className="text-sm whitespace-pre-line"
 									>
-										{message.message}
+										{message.content}
 									</p>
 								</div>
 							</div>

@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { BorrowerEntityMember } from '@/types/enhanced-types';
+import { EntityMember } from '@/types/enhanced-types';
 import { useProjects } from '@/hooks/useProjects';
 import { useDocumentPermissionStore } from '@/stores/useDocumentPermissionStore';
 import { X, Save, FileText, Folder } from 'lucide-react';
@@ -12,7 +12,7 @@ import { X, Save, FileText, Folder } from 'lucide-react';
 interface DocumentPermissionManagerProps {
   isOpen: boolean;
   onClose: () => void;
-  member: BorrowerEntityMember;
+  member: EntityMember;
 }
 
 export const DocumentPermissionManager: React.FC<DocumentPermissionManagerProps> = ({
@@ -44,13 +44,13 @@ export const DocumentPermissionManager: React.FC<DocumentPermissionManagerProps>
       projects.forEach(project => {
         const projectPerms = permissions.get(project.id) || [];
         const hasAccess = projectPerms.some(perm => 
-          perm.userId === member.userId && perm.documentPath === '*'
+          perm.user_id === member.user_id && perm.document_path === '*'
         );
         initialPermissions[project.id] = hasAccess;
       });
       setProjectPermissions(initialPermissions);
     }
-  }, [isOpen, projects, member.userId, loadPermissions, permissions]);
+  }, [isOpen, projects, member.user_id, loadPermissions, permissions]);
 
   const handleProjectToggle = (projectId: string) => {
     setProjectPermissions(prev => ({
@@ -66,15 +66,15 @@ export const DocumentPermissionManager: React.FC<DocumentPermissionManagerProps>
         const hasAccess = projectPermissions[project.id];
         const currentPerms = permissions.get(project.id) || [];
         const hasCurrentAccess = currentPerms.some(perm => 
-          perm.userId === member.userId && perm.documentPath === '*'
+          perm.user_id === member.user_id && perm.document_path === '*'
         );
 
         if (hasAccess && !hasCurrentAccess) {
           // Grant access
-          await bulkGrantPermissions(project.id, member.userId, ['*']);
+          await bulkGrantPermissions(project.id, member.user_id, ['*']);
         } else if (!hasAccess && hasCurrentAccess) {
           // Revoke access
-          await bulkRevokePermissions(project.id, member.userId);
+          await bulkRevokePermissions(project.id, member.user_id);
         }
       }
       onClose();
@@ -99,7 +99,7 @@ export const DocumentPermissionManager: React.FC<DocumentPermissionManagerProps>
           <CardHeader className="flex flex-row items-center justify-between">
             <h3 className="flex items-center text-lg font-semibold">
               <Folder className="h-5 w-5 mr-2" />
-              Manage Permissions for {member.userName || member.userEmail}
+              Manage Permissions for {member.user_id}
             </h3>
             <Button variant="outline" size="sm" onClick={handleClose}>
               <X size={16} />
@@ -116,10 +116,10 @@ export const DocumentPermissionManager: React.FC<DocumentPermissionManagerProps>
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">
-                      {member.userName || member.userEmail}
+                      {member.user_id}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {member.role === 'owner' ? 'Owner' : 'Member'} • {member.userEmail}
+                      {member.role === 'owner' ? 'Owner' : 'Member'}
                     </p>
                   </div>
                 </div>

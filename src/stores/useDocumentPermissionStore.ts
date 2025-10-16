@@ -1,7 +1,7 @@
 // src/stores/useDocumentPermissionStore.ts
 import { create } from 'zustand';
 import { supabase } from '../../lib/supabaseClient';
-import { DocumentPermission, PermissionType } from '../types/enhanced-types';
+import { DocumentPermission } from '../types/enhanced-types';
 
 interface DocumentPermissionState {
   permissions: Map<string, DocumentPermission[]>; // keyed by projectId
@@ -12,12 +12,12 @@ interface DocumentPermissionState {
 interface DocumentPermissionActions {
   // Permission management
   loadPermissions: (projectId: string) => Promise<void>;
-  grantPermission: (projectId: string, userId: string, documentPath: string, permissionType: PermissionType) => Promise<void>;
+  grantPermission: (projectId: string, userId: string, documentPath: string) => Promise<void>;
   revokePermission: (permissionId: string) => Promise<void>;
   
   // Access control
   checkAccess: (projectId: string, documentPath: string, userId: string) => boolean;
-  checkDocumentPermission: (entityId: string, projectId: string, documentPath: string, userId: string) => Promise<boolean>;
+  checkDocumentPermission: (projectId: string, documentPath: string, userId: string) => Promise<boolean>;
   getMemberPermissions: (projectId: string, userId: string) => DocumentPermission[];
   bulkGrantPermissions: (projectId: string, userId: string, documentPaths: string[]) => Promise<void>;
   bulkRevokePermissions: (projectId: string, userId: string) => Promise<void>;
@@ -62,42 +62,34 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
     }
   },
 
-  grantPermission: async (projectId: string, userId: string, documentPath: string, permissionType: PermissionType) => {
+  grantPermission: async (projectId: string, userId: string, documentPath: string) => {
     set({ isLoading: true, error: null });
     
     try {
-      const currentUserId = (await supabase.auth.getUser()).data.user?.id;
-      if (!currentUserId) throw new Error('User not authenticated');
-
-      // Get entity_id from project
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .select('entity_id')
-        .eq('id', projectId)
-        .single();
-
-      if (projectError) throw projectError;
-
-      const { data: permission, error } = await supabase
-        .from('document_permissions')
-        .insert({
-          entity_id: project.entity_id,
+      // Use the manage-document-access edge function
+      const { data, error } = await supabase.functions.invoke('manage-document-access', {
+        body: {
+          action: 'grant',
           project_id: projectId,
-          document_path: documentPath,
-          user_id: userId,
-          granted_by: currentUserId,
-          permission_type: permissionType
-        })
-        .select()
-        .single();
+          document_paths: [documentPath],
+          target_user_id: userId
+        }
+      });
 
       if (error) throw error;
 
-      // Update local state
+      // Update local state - create a mock permission object for local state
       const { permissions: currentPermissions } = get();
       const projectPermissions = currentPermissions.get(projectId) || [];
+      const mockPermission = {
+        id: `temp_${Date.now()}`,
+        project_id: projectId,
+        user_id: userId,
+        document_path: documentPath,
+        created_at: new Date().toISOString()
+      };
       const newPermissions = new Map(currentPermissions);
-      newPermissions.set(projectId, [...projectPermissions, permission]);
+      newPermissions.set(projectId, [...projectPermissions, mockPermission]);
 
       set({ 
         permissions: newPermissions,
@@ -153,31 +145,50 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
     
     // Check for exact path match
     const exactMatch = projectPermissions.find(p => 
-      p.userId === userId && p.documentPath === documentPath
+      p.user_id === userId && p.document_path === documentPath
     );
     
     if (exactMatch) return true;
 
     // Check for folder access (if documentPath starts with a folder path)
     const folderMatch = projectPermissions.find(p => 
-      p.userId === userId && 
-      p.permissionType === 'folder' &&
-      documentPath.startsWith(p.documentPath)
+      p.user_id === userId && 
+      documentPath.startsWith(p.document_path)
     );
     
     if (folderMatch) return true;
 
     // Check for wildcard access
     const wildcardMatch = projectPermissions.find(p => 
-      p.userId === userId && p.documentPath === '*'
+      p.user_id === userId && p.document_path === '*'
     );
     
     return !!wildcardMatch;
   },
 
-  checkDocumentPermission: async (entityId: string, projectId: string, documentPath: string, userId: string) => {
+  checkDocumentPermission: async (projectId: string, documentPath: string, userId: string) => {
     try {
-      console.log('🔍 [checkDocumentPermission] Input:', { entityId, projectId, documentPath, userId });
+      console.log('🔍 [checkDocumentPermission] Input:', { projectId, documentPath, userId });
+      
+      // First check if user is owner of the project's entity (grants automatic access)
+      const { data: canAccess, error: ownerCheckError } = await supabase.rpc('can_user_access_document', {
+        p_user_id: userId,
+        p_project_id: projectId,
+        p_document_path: documentPath
+      });
+      
+      if (ownerCheckError) {
+        console.error('Error checking owner access:', ownerCheckError);
+        return false;
+      }
+      
+      if (canAccess) {
+        console.log('🔍 [checkDocumentPermission] Owner access granted');
+        return true;
+      }
+      
+      // If not owner, check explicit document permissions
+      console.log('🔍 [checkDocumentPermission] Checking explicit permissions...');
       
       // First check if we have the permissions loaded locally
       const { permissions } = get();
@@ -193,22 +204,18 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
       }
       
       // Otherwise, query the database directly
-      const folderPath = documentPath.split('/')[0];
-      const query = `document_path.eq.${documentPath},document_path.eq.*,and(permission_type.eq.folder,document_path.like.${folderPath}%)`;
+      const query = `document_path.eq.${documentPath},document_path.like.${documentPath}%,document_path.eq.*`;
       
       console.log('🔍 [checkDocumentPermission] Database query:', { 
-        entityId, 
         projectId, 
         userId, 
         documentPath, 
-        folderPath, 
         query 
       });
       
       const { data: permission, error } = await supabase
         .from('document_permissions')
         .select('*')
-        .eq('entity_id', entityId)
         .eq('project_id', projectId)
         .eq('user_id', userId)
         .or(query)
@@ -233,47 +240,37 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
   getMemberPermissions: (projectId: string, userId: string) => {
     const { permissions } = get();
     const projectPermissions = permissions.get(projectId) || [];
-    return projectPermissions.filter(p => p.userId === userId);
+    return projectPermissions.filter(p => p.user_id === userId);
   },
 
   bulkGrantPermissions: async (projectId: string, userId: string, documentPaths: string[]) => {
     set({ isLoading: true, error: null });
     
     try {
-      const currentUserId = (await supabase.auth.getUser()).data.user?.id;
-      if (!currentUserId) throw new Error('User not authenticated');
-
-      // Get entity_id from project
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .select('entity_id')
-        .eq('id', projectId)
-        .single();
-
-      if (projectError) throw projectError;
-
-      // Prepare permissions
-      const permissions = documentPaths.map(documentPath => ({
-        entity_id: project.entity_id,
-        project_id: projectId,
-        document_path: documentPath,
-        user_id: userId,
-        granted_by: currentUserId,
-        permission_type: documentPath === '*' ? 'folder' as PermissionType : 'file' as PermissionType
-      }));
-
-      const { data: newPermissions, error } = await supabase
-        .from('document_permissions')
-        .insert(permissions)
-        .select();
+      // Use the manage-document-access edge function
+      const { data, error } = await supabase.functions.invoke('manage-document-access', {
+        body: {
+          action: 'grant',
+          project_id: projectId,
+          document_paths: documentPaths,
+          target_user_id: userId
+        }
+      });
 
       if (error) throw error;
 
-      // Update local state
+      // Update local state - create mock permission objects for local state
       const { permissions: currentPermissions } = get();
       const projectPermissions = currentPermissions.get(projectId) || [];
+      const mockPermissions = documentPaths.map((documentPath, index) => ({
+        id: `temp_${Date.now()}_${index}`,
+        project_id: projectId,
+        user_id: userId,
+        document_path: documentPath,
+        created_at: new Date().toISOString()
+      }));
       const newPermissionsMap = new Map(currentPermissions);
-      newPermissionsMap.set(projectId, [...projectPermissions, ...(newPermissions || [])]);
+      newPermissionsMap.set(projectId, [...projectPermissions, ...mockPermissions]);
 
       set({ 
         permissions: newPermissionsMap,
@@ -292,19 +289,31 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
     set({ isLoading: true, error: null });
     
     try {
-      const { error } = await supabase
-        .from('document_permissions')
-        .delete()
-        .eq('project_id', projectId)
-        .eq('user_id', userId);
+      // Get all document paths for this user in this project
+      const { permissions: currentPermissions } = get();
+      const projectPermissions = currentPermissions.get(projectId) || [];
+      const userPermissions = projectPermissions.filter(p => p.user_id === userId);
+      const documentPaths = userPermissions.map(p => p.document_path);
+
+      if (documentPaths.length === 0) {
+        set({ isLoading: false });
+        return;
+      }
+
+      // Use the manage-document-access edge function
+      const { data, error } = await supabase.functions.invoke('manage-document-access', {
+        body: {
+          action: 'revoke',
+          project_id: projectId,
+          document_paths: documentPaths,
+          target_user_id: userId
+        }
+      });
 
       if (error) throw error;
 
       // Update local state
-      const { permissions: currentPermissions } = get();
-      const projectPermissions = currentPermissions.get(projectId) || [];
-      const filteredPermissions = projectPermissions.filter(p => p.userId !== userId);
-      
+      const filteredPermissions = projectPermissions.filter(p => p.user_id !== userId);
       const newPermissions = new Map(currentPermissions);
       newPermissions.set(projectId, filteredPermissions);
 

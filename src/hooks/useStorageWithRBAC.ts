@@ -55,7 +55,6 @@ export const useStorageWithRBAC = (
           // For members, check document permissions
           if (currentEntityRole === 'member' && projectId) {
             const hasPermission = await checkDocumentPermission(
-              activeEntity.id,
               projectId!,
               filePath,
               user.id!
@@ -99,7 +98,19 @@ export const useStorageWithRBAC = (
     setError(null);
     
     try {
+      console.log('[useStorageWithRBAC] Upload starting', {
+        bucketId,
+        folderPath,
+        projectId,
+        userId: user.id,
+        currentEntityRole,
+        activeEntityId: activeEntity.id,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type
+      });
       const filePath = folderPath ? `${folderPath}/${file.name}` : file.name;
+      console.log('[useStorageWithRBAC] Computed upload path', { filePath });
       
       const { data, error } = await supabase.storage
         .from(bucketId)
@@ -110,17 +121,21 @@ export const useStorageWithRBAC = (
 
       if (error) throw error;
       
-      // Note: Permission granting is now handled through the DocumentPermissionModal
-      // Entity owners will see the modal to grant access to members
-      // Entity members automatically get permission for files they upload
-      if (projectId && currentEntityRole === 'member') {
-        // Auto-grant permission to the uploader (members can access their own uploads)
-        try {
-          const { grantPermission } = useDocumentPermissionStore.getState();
-          await grantPermission(projectId, user.id!, filePath, 'file');
-        } catch (permError) {
-          console.error('Error granting permission:', permError);
-          // Don't fail the upload if permission granting fails
+      // Grant document permissions based on user role
+      if (projectId) {
+        if (currentEntityRole === 'owner') {
+          // Owners have automatic access to all documents - no need to create permissions
+          console.log('Owner uploaded file - automatic access granted');
+        } else if (currentEntityRole === 'member') {
+          // Members need explicit permission for files they upload
+          try {
+            const { grantPermission } = useDocumentPermissionStore.getState();
+            await grantPermission(projectId, user.id!, filePath);
+            console.log('Member uploaded file - permission granted');
+          } catch (permError) {
+            console.error('Error granting permission:', permError);
+            // Don't fail the upload if permission granting fails
+          }
         }
       }
       
@@ -128,7 +143,12 @@ export const useStorageWithRBAC = (
       return data;
     } catch (e: any) {
       setError(e.message);
-      console.error("Error uploading file:", e);
+      console.error('[useStorageWithRBAC] Error uploading file', {
+        message: e?.message,
+        name: e?.name,
+        status: e?.status,
+        stack: e?.stack
+      });
       return null;
     } finally {
       setIsLoading(false);
@@ -147,7 +167,6 @@ export const useStorageWithRBAC = (
       // Check permission before download
       if (currentEntityRole === 'member' && projectId) {
         const hasPermission = await checkDocumentPermission(
-          activeEntity.id,
           projectId!,
           filePath,
           user.id!

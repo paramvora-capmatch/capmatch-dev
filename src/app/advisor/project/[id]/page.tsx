@@ -33,6 +33,9 @@ import {
 	ProjectStatus,
 	ProjectMessage,
 	ProjectDocumentRequirement,
+	Project,
+	BorrowerResume,
+	ProjectResume,
 } from "../../../../types/enhanced-types";
 import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
 import { DocumentManager } from '@/components/documents/DocumentManager';
@@ -50,10 +53,10 @@ export default function AdvisorProjectDetailPage() {
 	const params = useParams();
 	const { user } = useAuth();
 
-	const [project, setProject] = useState<ProjectProfile | null>(null);
-	const [borrowerProfile, setBorrowerProfile] =
-		useState<BorrowerProfile | null>(null);
-	const [messages, setMessages] = useState<ProjectMessage[]>([]);
+	const [project, setProject] = useState<Project | null>(null);
+	const [borrowerResume, setBorrowerResume] = useState<BorrowerResume | null>(null);
+	const [projectResume, setProjectResume] = useState<ProjectResume | null>(null);
+	const [messages, setMessages] = useState<any[]>([]);
 	const [documentRequirements, setDocumentRequirements] = useState<
 		ProjectDocumentRequirement[]
 	>([]);
@@ -76,12 +79,24 @@ export default function AdvisorProjectDetailPage() {
 					return;
 				}
 
-				let foundProject: ProjectProfile | undefined | null = null;
+				let foundProject: Project | undefined | null = null;
 				if (user.isDemo) {
+					// For demo mode, we'll use the legacy ProjectProfile and convert it
 					const allProjects = await storageService.getItem<
 						ProjectProfile[]
 					>("projects");
-					foundProject = allProjects?.find((p) => p.id === projectId);
+					const legacyProject = allProjects?.find((p) => p.id === projectId);
+					if (legacyProject) {
+						// Convert legacy ProjectProfile to new Project schema
+						foundProject = {
+							id: legacyProject.id,
+							created_at: legacyProject.createdAt,
+							updated_at: legacyProject.updatedAt,
+							name: legacyProject.projectName,
+							owner_entity_id: legacyProject.entityId,
+							assigned_advisor_id: legacyProject.assignedAdvisorUserId
+						};
+					}
 				} else {
 					const { data, error } = await supabase
 						.from("projects")
@@ -89,76 +104,116 @@ export default function AdvisorProjectDetailPage() {
 						.eq("id", projectId)
 						.single();
 					if (error) throw error;
-					if (data) foundProject = dbProjectToProjectProfile(data);
+					if (data) foundProject = data;
 				}
 
 				if (foundProject) {
 					setProject(foundProject);
-					setSelectedStatus(foundProject.projectStatus);
+					// Note: Project status is now managed separately from the core project record
+					// For now, we'll use a default status
+					setSelectedStatus("Info Gathering");
 
-						// Get borrower profile (guard against missing borrowerProfileId in entity model)
+					// Load borrower resume for the owning entity
 					if (user.isDemo) {
+						// For demo mode, we'll use legacy data
 						const allProfiles = await storageService.getItem<
 							BorrowerProfile[]
 						>("borrowerProfiles");
+						// Find profile by entity ID (this is a simplified mapping for demo)
 						const profile = allProfiles?.find(
-							(p) => p.id === foundProject!.borrowerProfileId
+							(p) => p.entityId === foundProject!.owner_entity_id
 						);
-						if (profile) setBorrowerProfile(profile);
-						} else if (foundProject.borrowerProfileId) {
-							const { data: borrowerData, error: borrowerError } = await supabase
-								.from("borrowers")
-								.select("*, profiles (email, full_name)")
-								.eq("id", foundProject.borrowerProfileId)
-								.single();
-							if (borrowerError) throw borrowerError;
-
-							if (borrowerData) {
-							// @ts-ignore - `profiles` can be null if RLS on the profiles table is too restrictive for advisors.
-							const user = {
-								email:
-									borrowerData.profiles?.email ||
-									"[REDACTED]",
-								name: borrowerData.profiles?.full_name,
-							};
-							const fullProfile = dbBorrowerToBorrowerProfile(
-								borrowerData,
-								user
-							);
-							if (!borrowerData.profiles) {
-								console.warn(
-									"Could not fetch borrower's profile details (email, name). This is likely due to a Row Level Security policy on the 'profiles' table that prevents advisors from reading borrower profiles."
-								);
-								// Overwrite to make the issue visible on the UI
-								fullProfile.contactEmail =
-									"Details Inaccessible due to RLS";
-							}
-							setBorrowerProfile(fullProfile);
+						if (profile) {
+							// Convert legacy BorrowerProfile to BorrowerResume
+							setBorrowerResume({
+								id: `resume-${profile.id}`,
+								entity_id: foundProject!.owner_entity_id,
+								content: {
+									// Map relevant fields from BorrowerProfile to resume content
+									fullLegalName: profile.fullLegalName,
+									primaryEntityName: profile.primaryEntityName,
+									contactEmail: profile.contactEmail,
+									contactPhone: profile.contactPhone,
+									yearsCREExperienceRange: profile.yearsCREExperienceRange,
+									assetClassesExperience: profile.assetClassesExperience,
+									geographicMarketsExperience: profile.geographicMarketsExperience,
+									creditScoreRange: profile.creditScoreRange,
+									netWorthRange: profile.netWorthRange,
+									liquidityRange: profile.liquidityRange,
+									bankruptcyHistory: profile.bankruptcyHistory,
+									foreclosureHistory: profile.foreclosureHistory,
+									litigationHistory: profile.litigationHistory
+								},
+								created_at: profile.createdAt,
+								updated_at: profile.updatedAt
+							});
 						}
-						} else {
-							// No borrowerProfileId available under entity model; skip fetch gracefully
-							setBorrowerProfile(null);
+					} else {
+						// Load borrower resume from new schema
+						const { data: borrowerResumeData, error: borrowerResumeError } = await supabase
+							.from("borrower_resumes")
+							.select("*")
+							.eq("entity_id", foundProject.owner_entity_id)
+							.single();
+						
+						if (borrowerResumeError && borrowerResumeError.code !== 'PGRST116') {
+							console.warn("Error loading borrower resume:", borrowerResumeError);
+						} else if (borrowerResumeData) {
+							setBorrowerResume(borrowerResumeData);
+						}
+
+						// Load project resume
+						const { data: projectResumeData, error: projectResumeError } = await supabase
+							.from("project_resumes")
+							.select("*")
+							.eq("project_id", foundProject.id)
+							.single();
+						
+						if (projectResumeError && projectResumeError.code !== 'PGRST116') {
+							console.warn("Error loading project resume:", projectResumeError);
+						} else if (projectResumeData) {
+							setProjectResume(projectResumeData);
+						}
 					}
 
-					// Fetch initial messages from Supabase
-					const { data: messagesData, error: messagesError } =
-						await supabase
-							.from("project_messages")
-							.select("*")
-							.eq("project_id", projectId)
-							.order("created_at", { ascending: true });
-
-					if (messagesError) {
-						console.error(
-							"Error fetching messages:",
-							messagesError
-						);
-					} else {
-						const mappedMessages = messagesData.map(msg => {
-							const senderRole = msg.sender_id === user.id ? 'advisor' : 'borrower';
-							return dbMessageToProjectMessage({ ...msg, sender: { role: senderRole } });
+					// Fetch initial messages using the chat thread edge function
+					try {
+						const { data: threadData, error: threadError } = await supabase.functions.invoke('manage-chat-thread', {
+							body: {
+								action: 'get_thread',
+								project_id: projectId
+							}
 						});
-						setMessages(mappedMessages);
+
+						if (threadError) {
+							console.error("Error fetching chat thread:", threadError);
+						} else if (threadData?.thread) {
+							// Fetch messages from the thread
+							const { data: messagesData, error: messagesError } = await supabase
+								.from("project_messages")
+								.select("*")
+								.eq("thread_id", threadData.thread.id)
+								.order("created_at", { ascending: true });
+
+							if (messagesError) {
+								console.error("Error fetching messages:", messagesError);
+							} else {
+								const mappedMessages = messagesData.map(msg => {
+									const senderRole = msg.user_id === user.id ? 'advisor' : 'borrower';
+									return {
+										id: msg.id.toString(),
+										projectId: projectId,
+										senderId: msg.user_id || '',
+										senderType: senderRole === 'advisor' ? 'Advisor' : 'Borrower',
+										message: msg.content || '',
+										createdAt: msg.created_at
+									};
+								});
+								setMessages(mappedMessages);
+							}
+						}
+					} catch (error) {
+						console.error("Error in chat thread management:", error);
 					}
 
 					// Docs are still from local storage, which is fine for now.
@@ -195,39 +250,59 @@ export default function AdvisorProjectDetailPage() {
 			supabase.removeChannel(messageSubscriptionRef.current);
 		}
 
-		const channel = supabase
-			.channel(`project-messages-advisor-${projectId}`)
-			.on<any>(
-				"postgres_changes",
-				{
-					event: "INSERT",
-					schema: "public",
-					table: "project_messages",
-					filter: `project_id=eq.${projectId}`,
-				},
-				(payload) => {
-					const newMessagePayload = payload.new;
-					const senderRole =
-						newMessagePayload.sender_id === user.id
-							? "advisor"
-							: "borrower";
+		// Get the chat thread ID for this project using the edge function
+		supabase.functions.invoke('manage-chat-thread', {
+			body: {
+				action: 'get_thread',
+				project_id: projectId
+			}
+		}).then(({ data: threadData, error: threadError }) => {
+			if (threadError || !threadData?.thread) {
+				console.warn("No chat thread found for project:", projectId);
+				return;
+			}
 
-					const newMessage = dbMessageToProjectMessage({
-						...newMessagePayload,
-						sender: { role: senderRole },
-					});
+			const channel = supabase
+				.channel(`project-messages-advisor-${projectId}`)
+				.on<any>(
+					"postgres_changes",
+					{
+						event: "INSERT",
+						schema: "public",
+						table: "project_messages",
+						filter: `thread_id=eq.${threadData.thread.id}`,
+					},
+					(payload) => {
+						const newMessagePayload = payload.new;
+						const senderRole =
+							newMessagePayload.user_id === user.id
+								? "advisor"
+								: "borrower";
 
-					setMessages((currentMessages) => [
-						...currentMessages,
-						newMessage,
-					]);
-				}
-			)
-			.subscribe();
+						const newMessage = {
+							id: newMessagePayload.id.toString(),
+							projectId: projectId,
+							senderId: newMessagePayload.user_id || '',
+							senderType: senderRole === 'advisor' ? 'Advisor' : 'Borrower',
+							message: newMessagePayload.content || '',
+							createdAt: newMessagePayload.created_at
+						};
 
-		messageSubscriptionRef.current = channel;
+						setMessages((currentMessages) => [
+							...currentMessages,
+							newMessage,
+						]);
+					}
+				)
+				.subscribe();
+
+			messageSubscriptionRef.current = channel;
+		});
+
 		return () => {
-			supabase.removeChannel(channel);
+			if (messageSubscriptionRef.current) {
+				supabase.removeChannel(messageSubscriptionRef.current);
+			}
 		};
 	}, [params, user]);
 
@@ -278,27 +353,33 @@ export default function AdvisorProjectDetailPage() {
 		if (!project) return;
 
 		try {
-			const updatedProject: ProjectProfile = {
-				...project,
-				projectStatus: newStatus,
-				updatedAt: new Date().toISOString(),
-			};
-
-			if (user?.isDemo) {
-				// Local storage update for demo
-			} else {
-				const { error } = await supabase
-					.from("projects")
-					.update({
-						project_status: newStatus,
-						updated_at: new Date().toISOString(),
-					})
-					.eq("id", project.id);
-				if (error) throw error;
-			}
-
-			setProject(updatedProject);
+			// Note: In the new schema, project status is not stored in the projects table
+			// It would be stored in a separate project_status table or in the project_resume content
+			// For now, we'll just update the local state
 			setSelectedStatus(newStatus);
+
+			// If we have a project resume, we could update its content with the status
+			if (projectResume) {
+				const updatedContent = {
+					...projectResume.content,
+					status: newStatus,
+					lastUpdated: new Date().toISOString()
+				};
+
+				if (user?.isDemo) {
+					// Local storage update for demo
+					console.log("Demo mode: Project status would be updated to", newStatus);
+				} else {
+					const { error } = await supabase
+						.from("project_resumes")
+						.update({
+							content: updatedContent,
+							updated_at: new Date().toISOString(),
+						})
+						.eq("project_id", project.id);
+					if (error) throw error;
+				}
+			}
 
 			console.log("Project status updated successfully");
 		} catch (error) {
@@ -316,18 +397,48 @@ export default function AdvisorProjectDetailPage() {
 		const messageContent = messageText || newMessage;
 		if (!messageContent.trim()) return;
 
-		const { error } = await supabase.from("project_messages").insert({
-			project_id: project.id,
-			sender_id: user.id,
-			message: messageContent,
-		});
+		try {
+			// Use the edge function to get or create a chat thread for this project
+			const { data: threadData, error: threadError } = await supabase.functions.invoke('manage-chat-thread', {
+				body: {
+					action: 'get_thread',
+					project_id: project.id
+				}
+			});
 
-		if (error) {
-			console.error("Failed to send message", error);
-		} else {
-			if (!isSystemMessage) {
-				setNewMessage("");
+			let chatThread;
+			if (threadError || !threadData?.thread) {
+				// Thread doesn't exist, create one using the edge function
+				const { data: createData, error: createError } = await supabase.functions.invoke('manage-chat-thread', {
+					body: {
+						action: 'create',
+						project_id: project.id,
+						topic: `Project: ${project.name}`
+					}
+				});
+				
+				if (createError) throw createError;
+				chatThread = createData.thread;
+			} else {
+				chatThread = threadData.thread;
 			}
+
+			// Insert the message
+			const { error } = await supabase.from("project_messages").insert({
+				thread_id: chatThread.id,
+				user_id: user.id,
+				content: messageContent,
+			});
+
+			if (error) {
+				console.error("Failed to send message", error);
+			} else {
+				if (!isSystemMessage) {
+					setNewMessage("");
+				}
+			}
+		} catch (error) {
+			console.error("Error sending message:", error);
 		}
 	};
 
@@ -369,17 +480,15 @@ export default function AdvisorProjectDetailPage() {
 						</Button>
 						<div>
 							<h1 className="text-2xl font-semibold text-gray-800">
-								{project?.projectName || "Project Details"}
+								{project?.name || "Project Details"}
 							</h1>
-							{project && (
-								<div
-									className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getStatusColor(
-										project.projectStatus
-									)}`}
-								>
-									{project.projectStatus}
-								</div>
-							)}
+							<div
+								className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getStatusColor(
+									selectedStatus
+								)}`}
+							>
+								{selectedStatus}
+							</div>
 						</div>
 					</header>
 
@@ -453,157 +562,115 @@ export default function AdvisorProjectDetailPage() {
 											<div className="space-y-6">
 												<div>
 													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Property Address
+														Project Name
 													</h3>
-													<div className="flex items-start">
-														<MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-														<div>
-															<p className="text-sm text-gray-800">
-																{
-																	project.propertyAddressStreet
-																}
-															</p>
-															<p className="text-sm text-gray-800">
-																{
-																	project.propertyAddressCity
-																}
-																,{" "}
-																{
-																	project.propertyAddressState
-																}{" "}
-																{
-																	project.propertyAddressZip
-																}
-															</p>
+													<p className="text-sm text-gray-800">
+														{project.name}
+													</p>
+												</div>
+
+												<div>
+													<h3 className="text-sm font-medium text-gray-500 mb-1">
+														Project ID
+													</h3>
+													<p className="text-sm text-gray-800 font-mono">
+														{project.id}
+													</p>
+												</div>
+
+												<div>
+													<h3 className="text-sm font-medium text-gray-500 mb-1">
+														Owner Entity ID
+													</h3>
+													<p className="text-sm text-gray-800 font-mono">
+														{project.owner_entity_id}
+													</p>
+												</div>
+
+												{projectResume?.content && (
+													<div>
+														<h3 className="text-sm font-medium text-gray-500 mb-1">
+															Project Details
+														</h3>
+														<div className="space-y-2">
+															{projectResume.content.propertyAddress && (
+																<div className="flex items-start">
+																	<MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+																	<div>
+																		<p className="text-sm text-gray-800">
+																			{projectResume.content.propertyAddress}
+																		</p>
+																	</div>
+																</div>
+															)}
+															{projectResume.content.assetType && (
+																<p className="text-sm text-gray-800">
+																	<span className="font-medium">Asset Type:</span> {projectResume.content.assetType}
+																</p>
+															)}
+															{projectResume.content.description && (
+																<p className="text-sm text-gray-800">
+																	<span className="font-medium">Description:</span> {projectResume.content.description}
+																</p>
+															)}
 														</div>
 													</div>
-												</div>
-
-												<div>
-													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Asset Type
-													</h3>
-													<p className="text-sm text-gray-800">
-														{project.assetType}
-													</p>
-												</div>
-
-												<div>
-													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Deal Type
-													</h3>
-													<p className="text-sm text-gray-800">
-														{project.projectPhase}
-													</p>
-												</div>
-
-												<div>
-													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Description
-													</h3>
-													<p className="text-sm text-gray-800">
-														{project.projectDescription ||
-															"No description provided"}
-													</p>
-												</div>
+												)}
 											</div>
 
 											<div className="space-y-6">
-												<div>
-													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Loan Information
-													</h3>
-													<div className="flex items-start">
-														<DollarSign className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-														<div>
-															<p className="text-sm text-gray-800">
-																<span className="font-medium">
-																	Amount
-																	Requested:
-																</span>{" "}
-																{project.loanAmountRequested ? formatCurrency(project.loanAmountRequested) : "Not specified"}
-															</p>
-															<p className="text-sm text-gray-800">
-																<span className="font-medium">
-																	Type:
-																</span>{" "}
-																{
-																	project.loanType
-																}
-															</p>
-															<p className="text-sm text-gray-800">
-																<span className="font-medium">
-																	Target LTV:
-																</span>{" "}
-																{
-																	project.targetLtvPercent
-																}
-																%
-															</p>
-															<p className="text-sm text-gray-800">
-																<span className="font-medium">
-																	Target
-																	Close:
-																</span>{" "}
-																{project.targetCloseDate
-																	? formatDate(
-																			project.targetCloseDate
-																	  )
-																	: "Not specified"}
-															</p>
-														</div>
-													</div>
-												</div>
+												{projectResume?.content && (
+													<>
+														{projectResume.content.loanAmount && (
+															<div>
+																<h3 className="text-sm font-medium text-gray-500 mb-1">
+																	Loan Information
+																</h3>
+																<div className="flex items-start">
+																	<DollarSign className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+																	<div>
+																		<p className="text-sm text-gray-800">
+																			<span className="font-medium">Amount Requested:</span> {formatCurrency(projectResume.content.loanAmount)}
+																		</p>
+																		{projectResume.content.loanType && (
+																			<p className="text-sm text-gray-800">
+																				<span className="font-medium">Type:</span> {projectResume.content.loanType}
+																			</p>
+																		)}
+																		{projectResume.content.targetLTV && (
+																			<p className="text-sm text-gray-800">
+																				<span className="font-medium">Target LTV:</span> {projectResume.content.targetLTV}%
+																			</p>
+																		)}
+																	</div>
+																</div>
+															</div>
+														)}
 
-												<div>
-													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Capital Stack
-													</h3>
-													<div className="flex flex-col gap-1">
-														{project.purchasePrice && (
-															<p className="text-sm text-gray-800">
-																<span className="font-medium">
-																	Purchase
-																	Price:
-																</span>{" "}
-																{formatCurrency(
-																	project.purchasePrice
-																)}
-															</p>
+														{projectResume.content.purchasePrice && (
+															<div>
+																<h3 className="text-sm font-medium text-gray-500 mb-1">
+																	Capital Stack
+																</h3>
+																<div className="flex flex-col gap-1">
+																	<p className="text-sm text-gray-800">
+																		<span className="font-medium">Purchase Price:</span> {formatCurrency(projectResume.content.purchasePrice)}
+																	</p>
+																	{projectResume.content.totalProjectCost && (
+																		<p className="text-sm text-gray-800">
+																			<span className="font-medium">Total Project Cost:</span> {formatCurrency(projectResume.content.totalProjectCost)}
+																		</p>
+																	)}
+																	{projectResume.content.exitStrategy && (
+																		<p className="text-sm text-gray-800">
+																			<span className="font-medium">Exit Strategy:</span> {projectResume.content.exitStrategy}
+																		</p>
+																	)}
+																</div>
+															</div>
 														)}
-														{project.totalProjectCost && (
-															<p className="text-sm text-gray-800">
-																<span className="font-medium">
-																	Total
-																	Project
-																	Cost:
-																</span>{" "}
-																{formatCurrency(
-																	project.totalProjectCost
-																)}
-															</p>
-														)}
-														{project.capexBudget && (
-															<p className="text-sm text-gray-800">
-																<span className="font-medium">
-																	CapEx
-																	Budget:
-																</span>{" "}
-																{formatCurrency(
-																	project.capexBudget
-																)}
-															</p>
-														)}
-														<p className="text-sm text-gray-800">
-															<span className="font-medium">
-																Exit Strategy:
-															</span>{" "}
-															{
-																project.exitStrategy
-															}
-														</p>
-													</div>
-												</div>
+													</>
+												)}
 
 												<div>
 													<h3 className="text-sm font-medium text-gray-500 mb-1">
@@ -613,21 +680,10 @@ export default function AdvisorProjectDetailPage() {
 														<Calendar className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
 														<div>
 															<p className="text-sm text-gray-800">
-																<span className="font-medium">
-																	Created:
-																</span>{" "}
-																{formatDate(
-																	project.createdAt
-																)}
+																<span className="font-medium">Created:</span> {formatDate(project.created_at)}
 															</p>
 															<p className="text-sm text-gray-800">
-																<span className="font-medium">
-																	Last
-																	Updated:
-																</span>{" "}
-																{formatDate(
-																	project.updatedAt
-																)}
+																<span className="font-medium">Last Updated:</span> {formatDate(project.updated_at)}
 															</p>
 														</div>
 													</div>
@@ -716,7 +772,7 @@ export default function AdvisorProjectDetailPage() {
 								<CardContent className="p-0">
 									{project && (
 										<DocumentManager
-											bucketId={project.entityId}
+											bucketId={project.owner_entity_id}
 											folderPath={project.id}
 											title="Project-Specific Documents"
 											canUpload={true} // Advisors can upload
@@ -742,7 +798,7 @@ export default function AdvisorProjectDetailPage() {
 									</h2>
 								</CardHeader>
 								<CardContent className="p-4">
-									{borrowerProfile ? (
+									{borrowerResume?.content ? (
 										<div className="space-y-4">
 											<div>
 												<h3 className="text-sm font-medium text-gray-500 mb-1">
@@ -752,19 +808,13 @@ export default function AdvisorProjectDetailPage() {
 													<User className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
 													<div>
 														<p className="text-sm text-gray-800">
-															{
-																borrowerProfile.fullLegalName
-															}
+															{borrowerResume.content.fullLegalName || 'Not provided'}
 														</p>
 														<p className="text-sm text-gray-600">
-															{
-																borrowerProfile.contactEmail
-															}
+															{borrowerResume.content.contactEmail || 'Not provided'}
 														</p>
 														<p className="text-sm text-gray-600">
-															{
-																borrowerProfile.contactPhone
-															}
+															{borrowerResume.content.contactPhone || 'Not provided'}
 														</p>
 													</div>
 												</div>
@@ -778,14 +828,10 @@ export default function AdvisorProjectDetailPage() {
 													<Building className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
 													<div>
 														<p className="text-sm text-gray-800">
-															{
-																borrowerProfile.primaryEntityName
-															}
+															{borrowerResume.content.primaryEntityName || 'Not provided'}
 														</p>
 														<p className="text-sm text-gray-600">
-															{
-																borrowerProfile.primaryEntityStructure
-															}
+															{borrowerResume.content.primaryEntityStructure || 'Not provided'}
 														</p>
 													</div>
 												</div>
@@ -796,28 +842,13 @@ export default function AdvisorProjectDetailPage() {
 													Experience
 												</h3>
 												<p className="text-sm text-gray-800">
-													<span className="font-medium">
-														Years of Experience:
-													</span>{" "}
-													{
-														borrowerProfile.yearsCREExperienceRange
-													}
+													<span className="font-medium">Years of Experience:</span> {borrowerResume.content.yearsCREExperienceRange || 'Not provided'}
 												</p>
 												<p className="text-sm text-gray-800">
-													<span className="font-medium">
-														Asset Classes:
-													</span>{" "}
-													{borrowerProfile.assetClassesExperience.join(
-														", "
-													)}
+													<span className="font-medium">Asset Classes:</span> {borrowerResume.content.assetClassesExperience?.join(", ") || 'Not provided'}
 												</p>
 												<p className="text-sm text-gray-800">
-													<span className="font-medium">
-														Markets:
-													</span>{" "}
-													{borrowerProfile.geographicMarketsExperience.join(
-														", "
-													)}
+													<span className="font-medium">Markets:</span> {borrowerResume.content.geographicMarketsExperience?.join(", ") || 'Not provided'}
 												</p>
 											</div>
 
@@ -826,59 +857,32 @@ export default function AdvisorProjectDetailPage() {
 													Financial
 												</h3>
 												<p className="text-sm text-gray-800">
-													<span className="font-medium">
-														Credit Score:
-													</span>{" "}
-													{
-														borrowerProfile.creditScoreRange
-													}
+													<span className="font-medium">Credit Score:</span> {borrowerResume.content.creditScoreRange || 'Not provided'}
 												</p>
 												<p className="text-sm text-gray-800">
-													<span className="font-medium">
-														Net Worth:
-													</span>{" "}
-													{
-														borrowerProfile.netWorthRange
-													}
+													<span className="font-medium">Net Worth:</span> {borrowerResume.content.netWorthRange || 'Not provided'}
 												</p>
 												<p className="text-sm text-gray-800">
-													<span className="font-medium">
-														Liquidity:
-													</span>{" "}
-													{
-														borrowerProfile.liquidityRange
-													}
+													<span className="font-medium">Liquidity:</span> {borrowerResume.content.liquidityRange || 'Not provided'}
 												</p>
 											</div>
 
-											{(borrowerProfile.bankruptcyHistory ||
-												borrowerProfile.foreclosureHistory ||
-												borrowerProfile.litigationHistory) && (
+											{(borrowerResume.content.bankruptcyHistory ||
+												borrowerResume.content.foreclosureHistory ||
+												borrowerResume.content.litigationHistory) && (
 												<div className="bg-amber-50 p-3 rounded border border-amber-200">
 													<h3 className="text-sm font-medium text-amber-800 mb-1">
 														Special Considerations
 													</h3>
 													<ul className="text-sm text-amber-700 list-disc list-inside">
-														{borrowerProfile.bankruptcyHistory && (
-															<li>
-																Bankruptcy
-																history in the
-																past 7 years
-															</li>
+														{borrowerResume.content.bankruptcyHistory && (
+															<li>Bankruptcy history in the past 7 years</li>
 														)}
-														{borrowerProfile.foreclosureHistory && (
-															<li>
-																Foreclosure
-																history in the
-																past 7 years
-															</li>
+														{borrowerResume.content.foreclosureHistory && (
+															<li>Foreclosure history in the past 7 years</li>
 														)}
-														{borrowerProfile.litigationHistory && (
-															<li>
-																Significant
-																litigation
-																history
-															</li>
+														{borrowerResume.content.litigationHistory && (
+															<li>Significant litigation history</li>
 														)}
 													</ul>
 												</div>
@@ -887,7 +891,7 @@ export default function AdvisorProjectDetailPage() {
 									) : (
 										<div className="text-center py-8">
 											<p className="text-gray-500">
-												Borrower profile not found
+												Borrower resume not found
 											</p>
 										</div>
 									)}
@@ -899,7 +903,7 @@ export default function AdvisorProjectDetailPage() {
 								<CardContent className="p-0">
 									{project && (
 										<DocumentManager
-											bucketId={project.entityId}
+											bucketId={project.owner_entity_id}
 											folderPath="borrower_docs"
 											title="General Borrower Documents"
 											canUpload={true} // Advisors can upload
@@ -943,7 +947,7 @@ export default function AdvisorProjectDetailPage() {
 																{message.senderType ===
 																"Advisor"
 																	? "You"
-																	: borrowerProfile?.fullLegalName ||
+																	: borrowerResume?.content?.fullLegalName ||
 																	  "Borrower"}
 															</span>
 															<span className="text-xs text-gray-500 ml-2">

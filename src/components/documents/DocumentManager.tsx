@@ -67,11 +67,23 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     setIsUploading(true);
     
     try {
+      console.log('[DocumentManager] Starting upload', {
+        bucketId,
+        folderPath,
+        projectId,
+        activeEntityId: activeEntity?.id,
+        userId: user?.id,
+        currentEntityRole,
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type
+      });
       const result = await uploadFile(selectedFile);
       
-      if (result && currentEntityRole === 'owner' && projectId && activeEntity) {
-        // Show permission modal for entity owners
+      if (result && projectId && activeEntity) {
+        // Show permission modal for both owners and members to select who gets access
         const filePath = folderPath ? `${folderPath}/${selectedFile.name}` : selectedFile.name;
+        console.log('[DocumentManager] Upload succeeded, opening permissions modal', { filePath });
         setPermissionModal({
           isOpen: true,
           fileName: selectedFile.name,
@@ -84,7 +96,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         fileInputRef.current.value = "";
       }
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('[DocumentManager] Upload error', error);
     } finally {
       setIsUploading(false);
     }

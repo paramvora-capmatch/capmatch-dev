@@ -1,19 +1,12 @@
 // src/stores/useProjectStore.ts
 import { create } from "zustand";
-import {
-	dbMessageToProjectMessage,
-	dbProjectToProjectProfile,
-} from "@/lib/dto-mapper";
+import { dbProjectToProjectProfile } from "@/lib/dto-mapper";
 import { supabase } from "../../lib/supabaseClient";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { storageService } from "@/lib/storage";
 import { useAuthStore } from "./useAuthStore";
-import { useBorrowerProfileStore } from "./useBorrowerProfileStore";
 import {
 	ProjectProfile,
-	ProjectMessage,
-	ProjectPrincipal,
-	ProjectDocumentRequirement,
+  // New schema types
+	Project,
 } from "@/types/enhanced-types";
 
 const projectProfileToDbProject = (
@@ -21,11 +14,11 @@ const projectProfileToDbProject = (
 ): any => {
 	const dbData: { [key: string]: any } = {};
 	const keyMap: { [key in keyof ProjectProfile]?: string } = {
-		projectName: "project_name",
+		projectName: "name", // Map to name in new schema
 		assetType: "asset_type",
 		// borrowerProfileId: "owner_id", // Removed - projects owned by entities, not users
-		entityId: "entity_id",
-		assignedAdvisorUserId: "assigned_advisor_user_id",
+		entityId: "owner_entity_id", // Map to owner_entity_id in new schema
+		assignedAdvisorUserId: "assigned_advisor_id", // Map to assigned_advisor_id in new schema
 		propertyAddressStreet: "property_address_street",
 		propertyAddressCity: "property_address_city",
 		propertyAddressState: "property_address_state",
@@ -79,18 +72,11 @@ interface ProjectState {
 	projects: ProjectProfile[];
 	isLoading: boolean;
 	activeProject: ProjectProfile | null;
-	projectMessages: ProjectMessage[];
-	projectPrincipals: ProjectPrincipal[];
-	documentRequirements: ProjectDocumentRequirement[];
-	autoCreatedFirstProjectThisSession: boolean;
-	messageSubscription: RealtimeChannel | null;
 }
 
 interface ProjectActions {
 	loadUserProjects: () => Promise<void>;
-	createProject: (
-		projectData: Partial<ProjectProfile>
-	) => Promise<ProjectProfile>;
+	createProject: (projectData: Partial<ProjectProfile>) => Promise<ProjectProfile>;
 	updateProject: (
 		id: string,
 		updates: Partial<ProjectProfile>
@@ -98,10 +84,7 @@ interface ProjectActions {
 	deleteProject: (id: string) => Promise<boolean>;
 	getProject: (id: string) => ProjectProfile | null;
 	setActiveProject: (project: ProjectProfile | null) => void;
-	addProjectMessage: (message: string) => Promise<void>;
 	resetProjectState: () => void;
-	subscribeToMessages: (projectId: string) => void;
-	unsubscribeFromMessages: () => void;
 	calculateProgress: (project: ProjectProfile) => {
 		borrowerProgress: number;
 		projectProgress: number;
@@ -114,24 +97,11 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		projects: [],
 		isLoading: true,
 		activeProject: null,
-		projectMessages: [],
-		projectPrincipals: [],
-		documentRequirements: [],
-		autoCreatedFirstProjectThisSession: false,
-		messageSubscription: null,
+
 
 		resetProjectState: () => {
 			console.log("[ProjectStore] Resetting state.");
-			set({
-				projects: [],
-				activeProject: null,
-				projectMessages: [],
-				projectPrincipals: [],
-				documentRequirements: [],
-				autoCreatedFirstProjectThisSession: false,
-				messageSubscription: null,
-				isLoading: false,
-			});
+			set({ projects: [], activeProject: null, isLoading: false });
 		},
 
 		calculateProgress: (project) => {
@@ -178,8 +148,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 		loadUserProjects: async () => {
 			const { user } = useAuthStore.getState();
-			const { borrowerProfile } = useBorrowerProfileStore.getState(); // Get profile state
-			if (!user || (user.role === "borrower" && !borrowerProfile)) {
+			if (!user) {
 				get().resetProjectState();
 				return;
 			}
@@ -188,58 +157,20 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				set({ isLoading: true });
 			}
 			try {
-				let userProjects: ProjectProfile[] = [];
-
-				if (user.isDemo) {
-					console.log(
-						"[ProjectStore] Loading projects from local storage for demo user."
-					);
-					const allProjects =
-						(await storageService.getItem<ProjectProfile[]>(
-							"projects"
-						)) || [];
-					userProjects = allProjects.filter(
-						(p) => p.borrowerProfileId === borrowerProfile?.id
-					);
-				} else {
-					console.log(
-						"[ProjectStore] Loading projects from Supabase for real user."
-					);
-					
-					// Get user's entity memberships to filter projects
-					const { data: memberships, error: membershipError } = await supabase
-						.from('borrower_entity_members')
-						.select('entity_id')
-						.eq('user_id', user.id)
-						.eq('status', 'active');
-					
-					if (membershipError) throw membershipError;
-					
-					if (memberships && memberships.length > 0) {
-						const entityIds = memberships.map(m => m.entity_id);
-						const { data, error } = await supabase
-							.from("projects")
-							.select("*")
-							.in("entity_id", entityIds); // Filter by entity memberships
-						if (error) throw error;
-						userProjects = data.map(dbProjectToProjectProfile);
-					} else {
-						// Fallback to old logic if no entity memberships found
-						const { data, error } = await supabase
-							.from("projects")
-							.select("*")
-							.eq("owner_id", user.id);
-						if (error) throw error;
-						userProjects = data.map(dbProjectToProjectProfile);
-					}
-				}
+				console.log(
+					"[ProjectStore] Loading projects from Supabase for current user (RLS enforced)."
+				);
+				// RLS will only return projects the user can view
+				const { data, error } = await supabase
+					.from("projects")
+					.select("*");
+				if (error) throw error;
+				const userProjects: ProjectProfile[] = (data || []).map(dbProjectToProjectProfile);
 
 				const projectsWithProgress = userProjects.map((p) => ({
 					...p,
-					borrowerProfileId: borrowerProfile?.id || "",
 					...get().calculateProgress(p),
 				}));
-
 				set({ projects: projectsWithProgress });
 			} catch (error) {
 				console.error("[ProjectStore] Failed to load projects:", error);
@@ -251,172 +182,44 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 		getProject: (id) => get().projects.find((p) => p.id === id) || null,
 
-		unsubscribeFromMessages: () => {
-			const { messageSubscription } = get();
-			if (messageSubscription) {
-				supabase.removeChannel(messageSubscription);
-				set({ messageSubscription: null });
-			}
-		},
-
-		subscribeToMessages: (projectId: string) => {
-			get().unsubscribeFromMessages(); // Unsubscribe from any previous channel
-
-			const channel = supabase
-				.channel(`project-messages-${projectId}`)
-				.on<any>(
-					"postgres_changes",
-					{
-						event: "INSERT",
-						schema: "public",
-						table: "project_messages",
-						filter: `project_id=eq.${projectId}`,
-					},
-					async (payload) => {
-						const newMessagePayload = payload.new;
-
-						// Fetch sender info to determine role
-						const { data: senderProfile, error } = await supabase
-						.from("profiles")
-						.select("role, full_name, email")
-							.eq("id", newMessagePayload.sender_id)
-							.single();
-
-						if (error) {
-							console.error(
-								"Error fetching sender for new message:",
-								error
-							);
-							return;
-						}
-
-						const newMessage = dbMessageToProjectMessage({
-							...newMessagePayload,
-							sender: senderProfile,
-						});
-
-						set((state) => ({
-							projectMessages: [
-								...state.projectMessages,
-								newMessage,
-							],
-						}));
-					}
-				)
-				.subscribe();
-
-			set({ messageSubscription: channel });
-		},
-
 		setActiveProject: async (project) => {
-			const {
-				activeProject,
-				unsubscribeFromMessages,
-				subscribeToMessages,
-			} = get();
+			const { activeProject } = get();
 			if (project?.id === activeProject?.id) return;
 
-			unsubscribeFromMessages();
-
-			set({ activeProject: project, projectMessages: [] });
-
-			if (project) {
-				// Fetch initial messages for the new active project from DB
-				const { data, error } = await supabase
-					.from("project_messages")
-					.select("*, sender:profiles(role,full_name,email)")
-					.eq("project_id", project.id)
-					.order("created_at", { ascending: true });
-
-				if (error) {
-					console.error("Error fetching initial messages:", error);
-				} else {
-					const messages = data.map(dbMessageToProjectMessage);
-					set({ projectMessages: messages });
-				}
-
-				subscribeToMessages(project.id);
-			}
+			set({ activeProject: project });
 		},
 
-		createProject: async (projectData: Partial<ProjectProfile>) => {
+		createProject: async (projectData: Partial<ProjectProfile> & { memberPermissions?: Array<{user_id: string}> }) => {
 			const { user, activeEntity } = useAuthStore.getState();
 			if (!user)
 				throw new Error("User must be logged in to create a project.");
-			const borrowerProfile =
-				useBorrowerProfileStore.getState().borrowerProfile;
-			if (!borrowerProfile)
-				throw new Error(
-					"Borrower profile must exist to create a project."
-				);
 			if (!activeEntity)
 				throw new Error(
 					"Must be part of an entity to create a project."
 				);
 
-			if (get().projects.length === 0) {
-				set({ autoCreatedFirstProjectThisSession: true });
-			}
-
-			let advisorId: string | null = null;
-			if (user.isDemo) {
-				advisorId = "advisor1@capmatch.com";
-			} else {
-				// For real users, query for an advisor to assign
-				const { data: advisors, error: advisorError } = await supabase
-					.from("profiles")
-					.select("id")
-					.eq("email", "real.advisor@capmatch.com")
-					.single();
-
-				if (advisorError) {
-					console.error(
-						"Error fetching advisor to assign:",
-						advisorError
-					);
-				} else if (advisors) {
-					advisorId = advisors.id; // this is a UUID
-					console.log(
-						`[ProjectStore] Assigning advisor with ID: ${advisorId}`
-					);
-				} else {
-					console.warn(
-						"[ProjectStore] Specific advisor 'real.advisor@capmatch.com' not found. Assigning first available advisor."
-					);
-					const { data: fallbackAdvisors, error: fallbackError } =
-						await supabase
-							.from("profiles")
-							.select("id")
-							.eq("role", "advisor")
-							.limit(1);
-					if (fallbackError)
-						console.error(
-							"Fallback advisor fetch failed:",
-							fallbackError
-						);
-					else if (fallbackAdvisors && fallbackAdvisors.length > 0) {
-						advisorId = fallbackAdvisors[0].id;
-					} else
-						console.warn(
-							"[ProjectStore] No advisors found at all."
-						);
+			// Use the create-project edge function
+			const { data, error } = await supabase.functions.invoke('create-project', {
+				body: {
+					name: projectData.projectName || `New Project ${get().projects.length + 1}`,
+					owner_entity_id: activeEntity.id,
+					member_permissions: projectData.memberPermissions || []
 				}
-			}
+			});
 
-			const now = new Date().toISOString();
-			// Define defaults first, then spread projectData to override them
+			if (error) throw error;
+			if (!data?.project) throw new Error('Failed to create project');
+
+			// Convert the database project to ProjectProfile format
 			const newProjectData: ProjectProfile = {
-				id: `proj_${Date.now()}_${Math.random()
-					.toString(36)
-					.substring(2, 9)}`,
-				// borrowerProfileId: borrowerProfile.id, // Removed - projects owned by entities
-				entityId: activeEntity.id,
-				assignedAdvisorUserId: advisorId,
-				projectName: `New Project ${get().projects.length + 1}`,
+				id: data.project.id,
+				entityId: data.project.owner_entity_id,
+				assignedAdvisorUserId: data.project.assigned_advisor_id,
+				projectName: data.project.name,
 				assetType: "Multifamily",
 				projectStatus: "Info Gathering",
-				createdAt: now,
-				updatedAt: now,
+				createdAt: data.project.created_at,
+				updatedAt: data.project.updated_at,
 				propertyAddressStreet: "",
 				propertyAddressCity: "",
 				propertyAddressState: "",
@@ -449,49 +252,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// Spread the provided data to override defaults
 				...projectData,
 			};
-
-			if (user.isDemo) {
-				const allProjects =
-					(await storageService.getItem<ProjectProfile[]>(
-						"projects"
-					)) || [];
-				await storageService.setItem("projects", [
-					...allProjects,
-					newProjectData,
-				]);
-			} else {
-				const dataToInsert = projectProfileToDbProject(newProjectData);
-				delete dataToInsert.id; // DB generates UUID
-
-				const { data: insertedProject, error } = await supabase
-					.from("projects")
-					.insert(dataToInsert)
-					.select()
-					.single();
-
-				if (error) throw error;
-				Object.assign(newProjectData, insertedProject); // Update with DB generated ID
-			}
-
-			// After project creation, create its dedicated folder in entity storage
-			if (!user.isDemo && activeEntity) {
-				const { createProjectFolder } = await import('../lib/entityStorage');
-				const projectFolderId = newProjectData.id;
-				
-				const success = await createProjectFolder(activeEntity.id, projectFolderId);
-				
-				if (!success) {
-					// This is a non-critical error. The project is created, but the folder is not.
-					// Log the error for debugging but don't throw, allowing the app to continue.
-					console.error(
-						`[ProjectStore] Failed to create storage folder for project ${projectFolderId} in entity ${activeEntity.id}`
-					);
-				} else {
-					console.log(
-						`[ProjectStore] Created storage folder for project ${projectFolderId} in entity ${activeEntity.id}`
-					);
-				}
-			}
 
 			const finalProject = {
 				...newProjectData,
@@ -529,73 +289,47 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						: state.activeProject,
 			}));
 
-			if (user?.isDemo) {
-				const allProjects =
-					(await storageService.getItem<ProjectProfile[]>(
-						"projects"
-					)) || [];
-				const updatedProjects = allProjects.map((p) =>
-					p.id === id ? finalUpdatedProject : p
-				);
-				await storageService.setItem("projects", updatedProjects);
-				console.log(
-					`[ProjectStore] Updated demo project ${id} in storage.`
-				);
-				return finalUpdatedProject;
-			} else {
-				const updatesForDb = projectProfileToDbProject(updates);
-				const { data, error } = await supabase
-					.from("projects")
-					.update(updatesForDb)
-					.eq("id", id)
-					.select()
-					.single();
+			const updatesForDb = projectProfileToDbProject(updates);
+			const { data, error } = await supabase
+				.from("projects")
+				.update(updatesForDb)
+				.eq("id", id)
+				.select()
+				.single();
 
-				if (error) {
-					console.error(
-						`[ProjectStore] Error updating project ${id}:`,
-						error
-					);
-					// Revert optimistic update
-					set((state) => ({
-						projects: state.projects.map((p) =>
-							p.id === id ? projectToUpdate : p
-						),
-						activeProject:
-							state.activeProject?.id === id
-								? projectToUpdate
-								: state.activeProject,
-					}));
-					throw error;
-				}
-				console.log(`[ProjectStore] Updated project ${id} in DB.`);
-				return data as ProjectProfile;
+			if (error) {
+				console.error(
+					`[ProjectStore] Error updating project ${id}:`,
+					error
+				);
+				// Revert optimistic update
+				set((state) => ({
+					projects: state.projects.map((p) =>
+						p.id === id ? projectToUpdate : p
+					),
+					activeProject:
+						state.activeProject?.id === id
+							? projectToUpdate
+							: state.activeProject,
+				}));
+				throw error;
 			}
+			console.log(`[ProjectStore] Updated project ${id} in DB.`);
+			return data as ProjectProfile;
 		},
 
 		deleteProject: async (id) => {
 			const { user } = useAuthStore.getState();
-			if (user?.isDemo) {
-				const allProjects =
-					(await storageService.getItem<ProjectProfile[]>(
-						"projects"
-					)) || [];
-				await storageService.setItem(
-					"projects",
-					allProjects.filter((p) => p.id !== id)
+			const { error } = await supabase
+				.from("projects")
+				.delete()
+				.eq("id", id);
+			if (error) {
+				console.error(
+					`[ProjectStore] Failed to delete project ${id}:`,
+					error
 				);
-			} else {
-				const { error } = await supabase
-					.from("projects")
-					.delete()
-					.eq("id", id);
-				if (error) {
-					console.error(
-						`[ProjectStore] Failed to delete project ${id}:`,
-						error
-					);
-					return false;
-				}
+				return false;
 			}
 			set((state) => ({
 				projects: state.projects.filter((p) => p.id !== id),
@@ -605,23 +339,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			return true;
 		},
 
-		addProjectMessage: async (message) => {
-			const { activeProject } = get();
-			const { user } = useAuthStore.getState();
-			if (!activeProject || !user || !user.id)
-				throw new Error("No active project or user ID");
-
-			const { error } = await supabase.from("project_messages").insert({
-				project_id: activeProject.id,
-				sender_id: user.id,
-				message: message,
-			});
-
-			if (error) {
-				console.error("Error sending message:", error);
-				throw error;
-			}
-		},
 	})
 );
 
@@ -652,23 +369,7 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 	}
 });
 
-useBorrowerProfileStore.subscribe((profileState, prevProfileState) => {
-	const { user } = useAuthStore.getState();
-	const wasLoading = prevProfileState.isLoading;
-	const isLoading = profileState.isLoading;
-	const profile = profileState.borrowerProfile;
-
-	// Trigger project loading only when:
-	// 1. User is a borrower
-	// 2. Profile was loading and now isn't (loading just completed)
-	// 3. Profile exists
-	if (user?.role === "borrower" && wasLoading && !isLoading && profile) {
-		console.log(
-			"[ProjectStore Subscription] Profile load finished. Triggering project load."
-		);
-		useProjectStore.getState().loadUserProjects();
-	}
-});
+// Profile-based triggers removed in new schema
 
 // Subscribe to entity memberships changes to reload projects
 useAuthStore.subscribe((authState, prevAuthState) => {
