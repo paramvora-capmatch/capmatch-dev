@@ -15,7 +15,7 @@ export default function CreateProjectPage() {
   const { createProject, projects, isLoading } = useProjects();
   const { activeEntity } = useAuthStore();
   const [showMemberSelector, setShowMemberSelector] = useState(false);
-  const [selectedMembers, setSelectedMembers] = useState<Array<{user_id: string, access_level: 'view' | 'edit'}>>([]);
+  const [selectedMembers, setSelectedMembers] = useState<Array<{user_id: string}>>([]);
   const [projectName, setProjectName] = useState('');
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function CreateProjectPage() {
     }
   }, [isLoading, projects.length, activeEntity]);
 
-  const performCreate = async (memberPermissions: Array<{user_id: string, access_level: 'view' | 'edit'}> = []) => {
+  const performCreate = async (memberPermissions: Array<{user_id: string}> = []) => {
     try {
       const newProject = await createProject({
         projectName,
@@ -53,7 +53,7 @@ export default function CreateProjectPage() {
     }
   };
 
-  const handleMemberSelection = (members: Array<{user_id: string, access_level: 'view' | 'edit'}>) => {
+  const handleMemberSelection = (members: Array<{user_id: string}>) => {
     setSelectedMembers(members);
   };
 

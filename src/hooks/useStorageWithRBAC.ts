@@ -98,7 +98,19 @@ export const useStorageWithRBAC = (
     setError(null);
     
     try {
+      console.log('[useStorageWithRBAC] Upload starting', {
+        bucketId,
+        folderPath,
+        projectId,
+        userId: user.id,
+        currentEntityRole,
+        activeEntityId: activeEntity.id,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type
+      });
       const filePath = folderPath ? `${folderPath}/${file.name}` : file.name;
+      console.log('[useStorageWithRBAC] Computed upload path', { filePath });
       
       const { data, error } = await supabase.storage
         .from(bucketId)
@@ -131,7 +143,12 @@ export const useStorageWithRBAC = (
       return data;
     } catch (e: any) {
       setError(e.message);
-      console.error("Error uploading file:", e);
+      console.error('[useStorageWithRBAC] Error uploading file', {
+        message: e?.message,
+        name: e?.name,
+        status: e?.status,
+        stack: e?.stack
+      });
       return null;
     } finally {
       setIsLoading(false);

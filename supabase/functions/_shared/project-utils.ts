@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 export interface CreateProjectOptions {
   name: string;
   owner_entity_id: string;
-  member_permissions?: Array<{ user_id: string; access_level?: 'view' | 'edit' }>;
+  member_permissions?: Array<{ user_id: string }>;
 }
 
 export async function createProjectWithResumeAndStorage(
@@ -72,18 +72,15 @@ export async function createProjectWithResumeAndStorage(
 
     // Validate that all provided member IDs are actually members of the entity
     const memberUserIds = entityMembers?.filter(member => member.role === 'member').map(m => m.user_id) || [];
-    const validMemberPermissions = member_permissions.filter(perm => 
-      memberUserIds.includes(perm.user_id)
-    );
+    const validMemberPermissions = member_permissions.filter(perm => memberUserIds.includes(perm.user_id));
 
     if (validMemberPermissions.length > 0) {
       console.log(`[project-utils] Granting access to ${validMemberPermissions.length} valid members`);
-      // Grant project access permissions with access level
+      // Grant project access permissions (presence = editor)
       const projectAccessPermissions = validMemberPermissions.map(perm => ({
         project_id: project.id,
         user_id: perm.user_id,
-        granted_by: null, // Will be set by the calling function if needed
-        access_level: perm.access_level || 'view' // Default to view if not specified
+        granted_by: null // Will be set by the calling function if needed
       }));
 
       const { error: projectAccessError } = await supabaseAdmin

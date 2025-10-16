@@ -189,7 +189,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			set({ activeProject: project });
 		},
 
-		createProject: async (projectData: Partial<ProjectProfile> & { memberPermissions?: Array<{user_id: string, access_level: 'view' | 'edit'}> }) => {
+		createProject: async (projectData: Partial<ProjectProfile> & { memberPermissions?: Array<{user_id: string}> }) => {
 			const { user, activeEntity } = useAuthStore.getState();
 			if (!user)
 				throw new Error("User must be logged in to create a project.");

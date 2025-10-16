@@ -11,8 +11,8 @@ import { Users, UserCheck, UserX } from 'lucide-react';
 
 interface MemberPermissionSelectorProps {
   entityId: string;
-  selectedMembers: Array<{user_id: string, access_level: 'view' | 'edit'}>;
-  onSelectionChange: (members: Array<{user_id: string, access_level: 'view' | 'edit'}>) => void;
+  selectedMembers: Array<{user_id: string}>;
+  onSelectionChange: (members: Array<{user_id: string}>) => void;
   onComplete: () => void;
   onCancel: () => void;
 }
@@ -25,7 +25,7 @@ export const MemberPermissionSelector: React.FC<MemberPermissionSelectorProps> =
   onCancel
 }) => {
   const { loadEntity, members, isLoading } = useEntityStore();
-  const [localSelection, setLocalSelection] = useState<Array<{user_id: string, access_level: 'view' | 'edit'}>>(selectedMembers);
+  const [localSelection, setLocalSelection] = useState<Array<{user_id: string}>>(selectedMembers);
 
   useEffect(() => {
     if (entityId) {
@@ -38,22 +38,12 @@ export const MemberPermissionSelector: React.FC<MemberPermissionSelectorProps> =
 
   const handleMemberToggle = (memberId: string, isSelected: boolean) => {
     if (isSelected) {
-      // Add member to project access with view level by default
-      setLocalSelection(prev => [...prev, { user_id: memberId, access_level: 'view' as const }]);
+      // Add member to project access
+      setLocalSelection(prev => [...prev, { user_id: memberId }]);
     } else {
       // Remove member from project access
       setLocalSelection(prev => prev.filter(m => m.user_id !== memberId));
     }
-  };
-
-  const handleAccessLevelChange = (memberId: string, accessLevel: 'view' | 'edit') => {
-    setLocalSelection(prev => 
-      prev.map(m => 
-        m.user_id === memberId 
-          ? { ...m, access_level: accessLevel }
-          : m
-      )
-    );
   };
 
   const handleComplete = () => {
@@ -122,34 +112,9 @@ export const MemberPermissionSelector: React.FC<MemberPermissionSelectorProps> =
                   </div>
                   
                   {isSelected && (
-                    <div className="mt-3 ml-7 space-y-3">
-                      <p className="text-sm text-gray-600">Access level:</p>
-                      <div className="flex space-x-4">
-                        <label className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            name={`access-${member.user_id}`}
-                            value="view"
-                            checked={selectedMember?.access_level === 'view'}
-                            onChange={() => handleAccessLevelChange(member.user_id, 'view')}
-                            className="text-blue-600"
-                          />
-                          <span className="text-sm">View only</span>
-                        </label>
-                        <label className="flex items-center space-x-2">
-                          <input
-                            type="radio"
-                            name={`access-${member.user_id}`}
-                            value="edit"
-                            checked={selectedMember?.access_level === 'edit'}
-                            onChange={() => handleAccessLevelChange(member.user_id, 'edit')}
-                            className="text-blue-600"
-                          />
-                          <span className="text-sm">View and edit</span>
-                        </label>
-                      </div>
+                    <div className="mt-3 ml-7">
                       <p className="text-xs text-gray-500">
-                        Document access will be granted per-file when files are uploaded.
+                        Editors can upload/delete in this project. Document access is granted per-file after upload.
                       </p>
                     </div>
                   )}

@@ -8,7 +8,6 @@ CREATE TABLE public.project_access_permissions (
     project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     granted_by UUID NOT NULL REFERENCES public.profiles(id),
-    access_level TEXT NOT NULL DEFAULT 'view' CHECK (access_level IN ('view', 'edit')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (project_id, user_id)
 );
@@ -70,7 +69,7 @@ DECLARE
   v_owner_entity_id UUID;
   v_is_owner BOOLEAN;
   v_is_advisor BOOLEAN;
-  v_has_edit_access BOOLEAN;
+  v_is_editor BOOLEAN;
 BEGIN
   -- Get the project's owner entity
   SELECT owner_entity_id INTO v_owner_entity_id FROM public.projects WHERE id = p_project_id;
@@ -87,15 +86,14 @@ BEGIN
     RETURN TRUE;
   END IF;
   
-  -- Check if user has explicit edit access permission
+  -- Presence in project_access_permissions implies editor
   SELECT EXISTS (
     SELECT 1 FROM public.project_access_permissions 
     WHERE project_id = p_project_id 
-      AND user_id = p_user_id 
-      AND access_level = 'edit'
-  ) INTO v_has_edit_access;
+      AND user_id = p_user_id
+  ) INTO v_is_editor;
   
-  RETURN v_has_edit_access;
+  RETURN v_is_editor;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -127,9 +125,79 @@ BEGIN
     SELECT 1 FROM public.document_permissions 
     WHERE project_id = p_project_id 
       AND user_id = p_user_id 
-      AND (document_path = p_document_path OR document_path = '*')
+      AND document_path = p_document_path
   ) INTO v_has_permission;
   
   RETURN v_has_permission;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =============================================================================
+-- Storage RLS policies (owners and project editors can write under project folder)
+-- =============================================================================
+
+-- Helper to extract project id from storage object key (expects "{project_id}/...")
+CREATE OR REPLACE FUNCTION public.storage_object_project_id(p_name TEXT)
+RETURNS UUID AS $$
+BEGIN
+  RETURN NULLIF(split_part(p_name, '/', 1), '')::uuid;
+EXCEPTION WHEN others THEN
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Helper to verify the object's bucket matches the project's owner entity
+CREATE OR REPLACE FUNCTION public.bucket_owns_project(p_name TEXT, p_bucket_id TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_project_id UUID;
+  v_bucket_expected TEXT;
+BEGIN
+  v_project_id := public.storage_object_project_id(p_name);
+  IF v_project_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  SELECT owner_entity_id::text INTO v_bucket_expected
+  FROM public.projects 
+  WHERE id = v_project_id;
+
+  RETURN v_bucket_expected IS NOT NULL AND p_bucket_id = v_bucket_expected;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP POLICY IF EXISTS "Editors can upload to project folders" ON storage.objects;
+CREATE POLICY "Editors can upload to project folders" ON storage.objects
+FOR INSERT TO authenticated
+WITH CHECK (
+  public.can_edit_project(public.storage_object_project_id(name), auth.uid())
+  AND public.bucket_owns_project(name, bucket_id)
+);
+
+DROP POLICY IF EXISTS "Editors can overwrite in project folders" ON storage.objects;
+CREATE POLICY "Editors can overwrite in project folders" ON storage.objects
+FOR UPDATE TO authenticated
+WITH CHECK (
+  public.can_edit_project(public.storage_object_project_id(name), auth.uid())
+  AND public.bucket_owns_project(name, bucket_id)
+);
+
+DROP POLICY IF EXISTS "Editors can delete in project folders" ON storage.objects;
+CREATE POLICY "Editors can delete in project folders" ON storage.objects
+FOR DELETE TO authenticated
+USING (
+  public.can_edit_project(public.storage_object_project_id(name), auth.uid())
+  AND public.bucket_owns_project(name, bucket_id)
+);
+
+-- Optional: enforce read access at storage layer to mirror app-level permissions
+DROP POLICY IF EXISTS "Project reads by editors or file grantees" ON storage.objects;
+CREATE POLICY "Project reads by editors or file grantees" ON storage.objects
+FOR SELECT TO authenticated
+USING (
+  public.bucket_owns_project(name, bucket_id)
+  AND (
+    public.can_edit_project(public.storage_object_project_id(name), auth.uid())
+    OR public.can_user_access_document(auth.uid(), public.storage_object_project_id(name), name)
+  )
+);

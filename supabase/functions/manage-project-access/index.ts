@@ -6,7 +6,6 @@ interface ManageProjectAccessRequest {
   project_id: string;
   action: 'grant' | 'revoke';
   user_ids: string[];
-  access_level?: 'view' | 'edit';
 }
 
 serve(async (req) => {
@@ -15,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { project_id, action, user_ids, access_level = 'view' }: ManageProjectAccessRequest = await req.json();
+    const { project_id, action, user_ids }: ManageProjectAccessRequest = await req.json();
     
     if (!project_id || !action || !user_ids || !Array.isArray(user_ids)) {
       throw new Error("project_id, action, and user_ids array are required");
@@ -25,9 +24,7 @@ serve(async (req) => {
       throw new Error("action must be 'grant' or 'revoke'");
     }
 
-    if (action === 'grant' && !['view', 'edit'].includes(access_level)) {
-      throw new Error("access_level must be 'view' or 'edit' when granting access");
-    }
+    // presence-only model; no access_level validation required
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -105,8 +102,7 @@ serve(async (req) => {
       const permissions = validMemberIds.map(user_id => ({
         project_id,
         user_id,
-        granted_by: user.id,
-        access_level
+        granted_by: user.id
       }));
 
       const { data, error } = await supabaseAdmin
@@ -117,7 +113,7 @@ serve(async (req) => {
         .select();
 
       if (error) throw new Error(`Failed to grant project access: ${error.message}`);
-      result = { granted: data, count: data?.length || 0, access_level };
+      result = { granted: data, count: data?.length || 0 };
 
     } else if (action === 'revoke') {
       // Revoke project access from members (removes both view and edit access)
