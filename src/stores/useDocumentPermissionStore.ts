@@ -170,6 +170,26 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
     try {
       console.log('🔍 [checkDocumentPermission] Input:', { projectId, documentPath, userId });
       
+      // First check if user is owner of the project's entity (grants automatic access)
+      const { data: canAccess, error: ownerCheckError } = await supabase.rpc('can_user_access_document', {
+        p_user_id: userId,
+        p_project_id: projectId,
+        p_document_path: documentPath
+      });
+      
+      if (ownerCheckError) {
+        console.error('Error checking owner access:', ownerCheckError);
+        return false;
+      }
+      
+      if (canAccess) {
+        console.log('🔍 [checkDocumentPermission] Owner access granted');
+        return true;
+      }
+      
+      // If not owner, check explicit document permissions
+      console.log('🔍 [checkDocumentPermission] Checking explicit permissions...');
+      
       // First check if we have the permissions loaded locally
       const { permissions } = get();
       const projectPermissions = permissions.get(projectId) || [];
@@ -184,7 +204,7 @@ export const useDocumentPermissionStore = create<DocumentPermissionState & Docum
       }
       
       // Otherwise, query the database directly
-      const query = `document_path.eq.${documentPath},document_path.like.${documentPath}%`;
+      const query = `document_path.eq.${documentPath},document_path.like.${documentPath}%,document_path.eq.*`;
       
       console.log('🔍 [checkDocumentPermission] Database query:', { 
         projectId, 

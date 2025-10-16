@@ -189,7 +189,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			set({ activeProject: project });
 		},
 
-		createProject: async (projectData: Partial<ProjectProfile>) => {
+		createProject: async (projectData: Partial<ProjectProfile> & { memberPermissions?: Array<{user_id: string, access_level: 'view' | 'edit'}> }) => {
 			const { user, activeEntity } = useAuthStore.getState();
 			if (!user)
 				throw new Error("User must be logged in to create a project.");
@@ -202,7 +202,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			const { data, error } = await supabase.functions.invoke('create-project', {
 				body: {
 					name: projectData.projectName || `New Project ${get().projects.length + 1}`,
-					owner_entity_id: activeEntity.id
+					owner_entity_id: activeEntity.id,
+					member_permissions: projectData.memberPermissions || []
 				}
 			});
 

@@ -32,12 +32,13 @@ serve(async (req) => {
     const { data: { user } } = await createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_ANON_KEY") ?? "").auth.getUser(jwt);
     if (!user) throw new Error("Authentication failed");
 
+    // Check if user can edit the project (owners, advisors, or members with edit access)
     const { data: canEdit, error: checkError } = await supabaseAdmin.rpc('can_edit_project', {
       p_project_id: project_id,
       p_user_id: user.id
     });
     if (checkError || !canEdit) {
-      throw new Error("User must be an owner or advisor for the project to manage permissions.");
+      throw new Error("User must be an owner, advisor, or have edit access to the project to manage document permissions.");
     }
 
     // Determine which table we are working with

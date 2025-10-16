@@ -74,6 +74,20 @@ export interface EntityMember {
   user_id: string;
   role: EntityMemberRole; // 'owner' or 'member'
   created_at: string;
+  // Additional properties added by the entity store
+  userName?: string;
+  userEmail?: string;
+  userRole?: string;
+}
+
+// Project Access Permission Type
+export interface ProjectAccessPermission {
+  id: string;
+  project_id: string;
+  user_id: string;
+  granted_by: string;
+  access_level: 'view' | 'edit';
+  created_at: string;
 }
 
 // New Invite Type

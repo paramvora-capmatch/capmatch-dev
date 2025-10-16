@@ -69,8 +69,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     try {
       const result = await uploadFile(selectedFile);
       
-      if (result && currentEntityRole === 'owner' && projectId && activeEntity) {
-        // Show permission modal for entity owners
+      if (result && projectId && activeEntity) {
+        // Show permission modal for both owners and members to select who gets access
         const filePath = folderPath ? `${folderPath}/${selectedFile.name}` : selectedFile.name;
         setPermissionModal({
           isOpen: true,

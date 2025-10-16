@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from '../ui/card';
 import { useEntityStore } from '@/stores/useEntityStore';
 import { useDocumentPermissionStore } from '@/stores/useDocumentPermissionStore';
 import { EntityMember } from '@/types/enhanced-types';
+import { supabase } from '../../../lib/supabaseClient';
 
 interface DocumentPermissionModalProps {
   isOpen: boolean;
@@ -151,10 +152,23 @@ export const DocumentPermissionModal: React.FC<DocumentPermissionModalProps> = (
           // Grant new permission
           await grantPermission(projectId, memberId, filePath);
         } else if (!isSelected && hadPermission) {
-          // Revoke existing permission - we need to find the permission ID
-          // For now, we'll use a simple approach and grant/revoke based on selection
-          // This might need refinement based on your permission structure
-          await grantPermission(projectId, memberId, filePath);
+          // Revoke existing permission
+          // We need to find the permission ID first, but for now we'll use a workaround
+          // by calling the manage-document-access function directly
+          try {
+            const { data, error } = await supabase.functions.invoke('manage-document-access', {
+              body: {
+                action: 'revoke',
+                project_id: projectId,
+                document_paths: [filePath],
+                target_user_id: memberId
+              }
+            });
+            if (error) throw error;
+          } catch (revokeError) {
+            console.error('Error revoking permission:', revokeError);
+            // Continue with other permissions even if one fails
+          }
         }
       }
 

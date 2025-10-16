@@ -109,17 +109,21 @@ export const useStorageWithRBAC = (
 
       if (error) throw error;
       
-      // Note: Permission granting is now handled through the DocumentPermissionModal
-      // Entity owners will see the modal to grant access to members
-      // Entity members automatically get permission for files they upload
-      if (projectId && currentEntityRole === 'member') {
-        // Auto-grant permission to the uploader (members can access their own uploads)
-        try {
-          const { grantPermission } = useDocumentPermissionStore.getState();
-          await grantPermission(projectId, user.id!, filePath);
-        } catch (permError) {
-          console.error('Error granting permission:', permError);
-          // Don't fail the upload if permission granting fails
+      // Grant document permissions based on user role
+      if (projectId) {
+        if (currentEntityRole === 'owner') {
+          // Owners have automatic access to all documents - no need to create permissions
+          console.log('Owner uploaded file - automatic access granted');
+        } else if (currentEntityRole === 'member') {
+          // Members need explicit permission for files they upload
+          try {
+            const { grantPermission } = useDocumentPermissionStore.getState();
+            await grantPermission(projectId, user.id!, filePath);
+            console.log('Member uploaded file - permission granted');
+          } catch (permError) {
+            console.error('Error granting permission:', permError);
+            // Don't fail the upload if permission granting fails
+          }
         }
       }
       
