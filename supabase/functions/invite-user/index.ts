@@ -8,10 +8,23 @@ serve(async (req) => {
   }
 
   try {
-    const { org_id, invited_email, role } = await req.json();
+    const { org_id, invited_email, role, project_grants } = await req.json();
     if (!org_id || !invited_email || !role) {
       throw new Error("org_id, invited_email, and role are required");
     }
+
+    // Validate project_grants structure
+    if (project_grants && !Array.isArray(project_grants)) {
+        throw new Error("project_grants must be an array.");
+    }
+    if (project_grants) {
+        for (const grant of project_grants) {
+            if (!grant.projectId || !Array.isArray(grant.permissions)) {
+                throw new Error("Each grant in project_grants must have a projectId and a permissions array.");
+            }
+        }
+    }
+
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -36,25 +49,23 @@ serve(async (req) => {
       throw new Error("User must be an owner of the org to create an invite.");
     }
     
-    // Block invites to existing users (one user -> one org)
-    {
-      const { data: existingProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("email", invited_email)
-        .maybeSingle();
-      if (existingProfile) {
-        return new Response(JSON.stringify({
-          error: "Email already registered. Add this user to a project from the dashboard.",
-          code: "email_already_registered",
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 409,
-        });
-      }
+    // Block invites to existing users in other orgs
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", invited_email)
+      .maybeSingle();
+    if (existingProfile) {
+      return new Response(JSON.stringify({
+        error: "Email already registered to another user.",
+        code: "email_already_registered",
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 409,
+      });
     }
 
-    // Create the invite
+    // Create the invite record
     const { data: invite, error: inviteError } = await supabaseAdmin
       .from("invites")
       .insert({
@@ -62,13 +73,29 @@ serve(async (req) => {
         invited_by: user.id,
         invited_email,
         role,
+        project_grants: project_grants || null, // Ensure it's null if undefined
       })
       .select()
       .single();
 
     if (inviteError) {
       if (inviteError.code === '23505') { // Unique constraint violation
-        throw new Error("An active invite for this email already exists for this org.");
+        // Check for an existing pending invite
+         const { data: existingInvite } = await supabaseAdmin
+          .from('invites')
+          .select('id')
+          .eq('org_id', org_id)
+          .eq('invited_email', invited_email)
+          .eq('status', 'pending')
+          .maybeSingle();
+
+        if (existingInvite) {
+            throw new Error("An active invite for this email already exists for this org.");
+        } else {
+            // It's a re-invite, which is fine, but the original error is likely a unique constraint on another column.
+            // Let's just throw a generic but more informative error.
+            throw new Error(`Invite creation failed. Please check for existing users or invites. Details: ${inviteError.message}`);
+        }
       }
       throw new Error(`Invite creation failed: ${inviteError.message}`);
     }
@@ -79,7 +106,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("[create-invite] Error:", error.message);
+    console.error("[invite-user] Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

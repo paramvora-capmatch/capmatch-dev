@@ -17,7 +17,7 @@ const projectProfileToDbProject = (
 		projectName: "name", // Map to name in new schema
 		assetType: "asset_type",
 		// borrowerProfileId: "owner_id", // Removed - projects owned by entities, not users
-		entityId: "owner_entity_id", // Map to owner_entity_id in new schema
+		// orgId: "owner_org_id", // Map to owner_org_id in new schema - removed as it's not in ProjectProfile
 		assignedAdvisorUserId: "assigned_advisor_id", // Map to assigned_advisor_id in new schema
 		propertyAddressStreet: "property_address_street",
 		propertyAddressCity: "property_address_city",
@@ -149,34 +149,40 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		loadUserProjects: async () => {
 			const { user } = useAuthStore.getState();
 			if (!user) {
+				console.log("[ProjectStore] No user found, resetting state.");
 				get().resetProjectState();
 				return;
 			}
-			// Only set loading if projects are not already loaded for this user.
-			if (get().projects.length === 0) {
-				set({ isLoading: true });
-			}
+
+			set({ isLoading: true });
+
 			try {
-				console.log(
-					"[ProjectStore] Loading projects from Supabase for current user (RLS enforced)."
-				);
-				// RLS will only return projects the user can view
+				console.log("[ProjectStore] Loading projects for current user (RLS enforced).");
+
+				// RLS will only return projects the user has been granted access to.
+				// We no longer need to check the org or role here.
 				const { data, error } = await supabase
 					.from("projects")
 					.select("*");
-				if (error) throw error;
+
+				if (error) {
+					console.error("[ProjectStore] ❌ Projects query failed:", error);
+					throw error;
+				}
+				
+				console.log(`[ProjectStore] ✅ Found ${data?.length || 0} projects accessible by user.`);
+
 				const userProjects: ProjectProfile[] = (data || []).map(dbProjectToProjectProfile);
 
 				const projectsWithProgress = userProjects.map((p) => ({
 					...p,
 					...get().calculateProgress(p),
 				}));
-				set({ projects: projectsWithProgress });
+
+				set({ projects: projectsWithProgress, isLoading: false });
 			} catch (error) {
 				console.error("[ProjectStore] Failed to load projects:", error);
-				set({ projects: [] });
-			} finally {
-				set({ isLoading: false });
+				set({ projects: [], isLoading: false });
 			}
 		},
 
@@ -189,21 +195,20 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			set({ activeProject: project });
 		},
 
-		createProject: async (projectData: Partial<ProjectProfile> & { memberPermissions?: Array<{user_id: string}> }) => {
-			const { user, activeEntity } = useAuthStore.getState();
+		createProject: async (projectData: Partial<ProjectProfile>) => {
+			const { user, activeOrg } = useAuthStore.getState();
 			if (!user)
 				throw new Error("User must be logged in to create a project.");
-			if (!activeEntity)
+			if (!activeOrg)
 				throw new Error(
-					"Must be part of an entity to create a project."
+					"Must be part of an org to create a project."
 				);
 
 			// Use the create-project edge function
 			const { data, error } = await supabase.functions.invoke('create-project', {
 				body: {
 					name: projectData.projectName || `New Project ${get().projects.length + 1}`,
-					owner_entity_id: activeEntity.id,
-					member_permissions: projectData.memberPermissions || []
+					owner_org_id: activeOrg.id
 				}
 			});
 
@@ -213,7 +218,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			// Convert the database project to ProjectProfile format
 			const newProjectData: ProjectProfile = {
 				id: data.project.id,
-				entityId: data.project.owner_entity_id,
+				entityId: data.project.owner_org_id, // Use entityId instead of orgId
 				assignedAdvisorUserId: data.project.assigned_advisor_id,
 				projectName: data.project.name,
 				assetType: "Multifamily",
@@ -371,22 +376,32 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 
 // Profile-based triggers removed in new schema
 
-// Subscribe to entity memberships changes to reload projects
+// Subscribe to org memberships changes to reload projects
 useAuthStore.subscribe((authState, prevAuthState) => {
-	const { user } = authState;
-	const prevEntityMemberships = prevAuthState.entityMemberships;
-	const currentEntityMemberships = authState.entityMemberships;
+	const { user, activeOrg, currentOrgRole } = authState;
+	const prevOrgMemberships = prevAuthState.orgMemberships;
+	const currentOrgMemberships = authState.orgMemberships;
+
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Auth state changed");
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - User:", user ? { id: user.id, email: user.email, role: user.role } : "null");
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Active Org:", activeOrg ? { id: activeOrg.id, name: activeOrg.name } : "null");
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Current Org Role:", currentOrgRole);
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Prev memberships:", prevOrgMemberships?.length || 0);
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Current memberships:", currentOrgMemberships?.length || 0);
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Memberships changed:", prevOrgMemberships !== currentOrgMemberships);
 
 	// Trigger project loading when:
 	// 1. User is a borrower
-	// 2. Entity memberships changed (loaded or updated)
+	// 2. Org memberships changed (loaded or updated)
 	// 3. User is authenticated
 	if (user?.role === "borrower" && user?.id && 
-		prevEntityMemberships !== currentEntityMemberships && 
-		currentEntityMemberships && currentEntityMemberships.length > 0) {
+		prevOrgMemberships !== currentOrgMemberships && 
+		currentOrgMemberships && currentOrgMemberships.length > 0) {
 		console.log(
-			"[ProjectStore Subscription] Entity memberships loaded. Triggering project load."
+			"[ProjectStore Subscription] ✅ Org memberships loaded. Triggering project load."
 		);
 		useProjectStore.getState().loadUserProjects();
+	} else {
+		console.log("[ProjectStore Subscription] ⏭️ Not triggering project load - conditions not met");
 	}
 });

@@ -27,11 +27,18 @@ export default function DashboardPage() {
   const {
     projects,
     createProject,
-    autoCreatedFirstProjectThisSession,
     isLoading: projectsLoading,
   } = useProjects();
-  const { borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
+  const { content: borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
   const searchParams = useSearchParams();
+
+  // Debug logging
+  console.log("[Dashboard] 🔍 DEBUG - Component render");
+  console.log("[Dashboard] 🔍 DEBUG - User:", user ? { id: user.id, email: user.email, role: user.role } : "null");
+  console.log("[Dashboard] 🔍 DEBUG - Projects:", projects?.length || 0);
+  console.log("[Dashboard] 🔍 DEBUG - Projects loading:", projectsLoading);
+  console.log("[Dashboard] 🔍 DEBUG - Auth loading:", authLoading);
+  console.log("[Dashboard] 🔍 DEBUG - Profile loading:", profileLoading);
 
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
@@ -62,7 +69,6 @@ export default function DashboardPage() {
     loginSource,
     router,
     borrowerProfile,
-    autoCreatedFirstProjectThisSession,
     initialLoadComplete,
     combinedLoading,
   ]);

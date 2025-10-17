@@ -26,8 +26,8 @@ export default function DocumentsPage() {
 							</p>
 						</div>
 						<DocumentManager
-							bucketId={user.activeEntityId || null}
-							folderPath="borrower_docs"
+							projectId={null}
+							folderId={null}
 							title="General Borrower Documents"
 							canUpload={true}
 							canDelete={true}

@@ -93,7 +93,7 @@ export default function AdvisorProjectDetailPage() {
 							created_at: legacyProject.createdAt,
 							updated_at: legacyProject.updatedAt,
 							name: legacyProject.projectName,
-							owner_entity_id: legacyProject.entityId,
+							owner_org_id: legacyProject.orgId,
 							assigned_advisor_id: legacyProject.assignedAdvisorUserId
 						};
 					}
@@ -113,7 +113,7 @@ export default function AdvisorProjectDetailPage() {
 					// For now, we'll use a default status
 					setSelectedStatus("Info Gathering");
 
-					// Load borrower resume for the owning entity
+					// Load borrower resume for the owning org
 					if (user.isDemo) {
 						// For demo mode, we'll use legacy data
 						const allProfiles = await storageService.getItem<

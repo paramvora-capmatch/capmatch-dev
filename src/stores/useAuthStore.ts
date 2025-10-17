@@ -6,8 +6,8 @@ import {
   EnhancedUser, 
   // New schema types
   Profile,
-  Entity,
-  EntityMember
+  Org,
+  OrgMember
 } from "@/types/enhanced-types";
 import { mockProfiles, mockProjects } from "../../lib/mockData";
 
@@ -19,9 +19,9 @@ interface AuthState {
   isDemo: boolean;
   justLoggedIn: boolean;
   // RBAC additions - updated for new schema
-  activeEntity: Entity | null;
-  entityMemberships: EntityMember[];
-  currentEntityRole: 'owner' | 'member' | null;
+  activeOrg: Org | null;
+  orgMemberships: OrgMember[];
+  currentOrgRole: 'owner' | 'project_manager' | 'member' | null;
 }
 
 interface AuthActions {
@@ -43,7 +43,7 @@ interface AuthActions {
   _setLoading: (loading: boolean) => void;
   clearJustLoggedIn: () => void;
   // RBAC additions
-  loadEntityMemberships: () => Promise<void>;
+  loadOrgMemberships: () => Promise<void>;
   acceptInvite: (token: string, accept?: boolean) => Promise<void>;
 }
 
@@ -60,9 +60,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   isDemo: false,
   justLoggedIn: false,
   // RBAC additions - updated for new schema
-  activeEntity: null,
-  entityMemberships: [],
-  currentEntityRole: null,
+  activeOrg: null,
+  orgMemberships: [],
+  currentOrgRole: null,
   clearJustLoggedIn: () => set({ justLoggedIn: false }),
   _setUser: (user) => set({ user, isAuthenticated: !!user }),
   _setLoading: (isLoading) => set({ isLoading }),
@@ -128,9 +128,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
               isLoading: false,
             });
 
-            // Load entity memberships for borrower/lender users
+            // Load org memberships for borrower/lender users
             if (enhancedUser.role === 'borrower' || enhancedUser.role === 'lender') {
-              get().loadEntityMemberships();
+              get().loadOrgMemberships();
             }
 
             console.log(
@@ -248,9 +248,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 isDemo: false,
               });
 
-              // Load entity memberships for borrower/lender users
+              // Load org memberships for borrower/lender users
               if (enhancedUser.role === 'borrower' || enhancedUser.role === 'lender') {
-                get().loadEntityMemberships();
+                get().loadOrgMemberships();
               }
 
               console.log(
@@ -268,9 +268,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
               isDemo: false,
               justLoggedIn: false,
               // Clear RBAC data
-              activeEntity: null,
-              entityMemberships: [],
-              currentEntityRole: null,
+              activeOrg: null,
+              orgMemberships: [],
+              currentOrgRole: null,
             });
             console.log("[AuthStore] 👋 User signed out");
           }
@@ -479,42 +479,62 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   },
 
   // RBAC methods
-  loadEntityMemberships: async () => {
+  loadOrgMemberships: async () => {
     const { user } = get();
-    if (!user || !user.id) return;
+    console.log("[AuthStore] 🔍 DEBUG - Starting loadOrgMemberships");
+    console.log("[AuthStore] 🔍 DEBUG - User:", user ? { id: user.id, email: user.email, role: user.role } : "null");
+    
+    if (!user || !user.id) {
+      console.log("[AuthStore] ❌ No user or user ID found");
+      return;
+    }
 
     try {
-      // Load entity memberships for all roles
+      // Load org memberships for all roles
+      console.log("[AuthStore] 🔍 DEBUG - Querying org_members table...");
       const { data: memberships, error } = await supabase
-        .from('entity_members')
+        .from('org_members')
         .select(`
           *,
-          entities(*)
+          orgs(*)
         `)
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("[AuthStore] ❌ Error querying org_members:", error);
+        throw error;
+      }
 
-      const entityMemberships = memberships || [];
+      const orgMemberships = memberships || [];
+      console.log("[AuthStore] 🔍 DEBUG - Raw memberships from DB:", orgMemberships.length);
+      if (orgMemberships.length > 0) {
+        console.log("[AuthStore] 🔍 DEBUG - Sample membership:", orgMemberships[0]);
+      }
       
       // If no memberships found, leave state empty (user may need to accept an invite)
-      if (entityMemberships.length === 0) {
-        set({ entityMemberships: [], activeEntity: null, currentEntityRole: null });
+      if (orgMemberships.length === 0) {
+        console.log("[AuthStore] ❌ No memberships found for user");
+        set({ orgMemberships: [], activeOrg: null, currentOrgRole: null });
         return;
       }
 
-      // Single-entity assumption: pick the first membership
-      const firstMembership = entityMemberships[0];
-      const activeEntity = (firstMembership as any).entities || null;
-      const currentEntityRole = firstMembership.role || null;
+      // Single-org assumption: pick the first membership
+      const firstMembership = orgMemberships[0];
+      const activeOrg = (firstMembership as any).orgs || null;
+      const currentOrgRole = firstMembership.role || null;
+
+      console.log("[AuthStore] 🔍 DEBUG - Setting active org:", activeOrg ? { id: activeOrg.id, name: activeOrg.name } : "null");
+      console.log("[AuthStore] 🔍 DEBUG - Setting current org role:", currentOrgRole);
 
       set({
-        entityMemberships,
-        activeEntity,
-        currentEntityRole,
+        orgMemberships,
+        activeOrg,
+        currentOrgRole,
       });
+      
+      console.log("[AuthStore] ✅ Org memberships loaded successfully");
     } catch (error) {
-      console.error('Error loading entity memberships:', error);
+      console.error('[AuthStore] ❌ Error loading org memberships:', error);
     }
   },
 
@@ -525,7 +545,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       });
       if (error) throw error;
       // Refresh memberships after accepting/cancelling
-      await get().loadEntityMemberships();
+      await get().loadOrgMemberships();
     } catch (e) {
       console.error('[AuthStore] acceptInvite failed:', e);
       throw e;

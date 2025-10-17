@@ -1,46 +1,46 @@
-// src/stores/useEntityStore.ts
+// src/stores/useOrgStore.ts
 import { create } from 'zustand';
 import { supabase } from '../../lib/supabaseClient';
 import { 
-  Entity, 
-  EntityMember, 
+  Org, 
+  OrgMember, 
   Invite,
-  EntityMemberRole
+  OrgMemberRole,
+  ProjectGrant
 } from '../types/enhanced-types';
 
-interface EntityState {
-  currentEntity: Entity | null;
-  members: EntityMember[];
+interface OrgState {
+  currentOrg: Org | null;
+  members: OrgMember[];
   pendingInvites: Invite[];
   isOwner: boolean;
   isLoading: boolean;
   error: string | null;
 }
 
-interface EntityActions {
-  // Core entity management
-  loadEntity: (entityId: string) => Promise<void>;
+interface OrgActions {
+  // Core org management
+  loadOrg: (orgId: string) => Promise<void>;
   
   // Team member management
-  inviteMember: (email: string, role: EntityMemberRole, initialPermissions?: any) => Promise<string>;
+  inviteMember: (email: string, role: OrgMemberRole, projectGrants: ProjectGrant[]) => Promise<string>;
   cancelInvite: (inviteId: string) => Promise<void>;
   removeMember: (userId: string) => Promise<void>;
   
   // Role management (Note: Roles are immutable in new schema - must remove and re-invite)
-  removeAndReinviteMember: (userId: string, newRole: EntityMemberRole, initialPermissions?: any) => Promise<string>;
   
   // Invitation handling
   acceptInvite: (params: { token: string; password: string; full_name: string }) => Promise<void>;
-  validateInviteToken: (inviteToken: string) => Promise<{valid: boolean, entityName?: string, inviterName?: string}>;
+  validateInviteToken: (inviteToken: string) => Promise<{valid: boolean, orgName?: string, inviterName?: string}>;
   
   // Utility methods
   refreshMembers: () => Promise<void>;
   clearError: () => void;
 }
 
-export const useEntityStore = create<EntityState & EntityActions>((set, get) => ({
+export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
   // State
-  currentEntity: null,
+  currentOrg: null,
   members: [],
   pendingInvites: [],
   isOwner: false,
@@ -48,24 +48,24 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
   error: null,
 
   // Actions
-  loadEntity: async (entityId: string) => {
+  loadOrg: async (orgId: string) => {
     set({ isLoading: true, error: null });
     
     try {
-      // Load entity details
-      const { data: entity, error: entityError } = await supabase
-        .from('entities')
+      // Load org details
+      const { data: org, error: orgError } = await supabase
+        .from('orgs')
         .select('*')
-        .eq('id', entityId)
+        .eq('id', orgId)
         .single();
 
-      if (entityError) throw entityError;
+      if (orgError) throw orgError;
 
       // Load members
       const { data: members, error: membersError } = await supabase
-        .from('entity_members')
+        .from('org_members')
         .select('*')
-        .eq('entity_id', entityId);
+        .eq('org_id', orgId);
 
       if (membersError) throw membersError;
 
@@ -73,7 +73,7 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
       const { data: invites, error: invitesError } = await supabase
         .from('invites')
         .select('*')
-        .eq('entity_id', entityId)
+        .eq('org_id', orgId)
         .eq('status', 'pending');
 
       if (invitesError) throw invitesError;
@@ -85,6 +85,14 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
         .select('id, full_name, app_role')
         .in('id', memberUserIds) : { data: [] };
 
+      const { data: memberEmails, error: emailsError } = await supabase.functions.invoke('get-user-data', {
+        body: { userIds: memberUserIds },
+      });
+      
+      if (emailsError) {
+        console.error('Error fetching user emails:', emailsError);
+      }
+
       // Get user details for inviters
       const inviterIds = invites?.map(i => i.invited_by).filter(Boolean) || [];
       const { data: inviterProfiles } = inviterIds.length > 0 ? await supabase
@@ -95,10 +103,11 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
       // Process members data to include profile information
       const processedMembers = members?.map((member: any) => {
         const profile = memberProfiles?.find(p => p.id === member.user_id);
+        const emailData = memberEmails?.find((e: any) => e.id === member.user_id);
         return {
           ...member,
           userName: profile?.full_name || 'Unknown User',
-          userEmail: 'user@example.com', // Placeholder - would need auth.users access
+          userEmail: emailData?.email || 'user@example.com',
           userRole: profile?.app_role
         };
       }) || [];
@@ -114,42 +123,42 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
 
       // Check if current user is owner
       const currentUserId = (await supabase.auth.getUser()).data.user?.id;
-      const isOwner = processedMembers.some((member: EntityMember) => 
+      const isOwner = processedMembers.some((member: OrgMember) => 
         member.user_id === currentUserId && member.role === 'owner'
       ) || false;
 
       set({
-        currentEntity: entity,
+        currentOrg: org,
         members: processedMembers,
         pendingInvites: processedInvites,
         isOwner,
         isLoading: false,
       });
     } catch (error) {
-      console.error('Error loading entity:', error);
+      console.error('Error loading org:', error);
       set({ 
-        error: error instanceof Error ? error.message : 'Failed to load entity',
+        error: error instanceof Error ? error.message : 'Failed to load org',
         isLoading: false 
       });
     }
   },
 
-  // Entity creation is handled by edge functions. No client-side create.
+  // Org creation is handled by edge functions. No client-side create.
 
-  inviteMember: async (email: string, role: EntityMemberRole, initialPermissions?: any) => {
+  inviteMember: async (email: string, role: OrgMemberRole, projectGrants: ProjectGrant[]) => {
     set({ isLoading: true, error: null });
     
     try {
-      const { currentEntity } = get();
-      if (!currentEntity) throw new Error('No active entity');
+      const { currentOrg } = get();
+      if (!currentOrg) throw new Error('No active org');
 
-      // Use the create-invite edge function
-      const { data, error } = await supabase.functions.invoke('create-invite', {
+      // Use the new invite-user edge function
+      const { data, error } = await supabase.functions.invoke('invite-user', {
         body: {
-          entity_id: currentEntity.id,
+          org_id: currentOrg.id,
           invited_email: email,
           role,
-          initial_permissions: initialPermissions || null
+          project_grants: projectGrants,
         }
       });
 
@@ -198,10 +207,10 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
     set({ isLoading: true, error: null });
     
     try {
-      const { members, currentEntity } = get();
+      const { members, currentOrg } = get();
       const member = members.find(m => m.user_id === userId);
       
-      if (!member || !currentEntity) throw new Error('Member or entity not found');
+      if (!member || !currentOrg) throw new Error('Member or org not found');
 
       // Check if this is the last owner
       const ownerCount = members.filter(m => m.role === 'owner').length;
@@ -209,22 +218,15 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
         throw new Error('Cannot remove the last owner');
       }
 
-      // Remove member
-      const { error: memberError } = await supabase
-        .from('entity_members')
-        .delete()
-        .eq('entity_id', currentEntity.id)
-        .eq('user_id', userId);
+      // Invoke the 'remove-user' Supabase function
+      const { error } = await supabase.functions.invoke('remove-user', {
+        body: {
+          org_id: currentOrg.id,
+          user_id: userId,
+        },
+      });
 
-      if (memberError) throw memberError;
-
-      // Remove all document permissions for this member across all projects
-      const { error: permError } = await supabase
-        .from('document_permissions')
-        .delete()
-        .eq('user_id', userId);
-
-      if (permError) throw permError;
+      if (error) throw error;
 
       // Refresh members list
       await get().refreshMembers();
@@ -235,58 +237,6 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
         error: error instanceof Error ? error.message : 'Failed to remove member',
         isLoading: false 
       });
-    }
-  },
-
-  removeAndReinviteMember: async (userId: string, newRole: EntityMemberRole, initialPermissions?: any) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      const { members, currentEntity } = get();
-      const member = members.find(m => m.user_id === userId);
-      
-      if (!member || !currentEntity) throw new Error('Member or entity not found');
-
-      // Check if this is the last owner
-      const ownerCount = members.filter(m => m.role === 'owner').length;
-      if (member.role === 'owner' && ownerCount <= 1) {
-        throw new Error('Cannot remove the last owner');
-      }
-
-      // Get user email for re-invitation
-      const { data: userProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (!userProfile) throw new Error('User profile not found');
-
-      // Get user email from auth.users
-      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
-      if (!authUser.user?.email) throw new Error('User email not found');
-
-      // Remove member
-      const { error: memberError } = await supabase
-        .from('entity_members')
-        .delete()
-        .eq('entity_id', currentEntity.id)
-        .eq('user_id', userId);
-
-      if (memberError) throw memberError;
-
-      // Re-invite with new role
-      const inviteLink = await get().inviteMember(authUser.user.email, newRole, initialPermissions);
-
-      set({ isLoading: false });
-      return inviteLink;
-    } catch (error) {
-      console.error('Error removing and re-inviting member:', error);
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to remove and re-invite member',
-        isLoading: false 
-      });
-      throw error;
     }
   },
 
@@ -309,7 +259,7 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
       // Reload entity memberships in auth store
       const { useAuthStore } = await import('./useAuthStore');
       const authStore = useAuthStore.getState();
-      await authStore.loadEntityMemberships();
+      await authStore.loadOrgMemberships();
     } catch (error) {
       console.error('Error accepting invite:', error);
       set({ 
@@ -326,7 +276,7 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
         .from('invites')
         .select(`
           *,
-          entities(name)
+          orgs(name)
         `)
         .eq('token', inviteToken)
         .eq('status', 'pending')
@@ -343,7 +293,7 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
 
       return {
         valid: true,
-        entityName: invite.entities?.name,
+        orgName: invite.orgs?.name,
         inviterName: 'Team Owner' // Simplified for now
       };
     } catch (error) {
@@ -353,9 +303,9 @@ export const useEntityStore = create<EntityState & EntityActions>((set, get) => 
   },
 
   refreshMembers: async () => {
-    const { currentEntity } = get();
-    if (currentEntity) {
-      await get().loadEntity(currentEntity.id);
+    const { currentOrg } = get();
+    if (currentOrg) {
+      await get().loadOrg(currentOrg.id);
     }
   },
 

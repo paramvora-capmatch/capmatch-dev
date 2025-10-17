@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { useEntityStore } from '@/stores/useEntityStore';
+import { useOrgStore } from '@/stores/useOrgStore';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
@@ -22,7 +22,7 @@ export default function AcceptInvitePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuth();
-  const { validateInviteToken, acceptInvite } = useEntityStore();
+  const { validateInviteToken, acceptInvite } = useOrgStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
@@ -30,7 +30,7 @@ export default function AcceptInvitePage() {
   const [error, setError] = useState<string | null>(null);
   const [inviteData, setInviteData] = useState<{
     valid: boolean;
-    entityName?: string;
+    orgName?: string;
     inviterName?: string;
   } | null>(null);
   
@@ -167,7 +167,7 @@ export default function AcceptInvitePage() {
                     You're Invited!
                   </h3>
                   <p className="text-sm text-gray-600">
-                    You've been invited to join <strong>{inviteData.entityName}</strong>
+                    You've been invited to join <strong>{inviteData.orgName}</strong>
                     {inviteData.inviterName && (
                       <span> by {inviteData.inviterName}</span>
                     )}

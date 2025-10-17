@@ -75,30 +75,30 @@ serve(async (req) => {
     if (app_role === 'borrower') {
       console.log("[onboard-borrower] Starting borrower-specific onboarding");
       
-      // Step 3: Create the borrower entity
-      console.log("[onboard-borrower] Step 3: Creating borrower entity");
-      const { data: entityData, error: entityError } = await supabaseAdmin
-        .from("entities")
+      // Step 3: Create the borrower org
+      console.log("[onboard-borrower] Step 3: Creating borrower org");
+      const { data: orgData, error: orgError } = await supabaseAdmin
+        .from("orgs")
         .insert({ 
-          name: `${full_name}'s Entity`, 
+          name: `${full_name}'s Organization`, 
           entity_type: 'borrower' 
         })
         .select()
         .single();
-      if (entityError) {
-        console.error(`[onboard-borrower] Entity Error: ${JSON.stringify(entityError)}`);
-        throw new Error(`Entity Error: ${entityError.message}`);
+      if (orgError) {
+        console.error(`[onboard-borrower] Org Error: ${JSON.stringify(orgError)}`);
+        throw new Error(`Org Error: ${orgError.message}`);
       }
-      if (!entityData) {
-        console.error("[onboard-borrower] Entity not created");
-        throw new Error("Entity not created.");
+      if (!orgData) {
+        console.error("[onboard-borrower] Org not created");
+        throw new Error("Org not created.");
       }
-      console.log(`[onboard-borrower] Entity created successfully: ${entityData.id}`);
+      console.log(`[onboard-borrower] Org created successfully: ${orgData.id}`);
 
-      // Create a private storage bucket for this entity (id = entity id)
-      console.log("[onboard-borrower] Creating storage bucket for entity");
+      // Create a private storage bucket for this org (id = org id)
+      console.log("[onboard-borrower] Creating storage bucket for org");
       {
-        const { error: bucketError } = await supabaseAdmin.storage.createBucket(entityData.id, {
+        const { error: bucketError } = await supabaseAdmin.storage.createBucket(orgData.id, {
           public: false,
           fileSizeLimit: 200 * 1024 * 1024, // 200MB
           allowedMimeTypes: [
@@ -123,36 +123,56 @@ serve(async (req) => {
         console.log("[onboard-borrower] Storage bucket created successfully");
       }
 
-      // Step 4: Make the user the owner of the entity
-      console.log("[onboard-borrower] Step 4: Making user owner of entity");
-      const { error: memberError } = await supabaseAdmin
-        .from("entity_members")
+      // Step 4: Make the user the owner of the org
+      console.log("[onboard-borrower] Step 4: Making user owner of org");
+      console.log(`[onboard-borrower] DEBUG - User ID: ${newUser.id}, Org ID: ${orgData.id}`);
+      const { data: memberData, error: memberError } = await supabaseAdmin
+        .from("org_members")
         .insert({
-          entity_id: entityData.id,
+          org_id: orgData.id,
           user_id: newUser.id,
           role: "owner"
-        });
+        })
+        .select()
+        .single();
       if (memberError) {
         console.error(`[onboard-borrower] Membership Error: ${JSON.stringify(memberError)}`);
         throw new Error(`Membership Error: ${memberError.message}`);
       }
-      console.log("[onboard-borrower] User made owner of entity successfully");
+      console.log("[onboard-borrower] User made owner of org successfully");
+      console.log(`[onboard-borrower] DEBUG - Membership created:`, memberData);
       
-      // Step 5: Create a default project for the entity using the shared utility
+      // Step 5: Create a default project for the org using the shared utility
       console.log("[onboard-borrower] Step 5: Creating default project");
       const projectData = await createProjectWithResumeAndStorage(supabaseAdmin, {
         name: "My First Project",
-        owner_entity_id: entityData.id,
-        member_permissions: [] // No additional members for the default project
+        owner_org_id: orgData.id
       });
       console.log(`[onboard-borrower] Default project created successfully: ${projectData.id}`);
+
+      // Step 5.5: Grant the new owner access to their default project
+      console.log("[onboard-borrower] Step 5.5: Granting owner access to default project");
+      const { error: grantError } = await supabaseAdmin
+        .from("project_access_grants")
+        .insert({
+          project_id: projectData.id,
+          user_id: newUser.id,
+          granted_by: newUser.id, // The user grants themselves access initially
+          org_id: orgData.id, // Add the org_id to the grant
+        });
+
+      if (grantError) {
+        console.error(`[onboard-borrower] Project Grant Error: ${JSON.stringify(grantError)}`);
+        throw new Error(`Project Grant Error: ${grantError.message}`);
+      }
+      console.log("[onboard-borrower] Owner granted access to default project successfully");
 
       // Step 6: Create the borrower resume/record
       console.log("[onboard-borrower] Step 6: Creating borrower resume");
       const { error: borrowerResumeError } = await supabaseAdmin
         .from("borrower_resumes")
         .insert({ 
-          entity_id: entityData.id,
+          org_id: orgData.id,
           content: {} // Empty JSONB content initially
         });
       if (borrowerResumeError) {
@@ -160,18 +180,33 @@ serve(async (req) => {
         throw new Error(`Borrower Resume Error: ${borrowerResumeError.message}`);
       }
       console.log("[onboard-borrower] Borrower resume created successfully");
+
+      // Step 6.5: Create the BORROWER_RESUME resource in the resources table
+      console.log("[onboard-borrower] Step 6.5: Creating BORROWER_RESUME resource");
+      const { error: borrowerResumeResourceError } = await supabaseAdmin
+        .from("resources")
+        .insert({
+          org_id: orgData.id,
+          resource_type: "BORROWER_RESUME",
+          name: "Borrower Resume"
+        });
+      if (borrowerResumeResourceError) {
+        console.error(`[onboard-borrower] Borrower Resume Resource Error: ${JSON.stringify(borrowerResumeResourceError)}`);
+        throw new Error(`Borrower Resume Resource Error: ${borrowerResumeResourceError.message}`);
+      }
+      console.log("[onboard-borrower] Borrower resume resource created successfully");
         
-      // Step 7: Update profile with the active entity
-      console.log("[onboard-borrower] Step 7: Updating profile with active entity");
+      // Step 7: Update profile with the active org
+      console.log("[onboard-borrower] Step 7: Updating profile with active org");
       const { error: updateProfileError } = await supabaseAdmin
         .from('profiles')
-        .update({ active_entity_id: entityData.id })
+        .update({ active_org_id: orgData.id })
         .eq('id', newUser.id);
       if (updateProfileError) {
         console.error(`[onboard-borrower] Profile Update Error: ${JSON.stringify(updateProfileError)}`);
         throw new Error(`Profile Update Error: ${updateProfileError.message}`);
       }
-      console.log("[onboard-borrower] Profile updated with active entity successfully");
+      console.log("[onboard-borrower] Profile updated with active org successfully");
     }
 
     console.log("[onboard-borrower] Onboarding completed successfully");
