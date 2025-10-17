@@ -215,8 +215,8 @@ export const useDocumentManagement = (
   }, [projectId, activeOrg, user, listDocuments]);
 
   const createFolder = useCallback(async (folderName: string, parentFolderId?: string) => {
-    if (!projectId) {
-      throw new Error('Folder creation requires a project context');
+    if (!projectId || !activeOrg) {
+      throw new Error('Folder creation requires a project and an active org');
     }
 
     setIsLoading(true);
@@ -227,13 +227,15 @@ export const useDocumentManagement = (
         body: {
           action: 'create_folder',
           projectId,
+          orgId: activeOrg.id,
           folderId: parentFolderId || null,
           folderName
         }
       });
 
       if (error) throw error;
-      if (!data?.success) throw new Error('Failed to create folder');
+      if (data?.error) throw new Error(data.error);
+
 
       // Refresh the document list
       await listDocuments();
@@ -246,7 +248,7 @@ export const useDocumentManagement = (
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, listDocuments]);
+  }, [projectId, activeOrg, listDocuments]);
 
   const deleteFile = useCallback(async (fileId: string) => {
     setIsLoading(true);

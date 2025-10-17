@@ -154,15 +154,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowCreateFolder(true)}
-                  disabled={isCreatingFolder}
-                >
-                  <Folder className="h-4 w-4 mr-1" />
-                  {isCreatingFolder ? 'Creating...' : 'New Folder'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
                 >
@@ -211,48 +202,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   Cancel
                 </Button>
               </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Create Folder Modal */}
-        {showCreateFolder && canUpload && canEdit && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg"
-          >
-            <div className="flex items-center space-x-3">
-              <Folder className="h-5 w-5 text-green-600" />
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Folder name"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                onKeyPress={(e) => e.key === 'Enter' && handleCreateFolder()}
-              />
-              <Button
-                size="sm"
-                onClick={handleCreateFolder}
-                disabled={isCreatingFolder || !newFolderName.trim()}
-              >
-                {isCreatingFolder ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  'Create'
-                )}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setShowCreateFolder(false);
-                  setNewFolderName('');
-                }}
-              >
-                Cancel
-              </Button>
             </div>
           </motion.div>
         )}

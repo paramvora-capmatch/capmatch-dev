@@ -8,7 +8,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, projectId, folderId, fileName, folderName } = await req.json();
+    const { action, projectId, orgId, folderId, fileName, folderName } = await req.json();
     
     if (!action) {
       throw new Error("action is required");
@@ -33,10 +33,10 @@ serve(async (req) => {
 
     switch (action) {
       case 'create_folder':
-        if (!projectId || !folderName) {
-          throw new Error("projectId and folderName are required for create_folder");
+        if (!projectId || !folderName || !orgId) {
+          throw new Error("projectId, orgId and folderName are required for create_folder");
         }
-        result = await createFolder(supabaseAdmin, user.id, projectId, folderId, folderName);
+        result = await createFolder(supabaseAdmin, user.id, projectId, orgId, folderId, folderName);
         break;
 
       case 'delete_file':
@@ -71,7 +71,7 @@ serve(async (req) => {
   }
 });
 
-async function createFolder(supabaseAdmin: any, userId: string, projectId: string, parentFolderId: string | null, folderName: string) {
+async function createFolder(supabaseAdmin: any, userId: string, projectId: string, orgId: string, parentFolderId: string | null, folderName: string) {
   // Get the project docs root resource
   const { data: docsRoot, error: docsRootError } = await supabaseAdmin
     .from('resources')
@@ -91,6 +91,7 @@ async function createFolder(supabaseAdmin: any, userId: string, projectId: strin
     .from('resources')
     .insert({
       project_id: projectId,
+      org_id: orgId,
       parent_id: parentId,
       resource_type: 'FOLDER',
       name: folderName
