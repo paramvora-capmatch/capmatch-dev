@@ -458,6 +458,16 @@ export interface BorrowerEntityMember {
 
 export type PermissionType = 'file' | 'folder';
 
+export type Permission = 'view' | 'edit';
+
+export type ProjectGrant = {
+  projectId: string;
+  permissions: {
+    resource_type: string;
+    permission: Permission;
+  }[];
+};
+
 // Legacy DocumentPermission - kept for backward compatibility but deprecated
 export interface LegacyDocumentPermission {
   id: string;

@@ -147,154 +147,42 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		loadUserProjects: async () => {
-			const { user, activeOrg, currentOrgRole } = useAuthStore.getState();
-			console.log("[ProjectStore] 🔍 DEBUG - Starting loadUserProjects");
-			console.log("[ProjectStore] 🔍 DEBUG - User:", user ? { id: user.id, email: user.email, role: user.role } : "null");
-			console.log("[ProjectStore] 🔍 DEBUG - Active Org:", activeOrg ? { id: activeOrg.id, name: activeOrg.name } : "null");
-			console.log("[ProjectStore] 🔍 DEBUG - Current Org Role:", currentOrgRole);
-			
+			const { user } = useAuthStore.getState();
 			if (!user) {
-				console.log("[ProjectStore] ❌ No user found, resetting state");
+				console.log("[ProjectStore] No user found, resetting state.");
 				get().resetProjectState();
 				return;
 			}
-			// Only set loading if projects are not already loaded for this user.
-			if (get().projects.length === 0) {
-				set({ isLoading: true });
-			}
+
+			set({ isLoading: true });
+
 			try {
-				console.log(
-					"[ProjectStore] Loading projects from Supabase for current user (RLS enforced)."
-				);
-				
-				// First, let's check what resources the user has access to
-				console.log("[ProjectStore] 🔍 DEBUG - Checking user's resources...");
-				const { data: resources, error: resourcesError } = await supabase
-					.from("resources")
-					.select("*");
-				if (resourcesError) {
-					console.error("[ProjectStore] ❌ Failed to load resources:", resourcesError);
-				} else {
-					console.log("[ProjectStore] 🔍 DEBUG - Resources found:", resources?.length || 0);
-					if (resources && resources.length > 0) {
-						console.log("[ProjectStore] 🔍 DEBUG - Sample resource:", resources[0]);
-					}
-				}
+				console.log("[ProjectStore] Loading projects for current user (RLS enforced).");
 
-				// Check org memberships
-				console.log("[ProjectStore] 🔍 DEBUG - Checking org memberships...");
-				const { data: memberships, error: membershipsError } = await supabase
-					.from("org_members")
-					.select("*")
-					.eq("user_id", user.id);
-				if (membershipsError) {
-					console.error("[ProjectStore] ❌ Failed to load memberships:", membershipsError);
-				} else {
-					console.log("[ProjectStore] 🔍 DEBUG - Memberships found:", memberships?.length || 0);
-					if (memberships && memberships.length > 0) {
-						console.log("[ProjectStore] 🔍 DEBUG - Sample membership:", memberships[0]);
-					}
-				}
-
-				// Test permission functions
-				if (activeOrg && resources && resources.length > 0) {
-					console.log("[ProjectStore] 🔍 DEBUG - Testing permission functions...");
-					const testResourceId = resources[0].id;
-					const { data: canView, error: canViewError } = await supabase
-						.rpc('can_view', { p_user_id: user.id, p_resource_id: testResourceId });
-					if (canViewError) {
-						console.error("[ProjectStore] ❌ can_view test failed:", canViewError);
-					} else {
-						console.log("[ProjectStore] 🔍 DEBUG - can_view test result:", canView);
-					}
-
-					const { data: userRole, error: roleError } = await supabase
-						.rpc('get_user_role', { p_user_id: user.id, p_org_id: activeOrg.id });
-					if (roleError) {
-						console.error("[ProjectStore] ❌ get_user_role test failed:", roleError);
-					} else {
-						console.log("[ProjectStore] 🔍 DEBUG - get_user_role test result:", userRole);
-					}
-				}
-
-				// Let's first check what PROJECT_DOCS_ROOT resources exist
-				console.log("[ProjectStore] 🔍 DEBUG - Checking PROJECT_DOCS_ROOT resources...");
-				const { data: projectDocsRoots, error: projectDocsError } = await supabase
-					.from("resources")
-					.select("*")
-					.eq("resource_type", "PROJECT_DOCS_ROOT");
-				if (projectDocsError) {
-					console.error("[ProjectStore] ❌ Failed to load PROJECT_DOCS_ROOT resources:", projectDocsError);
-				} else {
-					console.log("[ProjectStore] 🔍 DEBUG - PROJECT_DOCS_ROOT resources found:", projectDocsRoots?.length || 0);
-					if (projectDocsRoots && projectDocsRoots.length > 0) {
-						console.log("[ProjectStore] 🔍 DEBUG - Sample PROJECT_DOCS_ROOT:", projectDocsRoots[0]);
-					}
-				}
-
-				// Test can_view on PROJECT_DOCS_ROOT resources
-				if (projectDocsRoots && projectDocsRoots.length > 0) {
-					console.log("[ProjectStore] 🔍 DEBUG - Testing can_view on PROJECT_DOCS_ROOT resources...");
-					for (const resource of projectDocsRoots) {
-						const { data: canViewResource, error: canViewResourceError } = await supabase
-							.rpc('can_view', { p_user_id: user.id, p_resource_id: resource.id });
-						if (canViewResourceError) {
-							console.error(`[ProjectStore] ❌ can_view test failed for resource ${resource.id}:`, canViewResourceError);
-						} else {
-							console.log(`[ProjectStore] 🔍 DEBUG - can_view for resource ${resource.id} (project: ${resource.project_id}):`, canViewResource);
-						}
-					}
-				}
-
-				// Let's also test the RLS policy directly by checking if we can see projects with a join
-				console.log("[ProjectStore] 🔍 DEBUG - Testing RLS policy with join query...");
-				const { data: projectsWithResources, error: projectsWithResourcesError } = await supabase
-					.from("projects")
-					.select(`
-						*,
-						resources!inner(
-							id,
-							resource_type,
-							project_id
-						)
-					`)
-					.eq("resources.resource_type", "PROJECT_DOCS_ROOT");
-				if (projectsWithResourcesError) {
-					console.error("[ProjectStore] ❌ Projects with resources query failed:", projectsWithResourcesError);
-				} else {
-					console.log("[ProjectStore] 🔍 DEBUG - Projects with PROJECT_DOCS_ROOT resources:", projectsWithResources?.length || 0);
-					if (projectsWithResources && projectsWithResources.length > 0) {
-						console.log("[ProjectStore] 🔍 DEBUG - Sample project with resources:", projectsWithResources[0]);
-					}
-				}
-
-				// RLS will only return projects the user can view
+				// RLS will only return projects the user has been granted access to.
+				// We no longer need to check the org or role here.
 				const { data, error } = await supabase
 					.from("projects")
 					.select("*");
+
 				if (error) {
 					console.error("[ProjectStore] ❌ Projects query failed:", error);
 					throw error;
 				}
-				console.log("[ProjectStore] 🔍 DEBUG - Raw projects from DB:", data?.length || 0);
-				if (data && data.length > 0) {
-					console.log("[ProjectStore] 🔍 DEBUG - Sample project:", data[0]);
-				}
 				
+				console.log(`[ProjectStore] ✅ Found ${data?.length || 0} projects accessible by user.`);
+
 				const userProjects: ProjectProfile[] = (data || []).map(dbProjectToProjectProfile);
-				console.log("[ProjectStore] 🔍 DEBUG - Converted projects:", userProjects.length);
 
 				const projectsWithProgress = userProjects.map((p) => ({
 					...p,
 					...get().calculateProgress(p),
 				}));
-				console.log("[ProjectStore] 🔍 DEBUG - Final projects with progress:", projectsWithProgress.length);
-				set({ projects: projectsWithProgress });
+
+				set({ projects: projectsWithProgress, isLoading: false });
 			} catch (error) {
 				console.error("[ProjectStore] Failed to load projects:", error);
-				set({ projects: [] });
-			} finally {
-				set({ isLoading: false });
+				set({ projects: [], isLoading: false });
 			}
 		},
 

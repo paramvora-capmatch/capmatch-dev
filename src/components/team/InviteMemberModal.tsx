@@ -1,18 +1,27 @@
 // src/components/team/InviteMemberModal.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select } from '@/components/ui/Select';
-import { OrgMemberRole } from '@/types/enhanced-types';
+import { OrgMemberRole, Project, Permission } from '@/types/enhanced-types';
 import { useProjects } from '@/hooks/useProjects';
-import { X, Copy, Check, Mail } from 'lucide-react';
+import { X, Copy, Check, Mail, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+
+type ProjectGrant = {
+  projectId: string;
+  permissions: {
+    resource_type: string;
+    permission: Permission;
+  }[];
+};
 
 interface InviteMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onInvite: (email: string, role: OrgMemberRole) => Promise<string>;
+  onInvite: (email: string, role: OrgMemberRole, projectGrants: ProjectGrant[]) => Promise<string>;
 }
 
 export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
@@ -26,6 +35,69 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const { projects, isLoading: isLoadingProjects } = useProjects();
+  const [projectGrants, setProjectGrants] = useState<ProjectGrant[]>([]);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // When the modal opens, reset the project grants
+    if (isOpen) {
+      setProjectGrants([]);
+      setExpandedProjects(new Set());
+    }
+  }, [isOpen]);
+
+  const toggleProjectAccess = (projectId: string) => {
+    setProjectGrants(prevGrants => {
+      const existingGrant = prevGrants.find(g => g.projectId === projectId);
+      if (existingGrant) {
+        // Remove the grant
+        return prevGrants.filter(g => g.projectId !== projectId);
+      } else {
+        // Add the grant with default permissions
+        return [
+          ...prevGrants,
+          {
+            projectId: projectId,
+            permissions: [
+              { resource_type: 'PROJECT_RESUME', permission: 'view' },
+              { resource_type: 'PROJECT_DOCS_ROOT', permission: 'view' },
+            ],
+          },
+        ];
+      }
+    });
+  };
+
+  const updatePermission = (projectId: string, resourceType: string, permission: Permission) => {
+    setProjectGrants(prevGrants =>
+      prevGrants.map(grant => {
+        if (grant.projectId === projectId) {
+          return {
+            ...grant,
+            permissions: grant.permissions.map(p =>
+              p.resource_type === resourceType ? { ...p, permission } : p
+            ),
+          };
+        }
+        return grant;
+      })
+    );
+  };
+  
+  const toggleExpandProject = (projectId: string) => {
+    setExpandedProjects(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId);
+      } else {
+        newSet.add(projectId);
+      }
+      return newSet;
+    });
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,13 +107,11 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const link = await onInvite(email, role);
+      const link = await onInvite(email, role, projectGrants);
       setInviteLink(link);
-      // Don't auto-close - let user close manually after copying link
     } catch (error) {
       console.error('Failed to invite member:', error);
       setError(error instanceof Error ? error.message : 'Failed to invite member');
-      // Don't close modal on error so user can see the error
     } finally {
       setIsLoading(false);
     }
@@ -65,6 +135,8 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     setInviteLink(null);
     setCopied(false);
     setError(null);
+    setProjectGrants([]);
+    setExpandedProjects(new Set());
     onClose();
   };
 
@@ -126,12 +198,83 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                   />
                 </div>
 
+                {/* Project Access Selection */}
+                {role === 'member' && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Project Access (Optional)
+                    </label>
+                    <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto">
+                      {isLoadingProjects ? (
+                        <div className="p-4 text-center">
+                          <LoadingSpinner />
+                        </div>
+                      ) : projects.length > 0 ? (
+                        projects.map(project => {
+                          const hasAccess = projectGrants.some(g => g.projectId === project.id);
+                          const grant = projectGrants.find(g => g.projectId === project.id);
+                          const isExpanded = expandedProjects.has(project.id);
+                          
+                          return (
+                            <div key={project.id} className="border-b last:border-b-0">
+                              <div className="flex items-center justify-between p-3">
+                                <div className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    id={`project-${project.id}`}
+                                    checked={hasAccess}
+                                    onChange={() => toggleProjectAccess(project.id)}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <label htmlFor={`project-${project.id}`} className="ml-3 text-sm text-gray-800">
+                                    {project.projectName}
+                                  </label>
+                                </div>
+                                {hasAccess && (
+                                  <Button variant="outline" size="sm" onClick={() => toggleExpandProject(project.id)}>
+                                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                  </Button>
+                                )}
+                              </div>
+                              {hasAccess && isExpanded && grant && (
+                                <div className="bg-gray-50 p-3 pl-10 space-y-2">
+                                  {grant.permissions.map(p => (
+                                    <div key={p.resource_type} className="flex items-center justify-between">
+                                      <span className="text-sm text-gray-600">
+                                        {p.resource_type.replace(/_/g, ' ').replace('ROOT', '').trim()}
+                                      </span>
+                                      <Select
+                                        value={p.permission}
+                                        onChange={e => updatePermission(project.id, p.resource_type, e.target.value as Permission)}
+                                        options={[
+                                          { value: 'view', label: 'View' },
+                                          { value: 'edit', label: 'Edit' },
+                                        ]}
+                                        className="w-24"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="p-4 text-center text-sm text-gray-500">
+                          <Briefcase className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                          No projects found in this organization.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 {/* Role-based permissions info */}
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                   <p className="text-sm text-blue-800">
                     <strong>Role-based permissions:</strong><br />
                     • <strong>Owner:</strong> Full access to all projects and documents.<br />
-                    • <strong>Member:</strong> View-only access to projects and documents, except for Borrower Documents, which are hidden by default.
+                    • <strong>Member:</strong> Access is determined by the project selections above. If no projects are selected, they will not see any.
                   </p>
                 </div>
 

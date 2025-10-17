@@ -131,18 +131,35 @@ FOR SELECT USING (user_id = auth.uid());
 
 -- Projects (New Policies)
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+-- Drop the old, ambiguous policies
 DROP POLICY IF EXISTS "Project access is controlled by grants and ownership" ON public.projects;
 DROP POLICY IF EXISTS "Granted users can view projects" ON public.projects;
-DROP POLICY IF EXISTS "Users can access projects based on resource permissions" ON public.projects; -- old policy
+DROP POLICY IF EXISTS "Users can access projects based on resource permissions" ON public.projects;
 
-CREATE POLICY "Project access is controlled by grants and ownership" ON public.projects
-FOR ALL
-USING (public.is_org_owner(owner_org_id, auth.uid()))
-WITH CHECK (public.is_org_owner(owner_org_id, auth.uid()));
+-- A user can see a project if they are an org owner OR if they have an explicit grant.
+CREATE POLICY "Users can view projects they have access to" ON public.projects
+FOR SELECT USING (
+    public.is_org_owner(owner_org_id, auth.uid()) OR
+    EXISTS (
+        SELECT 1 FROM public.project_access_grants
+        WHERE project_id = projects.id AND user_id = auth.uid()
+    )
+);
 
-CREATE POLICY "Granted users can view projects" ON public.projects
-FOR SELECT
-USING (EXISTS (
-    SELECT 1 FROM public.project_access_grants
-    WHERE project_id = id AND user_id = auth.uid()
-));
+-- Only org owners can create new projects.
+CREATE POLICY "Owners can create projects" ON public.projects
+FOR INSERT WITH CHECK (
+    public.is_org_owner(owner_org_id, auth.uid())
+);
+
+-- Only org owners can update projects.
+CREATE POLICY "Owners can update projects" ON public.projects
+FOR UPDATE USING (
+    public.is_org_owner(owner_org_id, auth.uid())
+);
+
+-- Only org owners can delete projects.
+CREATE POLICY "Owners can delete projects" ON public.projects
+FOR DELETE USING (
+    public.is_org_owner(owner_org_id, auth.uid())
+);

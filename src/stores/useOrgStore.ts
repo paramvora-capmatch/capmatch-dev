@@ -5,7 +5,8 @@ import {
   Org, 
   OrgMember, 
   Invite,
-  OrgMemberRole
+  OrgMemberRole,
+  ProjectGrant
 } from '../types/enhanced-types';
 
 interface OrgState {
@@ -22,7 +23,7 @@ interface OrgActions {
   loadOrg: (orgId: string) => Promise<void>;
   
   // Team member management
-  inviteMember: (email: string, role: OrgMemberRole, initialPermissions?: any) => Promise<string>;
+  inviteMember: (email: string, role: OrgMemberRole, projectGrants: ProjectGrant[]) => Promise<string>;
   cancelInvite: (inviteId: string) => Promise<void>;
   removeMember: (userId: string) => Promise<void>;
   
@@ -144,19 +145,20 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
   // Org creation is handled by edge functions. No client-side create.
 
-  inviteMember: async (email: string, role: OrgMemberRole) => {
+  inviteMember: async (email: string, role: OrgMemberRole, projectGrants: ProjectGrant[]) => {
     set({ isLoading: true, error: null });
     
     try {
       const { currentOrg } = get();
       if (!currentOrg) throw new Error('No active org');
 
-      // Use the create-invite edge function
-      const { data, error } = await supabase.functions.invoke('create-invite', {
+      // Use the new invite-user edge function
+      const { data, error } = await supabase.functions.invoke('invite-user', {
         body: {
           org_id: currentOrg.id,
           invited_email: email,
-          role
+          role,
+          project_grants: projectGrants,
         }
       });
 

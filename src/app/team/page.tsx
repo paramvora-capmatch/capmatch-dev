@@ -49,9 +49,9 @@ export default function TeamPage() {
     }
   }, [activeOrg, loadOrg]);
 
-  const handleInviteMember = async (email: string, role: OrgMemberRole) => {
+  const handleInviteMember = async (email: string, role: OrgMemberRole, projectGrants: any[]) => {
     try {
-      const inviteLink = await inviteMember(email, role);
+      const inviteLink = await inviteMember(email, role, projectGrants);
       // Reload org data to show the new pending invite
       if (activeOrg) {
         loadOrg(activeOrg.id);
