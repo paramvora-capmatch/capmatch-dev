@@ -41,7 +41,7 @@ CREATE INDEX idx_profiles_email ON public.profiles(email);
 CREATE TABLE public.org_members (
     org_id UUID NOT NULL REFERENCES public.orgs(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    role TEXT NOT NULL CHECK (role IN ('owner', 'project_manager', 'member')),
+    role TEXT NOT NULL CHECK (role IN ('owner', 'member')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (org_id, user_id)
 );
@@ -53,7 +53,7 @@ CREATE TABLE public.invites (
     org_id UUID NOT NULL REFERENCES public.orgs(id) ON DELETE CASCADE,
     invited_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE SET NULL, -- Allow user to be deleted
     invited_email TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('owner', 'project_manager', 'member')), -- Owners can invite other owners
+    role TEXT NOT NULL CHECK (role IN ('owner', 'member')), -- Owners can invite other owners
     token TEXT NOT NULL UNIQUE DEFAULT extensions.uuid_generate_v4()::text,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'cancelled', 'expired')),
     -- initial_permissions is removed in favor of the new hierarchical model

@@ -85,6 +85,14 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
         .select('id, full_name, app_role')
         .in('id', memberUserIds) : { data: [] };
 
+      const { data: memberEmails, error: emailsError } = await supabase.functions.invoke('get-user-data', {
+        body: { userIds: memberUserIds },
+      });
+      
+      if (emailsError) {
+        console.error('Error fetching user emails:', emailsError);
+      }
+
       // Get user details for inviters
       const inviterIds = invites?.map(i => i.invited_by).filter(Boolean) || [];
       const { data: inviterProfiles } = inviterIds.length > 0 ? await supabase
@@ -95,10 +103,11 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Process members data to include profile information
       const processedMembers = members?.map((member: any) => {
         const profile = memberProfiles?.find(p => p.id === member.user_id);
+        const emailData = memberEmails?.find((e: any) => e.id === member.user_id);
         return {
           ...member,
           userName: profile?.full_name || 'Unknown User',
-          userEmail: 'user@example.com', // Placeholder - would need auth.users access
+          userEmail: emailData?.email || 'user@example.com',
           userRole: profile?.app_role
         };
       }) || [];
@@ -308,7 +317,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Reload entity memberships in auth store
       const { useAuthStore } = await import('./useAuthStore');
       const authStore = useAuthStore.getState();
-      await authStore.loadEntityMemberships();
+      await authStore.loadOrgMemberships();
     } catch (error) {
       console.error('Error accepting invite:', error);
       set({ 
