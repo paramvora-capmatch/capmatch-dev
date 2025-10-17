@@ -150,6 +150,23 @@ serve(async (req) => {
       });
       console.log(`[onboard-borrower] Default project created successfully: ${projectData.id}`);
 
+      // Step 5.5: Grant the new owner access to their default project
+      console.log("[onboard-borrower] Step 5.5: Granting owner access to default project");
+      const { error: grantError } = await supabaseAdmin
+        .from("project_access_grants")
+        .insert({
+          project_id: projectData.id,
+          user_id: newUser.id,
+          granted_by: newUser.id, // The user grants themselves access initially
+          org_id: orgData.id, // Add the org_id to the grant
+        });
+
+      if (grantError) {
+        console.error(`[onboard-borrower] Project Grant Error: ${JSON.stringify(grantError)}`);
+        throw new Error(`Project Grant Error: ${grantError.message}`);
+      }
+      console.log("[onboard-borrower] Owner granted access to default project successfully");
+
       // Step 6: Create the borrower resume/record
       console.log("[onboard-borrower] Step 6: Creating borrower resume");
       const { error: borrowerResumeError } = await supabaseAdmin
