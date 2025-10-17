@@ -27,7 +27,6 @@ interface OrgActions {
   removeMember: (userId: string) => Promise<void>;
   
   // Role management (Note: Roles are immutable in new schema - must remove and re-invite)
-  removeAndReinviteMember: (userId: string, newRole: OrgMemberRole, initialPermissions?: any) => Promise<string>;
   
   // Invitation handling
   acceptInvite: (params: { token: string; password: string; full_name: string }) => Promise<void>;
@@ -217,22 +216,15 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
         throw new Error('Cannot remove the last owner');
       }
 
-      // Remove member
-      const { error: memberError } = await supabase
-        .from('org_members')
-        .delete()
-        .eq('org_id', currentOrg.id)
-        .eq('user_id', userId);
+      // Invoke the 'remove-user' Supabase function
+      const { error } = await supabase.functions.invoke('remove-user', {
+        body: {
+          org_id: currentOrg.id,
+          user_id: userId,
+        },
+      });
 
-      if (memberError) throw memberError;
-
-      // Remove all document permissions for this member across all projects
-      const { error: permError } = await supabase
-        .from('document_permissions')
-        .delete()
-        .eq('user_id', userId);
-
-      if (permError) throw permError;
+      if (error) throw error;
 
       // Refresh members list
       await get().refreshMembers();
@@ -243,58 +235,6 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
         error: error instanceof Error ? error.message : 'Failed to remove member',
         isLoading: false 
       });
-    }
-  },
-
-  removeAndReinviteMember: async (userId: string, newRole: OrgMemberRole, initialPermissions?: any) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      const { members, currentOrg } = get();
-      const member = members.find(m => m.user_id === userId);
-      
-      if (!member || !currentOrg) throw new Error('Member or org not found');
-
-      // Check if this is the last owner
-      const ownerCount = members.filter(m => m.role === 'owner').length;
-      if (member.role === 'owner' && ownerCount <= 1) {
-        throw new Error('Cannot remove the last owner');
-      }
-
-      // Get user email for re-invitation
-      const { data: userProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (!userProfile) throw new Error('User profile not found');
-
-      // Get user email from auth.users
-      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
-      if (!authUser.user?.email) throw new Error('User email not found');
-
-      // Remove member
-      const { error: memberError } = await supabase
-        .from('org_members')
-        .delete()
-        .eq('org_id', currentOrg.id)
-        .eq('user_id', userId);
-
-      if (memberError) throw memberError;
-
-      // Re-invite with new role
-      const inviteLink = await get().inviteMember(authUser.user.email, newRole, initialPermissions);
-
-      set({ isLoading: false });
-      return inviteLink;
-    } catch (error) {
-      console.error('Error removing and re-inviting member:', error);
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to remove and re-invite member',
-        isLoading: false 
-      });
-      throw error;
     }
   },
 

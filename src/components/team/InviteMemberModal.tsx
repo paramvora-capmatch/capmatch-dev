@@ -121,7 +121,6 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                     onChange={(e) => setRole(e.target.value as OrgMemberRole)}
                     options={[
                       { value: 'member', label: 'Member (Limited Access)' },
-                      { value: 'project_manager', label: 'Project Manager (Project Access)' },
                       { value: 'owner', label: 'Owner (Full Access)' }
                     ]}
                   />
@@ -131,9 +130,8 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                   <p className="text-sm text-blue-800">
                     <strong>Role-based permissions:</strong><br />
-                    • <strong>Owner:</strong> Full access to all projects and documents<br />
-                    • <strong>Project Manager:</strong> Can edit all project resources<br />
-                    • <strong>Member:</strong> Can view project resumes and documents as granted
+                    • <strong>Owner:</strong> Full access to all projects and documents.<br />
+                    • <strong>Member:</strong> View-only access to projects and documents, except for Borrower Documents, which are hidden by default.
                   </p>
                 </div>
 
