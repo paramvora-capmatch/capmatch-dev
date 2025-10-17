@@ -125,86 +125,55 @@ export const useDocumentManagement = (
     }
   }, [projectId, activeOrg, folderId]);
 
-  const uploadFile = useCallback(async (file: File, folderId?: string) => {
-    if (!activeOrg || !user) {
+  const uploadFile = useCallback(async (file: File, parentResourceId?: string) => {
+    if (!activeOrg || !user ) {
       throw new Error('Missing required context for file upload');
+    }
+    if (!parentResourceId) {
+      // This is a critical check to ensure we can satisfy RLS.
+      throw new Error('Parent resource ID is required for upload');
     }
 
     setIsLoading(true);
     setError(null);
 
     try {
-      let parentId: string;
-      let filePath: string;
+      // Define the file path for storage. This must match the logic in our RLS functions.
+      const filePath = projectId ? `${projectId}/${file.name}` : `borrower-docs/${file.name}`;
 
-      if (projectId) {
-        // Get the project docs root resource
-        const { data: docsRoot, error: docsRootError } = await supabase
-          .from('resources')
-          .select('id')
-          .eq('org_id', activeOrg.id)
-          .eq('project_id', projectId)
-          .eq('resource_type', 'PROJECT_DOCS_ROOT')
-          .single();
-
-        if (docsRootError) {
-          throw new Error(`Failed to find project docs root: ${docsRootError.message}`);
-        }
-
-        parentId = folderId || docsRoot.id;
-        filePath = `${projectId}/${file.name}`;
-      } else {
-        // For borrower documents, get the borrower resume resource
-        const { data: borrowerResume, error: borrowerResumeError } = await supabase
-          .from('resources')
-          .select('id')
-          .eq('org_id', activeOrg.id)
-          .eq('resource_type', 'BORROWER_RESUME')
-          .single();
-
-        if (borrowerResumeError) {
-          throw new Error(`Failed to find borrower resume: ${borrowerResumeError.message}`);
-        }
-
-        parentId = folderId || borrowerResume.id;
-        filePath = `borrower_docs/${file.name}`;
-      }
-
-      // Create the file resource first
-      const { data: fileResource, error: fileResourceError } = await supabase
-        .from('resources')
-        .insert({
-          org_id: activeOrg.id,
-          project_id: projectId,
-          parent_id: parentId,
-          resource_type: 'FILE',
-          name: file.name,
-          storage_path: filePath
-        })
-        .select()
-        .single();
-
-      if (fileResourceError) {
-        throw new Error(`Failed to create file resource: ${fileResourceError.message}`);
-      }
-
-      // Upload the file to storage
+      // Step 1: Upload the file directly to storage.
+      // RLS policies on `storage.objects` will automatically verify permissions.
       const { error: uploadError } = await supabase.storage
         .from(activeOrg.id)
         .upload(filePath, file, {
-          upsert: true
+          upsert: true, // Allow overwriting for simplicity. Our UPDATE policy secures this.
         });
 
       if (uploadError) {
-        // Clean up the resource if upload fails
-        await supabase.from('resources').delete().eq('id', fileResource.id);
-        throw new Error(`Failed to upload file: ${uploadError.message}`);
+        // The RLS policy failing will manifest as a storage error.
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
       }
 
-      // Refresh the document list
+      // Step 2: If storage upload is successful, create the resource record in the DB
+      // by calling our secure edge function. This is now a fast and simple operation.
+      const { data, error: functionError } = await supabase.functions.invoke('manage-documents', {
+        body: {
+          action: 'create_file',
+          orgId: activeOrg.id,
+          projectId: projectId,
+          parentId: parentResourceId,
+          fileName: file.name,
+          filePath: filePath,
+        }
+      });
+
+      if (functionError) throw new Error(`Function invocation failed: ${functionError.message}`);
+      if (data?.error) throw new Error(data.error);
+
+      // Refresh the document list to show the new file
       await listDocuments();
       
-      return fileResource;
+      return data.data;
     } catch (err) {
       console.error('Error uploading file:', err);
       setError(err instanceof Error ? err.message : 'Failed to upload file');
@@ -215,8 +184,11 @@ export const useDocumentManagement = (
   }, [projectId, activeOrg, user, listDocuments]);
 
   const createFolder = useCallback(async (folderName: string, parentFolderId?: string) => {
-    if (!projectId || !activeOrg) {
-      throw new Error('Folder creation requires a project and an active org');
+    if (!activeOrg) {
+      throw new Error('Folder creation requires an active org');
+    }
+    if (!parentFolderId) {
+      throw new Error('Parent folder ID is required to create a folder');
     }
 
     setIsLoading(true);
@@ -228,7 +200,7 @@ export const useDocumentManagement = (
           action: 'create_folder',
           projectId,
           orgId: activeOrg.id,
-          folderId: parentFolderId || null,
+          parentId: parentFolderId,
           folderName
         }
       });

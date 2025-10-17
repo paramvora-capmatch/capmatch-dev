@@ -1,20 +1,21 @@
 // src/components/documents/DocumentManager.tsx
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDocumentManagement, DocumentFile, DocumentFolder } from '@/hooks/useDocumentManagement';
+import { usePermissions } from '@/hooks/usePermissions'; // Import the new hook
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
 import { FileText, Upload, Download, Trash2, Loader2, AlertCircle, Folder, FolderOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '@/stores/useAuthStore';
+// useAuthStore is no longer needed for permission checks here
+// import { useAuthStore } from '@/stores/useAuthStore';
 
 interface DocumentManagerProps {
   projectId: string | null;
-  folderId?: string | null;
+  // This should correspond to a resource_id for the folder
+  resourceId: string | null;
   title: string;
-  canUpload?: boolean;
-  canDelete?: boolean;
 }
 
 const formatFileSize = (bytes: number) => {
@@ -38,30 +39,42 @@ const formatDate = (dateString: string) => {
 
 export const DocumentManager: React.FC<DocumentManagerProps> = ({
   projectId,
-  folderId = null,
+  resourceId,
   title,
-  canUpload = true,
-  canDelete = true,
 }) => {
   const { 
     files, 
     folders, 
-    isLoading, 
+    isLoading: isLoadingDocuments, 
     error, 
     uploadFile, 
     createFolder, 
     deleteFile, 
     deleteFolder,
     downloadFile 
-  } = useDocumentManagement(projectId, folderId);
+  } = useDocumentManagement(projectId, resourceId);
   
-  const { user, activeOrg, currentOrgRole } = useAuthStore();
+  // New permission logic
+  const { canEdit, isLoading: isLoadingPermissions } = usePermissions(resourceId);
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // We need to find the root resource ID for the documents to pass to the hook
+  const [rootResourceId, setRootResourceId] = useState<string | null>(null);
+  useEffect(() => {
+    // This is a placeholder for logic that would fetch the root resource ID
+    // for this document manager instance (e.g., PROJECT_DOCS_ROOT).
+    // For now, we'll assume it's passed in as a prop.
+    setRootResourceId(resourceId);
+  }, [resourceId]);
+  
+  const { canEdit: canPerformActions, isLoading: isLoadingPermissionsRoot } = usePermissions(rootResourceId);
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -74,18 +87,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     setIsUploading(true);
     
     try {
-      console.log('[DocumentManager] Starting upload', {
-        projectId,
-        folderId,
-        activeOrgId: activeOrg?.id,
-        userId: user?.id,
-        currentOrgRole,
-        fileName: selectedFile.name,
-        fileSize: selectedFile.size,
-        fileType: selectedFile.type
-      });
-      
-      await uploadFile(selectedFile, folderId || undefined);
+      // The folderId passed to uploadFile should be the resourceId of the parent folder
+      await uploadFile(selectedFile, resourceId || undefined);
       
       setSelectedFile(null);
       if (fileInputRef.current) {
@@ -103,7 +106,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     
     setIsCreatingFolder(true);
     try {
-      await createFolder(newFolderName.trim(), folderId || undefined);
+      await createFolder(newFolderName.trim(), resourceId || undefined);
       setNewFolderName('');
       setShowCreateFolder(false);
     } catch (error) {
@@ -113,35 +116,35 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const handleDeleteFile = async (fileId: string, fileName: string) => {
-    if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
+  const handleDeleteFile = async (file: DocumentFile) => {
+    if (window.confirm(`Are you sure you want to delete "${file.name}"?`)) {
       try {
-        await deleteFile(fileId);
+        await deleteFile(file.resource_id);
       } catch (error) {
         console.error('[DocumentManager] Delete file error', error);
       }
     }
   };
 
-  const handleDeleteFolder = async (folderId: string, folderName: string) => {
-    if (window.confirm(`Are you sure you want to delete the folder "${folderName}"? This will also delete all files and subfolders inside it.`)) {
+  const handleDeleteFolder = async (folder: DocumentFolder) => {
+    if (window.confirm(`Are you sure you want to delete the folder "${folder.name}"? This will also delete all files and subfolders inside it.`)) {
       try {
-        await deleteFolder(folderId);
+        await deleteFolder(folder.resource_id);
       } catch (error) {
         console.error('[DocumentManager] Delete folder error', error);
       }
     }
   };
 
-  const handleDownload = async (fileId: string, fileName: string) => {
+  const handleDownload = async (file: DocumentFile) => {
     try {
-      await downloadFile(fileId);
+      await downloadFile(file.resource_id);
     } catch (error) {
       console.error('[DocumentManager] Download error', error);
     }
   };
 
-  const canEdit = currentOrgRole === 'owner' || currentOrgRole === 'project_manager';
+  const isLoading = isLoadingDocuments || isLoadingPermissions;
 
   return (
     <Card className="shadow-sm h-full flex flex-col">
@@ -149,7 +152,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <div className="flex space-x-2">
-            {canUpload && canEdit && (
+            {canEdit && (
               <>
                 <Button
                   variant="outline"
@@ -168,7 +171,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
       <CardContent className="flex-1 overflow-hidden">
         {/* Upload Area */}
-        {selectedFile && canUpload && canEdit && (
+        {selectedFile && canEdit && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -257,11 +260,11 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   <span className="text-xs text-gray-500">
                     {formatDate(folder.created_at)}
                   </span>
-                  {canDelete && canEdit && (
+                  {canEdit && (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                      onClick={() => handleDeleteFolder(folder)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -291,15 +294,15 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleDownload(file.id, file.name)}
+                    onClick={() => handleDownload(file)}
                   >
                     <Download className="h-4 w-4" />
                   </Button>
-                  {canDelete && canEdit && (
+                  {canEdit && (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDeleteFile(file.id, file.name)}
+                      onClick={() => handleDeleteFile(file)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -314,7 +317,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500">No documents yet</p>
                 <p className="text-sm text-gray-400 mt-1">
-                  {canUpload && canEdit ? 'Upload files or create folders to get started' : 'No documents available'}
+                  {canEdit ? 'Upload files or create folders to get started' : 'No documents available'}
                 </p>
               </div>
             )}

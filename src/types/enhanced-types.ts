@@ -275,44 +275,42 @@ export interface Notification {
 // Legacy ProjectProfile - kept for backward compatibility but deprecated
 export interface ProjectProfile {
   id: string;
-  borrowerProfileId?: string; // Made optional - projects owned by entities
-  entityId: string;
-  assignedAdvisorUserId: string | null;
+  entityId: string; // The org_id that owns the project
   projectName: string;
-  propertyAddressStreet: string;
-  propertyAddressCity: string;
-  propertyAddressState: string;
-  propertyAddressCounty: string;
-  propertyAddressZip: string;
   assetType: string;
-  projectDescription: string;
-  projectPhase?: ProjectPhase;
-  loanAmountRequested: number | null;
-  loanType: string;
-  targetLtvPercent: number | null;
-  targetLtcPercent: number | null;
-  amortizationYears: number | null;
-  interestOnlyPeriodMonths: number | null;
-  interestRateType: InterestRateType;
-  targetCloseDate: string | null;
-  useOfProceeds: string;
-  recoursePreference: RecoursePreference;
-  purchasePrice: number | null;
-  totalProjectCost: number | null;
-  capexBudget: number | null;
-  propertyNoiT12: number | null;
-  stabilizedNoiProjected: number | null;
-  exitStrategy?: ExitStrategy;
-  businessPlanSummary: string;
-  marketOverviewSummary: string;
-  equityCommittedPercent: number | null;
-  projectStatus: ProjectStatus;
-  completenessPercent: number;
-  internalAdvisorNotes: string;
-  borrowerProgress: number; // Keep for backward compatibility
-  projectProgress: number; // Keep for backward compatibility
+  projectStatus: string;
   createdAt: string;
   updatedAt: string;
+  // New resource IDs
+  projectDocsResourceId?: string | null;
+  projectResumeResourceId?: string | null;
+  // Optional fields
+  assignedAdvisorUserId?: string | null;
+  propertyAddressStreet?: string | null;
+  propertyAddressCity?: string | null;
+  propertyAddressState?: string | null;
+  propertyAddressCounty?: string | null;
+  propertyAddressZip?: string | null;
+  projectDescription?: string | null;
+  loanAmountRequested?: number | null;
+  loanType?: string | null;
+  targetLtvPercent?: number | null;
+  targetLtcPercent?: number | null;
+  amortizationYears?: number | null;
+  interestOnlyPeriodMonths?: number | null;
+  interestRateType?: InterestRateType | null;
+  targetCloseDate?: string | null;
+  useOfProceeds?: string | null;
+  recoursePreference?: RecoursePreference | null;
+  purchasePrice?: number | null;
+  totalProjectCost?: number | null;
+  capexBudget?: number | null;
+  propertyNoiT12?: number | null;
+  stabilizedNoiProjected?: number | null;
+  exitStrategy?: ExitStrategy | null;
+  businessPlanSummary?: string | null;
+  marketOverviewSummary?: string | null;
+  equityCommittedPercent?: number | null;
   projectSections?: any; // Add for consistency with mock data
   borrowerSections?: any; // Add for consistency with mock data
   // RBAC additions

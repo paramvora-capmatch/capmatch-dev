@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 export interface CreateProjectOptions {
   name: string;
   owner_org_id: string;
+  creator_id: string; // The user ID of the person creating the project
 }
 
 export async function createProjectWithResumeAndStorage(
@@ -129,8 +130,25 @@ export async function createProjectWithResumeAndStorage(
   }
   console.log("[project-utils] Project docs root resource created successfully");
 
-  // 7. Project creation completed - permissions are handled by role-based system
-  console.log("[project-utils] Project creation completed - using role-based permissions");
+  // Step 7: Grant the creator (owner) explicit access to the new project
+  console.log("[project-utils] Step 7: Granting creator access to the project");
+  const { error: grantError } = await supabaseAdmin
+    .from("project_access_grants")
+    .insert({
+      project_id: project.id,
+      org_id: owner_org_id,
+      user_id: options.creator_id,
+      granted_by: options.creator_id,
+    });
+  
+  if (grantError) {
+    console.error(`[project-utils] Failed to grant project access to creator: ${JSON.stringify(grantError)}`);
+    // Rollback
+    await supabaseAdmin.from("projects").delete().eq("id", project.id);
+    throw new Error(`Failed to grant project access: ${grantError.message}`);
+  }
+  console.log("[project-utils] Project access granted to creator successfully");
+
 
   console.log(`[project-utils] Project creation completed successfully: ${project.id}`);
   return project;

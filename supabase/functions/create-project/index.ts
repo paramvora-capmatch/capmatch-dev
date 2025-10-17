@@ -42,7 +42,8 @@ serve(async (req) => {
     // Create the project using the shared utility function
     const project = await createProjectWithResumeAndStorage(supabaseAdmin, {
       name,
-      owner_org_id
+      owner_org_id,
+      creator_id: user.id, // Pass the authenticated user's ID as the creator
     });
 
     // --- Atomic Operation End ---
