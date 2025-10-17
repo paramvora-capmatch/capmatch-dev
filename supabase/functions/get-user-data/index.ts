@@ -1,45 +1,57 @@
 // supabase/functions/get-user-data/index.ts
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, User } from "https://esm.sh/@supabase/supabase-js@2";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL");
-const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 serve(async (req) => {
-  if (!supabaseUrl || !serviceRoleKey) {
-    return new Response(
-      JSON.stringify({ error: "Supabase environment variables are not set" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
+  
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-  const { userIds } = await req.json();
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error("Supabase environment variables are not set");
+    }
 
-  if (!userIds || !Array.isArray(userIds)) {
-    return new Response(JSON.stringify({ error: "userIds is required" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+    const { userIds } = await req.json();
+
+    if (!userIds || !Array.isArray(userIds)) {
+      throw new Error("An array of userIds is required");
+    }
+
+    // Fetch user data for all userIds in parallel
+    const userPromises = userIds.map(id => supabaseAdmin.auth.admin.getUserById(id));
+    const userResults = await Promise.all(userPromises);
+
+    // Process results, extracting email and handling potential errors
+    const userEmails = userResults.map((result, index) => {
+      if (result.error) {
+        console.error(`Error fetching user ${userIds[index]}:`, result.error);
+        return null; // or some error indication
+      }
+      return {
+        id: result.data.user.id,
+        email: result.data.user.email,
+      };
+    }).filter(user => user !== null); // Filter out any users that had errors
+
+    return new Response(JSON.stringify(userEmails), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
     });
-  }
 
-  const { data: users, error } = await supabaseAdmin.auth.admin.listUsers({
-    page: 1,
-    perPage: userIds.length,
-  });
-
-  if (error) {
+  } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
-      headers: { "Content-Type": "application/json" },
     });
   }
-
-  const userEmails = users.users
-    .filter((user) => userIds.includes(user.id))
-    .map((user) => ({ id: user.id, email: user.email }));
-
-  return new Response(JSON.stringify(userEmails), {
-    headers: { "Content-Type": "application/json" },
-  });
 });
