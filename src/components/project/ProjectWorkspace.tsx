@@ -167,7 +167,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 					{/* Right Column: Documents */}
 					<div className="lg:col-span-2">
 					<DocumentManager
-						bucketId={activeProject?.entityId || null}
+						bucketId={activeProject?.orgId || null}
 						folderPath={projectId}
 						title="Project Documents"
 						canUpload={true}

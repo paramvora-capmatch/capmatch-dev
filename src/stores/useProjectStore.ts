@@ -17,7 +17,7 @@ const projectProfileToDbProject = (
 		projectName: "name", // Map to name in new schema
 		assetType: "asset_type",
 		// borrowerProfileId: "owner_id", // Removed - projects owned by entities, not users
-		entityId: "owner_entity_id", // Map to owner_entity_id in new schema
+		// orgId: "owner_org_id", // Map to owner_org_id in new schema - removed as it's not in ProjectProfile
 		assignedAdvisorUserId: "assigned_advisor_id", // Map to assigned_advisor_id in new schema
 		propertyAddressStreet: "property_address_street",
 		propertyAddressCity: "property_address_city",
@@ -147,8 +147,14 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		loadUserProjects: async () => {
-			const { user } = useAuthStore.getState();
+			const { user, activeOrg, currentOrgRole } = useAuthStore.getState();
+			console.log("[ProjectStore] 🔍 DEBUG - Starting loadUserProjects");
+			console.log("[ProjectStore] 🔍 DEBUG - User:", user ? { id: user.id, email: user.email, role: user.role } : "null");
+			console.log("[ProjectStore] 🔍 DEBUG - Active Org:", activeOrg ? { id: activeOrg.id, name: activeOrg.name } : "null");
+			console.log("[ProjectStore] 🔍 DEBUG - Current Org Role:", currentOrgRole);
+			
 			if (!user) {
+				console.log("[ProjectStore] ❌ No user found, resetting state");
 				get().resetProjectState();
 				return;
 			}
@@ -160,17 +166,129 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				console.log(
 					"[ProjectStore] Loading projects from Supabase for current user (RLS enforced)."
 				);
+				
+				// First, let's check what resources the user has access to
+				console.log("[ProjectStore] 🔍 DEBUG - Checking user's resources...");
+				const { data: resources, error: resourcesError } = await supabase
+					.from("resources")
+					.select("*");
+				if (resourcesError) {
+					console.error("[ProjectStore] ❌ Failed to load resources:", resourcesError);
+				} else {
+					console.log("[ProjectStore] 🔍 DEBUG - Resources found:", resources?.length || 0);
+					if (resources && resources.length > 0) {
+						console.log("[ProjectStore] 🔍 DEBUG - Sample resource:", resources[0]);
+					}
+				}
+
+				// Check org memberships
+				console.log("[ProjectStore] 🔍 DEBUG - Checking org memberships...");
+				const { data: memberships, error: membershipsError } = await supabase
+					.from("org_members")
+					.select("*")
+					.eq("user_id", user.id);
+				if (membershipsError) {
+					console.error("[ProjectStore] ❌ Failed to load memberships:", membershipsError);
+				} else {
+					console.log("[ProjectStore] 🔍 DEBUG - Memberships found:", memberships?.length || 0);
+					if (memberships && memberships.length > 0) {
+						console.log("[ProjectStore] 🔍 DEBUG - Sample membership:", memberships[0]);
+					}
+				}
+
+				// Test permission functions
+				if (activeOrg && resources && resources.length > 0) {
+					console.log("[ProjectStore] 🔍 DEBUG - Testing permission functions...");
+					const testResourceId = resources[0].id;
+					const { data: canView, error: canViewError } = await supabase
+						.rpc('can_view', { p_user_id: user.id, p_resource_id: testResourceId });
+					if (canViewError) {
+						console.error("[ProjectStore] ❌ can_view test failed:", canViewError);
+					} else {
+						console.log("[ProjectStore] 🔍 DEBUG - can_view test result:", canView);
+					}
+
+					const { data: userRole, error: roleError } = await supabase
+						.rpc('get_user_role', { p_user_id: user.id, p_org_id: activeOrg.id });
+					if (roleError) {
+						console.error("[ProjectStore] ❌ get_user_role test failed:", roleError);
+					} else {
+						console.log("[ProjectStore] 🔍 DEBUG - get_user_role test result:", userRole);
+					}
+				}
+
+				// Let's first check what PROJECT_DOCS_ROOT resources exist
+				console.log("[ProjectStore] 🔍 DEBUG - Checking PROJECT_DOCS_ROOT resources...");
+				const { data: projectDocsRoots, error: projectDocsError } = await supabase
+					.from("resources")
+					.select("*")
+					.eq("resource_type", "PROJECT_DOCS_ROOT");
+				if (projectDocsError) {
+					console.error("[ProjectStore] ❌ Failed to load PROJECT_DOCS_ROOT resources:", projectDocsError);
+				} else {
+					console.log("[ProjectStore] 🔍 DEBUG - PROJECT_DOCS_ROOT resources found:", projectDocsRoots?.length || 0);
+					if (projectDocsRoots && projectDocsRoots.length > 0) {
+						console.log("[ProjectStore] 🔍 DEBUG - Sample PROJECT_DOCS_ROOT:", projectDocsRoots[0]);
+					}
+				}
+
+				// Test can_view on PROJECT_DOCS_ROOT resources
+				if (projectDocsRoots && projectDocsRoots.length > 0) {
+					console.log("[ProjectStore] 🔍 DEBUG - Testing can_view on PROJECT_DOCS_ROOT resources...");
+					for (const resource of projectDocsRoots) {
+						const { data: canViewResource, error: canViewResourceError } = await supabase
+							.rpc('can_view', { p_user_id: user.id, p_resource_id: resource.id });
+						if (canViewResourceError) {
+							console.error(`[ProjectStore] ❌ can_view test failed for resource ${resource.id}:`, canViewResourceError);
+						} else {
+							console.log(`[ProjectStore] 🔍 DEBUG - can_view for resource ${resource.id} (project: ${resource.project_id}):`, canViewResource);
+						}
+					}
+				}
+
+				// Let's also test the RLS policy directly by checking if we can see projects with a join
+				console.log("[ProjectStore] 🔍 DEBUG - Testing RLS policy with join query...");
+				const { data: projectsWithResources, error: projectsWithResourcesError } = await supabase
+					.from("projects")
+					.select(`
+						*,
+						resources!inner(
+							id,
+							resource_type,
+							project_id
+						)
+					`)
+					.eq("resources.resource_type", "PROJECT_DOCS_ROOT");
+				if (projectsWithResourcesError) {
+					console.error("[ProjectStore] ❌ Projects with resources query failed:", projectsWithResourcesError);
+				} else {
+					console.log("[ProjectStore] 🔍 DEBUG - Projects with PROJECT_DOCS_ROOT resources:", projectsWithResources?.length || 0);
+					if (projectsWithResources && projectsWithResources.length > 0) {
+						console.log("[ProjectStore] 🔍 DEBUG - Sample project with resources:", projectsWithResources[0]);
+					}
+				}
+
 				// RLS will only return projects the user can view
 				const { data, error } = await supabase
 					.from("projects")
 					.select("*");
-				if (error) throw error;
+				if (error) {
+					console.error("[ProjectStore] ❌ Projects query failed:", error);
+					throw error;
+				}
+				console.log("[ProjectStore] 🔍 DEBUG - Raw projects from DB:", data?.length || 0);
+				if (data && data.length > 0) {
+					console.log("[ProjectStore] 🔍 DEBUG - Sample project:", data[0]);
+				}
+				
 				const userProjects: ProjectProfile[] = (data || []).map(dbProjectToProjectProfile);
+				console.log("[ProjectStore] 🔍 DEBUG - Converted projects:", userProjects.length);
 
 				const projectsWithProgress = userProjects.map((p) => ({
 					...p,
 					...get().calculateProgress(p),
 				}));
+				console.log("[ProjectStore] 🔍 DEBUG - Final projects with progress:", projectsWithProgress.length);
 				set({ projects: projectsWithProgress });
 			} catch (error) {
 				console.error("[ProjectStore] Failed to load projects:", error);
@@ -189,21 +307,20 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			set({ activeProject: project });
 		},
 
-		createProject: async (projectData: Partial<ProjectProfile> & { memberPermissions?: Array<{user_id: string}> }) => {
-			const { user, activeEntity } = useAuthStore.getState();
+		createProject: async (projectData: Partial<ProjectProfile>) => {
+			const { user, activeOrg } = useAuthStore.getState();
 			if (!user)
 				throw new Error("User must be logged in to create a project.");
-			if (!activeEntity)
+			if (!activeOrg)
 				throw new Error(
-					"Must be part of an entity to create a project."
+					"Must be part of an org to create a project."
 				);
 
 			// Use the create-project edge function
 			const { data, error } = await supabase.functions.invoke('create-project', {
 				body: {
 					name: projectData.projectName || `New Project ${get().projects.length + 1}`,
-					owner_entity_id: activeEntity.id,
-					member_permissions: projectData.memberPermissions || []
+					owner_org_id: activeOrg.id
 				}
 			});
 
@@ -213,7 +330,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			// Convert the database project to ProjectProfile format
 			const newProjectData: ProjectProfile = {
 				id: data.project.id,
-				entityId: data.project.owner_entity_id,
+				entityId: data.project.owner_org_id, // Use entityId instead of orgId
 				assignedAdvisorUserId: data.project.assigned_advisor_id,
 				projectName: data.project.name,
 				assetType: "Multifamily",
@@ -371,22 +488,32 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 
 // Profile-based triggers removed in new schema
 
-// Subscribe to entity memberships changes to reload projects
+// Subscribe to org memberships changes to reload projects
 useAuthStore.subscribe((authState, prevAuthState) => {
-	const { user } = authState;
-	const prevEntityMemberships = prevAuthState.entityMemberships;
-	const currentEntityMemberships = authState.entityMemberships;
+	const { user, activeOrg, currentOrgRole } = authState;
+	const prevOrgMemberships = prevAuthState.orgMemberships;
+	const currentOrgMemberships = authState.orgMemberships;
+
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Auth state changed");
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - User:", user ? { id: user.id, email: user.email, role: user.role } : "null");
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Active Org:", activeOrg ? { id: activeOrg.id, name: activeOrg.name } : "null");
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Current Org Role:", currentOrgRole);
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Prev memberships:", prevOrgMemberships?.length || 0);
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Current memberships:", currentOrgMemberships?.length || 0);
+	console.log("[ProjectStore Subscription] 🔍 DEBUG - Memberships changed:", prevOrgMemberships !== currentOrgMemberships);
 
 	// Trigger project loading when:
 	// 1. User is a borrower
-	// 2. Entity memberships changed (loaded or updated)
+	// 2. Org memberships changed (loaded or updated)
 	// 3. User is authenticated
 	if (user?.role === "borrower" && user?.id && 
-		prevEntityMemberships !== currentEntityMemberships && 
-		currentEntityMemberships && currentEntityMemberships.length > 0) {
+		prevOrgMemberships !== currentOrgMemberships && 
+		currentOrgMemberships && currentOrgMemberships.length > 0) {
 		console.log(
-			"[ProjectStore Subscription] Entity memberships loaded. Triggering project load."
+			"[ProjectStore Subscription] ✅ Org memberships loaded. Triggering project load."
 		);
 		useProjectStore.getState().loadUserProjects();
+	} else {
+		console.log("[ProjectStore Subscription] ⏭️ Not triggering project load - conditions not met");
 	}
 });

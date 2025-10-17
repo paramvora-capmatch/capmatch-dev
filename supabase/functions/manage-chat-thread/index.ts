@@ -47,7 +47,7 @@ serve(async (req) => {
       // Verify user has access to the project
       const { data: project, error: projectError } = await supabaseAdmin
         .from("projects")
-        .select("id, owner_entity_id, assigned_advisor_id")
+        .select("id, owner_org_id, assigned_advisor_id")
         .eq("id", project_id)
         .single();
 
@@ -56,8 +56,8 @@ serve(async (req) => {
       }
 
       // Check if user can access this project (owner or advisor)
-      const isOwner = await supabaseAdmin.rpc('is_entity_owner', {
-        p_entity_id: project.owner_entity_id,
+      const isOwner = await supabaseAdmin.rpc('is_org_owner', {
+        p_org_id: project.owner_org_id,
         p_user_id: user.id
       });
 
@@ -126,7 +126,7 @@ serve(async (req) => {
       // Verify user has permission to add participants to this thread
       const { data: thread, error: threadError } = await supabaseAdmin
         .from("chat_threads")
-        .select("id, project_id, projects!inner(owner_entity_id, assigned_advisor_id)")
+        .select("id, project_id, projects!inner(owner_org_id, assigned_advisor_id)")
         .eq("id", thread_id)
         .single();
 
@@ -135,8 +135,8 @@ serve(async (req) => {
       }
 
       const project = thread.projects;
-      const isOwner = await supabaseAdmin.rpc('is_entity_owner', {
-        p_entity_id: project.owner_entity_id,
+      const isOwner = await supabaseAdmin.rpc('is_org_owner', {
+        p_org_id: project.owner_org_id,
         p_user_id: user.id
       });
 
@@ -175,7 +175,7 @@ serve(async (req) => {
       // Verify user has permission to remove participants from this thread
       const { data: thread, error: threadError } = await supabaseAdmin
         .from("chat_threads")
-        .select("id, project_id, projects!inner(owner_entity_id, assigned_advisor_id)")
+        .select("id, project_id, projects!inner(owner_org_id, assigned_advisor_id)")
         .eq("id", thread_id)
         .single();
 
@@ -184,8 +184,8 @@ serve(async (req) => {
       }
 
       const project = thread.projects;
-      const isOwner = await supabaseAdmin.rpc('is_entity_owner', {
-        p_entity_id: project.owner_entity_id,
+      const isOwner = await supabaseAdmin.rpc('is_org_owner', {
+        p_org_id: project.owner_org_id,
         p_user_id: user.id
       });
 
@@ -221,7 +221,7 @@ serve(async (req) => {
       // Verify user has access to the project
       const { data: project, error: projectError } = await supabaseAdmin
         .from("projects")
-        .select("id, owner_entity_id, assigned_advisor_id")
+        .select("id, owner_org_id, assigned_advisor_id")
         .eq("id", project_id)
         .single();
 
@@ -230,8 +230,8 @@ serve(async (req) => {
       }
 
       // Check if user can access this project (owner or advisor)
-      const isOwner = await supabaseAdmin.rpc('is_entity_owner', {
-        p_entity_id: project.owner_entity_id,
+      const isOwner = await supabaseAdmin.rpc('is_org_owner', {
+        p_org_id: project.owner_org_id,
         p_user_id: user.id
       });
 

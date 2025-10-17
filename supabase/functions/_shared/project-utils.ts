@@ -2,22 +2,21 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export interface CreateProjectOptions {
   name: string;
-  owner_entity_id: string;
-  member_permissions?: Array<{ user_id: string }>;
+  owner_org_id: string;
 }
 
 export async function createProjectWithResumeAndStorage(
   supabaseAdmin: any,
   options: CreateProjectOptions
 ) {
-  const { name, owner_entity_id, member_permissions = [] } = options;
-  console.log(`[project-utils] Creating project: ${name} for entity: ${owner_entity_id}`);
+  const { name, owner_org_id } = options;
+  console.log(`[project-utils] Creating project: ${name} for org: ${owner_org_id}`);
 
   // 1. Create the project
   console.log("[project-utils] Step 1: Creating project record");
   const { data: project, error: projectError } = await supabaseAdmin
     .from("projects")
-    .insert({ name, owner_entity_id })
+    .insert({ name, owner_org_id })
     .select()
     .single();
   if (projectError) {
@@ -42,7 +41,7 @@ export async function createProjectWithResumeAndStorage(
   // 3. Create the folder in Supabase Storage
   console.log("[project-utils] Step 3: Creating storage folder");
   const { error: storageError } = await supabaseAdmin.storage
-    .from(owner_entity_id)
+    .from(owner_org_id)
     .upload(`${project.id}/.placeholder`, new Blob([""], { type: 'text/plain' }), {
         contentType: 'text/plain;charset=UTF-8'
     });
@@ -54,51 +53,84 @@ export async function createProjectWithResumeAndStorage(
   }
   console.log("[project-utils] Storage folder created successfully");
 
-  // 4. Grant project access to selected members (if any)
-  if (member_permissions && member_permissions.length > 0) {
-    console.log(`[project-utils] Step 4: Granting access to ${member_permissions.length} members`);
-    // Get entity members to validate
-    const { data: entityMembers, error: membersError } = await supabaseAdmin
-      .from("entity_members")
-      .select("user_id, role")
-      .eq("entity_id", owner_entity_id);
+  // 4. Create BORROWER_RESUME resource if it doesn't exist
+  console.log("[project-utils] Step 4: Creating/ensuring BORROWER_RESUME resource");
+  const { data: existingBorrowerResume } = await supabaseAdmin
+    .from("resources")
+    .select("id")
+    .eq("org_id", owner_org_id)
+    .eq("resource_type", "BORROWER_RESUME")
+    .maybeSingle();
+
+  let borrowerResumeResourceId;
+  if (!existingBorrowerResume) {
+    const { data: borrowerResumeResource, error: borrowerResumeError } = await supabaseAdmin
+      .from("resources")
+      .insert({
+        org_id: owner_org_id,
+        resource_type: "BORROWER_RESUME",
+        name: "Borrower Resume"
+      })
+      .select()
+      .single();
     
-    if (membersError) {
-        console.error(`[project-utils] Failed to get entity members: ${JSON.stringify(membersError)}`);
-        // Rollback: delete project, resume, and storage folder
-        await supabaseAdmin.from("projects").delete().eq("id", project.id);
-        throw new Error(`Failed to get entity members: ${membersError.message}`);
+    if (borrowerResumeError) {
+      console.error(`[project-utils] Borrower resume resource creation failed: ${JSON.stringify(borrowerResumeError)}`);
+      // Rollback: delete project, resume, and storage folder
+      await supabaseAdmin.from("projects").delete().eq("id", project.id);
+      throw new Error(`Borrower resume resource creation failed: ${borrowerResumeError.message}`);
     }
-
-    // Validate that all provided member IDs are actually members of the entity
-    const memberUserIds = entityMembers?.filter(member => member.role === 'member').map(m => m.user_id) || [];
-    const validMemberPermissions = member_permissions.filter(perm => memberUserIds.includes(perm.user_id));
-
-    if (validMemberPermissions.length > 0) {
-      console.log(`[project-utils] Granting access to ${validMemberPermissions.length} valid members`);
-      // Grant project access permissions (presence = editor)
-      const projectAccessPermissions = validMemberPermissions.map(perm => ({
-        project_id: project.id,
-        user_id: perm.user_id,
-        granted_by: null // Will be set by the calling function if needed
-      }));
-
-      const { error: projectAccessError } = await supabaseAdmin
-        .from("project_access_permissions")
-        .insert(projectAccessPermissions);
-      if (projectAccessError) {
-          console.error(`[project-utils] Project access permissions creation failed: ${JSON.stringify(projectAccessError)}`);
-          // Rollback: delete project, resume, and storage folder
-          await supabaseAdmin.from("projects").delete().eq("id", project.id);
-          throw new Error(`Project access permissions creation failed: ${projectAccessError.message}`);
-      }
-      console.log("[project-utils] Project access permissions created successfully");
-    } else {
-      console.log("[project-utils] No valid member permissions to grant");
-    }
+    borrowerResumeResourceId = borrowerResumeResource.id;
+    console.log("[project-utils] Borrower resume resource created successfully");
   } else {
-    console.log("[project-utils] No member permissions provided");
+    borrowerResumeResourceId = existingBorrowerResume.id;
+    console.log("[project-utils] Borrower resume resource already exists");
   }
+
+  // 5. Create PROJECT_RESUME resource
+  console.log("[project-utils] Step 5: Creating PROJECT_RESUME resource");
+  const { data: projectResumeResource, error: projectResumeError } = await supabaseAdmin
+    .from("resources")
+    .insert({
+      org_id: owner_org_id,
+      project_id: project.id,
+      resource_type: "PROJECT_RESUME",
+      name: `${name} Resume`
+    })
+    .select()
+    .single();
+  
+  if (projectResumeError) {
+    console.error(`[project-utils] Project resume resource creation failed: ${JSON.stringify(projectResumeError)}`);
+    // Rollback: delete project, resume, and storage folder
+    await supabaseAdmin.from("projects").delete().eq("id", project.id);
+    throw new Error(`Project resume resource creation failed: ${projectResumeError.message}`);
+  }
+  console.log("[project-utils] Project resume resource created successfully");
+
+  // 6. Create PROJECT_DOCS_ROOT resource
+  console.log("[project-utils] Step 6: Creating PROJECT_DOCS_ROOT resource");
+  const { data: projectDocsRootResource, error: projectDocsRootError } = await supabaseAdmin
+    .from("resources")
+    .insert({
+      org_id: owner_org_id,
+      project_id: project.id,
+      resource_type: "PROJECT_DOCS_ROOT",
+      name: `${name} Documents`
+    })
+    .select()
+    .single();
+  
+  if (projectDocsRootError) {
+    console.error(`[project-utils] Project docs root resource creation failed: ${JSON.stringify(projectDocsRootError)}`);
+    // Rollback: delete project, resume, and storage folder
+    await supabaseAdmin.from("projects").delete().eq("id", project.id);
+    throw new Error(`Project docs root resource creation failed: ${projectDocsRootError.message}`);
+  }
+  console.log("[project-utils] Project docs root resource created successfully");
+
+  // 7. Project creation completed - permissions are handled by role-based system
+  console.log("[project-utils] Project creation completed - using role-based permissions");
 
   console.log(`[project-utils] Project creation completed successfully: ${project.id}`);
   return project;

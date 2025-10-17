@@ -2,8 +2,8 @@
 
 // Core Schema Types - Updated to match new schema
 export type AppRole = 'borrower' | 'lender' | 'advisor';
-export type EntityType = 'borrower' | 'lender';
-export type EntityMemberRole = 'owner' | 'member';
+export type OrgType = 'borrower' | 'lender' | 'advisor';
+export type OrgMemberRole = 'owner' | 'project_manager' | 'member';
 export type InviteStatus = 'pending' | 'accepted' | 'cancelled' | 'expired';
 
 // Legacy types for backward compatibility
@@ -56,50 +56,40 @@ export interface Profile {
   full_name?: string;
   email: string;
   app_role: AppRole; // 'borrower', 'lender', or 'advisor'
-  active_entity_id?: string | null; // FK to entities.id, nullable for advisors
+  active_org_id?: string | null; // FK to orgs.id, nullable for advisors
 }
 
-// New Entity Type (unified for borrower and lender organizations)
-export interface Entity {
+// New Org Type (unified for borrower, lender, and advisor organizations)
+export interface Org {
   id: string;
   created_at: string;
   updated_at: string;
   name: string;
-  entity_type: EntityType; // 'borrower' or 'lender'
+  entity_type: OrgType; // 'borrower', 'lender', or 'advisor'
 }
 
-// New Entity Member Type
-export interface EntityMember {
-  entity_id: string;
+// New Org Member Type
+export interface OrgMember {
+  org_id: string;
   user_id: string;
-  role: EntityMemberRole; // 'owner' or 'member'
+  role: OrgMemberRole; // 'owner', 'project_manager', or 'member'
   created_at: string;
-  // Additional properties added by the entity store
+  // Additional properties added by the org store
   userName?: string;
   userEmail?: string;
   userRole?: string;
 }
 
-// Project Access Permission Type
-export interface ProjectAccessPermission {
-  id: string;
-  project_id: string;
-  user_id: string;
-  granted_by: string;
-  access_level: 'view' | 'edit';
-  created_at: string;
-}
 
 // New Invite Type
 export interface Invite {
   id: string;
-  entity_id: string;
+  org_id: string;
   invited_by: string;
   invited_email: string;
-  role: EntityMemberRole;
+  role: OrgMemberRole;
   token: string;
   status: InviteStatus;
-  initial_permissions?: any; // JSONB for pre-approved permissions
   expires_at: string;
   accepted_at?: string | null;
   created_at: string;
@@ -205,14 +195,14 @@ export interface Project {
   created_at: string;
   updated_at: string;
   name: string;
-  owner_entity_id: string; // FK to entities.id
+  owner_org_id: string; // FK to orgs.id
   assigned_advisor_id?: string | null; // FK to profiles.id
 }
 
 // New Resume Types
 export interface BorrowerResume {
   id: string;
-  entity_id: string; // FK to entities.id (1-to-1 with borrower entity)
+  org_id: string; // FK to orgs.id (1-to-1 with borrower org)
   content?: any; // JSONB
   created_at: string;
   updated_at: string;
@@ -238,7 +228,7 @@ export interface DocumentPermission {
 export interface LenderDocumentAccess {
   id: string;
   project_id: string; // FK to projects.id
-  lender_entity_id: string; // FK to entities.id
+  lender_org_id: string; // FK to orgs.id
   document_path: string;
   granted_by: string; // FK to profiles.id
   created_at: string;
@@ -433,9 +423,10 @@ export interface EnhancedUser {
   loginSource?: "direct" | "lenderline"; // Added login source tracking
   isDemo?: boolean; // Flag for demo users
   // RBAC additions
-  activeEntityId?: string | null; // for context switching
-  entityMemberships?: EntityMember[]; // loaded on login
+  activeOrgId?: string | null; // for context switching
+  orgMemberships?: OrgMember[]; // loaded on login
 }
+
 
 // Legacy RBAC Types - kept for backward compatibility but deprecated
 export interface BorrowerEntity {
@@ -450,7 +441,7 @@ export interface BorrowerEntityMember {
   id: string;
   entityId: string;
   userId: string;
-  role: EntityMemberRole;
+  role: OrgMemberRole;
   invitedBy: string;
   invitedAt: string;
   inviteToken?: string;

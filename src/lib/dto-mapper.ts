@@ -7,8 +7,8 @@ import {
 	BorrowerEntityMember,
 	// New schema types
 	Profile,
-	Entity,
-	EntityMember,
+	Org,
+	OrgMember,
 	Invite,
 	Project,
 	DocumentPermission,
@@ -29,7 +29,7 @@ export const dbProjectToProjectProfile = (dbProject: any): ProjectProfile => {
   return {
     id: dbProject.id,
     borrowerProfileId: undefined, // No longer used - projects owned by entities
-    entityId: dbProject.owner_entity_id, // Map owner_entity_id to entityId
+    orgId: dbProject.owner_org_id, // Map owner_org_id to orgId
     assignedAdvisorUserId: dbProject.assigned_advisor_id, // Map assigned_advisor_id
     projectName: dbProject.name, // Map name to projectName
     propertyAddressStreet: dbProject.property_address_street || "",
@@ -109,7 +109,7 @@ export const dbBorrowerToBorrowerProfile = (
 		updatedAt: dbBorrower.updated_at,
 		completenessPercent: 0, // Will be recalculated
 		// RBAC additions
-		entityId: dbBorrower.entity_id,
+		orgId: dbBorrower.org_id,
 		masterProfileId: dbBorrower.master_profile_id,
 		lastSyncedAt: dbBorrower.last_synced_at,
 		customFields: dbBorrower.custom_fields || [],
@@ -165,7 +165,7 @@ export const dbMessageToProjectMessage = (dbMessage: any): ProjectMessage => {
 export const dbMemberToBorrowerEntityMember = (dbMember: any): BorrowerEntityMember => {
 	return {
 		id: dbMember.id,
-		entityId: dbMember.entity_id,
+		orgId: dbMember.org_id,
 		userId: dbMember.user_id,
 		role: dbMember.role,
 		invitedBy: dbMember.invited_by,
@@ -197,33 +197,33 @@ export const dbProfileToProfile = (dbProfile: any): Profile => {
 		updated_at: dbProfile.updated_at,
 		full_name: dbProfile.full_name,
 		app_role: dbProfile.app_role,
-		active_entity_id: dbProfile.active_entity_id,
+		active_org_id: dbProfile.active_org_id,
 	};
 };
 
 /**
- * Maps an entity object from the database to the application's Entity model.
- * @param dbEntity - The entity data from Supabase.
- * @returns An Entity object.
+ * Maps an org object from the database to the application's Org model.
+ * @param dbOrg - The org data from Supabase.
+ * @returns An Org object.
  */
-export const dbEntityToEntity = (dbEntity: any): Entity => {
+export const dbOrgToOrg = (dbOrg: any): Org => {
 	return {
-		id: dbEntity.id,
-		created_at: dbEntity.created_at,
-		updated_at: dbEntity.updated_at,
-		name: dbEntity.name,
-		entity_type: dbEntity.entity_type,
+		id: dbOrg.id,
+		created_at: dbOrg.created_at,
+		updated_at: dbOrg.updated_at,
+		name: dbOrg.name,
+		entity_type: dbOrg.entity_type,
 	};
 };
 
 /**
- * Maps an entity member object from the database to the application's EntityMember model.
+ * Maps an org member object from the database to the application's OrgMember model.
  * @param dbMember - The member data from Supabase.
- * @returns An EntityMember object.
+ * @returns An OrgMember object.
  */
-export const dbEntityMemberToEntityMember = (dbMember: any): EntityMember => {
+export const dbOrgMemberToOrgMember = (dbMember: any): OrgMember => {
 	return {
-		entity_id: dbMember.entity_id,
+		org_id: dbMember.org_id,
 		user_id: dbMember.user_id,
 		role: dbMember.role,
 		created_at: dbMember.created_at,
@@ -238,13 +238,12 @@ export const dbEntityMemberToEntityMember = (dbMember: any): EntityMember => {
 export const dbInviteToInvite = (dbInvite: any): Invite => {
 	return {
 		id: dbInvite.id,
-		entity_id: dbInvite.entity_id,
+		org_id: dbInvite.org_id,
 		invited_by: dbInvite.invited_by,
 		invited_email: dbInvite.invited_email,
 		role: dbInvite.role,
 		token: dbInvite.token,
 		status: dbInvite.status,
-		initial_permissions: dbInvite.initial_permissions,
 		expires_at: dbInvite.expires_at,
 		accepted_at: dbInvite.accepted_at,
 		created_at: dbInvite.created_at,
@@ -262,7 +261,7 @@ export const dbProjectToProject = (dbProject: any): Project => {
 		created_at: dbProject.created_at,
 		updated_at: dbProject.updated_at,
 		name: dbProject.name,
-		owner_entity_id: dbProject.owner_entity_id,
+		owner_org_id: dbProject.owner_org_id,
 		assigned_advisor_id: dbProject.assigned_advisor_id,
 	};
 };
@@ -291,7 +290,7 @@ export const dbLenderDocumentAccessToLenderDocumentAccess = (dbAccess: any): Len
 	return {
 		id: dbAccess.id,
 		project_id: dbAccess.project_id,
-		lender_entity_id: dbAccess.lender_entity_id,
+		lender_org_id: dbAccess.lender_org_id,
 		document_path: dbAccess.document_path,
 		granted_by: dbAccess.granted_by,
 		created_at: dbAccess.created_at,

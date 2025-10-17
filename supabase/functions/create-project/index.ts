@@ -9,9 +9,9 @@ serve(async (req) => {
   }
 
   try {
-    const { name, owner_entity_id, member_permissions = [] } = await req.json();
-    if (!name || !owner_entity_id) {
-      throw new Error("name and owner_entity_id are required");
+    const { name, owner_org_id } = await req.json();
+    if (!name || !owner_org_id) {
+      throw new Error("name and owner_org_id are required");
     }
 
     const supabaseAdmin = createClient(
@@ -19,7 +19,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Verify the user has permission to create a project for this entity
+    // Verify the user has permission to create a project for this org
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Authorization header required");
     const jwt = authHeader.replace("Bearer ", "");
@@ -29,12 +29,12 @@ serve(async (req) => {
     ).auth.getUser(jwt);
     if (userError) throw new Error("Authentication failed");
 
-    const { data: isOwner, error: ownerCheckError } = await supabaseAdmin.rpc('is_entity_owner', {
-      p_entity_id: owner_entity_id,
+    const { data: isOwner, error: ownerCheckError } = await supabaseAdmin.rpc('is_org_owner', {
+      p_org_id: owner_org_id,
       p_user_id: user.id
     });
     if (ownerCheckError || !isOwner) {
-      throw new Error("User must be an owner of the entity to create a project.");
+      throw new Error("User must be an owner of the org to create a project.");
     }
 
     // --- Atomic Operation Start ---
@@ -42,11 +42,7 @@ serve(async (req) => {
     // Create the project using the shared utility function
     const project = await createProjectWithResumeAndStorage(supabaseAdmin, {
       name,
-      owner_entity_id,
-      member_permissions: member_permissions.map(perm => ({
-        ...perm,
-        granted_by: user.id // Set the granted_by field for the calling user
-      }))
+      owner_org_id
     });
 
     // --- Atomic Operation End ---

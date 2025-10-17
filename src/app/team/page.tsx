@@ -3,13 +3,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useEntityStore } from '@/stores/useEntityStore';
+import { useOrgStore } from '@/stores/useOrgStore';
 import { RoleBasedRoute } from '@/components/auth/RoleBasedRoute';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { InviteMemberModal } from '@/components/team/InviteMemberModal';
-import { DocumentPermissionManager } from '@/components/team/DocumentPermissionManager';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import { 
   Users, 
@@ -24,42 +23,41 @@ import {
   AlertTriangle,
   Info
 } from 'lucide-react';
-import { EntityMember, EntityMemberRole } from '@/types/enhanced-types';
+import { OrgMember, OrgMemberRole } from '@/types/enhanced-types';
 
 export default function TeamPage() {
-  const { user, activeEntity, currentEntityRole } = useAuth();
+  const { user, activeOrg, currentOrgRole } = useAuth();
   const {
     members,
     pendingInvites,
     isOwner,
     isLoading,
     error,
-    loadEntity,
+    loadOrg,
     inviteMember,
     cancelInvite,
     removeMember,
     removeAndReinviteMember,
     clearError
-  } = useEntityStore();
+  } = useOrgStore();
 
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [showPermissionManager, setShowPermissionManager] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<EntityMember | null>(null);
+  const [selectedMember, setSelectedMember] = useState<OrgMember | null>(null);
   const [showMemberMenu, setShowMemberMenu] = useState<string | null>(null);
   const [showRoleChangeWarning, setShowRoleChangeWarning] = useState(false);
 
   useEffect(() => {
-    if (activeEntity) {
-      loadEntity(activeEntity.id);
+    if (activeOrg) {
+      loadOrg(activeOrg.id);
     }
-  }, [activeEntity, loadEntity]);
+  }, [activeOrg, loadOrg]);
 
-  const handleInviteMember = async (email: string, role: EntityMemberRole, projectPermissions: string[]) => {
+  const handleInviteMember = async (email: string, role: OrgMemberRole) => {
     try {
-      const inviteLink = await inviteMember(email, role, projectPermissions);
-      // Reload entity data to show the new pending invite
-      if (activeEntity) {
-        loadEntity(activeEntity.id);
+      const inviteLink = await inviteMember(email, role);
+      // Reload org data to show the new pending invite
+      if (activeOrg) {
+        loadOrg(activeOrg.id);
       }
       return inviteLink;
     } catch (error) {
@@ -79,7 +77,7 @@ export default function TeamPage() {
     }
   };
 
-  const handleRoleChange = (member: EntityMember, newRole: EntityMemberRole) => {
+  const handleRoleChange = (member: OrgMember, newRole: OrgMemberRole) => {
     setSelectedMember(member);
     setShowRoleChangeWarning(true);
     setShowMemberMenu(null);
@@ -134,12 +132,12 @@ export default function TeamPage() {
     return member.userEmail || 'user@example.com';
   };
 
-  if (!activeEntity) {
+  if (!activeOrg) {
     return (
       <RoleBasedRoute roles={['borrower']}>
         <DashboardLayout title="Team Management">
           <div className="text-center py-8">
-            <p className="text-gray-500">No active entity found. Please contact support.</p>
+            <p className="text-gray-500">No active org found. Please contact support.</p>
           </div>
         </DashboardLayout>
       </RoleBasedRoute>
@@ -167,7 +165,7 @@ export default function TeamPage() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
-              <p className="text-gray-600">{activeEntity.name}</p>
+              <p className="text-gray-600">{activeOrg.name}</p>
             </div>
             {isOwner && (
               <Button
@@ -239,17 +237,6 @@ export default function TeamPage() {
                           {showMemberMenu === member.user_id && (
                             <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                               <div className="py-1">
-                                <button
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  onClick={() => {
-                                    setSelectedMember(member);
-                                    setShowPermissionManager(true);
-                                    setShowMemberMenu(null);
-                                  }}
-                                >
-                                  <Settings size={16} className="mr-2" />
-                                  Manage Permissions
-                                </button>
                                 
                                 <button
                                   className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -357,16 +344,6 @@ export default function TeamPage() {
           />
         )}
 
-        {showPermissionManager && selectedMember && (
-          <DocumentPermissionManager
-            isOpen={showPermissionManager}
-            onClose={() => {
-              setShowPermissionManager(false);
-              setSelectedMember(null);
-            }}
-            member={selectedMember}
-          />
-        )}
 
         {/* Role Change Warning Modal */}
         {showRoleChangeWarning && selectedMember && (

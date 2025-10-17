@@ -14,8 +14,8 @@ import { corsHeaders } from "../_shared/cors.ts";
   }
   Behavior:
   - Verifies pending invite by token and expiry
-  - If accept=true: marks invite accepted, creates entity_members row for user,
-    optionally sets active_entity_id (not used in new schema per directive),
+  - If accept=true: marks invite accepted, creates org_members row for user,
+    optionally sets active_org_id (not used in new schema per directive),
     and applies initial_permissions to document_permissions for the user
   - If accept=false: marks invite cancelled
 */
@@ -47,7 +47,7 @@ serve(async (req: any) => {
     // Look up invite by token and ensure it's pending and not expired
     const { data: invite, error: inviteError } = await supabase
       .from("invites")
-      .select("*, entity:entities!invites_entity_id_fkey(*)")
+      .select("*, org:orgs!invites_org_id_fkey(*)")
       .eq("token", token)
       .eq("status", "pending")
       .gt("expires_at", new Date().toISOString())
@@ -150,9 +150,9 @@ serve(async (req: any) => {
 
     // Create membership for the user
     const { error: memberError } = await supabase
-      .from("entity_members")
+      .from("org_members")
       .insert({
-        entity_id: invite.entity_id,
+        org_id: invite.org_id,
         user_id: userId,
         role: invite.role,
       });
