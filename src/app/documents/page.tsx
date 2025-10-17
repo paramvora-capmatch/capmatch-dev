@@ -9,7 +9,7 @@ import { DocumentManager } from "@/components/documents/DocumentManager";
 import { Loader2 } from "lucide-react";
 
 export default function DocumentsPage() {
-	const { user, isLoading } = useAuth();
+	const { user, isLoading, activeOrg } = useAuth();
 
 	return (
 		<RoleBasedRoute roles={["borrower"]}>
@@ -26,7 +26,7 @@ export default function DocumentsPage() {
 							</p>
 						</div>
 						<DocumentManager
-							projectId={null}
+							bucketId={activeOrg?.id || null}
 							folderId={null}
 							title="General Borrower Documents"
 							canUpload={true}

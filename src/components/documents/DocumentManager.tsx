@@ -1,13 +1,27 @@
-// src/components/documents/DocumentManager.tsx
-'use client';
+"use client";
 
-import React, { useState, useCallback } from 'react';
-import { useDocumentManagement, DocumentFile, DocumentFolder } from '@/hooks/useDocumentManagement';
-import { Card, CardContent, CardHeader } from '../ui/card';
-import { Button } from '../ui/Button';
-import { FileText, Upload, Download, Trash2, Loader2, AlertCircle, Folder, FolderOpen } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useAuthStore } from '@/stores/useAuthStore';
+import React, { useState, useCallback } from "react";
+import { useDocumentManagement } from "@/hooks/useDocumentManagement";
+import type {
+  DocumentFile,
+  DocumentFolder,
+} from "@/hooks/useDocumentManagement";
+import { Card, CardContent, CardHeader } from "../ui/card";
+import { Button } from "../ui/Button";
+import {
+  FileText,
+  Upload,
+  Download,
+  Trash2,
+  Loader2,
+  AlertCircle,
+  Folder,
+  FolderOpen,
+  Edit,
+} from "lucide-react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface DocumentManagerProps {
   projectId: string | null;
@@ -18,21 +32,21 @@ interface DocumentManagerProps {
 }
 
 const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 Bytes';
+  if (!bytes || bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric', 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 };
 
@@ -43,23 +57,23 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   canUpload = true,
   canDelete = true,
 }) => {
-  const { 
-    files, 
-    folders, 
-    isLoading, 
-    error, 
-    uploadFile, 
-    createFolder, 
-    deleteFile, 
+  const {
+    files,
+    folders,
+    isLoading,
+    error,
+    uploadFile,
+    createFolder,
+    deleteFile,
     deleteFolder,
-    downloadFile 
+    downloadFile,
   } = useDocumentManagement(projectId, folderId);
-  
+
   const { user, activeOrg, currentOrgRole } = useAuthStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderName, setNewFolderName] = useState("");
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -72,9 +86,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const handleUpload = async () => {
     if (!selectedFile) return;
     setIsUploading(true);
-    
+
     try {
-      console.log('[DocumentManager] Starting upload', {
+      console.log("[DocumentManager] Starting upload", {
         projectId,
         folderId,
         activeOrgId: activeOrg?.id,
@@ -82,17 +96,17 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         currentOrgRole,
         fileName: selectedFile.name,
         fileSize: selectedFile.size,
-        fileType: selectedFile.type
+        fileType: selectedFile.type,
       });
-      
+
       await uploadFile(selectedFile, folderId || undefined);
-      
+
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     } catch (error) {
-      console.error('[DocumentManager] Upload error', error);
+      console.error("[DocumentManager] Upload error", error);
     } finally {
       setIsUploading(false);
     }
@@ -100,14 +114,14 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
-    
+
     setIsCreatingFolder(true);
     try {
       await createFolder(newFolderName.trim(), folderId || undefined);
-      setNewFolderName('');
+      setNewFolderName("");
       setShowCreateFolder(false);
     } catch (error) {
-      console.error('[DocumentManager] Create folder error', error);
+      console.error("[DocumentManager] Create folder error", error);
     } finally {
       setIsCreatingFolder(false);
     }
@@ -118,17 +132,21 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
       try {
         await deleteFile(fileId);
       } catch (error) {
-        console.error('[DocumentManager] Delete file error', error);
+        console.error("[DocumentManager] Delete file error", error);
       }
     }
   };
 
   const handleDeleteFolder = async (folderId: string, folderName: string) => {
-    if (window.confirm(`Are you sure you want to delete the folder "${folderName}"? This will also delete all files and subfolders inside it.`)) {
+    if (
+      window.confirm(
+        `Are you sure you want to delete the folder "${folderName}"? This will also delete all files and subfolders inside it.`
+      )
+    ) {
       try {
         await deleteFolder(folderId);
       } catch (error) {
-        console.error('[DocumentManager] Delete folder error', error);
+        console.error("[DocumentManager] Delete folder error", error);
       }
     }
   };
@@ -137,11 +155,12 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     try {
       await downloadFile(fileId);
     } catch (error) {
-      console.error('[DocumentManager] Download error', error);
+      console.error("[DocumentManager] Download error", error);
     }
   };
 
-  const canEdit = currentOrgRole === 'owner' || currentOrgRole === 'project_manager';
+  const canEdit =
+    currentOrgRole === "owner" || currentOrgRole === "project_manager";
 
   return (
     <Card className="shadow-sm h-full flex flex-col">
@@ -158,7 +177,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   disabled={isUploading}
                 >
                   <Upload className="h-4 w-4 mr-1" />
-                  {isUploading ? 'Uploading...' : 'Upload'}
+                  {isUploading ? "Uploading..." : "Upload"}
                 </Button>
               </>
             )}
@@ -166,7 +185,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-hidden">
+      <CardContent className="flex-1 overflow-y-auto p-4">
         {/* Upload Area */}
         {selectedFile && canUpload && canEdit && (
           <motion.div
@@ -178,20 +197,20 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
               <div className="flex items-center space-x-3">
                 <FileText className="h-5 w-5 text-blue-600" />
                 <div>
-                  <p className="text-sm font-medium text-blue-900">{selectedFile.name}</p>
-                  <p className="text-xs text-blue-700">{formatFileSize(selectedFile.size)}</p>
+                  <p className="text-sm font-medium text-blue-900">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    {formatFileSize(selectedFile.size)}
+                  </p>
                 </div>
               </div>
               <div className="flex space-x-2">
-                <Button
-                  size="sm"
-                  onClick={handleUpload}
-                  disabled={isUploading}
-                >
+                <Button size="sm" onClick={handleUpload} disabled={isUploading}>
                   {isUploading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    'Upload'
+                    "Upload"
                   )}
                 </Button>
                 <Button
@@ -237,7 +256,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
         {/* Documents List */}
         {!isLoading && (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="space-y-2">
             {/* Folders */}
             {folders.map((folder) => (
               <motion.div
@@ -249,7 +268,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 <div className="flex items-center space-x-3">
                   <FolderOpen className="h-5 w-5 text-blue-600" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{folder.name}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {folder.name}
+                    </p>
                     <p className="text-xs text-gray-500">Folder</p>
                   </div>
                 </div>
@@ -271,42 +292,67 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             ))}
 
             {/* Files */}
-            {files.map((file) => (
-              <motion.div
-                key={file.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <FileText className="h-5 w-5 text-gray-600" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {formatFileSize(file.size)} • {formatDate(file.created_at)}
-                    </p>
+            {files.map((file) => {
+              const isEditable = /\.(docx|xlsx|pptx)$/i.test(file.name);
+
+              return (
+                <motion.div
+                  key={file.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <FileText className="h-5 w-5 text-gray-600" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatFileSize(file.metadata?.size)} •{" "}
+                        {formatDate(file.created_at)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDownload(file.id, file.name)}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                  {canDelete && canEdit && (
+                  <div className="flex items-center space-x-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDeleteFile(file.id, file.name)}
+                      onClick={() => handleDownload(file.id, file.name)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Download className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                    {isEditable && canEdit && (
+                      <Link
+                        href={`/documents/edit?bucket=${
+                          activeOrg?.id
+                        }&path=${encodeURIComponent(file.storage_path)}`}
+                        passHref
+                        legacyBehavior
+                      >
+                        <Button
+                          as="a"
+                          size="sm"
+                          variant="outline"
+                          title="Edit Document"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    )}
+                    {canDelete && canEdit && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteFile(file.id, file.name)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
 
             {/* Empty State */}
             {files.length === 0 && folders.length === 0 && !isLoading && (
@@ -314,7 +360,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500">No documents yet</p>
                 <p className="text-sm text-gray-400 mt-1">
-                  {canUpload && canEdit ? 'Upload files or create folders to get started' : 'No documents available'}
+                  {canUpload && canEdit
+                    ? "Upload files or create folders to get started"
+                    : "No documents available"}
                 </p>
               </div>
             )}
