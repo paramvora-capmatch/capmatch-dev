@@ -8,7 +8,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, projectId, orgId, folderId, fileName, folderName } = await req.json();
+    const { action, projectId, orgId, parentId, fileName, folderName, filePath, contentType, folderId } = await req.json();
     
     if (!action) {
       throw new Error("action is required");
@@ -36,7 +36,14 @@ serve(async (req) => {
         if (!projectId || !folderName || !orgId) {
           throw new Error("projectId, orgId and folderName are required for create_folder");
         }
-        result = await createFolder(supabaseAdmin, user.id, projectId, orgId, folderId, folderName);
+        result = await createFolder(supabaseAdmin, user.id, projectId, orgId, parentId, folderName);
+        break;
+      
+      case 'create_file':
+        if (!projectId || !orgId || !parentId || !fileName || !filePath) {
+          throw new Error("projectId, orgId, parentId, fileName, and filePath are required for upload_file");
+        }
+        result = await createFile(supabaseAdmin, user.id, projectId, orgId, parentId, fileName, filePath);
         break;
 
       case 'delete_file':
@@ -105,6 +112,32 @@ async function createFolder(supabaseAdmin: any, userId: string, projectId: strin
 
   return folderResource;
 }
+
+async function createFile(supabaseAdmin: any, userId: string, projectId: string, orgId: string, parentId: string, fileName: string, filePath: string) {
+  // RLS policy on `resources` table will verify that the user has 'edit' permission
+  // on the `parentId` before allowing this insert.
+
+  const { data: fileResource, error: fileResourceError } = await supabaseAdmin
+    .from('resources')
+    .insert({
+      org_id: orgId,
+      project_id: projectId,
+      parent_id: parentId,
+      resource_type: 'FILE',
+      name: fileName,
+      storage_path: filePath
+    })
+    .select()
+    .single();
+
+  if (fileResourceError) {
+    // This will now be the point where the RLS error is caught and reported clearly.
+    throw new Error(`Failed to create file resource: ${fileResourceError.message}`);
+  }
+
+  return fileResource;
+}
+
 
 async function deleteFile(supabaseAdmin: any, userId: string, fileName: string) {
   // Get the file resource to get the storage path

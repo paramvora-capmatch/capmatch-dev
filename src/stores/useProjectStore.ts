@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { dbProjectToProjectProfile } from "@/lib/dto-mapper";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuthStore } from "./useAuthStore";
+import { usePermissionStore } from "./usePermissionStore"; // Import the new store
 import {
 	ProjectProfile,
   // New schema types
@@ -160,10 +161,16 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				console.log("[ProjectStore] Loading projects for current user (RLS enforced).");
 
 				// RLS will only return projects the user has been granted access to.
-				// We no longer need to check the org or role here.
+				// We perform a join to fetch the resource IDs for key project resources.
 				const { data, error } = await supabase
 					.from("projects")
-					.select("*");
+					.select(`
+            *,
+            resources (
+              id,
+              resource_type
+            )
+          `);
 
 				if (error) {
 					console.error("[ProjectStore] ❌ Projects query failed:", error);
@@ -172,7 +179,16 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				
 				console.log(`[ProjectStore] ✅ Found ${data?.length || 0} projects accessible by user.`);
 
-				const userProjects: ProjectProfile[] = (data || []).map(dbProjectToProjectProfile);
+        const userProjects: ProjectProfile[] = (data || []).map(project => {
+          const projectDocsResource = project.resources.find(r => r.resource_type === 'PROJECT_DOCS_ROOT');
+          const projectResumeResource = project.resources.find(r => r.resource_type === 'PROJECT_RESUME');
+
+          return {
+            ...dbProjectToProjectProfile(project),
+            projectDocsResourceId: projectDocsResource?.id || null,
+            projectResumeResourceId: projectResumeResource?.id || null,
+          };
+        });
 
 				const projectsWithProgress = userProjects.map((p) => ({
 					...p,
@@ -193,6 +209,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			if (project?.id === activeProject?.id) return;
 
 			set({ activeProject: project });
+      
+      // When a project becomes active, load its permissions
+      if (project) {
+        usePermissionStore.getState().loadPermissionsForProject(project.id);
+      } else {
+        usePermissionStore.getState().resetPermissions();
+      }
 		},
 
 		createProject: async (projectData: Partial<ProjectProfile>) => {
