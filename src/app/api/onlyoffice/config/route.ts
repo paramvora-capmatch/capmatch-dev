@@ -81,7 +81,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate a signed URL using the admin client
+    // --- VERSIONING CHANGES START ---
+
+    // 1. Find the document version and its associated resource from the storage path
+    const { data: versionData, error: versionError } = await supabaseAdmin
+      .from("document_versions")
+      .select(
+        `
+            id,
+            resource_id,
+            resources!document_versions_resource_id_fkey ( id, name, project_id )
+        `
+      )
+      .eq("storage_path", filePath)
+      .single();
+
+    if (versionError || !versionData || !versionData.resources) {
+      throw new Error(
+        `Document version not found for path: ${filePath}. ${
+          versionError?.message || ""
+        }`
+      );
+    }
+
+    const documentVersion = versionData;
+    const resource = versionData.resources;
+
+    // --- VERSIONING CHANGES END ---
+
+    // Generate a signed URL for the specific version file path
     const { data, error: signedUrlError } = await supabaseAdmin.storage
       .from(bucketId)
       .createSignedUrl(filePath, 3600); // URL is valid for 1 hour
@@ -108,7 +136,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const fileName = filePath.split("/").pop() || "document";
+    // Use the resource name for the title, and version ID for the key
+    const fileName = resource.name;
     const fileType = fileName.split(".").pop() || "";
 
     const documentTypeMap: { [key: string]: string } = {
@@ -118,16 +147,24 @@ export async function POST(request: NextRequest) {
     };
     const documentType = documentTypeMap[fileType] || "word";
 
-    const callbackUrl = `${internalServerUrl}/api/onlyoffice/callback?bucketId=${encodeURIComponent(
-      bucketId
-    )}&filePath=${encodeURIComponent(filePath)}`;
+    // Callback URL now includes the logical resource ID
+    const callbackUrl = `${internalServerUrl}/api/onlyoffice/callback?resourceId=${encodeURIComponent(
+      resource.id
+    )}`;
 
-    // Generate a URL-safe, unique key using a hash of the bucket and file path
-    const documentKey = crypto
-      .createHash("sha256")
-      .update(`${bucketId}/${filePath}`)
-      .digest("hex")
-      .substring(0, 20);
+    // Create a unique document key that changes when a new version is created.
+    // OnlyOffice caches documents by this key. If you reuse the same key,
+    // it will serve the cached version instead of loading the new one.
+    // Format: {resourceId}_{versionNumber}_{timestamp}
+    // The timestamp ensures that even if versions get the same name,
+    // opening the same version twice gets a fresh load.
+    const documentKey = `${resource.id}_v${documentVersion.version_number}_${Date.now()}`;
+
+    console.log("[OnlyOffice Config] Document key generated:", {
+      resourceId: resource.id,
+      versionNumber: documentVersion.version_number,
+      documentKey,
+    });
 
     const config = {
       document: {

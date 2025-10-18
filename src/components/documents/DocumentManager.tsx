@@ -20,6 +20,7 @@ import {
   Edit,
 } from "lucide-react";
 import Link from "next/link";
+import { VersionHistoryDropdown } from "./VersionHistoryDropdown";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/stores/useAuthStore";
 
@@ -127,7 +128,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const handleDeleteFile = async (fileId: string, fileName: string) => {
+  const handleDeleteFile = async (fileId: string) => {
     if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
       try {
         await deleteFile(fileId);
@@ -322,6 +323,12 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     >
                       <Download className="h-4 w-4" />
                     </Button>
+                    {canEdit && (
+                      <VersionHistoryDropdown
+                        resourceId={file.id}
+                        onRollbackSuccess={() => listDocuments()}
+                      />
+                    )}
                     {isEditable && canEdit && (
                       <Link
                         href={`/documents/edit?bucket=${
@@ -344,7 +351,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDeleteFile(file.id, file.name)}
+                      onClick={() => handleDeleteFile(file.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
