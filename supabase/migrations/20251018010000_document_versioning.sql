@@ -140,12 +140,18 @@ COMMENT ON FUNCTION public.delete_folder_and_children IS 'Recursively deletes a 
 
 -- Step 7: Update storage RLS policy - drop old version that references resources.storage_path
 -- We must drop the policy BEFORE dropping the function, since the policy depends on it.
-DROP POLICY IF EXISTS "Unified storage access policy" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload files to folders they can edit" ON storage.objects;
+DROP POLICY IF EXISTS "Users can view files they have access to" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update files they can edit" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete files they can edit" ON storage.objects;
+DROP POLICY IF EXISTS "Enable all actions for storage flow on buckets" ON storage.buckets;
+DROP POLICY IF EXISTS "Enable all actions for authenticated users on buckets" ON storage.buckets;
+DROP POLICY IF EXISTS "Enable access to all authenticated users" ON storage.buckets;
 
 -- Step 8: Now drop and recreate `get_resource_by_storage_path` to be version-aware.
 -- This replaces the old implementation from 20251014010200 that looked for
 -- storage_path directly on resources (which no longer exists after step 2).
-DROP FUNCTION IF EXISTS public.get_resource_by_storage_path(TEXT);
+DROP FUNCTION IF EXISTS public.get_resource_by_storage_path(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_resource_by_storage_path(p_storage_path TEXT)
 RETURNS UUID AS $$
 DECLARE
