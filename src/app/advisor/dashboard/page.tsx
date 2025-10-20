@@ -81,9 +81,6 @@ export default function AdvisorDashboardPage() {
 
 				if (user.isDemo) {
 					// --- DEMO MODE ---
-					console.log(
-						"[AdvisorDashboard] Loading data for DEMO advisor."
-					);
 
 					const advisorProfile = await getAdvisorById(user.email);
 					if (advisorProfile) setAdvisor(advisorProfile);
@@ -99,9 +96,6 @@ export default function AdvisorDashboardPage() {
 					}
 				} else {
 					// --- REAL USER MODE ---
-					console.log(
-						"[AdvisorDashboard] Loading data for REAL advisor from Supabase."
-					);
 
 					const realAdvisorProfile: Advisor = {
 						id: user.id || user.email,
@@ -373,7 +367,7 @@ export default function AdvisorDashboardPage() {
 									// The redirect is now handled automatically by the
 									// RoleBasedRoute component when the auth state changes to logged out.
 									// Manually pushing the router here was causing issues.
-									console.log("Logout initiated...");
+									// Logout initiated
 								}}
 							>
 								Sign Out

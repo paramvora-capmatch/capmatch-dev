@@ -334,7 +334,6 @@ export default function AdvisorProjectDetailPage() {
 
 				if (user?.isDemo) {
 					// Local storage update for demo
-					console.log("Demo mode: Project status would be updated to", newStatus);
 				} else {
 					const { error } = await supabase
 						.from("project_resumes")
@@ -347,7 +346,6 @@ export default function AdvisorProjectDetailPage() {
 				}
 			}
 
-			console.log("Project status updated successfully");
 		} catch (error) {
 			console.error("Error updating project status:", error);
 		}
@@ -422,7 +420,6 @@ export default function AdvisorProjectDetailPage() {
 			});
 
 			if (error) throw error;
-			console.log("Feedback generated and sent");
 		} catch (error) {
 			console.error("Error generating feedback:", error);
 		}

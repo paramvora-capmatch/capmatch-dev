@@ -1,7 +1,7 @@
 // src/hooks/useAppHydration.ts
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useBorrowerProfileStore } from "@/stores/useBorrowerProfileStore";
+import { useBorrowerResumeStore } from "@/stores/useBorrowerResumeStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 
 /**
@@ -12,25 +12,15 @@ import { useProjectStore } from "@/stores/useProjectStore";
 export const useAppHydration = () => {
   // Get loading states from all relevant stores
   const isAuthLoading = useAuthStore((state) => state.isLoading);
-  const isProfileLoading = useBorrowerProfileStore((state) => state.isLoading);
+  const isProfileLoading = useBorrowerResumeStore((state) => state.isLoading);
   const isProjectsLoading = useProjectStore((state) => state.isLoading);
   const user = useAuthStore((state) => state.user);
 
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    console.log("[useAppHydration] 🔍 State check:", {
-      isAuthLoading,
-      isProfileLoading,
-      isProjectsLoading,
-      userRole: user?.role,
-      userEmail: user?.email,
-      isHydrated,
-    });
-
     // 1. If auth is still loading, we are definitely not hydrated.
     if (isAuthLoading) {
-      console.log("[useAppHydration] ⏳ Waiting for auth to complete...");
       setIsHydrated(false);
       return;
     }
@@ -39,21 +29,13 @@ export const useAppHydration = () => {
     if (user?.role === "borrower") {
       // For borrowers, we are hydrated only when their specific data is also loaded.
       if (!isProfileLoading && !isProjectsLoading) {
-        console.log("[useAppHydration] ✅ App is hydrated for BORROWER.");
         setIsHydrated(true);
       } else {
-        console.log("[useAppHydration] ⏳ Borrower data still loading...", {
-          profileLoading: isProfileLoading,
-          projectsLoading: isProjectsLoading,
-        });
         setIsHydrated(false);
       }
     } else {
       // For non-borrowers (advisors, admins) or logged-out guests,
       // hydration is complete as soon as auth is resolved.
-      console.log(
-        "[useAppHydration] ✅ App is hydrated for NON-BORROWER or GUEST."
-      );
       setIsHydrated(true);
     }
   }, [isAuthLoading, isProfileLoading, isProjectsLoading, user, isHydrated]);
