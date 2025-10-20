@@ -29,7 +29,7 @@ export const dbProjectToProjectProfile = (dbProject: any): ProjectProfile => {
   return {
     id: dbProject.id,
     borrowerProfileId: undefined, // No longer used - projects owned by entities
-    orgId: dbProject.owner_org_id, // Map owner_org_id to orgId
+    entityId: dbProject.owner_org_id, // Map owner_org_id to entityId
     assignedAdvisorUserId: dbProject.assigned_advisor_id, // Map assigned_advisor_id
     projectName: dbProject.name, // Map name to projectName
     propertyAddressStreet: dbProject.property_address_street || "",

@@ -137,9 +137,9 @@ export default function AdvisorDashboardPage() {
 								const ownerIds = Array.from(
 									new Set(
 										assignedProjects
-											.map((p) => p.borrowerProfileId)
+											.map((p) => p.entityId)
 											.filter(Boolean)
-										)
+									)
 								) as string[];
 
 								if (ownerIds.length > 0) {
@@ -234,10 +234,7 @@ export default function AdvisorDashboardPage() {
 
 					if (messagesData) {
 						const mappedMessages = messagesData.map(msg => {
-							const senderRole = msg.sender_id === user.id ? 'advisor' : 'borrower';
-							return dbMessageToProjectMessage({
-								...msg, sender: { role: senderRole }
-							});
+							return dbMessageToProjectMessage(msg);
 						});
 						setRecentMessages(mappedMessages);
 					}
@@ -544,15 +541,15 @@ export default function AdvisorDashboardPage() {
 															</td>
 															<td className="px-6 py-4 whitespace-nowrap">
 																<div className="text-sm text-gray-900">
-										{user?.isDemo
-											? (project.borrowerProfileId
-												? (project.borrowerProfileId as string).split("_")[0]
-												: "...")
-										: (project.borrowerProfileId
-											? borrowerData[project.borrowerProfileId as string]
-											: undefined)
-																				?.name ||
-																		  "..."}
+																	{user?.isDemo
+																		? (project.entityId
+																			? (project.entityId as string).split("_")[0]
+																			: "...")
+																	: (project.entityId
+																		? borrowerData[project.entityId as string]
+																		: undefined)
+																					?.name ||
+																			  "..."}
 																</div>
 															</td>
 															<td className="px-6 py-4 whitespace-nowrap">
@@ -574,11 +571,11 @@ export default function AdvisorDashboardPage() {
 															<td className="px-6 py-4 whitespace-nowrap">
 																<div
 																	className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-																		project.projectStatus
+																		project.projectStatus as ProjectStatus
 																	)}`}
 																>
 																	{getStatusIcon(
-																		project.projectStatus
+																		project.projectStatus as ProjectStatus
 																	)}
 																	<span className="ml-1">
 																		{
@@ -640,9 +637,8 @@ export default function AdvisorDashboardPage() {
 							{recentMessages.length > 0 ? (
 								<div className="space-y-4">
 									{recentMessages.map((message) => {
-										const project = activeProjects.find(
-											(p) => p.id === message.projectId
-										);
+										// Find project by thread_id - we'll need to get project info from thread
+										const isAdvisorMessage = message.user_id === user?.id;
 										return (
 											<Card
 												key={message.id}
@@ -652,48 +648,28 @@ export default function AdvisorDashboardPage() {
 													<div className="flex items-start">
 														<div
 															className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-																message.senderType ===
-																"Advisor"
+																isAdvisorMessage
 																	? "bg-blue-100 text-blue-600"
 																	: "bg-gray-100 text-gray-600"
 															}`}
 														>
-															{message.senderType ===
-															"Advisor"
-																? "A"
-																: "B"}
+															{isAdvisorMessage ? "A" : "B"}
 														</div>
 														<div className="ml-3 flex-1">
 															<div className="flex items-center justify-between">
 																<p className="text-sm font-medium text-gray-900">
-																	{
-																		message.senderType
-																	}{" "}
-																	{message.senderType ===
-																		"Borrower" &&
-																		"("}
-																	{message.senderType ===
-																		"Borrower" &&
-																		project?.projectName}
-																	{message.senderType ===
-																		"Borrower" &&
-																		")"}
+																	{isAdvisorMessage ? "Advisor" : "Borrower"}
 																</p>
 																<p className="text-xs text-gray-500">
 																	{new Date(
-																		message.createdAt
+																		message.created_at
 																	).toLocaleString()}
 																</p>
 															</div>
 															<p className="mt-1 text-sm text-gray-700">
-																{message.message
-																	.length >
-																120
-																	? `${message.message.substring(
-																			0,
-																			120
-																	  )}...`
-																	: message.message}
+																{message.content && message.content.length > 120
+																	? `${message.content.substring(0, 120)}...`
+																	: message.content || "No content"}
 															</p>
 															<div className="mt-2 flex justify-end">
 																<Button
@@ -701,12 +677,11 @@ export default function AdvisorDashboardPage() {
 																	size="sm"
 																	onClick={() =>
 																		router.push(
-																			`/advisor/project/${message.projectId}`
+																			`/advisor/project/${message.thread_id}`
 																		)
 																	}
 																>
-																	Go to
-																	Project
+																	Go to Thread
 																</Button>
 															</div>
 														</div>
