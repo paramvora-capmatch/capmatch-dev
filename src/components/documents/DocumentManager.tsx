@@ -26,9 +26,10 @@ import { useAuthStore } from "@/stores/useAuthStore";
 
 interface DocumentManagerProps {
   projectId: string | null;
-  // This should correspond to a resource_id for the folder
-  resourceId: string | null;
+  folderId?: string | null;
   title: string;
+  canUpload?: boolean;
+  canDelete?: boolean;
 }
 
 const formatFileSize = (bytes: number) => {
@@ -52,8 +53,10 @@ const formatDate = (dateString: string) => {
 
 export const DocumentManager: React.FC<DocumentManagerProps> = ({
   projectId,
-  resourceId,
+  folderId = null,
   title,
+  canUpload = true,
+  canDelete = true,
 }) => {
   const {
     files,
@@ -74,18 +77,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const [newFolderName, setNewFolderName] = useState("");
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  // We need to find the root resource ID for the documents to pass to the hook
-  const [rootResourceId, setRootResourceId] = useState<string | null>(null);
-  useEffect(() => {
-    // This is a placeholder for logic that would fetch the root resource ID
-    // for this document manager instance (e.g., PROJECT_DOCS_ROOT).
-    // For now, we'll assume it's passed in as a prop.
-    setRootResourceId(resourceId);
-  }, [resourceId]);
-  
-  const { canEdit: canPerformActions, isLoading: isLoadingPermissionsRoot } = usePermissions(rootResourceId);
-
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -138,9 +129,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   };
 
   const handleDeleteFile = async (fileId: string) => {
-    if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
+    if (window.confirm(`Are you sure you want to delete this file?`)) {
       try {
-        await deleteFile(file.resource_id);
+        await deleteFile(fileId);
       } catch (error) {
         console.error("[DocumentManager] Delete file error", error);
       }
@@ -154,16 +145,16 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
       )
     ) {
       try {
-        await deleteFolder(folder.resource_id);
+        await deleteFolder(folderId);
       } catch (error) {
         console.error("[DocumentManager] Delete folder error", error);
       }
     }
   };
 
-  const handleDownload = async (file: DocumentFile) => {
+  const handleDownload = async (fileId: string, fileName: string) => {
     try {
-      await downloadFile(file.resource_id);
+      await downloadFile(fileId);
     } catch (error) {
       console.error("[DocumentManager] Download error", error);
     }
@@ -178,7 +169,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <div className="flex space-x-2">
-            {canEdit && (
+            {canUpload && canEdit && (
               <>
                 <Button
                   variant="outline"
@@ -197,7 +188,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
       <CardContent className="flex-1 overflow-y-auto p-4">
         {/* Upload Area */}
-        {selectedFile && canEdit && (
+        {selectedFile && canUpload && canEdit && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -288,11 +279,11 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   <span className="text-xs text-gray-500">
                     {formatDate(folder.created_at)}
                   </span>
-                  {canEdit && (
+                  {canDelete && canEdit && (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDeleteFolder(folder)}
+                      onClick={() => handleDeleteFolder(folder.id, folder.name)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -335,7 +326,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     {canEdit && (
                       <VersionHistoryDropdown
                         resourceId={file.id}
-                        onRollbackSuccess={() => listDocuments()}
+                        onRollbackSuccess={() => window.location.reload()}
                       />
                     )}
                     {isEditable && canEdit && (
@@ -360,7 +351,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                       <Button
                         size="sm"
                         variant="outline"
-                      onClick={() => handleDeleteFile(file.id)}
+                        onClick={() => handleDeleteFile(file.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
