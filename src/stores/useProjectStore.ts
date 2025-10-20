@@ -1,6 +1,6 @@
 // src/stores/useProjectStore.ts
 import { create } from "zustand";
-import { dbProjectToProjectProfile } from "@/lib/dto-mapper";
+import { getProjectsWithResumes } from "@/lib/project-queries";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuthStore } from "./useAuthStore";
 import { usePermissionStore } from "./usePermissionStore"; // Import the new store
@@ -179,18 +179,26 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				
 				console.log(`[ProjectStore] ✅ Found ${data?.length || 0} projects accessible by user.`);
 
-        const userProjects: ProjectProfile[] = (data || []).map(project => {
-          const projectDocsResource = project.resources.find(r => r.resource_type === 'PROJECT_DOCS_ROOT');
-          const projectResumeResource = project.resources.find(r => r.resource_type === 'PROJECT_RESUME');
+				// Get project IDs for the new query function
+				const projectIds = data?.map((project: any) => project.id) || [];
+				
+				// Use the new query function to get projects with resume content
+				const userProjects = await getProjectsWithResumes(projectIds);
 
-          return {
-            ...dbProjectToProjectProfile(project),
-            projectDocsResourceId: projectDocsResource?.id || null,
-            projectResumeResourceId: projectResumeResource?.id || null,
-          };
-        });
+				// Add resource IDs to each project
+				const projectsWithResources = userProjects.map((project: any) => {
+					const projectData = data?.find((p: any) => p.id === project.id);
+					const projectDocsResource = projectData?.resources?.find((r: any) => r.resource_type === 'PROJECT_DOCS_ROOT');
+					const projectResumeResource = projectData?.resources?.find((r: any) => r.resource_type === 'PROJECT_RESUME');
 
-				const projectsWithProgress = userProjects.map((p) => ({
+					return {
+						...project,
+						projectDocsResourceId: projectDocsResource?.id || null,
+						projectResumeResourceId: projectResumeResource?.id || null,
+					};
+				});
+
+				const projectsWithProgress = projectsWithResources.map((p) => ({
 					...p,
 					...get().calculateProgress(p),
 				}));

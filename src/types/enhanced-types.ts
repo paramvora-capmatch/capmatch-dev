@@ -292,6 +292,7 @@ export interface ProjectProfile {
   propertyAddressCounty?: string | null;
   propertyAddressZip?: string | null;
   projectDescription?: string | null;
+  projectPhase?: string | null;
   loanAmountRequested?: number | null;
   loanType?: string | null;
   targetLtvPercent?: number | null;
@@ -311,6 +312,10 @@ export interface ProjectProfile {
   businessPlanSummary?: string | null;
   marketOverviewSummary?: string | null;
   equityCommittedPercent?: number | null;
+  completenessPercent?: number | null;
+  internalAdvisorNotes?: string | null;
+  borrowerProgress?: number | null;
+  projectProgress?: number | null;
   projectSections?: any; // Add for consistency with mock data
   borrowerSections?: any; // Add for consistency with mock data
   // RBAC additions

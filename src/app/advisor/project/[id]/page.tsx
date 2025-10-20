@@ -43,17 +43,16 @@ import { storageService } from "@/lib/storage";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 import {
-	dbBorrowerToBorrowerProfile,
-	dbMessageToProjectMessage,
-	dbProjectToProjectProfile,
-} from "@/lib/dto-mapper";
+	getProjectWithResume,
+	getProjectMessages,
+} from "@/lib/project-queries";
 
 export default function AdvisorProjectDetailPage() {
 	const router = useRouter();
 	const params = useParams();
 	const { user } = useAuth();
 
-	const [project, setProject] = useState<Project | null>(null);
+	const [project, setProject] = useState<ProjectProfile | null>(null);
 	const [borrowerResume, setBorrowerResume] = useState<BorrowerResume | null>(null);
 	const [projectResume, setProjectResume] = useState<ProjectResume | null>(null);
 	const [messages, setMessages] = useState<any[]>([]);
@@ -79,55 +78,28 @@ export default function AdvisorProjectDetailPage() {
 					return;
 				}
 
-				let foundProject: Project | undefined | null = null;
+				// Load project with resume content using the new query function
+				const foundProject = await getProjectWithResume(projectId);
+				setProject(foundProject);
+				setSelectedStatus(foundProject.projectStatus as ProjectStatus || "Info Gathering");
+
+				// Load borrower resume for the owning org
 				if (user.isDemo) {
-					// For demo mode, we'll use the legacy ProjectProfile and convert it
-					const allProjects = await storageService.getItem<
-						ProjectProfile[]
-					>("projects");
-					const legacyProject = allProjects?.find((p) => p.id === projectId);
-					if (legacyProject) {
-						// Convert legacy ProjectProfile to new Project schema
-						foundProject = {
-							id: legacyProject.id,
-							created_at: legacyProject.createdAt,
-							updated_at: legacyProject.updatedAt,
-							name: legacyProject.projectName,
-							owner_org_id: legacyProject.orgId,
-							assigned_advisor_id: legacyProject.assignedAdvisorUserId
-						};
-					}
-				} else {
-					const { data, error } = await supabase
-						.from("projects")
-						.select("*")
-						.eq("id", projectId)
-						.single();
-					if (error) throw error;
-					if (data) foundProject = data;
-				}
-
-				if (foundProject) {
-					setProject(foundProject);
-					// Note: Project status is now managed separately from the core project record
-					// For now, we'll use a default status
-					setSelectedStatus("Info Gathering");
-
-					// Load borrower resume for the owning org
-					if (user.isDemo) {
 						// For demo mode, we'll use legacy data
 						const allProfiles = await storageService.getItem<
 							BorrowerProfile[]
 						>("borrowerProfiles");
 						// Find profile by entity ID (this is a simplified mapping for demo)
 						const profile = allProfiles?.find(
-							(p) => p.entityId === foundProject!.owner_entity_id
+							(p) => p.entityId === foundProject.entityId
 						);
 						if (profile) {
 							// Convert legacy BorrowerProfile to BorrowerResume
 							setBorrowerResume({
 								id: `resume-${profile.id}`,
-								entity_id: foundProject!.owner_entity_id,
+								org_id: foundProject.entityId,
+								created_at: new Date().toISOString(),
+								updated_at: new Date().toISOString(),
 								content: {
 									// Map relevant fields from BorrowerProfile to resume content
 									fullLegalName: profile.fullLegalName,
@@ -144,8 +116,6 @@ export default function AdvisorProjectDetailPage() {
 									foreclosureHistory: profile.foreclosureHistory,
 									litigationHistory: profile.litigationHistory
 								},
-								created_at: profile.createdAt,
-								updated_at: profile.updatedAt
 							});
 						}
 					} else {
@@ -153,7 +123,7 @@ export default function AdvisorProjectDetailPage() {
 						const { data: borrowerResumeData, error: borrowerResumeError } = await supabase
 							.from("borrower_resumes")
 							.select("*")
-							.eq("entity_id", foundProject.owner_entity_id)
+							.eq("org_id", foundProject.entityId)
 							.single();
 						
 						if (borrowerResumeError && borrowerResumeError.code !== 'PGRST116') {
@@ -198,7 +168,7 @@ export default function AdvisorProjectDetailPage() {
 							if (messagesError) {
 								console.error("Error fetching messages:", messagesError);
 							} else {
-								const mappedMessages = messagesData.map(msg => {
+								const mappedMessages = messagesData.map((msg: any) => {
 									const senderRole = msg.user_id === user.id ? 'advisor' : 'borrower';
 									return {
 										id: msg.id.toString(),
@@ -226,10 +196,6 @@ export default function AdvisorProjectDetailPage() {
 						);
 						setDocumentRequirements(projectRequirements);
 					}
-				} else {
-					console.error("Project not found");
-					router.push("/advisor/dashboard");
-				}
 			} catch (error) {
 				console.error("Error loading project data:", error);
 			} finally {
@@ -256,7 +222,7 @@ export default function AdvisorProjectDetailPage() {
 				action: 'get_thread',
 				project_id: projectId
 			}
-		}).then(({ data: threadData, error: threadError }) => {
+		}).then(({ data: threadData, error: threadError }: any) => {
 			if (threadError || !threadData?.thread) {
 				console.warn("No chat thread found for project:", projectId);
 				return;
@@ -272,7 +238,7 @@ export default function AdvisorProjectDetailPage() {
 						table: "project_messages",
 						filter: `thread_id=eq.${threadData.thread.id}`,
 					},
-					(payload) => {
+					(payload: any) => {
 						const newMessagePayload = payload.new;
 						const senderRole =
 							newMessagePayload.user_id === user.id
@@ -413,7 +379,7 @@ export default function AdvisorProjectDetailPage() {
 					body: {
 						action: 'create',
 						project_id: project.id,
-						topic: `Project: ${project.name}`
+						topic: `Project: ${project.projectName}`
 					}
 				});
 				
@@ -480,7 +446,7 @@ export default function AdvisorProjectDetailPage() {
 						</Button>
 						<div>
 							<h1 className="text-2xl font-semibold text-gray-800">
-								{project?.name || "Project Details"}
+								{project?.projectName || "Project Details"}
 							</h1>
 							<div
 								className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getStatusColor(
@@ -565,7 +531,7 @@ export default function AdvisorProjectDetailPage() {
 														Project Name
 													</h3>
 													<p className="text-sm text-gray-800">
-														{project.name}
+														{project.projectName}
 													</p>
 												</div>
 
@@ -583,7 +549,7 @@ export default function AdvisorProjectDetailPage() {
 														Owner Entity ID
 													</h3>
 													<p className="text-sm text-gray-800 font-mono">
-														{project.owner_entity_id}
+														{project.entityId}
 													</p>
 												</div>
 
@@ -680,10 +646,10 @@ export default function AdvisorProjectDetailPage() {
 														<Calendar className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
 														<div>
 															<p className="text-sm text-gray-800">
-																<span className="font-medium">Created:</span> {formatDate(project.created_at)}
+																<span className="font-medium">Created:</span> {formatDate(project.createdAt)}
 															</p>
 															<p className="text-sm text-gray-800">
-																<span className="font-medium">Last Updated:</span> {formatDate(project.updated_at)}
+																<span className="font-medium">Last Updated:</span> {formatDate(project.updatedAt)}
 															</p>
 														</div>
 													</div>
@@ -772,12 +738,9 @@ export default function AdvisorProjectDetailPage() {
 								<CardContent className="p-0">
 									{project && (
 										<DocumentManager
-											bucketId={project.owner_entity_id}
-											folderPath={project.id}
-											title="Project-Specific Documents"
-											canUpload={true} // Advisors can upload
-											canDelete={true} // Advisors can manage
 											projectId={project.id}
+											resourceId={project.projectDocsResourceId || null}
+											title="Project-Specific Documents"
 										/>
 									)}
 								</CardContent>
@@ -903,11 +866,9 @@ export default function AdvisorProjectDetailPage() {
 								<CardContent className="p-0">
 									{project && (
 										<DocumentManager
-											bucketId={project.owner_entity_id}
-											folderPath="borrower_docs"
+											projectId={project.id}
+											resourceId={project.projectDocsResourceId || null}
 											title="General Borrower Documents"
-											canUpload={true} // Advisors can upload
-											canDelete={true} // Advisors can manage
 										/>
 									)}
 								</CardContent>

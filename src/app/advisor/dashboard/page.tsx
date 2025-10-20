@@ -43,9 +43,9 @@ import {
 import { storageService } from "@/lib/storage";
 import { supabase } from "../../../../lib/supabaseClient";
 import {
-	dbMessageToProjectMessage,
-	dbProjectToProjectProfile,
-} from "@/lib/dto-mapper";
+	getProjectsWithResumes,
+	getProjectMessages,
+} from "@/lib/project-queries";
 
 export default function AdvisorDashboardPage() {
 	const router = useRouter();
@@ -128,16 +128,15 @@ export default function AdvisorDashboardPage() {
 					if (projectsError) throw projectsError;
 
 					if (projectsData) {
-						assignedProjects = projectsData.map(
-							dbProjectToProjectProfile
-						);
+						const projectIds = projectsData.map((p: any) => p.id);
+						assignedProjects = await getProjectsWithResumes(projectIds);
 						setActiveProjects(assignedProjects);
 
 							if (assignedProjects.length > 0) {
 								const ownerIds = Array.from(
 									new Set(
 										assignedProjects
-											.map((p) => p.entityId)
+											.map((p: any) => p.entityId)
 											.filter(Boolean)
 									)
 								) as string[];
@@ -153,7 +152,7 @@ export default function AdvisorDashboardPage() {
 
 									if (borrowers) {
 										const borrowerMap = borrowers.reduce(
-											(acc, b) => {
+											(acc: any, b: any) => {
 										acc[(b.id as string)] = {
 													name: b.full_name || b.email,
 													email: b.email,
@@ -233,10 +232,8 @@ export default function AdvisorDashboardPage() {
 					if (messagesError) throw messagesError;
 
 					if (messagesData) {
-						const mappedMessages = messagesData.map(msg => {
-							return dbMessageToProjectMessage(msg);
-						});
-						setRecentMessages(mappedMessages);
+						// Messages are already in the correct format from the query
+						setRecentMessages(messagesData);
 					}
 				}
 			} catch (error) {
