@@ -15,28 +15,19 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
   bucketId,
   filePath,
 }) => {
+  // All hooks must be called before any conditional logic
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isScriptReady, setIsScriptReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  const docEditorRef = useRef<any>(null);
+  const docEditorRef = useRef<unknown>(null);
   const initializationRef = useRef<boolean>(false);
-
-  const onlyofficeUrl = process.env.NEXT_PUBLIC_ONLYOFFICE_URL;
-  if (!onlyofficeUrl) {
-    return (
-      <div className="text-red-500 p-8">
-        Error: NEXT_PUBLIC_ONLYOFFICE_URL is not configured in your .env file.
-      </div>
-    );
-  }
-  const onlyofficeApiUrl = `${onlyofficeUrl}/web-apps/apps/api/documents/api.js`;
 
   // Callback for when the script loads
   const handleScriptLoad = useCallback(() => {
     console.log("[OnlyOfficeEditor] OnlyOffice script loaded successfully");
-    // @ts-ignore
+    // @ts-expect-error - OnlyOffice DocsAPI is loaded dynamically
     if (window.DocsAPI) {
       console.log("[OnlyOfficeEditor] DocsAPI is available on window");
       setIsScriptReady(true);
@@ -50,7 +41,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
 
   // Check if script is already loaded (for subsequent component mounts)
   useEffect(() => {
-    // @ts-ignore
+    // @ts-expect-error - OnlyOffice DocsAPI is loaded dynamically
     if (window.DocsAPI) {
       console.log("[OnlyOfficeEditor] DocsAPI already available on window");
       setIsScriptReady(true);
@@ -111,19 +102,17 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
 
       // DO NOT clear window.DocsAPI - it's needed for subsequent initializations
       // Clear only the specific editor instance
-      // @ts-ignore
-      if (window.docEditor && window.docEditor !== docEditorRef.current) {
-        // @ts-ignore
+      const windowWithDocEditor = window as typeof window & { docEditor?: unknown };
+      if (windowWithDocEditor.docEditor && windowWithDocEditor.docEditor !== docEditorRef.current) {
         try {
-          window.docEditor.destroyEditor();
+          (windowWithDocEditor.docEditor as { destroyEditor: () => void }).destroyEditor();
         } catch (e) {
           console.warn(
             "[OnlyOfficeEditor] Error destroying window.docEditor:",
             e
           );
         }
-        // @ts-ignore
-        window.docEditor = null;
+        windowWithDocEditor.docEditor = null;
       }
 
       try {
@@ -155,22 +144,21 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
         }
 
         // Verify DocsAPI is available
-        // @ts-ignore
+        // @ts-expect-error - OnlyOffice DocsAPI is loaded dynamically
         if (!window.DocsAPI) {
           throw new Error(
             "DocsAPI is not available. OnlyOffice script may not have loaded properly."
           );
         }
 
-        // @ts-ignore
+        // @ts-expect-error - OnlyOffice DocsAPI is loaded dynamically
         const newDocEditor = new DocsAPI.DocEditor(
           "onlyoffice-editor-container",
           config
         );
 
         docEditorRef.current = newDocEditor;
-        // @ts-ignore
-        window.docEditor = newDocEditor;
+        (window as any).docEditor = newDocEditor;
         console.log("[OnlyOfficeEditor] Editor initialized successfully");
       } catch (err: any) {
         console.error("Error initializing editor:", err);
@@ -221,6 +209,17 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
+
+  // NOW do conditional logic after all hooks have been called
+  const onlyofficeUrl = process.env.NEXT_PUBLIC_ONLYOFFICE_URL;
+  if (!onlyofficeUrl) {
+    return (
+      <div className="text-red-500 p-8">
+        Error: NEXT_PUBLIC_ONLYOFFICE_URL is not configured in your .env file.
+      </div>
+    );
+  }
+  const onlyofficeApiUrl = `${onlyofficeUrl}/web-apps/apps/api/documents/api.js`;
 
   return (
     <>
