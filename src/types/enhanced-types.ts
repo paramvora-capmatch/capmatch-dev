@@ -402,18 +402,6 @@ export interface Advisor {
   updatedAt: string;
 }
 
-// Legacy Message Types - kept for backward compatibility but deprecated
-export interface LegacyProjectMessage {
-  id: string;
-  projectId: string;
-  senderId: string;
-  senderType: "Borrower" | "Advisor" | "System"; // Added System type
-  // Optional display metadata resolved from profiles/entity membership
-  senderDisplayName?: string;
-  senderEmail?: string;
-  message: string;
-  createdAt: string;
-}
 
 // Enhanced User type with role and login source - Updated for new schema
 export interface EnhancedUser {
@@ -431,33 +419,6 @@ export interface EnhancedUser {
 }
 
 
-// Legacy RBAC Types - kept for backward compatibility but deprecated
-export interface BorrowerEntity {
-  id: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-}
-
-export interface BorrowerEntityMember {
-  id: string;
-  entityId: string;
-  userId: string;
-  role: OrgMemberRole;
-  invitedBy: string;
-  invitedAt: string;
-  inviteToken?: string;
-  inviteExpiresAt?: string;
-  acceptedAt?: string | null;
-  status: InviteStatus;
-  userEmail?: string;
-  userName?: string;
-  projectPermissions?: string[]; // Array of project IDs for member role
-  invitedEmail?: string; // Email that was invited (for pending invites)
-  inviterEmail?: string; // Email of person who sent invite
-  inviterName?: string; // Name of person who sent invite
-}
 
 export type PermissionType = 'file' | 'folder';
 
@@ -471,14 +432,3 @@ export type ProjectGrant = {
   }[];
 };
 
-// Legacy DocumentPermission - kept for backward compatibility but deprecated
-export interface LegacyDocumentPermission {
-  id: string;
-  entityId: string;
-  projectId: string;
-  documentPath: string;
-  userId: string;
-  grantedBy: string;
-  grantedAt: string;
-  permissionType: PermissionType;
-}
