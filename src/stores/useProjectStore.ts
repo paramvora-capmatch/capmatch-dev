@@ -1,6 +1,6 @@
 // src/stores/useProjectStore.ts
 import { create } from "zustand";
-import { getProjectsWithResumes, saveProjectResume, ProjectResumeContent } from "@/lib/project-queries";
+import { getProjectsWithResumes, ProjectResumeContent } from "@/lib/project-queries";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuthStore } from "./useAuthStore";
 import { usePermissionStore } from "./usePermissionStore"; // Import the new store
@@ -337,26 +337,20 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			}));
 
 			try {
-				// Update core project fields in projects table
+				// Delegate update to edge function so RLS and permissions are enforced server-side
 				const coreUpdates = projectProfileToDbProject(updates);
-				if (Object.keys(coreUpdates).length > 0) {
-					const { error: projectError } = await supabase
-						.from("projects")
-						.update(coreUpdates)
-						.eq("id", id);
-
-					if (projectError) {
-						throw new Error(`Failed to update core project fields: ${projectError.message}`);
-					}
-				}
-
-				// Update detailed fields in project_resumes.content JSONB column
 				const resumeContent = projectProfileToResumeContent(updates);
-				if (Object.keys(resumeContent).length > 0) {
-					await saveProjectResume(id, resumeContent);
-				}
 
-				console.log(`[ProjectStore] Updated project ${id} in DB (core + resume).`);
+				const { error } = await supabase.functions.invoke('update-project', {
+					body: {
+						project_id: id,
+						core_updates: coreUpdates,
+						resume_updates: resumeContent,
+					},
+				});
+				if (error) throw error;
+
+				console.log(`[ProjectStore] Updated project ${id} via edge function.`);
 				return finalUpdatedProject;
 			} catch (error) {
 				console.error(
