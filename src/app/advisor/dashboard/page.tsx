@@ -287,7 +287,7 @@ export default function AdvisorDashboardPage() {
 	};
 
 	return (
-		<RoleBasedRoute roles={["advisor", "admin"]}>
+		<RoleBasedRoute roles={["advisor"]}>
 			<div className="flex h-screen bg-gray-50">
 				<LoadingOverlay isLoading={false} />
 
@@ -533,11 +533,11 @@ export default function AdvisorDashboardPage() {
 															<td className="px-6 py-4 whitespace-nowrap">
 																<div className="text-sm text-gray-900">
 																	{user?.isDemo
-																		? (project.entityId
-																			? (project.entityId as string).split("_")[0]
+																		? (project.owner_org_id
+																			? (project.owner_org_id as string).split("_")[0]
 																			: "...")
-																	: (project.entityId
-																		? borrowerData[project.entityId as string]
+																	: (project.owner_org_id
+																		? borrowerData[project.owner_org_id as string]
 																		: undefined)
 																					?.name ||
 																			  "..."}

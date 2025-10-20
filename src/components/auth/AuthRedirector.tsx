@@ -28,7 +28,6 @@ export const AuthRedirector = () => {
           router.replace("/dashboard");
           break;
         case "advisor":
-        case "admin":
           router.replace("/advisor/dashboard");
           break;
         case "lender":

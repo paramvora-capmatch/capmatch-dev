@@ -91,13 +91,13 @@ export default function AdvisorProjectDetailPage() {
 						>("borrowerProfiles");
 						// Find profile by entity ID (this is a simplified mapping for demo)
 						const profile = allProfiles?.find(
-							(p) => p.entityId === foundProject.entityId
+							(p) => p.entityId === foundProject.owner_org_id
 						);
 						if (profile) {
 							// Convert legacy BorrowerProfile to BorrowerResume
 							setBorrowerResume({
 								id: `resume-${profile.id}`,
-								org_id: foundProject.entityId,
+								org_id: foundProject.owner_org_id,
 								created_at: new Date().toISOString(),
 								updated_at: new Date().toISOString(),
 								content: {
@@ -123,7 +123,7 @@ export default function AdvisorProjectDetailPage() {
 						const { data: borrowerResumeData, error: borrowerResumeError } = await supabase
 							.from("borrower_resumes")
 							.select("*")
-							.eq("org_id", foundProject.entityId)
+							.eq("org_id", foundProject.owner_org_id)
 							.single();
 						
 						if (borrowerResumeError && borrowerResumeError.code !== 'PGRST116') {
@@ -426,7 +426,7 @@ export default function AdvisorProjectDetailPage() {
 	};
 
 	return (
-		<RoleBasedRoute roles={["advisor", "admin"]}>
+		<RoleBasedRoute roles={["advisor"]}>
 			<div className="flex h-screen bg-gray-50">
 				<LoadingOverlay isLoading={false} />
 
@@ -543,10 +543,10 @@ export default function AdvisorProjectDetailPage() {
 
 												<div>
 													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Owner Entity ID
+														Owner Org ID
 													</h3>
 													<p className="text-sm text-gray-800 font-mono">
-														{project.entityId}
+														{project.owner_org_id}
 													</p>
 												</div>
 
