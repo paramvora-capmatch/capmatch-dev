@@ -155,34 +155,84 @@ serve(async (req) => {
       // console.log("[onboard-borrower] Step 5.5: Granting owner access to default project");
       // ... (removed grant logic) ...
 
-      // Step 6: Create the borrower resume/record
-      console.log("[onboard-borrower] Step 6: Creating borrower resume");
-      const { error: borrowerResumeError } = await supabaseAdmin
+      // Step 6: Create the borrower resume/record (idempotent)
+      console.log("[onboard-borrower] Step 6: Ensuring borrower resume");
+      const { data: existingBorrowerResume, error: existingResumeCheckError } = await supabaseAdmin
         .from("borrower_resumes")
-        .insert({ 
-          org_id: orgData.id,
-          content: {} // Empty JSONB content initially
-        });
-      if (borrowerResumeError) {
-        console.error(`[onboard-borrower] Borrower Resume Error: ${JSON.stringify(borrowerResumeError)}`);
-        throw new Error(`Borrower Resume Error: ${borrowerResumeError.message}`);
+        .select("org_id")
+        .eq("org_id", orgData.id)
+        .maybeSingle();
+      if (existingResumeCheckError) {
+        throw new Error(`Borrower Resume existence check failed: ${existingResumeCheckError.message}`);
       }
-      console.log("[onboard-borrower] Borrower resume created successfully");
+      if (!existingBorrowerResume) {
+        const { error: borrowerResumeError } = await supabaseAdmin
+          .from("borrower_resumes")
+          .insert({ 
+            org_id: orgData.id,
+            content: {} // Empty JSONB content initially
+          });
+        if (borrowerResumeError) {
+          throw new Error(`Borrower Resume Error: ${borrowerResumeError.message}`);
+        }
+        console.log("[onboard-borrower] Borrower resume created successfully");
+      } else {
+        console.log("[onboard-borrower] Borrower resume already exists");
+      }
 
-      // Step 6.5: Create the BORROWER_RESUME resource in the resources table
-      console.log("[onboard-borrower] Step 6.5: Creating BORROWER_RESUME resource");
-      const { error: borrowerResumeResourceError } = await supabaseAdmin
+      // Step 6.5: Ensure the BORROWER_RESUME resource exists (idempotent)
+      console.log("[onboard-borrower] Step 6.5: Ensuring BORROWER_RESUME resource");
+      const { data: existingBorrowerResumeResource, error: existingBRResCheckError } = await supabaseAdmin
         .from("resources")
-        .insert({
-          org_id: orgData.id,
-          resource_type: "BORROWER_RESUME",
-          name: "Borrower Resume"
-        });
-      if (borrowerResumeResourceError) {
-        console.error(`[onboard-borrower] Borrower Resume Resource Error: ${JSON.stringify(borrowerResumeResourceError)}`);
-        throw new Error(`Borrower Resume Resource Error: ${borrowerResumeResourceError.message}`);
+        .select("id")
+        .eq("org_id", orgData.id)
+        .eq("resource_type", "BORROWER_RESUME")
+        .maybeSingle();
+      if (existingBRResCheckError) {
+        throw new Error(`Borrower Resume Resource existence check failed: ${existingBRResCheckError.message}`);
       }
-      console.log("[onboard-borrower] Borrower resume resource created successfully");
+      if (!existingBorrowerResumeResource) {
+        const { error: borrowerResumeResourceError } = await supabaseAdmin
+          .from("resources")
+          .insert({
+            org_id: orgData.id,
+            resource_type: "BORROWER_RESUME",
+            name: "Borrower Resume"
+          });
+        if (borrowerResumeResourceError) {
+          throw new Error(`Borrower Resume Resource Error: ${borrowerResumeResourceError.message}`);
+        }
+        console.log("[onboard-borrower] Borrower resume resource created successfully");
+      } else {
+        console.log("[onboard-borrower] Borrower resume resource already exists");
+      }
+
+      // Step 6.7: Ensure the BORROWER_DOCS_ROOT exists (idempotent)
+      console.log("[onboard-borrower] Step 6.7: Ensuring BORROWER_DOCS_ROOT resource");
+      const { data: existingBorrowerDocsRoot, error: existingDocsRootCheckError } = await supabaseAdmin
+        .from("resources")
+        .select("id")
+        .eq("org_id", orgData.id)
+        .eq("resource_type", "BORROWER_DOCS_ROOT")
+        .maybeSingle();
+      if (existingDocsRootCheckError) {
+        throw new Error(`Borrower Docs Root existence check failed: ${existingDocsRootCheckError.message}`);
+      }
+      if (!existingBorrowerDocsRoot) {
+        const { error: borrowerDocsRootError } = await supabaseAdmin
+          .from("resources")
+          .insert({
+            org_id: orgData.id,
+            resource_type: "BORROWER_DOCS_ROOT",
+            name: `${full_name}'s Documents`
+          });
+        if (borrowerDocsRootError) {
+          throw new Error(`Borrower Docs Root creation failed: ${borrowerDocsRootError.message}`);
+        }
+        console.log("[onboard-borrower] Borrower docs root resource created successfully");
+      } else {
+        console.log("[onboard-borrower] Borrower docs root resource already exists");
+      }
         
       // Step 7: Update profile with the active org
       console.log("[onboard-borrower] Step 7: Updating profile with active org");
