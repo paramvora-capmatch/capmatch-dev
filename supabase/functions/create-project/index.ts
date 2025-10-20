@@ -23,27 +23,32 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Authorization header required");
     const jwt = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    const {
+      data: { user },
+      error: userError,
+    } = await createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     ).auth.getUser(jwt);
     if (userError) throw new Error("Authentication failed");
 
-    const { data: isOwner, error: ownerCheckError } = await supabaseAdmin.rpc('is_org_owner', {
-      p_org_id: owner_org_id,
-      p_user_id: user.id
-    });
+    const { data: isOwner, error: ownerCheckError } = await supabaseAdmin.rpc(
+      "is_org_owner",
+      {
+        p_org_id: owner_org_id,
+        p_user_id: user.id,
+      }
+    );
     if (ownerCheckError || !isOwner) {
       throw new Error("User must be an owner of the org to create a project.");
     }
 
     // --- Atomic Operation Start ---
-    
+
     // Create the project using the shared utility function
     const project = await createProjectWithResumeAndStorage(supabaseAdmin, {
       name,
       owner_org_id,
-      creator_id: user.id, // Pass the authenticated user's ID as the creator
     });
 
     // --- Atomic Operation End ---
@@ -52,7 +57,6 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 201, // 201 Created
     });
-
   } catch (error) {
     console.error("[create-project] Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {

@@ -1,16 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { useAuthStore } from '@/stores/useAuthStore';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../../lib/supabaseClient";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export interface DocumentFile {
   id: string;
   name: string;
   size: number;
   type: string;
-  storage_path: string;
+  storage_path: string; // Path of the CURRENT version
   resource_id: string;
   created_at: string;
   updated_at: string;
+  metadata?: any; // To hold version info
 }
 
 export interface DocumentFolder {
@@ -34,83 +35,75 @@ export const useDocumentManagement = (
   const { user, activeOrg } = useAuthStore();
 
   const listDocuments = useCallback(async () => {
-    if (!activeOrg) {
-      setFiles([]);
-      setFolders([]);
-      return;
-    }
-
+    if (!activeOrg) return;
     setIsLoading(true);
     setError(null);
 
     try {
-      let parentId: string;
+      let parentId;
 
       if (projectId) {
         // Get the project docs root resource
-        const { data: docsRoot, error: docsRootError } = await supabase
-          .from('resources')
-          .select('id')
-          .eq('org_id', activeOrg.id)
-          .eq('project_id', projectId)
-          .eq('resource_type', 'PROJECT_DOCS_ROOT')
+        const { data: root, error } = await supabase
+          .from("resources")
+          .select("id")
+          .eq("project_id", projectId)
+          .eq("resource_type", "PROJECT_DOCS_ROOT")
           .single();
-
-        if (docsRootError) {
-          throw new Error(`Failed to find project docs root: ${docsRootError.message}`);
-        }
-
-        parentId = folderId || docsRoot.id;
+        if (error) throw error;
+        parentId = folderId || root.id;
       } else {
-        // For borrower documents, get the borrower resume resource
-        const { data: borrowerResume, error: borrowerResumeError } = await supabase
-          .from('resources')
-          .select('id')
-          .eq('org_id', activeOrg.id)
-          .eq('resource_type', 'BORROWER_RESUME')
+        // Borrower-level documents root
+        const { data: root, error } = await supabase
+          .from("resources")
+          .select("id")
+          .eq("org_id", activeOrg.id)
+          .eq("resource_type", "BORROWER_DOCS_ROOT")
           .single();
-
-        if (borrowerResumeError) {
-          throw new Error(`Failed to find borrower resume: ${borrowerResumeError.message}`);
-        }
-
-        parentId = folderId || borrowerResume.id;
+        if (error) throw error;
+        parentId = folderId || root.id;
       }
-      
-      const { data: resources, error: resourcesError } = await supabase
-        .from('resources')
-        .select('*')
-        .eq('parent_id', parentId)
-        .in('resource_type', ['FOLDER', 'FILE'])
-        .order('name');
 
-      if (resourcesError) {
-        throw new Error(`Failed to list documents: ${resourcesError.message}`);
-      }
+      const { data: resources, error } = await supabase
+        .from("resources")
+        .select(
+          `
+          id, name, resource_type, created_at,
+          current_version:document_versions!resources_current_version_id_fkey(storage_path, created_at, metadata)
+        `
+        )
+        .eq("parent_id", parentId)
+        .in("resource_type", ["FOLDER", "FILE"])
+        .order("name");
+
+      if (error) throw error;
 
       const filesList: DocumentFile[] = [];
       const foldersList: DocumentFolder[] = [];
 
       for (const resource of resources || []) {
-        if (resource.resource_type === 'FILE') {
+        if (resource.resource_type === "FILE") {
+          const size = resource.current_version?.metadata?.size || 0;
           filesList.push({
             id: resource.id,
             name: resource.name,
-            size: 0, // Will be updated when we get file info
-            type: 'file',
-            storage_path: resource.storage_path || '',
+            size: size,
+            type: "file",
+            storage_path: resource.current_version?.storage_path || "",
             resource_id: resource.id,
             created_at: resource.created_at,
-            updated_at: resource.updated_at
+            updated_at:
+              resource.current_version?.created_at || resource.created_at,
+            metadata: resource.current_version?.metadata,
           });
-        } else if (resource.resource_type === 'FOLDER') {
+        } else if (resource.resource_type === "FOLDER") {
           foldersList.push({
             id: resource.id,
             name: resource.name,
             resource_id: resource.id,
-            parent_id: resource.parent_id,
+            parent_id: parentId,
             created_at: resource.created_at,
-            updated_at: resource.updated_at
+            updated_at: resource.created_at,
           });
         }
       }
@@ -118,218 +111,288 @@ export const useDocumentManagement = (
       setFiles(filesList);
       setFolders(foldersList);
     } catch (err) {
-      console.error('Error listing documents:', err);
-      setError(err instanceof Error ? err.message : 'Failed to list documents');
+      console.error("Error listing documents:", err);
+      setError(err instanceof Error ? err.message : "Failed to list documents");
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, activeOrg, folderId]);
+  }, [projectId, folderId, activeOrg]);
 
-  const uploadFile = useCallback(async (file: File, parentResourceId?: string) => {
-    if (!activeOrg || !user ) {
-      throw new Error('Missing required context for file upload');
-    }
-    if (!parentResourceId) {
-      // This is a critical check to ensure we can satisfy RLS.
-      throw new Error('Parent resource ID is required for upload');
-    }
+  const uploadFile = useCallback(
+    async (file: File, folderId?: string) => {
+      if (!activeOrg || !user) throw new Error("Missing context");
+      setIsLoading(true);
+      setError(null);
+      let resourceId: string | null = null;
+      let finalStoragePath: string | null = null;
 
-    setIsLoading(true);
-    setError(null);
+      try {
+        let parentId;
+        if (projectId) {
+          const { data: root, error } = await supabase
+            .from("resources")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("resource_type", "PROJECT_DOCS_ROOT")
+            .single();
+          if (error) throw error;
+          parentId = folderId || root.id;
+        } else {
+          const { data: root, error } = await supabase
+            .from("resources")
+            .select("id")
+            .eq("org_id", activeOrg.id)
+            .eq("resource_type", "BORROWER_DOCS_ROOT")
+            .single();
+          if (error) throw error;
+          parentId = folderId || root.id;
+        }
 
-    try {
-      // Define the file path for storage. This must match the logic in our RLS functions.
-      const filePath = projectId ? `${projectId}/${file.name}` : `borrower-docs/${file.name}`;
+        const { data: resource, error: resourceError } = await supabase
+          .from("resources")
+          .insert({
+            org_id: activeOrg.id,
+            project_id: projectId,
+            parent_id: parentId,
+            resource_type: "FILE",
+            name: file.name,
+          })
+          .select()
+          .single();
+        if (resourceError) throw resourceError;
+        resourceId = resource.id;
 
-      // Step 1: Upload the file directly to storage.
-      // RLS policies on `storage.objects` will automatically verify permissions.
-      const { error: uploadError } = await supabase.storage
-        .from(activeOrg.id)
-        .upload(filePath, file, {
-          upsert: true, // Allow overwriting for simplicity. Our UPDATE policy secures this.
+        const { data: version, error: versionError } = await supabase
+          .from("document_versions")
+          .insert({
+            resource_id: resourceId,
+            created_by: user.id,
+            storage_path: "placeholder",
+          })
+          .select()
+          .single();
+        if (versionError) throw versionError;
+
+        // Mark the new version as active (it's the current one)
+        const { error: statusError } = await supabase
+          .from("document_versions")
+          .update({ status: "active" })
+          .eq("id", version.id);
+        if (statusError) throw statusError;
+
+        const fileFolder = projectId
+          ? `${projectId}/${resourceId}`
+          : `borrower_docs/${resourceId}`;
+        finalStoragePath = `${fileFolder}/v${version.version_number}_${file.name}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from(activeOrg.id)
+          .upload(finalStoragePath, file, { upsert: false });
+        if (uploadError) throw uploadError;
+
+        const { error: updateVersionError } = await supabase
+          .from("document_versions")
+          .update({ storage_path: finalStoragePath })
+          .eq("id", version.id);
+        if (updateVersionError) throw updateVersionError;
+
+        const { error: updateResourceError } = await supabase
+          .from("resources")
+          .update({ current_version_id: version.id })
+          .eq("id", resourceId);
+        if (updateResourceError) throw updateResourceError;
+
+        await listDocuments();
+        return resource;
+      } catch (err) {
+        console.error("Error uploading file:", err);
+        setError(err instanceof Error ? err.message : "Failed to upload file");
+        if (finalStoragePath)
+          await supabase.storage.from(activeOrg!.id).remove([finalStoragePath]);
+        if (resourceId)
+          await supabase.from("resources").delete().eq("id", resourceId);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [projectId, activeOrg, user, listDocuments]
+  );
+
+  const createFolder = useCallback(
+    async (folderName: string, parentFolderId?: string) => {
+      if (!activeOrg)
+        throw new Error("Cannot create folder without an active org.");
+      setIsLoading(true);
+      setError(null);
+      try {
+        let parentId;
+        if (projectId) {
+          const { data: root, error } = await supabase
+            .from("resources")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("resource_type", "PROJECT_DOCS_ROOT")
+            .single();
+          if (error) throw error;
+          parentId = parentFolderId || root.id;
+        } else {
+          const { data: root, error } = await supabase
+            .from("resources")
+            .select("id")
+            .eq("org_id", activeOrg.id)
+            .eq("resource_type", "BORROWER_DOCS_ROOT")
+            .single();
+          if (error) throw error;
+          parentId = parentFolderId || root.id;
+        }
+
+        const { data, error } = await supabase
+          .from("resources")
+          .insert({
+            org_id: activeOrg.id,
+            project_id: projectId,
+            parent_id: parentId,
+            resource_type: "FOLDER",
+            name: folderName,
+          })
+          .select()
+          .single();
+        if (error) throw error;
+
+        await listDocuments();
+        return data;
+      } catch (err) {
+        console.error("Error creating folder:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to create folder"
+        );
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [projectId, activeOrg, listDocuments]
+  );
+
+  const deleteFile = useCallback(
+    async (fileId: string) => {
+      if (!activeOrg) return;
+      try {
+        const { data: resource } = await supabase
+          .from("resources")
+          .select("project_id")
+          .eq("id", fileId)
+          .single();
+        if (!resource) throw new Error("Resource not found");
+
+        const folderToDelete = resource.project_id
+          ? `${resource.project_id}/${fileId}`
+          : `borrower_docs/${fileId}`;
+        const { data: filesInFolder, error: listError } = await supabase.storage
+          .from(activeOrg.id)
+          .list(folderToDelete);
+        if (listError) throw listError;
+
+        const filePaths = filesInFolder.map(
+          (f) => `${folderToDelete}/${f.name}`
+        );
+        if (filePaths.length > 0) {
+          const { error: removeError } = await supabase.storage
+            .from(activeOrg.id)
+            .remove(filePaths);
+          if (removeError) throw removeError;
+        }
+
+        const { error: deleteError } = await supabase
+          .from("resources")
+          .delete()
+          .eq("id", fileId);
+        if (deleteError) throw deleteError;
+
+        await listDocuments();
+      } catch (err) {
+        console.error("Error deleting file:", err);
+        setError(err instanceof Error ? err.message : "Failed to delete file");
+        throw err;
+      }
+    },
+    [activeOrg, listDocuments]
+  );
+
+  const deleteFolder = useCallback(
+    async (folderId: string) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const { error } = await supabase.rpc("delete_folder_and_children", {
+          p_folder_id: folderId,
         });
-
-      if (uploadError) {
-        // The RLS policy failing will manifest as a storage error.
-        throw new Error(`Storage upload failed: ${uploadError.message}`);
+        if (error) throw error;
+        await listDocuments();
+      } catch (err) {
+        console.error("Error deleting folder:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to delete folder"
+        );
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
+    },
+    [listDocuments]
+  );
 
-      // Step 2: If storage upload is successful, create the resource record in the DB
-      // by calling our secure edge function. This is now a fast and simple operation.
-      const { data, error: functionError } = await supabase.functions.invoke('manage-documents', {
-        body: {
-          action: 'create_file',
-          orgId: activeOrg.id,
-          projectId: projectId,
-          parentId: parentResourceId,
-          fileName: file.name,
-          filePath: filePath,
+  const downloadFile = useCallback(
+    async (fileId: string) => {
+      if (!activeOrg) throw new Error("Missing context");
+      try {
+        const { data, error } = await supabase
+          .from("resources")
+          .select(
+            `
+          name,
+          current_version:document_versions!resources_current_version_id_fkey(storage_path)
+        `
+          )
+          .eq("id", fileId)
+          .single();
+
+        if (error) throw error;
+        if (!data?.current_version?.storage_path)
+          throw new Error("File has no storage path");
+
+        const storage_path = data.current_version.storage_path;
+        const file_name = data.name;
+
+        // Download from storage
+        const { data: downloadedFile, error: downloadError } =
+          await supabase.storage.from(activeOrg.id).download(storage_path);
+
+        if (downloadError) {
+          throw new Error(`Failed to download file: ${downloadError.message}`);
         }
-      });
 
-      if (functionError) throw new Error(`Function invocation failed: ${functionError.message}`);
-      if (data?.error) throw new Error(data.error);
-
-      // Refresh the document list to show the new file
-      await listDocuments();
-      
-      return data.data;
-    } catch (err) {
-      console.error('Error uploading file:', err);
-      setError(err instanceof Error ? err.message : 'Failed to upload file');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [projectId, activeOrg, user, listDocuments]);
-
-  const createFolder = useCallback(async (folderName: string, parentFolderId?: string) => {
-    if (!activeOrg) {
-      throw new Error('Folder creation requires an active org');
-    }
-    if (!parentFolderId) {
-      throw new Error('Parent folder ID is required to create a folder');
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('manage-documents', {
-        body: {
-          action: 'create_folder',
-          projectId,
-          orgId: activeOrg.id,
-          parentId: parentFolderId,
-          folderName
-        }
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-
-      // Refresh the document list
-      await listDocuments();
-      
-      return data.data;
-    } catch (err) {
-      console.error('Error creating folder:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create folder');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [projectId, activeOrg, listDocuments]);
-
-  const deleteFile = useCallback(async (fileId: string) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Get the file name for the edge function
-      const { data: fileResource, error: fileResourceError } = await supabase
-        .from('resources')
-        .select('name')
-        .eq('id', fileId)
-        .single();
-
-      if (fileResourceError) {
-        throw new Error(`Failed to find file resource: ${fileResourceError.message}`);
+        // Create download link
+        const url = URL.createObjectURL(downloadedFile);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = file_name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("Error downloading file:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to download file"
+        );
+        throw err;
       }
-
-      const { data, error } = await supabase.functions.invoke('manage-documents', {
-        body: {
-          action: 'delete_file',
-          fileName: fileResource.name
-        }
-      });
-
-      if (error) throw error;
-      if (!data?.success) throw new Error('Failed to delete file');
-
-      // Refresh the document list
-      await listDocuments();
-    } catch (err) {
-      console.error('Error deleting file:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete file');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [listDocuments]);
-
-  const deleteFolder = useCallback(async (folderId: string) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('manage-documents', {
-        body: {
-          action: 'delete_folder',
-          folderId
-        }
-      });
-
-      if (error) throw error;
-      if (!data?.success) throw new Error('Failed to delete folder');
-
-      // Refresh the document list
-      await listDocuments();
-    } catch (err) {
-      console.error('Error deleting folder:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete folder');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [listDocuments]);
-
-  const downloadFile = useCallback(async (fileId: string) => {
-    if (!activeOrg) {
-      throw new Error('Missing required context for file download');
-    }
-
-    try {
-      // Get the file resource to get the storage path
-      const { data: fileResource, error: fileResourceError } = await supabase
-        .from('resources')
-        .select('storage_path, name')
-        .eq('id', fileId)
-        .single();
-
-      if (fileResourceError) {
-        throw new Error(`Failed to find file resource: ${fileResourceError.message}`);
-      }
-
-      if (!fileResource.storage_path) {
-        throw new Error('File has no storage path');
-      }
-
-      // Download from storage
-      const { data, error: downloadError } = await supabase.storage
-        .from(activeOrg.id)
-        .download(fileResource.storage_path);
-
-      if (downloadError) {
-        throw new Error(`Failed to download file: ${downloadError.message}`);
-      }
-
-      // Create download link
-      const url = URL.createObjectURL(data);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileResource.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error downloading file:', err);
-      setError(err instanceof Error ? err.message : 'Failed to download file');
-      throw err;
-    }
-  }, [activeOrg]);
+    },
+    [activeOrg]
+  );
 
   useEffect(() => {
     listDocuments();
@@ -345,6 +408,6 @@ export const useDocumentManagement = (
     deleteFile,
     deleteFolder,
     downloadFile,
-    refresh: listDocuments
+    refresh: listDocuments,
   };
 };
