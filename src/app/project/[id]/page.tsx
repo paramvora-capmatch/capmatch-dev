@@ -20,7 +20,7 @@ import { ChevronLeft, Home } from 'lucide-react';
 export default function ProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const { getProject, isLoading, activeProject, setActiveProject } = useProjects();
+  const { getProject, activeProject, setActiveProject } = useProjects();
   const { content: borrowerResume } = useBorrowerResume();
 
   
@@ -58,7 +58,7 @@ export default function ProjectDetailPage() {
           <LoadingOverlay isLoading={false} />
           <div className="text-center py-8">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">Project not found</h2>
-            <p className="text-gray-600 mb-6">The project you're looking for doesn't exist or has been removed.</p>
+            <p className="text-gray-600 mb-6">The project you&apos;re looking for doesn&apos;t exist or has been removed.</p>
             <Button 
               variant="outline"
               leftIcon={<ChevronLeft size={16} />}

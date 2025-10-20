@@ -5,7 +5,6 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
-import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
 import { unitMixData, marketComps } from '@/services/mockOMData';
 import { MapPin, Home, Package, Building2 } from 'lucide-react';

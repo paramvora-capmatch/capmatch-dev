@@ -10,8 +10,6 @@ import { LoadingOverlay } from "../../../components/ui/LoadingOverlay";
 import {
 	Card,
 	CardContent,
-	CardHeader,
-	CardFooter,
 } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/Button";
 import { LogOut, ChevronLeft } from "lucide-react";
@@ -22,19 +20,15 @@ import {
 	MessageSquare,
 	PieChart,
 	Calendar,
-	ArrowRight,
 	Clock,
 	Zap,
 	CheckCircle,
 	AlertTriangle,
-	ChevronRight,
 } from "lucide-react";
 import {
-	getAdvisors,
 	getAdvisorById,
 } from "../../../../lib/enhancedMockApiService";
 import {
-	BorrowerProfile,
 	Advisor,
 	ProjectProfile,
 	ProjectMessage,
@@ -44,7 +38,6 @@ import { storageService } from "@/lib/storage";
 import { supabase } from "../../../../lib/supabaseClient";
 import {
 	getProjectsWithResumes,
-	getProjectMessages,
 } from "@/lib/project-queries";
 
 export default function AdvisorDashboardPage() {
@@ -54,7 +47,7 @@ export default function AdvisorDashboardPage() {
 	const [advisor, setAdvisor] = useState<Advisor | null>(null);
 	const [activeProjects, setActiveProjects] = useState<ProjectProfile[]>([]);
 	const [recentMessages, setRecentMessages] = useState<ProjectMessage[]>([]);
-	const [isLoadingData, setIsLoadingData] = useState(true);
+	const [, setIsLoadingData] = useState(true);
 	const [borrowerData, setBorrowerData] = useState<
 		Record<string, { name: string; email: string }>
 	>({});
@@ -122,7 +115,7 @@ export default function AdvisorDashboardPage() {
 					if (projectsError) throw projectsError;
 
 					if (projectsData) {
-						const projectIds = projectsData.map((p: any) => p.id);
+						const projectIds = projectsData.map((p: ProjectProfile) => p.id);
 						assignedProjects = await getProjectsWithResumes(projectIds);
 						setActiveProjects(assignedProjects);
 
@@ -130,7 +123,7 @@ export default function AdvisorDashboardPage() {
 								const ownerIds = Array.from(
 									new Set(
 										assignedProjects
-											.map((p: any) => p.entityId)
+											.map((p: ProjectProfile) => p.owner_org_id)
 											.filter(Boolean)
 									)
 								) as string[];
@@ -146,7 +139,7 @@ export default function AdvisorDashboardPage() {
 
 									if (borrowers) {
 										const borrowerMap = borrowers.reduce(
-											(acc: any, b: any) => {
+											(acc: Record<string, { name: string; email: string }>, b: { id: string; full_name?: string; email: string }) => {
 										acc[(b.id as string)] = {
 													name: b.full_name || b.email,
 													email: b.email,

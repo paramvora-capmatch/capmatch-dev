@@ -90,7 +90,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       if (docEditorRef.current) {
         console.log("[OnlyOfficeEditor] Destroying existing editor instance");
         try {
-          docEditorRef.current.destroyEditor();
+          (docEditorRef.current as { destroyEditor: () => void }).destroyEditor();
         } catch (e) {
           console.warn(
             "[OnlyOfficeEditor] Error destroying existing editor:",
@@ -158,11 +158,13 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
         );
 
         docEditorRef.current = newDocEditor;
-        (window as any).docEditor = newDocEditor;
+        const windowWithDocEditor = window as typeof window & { docEditor?: unknown };
+        windowWithDocEditor.docEditor = newDocEditor;
         console.log("[OnlyOfficeEditor] Editor initialized successfully");
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error initializing editor:", err);
-        setError(err.message);
+        const message = err instanceof Error ? err.message : "Unknown error";
+        setError(message);
       } finally {
         setIsLoading(false);
         initializationRef.current = false;
@@ -178,7 +180,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       console.log("[OnlyOfficeEditor] Cleanup: destroying editor");
       if (docEditorRef.current) {
         try {
-          docEditorRef.current.destroyEditor();
+          (docEditorRef.current as { destroyEditor: () => void }).destroyEditor();
         } catch (e) {
           console.warn("[OnlyOfficeEditor] Error destroying editor:", e);
         }
@@ -194,7 +196,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       console.log("[OnlyOfficeEditor] Page unloading, cleaning up editor");
       if (docEditorRef.current) {
         try {
-          docEditorRef.current.destroyEditor();
+          (docEditorRef.current as { destroyEditor: () => void }).destroyEditor();
         } catch (e) {
           console.warn(
             "[OnlyOfficeEditor] Error destroying editor on unload:",

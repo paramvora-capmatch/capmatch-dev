@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
@@ -14,11 +14,7 @@ import { Button } from "../../components/ui/Button"; // Import Button
 import {
   PlusCircle,
   FileText,
-  LogOut,
   Sparkles,
-  LayoutGrid,
-  User,
-  Folder,
 } from "lucide-react"; // Added Sparkles
 
 export default function DashboardPage() {
@@ -30,7 +26,7 @@ export default function DashboardPage() {
     isLoading: projectsLoading,
   } = useProjects();
   const { content: borrowerResume, isLoading: profileLoading } = useBorrowerResume();
-  const searchParams = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
 
 
   // State to track if the initial loading cycle has completed.

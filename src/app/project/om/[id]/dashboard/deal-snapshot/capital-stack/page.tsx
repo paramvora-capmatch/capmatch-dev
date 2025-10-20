@@ -8,7 +8,7 @@ import { useOMDashboard } from '@/contexts/OMDashboardContext';
 import { capitalStackData } from '@/services/mockOMData';
 import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
-import { DollarSign, PieChart, TrendingUp, FileText, Calendar, AlertTriangle } from 'lucide-react';
+import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
 
 export default function CapitalStackPage() {
     const params = useParams();
