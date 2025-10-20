@@ -260,7 +260,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			// Convert the database project to ProjectProfile format
 			const newProjectData: ProjectProfile = {
 				id: data.project.id,
-				entityId: data.project.owner_org_id, // Use entityId instead of orgId
+				owner_org_id: data.project.owner_org_id,
 				assignedAdvisorUserId: data.project.assigned_advisor_id,
 				projectName: data.project.name,
 				assetType: "Multifamily",

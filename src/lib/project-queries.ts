@@ -142,7 +142,7 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
   return {
     // Core project fields (from projects table)
     id: project.id,
-    entityId: project.owner_org_id,
+    owner_org_id: project.owner_org_id,
     assignedAdvisorUserId: project.assigned_advisor_id,
     createdAt: project.created_at,
     updatedAt: project.updated_at,
@@ -226,7 +226,7 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
     return {
       // Core project fields
       id: project.id,
-      entityId: project.owner_org_id,
+      owner_org_id: project.owner_org_id,
       assignedAdvisorUserId: project.assigned_advisor_id,
       createdAt: project.created_at,
       updatedAt: project.updated_at,

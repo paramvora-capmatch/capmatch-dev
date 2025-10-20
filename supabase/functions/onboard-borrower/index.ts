@@ -254,8 +254,8 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error(`[onboard-borrower] Error occurred: ${error.message}`);
-    console.error(`[onboard-borrower] Error stack: ${error.stack}`);
+    console.error(`[onboard-borrower] Error occurred: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`[onboard-borrower] Error stack: ${error instanceof Error ? error.stack : 'No stack trace'}`);
     
     // This is the crucial rollback logic
     if (newUser) {
@@ -267,12 +267,12 @@ serve(async (req) => {
         ).auth.admin.deleteUser(newUser.id);
         console.log(`[onboard-borrower] Successfully rolled back user: ${newUser.id}`);
       } catch (rollbackError) {
-        console.error(`[onboard-borrower] Rollback failed: ${rollbackError.message}`);
+        console.error(`[onboard-borrower] Rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`);
       }
     }
 
-    console.error(`[onboard-borrower] Returning error response: ${error.message}`);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error(`[onboard-borrower] Returning error response: ${error instanceof Error ? error.message : String(error)}`);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

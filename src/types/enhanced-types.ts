@@ -275,7 +275,7 @@ export interface Notification {
 // Legacy ProjectProfile - kept for backward compatibility but deprecated
 export interface ProjectProfile {
   id: string;
-  entityId: string; // The org_id that owns the project
+  owner_org_id: string; // The org_id that owns the project
   projectName: string;
   assetType: string;
   projectStatus: string;
