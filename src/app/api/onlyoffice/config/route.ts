@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
         `
             id,
             resource_id,
+            version_number,
             resources!document_versions_resource_id_fkey ( id, name, project_id )
         `
       )
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     const documentVersion = versionData;
-    const resource = versionData.resources;
+    const resource = versionData.resources[0] as { id: string; name: string; project_id: string };
 
     // --- VERSIONING CHANGES END ---
 
