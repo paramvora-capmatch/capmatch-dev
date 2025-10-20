@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import { useAuth } from '@/hooks/useAuth';
-import { BorrowerProfileForm } from "../../components/forms/BorrowerProfileForm";
+import { BorrowerResumeForm } from "../../components/forms/BorrowerResumeForm";
 
 import { useProjects } from "../../hooks/useProjects";
 import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
 
-import { BorrowerProfile } from "../../types/enhanced-types";
+import { BorrowerResumeContent } from "../../lib/project-queries";
 import { Loader2 } from "lucide-react";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay"; // Import LoadingOverlay
 
@@ -19,12 +19,12 @@ export default function ProfilePage() {
 	const router = useRouter();
 	const { createProject, projects } = useProjects();
 	// Use context hook, providing a fallback empty object if context is not ready
-	const { borrowerProfile, isLoading: profileLoading } =
-		useBorrowerProfile() || { borrowerProfile: null, isLoading: true };
+	const { content: borrowerProfile, isLoading: profileLoading } =
+		useBorrowerProfile() || { content: null, isLoading: true };
 	const { user } = useAuth();
 
 	// Handle profile completion from the form's onComplete callback
-	const handleProfileComplete = async (profile: BorrowerProfile | null) => {
+	const handleProfileComplete = async (profile: BorrowerResumeContent | null) => {
 		if (!profile) {
 			router.push("/dashboard"); // Go to dashboard on failure/cancellation
 			return;
@@ -79,7 +79,7 @@ export default function ProfilePage() {
 								</p>
 							</div>
 							{/* Pass the completion handler */}
-							<BorrowerProfileForm
+							<BorrowerResumeForm
 								onComplete={handleProfileComplete}
 							/>
 						</div>

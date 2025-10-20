@@ -61,13 +61,14 @@ export interface ProjectResumeContent {
 
 /**
  * Defines the structure of borrower_resumes.content JSONB column
- * This preserves all the fields from the original DTO mapper
+ * This preserves all the fields from the original BorrowerProfile
  */
 export interface BorrowerResumeContent {
   // Basic borrower info
   fullLegalName?: string;
   primaryEntityName?: string;
   primaryEntityStructure?: string;
+  contactEmail?: string;
   contactPhone?: string;
   contactAddress?: string;
   bioNarrative?: string;
@@ -89,11 +90,15 @@ export interface BorrowerResumeContent {
   foreclosureHistory?: boolean;
   litigationHistory?: boolean;
   
-  // RBAC fields
-  orgId?: string;
+  // Progress tracking
+  completenessPercent?: number;
+  
+  // Metadata
+  createdAt?: string;
+  updatedAt?: string;
   masterProfileId?: string;
   lastSyncedAt?: string;
-  customFields?: any[];
+  customFields?: string[];
 }
 
 // =============================================================================
@@ -321,6 +326,30 @@ export const saveProjectResume = async (
   if (error) {
     throw new Error(`Failed to save project resume: ${error.message}`);
   }
+};
+
+/**
+ * Loads borrower resume content from the JSONB column.
+ * This provides a type-safe way to fetch borrower details.
+ */
+export const getBorrowerResume = async (
+  orgId: string
+): Promise<BorrowerResumeContent | null> => {
+  const { data, error } = await supabase
+    .from('borrower_resumes')
+    .select('content')
+    .eq('org_id', orgId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // No row found
+      return null;
+    }
+    throw new Error(`Failed to load borrower resume: ${error.message}`);
+  }
+
+  return data?.content || null;
 };
 
 /**

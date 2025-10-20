@@ -4,17 +4,17 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
 import { User, Edit, Check, X, Loader2 } from 'lucide-react';
-import { BorrowerProfile } from '@/types/enhanced-types';
-import { useBorrowerProfileStore } from '@/stores/useBorrowerProfileStore';
+import { BorrowerResumeContent } from '@/lib/project-queries';
+import { useBorrowerResumeStore } from '@/stores/useBorrowerResumeStore';
 
 interface ProfileSummaryCardProps {
-  profile: BorrowerProfile | null;
+  profile: BorrowerResumeContent | null;
   isLoading: boolean;
 }
 
 export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile, isLoading }) => {
   const router = useRouter();
-  const { saveForProject, isLoading: isSaving } = useBorrowerProfileStore();
+  const { saveForOrg, isLoading: isSaving } = useBorrowerResumeStore();
   
   // Inline editing state
   const [editingField, setEditingField] = useState<'name' | 'entity' | 'email' | null>(null);
@@ -66,7 +66,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
     if (!profile || !editingField || isSaving) return;
 
     try {
-      const updates: Partial<BorrowerProfile> = {};
+      const updates: Partial<BorrowerResumeContent> = {};
       
       if (editingField === 'name') {
         updates.fullLegalName = editValues.name;
@@ -76,9 +76,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
         updates.contactEmail = editValues.email;
       }
 
-      console.log('Saving profile updates:', updates);
-      
-      await saveForProject({ ...profile, ...updates });
+      await saveForOrg(updates);
       
       setEditingField(null);
       

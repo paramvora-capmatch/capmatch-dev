@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useProjects } from "../../hooks/useProjects";
-import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
+import { useBorrowerResume } from "../../hooks/useBorrowerResume";
 
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
@@ -32,9 +32,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		getProject,
 		updateProject,
 		projects,
-		addProjectMessage,
 	} = useProjects();
-	const { borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
+	const { content: borrowerResume, isLoading: profileLoading } = useBorrowerResume();
 	const { user, isLoading: authLoading } = useAuth(); // Add auth loading state
 
 	const [isEditing, setIsEditing] = useState(false);
@@ -94,7 +93,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 	// Handle project update completion (no changes needed)
 	const handleProjectUpdateComplete = (updatedProject: ProjectProfile) => {
-		console.log(`Project "${updatedProject.projectName}" updated.`);
+		// Project updated successfully
 	};
 
 	const projectCompleteness = activeProject?.completenessPercent || 0;
@@ -103,7 +102,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	return (
 		<div className="space-y-6 animate-fadeIn">
 			<ProfileSummaryCard
-				profile={borrowerProfile}
+				profile={borrowerResume}
 				isLoading={profileLoading}
 			/>
 

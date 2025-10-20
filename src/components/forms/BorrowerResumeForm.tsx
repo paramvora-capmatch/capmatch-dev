@@ -1,4 +1,4 @@
-// src/components/forms/BorrowerProfileForm.tsx
+// src/components/forms/BorrowerResumeForm.tsx
 'use client';
 
 import React, { useState, useEffect, useMemo, useContext, useRef } from 'react';
@@ -17,14 +17,15 @@ import {
   Mail, Phone, MapPin, Briefcase, AlertTriangle
 } from 'lucide-react';
 import {
-  BorrowerProfile, EntityStructure, ExperienceRange, DealValueRange, CreditScoreRange,
+  EntityStructure, ExperienceRange, DealValueRange, CreditScoreRange,
   NetWorthRange, LiquidityRange, Principal, PrincipalRole
 } from '../../types/enhanced-types';
+import { BorrowerResumeContent } from '../../lib/project-queries';
 import { MultiSelect } from '../ui/MultiSelect';
-import { useBorrowerProfileStore } from '../../stores/useBorrowerProfileStore';
+import { useBorrowerResumeStore } from '../../stores/useBorrowerResumeStore';
 
-interface BorrowerProfileFormProps {
-  onComplete?: (profile: BorrowerProfile | null) => void; // Allow null in callback
+interface BorrowerResumeFormProps {
+  onComplete?: (profile: BorrowerResumeContent | null) => void; // Allow null in callback
 }
 
 // Options definitions (no changes)
@@ -39,10 +40,10 @@ const assetClassOptions = [ "Multifamily", "Office", "Retail", "Industrial", "Ho
 const geographicMarketsOptions = [ "Northeast", "Mid-Atlantic", "Southeast", "Midwest", "Southwest", "Mountain West", "West Coast", "Pacific Northwest", "Hawaii", "Alaska", "National" ];
 
 
-export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComplete }) => {
+export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({ onComplete }) => {
   const router = useRouter();
   const { user } = useAuth();
-  const { content: borrowerProfile, saveForProject } = useBorrowerProfileStore();
+  const { content: borrowerResume, saveForOrg } = useBorrowerResumeStore();
   const principals: Principal[] = []; // Principals removed from new schema
 
 
@@ -50,16 +51,29 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
 
   // State variables
   const [formSaved, setFormSaved] = useState(false);
-  const [formData, setFormData] = useState<Partial<BorrowerProfile>>({});
+  const [formData, setFormData] = useState<Partial<BorrowerResumeContent>>({});
   const [principalFormData, setPrincipalFormData] = useState<Partial<Principal>>({ principalRoleDefault: 'Key Principal' });
   const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize form
   useEffect(() => {
-     const defaultData: Partial<BorrowerProfile> = { primaryEntityStructure: 'LLC', contactEmail: user?.email || '', yearsCREExperienceRange: '0-2', totalDealValueClosedRange: 'N/A', creditScoreRange: 'N/A', netWorthRange: '<$1M', liquidityRange: '<$100k', bankruptcyHistory: false, foreclosureHistory: false, litigationHistory: false, assetClassesExperience: [], geographicMarketsExperience: [] };
-    setFormData(borrowerProfile ? { ...borrowerProfile } : { ...defaultData });
-  }, [borrowerProfile, user?.email]);
+     const defaultData: Partial<BorrowerResumeContent> = { 
+       primaryEntityStructure: 'LLC', 
+       contactEmail: user?.email || '', 
+       yearsCREExperienceRange: '0-2', 
+       totalDealValueClosedRange: 'N/A', 
+       creditScoreRange: 'N/A', 
+       netWorthRange: '<$1M', 
+       liquidityRange: '<$100k', 
+       bankruptcyHistory: false, 
+       foreclosureHistory: false, 
+       litigationHistory: false, 
+       assetClassesExperience: [], 
+       geographicMarketsExperience: [] 
+     };
+    setFormData(borrowerResume ? { ...borrowerResume } : { ...defaultData });
+  }, [borrowerResume, user?.email]);
 
   // Debounced auto-save effect for profile form
   useEffect(() => {
@@ -68,10 +82,9 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     }
 
     debounceTimeout.current = setTimeout(async () => {
-      if (borrowerProfile && JSON.stringify(formData) !== JSON.stringify(borrowerProfile)) {
+      if (borrowerResume && JSON.stringify(formData) !== JSON.stringify(borrowerResume)) {
         try {
-          console.log(`[ProfileForm] Auto-saving profile: ${formData.fullLegalName}`);
-          await saveForProject(formData);
+          await saveForOrg(formData);
         } catch (error) {
           console.error('[ProfileForm] Auto-save failed:', error);
         }
@@ -83,10 +96,10 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [formData, borrowerProfile, saveForProject]);
+  }, [formData, borrowerResume, saveForOrg]);
 
   // Input change handlers
-  const handleInputChange = (field: keyof BorrowerProfile, value: any) => { setFormData(prev => ({ ...prev, [field]: value })); };
+  const handleInputChange = (field: keyof BorrowerResumeContent, value: any) => { setFormData(prev => ({ ...prev, [field]: value })); };
   const handlePrincipalInputChange = (field: keyof Principal, value: any) => { setPrincipalFormData(prev => ({ ...prev, [field]: value })); };
   const resetPrincipalForm = () => { setPrincipalFormData({ principalRoleDefault: 'Key Principal' }); }; // Reset with default role
 
@@ -95,17 +108,14 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     try {
       setFormSaved(true);
-      await saveForProject(formData);
-
-              console.log('Profile changes saved.');
+      await saveForOrg(formData);
 
       if (onComplete) {
          // Pass the updated formData as the profile
-         onComplete(formData as BorrowerProfile);
+         onComplete(formData as BorrowerResumeContent);
       }
     } catch (error) {
       console.error('Error saving borrower profile:', error);
-              console.error('Failed to save profile.');
        if (onComplete) onComplete(null); // Indicate failure in callback
     } finally {
       setTimeout(() => setFormSaved(false), 2000);
@@ -133,10 +143,10 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     // Step 4: Online Presence (JSX - Optional)
     { id: 'online-presence', title: 'Online Presence', isOptional: true, component: ( <Card> <CardHeader><h2 className="text-xl font-semibold flex items-center"><Globe className="mr-2"/> Online Presence (Opt)</h2></CardHeader> <CardContent className="p-4 space-y-6"><FormGroup> <Input id="linkedinUrl" label="LinkedIn URL" value={formData.linkedinUrl || ''} onChange={(e) => handleInputChange('linkedinUrl', e.target.value)} /> </FormGroup><FormGroup> <Input id="websiteUrl" label="Company Website" value={formData.websiteUrl || ''} onChange={(e) => handleInputChange('websiteUrl', e.target.value)} /> </FormGroup></CardContent> </Card> ) },
     // Step 5: Key Principals (JSX - Optional, uses ButtonSelect for Role)
-    { id: 'principals', title: 'Key Principals', isOptional: true, component: ( <Card> <CardHeader><h2 className="text-xl font-semibold flex items-center"><Award className="mr-2"/> Key Principals (Opt)</h2></CardHeader> <CardContent className="p-4 space-y-6"><div className="border rounded p-4 bg-gray-50"><h3 className="text-lg font-semibold mb-4">Add Principal</h3><div className="grid md:grid-cols-2 gap-4"><FormGroup> <Input id="pName" label="Name" value={principalFormData.principalLegalName || ''} onChange={(e)=>handlePrincipalInputChange('principalLegalName',e.target.value)} required/> </FormGroup><FormGroup> <ButtonSelect label="Role" options={principalRoleOptions} selectedValue={principalFormData.principalRoleDefault||'Key Principal'} onSelect={(v)=>handlePrincipalInputChange('principalRoleDefault',v as PrincipalRole)} required/> </FormGroup><FormGroup> <Input id="pEmail" type="email" label="Email" value={principalFormData.principalEmail || ''} onChange={(e)=>handlePrincipalInputChange('principalEmail',e.target.value)}/> </FormGroup><FormGroup> <Input id="pOwn" type="number" label="Ownership (%)" value={principalFormData.ownershipPercentage?.toString()||''} onChange={(e)=>handlePrincipalInputChange('ownershipPercentage',Number(e.target.value||0))} min="0" max="100"/> </FormGroup><div className="md:col-span-2"><FormGroup><label className="block text-sm mb-1">Bio (Opt)</label><textarea id="pBio" value={principalFormData.principalBio||''} onChange={(e)=>handlePrincipalInputChange('principalBio',e.target.value)} rows={2} className="w-full border rounded p-2"/> </FormGroup></div></div><Button onClick={handleAddPrincipal} variant="secondary" isLoading={isAddingPrincipal} disabled={isAddingPrincipal || !borrowerProfile?.id} className="mt-3">Add</Button></div> {principals.length>0 && <div className="mt-4"><h3 className="text-lg font-semibold mb-2">Added Principals</h3><ul className="space-y-2">{principals.map(p=><li key={p.id} className="flex justify-between items-center border p-2 rounded bg-white"><span className="text-sm">{p.principalLegalName} ({p.principalRoleDefault} - {p.ownershipPercentage}%)</span><Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-100 px-1 py-0.5 h-auto" onClick={()=>handleRemovePrincipal(p.id)}>Remove</Button></li>)}</ul></div>}</CardContent> </Card> ) },
+    { id: 'principals', title: 'Key Principals', isOptional: true, component: ( <Card> <CardHeader><h2 className="text-xl font-semibold flex items-center"><Award className="mr-2"/> Key Principals (Opt)</h2></CardHeader> <CardContent className="p-4 space-y-6"><div className="border rounded p-4 bg-gray-50"><h3 className="text-lg font-semibold mb-4">Add Principal</h3><div className="grid md:grid-cols-2 gap-4"><FormGroup> <Input id="pName" label="Name" value={principalFormData.principalLegalName || ''} onChange={(e)=>handlePrincipalInputChange('principalLegalName',e.target.value)} required/> </FormGroup><FormGroup> <ButtonSelect label="Role" options={principalRoleOptions} selectedValue={principalFormData.principalRoleDefault||'Key Principal'} onSelect={(v)=>handlePrincipalInputChange('principalRoleDefault',v as PrincipalRole)} required/> </FormGroup><FormGroup> <Input id="pEmail" type="email" label="Email" value={principalFormData.principalEmail || ''} onChange={(e)=>handlePrincipalInputChange('principalEmail',e.target.value)}/> </FormGroup><FormGroup> <Input id="pOwn" type="number" label="Ownership (%)" value={principalFormData.ownershipPercentage?.toString()||''} onChange={(e)=>handlePrincipalInputChange('ownershipPercentage',Number(e.target.value||0))} min="0" max="100"/> </FormGroup><div className="md:col-span-2"><FormGroup><label className="block text-sm mb-1">Bio (Opt)</label><textarea id="pBio" value={principalFormData.principalBio||''} onChange={(e)=>handlePrincipalInputChange('principalBio',e.target.value)} rows={2} className="w-full border rounded p-2"/> </FormGroup></div></div><Button onClick={handleAddPrincipal} variant="secondary" isLoading={isAddingPrincipal} disabled={isAddingPrincipal || !borrowerResume?.fullLegalName} className="mt-3">Add</Button></div> {principals.length>0 && <div className="mt-4"><h3 className="text-lg font-semibold mb-2">Added Principals</h3><ul className="space-y-2">{principals.map(p=><li key={p.id} className="flex justify-between items-center border p-2 rounded bg-white"><span className="text-sm">{p.principalLegalName} ({p.principalRoleDefault} - {p.ownershipPercentage}%)</span><Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-100 px-1 py-0.5 h-auto" onClick={()=>handleRemovePrincipal(p.id)}>Remove</Button></li>)}</ul></div>}</CardContent> </Card> ) },
     // Step 6: Review & Save (JSX)
     { id: 'review', title: 'Review & Save', component: ( <Card> <CardHeader><h2 className="text-xl font-semibold flex items-center"><CheckCircle className="mr-2"/> Review & Save</h2></CardHeader> <CardContent className="p-4 space-y-6"><div className="p-3 bg-blue-50 rounded text-sm border border-blue-100">Review details. Changes auto-save. Click below to manually confirm save and finish.</div><Button onClick={handleProfileSubmit} isLoading={formSaved} disabled={formSaved} className="min-w-[140px]">{formSaved ? 'Saved!' : 'Save & Finish'}</Button></CardContent> </Card> ) },
-  ], [formData, principals, principalFormData, isAddingPrincipal, formSaved, handleInputChange, handleProfileSubmit, handleAddPrincipal, handleRemovePrincipal, handlePrincipalInputChange, borrowerProfile?.id]) // Dependencies reviewed
+  ], [formData, principals, principalFormData, isAddingPrincipal, formSaved, handleInputChange, handleProfileSubmit, handleAddPrincipal, handleRemovePrincipal, handlePrincipalInputChange, borrowerResume?.fullLegalName]) // Dependencies reviewed
 
 
   return (

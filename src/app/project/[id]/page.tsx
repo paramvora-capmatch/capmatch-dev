@@ -8,11 +8,11 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/Button';
 import { RoleBasedRoute } from '../../../components/auth/RoleBasedRoute';
 import { useProjects } from '../../../hooks/useProjects';
-import { useBorrowerProfile } from '../../../hooks/useBorrowerProfile';
+import { useBorrowerResume } from '../../../hooks/useBorrowerResume';
 
 
 import { LoadingOverlay } from '../../../components/ui/LoadingOverlay';
-import { BorrowerProfileForm } from '../../../components/forms/BorrowerProfileForm';
+import { BorrowerResumeForm } from '../../../components/forms/BorrowerResumeForm';
 import { MessagePanel } from '../../../components/dashboard/MessagePanel';
 import { EnhancedProjectForm } from '../../../components/forms/EnhancedProjectForm';
 import { ChevronLeft, Home } from 'lucide-react';
@@ -21,7 +21,7 @@ export default function ProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { getProject, isLoading, activeProject, setActiveProject } = useProjects();
-  const { borrowerProfile } = useBorrowerProfile();
+  const { content: borrowerResume } = useBorrowerResume();
 
   
   const [showProfileForm, setShowProfileForm] = useState(false);
@@ -108,26 +108,26 @@ export default function ProjectDetailPage() {
             </CardHeader>
             <CardContent className="p-4">
               {showProfileForm ? (
-                <BorrowerProfileForm />
+                <BorrowerResumeForm />
               ) : (
                 <div>
                   <div className="flex justify-between mb-4">
                     <div className="text-gray-700">
-                      <p className="font-medium">{borrowerProfile?.fullLegalName || 'Complete your profile'}</p>
-                      <p className="text-sm text-gray-500">{borrowerProfile?.primaryEntityName}</p>
+                      <p className="font-medium">{borrowerResume?.fullLegalName || 'Complete your profile'}</p>
+                      <p className="text-sm text-gray-500">{borrowerResume?.primaryEntityName}</p>
                     </div>
                     <div>
                       <div className="flex items-center">
                         <div className="h-2 bg-gray-200 rounded-full mr-2 w-24">
                           <div 
                             className={`h-full rounded-full ${
-                              (borrowerProfile?.completenessPercent || 0) === 100 ? 'bg-green-600' : 'bg-blue-600'
+                              (borrowerResume?.completenessPercent || 0) === 100 ? 'bg-green-600' : 'bg-blue-600'
                             }`}
-                            style={{ width: `${borrowerProfile?.completenessPercent || 0}%` }}
+                            style={{ width: `${borrowerResume?.completenessPercent || 0}%` }}
                           />
                         </div>
                         <span className="text-sm font-medium">
-                          {borrowerProfile?.completenessPercent || 0}% Complete
+                          {borrowerResume?.completenessPercent || 0}% Complete
                         </span>
                       </div>
                     </div>
