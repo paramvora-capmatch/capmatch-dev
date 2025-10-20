@@ -4,8 +4,6 @@ import { createGoogleGenerativeAI, GoogleGenerativeAIProviderOptions } from '@ai
 import { OmQaSchema } from '@/types/om-types';
 import { 
   scenarioData, 
-  timelineData, 
-  unitMixData, 
   marketComps,
   marketContextDetails, 
   dealSnapshotDetails,

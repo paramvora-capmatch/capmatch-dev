@@ -19,9 +19,8 @@ export default function ProfilePage() {
 	const router = useRouter();
 	const { createProject, projects } = useProjects();
 	// Use context hook, providing a fallback empty object if context is not ready
-	const { content: borrowerProfile, isLoading: profileLoading } =
+	const { isLoading: profileLoading } =
 		useBorrowerProfile() || { content: null, isLoading: true };
-	const { user } = useAuth();
 
 	// Handle profile completion from the form's onComplete callback
 	const handleProfileComplete = async (profile: BorrowerResumeContent | null) => {

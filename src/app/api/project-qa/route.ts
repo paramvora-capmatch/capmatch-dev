@@ -1,7 +1,7 @@
 // src/app/api/project-qa/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { streamObject } from 'ai';
-import { createGoogleGenerativeAI, GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { AIContextRequest } from '@/types/ask-ai-types';
 import { z } from 'zod';
 

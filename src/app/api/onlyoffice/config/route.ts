@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "crypto";
 
 // Initialize Supabase admin client to create signed URLs
 const supabaseAdmin = createClient(
@@ -39,14 +38,14 @@ export async function POST(request: NextRequest) {
           set: (name: string, value: string, options: CookieOptions) => {
             try {
               cookieStore.set({ name, value, ...options });
-            } catch (error) {
+            } catch {
               // The `set` method was called from a Server Component.
             }
           },
           remove: (name: string, options: CookieOptions) => {
             try {
               cookieStore.set({ name, value: "", ...options });
-            } catch (error) {
+            } catch {
               // The `delete` method was called from a Server Component.
             }
           },
@@ -195,10 +194,11 @@ export async function POST(request: NextRequest) {
     console.log("[OnlyOffice Config] Callback URL:", callbackUrl);
 
     return NextResponse.json(finalConfig);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error generating OnlyOffice config:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Internal Server Error", message: error.message },
+      { error: "Internal Server Error", message },
       { status: 500 }
     );
   }

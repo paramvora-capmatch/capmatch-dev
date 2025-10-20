@@ -10,7 +10,6 @@ import {
 	Card,
 	CardContent,
 	CardHeader,
-	CardFooter,
 } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/Button";
 import { Select } from "../../../../components/ui/Select";
@@ -20,8 +19,6 @@ import {
 	User,
 	MessageSquare,
 	Calendar,
-	Clock,
-	CheckCircle,
 	Building,
 	MapPin,
 	DollarSign,
@@ -31,9 +28,7 @@ import {
 	BorrowerProfile,
 	ProjectProfile,
 	ProjectStatus,
-	ProjectMessage,
 	ProjectDocumentRequirement,
-	Project,
 	BorrowerResume,
 	ProjectResume,
 } from "../../../../types/enhanced-types";
@@ -44,7 +39,6 @@ import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 import {
 	getProjectWithResume,
-	getProjectMessages,
 } from "@/lib/project-queries";
 
 export default function AdvisorProjectDetailPage() {
@@ -55,11 +49,18 @@ export default function AdvisorProjectDetailPage() {
 	const [project, setProject] = useState<ProjectProfile | null>(null);
 	const [borrowerResume, setBorrowerResume] = useState<BorrowerResume | null>(null);
 	const [projectResume, setProjectResume] = useState<ProjectResume | null>(null);
-	const [messages, setMessages] = useState<any[]>([]);
+	const [messages, setMessages] = useState<{
+		id: string;
+		projectId: string;
+		senderId: string;
+		senderType: string;
+		message: string;
+		createdAt: string;
+	}[]>([]);
 	const [documentRequirements, setDocumentRequirements] = useState<
 		ProjectDocumentRequirement[]
 	>([]);
-	const [isLoadingData, setIsLoadingData] = useState(true);
+	const [, setIsLoadingData] = useState(true);
 	const [newMessage, setNewMessage] = useState("");
 	const [selectedStatus, setSelectedStatus] =
 		useState<ProjectStatus>("Info Gathering");
@@ -882,7 +883,7 @@ export default function AdvisorProjectDetailPage() {
 								<CardContent className="p-4 flex-1 flex flex-col">
 									<div className="flex-1 space-y-4 overflow-y-auto mb-4 p-2 border rounded bg-gray-50/50 min-h-[300px]">
 										{messages.length > 0 ? (
-											messages.map((message, index) => (
+											messages.map((message) => (
 												<div
 													key={message.id}
 													className={`flex ${

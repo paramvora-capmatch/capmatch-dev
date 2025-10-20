@@ -4,7 +4,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../hooks/useAuth";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 import AuthLayout from "../../../components/layout/AuthLayout";
 import { Form, FormGroup } from "../../../components/ui/Form";
@@ -20,6 +20,7 @@ const LoginForm = () => {
   const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const searchParams = useSearchParams();
   const {
     signInWithPassword,
     signUp,
@@ -27,8 +28,6 @@ const LoginForm = () => {
     isLoading: authLoading,
   } = useAuth();
 
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [loginSource, setLoginSource] = useState<"direct" | "lenderline">(
     "direct"
   );

@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         { status: 403 });
     }
 
-    const { status, url, changesurl, key } = body;
+    const { status, url, changesurl } = body;
 
     // Handle document save (status 2 or 6)
     if (status === 2 || status === 6) {
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle OPTIONS for CORS (important for OnlyOffice server to be able to call back)
-export async function OPTIONS(request: NextRequest) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
