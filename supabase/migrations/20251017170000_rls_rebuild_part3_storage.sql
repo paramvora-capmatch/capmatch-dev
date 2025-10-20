@@ -94,6 +94,50 @@ $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 COMMENT ON FUNCTION public.can_upload_to_path IS 'Checks if a user has "edit" permission on the destination folder for a new file upload.';
 
 
+-- A variant that accepts the user id explicitly to avoid auth context issues
+CREATE OR REPLACE FUNCTION public.can_upload_to_path_for_user(p_user_id UUID, p_bucket_id TEXT, p_path_tokens TEXT[])
+RETURNS BOOLEAN AS $$
+DECLARE
+    v_org_id UUID := p_bucket_id::UUID;
+    v_context_token TEXT := p_path_tokens[1];
+    v_path_depth INT := array_length(p_path_tokens, 1);
+    v_parent_id UUID;
+    v_current_folder_name TEXT;
+    i INT;
+BEGIN
+    IF v_path_depth < 2 THEN
+        RETURN FALSE;
+    END IF;
+
+    IF v_context_token = 'borrower-docs' THEN
+        SELECT id INTO v_parent_id FROM public.resources WHERE org_id = v_org_id AND resource_type = 'BORROWER_DOCS_ROOT';
+    ELSE
+        BEGIN
+            SELECT id INTO v_parent_id FROM public.resources WHERE project_id = v_context_token::UUID AND resource_type = 'PROJECT_DOCS_ROOT';
+        EXCEPTION WHEN invalid_text_representation THEN
+            RETURN FALSE;
+        END;
+    END IF;
+
+    IF v_parent_id IS NULL THEN
+        RETURN FALSE;
+    END IF;
+
+    IF v_path_depth > 2 THEN
+        FOR i IN 2..(v_path_depth - 1) LOOP
+            v_current_folder_name := p_path_tokens[i];
+            SELECT id INTO v_parent_id FROM public.resources WHERE parent_id = v_parent_id AND name = v_current_folder_name AND resource_type = 'FOLDER';
+            IF v_parent_id IS NULL THEN
+                RETURN FALSE;
+            END IF;
+        END LOOP;
+    END IF;
+
+    RETURN public.can_edit(p_user_id, v_parent_id);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+
+
 -- =============================================================================
 -- 3. RLS Policies for `storage.objects`
 -- =============================================================================
@@ -109,23 +153,37 @@ DROP POLICY IF EXISTS "Users can delete files they can edit" ON storage.objects;
 -- Checks permissions on the DESTINATION FOLDER. Policies must be TO public;
 -- auth.uid() is still available from the JWT claims provided by the storage service.
 CREATE POLICY "Users can upload files to folders they can edit" ON storage.objects
-FOR INSERT TO public
-WITH CHECK ( public.can_upload_to_path(bucket_id, string_to_array(name,'/')) );
+FOR INSERT TO authenticated
+WITH CHECK ( public.can_upload_to_path_for_user(auth.uid(), bucket_id, string_to_array(name,'/')) );
 
 -- Policy 2: SELECT (Downloads)
 -- Checks permissions on the FILE ITSELF. Apply TO public.
 CREATE POLICY "Users can view files they have access to" ON storage.objects
-FOR SELECT TO public
-USING ( public.can_view(auth.uid(), public.get_resource_by_storage_path(name)) );
+FOR SELECT TO authenticated
+USING (
+  public.can_view(auth.uid(), public.get_resource_by_storage_path(name))
+  OR (
+    public.get_resource_by_storage_path(name) IS NULL AND EXISTS (
+      SELECT 1 FROM public.project_access_grants pag
+      WHERE pag.user_id = auth.uid()
+        AND pag.project_id = (
+          CASE WHEN (string_to_array(name,'/'))[1] ~ '^[0-9a-fA-F-]{36}$'
+               THEN ((string_to_array(name,'/'))[1])::uuid
+               ELSE NULL
+          END
+        )
+    )
+  )
+);
 
 -- Policy 3: UPDATE (Overwrites)
 -- Checks permissions on the FILE ITSELF. Apply TO public.
 CREATE POLICY "Users can update files they can edit" ON storage.objects
-FOR UPDATE TO public
+FOR UPDATE TO authenticated
 USING ( public.can_edit(auth.uid(), public.get_resource_by_storage_path(name)) );
 
 -- Policy 4: DELETE (Deletions)
 -- Checks permissions on the FILE ITSELF. Apply TO public.
 CREATE POLICY "Users can delete files they can edit" ON storage.objects
-FOR DELETE TO public
+FOR DELETE TO authenticated
 USING ( public.can_edit(auth.uid(), public.get_resource_by_storage_path(name)) );
