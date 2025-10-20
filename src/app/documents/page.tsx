@@ -26,11 +26,9 @@ export default function DocumentsPage() {
 							</p>
 						</div>
 						<DocumentManager
-							bucketId={activeOrg?.id || null}
-							folderId={null}
+							projectId={null}
+							resourceId="BORROWER_ROOT"
 							title="General Borrower Documents"
-							canUpload={true}
-							canDelete={true}
 						/>
 					</>
 				)}

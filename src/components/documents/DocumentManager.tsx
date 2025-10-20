@@ -27,7 +27,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 interface DocumentManagerProps {
   projectId: string | null;
-  // This should correspond to a resource_id for the folder
+  // This should correspond to a resource_id for the folder, or special values like "PROJECT_ROOT" or "BORROWER_ROOT"
   resourceId: string | null;
   title: string;
 }
@@ -80,10 +80,12 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   // We need to find the root resource ID for the documents to pass to the hook
   const [rootResourceId, setRootResourceId] = useState<string | null>(null);
   useEffect(() => {
-    // This is a placeholder for logic that would fetch the root resource ID
-    // for this document manager instance (e.g., PROJECT_DOCS_ROOT).
-    // For now, we'll assume it's passed in as a prop.
-    setRootResourceId(resourceId);
+    // Handle special values that indicate we should use the root folder
+    if (resourceId === "PROJECT_ROOT" || resourceId === "BORROWER_ROOT") {
+      setRootResourceId(null);
+    } else {
+      setRootResourceId(resourceId);
+    }
   }, [resourceId]);
   
   const { canEdit: canPerformActions, isLoading: isLoadingPermissionsRoot } = usePermissions(rootResourceId);
