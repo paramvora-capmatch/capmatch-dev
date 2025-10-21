@@ -57,7 +57,7 @@ const formatDate = (dateString: string) => {
 
 export const DocumentManager: React.FC<DocumentManagerProps> = ({
   projectId,
-  folderId = null,
+  resourceId,
   title,
   canUpload = true,
   canDelete = true,
@@ -151,7 +151,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     if (window.confirm(`Are you sure you want to delete "${file.name}"?`)) {
 
       try {
-        await deleteFile(fileId);
+        await deleteFile(file.id);
       } catch (error) {
         console.error("[DocumentManager] Delete file error", error);
       }
@@ -165,7 +165,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
       )
     ) {
       try {
-        await deleteFolder(folderId);
+        await deleteFolder(folder.id);
       } catch (error) {
         console.error("[DocumentManager] Delete folder error", error);
       }
@@ -303,7 +303,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                      onClick={() => handleDeleteFolder(folder)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -339,7 +339,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDownload(file)}
+                      onClick={() => handleDownload(file.id, file.name)}
                     >
                       <Download className="h-4 w-4" />
                     </Button>
