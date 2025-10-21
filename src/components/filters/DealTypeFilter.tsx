@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ButtonSelect } from '../../components/ui/ButtonSelect';
 import { Info } from 'lucide-react';
 
 interface DealTypeFilterProps {
@@ -34,7 +33,7 @@ const DealTypeFilter: React.FC<DealTypeFilterProps> = ({ value, onChange }) => {
           </button>
           {showTooltip && (
             <div className="absolute z-10 w-64 p-2 mt-2 text-xs bg-white rounded-md shadow-lg border border-gray-200 -translate-x-1/2 left-1/2">
-              Select the type of transaction you're pursuing. This impacts which lenders will match with your project.
+              Select the type of transaction you&apos;re pursuing. This impacts which lenders will match with your project.
             </div>
           )}
         </div>

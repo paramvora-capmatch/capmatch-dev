@@ -29,12 +29,12 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
 
     const authorized = isAuthenticated && user && roles.includes(user.role);
 
-    console.log('[RoleBasedRoute] 🔍 Debug:', {
+    console.log("[RoleBasedRoute] 🔍 Debug:", {
       isAuthenticated,
       userRole: user?.role,
       requiredRoles: roles,
       authorized,
-      userEmail: user?.email
+      userEmail: user?.email,
     });
 
     if (authorized) {
@@ -52,8 +52,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     if (!hasChecked) {
       setHasChecked(true);
     }
-
-  }, [isLoading, isAuthenticated, user, roles, router, redirectTo]);
+  }, [isLoading, hasChecked, isAuthenticated, user, roles, router, redirectTo]);
 
   // While the initial check is pending on first load, show a full-page loader.
   if (!hasChecked) {

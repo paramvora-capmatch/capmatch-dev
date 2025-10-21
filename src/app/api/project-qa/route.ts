@@ -1,7 +1,7 @@
 // src/app/api/project-qa/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { streamObject } from 'ai';
-import { createGoogleGenerativeAI, GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { AIContextRequest } from '@/types/ask-ai-types';
 import { z } from 'zod';
 
@@ -107,7 +107,7 @@ Remember: Get straight to the point. Users want quick, actionable answers, not l
     });
 
     return result.toTextStreamResponse();
-  } catch (e: any) {
+  } catch (e) {
     console.error('project-qa error:', e);
     return NextResponse.json({ error: 'Failed to get answer' }, { status: 500 });
   }

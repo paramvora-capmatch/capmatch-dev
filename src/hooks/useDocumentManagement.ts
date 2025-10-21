@@ -11,7 +11,7 @@ export interface DocumentFile {
   resource_id: string;
   created_at: string;
   updated_at: string;
-  metadata?: any; // To hold version info
+  metadata?: Record<string, unknown>;
 }
 
 export interface DocumentFolder {
@@ -64,13 +64,11 @@ export const useDocumentManagement = (
         parentId = folderId || root.id;
       }
 
+      // First, get all resources (files and folders)
       const { data: resources, error } = await supabase
         .from("resources")
         .select(
-          `
-          id, name, resource_type, created_at,
-          current_version:document_versions!resources_current_version_id_fkey(storage_path, created_at, metadata)
-        `
+          "id, name, resource_type, created_at, updated_at, current_version_id"
         )
         .eq("parent_id", parentId)
         .in("resource_type", ["FOLDER", "FILE"])
@@ -81,20 +79,48 @@ export const useDocumentManagement = (
       const filesList: DocumentFile[] = [];
       const foldersList: DocumentFolder[] = [];
 
+      // Get all current version IDs for files
+      const fileResources =
+        resources?.filter(
+          (r) => r.resource_type === "FILE" && r.current_version_id
+        ) || [];
+      const versionIds = fileResources
+        .map((r) => r.current_version_id)
+        .filter(Boolean);
+
+      // Fetch all current versions in one query
+      let versionsMap = new Map();
+      if (versionIds.length > 0) {
+        const { data: versions, error: versionsError } = await supabase
+          .from("document_versions")
+          .select("id, storage_path, created_at, metadata")
+          .in("id", versionIds);
+
+        if (versionsError) {
+          console.error("Error fetching versions:", versionsError);
+        } else {
+          versions?.forEach((v) => versionsMap.set(v.id, v));
+        }
+      }
+
       for (const resource of resources || []) {
         if (resource.resource_type === "FILE") {
-          const size = resource.current_version?.metadata?.size || 0;
+          const currentVersion = versionsMap.get(resource.current_version_id);
+          if (!currentVersion || !currentVersion.storage_path) {
+            console.warn(`File ${resource.id} has no current version`);
+            continue;
+          }
+          const size = currentVersion.metadata?.size || 0;
           filesList.push({
             id: resource.id,
             name: resource.name,
             size: size,
             type: "file",
-            storage_path: resource.current_version?.storage_path || "",
+            storage_path: currentVersion.storage_path,
             resource_id: resource.id,
             created_at: resource.created_at,
-            updated_at:
-              resource.current_version?.created_at || resource.created_at,
-            metadata: resource.current_version?.metadata,
+            updated_at: currentVersion.created_at || resource.created_at,
+            metadata: currentVersion.metadata,
           });
         } else if (resource.resource_type === "FOLDER") {
           foldersList.push({
@@ -348,22 +374,26 @@ export const useDocumentManagement = (
     async (fileId: string) => {
       if (!activeOrg) throw new Error("Missing context");
       try {
+        // Get the resource and its current version
         const { data, error } = await supabase
           .from("resources")
-          .select(
-            `
-          name,
-          current_version:document_versions!resources_current_version_id_fkey(storage_path)
-        `
-          )
+          .select("name, current_version_id")
           .eq("id", fileId)
           .single();
 
         if (error) throw error;
-        if (!data?.current_version?.storage_path)
+        if (!data?.current_version_id) throw new Error("File has no current version");
+
+        const { data: version, error: versionError } = await supabase
+          .from("document_versions")
+          .select("storage_path")
+          .eq("id", data.current_version_id)
+          .single();
+
+        if (versionError || !version?.storage_path)
           throw new Error("File has no storage path");
 
-        const storage_path = data.current_version.storage_path;
+        const storage_path = version.storage_path;
         const file_name = data.name;
 
         // Download from storage

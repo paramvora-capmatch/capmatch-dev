@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import Script from "next/script";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -20,23 +20,13 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
   const [isScriptReady, setIsScriptReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  const docEditorRef = useRef<any>(null);
+  const docEditorRef = useRef<{ destroyEditor: () => void } | null>(null);
   const initializationRef = useRef<boolean>(false);
-
-  const onlyofficeUrl = process.env.NEXT_PUBLIC_ONLYOFFICE_URL;
-  if (!onlyofficeUrl) {
-    return (
-      <div className="text-red-500 p-8">
-        Error: NEXT_PUBLIC_ONLYOFFICE_URL is not configured in your .env file.
-      </div>
-    );
-  }
-  const onlyofficeApiUrl = `${onlyofficeUrl}/web-apps/apps/api/documents/api.js`;
 
   // Callback for when the script loads
   const handleScriptLoad = useCallback(() => {
     console.log("[OnlyOfficeEditor] OnlyOffice script loaded successfully");
-    // @ts-ignore
+    // @ts-expect-error DocsAPI is loaded dynamically and not in TypeScript definitions
     if (window.DocsAPI) {
       console.log("[OnlyOfficeEditor] DocsAPI is available on window");
       setIsScriptReady(true);
@@ -48,17 +38,16 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
     }
   }, []);
 
-  // Check if script is already loaded (for subsequent component mounts)
-  useEffect(() => {
-    // @ts-ignore
-    if (window.DocsAPI) {
-      console.log("[OnlyOfficeEditor] DocsAPI already available on window");
-      setIsScriptReady(true);
-    } else {
+  const checkScriptLoaded = useCallback(() => {
+    // @ts-expect-error DocsAPI is loaded dynamically and not in TypeScript definitions
+    if (!window.DocsAPI) {
       console.log(
         "[OnlyOfficeEditor] DocsAPI not yet available, waiting for script to load"
       );
+      return;
     }
+    console.log("[OnlyOfficeEditor] DocsAPI already available on window");
+    setIsScriptReady(true);
   }, []);
 
   const handleScriptError = useCallback(() => {
@@ -66,124 +55,127 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
     setError("Failed to load OnlyOffice editor. Please refresh the page.");
   }, []);
 
-  useEffect(() => {
-    const initializeEditor = async () => {
-      // Prevent multiple simultaneous initialization attempts
-      if (initializationRef.current) {
-        console.log(
-          "[OnlyOfficeEditor] Initialization already in progress, skipping"
-        );
-        return;
-      }
-      initializationRef.current = true;
+  const initializeEditor = useCallback(async () => {
+    if (!isScriptReady) return;
 
-      setIsLoading(true);
-      setError(null);
-
-      // Give the DOM time to fully render the container
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Verify container exists in DOM
-      const container = document.getElementById("onlyoffice-editor-container");
-      if (!container) {
-        console.error(
-          "[OnlyOfficeEditor] Container #onlyoffice-editor-container not found in DOM"
-        );
-        setError("Editor container not found. Please refresh the page.");
-        setIsLoading(false);
-        initializationRef.current = false;
-        return;
-      }
-
-      // Destroy any existing editor instance
-      if (docEditorRef.current) {
-        console.log("[OnlyOfficeEditor] Destroying existing editor instance");
-        try {
-          docEditorRef.current.destroyEditor();
-        } catch (e) {
-          console.warn(
-            "[OnlyOfficeEditor] Error destroying existing editor:",
-            e
-          );
-        }
-        docEditorRef.current = null;
-      }
-
-      // DO NOT clear window.DocsAPI - it's needed for subsequent initializations
-      // Clear only the specific editor instance
-      // @ts-ignore
-      if (window.docEditor && window.docEditor !== docEditorRef.current) {
-        // @ts-ignore
-        try {
-          window.docEditor.destroyEditor();
-        } catch (e) {
-          console.warn(
-            "[OnlyOfficeEditor] Error destroying window.docEditor:",
-            e
-          );
-        }
-        // @ts-ignore
-        window.docEditor = null;
-      }
-
-      try {
-        const res = await fetch("/api/onlyoffice/config", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bucketId, filePath }),
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(
-            errorData.message || "Failed to fetch editor configuration."
-          );
-        }
-
-        const config = await res.json();
-        console.log(
-          "[OnlyOfficeEditor] Config received, initializing editor with key:",
-          config.document.key
-        );
-
-        // Check container still exists before creating editor
-        const containerStillExists = document.getElementById(
-          "onlyoffice-editor-container"
-        );
-        if (!containerStillExists) {
-          throw new Error("Editor container was removed from DOM");
-        }
-
-        // Verify DocsAPI is available
-        // @ts-ignore
-        if (!window.DocsAPI) {
-          throw new Error(
-            "DocsAPI is not available. OnlyOffice script may not have loaded properly."
-          );
-        }
-
-        // @ts-ignore
-        const newDocEditor = new DocsAPI.DocEditor(
-          "onlyoffice-editor-container",
-          config
-        );
-
-        docEditorRef.current = newDocEditor;
-        // @ts-ignore
-        window.docEditor = newDocEditor;
-        console.log("[OnlyOfficeEditor] Editor initialized successfully");
-      } catch (err: any) {
-        console.error("Error initializing editor:", err);
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-        initializationRef.current = false;
-      }
-    };
-
-    if (isScriptReady) {
-      initializeEditor();
+    // Prevent multiple simultaneous initialization attempts
+    if (initializationRef.current) {
+      console.log(
+        "[OnlyOfficeEditor] Initialization already in progress, skipping"
+      );
+      return;
     }
+    initializationRef.current = true;
+
+    setIsLoading(true);
+    setError(null);
+
+    // Give the DOM time to fully render the container
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verify container exists in DOM
+    const container = document.getElementById("onlyoffice-editor-container");
+    if (!container) {
+      console.error(
+        "[OnlyOfficeEditor] Container #onlyoffice-editor-container not found in DOM"
+      );
+      setError("Editor container not found. Please refresh the page.");
+      setIsLoading(false);
+      initializationRef.current = false;
+      return;
+    }
+
+    // Destroy any existing editor instance
+    if (docEditorRef.current) {
+      console.log("[OnlyOfficeEditor] Destroying existing editor instance");
+      try {
+        docEditorRef.current.destroyEditor();
+      } catch (e) {
+        console.warn("[OnlyOfficeEditor] Error destroying existing editor:", e);
+      }
+      docEditorRef.current = null;
+    }
+
+    // DO NOT clear window.DocsAPI - it's needed for subsequent initializations
+    // Clear only the specific editor instance
+    // @ts-expect-error Global docEditor instance cleanup
+    if (window.docEditor && window.docEditor !== docEditorRef.current) {
+      // @ts-expect-error Global docEditor instance cleanup
+      try {
+        window.docEditor.destroyEditor();
+      } catch (e) {
+        console.warn(
+          "[OnlyOfficeEditor] Error destroying window.docEditor:",
+          e
+        );
+      }
+      // @ts-expect-error Global docEditor instance cleanup
+      window.docEditor = null;
+    }
+
+    try {
+      const res = await fetch("/api/onlyoffice/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bucketId, filePath }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(
+          errorData.message || "Failed to fetch editor configuration."
+        );
+      }
+
+      const config = await res.json();
+      console.log(
+        "[OnlyOfficeEditor] Config received, initializing editor with key:",
+        config.document.key
+      );
+
+      // Check container still exists before creating editor
+      const containerStillExists = document.getElementById(
+        "onlyoffice-editor-container"
+      );
+      if (!containerStillExists) {
+        throw new Error("Editor container was removed from DOM");
+      }
+
+      // Verify DocsAPI is available
+      // @ts-expect-error DocsAPI is loaded dynamically and not in TypeScript definitions
+      if (!window.DocsAPI) {
+        throw new Error(
+          "DocsAPI is not available. OnlyOffice script may not have loaded properly."
+        );
+      }
+
+      // @ts-expect-error DocsAPI is loaded dynamically and not in TypeScript definitions
+      const newDocEditor = new DocsAPI.DocEditor(
+        "onlyoffice-editor-container",
+        config
+      );
+
+      docEditorRef.current = newDocEditor;
+      // @ts-expect-error Setting global docEditor instance
+      window.docEditor = newDocEditor;
+      console.log("[OnlyOfficeEditor] Editor initialized successfully");
+    } catch (err: unknown) {
+      console.error("Error initializing editor:", err);
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
+    } finally {
+      setIsLoading(false);
+      initializationRef.current = false;
+    }
+  }, [isScriptReady, bucketId, filePath]);
+
+  // Check if script is already loaded (for subsequent component mounts)
+  React.useEffect(() => {
+    checkScriptLoaded();
+  }, [checkScriptLoaded]);
+
+  // Initialize editor
+  React.useEffect(() => {
+    initializeEditor();
 
     return () => {
       // Cleanup on unmount or when dependencies change
@@ -198,10 +190,10 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       }
       initializationRef.current = false;
     };
-  }, [isScriptReady, bucketId, filePath]);
+  }, [initializeEditor]);
 
   // Handle page navigation/back button
-  useEffect(() => {
+  React.useEffect(() => {
     const handleBeforeUnload = () => {
       console.log("[OnlyOfficeEditor] Page unloading, cleaning up editor");
       if (docEditorRef.current) {

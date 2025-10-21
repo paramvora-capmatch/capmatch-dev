@@ -3,11 +3,11 @@
 import React from 'react';
 import { MapContainer, TileLayer, Polygon, Circle, Popup, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Building2, Car, TreePine } from 'lucide-react';
+import { Building2, Car, TreePine } from 'lucide-react';
 
 // Fix for default markers in react-leaflet
 import L from 'leaflet';
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -72,7 +72,7 @@ export default function InteractiveSiteMap({ className = '' }: InteractiveSiteMa
               <Building2 className="h-5 w-5 mx-auto mb-2 text-blue-600" />
               <h3 className="font-semibold text-gray-800">Building Footprint</h3>
               <p className="text-sm text-gray-600">8 Stories • 120 Units</p>
-              <p className="text-sm text-gray-600">FAR: 3.5/4.0 • Height: 85'/100'</p>
+              <p className="text-sm text-gray-600">FAR: 3.5/4.0 • Height: 85&apos;/100&apos;</p>
             </div>
           </Popup>
         </Polygon>

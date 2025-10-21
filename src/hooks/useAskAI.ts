@@ -1,7 +1,7 @@
 // src/hooks/useAskAI.ts
 import { useState, useCallback, useEffect } from 'react';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
-import { Message, FieldContext, PresetQuestion, AIContextRequest } from '../types/ask-ai-types';
+import { Message, FieldContext, AIContextRequest } from '../types/ask-ai-types';
 import { AIContextBuilder } from '../services/aiContextBuilder';
 import { z } from 'zod';
 
@@ -22,26 +22,20 @@ const ProjectQASchema = z.object({
 
 interface UseAskAIOptions {
   projectId: string;
-  formData: any; // Accept any object type for flexibility
+  formData: Record<string, unknown>;
 }
 
-export const useAskAI = ({ projectId, formData }: UseAskAIOptions) => {
+export const useAskAI = ({ formData }: UseAskAIOptions) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [fieldContext, setFieldContext] = useState<FieldContext | null>(null);
-  const [presetQuestions, setPresetQuestions] = useState<PresetQuestion[]>([]);
   const [isBuildingContext, setIsBuildingContext] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
-  
-  // Context management
-  const [contextCache, setContextCache] = useState<Map<string, FieldContext>>(new Map());
   const [droppedField, setDroppedField] = useState<string | null>(null);
   
   // Clear context cache when form data changes to ensure fresh context
   useEffect(() => {
-    setContextCache(new Map());
     setFieldContext(null);
     setMessages([]);
-    setPresetQuestions([]);
   }, [formData]);
   
   // Streaming AI response
@@ -64,7 +58,6 @@ export const useAskAI = ({ projectId, formData }: UseAskAIOptions) => {
       // Clear previous context and start fresh - do this synchronously to prevent race conditions
       setMessages([]);
       setFieldContext(null);
-      setPresetQuestions([]);
       setContextError(null);
       setIsBuildingContext(true);
 
@@ -74,23 +67,9 @@ export const useAskAI = ({ projectId, formData }: UseAskAIOptions) => {
       // 2. Context building will continue in background
       
       try {
-        // Clear cache for this specific field to ensure fresh context
-        setContextCache(prev => {
-          const newCache = new Map(prev);
-          newCache.delete(fieldId);
-          return newCache;
-        });
-        
         // Build context from scratch with latest form data
         const context = await AIContextBuilder.buildFieldContext(fieldId, formData);
         setFieldContext(context);
-        
-        // Cache the new context
-        setContextCache(prev => new Map(prev).set(fieldId, context));
-        
-        // Generate preset questions
-        const questions = AIContextBuilder.generatePresetQuestions(context);
-        setPresetQuestions(questions);
         
       } catch (error) {
         console.error('Error building field context:', error);

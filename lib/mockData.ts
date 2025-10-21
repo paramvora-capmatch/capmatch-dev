@@ -1,5 +1,4 @@
 // lib/mockData.ts
-// @ts-nocheck
 import { BorrowerProfile, ProjectProfile } from '../src/types/enhanced-types';
 
 // Helper to generate consistent IDs based on email and type

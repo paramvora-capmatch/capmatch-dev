@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
-import { OmQaSchema, OmQaAssumption } from '@/types/om-types';
+import { OmQaSchema } from '@/types/om-types';
 import { z } from 'zod';
 
 interface OMChatSidebarProps {

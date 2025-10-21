@@ -2,17 +2,15 @@
 
 'use client';
 
-import { X, Check, Building2, Mail, Phone, ArrowRight } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { Button } from "./ui/Button";
-import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
+import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
 import type { LenderProfile } from "../types/lender";
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 interface LenderDetailCardProps {
   lender: LenderProfile;
-  formData?: any;
+  formData?: Record<string, unknown>;
   onClose: () => void;
   color: string;
   onContactLender?: () => void;

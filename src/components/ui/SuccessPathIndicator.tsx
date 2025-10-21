@@ -1,6 +1,6 @@
 // src/components/ui/SuccessPathIndicator.tsx
 import React from 'react';
-import { Check, X, Clock, ChevronRight } from 'lucide-react';
+import { Check, X, Clock } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 export interface Step {

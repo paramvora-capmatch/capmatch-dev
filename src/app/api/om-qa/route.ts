@@ -1,57 +1,74 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { streamObject } from 'ai';
-import { createGoogleGenerativeAI, GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
-import { OmQaSchema } from '@/types/om-types';
-import { 
-  scenarioData, 
-  timelineData, 
-  unitMixData, 
+import { NextRequest, NextResponse } from "next/server";
+import { streamObject } from "ai";
+import {
+  createGoogleGenerativeAI,
+  GoogleGenerativeAIProviderOptions,
+} from "@ai-sdk/google";
+import { OmQaSchema } from "@/types/om-types";
+import {
+  scenarioData,
   marketComps,
-  marketContextDetails, 
+  marketContextDetails,
   dealSnapshotDetails,
-  assetProfileDetails, 
-  financialDetails, 
+  assetProfileDetails,
+  financialDetails,
   capitalStackData,
   employerData,
   sponsorDeals,
-  certifications
-} from '@/services/mockOMData';
+  certifications,
+} from "@/services/mockOMData";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
 
 const system = [
-  'You are a super genius expert analyst in Commercial Real Estate with 20+ years experience.',
-  'Answer using the OM content; be professional and analytical.',
-  'You have the ability to make forecasts, projections, and predictions by extrapolating from the provided data.',
-  'When making predictions, clearly indicate they are forecasts based on data analysis, not guaranteed outcomes.',
-  'Use historical trends, market dynamics, and financial metrics to project future performance.',
-  'Consider multiple scenarios (base case, upside, downside) when making projections.',
-  'Output must match the provided JSON schema exactly. Return JSON only.',
-].join(' ');
+  "You are a super genius expert analyst in Commercial Real Estate with 20+ years experience.",
+  "Answer using the OM content; be professional and analytical.",
+  "You have the ability to make forecasts, projections, and predictions by extrapolating from the provided data.",
+  "When making predictions, clearly indicate they are forecasts based on data analysis, not guaranteed outcomes.",
+  "Use historical trends, market dynamics, and financial metrics to project future performance.",
+  "Consider multiple scenarios (base case, upside, downside) when making projections.",
+  "Output must match the provided JSON schema exactly. Return JSON only.",
+].join(" ");
 
-const MODEL_NAME = 'gemini-2.5-pro'; // use a model your key supports
+const MODEL_NAME = "gemini-2.5-pro"; // use a model your key supports
 
 // Function to format OM data from mockOMData service
 function formatOMData() {
   const base = scenarioData.base;
   const upside = scenarioData.upside;
   const downside = scenarioData.downside;
-  
+
   return `# Downtown Highrise - Offering Memorandum
 
 ## Deal Snapshot Details
 
 ### Capital Stack
 - **Total Capitalization**: $${(base.constructionCost / 1000000).toFixed(1)}M
-- **Senior Debt**: ${((base.loanAmount / base.constructionCost) * 100).toFixed(0)}%
-- **Equity**: ${((1 - base.loanAmount / base.constructionCost) * 100).toFixed(0)}%
+- **Senior Debt**: ${((base.loanAmount / base.constructionCost) * 100).toFixed(
+    0
+  )}%
+- **Equity**: ${((1 - base.loanAmount / base.constructionCost) * 100).toFixed(
+    0
+  )}%
 
 **Capital Stack by Scenario**:
-- **Base Case**: $${(capitalStackData.base.totalCapitalization / 1000000).toFixed(1)}M total, ${capitalStackData.base.sources[0].percentage}% debt at ${capitalStackData.base.sources[0].rate}
-- **Upside**: $${(capitalStackData.upside.totalCapitalization / 1000000).toFixed(1)}M total, ${capitalStackData.upside.sources[0].percentage}% debt at ${capitalStackData.upside.sources[0].rate}
-- **Downside**: $${(capitalStackData.downside.totalCapitalization / 1000000).toFixed(1)}M total, ${capitalStackData.downside.sources[0].percentage}% debt at ${capitalStackData.downside.sources[0].rate}
+- **Base Case**: $${(
+    capitalStackData.base.totalCapitalization / 1000000
+  ).toFixed(1)}M total, ${
+    capitalStackData.base.sources[0].percentage
+  }% debt at ${capitalStackData.base.sources[0].rate}
+- **Upside**: $${(
+    capitalStackData.upside.totalCapitalization / 1000000
+  ).toFixed(1)}M total, ${
+    capitalStackData.upside.sources[0].percentage
+  }% debt at ${capitalStackData.upside.sources[0].rate}
+- **Downside**: $${(
+    capitalStackData.downside.totalCapitalization / 1000000
+  ).toFixed(1)}M total, ${
+    capitalStackData.downside.sources[0].percentage
+  }% debt at ${capitalStackData.downside.sources[0].rate}
 
 ### Key Terms
 - **Loan Type**: ${dealSnapshotDetails.keyTerms.loanType}
@@ -64,24 +81,50 @@ function formatOMData() {
 - **Exit Fee**: ${dealSnapshotDetails.keyTerms.exitFee}
 - **Lender Reserves**:
     - Interest: ${dealSnapshotDetails.keyTerms.lenderReserves.interest}
-    - Tax & Insurance: ${dealSnapshotDetails.keyTerms.lenderReserves.taxInsurance}
+    - Tax & Insurance: ${
+      dealSnapshotDetails.keyTerms.lenderReserves.taxInsurance
+    }
     - CapEx: ${dealSnapshotDetails.keyTerms.lenderReserves.capEx}
 - **Key Covenants**:
     - Min DSCR: ${dealSnapshotDetails.keyTerms.covenants.minDSCR}
     - Max LTV: ${dealSnapshotDetails.keyTerms.covenants.maxLTV}
     - Min Liquidity: ${dealSnapshotDetails.keyTerms.covenants.minLiquidity}
-    - Completion Guaranty: ${dealSnapshotDetails.keyTerms.covenants.completionGuaranty}
+    - Completion Guaranty: ${
+      dealSnapshotDetails.keyTerms.covenants.completionGuaranty
+    }
 
 ### Milestones
-${dealSnapshotDetails.milestones.map(item => `- **${item.phase}**: ${item.date}, Status: ${item.status}, Duration: ${item.duration} days`).join('\n')}
+${dealSnapshotDetails.milestones
+  .map(
+    (item) =>
+      `- **${item.phase}**: ${item.date}, Status: ${item.status}, Duration: ${item.duration} days`
+  )
+  .join("\n")}
 
 ### Risk Matrix & Mitigants
-${dealSnapshotDetails.riskMatrix.high.length > 0 ? 
-  `**High Risk**:\n${dealSnapshotDetails.riskMatrix.high.map((risk: any) => `- ${risk.risk}: ${risk.mitigation} (${risk.probability} probability)`).join('\n')}\n` : ''
+${
+  dealSnapshotDetails.riskMatrix.high.length > 0
+    ? `**High Risk**:\n${dealSnapshotDetails.riskMatrix.high
+        .map(
+          (risk: { risk: string; mitigation: string; probability: string }) =>
+            `- ${risk.risk}: ${risk.mitigation} (${risk.probability} probability)`
+        )
+        .join("\n")}\n`
+    : ""
 }
-**Medium Risk**:\n${dealSnapshotDetails.riskMatrix.medium.map((risk: any) => `- ${risk.risk}: ${risk.mitigation} (${risk.probability} probability)`).join('\n')}
+**Medium Risk**:\n${dealSnapshotDetails.riskMatrix.medium
+    .map(
+      (risk: { risk: string; mitigation: string; probability: string }) =>
+        `- ${risk.risk}: ${risk.mitigation} (${risk.probability} probability)`
+    )
+    .join("\n")}
 
-**Low Risk**:\n${dealSnapshotDetails.riskMatrix.low.map((risk: any) => `- ${risk.risk}: ${risk.mitigation} (${risk.probability} probability)`).join('\n')}
+**Low Risk**:\n${dealSnapshotDetails.riskMatrix.low
+    .map(
+      (risk: { risk: string; mitigation: string; probability: string }) =>
+        `- ${risk.risk}: ${risk.mitigation} (${risk.probability} probability)`
+    )
+    .join("\n")}
 
 ---
 
@@ -93,33 +136,64 @@ ${dealSnapshotDetails.riskMatrix.high.length > 0 ?
 - **Parking Spaces**: ${assetProfileDetails.sitePlan.parkingSpaces}
 - **Green Space**: ${assetProfileDetails.sitePlan.greenSpace}
 - **Zoning**: ${assetProfileDetails.sitePlan.zoningDetails.current}
-- **FAR**: ${assetProfileDetails.sitePlan.zoningDetails.usedFAR} / ${assetProfileDetails.sitePlan.zoningDetails.allowedFAR}
-- **Height**: ${assetProfileDetails.sitePlan.zoningDetails.actualHeight} / ${assetProfileDetails.sitePlan.zoningDetails.heightLimit}
-- **Setbacks**: Front ${assetProfileDetails.sitePlan.zoningDetails.setbacks.front}, Side ${assetProfileDetails.sitePlan.zoningDetails.setbacks.side}, Rear ${assetProfileDetails.sitePlan.zoningDetails.setbacks.rear}
+- **FAR**: ${assetProfileDetails.sitePlan.zoningDetails.usedFAR} / ${
+    assetProfileDetails.sitePlan.zoningDetails.allowedFAR
+  }
+- **Height**: ${assetProfileDetails.sitePlan.zoningDetails.actualHeight} / ${
+    assetProfileDetails.sitePlan.zoningDetails.heightLimit
+  }
+- **Setbacks**: Front ${
+    assetProfileDetails.sitePlan.zoningDetails.setbacks.front
+  }, Side ${assetProfileDetails.sitePlan.zoningDetails.setbacks.side}, Rear ${
+    assetProfileDetails.sitePlan.zoningDetails.setbacks.rear
+  }
 
 ### Design & Amenities
 - **Amenities**:
-${assetProfileDetails.amenityDetails.map(amenity => `  - **${amenity.name}**: ${amenity.size}, ${amenity.description}`).join('\n')}
+${assetProfileDetails.amenityDetails
+  .map(
+    (amenity) =>
+      `  - **${amenity.name}**: ${amenity.size}, ${amenity.description}`
+  )
+  .join("\n")}
 - **Building Stats**:
     - **Stories**: 8
     - **Parking Ratio**: 1.2 / unit
     - **Efficiency**: 85%
 
 ### Unit Economics
-- **Studio**: ${assetProfileDetails.unitMixDetails.studios.count} units, ${assetProfileDetails.unitMixDetails.studios.avgSF} SF avg, ${assetProfileDetails.unitMixDetails.studios.rentRange} rent, $${assetProfileDetails.unitMixDetails.studios.deposit} deposit
-- **1BR**: ${assetProfileDetails.unitMixDetails.oneBed.count} units, ${assetProfileDetails.unitMixDetails.oneBed.avgSF} SF avg, ${assetProfileDetails.unitMixDetails.oneBed.rentRange} rent, $${assetProfileDetails.unitMixDetails.oneBed.deposit} deposit
-- **2BR**: ${assetProfileDetails.unitMixDetails.twoBed.count} units, ${assetProfileDetails.unitMixDetails.twoBed.avgSF} SF avg, ${assetProfileDetails.unitMixDetails.twoBed.rentRange} rent, $${assetProfileDetails.unitMixDetails.twoBed.deposit} deposit
+- **Studio**: ${assetProfileDetails.unitMixDetails.studios.count} units, ${
+    assetProfileDetails.unitMixDetails.studios.avgSF
+  } SF avg, ${assetProfileDetails.unitMixDetails.studios.rentRange} rent, $${
+    assetProfileDetails.unitMixDetails.studios.deposit
+  } deposit
+- **1BR**: ${assetProfileDetails.unitMixDetails.oneBed.count} units, ${
+    assetProfileDetails.unitMixDetails.oneBed.avgSF
+  } SF avg, ${assetProfileDetails.unitMixDetails.oneBed.rentRange} rent, $${
+    assetProfileDetails.unitMixDetails.oneBed.deposit
+  } deposit
+- **2BR**: ${assetProfileDetails.unitMixDetails.twoBed.count} units, ${
+    assetProfileDetails.unitMixDetails.twoBed.avgSF
+  } SF avg, ${assetProfileDetails.unitMixDetails.twoBed.rentRange} rent, $${
+    assetProfileDetails.unitMixDetails.twoBed.deposit
+  } deposit
 - **Avg Rent PSF**: $4.20
 
 ### Comparable Assets
-${assetProfileDetails.comparableDetails.map(comp => 
-  `- **${comp.name}** (${comp.units} units • ${comp.yearBuilt}): ${comp.occupancy} occupancy, ${comp.avgRent} avg rent, ${comp.distance} away, last sale ${comp.lastSale.date} at ${comp.lastSale.price} (${comp.lastSale.capRate} cap)`
-).join('\n')}
+${assetProfileDetails.comparableDetails
+  .map(
+    (comp) =>
+      `- **${comp.name}** (${comp.units} units • ${comp.yearBuilt}): ${comp.occupancy} occupancy, ${comp.avgRent} avg rent, ${comp.distance} away, last sale ${comp.lastSale.date} at ${comp.lastSale.price} (${comp.lastSale.capRate} cap)`
+  )
+  .join("\n")}
 
 **Additional Market Comparables**:
-${marketComps.map(comp => 
-  `- **${comp.name}** (${comp.units} units • ${comp.yearBuilt}): $${comp.rentPSF} PSF, ${comp.capRate}% cap rate`
-).join('\n')}
+${marketComps
+  .map(
+    (comp) =>
+      `- **${comp.name}** (${comp.units} units • ${comp.yearBuilt}): $${comp.rentPSF} PSF, ${comp.capRate}% cap rate`
+  )
+  .join("\n")}
 
 ---
 
@@ -127,7 +201,9 @@ ${marketComps.map(comp =>
 
 ### Macro & Demographics
 - **Population**: ${marketContextDetails.demographicProfile.fiveMile.population.toLocaleString()}
-- **5YR Growth**: ${marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr}
+- **5YR Growth**: ${
+    marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr
+  }
 - **Median Age**: ${marketContextDetails.demographicProfile.fiveMile.medianAge}
 - **College Grad %**: 45%
 - **Income Distribution**:
@@ -136,21 +212,36 @@ ${marketComps.map(comp =>
 
 ### Employment Drivers
 - **Unemployment**: 3.2%
-- **Job Growth**: ${marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr}
+- **Job Growth**: ${
+    marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr
+  }
 - **Top Employers**:
-${employerData.map(emp => 
-  `    - ${emp.name}: ${emp.employees.toLocaleString()} (${emp.growth > 0 ? '+' : ''}${emp.growth}%)`
-).join('\n')}
+${employerData
+  .map(
+    (emp) =>
+      `    - ${emp.name}: ${emp.employees.toLocaleString()} (${
+        emp.growth > 0 ? "+" : ""
+      }${emp.growth}%)`
+  )
+  .join("\n")}
 
 ### Supply Pipeline
 - **Units U/C**: ${marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()}
 - **24MO Pipeline**: ${marketContextDetails.supplyAnalysis.planned24Months.toLocaleString()}
-- **Delivery Schedule**: ${marketContextDetails.supplyAnalysis.deliveryByQuarter.map(d => `${d.quarter}: ${d.units}`).join(', ')}
+- **Delivery Schedule**: ${marketContextDetails.supplyAnalysis.deliveryByQuarter
+    .map((d) => `${d.quarter}: ${d.units}`)
+    .join(", ")}
 
 ### Market Trends & Forecasting Indicators
-- **Population Growth Trend**: ${marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr} over 5 years
-- **Income Growth Trend**: ${marketContextDetails.demographicProfile.growthTrends.incomeGrowth5yr} over 5 years  
-- **Job Growth Trend**: ${marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr} over 5 years
+- **Population Growth Trend**: ${
+    marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr
+  } over 5 years
+- **Income Growth Trend**: ${
+    marketContextDetails.demographicProfile.growthTrends.incomeGrowth5yr
+  } over 5 years  
+- **Job Growth Trend**: ${
+    marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr
+  } over 5 years
 - **Supply vs. Demand**: ${marketContextDetails.supplyAnalysis.currentInventory.toLocaleString()} current inventory vs. ${marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()} under construction
 - **Market Absorption Rate**: Based on current delivery schedule and population growth trends
 
@@ -161,7 +252,9 @@ ${employerData.map(emp =>
 - **Total Incentive Value**: $2.4M
 
 ### Project Certifications
-${certifications.badges.map(badge => `- **${badge.name}**: ${badge.status}`).join('\n')}
+${certifications.badges
+  .map((badge) => `- **${badge.name}**: ${badge.status}`)
+  .join("\n")}
 
 ---
 
@@ -169,16 +262,30 @@ ${certifications.badges.map(badge => `- **${badge.name}**: ${badge.status}`).joi
 
 ### Sources & Uses
 - **Sources**:
-${capitalStackData.base.sources.map(source => 
-  `    - ${source.type}: $${(source.amount / 1000000).toFixed(1)}M (${source.percentage}%)`
-).join('\n')}
+${capitalStackData.base.sources
+  .map(
+    (source) =>
+      `    - ${source.type}: $${(source.amount / 1000000).toFixed(1)}M (${
+        source.percentage
+      }%)`
+  )
+  .join("\n")}
 - **Uses**:
-${capitalStackData.base.uses.map(use => 
-  `    - ${use.type}: $${(use.amount / 1000000).toFixed(1)}M (${use.percentage}%)`
-).join('\n')}
+${capitalStackData.base.uses
+  .map(
+    (use) =>
+      `    - ${use.type}: $${(use.amount / 1000000).toFixed(1)}M (${
+        use.percentage
+      }%)`
+  )
+  .join("\n")}
 
-**Upside Scenario Sources**: ${capitalStackData.upside.sources[0].type} at ${capitalStackData.upside.sources[0].rate}
-**Downside Scenario Sources**: ${capitalStackData.downside.sources[0].type} at ${capitalStackData.downside.sources[0].rate}
+**Upside Scenario Sources**: ${capitalStackData.upside.sources[0].type} at ${
+    capitalStackData.upside.sources[0].rate
+  }
+**Downside Scenario Sources**: ${
+    capitalStackData.downside.sources[0].type
+  } at ${capitalStackData.downside.sources[0].rate}
 
 ### Underwriting Metrics
 - **Yield on Cost**: 7.8%
@@ -188,29 +295,58 @@ ${capitalStackData.base.uses.map(use =>
 - **5-Year Cash Flow**: (graphical data)
 
 ### Financial Forecasting Indicators
-- **Rent Growth Projections**: Base case ${scenarioData.base.rentGrowth}%, Upside ${scenarioData.upside.rentGrowth}%, Downside ${scenarioData.downside.rentGrowth}%
-- **Exit Cap Rate Trends**: Base case ${scenarioData.base.exitCap}%, Upside ${scenarioData.upside.exitCap}%, Downside ${scenarioData.downside.exitCap}%
+- **Rent Growth Projections**: Base case ${
+    scenarioData.base.rentGrowth
+  }%, Upside ${scenarioData.upside.rentGrowth}%, Downside ${
+    scenarioData.downside.rentGrowth
+  }%
+- **Exit Cap Rate Trends**: Base case ${scenarioData.base.exitCap}%, Upside ${
+    scenarioData.upside.exitCap
+  }%, Downside ${scenarioData.downside.exitCap}%
 - **Interest Rate Sensitivity**: SOFR fluctuations impact debt service and project economics
-- **Construction Cost Variations**: Base case $${(scenarioData.base.constructionCost / 1000000).toFixed(1)}M, Upside $${(scenarioData.upside.constructionCost / 1000000).toFixed(1)}M, Downside $${(scenarioData.downside.constructionCost / 1000000).toFixed(1)}M
+- **Construction Cost Variations**: Base case $${(
+    scenarioData.base.constructionCost / 1000000
+  ).toFixed(1)}M, Upside $${(
+    scenarioData.upside.constructionCost / 1000000
+  ).toFixed(1)}M, Downside $${(
+    scenarioData.downside.constructionCost / 1000000
+  ).toFixed(1)}M
 
 ### Sponsor & Team
 - **Experience**: 15+ Years
 - **Total Developed**: $${financialDetails.sponsorProfile.totalDeveloped}
 - **Recent Performance**:
-${financialDetails.sponsorProfile.trackRecord.map(deal => 
-  `    - ${deal.project}: ${deal.irr}`
-).join('\n')}
+${financialDetails.sponsorProfile.trackRecord
+  .map((deal) => `    - ${deal.project}: ${deal.irr}`)
+  .join("\n")}
 
 **Additional Sponsor Deals**:
-${sponsorDeals.map(deal => 
-  `- **${deal.project}** (${deal.year}): $${(deal.size / 1000000).toFixed(1)}M, ${deal.irr}% IRR, ${deal.multiple}x multiple`
-).join('\n')}
+${sponsorDeals
+  .map(
+    (deal) =>
+      `- **${deal.project}** (${deal.year}): $${(deal.size / 1000000).toFixed(
+        1
+      )}M, ${deal.irr}% IRR, ${deal.multiple}x multiple`
+  )
+  .join("\n")}
 
 **Sponsor Performance Forecasting**:
-- **Historical IRR Range**: ${Math.min(...sponsorDeals.map(d => d.irr))}% to ${Math.max(...sponsorDeals.map(d => d.irr))}%
-- **Average IRR**: ${(sponsorDeals.reduce((sum, deal) => sum + deal.irr, 0) / sponsorDeals.length).toFixed(1)}%
-- **Project Size Trend**: ${sponsorDeals.sort((a, b) => a.year - b.year).map(d => `${d.year}: $${(d.size / 1000000).toFixed(1)}M`).join(', ')}
-- **Performance Consistency**: Based on ${sponsorDeals.length} completed projects over ${Math.max(...sponsorDeals.map(d => d.year)) - Math.min(...sponsorDeals.map(d => d.year))} years
+- **Historical IRR Range**: ${Math.min(
+    ...sponsorDeals.map((d) => d.irr)
+  )}% to ${Math.max(...sponsorDeals.map((d) => d.irr))}%
+- **Average IRR**: ${(
+    sponsorDeals.reduce((sum, deal) => sum + deal.irr, 0) / sponsorDeals.length
+  ).toFixed(1)}%
+- **Project Size Trend**: ${sponsorDeals
+    .sort((a, b) => a.year - b.year)
+    .map((d) => `${d.year}: $${(d.size / 1000000).toFixed(1)}M`)
+    .join(", ")}
+- **Performance Consistency**: Based on ${
+    sponsorDeals.length
+  } completed projects over ${
+    Math.max(...sponsorDeals.map((d) => d.year)) -
+    Math.min(...sponsorDeals.map((d) => d.year))
+  } years
 
 ### Sensitivity / Stress Tests
 - **IRR Sensitivity**:
@@ -222,7 +358,11 @@ ${sponsorDeals.map(deal =>
 ### Market Timing & Exit Strategy Forecasting
 - **Optimal Exit Window**: Based on supply pipeline delivery schedule and market absorption rates
 - **Supply Pipeline Analysis**: ${marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()} units under construction vs. ${marketContextDetails.supplyAnalysis.planned24Months.toLocaleString()} planned in next 24 months
-- **Market Absorption**: Based on population growth of ${marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr} and job growth of ${marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr}
+- **Market Absorption**: Based on population growth of ${
+    marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr
+  } and job growth of ${
+    marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr
+  }
 - **Exit Strategy Options**: Based on current market conditions and comparable sales data
 
 ---
@@ -234,7 +374,13 @@ ${sponsorDeals.map(deal =>
 
 **AI Insights**
 - **Construction Cost Containment**: GMP contract with 5% contingency may be insufficient in prolonged inflation scenario. Consider increasing to 8% contingency or negotiating shared savings structure.
-- **Downside Protection**: Even at ${downside.vacancy}% vacancy and 6.5% exit cap, project maintains ${downside.dscr}x DSCR and delivers ${downside.irr}% IRR. Debt structure provides 18-month interest reserve cushion.
+- **Downside Protection**: Even at ${
+    downside.vacancy
+  }% vacancy and 6.5% exit cap, project maintains ${
+    downside.dscr
+  }x DSCR and delivers ${
+    downside.irr
+  }% IRR. Debt structure provides 18-month interest reserve cushion.
 - **Alternative Exit Strategy**: Consider partial condo conversion for top 2 floors. Market analysis shows $850/SF condo pricing vs. $650/SF rental valuation, potentially recovering 15% of equity in downside scenario.
 
 **Key Metrics**
@@ -298,11 +444,11 @@ ${sponsorDeals.map(deal =>
 export async function POST(req: NextRequest) {
   try {
     const { question } = await req.json();
-    if (!question || typeof question !== 'string') {
-      return NextResponse.json({ error: 'Missing question' }, { status: 400 });
+    if (!question || typeof question !== "string") {
+      return NextResponse.json({ error: "Missing question" }, { status: 400 });
     }
 
-        // Get OM content from mockOMData service
+    // Get OM content from mockOMData service
     const omText = formatOMData();
 
     const result = await streamObject({
@@ -320,19 +466,22 @@ export async function POST(req: NextRequest) {
         `- Clearly indicate when providing forecasts vs. factual data from the OM\n` +
         `- For projections, explain your reasoning and the data points you're extrapolating from\n` +
         `\nReturn only JSON matching the schema.`,
-        providerOptions: {
-            google: {
-              thinkingConfig: {
-                includeThoughts: true,
-                thinkingBudget: 784, 
-              },
-            } satisfies GoogleGenerativeAIProviderOptions,
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            includeThoughts: true,
+            thinkingBudget: 784,
           },
+        } satisfies GoogleGenerativeAIProviderOptions,
+      },
     });
 
     return result.toTextStreamResponse();
-  } catch (e: any) {
-    console.error('om-qa error:', e);
-    return NextResponse.json({ error: 'Failed to get answer' }, { status: 500 });
+  } catch (e) {
+    console.error("om-qa error:", e);
+    return NextResponse.json(
+      { error: "Failed to get answer" },
+      { status: 500 }
+    );
   }
-} 
+}

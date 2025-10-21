@@ -1,10 +1,10 @@
 // src/types/enhanced-types.ts
 
 // Core Schema Types - Updated to match new schema
-export type AppRole = 'borrower' | 'lender' | 'advisor';
-export type OrgType = 'borrower' | 'lender' | 'advisor';
-export type OrgMemberRole = 'owner' | 'project_manager' | 'member';
-export type InviteStatus = 'pending' | 'accepted' | 'cancelled' | 'expired';
+export type AppRole = "borrower" | "lender" | "advisor";
+export type OrgType = "borrower" | "lender" | "advisor";
+export type OrgMemberRole = "owner" | "project_manager" | "member";
+export type InviteStatus = "pending" | "accepted" | "cancelled" | "expired";
 
 // Legacy types for backward compatibility
 export type EntityStructure =
@@ -79,7 +79,6 @@ export interface OrgMember {
   userEmail?: string;
   userRole?: string;
 }
-
 
 // New Invite Type
 export interface Invite {
@@ -203,7 +202,7 @@ export interface Project {
 export interface BorrowerResume {
   id: string;
   org_id: string; // FK to orgs.id (1-to-1 with borrower org)
-  content?: any; // JSONB
+  content?: Record<string, unknown>; // JSONB
   created_at: string;
   updated_at: string;
 }
@@ -211,7 +210,7 @@ export interface BorrowerResume {
 export interface ProjectResume {
   id: string;
   project_id: string; // FK to projects.id (1-to-1 with project)
-  content?: any; // JSONB
+  content?: Record<string, unknown>; // JSONB
   created_at: string;
   updated_at: string;
 }
@@ -311,8 +310,8 @@ export interface ProjectProfile {
   businessPlanSummary?: string | null;
   marketOverviewSummary?: string | null;
   equityCommittedPercent?: number | null;
-  projectSections?: any; // Add for consistency with mock data
-  borrowerSections?: any; // Add for consistency with mock data
+  projectSections?: Record<string, unknown>; // Add for consistency with mock data
+  borrowerSections?: Record<string, unknown>; // Add for consistency with mock data
   // RBAC additions
 }
 
@@ -355,7 +354,7 @@ export interface Document {
   fileSizeBytes: number;
   storagePath: string;
   documentCategory: DocumentCategory;
-  extractedMetadata: Record<string, any>;
+  extractedMetadata: Record<string, unknown>;
   createdAt: string;
   uploadedAt: string;
 }
@@ -375,9 +374,9 @@ export interface ProjectDocumentRequirement {
   projectId: string;
   requiredDocType: DocumentCategory;
   status: DocumentRequirementStatus;
-  documentId: string | null;
+  documentId?: string | null;
   notes: string;
-  dueDate: string | null;
+  dueDate?: string | null;
   lastUpdated: string;
 }
 
@@ -425,7 +424,6 @@ export interface EnhancedUser {
   orgMemberships?: OrgMember[]; // loaded on login
 }
 
-
 // Legacy RBAC Types - kept for backward compatibility but deprecated
 export interface BorrowerEntity {
   id: string;
@@ -454,9 +452,9 @@ export interface BorrowerEntityMember {
   inviterName?: string; // Name of person who sent invite
 }
 
-export type PermissionType = 'file' | 'folder';
+export type PermissionType = "file" | "folder";
 
-export type Permission = 'view' | 'edit';
+export type Permission = "view" | "edit";
 
 export type ProjectGrant = {
   projectId: string;
@@ -475,5 +473,5 @@ export interface LegacyDocumentPermission {
   userId: string;
   grantedBy: string;
   grantedAt: string;
-  permissionType: PermissionType;
+  permissionType?: PermissionType;
 }

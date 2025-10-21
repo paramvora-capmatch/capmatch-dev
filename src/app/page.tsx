@@ -1,9 +1,9 @@
 // src/app/page.tsx
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { EnhancedHeader } from "../components/ui/EnhancedHeader";
 import { Footer } from "../components/ui/Footer";
 import FilterSection from "../components/filter-section";

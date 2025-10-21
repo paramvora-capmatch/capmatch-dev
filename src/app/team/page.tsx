@@ -1,32 +1,29 @@
 // src/app/team/page.tsx
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { useOrgStore } from '@/stores/useOrgStore';
-import { RoleBasedRoute } from '@/components/auth/RoleBasedRoute';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { InviteMemberModal } from '@/components/team/InviteMemberModal';
-import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
-import { 
-  Users, 
-  UserPlus, 
-  Mail, 
-  Clock, 
-  Crown, 
-  User, 
+import React, { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useOrgStore } from "@/stores/useOrgStore";
+import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { InviteMemberModal } from "@/components/team/InviteMemberModal";
+import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+import {
+  Users,
+  UserPlus,
+  Mail,
+  Clock,
+  Crown,
+  User,
   MoreVertical,
   Trash2,
-  Settings,
-  AlertTriangle,
-  Info
-} from 'lucide-react';
-import { OrgMember, OrgMemberRole } from '@/types/enhanced-types';
+} from "lucide-react";
+import { OrgMemberRole } from "@/types/enhanced-types";
 
 export default function TeamPage() {
-  const { user, activeOrg, currentOrgRole } = useAuth();
+  const { user, activeOrg } = useAuth();
   const {
     members,
     pendingInvites,
@@ -37,7 +34,7 @@ export default function TeamPage() {
     inviteMember,
     cancelInvite,
     removeMember,
-    clearError
+    clearError,
   } = useOrgStore();
 
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -49,48 +46,59 @@ export default function TeamPage() {
     }
   }, [activeOrg, loadOrg]);
 
-  const handleInviteMember = async (email: string, role: OrgMemberRole, projectGrants: any[]) => {
+  const handleInviteMember = async (
+    email: string,
+    role: OrgMemberRole,
+    projectGrants: Array<{
+      projectId: string;
+      permissions: string[];
+    }>
+  ) => {
     try {
       const inviteLink = await inviteMember(email, role, projectGrants);
       // Reload org data to show the new pending invite
       if (activeOrg) {
         loadOrg(activeOrg.id);
       }
-      return inviteLink;
+      return inviteLink as string;
     } catch (error) {
-      console.error('Failed to invite member:', error);
+      console.error("Failed to invite member:", error);
       throw error;
     }
   };
 
   const handleRemoveMember = async (memberId: string) => {
-    if (window.confirm('Are you sure you want to remove this member? This action cannot be undone.')) {
+    if (
+      confirm(
+        "Are you sure you want to remove this member? This action cannot be undone."
+      )
+    ) {
       try {
         await removeMember(memberId);
         setShowMemberMenu(null);
       } catch (error) {
-        console.error('Failed to remove member:', error);
+        console.error("Failed to remove member:", error);
       }
     }
   };
 
-  const handleCancelInvite = async (inviteId: string) => {
-    if (window.confirm('Are you sure you want to cancel this invitation?')) {
+  const handleCancelInvite = async (inviteId: string): Promise<void> => {
+    if (window.confirm("Are you sure you want to cancel this invitation?")) {
       try {
         await cancelInvite(inviteId);
       } catch (error) {
-        console.error('Failed to cancel invite:', error);
+        console.error("Failed to cancel invite:", error);
       }
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -98,22 +106,24 @@ export default function TeamPage() {
     return new Date(expiresAt) < new Date();
   };
 
-  const getMemberDisplayName = (member: any) => {
+  const getMemberDisplayName = (member: Record<string, unknown>) => {
     // Use the userName from the processed member data
-    return member.userName || 'Unknown User';
+    return member.userName || "Unknown User";
   };
 
-  const getMemberEmail = (member: any) => {
+  const getMemberEmail = (member: Record<string, unknown>) => {
     // Use the userEmail from the processed member data
-    return member.userEmail || 'user@example.com';
+    return member.userEmail || "user@example.com";
   };
 
   if (!activeOrg) {
     return (
-      <RoleBasedRoute roles={['borrower']}>
+      <RoleBasedRoute roles={["borrower"]}>
         <DashboardLayout title="Team Management">
           <div className="text-center py-8">
-            <p className="text-gray-500">No active org found. Please contact support.</p>
+            <p className="text-gray-500">
+              No active org found. Please contact support.
+            </p>
           </div>
         </DashboardLayout>
       </RoleBasedRoute>
@@ -121,10 +131,10 @@ export default function TeamPage() {
   }
 
   return (
-    <RoleBasedRoute roles={['borrower']}>
+    <RoleBasedRoute roles={["borrower"]}>
       <DashboardLayout title="Team Management">
         <LoadingOverlay isLoading={isLoading} />
-        
+
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
             <div className="flex justify-between items-center">
@@ -140,7 +150,9 @@ export default function TeamPage() {
           {/* Header */}
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Team Management
+              </h1>
               <p className="text-gray-600">{activeOrg.name}</p>
             </div>
             {isOwner && (
@@ -172,7 +184,8 @@ export default function TeamPage() {
                     >
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
-                          {member.role === 'owner' ? (
+                          {(member as Record<string, unknown>).role ===
+                          "owner" ? (
                             <Crown className="h-5 w-5 text-blue-600" />
                           ) : (
                             <User className="h-5 w-5 text-gray-600" />
@@ -181,42 +194,52 @@ export default function TeamPage() {
                         <div>
                           <div className="flex items-center space-x-2">
                             <p className="font-medium text-gray-900">
-                              {getMemberDisplayName(member)}
+                              {getMemberDisplayName(member as Record<string, unknown>)}
                             </p>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              member.role === 'owner' 
-                                ? 'bg-purple-100 text-purple-800' 
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {member.role}
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                (member as Record<string, unknown>).role ===
+                                "owner"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {(member as Record<string, unknown>).role}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-500">{getMemberEmail(member)}</p>
+                          <p className="text-sm text-gray-500">
+                            {getMemberEmail(member)}
+                          </p>
                           <p className="text-xs text-gray-400">
                             Joined {formatDate(member.created_at)}
                           </p>
                         </div>
                       </div>
-                      
+
                       {isOwner && member.user_id !== user?.id && (
                         <div className="relative">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setShowMemberMenu(
-                              showMemberMenu === member.user_id ? null : member.user_id
-                            )}
+                            onClick={() =>
+                              setShowMemberMenu(
+                                showMemberMenu === member.user_id
+                                  ? null
+                                  : member.user_id
+                              )
+                            }
                           >
                             <MoreVertical size={16} />
                           </Button>
-                          
+
                           {showMemberMenu === member.user_id && (
                             <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                               <div className="py-1">
-                                
                                 <button
                                   className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                                  onClick={() => handleRemoveMember(member.user_id)}
+                                  onClick={() =>
+                                    handleRemoveMember(member.user_id)
+                                  }
                                 >
                                   <Trash2 size={16} className="mr-2" />
                                   Remove Member
@@ -260,12 +283,16 @@ export default function TeamPage() {
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <p className="font-medium text-gray-900">{invite.invited_email}</p>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              invite.role === 'owner' 
-                                ? 'bg-purple-100 text-purple-800' 
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
+                            <p className="font-medium text-gray-900">
+                              {invite.invited_email}
+                            </p>
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                invite.role === "owner"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
                               {invite.role}
                             </span>
                             {isInviteExpired(invite.expires_at) && (
@@ -275,17 +302,21 @@ export default function TeamPage() {
                             )}
                           </div>
                           <p className="text-sm text-gray-500">
-                            Invited by {(invite as any).inviterName || 'Unknown'}
+                            Invited by{" "}
+                            {(invite as Record<string, unknown>).inviterName || "Unknown"}
                           </p>
                           <p className="text-xs text-gray-400">
                             Invited {formatDate(invite.created_at)}
                             {!isInviteExpired(invite.expires_at) && (
-                              <span> • Expires {formatDate(invite.expires_at)}</span>
+                              <span>
+                                {" "}
+                                • Expires {formatDate(invite.expires_at)}
+                              </span>
                             )}
                           </p>
                         </div>
                       </div>
-                      
+
                       {isOwner && (
                         <Button
                           variant="outline"
@@ -311,8 +342,6 @@ export default function TeamPage() {
             onInvite={handleInviteMember}
           />
         )}
-
-
       </DashboardLayout>
     </RoleBasedRoute>
   );

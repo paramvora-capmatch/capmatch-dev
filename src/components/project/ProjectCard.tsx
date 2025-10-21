@@ -3,7 +3,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/Button';
-import { ChevronRight, Building, MessageSquare, DollarSign } from 'lucide-react';
+import { ChevronRight, Building, DollarSign } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { ProjectProfile } from '../../types/enhanced-types';
 
