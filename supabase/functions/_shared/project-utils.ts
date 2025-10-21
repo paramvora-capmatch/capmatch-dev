@@ -116,6 +116,53 @@ export async function createProjectWithResumeAndStorage(
   console.log("[project-utils] Project access granted to creator successfully");
 
 
+  // Step 8: Grant explicit 'edit' permissions on the project roots
+  // This is critical for RLS - the user needs these permissions to upload/create files
+  console.log("[project-utils] Step 8: Granting edit permissions on project root resources");
+
+  const { error: projectDocsPermError } = await supabaseAdmin
+    .from("permissions")
+    .insert({
+      resource_id: projectDocsRootResource.id,
+      user_id: options.creator_id,
+      permission: 'edit',
+      granted_by: options.creator_id,
+    });
+
+  if (projectDocsPermError) {
+    console.error(`[project-utils] Failed to grant permissions on PROJECT_DOCS_ROOT: ${JSON.stringify(projectDocsPermError)}`);
+    // Rollback
+    await supabaseAdmin.from("projects").delete().eq("id", project.id);
+    throw new Error(`Failed to grant permissions on PROJECT_DOCS_ROOT: ${projectDocsPermError.message}`);
+  }
+  console.log("[project-utils] Edit permission granted on PROJECT_DOCS_ROOT");
+
+  const { error: projectResumePermError } = await supabaseAdmin
+    .from("permissions")
+    .insert({
+      resource_id: projectResumeResource.id,
+      user_id: options.creator_id,
+      permission: 'edit',
+      granted_by: options.creator_id,
+    });
+
+  if (projectResumePermError) {
+    console.error(`[project-utils] Failed to grant permissions on PROJECT_RESUME: ${JSON.stringify(projectResumePermError)}`);
+    // Rollback
+    await supabaseAdmin.from("projects").delete().eq("id", project.id);
+    throw new Error(`Failed to grant permissions on PROJECT_RESUME: ${projectResumePermError.message}`);
+  }
+  console.log("[project-utils] Edit permission granted on PROJECT_RESUME");
+
+  // Step 9: Apply bucket-specific storage policies for this org
+  console.log("[project-utils] Step 9: Applying storage policies for org bucket");
+  const { error: policyError } = await supabaseAdmin.rpc('apply_bucket_storage_policies', {
+    p_bucket_id: owner_org_id,
+  });
+  if (policyError) {
+    console.warn(`[project-utils] Warning: Storage policy application failed: ${JSON.stringify(policyError)}`);
+    // Don't fail the whole operation for this, as it may already exist
+  }
   console.log(`[project-utils] Project creation completed successfully: ${project.id}`);
   return project;
 }
