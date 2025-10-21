@@ -1,22 +1,34 @@
 // components/filters/AssetTypeFilter.tsx
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { ButtonSelect } from '../../components/ui/ButtonSelect';
-import { Info } from 'lucide-react';
+import React, { useState } from "react";
+import { Info } from "lucide-react";
 
 interface AssetTypeFilterProps {
   value: string[];
   onChange: (newValue: string[]) => void;
 }
 
-const AssetTypeFilter: React.FC<AssetTypeFilterProps> = ({ value, onChange }) => {
+const AssetTypeFilter: React.FC<AssetTypeFilterProps> = ({
+  value,
+  onChange,
+}) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const assetTypeOptions = [
-    "Multifamily", "Office", "Retail", "Industrial", "Hospitality",
-    "Land", "Mixed-Use", "Self-Storage", "Data Center",
-    "Medical Office", "Senior Housing", "Student Housing", "Other"
+    "Multifamily",
+    "Office",
+    "Retail",
+    "Industrial",
+    "Hospitality",
+    "Land",
+    "Mixed-Use",
+    "Self-Storage",
+    "Data Center",
+    "Medical Office",
+    "Senior Housing",
+    "Student Housing",
+    "Other",
   ];
 
   return (
@@ -35,7 +47,8 @@ const AssetTypeFilter: React.FC<AssetTypeFilterProps> = ({ value, onChange }) =>
           </button>
           {showTooltip && (
             <div className="absolute z-10 w-64 p-2 mt-2 text-xs bg-white rounded-md shadow-lg border border-gray-200 -translate-x-1/2 left-1/2">
-              Select the property type(s) for your project. Matching lenders will be filtered based on your selection.
+              Select the property type(s) for your project. Matching lenders
+              will be filtered based on your selection.
             </div>
           )}
         </div>
@@ -47,8 +60,8 @@ const AssetTypeFilter: React.FC<AssetTypeFilterProps> = ({ value, onChange }) =>
             type="button"
             className={`px-3 py-1.5 text-sm rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
               value.includes(option)
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
             }`}
             onClick={() => {
               const newValue = value.includes(option)

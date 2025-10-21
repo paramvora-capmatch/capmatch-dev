@@ -11,7 +11,7 @@ export interface DocumentFile {
   resource_id: string;
   created_at: string;
   updated_at: string;
-  metadata?: any; // To hold version info
+  metadata?: Record<string, unknown>;
 }
 
 export interface DocumentFolder {

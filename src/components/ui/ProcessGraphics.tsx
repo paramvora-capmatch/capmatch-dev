@@ -1,7 +1,7 @@
 // src/components/ui/ProcessGraphics.tsx
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { Users, FileText, BarChart3, Zap, Search, Eye, Link2, CheckSquare, FileJson, FileSpreadsheet, Database, BrainCircuit, Shuffle } from 'lucide-react';
 
@@ -120,23 +120,6 @@ const pulseVariants = {
       repeat: Infinity, 
       ease: "easeInOut" 
     } 
-  })
-};
-
-const particleVariants = {
-  hidden: { 
-    opacity: 0, 
-    scale: 0 
-  },
-  visible: (customProps: { delay: number, duration: number, loop: boolean }) => ({
-    opacity: customProps.loop ? [0, 0.7, 0] : 0.7,
-    scale: customProps.loop ? [0, 1, 0] : 1,
-    transition: {
-      delay: customProps.delay,
-      duration: customProps.duration,
-      repeat: customProps.loop ? Infinity : 0,
-      ease: "easeInOut"
-    }
   })
 };
 

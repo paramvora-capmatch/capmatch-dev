@@ -5,26 +5,12 @@ import type React from "react";
 import { useRef, useEffect, useState } from "react";
 import type { LenderProfile } from "../../types/lender";
 import LenderDetailCard from "../lender-detail-card";
-import { X, Check } from 'lucide-react';
 
 const filterKeys = ['asset_types', 'deal_types', 'capital_types', 'debt_ranges', 'locations'];
 
-// This function determines if the GRAPH should consider its UI filters active for display purposes.
-// It's used for conditional rendering of certain graph elements based on formData.
-function graphHasActiveUIFilters(formData: any): boolean {
-  if (!formData) return false;
-  return filterKeys.some(
-    (key) =>
-      formData[key] &&
-      (Array.isArray(formData[key])
-        ? formData[key].length > 0
-        : true)
-  );
-}
-
 // This function calculates a score for a lender based *only* on the graph's current formData.
 // It helps decide if a node appears "matched" by the graph's current UI filters.
-function computeLenderScoreForGraphDisplay(lender: LenderProfile, formData: any): number {
+function computeLenderScoreForGraphDisplay(lender: LenderProfile, formData: Record<string, unknown> | undefined): number {
   const activeUIFilterCategories = filterKeys.filter(
     (key) =>
       formData &&
@@ -79,7 +65,7 @@ function computeLenderScoreForGraphDisplay(lender: LenderProfile, formData: any)
 
 function getLenderColor(
     lenderFromContext: LenderProfile,
-    formDataForGraphDisplay: any,
+    formDataForGraphDisplay: Record<string, unknown> | undefined,
     graphConsidersNodeActive: boolean, // If graph's UI filters make this node "active"
     filtersAreAppliedOnPage: boolean // If ANY filter is applied on the page (from props)
   ): string {
@@ -108,9 +94,9 @@ function getLenderColor(
 
 interface LenderGraphProps {
   lenders: LenderProfile[];
-  formData?: any;
+  formData?: Record<string, unknown>;
   filtersApplied: boolean; // True if ANY filter category is selected by the user on the page
-  allFiltersSelected?: boolean;
+  allFiltersSelected?: boolean; 
   onLenderClick?: (lender: LenderProfile | null) => void;
 }
 

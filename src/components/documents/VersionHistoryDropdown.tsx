@@ -19,7 +19,7 @@ interface Version {
   created_at: string;
   created_by: string;
   status: string;
-  metadata?: any;
+  metadata?: { size?: number };
 }
 
 interface VersionHistoryDropdownProps {
@@ -62,12 +62,36 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
   >(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  const fetchVersions = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { data: versionsData, error: versionError } = await supabase
+        .from("document_versions")
+        .select("id, version_number, created_at, created_by, status, metadata")
+        .eq("resource_id", resourceId)
+        .order("version_number", { ascending: false });
+
+      if (versionError) throw versionError;
+
+      setVersions(versionsData || []);
+    } catch (err) {
+      console.error("Error fetching versions:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load version history"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [resourceId]);
+
   // Fetch versions when dropdown opens
   useEffect(() => {
     if (isOpen && versions.length === 0) {
       fetchVersions();
     }
-  }, [isOpen, versions.length]);
+  }, [isOpen, versions.length, fetchVersions]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,30 +114,6 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
       };
     }
   }, [isOpen]);
-
-  const fetchVersions = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { data: versionsData, error: versionError } = await supabase
-        .from("document_versions")
-        .select("id, version_number, created_at, created_by, status, metadata")
-        .eq("resource_id", resourceId)
-        .order("version_number", { ascending: false });
-
-      if (versionError) throw versionError;
-
-      setVersions(versionsData || []);
-    } catch (err) {
-      console.error("Error fetching versions:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load version history"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleRollback = async (versionId: string) => {
     setIsRollingBack(true);

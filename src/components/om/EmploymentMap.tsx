@@ -1,14 +1,14 @@
 'use client';
 
 import React from 'react';
-import { MapContainer, TileLayer, Circle, Popup, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Building2, Users, TrendingUp, MapPin, Briefcase } from 'lucide-react';
+import { Building2, Users, TrendingUp, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 // Fix for default markers in react-leaflet
 import L from 'leaflet';
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -108,21 +108,6 @@ export default function EmploymentMap({ className = '', compact = false }: Emplo
       'Biotechnology': 'bg-lime-100 text-lime-800'
     };
     return colors[industry] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getEmployeeSizeColor = (employees: number) => {
-    if (employees >= 10000) return 'bg-purple-100 text-purple-800';
-    if (employees >= 5000) return 'bg-blue-100 text-blue-800';
-    if (employees >= 2000) return 'bg-green-100 text-green-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  const getGrowthColor = (growth: string) => {
-    const growthNum = parseInt(growth.replace(/[^\d-]/g, ''));
-    if (growthNum >= 10) return 'bg-green-100 text-green-800';
-    if (growthNum >= 5) return 'bg-blue-100 text-blue-800';
-    if (growthNum >= 0) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
   };
 
   const totalEmployees = employers.reduce((sum, employer) => sum + employer.employees, 0);

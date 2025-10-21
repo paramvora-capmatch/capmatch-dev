@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Script from "next/script";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -20,7 +20,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
   const [isScriptReady, setIsScriptReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
-  const docEditorRef = useRef<any>(null);
+  const docEditorRef = useRef<{ destroyEditor: () => void } | null>(null);
   const initializationRef = useRef<boolean>(false);
 
   const onlyofficeUrl = process.env.NEXT_PUBLIC_ONLYOFFICE_URL;
@@ -34,9 +34,9 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
   const onlyofficeApiUrl = `${onlyofficeUrl}/web-apps/apps/api/documents/api.js`;
 
   // Callback for when the script loads
-  const handleScriptLoad = useCallback(() => {
+  const handleScriptLoad = () => {
     console.log("[OnlyOfficeEditor] OnlyOffice script loaded successfully");
-    // @ts-ignore
+    // @ts-expect-error DocsAPI is loaded dynamically and not in TypeScript definitions
     if (window.DocsAPI) {
       console.log("[OnlyOfficeEditor] DocsAPI is available on window");
       setIsScriptReady(true);
@@ -46,11 +46,11 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       );
       setError("OnlyOffice API failed to initialize. Please refresh the page.");
     }
-  }, []);
+  };
 
   // Check if script is already loaded (for subsequent component mounts)
   useEffect(() => {
-    // @ts-ignore
+    // @ts-expect-error DocsAPI is loaded dynamically and not in TypeScript definitions
     if (window.DocsAPI) {
       console.log("[OnlyOfficeEditor] DocsAPI already available on window");
       setIsScriptReady(true);
@@ -61,13 +61,15 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
     }
   }, []);
 
-  const handleScriptError = useCallback(() => {
+  const handleScriptError = () => {
     console.error("[OnlyOfficeEditor] Failed to load OnlyOffice script");
     setError("Failed to load OnlyOffice editor. Please refresh the page.");
-  }, []);
+  };
 
+  // Initialize editor
   useEffect(() => {
     const initializeEditor = async () => {
+      if (!isScriptReady) return;
       // Prevent multiple simultaneous initialization attempts
       if (initializationRef.current) {
         console.log(
@@ -111,9 +113,9 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
 
       // DO NOT clear window.DocsAPI - it's needed for subsequent initializations
       // Clear only the specific editor instance
-      // @ts-ignore
+      // @ts-expect-error Global docEditor instance cleanup
       if (window.docEditor && window.docEditor !== docEditorRef.current) {
-        // @ts-ignore
+        // @ts-expect-error Global docEditor instance cleanup
         try {
           window.docEditor.destroyEditor();
         } catch (e) {
@@ -122,7 +124,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
             e
           );
         }
-        // @ts-ignore
+        // @ts-expect-error Global docEditor instance cleanup
         window.docEditor = null;
       }
 
@@ -155,35 +157,33 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
         }
 
         // Verify DocsAPI is available
-        // @ts-ignore
+        // @ts-expect-error DocsAPI is loaded dynamically and not in TypeScript definitions
         if (!window.DocsAPI) {
           throw new Error(
             "DocsAPI is not available. OnlyOffice script may not have loaded properly."
           );
         }
 
-        // @ts-ignore
+        // @ts-expect-error DocsAPI is loaded dynamically and not in TypeScript definitions
         const newDocEditor = new DocsAPI.DocEditor(
           "onlyoffice-editor-container",
           config
         );
 
         docEditorRef.current = newDocEditor;
-        // @ts-ignore
+        // @ts-expect-error Setting global docEditor instance
         window.docEditor = newDocEditor;
         console.log("[OnlyOfficeEditor] Editor initialized successfully");
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error initializing editor:", err);
-        setError(err.message);
+        setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
         setIsLoading(false);
         initializationRef.current = false;
       }
     };
 
-    if (isScriptReady) {
-      initializeEditor();
-    }
+    initializeEditor();
 
     return () => {
       // Cleanup on unmount or when dependencies change
@@ -200,6 +200,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
     };
   }, [isScriptReady, bucketId, filePath]);
 
+  // Cleanup on unmount
   // Handle page navigation/back button
   useEffect(() => {
     const handleBeforeUnload = () => {

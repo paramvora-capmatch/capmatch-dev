@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "crypto";
 
 // Initialize Supabase admin client to create signed URLs
 const supabaseAdmin = createClient(
@@ -39,37 +38,34 @@ export async function POST(request: NextRequest) {
           set: (name: string, value: string, options: CookieOptions) => {
             try {
               cookieStore.set({ name, value, ...options });
-            } catch (error) {
+            } catch {
               // The `set` method was called from a Server Component.
             }
           },
           remove: (name: string, options: CookieOptions) => {
             try {
               cookieStore.set({ name, value: "", ...options });
-            } catch (error) {
+            } catch {
               // The `delete` method was called from a Server Component.
             }
           },
         },
       }
     );
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Fetch user's name from their profile
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("full_name")
       .eq("id", user.id)
       .single();
 
-    const userName = profile?.full_name || user.email || "Anonymous";
+    const userName = (profile && !profileError) ? profile.full_name : (user.email || "Anonymous");
 
     const body = await request.json();
     const { bucketId, filePath } = body;
@@ -158,7 +154,9 @@ export async function POST(request: NextRequest) {
     // Format: {resourceId}_{versionNumber}_{timestamp}
     // The timestamp ensures that even if versions get the same name,
     // opening the same version twice gets a fresh load.
-    const documentKey = `${resource.id}_v${documentVersion.version_number}_${Date.now()}`;
+    const documentKey = `${resource.id}_v${
+      documentVersion.version_number
+    }_${Date.now()}`;
 
     console.log("[OnlyOffice Config] Document key generated:", {
       resourceId: resource.id,
@@ -194,10 +192,13 @@ export async function POST(request: NextRequest) {
     console.log("[OnlyOffice Config] Callback URL:", callbackUrl);
 
     return NextResponse.json(finalConfig);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error generating OnlyOffice config:", error);
     return NextResponse.json(
-      { error: "Internal Server Error", message: error.message },
+      {
+        error: "Internal Server Error",
+        message: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

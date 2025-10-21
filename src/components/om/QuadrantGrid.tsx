@@ -80,9 +80,9 @@ export const QuadrantGrid: React.FC<QuadrantGridProps> = ({ quadrants, className
                                 <div className="space-y-3">
                                     {React.Children.map(quadrant.metrics.props.children, (child, index) => {
                                         if (React.isValidElement(child)) {
-                                            return React.cloneElement(child as React.ReactElement<any>, {
+                                    return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
                                                 className: cn(
-                                                    (child as React.ReactElement<any>).props.className,
+                                            (child as React.ReactElement<Record<string, unknown>>).props.className,
                                                     "transition-all duration-500 transform-gpu",
                                                     `delay-[${index * 150}ms]`,
                                                     isAnimated

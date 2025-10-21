@@ -43,7 +43,7 @@ export default function ProjectDocumentsPage() {
 							Project not found
 						</h2>
 						<p className="text-gray-600 mb-6">
-							The project you're looking for doesn't exist or has
+							The project you&apos;re looking for doesn&apos;t exist or has
 							been removed.
 						</p>
 						<Button
@@ -92,7 +92,7 @@ export default function ProjectDocumentsPage() {
 								Missing Org Information
 							</h3>
 							<p className="text-yellow-700 mb-4">
-								This project is not associated with an org, or your org information is not loaded.
+                      This project is not associated with an org, or your org information is not loaded.
 							</p>
 							<div className="text-sm text-yellow-600">
 								<p>Project Org ID: {project.orgId || 'Not set'}</p>

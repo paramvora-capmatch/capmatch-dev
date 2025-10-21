@@ -6,14 +6,12 @@ import { useAuthStore } from "./useAuthStore";
 import { usePermissionStore } from "./usePermissionStore"; // Import the new store
 import {
 	ProjectProfile,
-  // New schema types
-	Project,
 } from "@/types/enhanced-types";
 
 const projectProfileToDbProject = (
 	profileData: Partial<ProjectProfile>
-): any => {
-	const dbData: { [key: string]: any } = {};
+): Record<string, unknown> => {
+	const dbData: Record<string, unknown> = {};
 	const keyMap: { [key in keyof ProjectProfile]?: string } = {
 		projectName: "name", // Map to name in new schema
 		assetType: "asset_type",
@@ -291,7 +289,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		updateProject: async (id, updates) => {
-			const { user } = useAuthStore.getState();
 			const projectToUpdate = get().getProject(id);
 			if (!projectToUpdate) return null;
 
@@ -347,7 +344,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		deleteProject: async (id) => {
-			const { user } = useAuthStore.getState();
 			const { error } = await supabase
 				.from("projects")
 				.delete()

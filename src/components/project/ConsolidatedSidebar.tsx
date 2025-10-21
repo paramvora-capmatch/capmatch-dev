@@ -1,46 +1,44 @@
 // src/components/project/ConsolidatedSidebar.tsx
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader } from '../ui/card';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { useAskAI } from '../../hooks/useAskAI';
-import { useProjects } from '../../hooks/useProjects';
-import { useChatStore } from '../../stores/useChatStore';
-import { useAuth } from '../../hooks/useAuth';
-import { ProjectMessage } from '../../types/enhanced-types';;
-import { getAdvisorById } from '../../../lib/enhancedMockApiService';
-import { cn } from '@/utils/cn';
-import { AIContextBuilder } from '../../services/aiContextBuilder';
-import { PresetQuestion } from '../../types/ask-ai-types';
+import React, { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader } from "../ui/card";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { useAskAI } from "../../hooks/useAskAI";
+import { useProjects } from "../../hooks/useProjects";
+import { useChatStore } from "../../stores/useChatStore";
+import { useAuth } from "../../hooks/useAuth";
+import { ProjectMessage } from "../../types/enhanced-types";
+import { getAdvisorById } from "../../../lib/enhancedMockApiService";
+import { cn } from "@/utils/cn";
+import { AIContextBuilder } from "../../services/aiContextBuilder";
+import { PresetQuestion } from "../../types/ask-ai-types";
 
-import { 
-  MessageSquare, 
-  Bot, 
+import {
+  MessageSquare,
   Loader2,
-  AlertCircle,
   Brain,
   MessageCircle,
-  Send
-} from 'lucide-react';
+  Send,
+} from "lucide-react";
 
 interface ConsolidatedSidebarProps {
   projectId: string;
-  formData: any;
+  formData: Record<string, unknown>;
   droppedFieldId?: string | null;
   onFieldProcessed?: () => void;
 }
 
-type TabType = 'ai-assistant' | 'advisor';
+type TabType = "ai-assistant" | "advisor";
 
-export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({ 
-  projectId, 
-  formData, 
-  droppedFieldId, 
+export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
+  projectId,
+  formData,
+  droppedFieldId,
   onFieldProcessed,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('advisor');
+  const [activeTab, setActiveTab] = useState<TabType>("advisor");
 
   // AI Assistant state and hooks
   const {
@@ -52,7 +50,6 @@ export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
     handleFieldDrop,
     sendMessage,
     hasActiveContext,
-    hasMessages
   } = useAskAI({ projectId, formData });
 
   // Message Panel state and hooks
@@ -65,11 +62,9 @@ export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
     threads,
     activeThreadId,
     setActiveThread,
-    loadMessages
+    loadMessages,
   } = useChatStore();
-  const [newMessage, setNewMessage] = useState('');
-  const [advisorName, setAdvisorName] = useState('Your Capital Advisor');
-  const [isLoadingAdvisor, setIsLoadingAdvisor] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
   const [localMessages, setLocalMessages] = useState<ProjectMessage[]>([]);
 
   // Handle field drop from AskAIProvider
@@ -78,18 +73,25 @@ export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
       handleFieldDrop(droppedFieldId);
       onFieldProcessed?.();
       // Switch to AI assistant tab when field is dropped
-      setActiveTab('ai-assistant');
+      setActiveTab("ai-assistant");
     }
   }, [droppedFieldId, onFieldProcessed, handleFieldDrop]);
 
   // Automatically send a comprehensive question when field context is built
   useEffect(() => {
-    if (fieldContext && aiMessages.length === 0 && !aiLoading && !isBuildingContext) {
+    if (
+      fieldContext &&
+      aiMessages.length === 0 &&
+      !aiLoading &&
+      !isBuildingContext
+    ) {
       // Get the preset questions for this field
-      const presetQuestions = AIContextBuilder.generatePresetQuestions(fieldContext);
+      const presetQuestions =
+        AIContextBuilder.generatePresetQuestions(fieldContext);
 
       // Determine if field has a value and create context-aware question
-      const hasValue = fieldContext.currentValue && fieldContext.currentValue !== '';
+      const hasValue =
+        fieldContext.currentValue && fieldContext.currentValue !== "";
 
       let primaryQuestion;
       if (!hasValue) {
@@ -107,7 +109,9 @@ export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
       }
 
       // Create a comprehensive question that prioritizes user intent
-      const questionSuggestions = presetQuestions.map((q: PresetQuestion) => q.text).join('\n- ');
+      const questionSuggestions = presetQuestions
+        .map((q: PresetQuestion) => q.text)
+        .join("\n- ");
       const comprehensiveQuestion = `${primaryQuestion}
 
 Please also address these additional considerations:
@@ -121,7 +125,13 @@ Provide actionable advice that helps me make the best decision for my project.`;
       // Send the comprehensive question to API but display the generic message
       sendMessage(comprehensiveQuestion, displayMessage);
     }
-  }, [fieldContext, aiMessages.length, aiLoading, isBuildingContext, sendMessage]);
+  }, [
+    fieldContext,
+    aiMessages.length,
+    aiLoading,
+    isBuildingContext,
+    sendMessage,
+  ]);
 
   // Load threads and messages for this project
   useEffect(() => {
@@ -151,36 +161,15 @@ Provide actionable advice that helps me make the best decision for my project.`;
     }
   }, [projectMessages, activeProject, projectId]);
 
-  // Get advisor information
-  useEffect(() => {
-    const loadData = async () => {
-      const project = getProject(projectId);
-      if (project?.assignedAdvisorUserId) {
-        setIsLoadingAdvisor(true);
-        try {
-          const advisor = await getAdvisorById(project.assignedAdvisorUserId);
-          if (advisor) {
-            setAdvisorName(advisor.name);
-          }
-        } catch (error) {
-          console.error('Failed to load advisor:', error);
-        } finally {
-          setIsLoadingAdvisor(false);
-        }
-      }
-    };
-    loadData();
-  }, [projectId, getProject]);
-
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeThreadId || !newMessage.trim()) return;
 
     try {
-        await addProjectMessage(activeThreadId, newMessage.trim());
-        setNewMessage('');
+      await addProjectMessage(activeThreadId, newMessage.trim());
+      setNewMessage("");
     } catch (error) {
-        console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
     }
   };
 
@@ -189,7 +178,8 @@ Provide actionable advice that helps me make the best decision for my project.`;
 
   useEffect(() => {
     if (messageContainerRef.current) {
-      messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+      messageContainerRef.current.scrollTop =
+        messageContainerRef.current.scrollHeight;
     }
   }, [localMessages, aiMessages]);
 
@@ -210,28 +200,38 @@ Provide actionable advice that helps me make the best decision for my project.`;
         {/* Tab Navigation */}
         <div className="flex bg-gradient-to-r from-gray-100 to-gray-50 p-1 rounded-lg shadow-inner">
           <button
-            onClick={() => setActiveTab('advisor')}
+            onClick={() => setActiveTab("advisor")}
             className={cn(
               "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
-              activeTab === 'advisor'
+              activeTab === "advisor"
                 ? "bg-gradient-to-r from-white to-gray-50 text-emerald-600 shadow-sm transform scale-105 border border-emerald-200/50"
                 : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-102"
             )}
           >
-            <MessageCircle className={cn("h-4 w-4 transition-transform duration-300", activeTab === 'advisor' ? "scale-110" : "")} />
+            <MessageCircle
+              className={cn(
+                "h-4 w-4 transition-transform duration-300",
+                activeTab === "advisor" ? "scale-110" : ""
+              )}
+            />
             <span>Advisor</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('ai-assistant')}
+            onClick={() => setActiveTab("ai-assistant")}
             className={cn(
               "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
-              activeTab === 'ai-assistant'
+              activeTab === "ai-assistant"
                 ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm transform scale-105 border border-blue-200/50"
                 : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-102"
             )}
           >
-            <Brain className={cn("h-4 w-4 transition-transform duration-300", activeTab === 'ai-assistant' ? "scale-110" : "")} />
+            <Brain
+              className={cn(
+                "h-4 w-4 transition-transform duration-300",
+                activeTab === "ai-assistant" ? "scale-110" : ""
+              )}
+            />
             <span>AI Assistant</span>
           </button>
         </div>
@@ -239,19 +239,24 @@ Provide actionable advice that helps me make the best decision for my project.`;
 
       {/* Tab Content */}
       <CardContent className="flex-1 pt-0 overflow-hidden px-0 relative z-10 flex flex-col">
-        {activeTab === 'advisor' ? (
+        {activeTab === "advisor" ? (
           // Advisor Tab
           <div className="h-full flex flex-col animate-fadeIn px-3 pt-3">
             <div className="flex-1 min-h-0">
-              <div className="h-full overflow-y-auto space-y-3 pr-1" ref={messageContainerRef}>
+              <div
+                className="h-full overflow-y-auto space-y-3 pr-1"
+                ref={messageContainerRef}
+              >
                 {localMessages.length > 0 ? (
                   localMessages.map((message) => (
                     <div
                       key={message.id}
                       className={cn(
                         "flex space-x-2 animate-fadeInUp",
-                        message.user_id === user?.id ? "justify-end" : "justify-start"
-                      )}
+                        message.user_id === user?.id
+                          ? "justify-end"
+                          : "justify-start"
+                      )} // eslint-disable-line react/jsx-closing-bracket-location
                     >
                       <div
                         className={cn(
@@ -261,12 +266,19 @@ Provide actionable advice that helps me make the best decision for my project.`;
                             : "bg-gray-100 text-gray-800 border border-gray-200"
                         )}
                       >
-						<div className="font-medium text-xs mb-1 flex items-center space-x-2">
-						  <span>{message.user_id === user?.id ? 'You' : 'Team Member'}</span>
-						</div>
+                        <div className="font-medium text-xs mb-1 flex items-center space-x-2">
+                          <span>
+                            {message.user_id === user?.id
+                              ? "You"
+                              : "Team Member"}
+                          </span>
+                        </div>
                         <div>{message.content}</div>
                         <div className="text-xs opacity-70 mt-1 text-right">
-                          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(message.created_at).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </div>
                       </div>
                     </div>
@@ -317,31 +329,44 @@ Provide actionable advice that helps me make the best decision for my project.`;
                   </div>
                 )}
                 <div className="flex-1 min-h-0">
-                    <div className="h-full overflow-y-auto space-y-3 pr-1">
-                        {aiMessages.map((message) => (
-                          <div
-                            key={message.id}
-                            className={cn("flex space-x-2", message.type === 'user' ? "justify-end" : "justify-start")}
-                          >
-                            <div
-                              className={cn(
-                                "max-w-[90%] rounded-lg px-3 py-2 text-sm shadow-sm",
-                                message.type === 'user'
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-gray-100 text-gray-800 border border-gray-200"
-                              )}
-                            >
-                              {message.isStreaming ? (
-                                <div className="flex items-center space-x-2"><Loader2 className="h-4 w-4 animate-spin" /><span>Thinking...</span></div>
-                              ) : (
-                                <div className="prose prose-sm max-w-none prose-p:mb-4" style={{ whiteSpace: 'pre-wrap' }}>
-                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-                                </div>
-                              )}
+                  <div className="h-full overflow-y-auto space-y-3 pr-1">
+                    {aiMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={cn(
+                          "flex space-x-2",
+                          message.type === "user"
+                            ? "justify-end"
+                            : "justify-start"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "max-w-[90%] rounded-lg px-3 py-2 text-sm shadow-sm",
+                            message.type === "user"
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-800 border border-gray-200"
+                          )}
+                        >
+                          {message.isStreaming ? (
+                            <div className="flex items-center space-x-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Thinking...</span>
                             </div>
-                          </div>
-                        ))}
-                    </div>
+                          ) : (
+                            <div
+                              className="prose prose-sm max-w-none prose-p:mb-4"
+                              style={{ whiteSpace: "pre-wrap" }}
+                            >
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {message.content}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

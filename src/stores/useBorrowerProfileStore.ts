@@ -4,25 +4,25 @@ import { supabase } from "../../lib/supabaseClient";
 import { useProjectStore } from "./useProjectStore";
 
 interface BorrowerProfileState {
-  content: any | null; // Stored JSON in project_resumes.content
+  content: Record<string, unknown> | null;
   isLoading: boolean;
   error: string | null;
 }
 
 interface BorrowerProfileActions {
-  loadForProject: (projectId?: string) => Promise<void>;
-  saveForProject: (content: any, projectId?: string) => Promise<void>;
+  loadForProject: (projectId?: string | null) => Promise<void>;
+  saveForProject: (content: Record<string, unknown>, projectId?: string | null) => Promise<void>;
   reset: () => void;
 }
 
-export const useBorrowerProfileStore = create<BorrowerProfileState & BorrowerProfileActions>((set, get) => ({
+export const useBorrowerProfileStore = create<BorrowerProfileState & BorrowerProfileActions>((set) => ({
   content: null,
   isLoading: false,
   error: null,
 
   reset: () => set({ content: null, isLoading: false, error: null }),
 
-  loadForProject: async (projectId?: string) => {
+  loadForProject: async (projectId?: string | null): Promise<void> => {
     const id = projectId || useProjectStore.getState().activeProject?.id;
     if (!id) {
       set({ content: null });
@@ -35,7 +35,7 @@ export const useBorrowerProfileStore = create<BorrowerProfileState & BorrowerPro
         .select('content')
         .eq('project_id', id)
         .single();
-      
+
       if (error && error.code !== 'PGRST116') {
         set({ error: error.message, isLoading: false });
         return;
@@ -46,7 +46,7 @@ export const useBorrowerProfileStore = create<BorrowerProfileState & BorrowerPro
     }
   },
 
-  saveForProject: async (content: any, projectId?: string) => {
+  saveForProject: async (content: Record<string, unknown>, projectId?: string | null) => {
     const id = projectId || useProjectStore.getState().activeProject?.id;
     if (!id) throw new Error('No active project');
     set({ isLoading: true, error: null });
@@ -54,7 +54,7 @@ export const useBorrowerProfileStore = create<BorrowerProfileState & BorrowerPro
       const { error } = await supabase
         .from('project_resumes')
         .upsert({ project_id: id, content }, { onConflict: 'project_id' });
-      
+
       if (error) {
         set({ error: error.message, isLoading: false });
         throw error;

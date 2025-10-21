@@ -1,11 +1,7 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { useDocumentManagement } from "@/hooks/useDocumentManagement";
-import type {
-  DocumentFile,
-  DocumentFolder,
-} from "@/hooks/useDocumentManagement";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/Button";
 import {
@@ -15,7 +11,6 @@ import {
   Trash2,
   Loader2,
   AlertCircle,
-  Folder,
   FolderOpen,
   Edit,
 } from "lucide-react";
@@ -64,7 +59,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     isLoading,
     error,
     uploadFile,
-    createFolder,
     deleteFile,
     deleteFolder,
     downloadFile,
@@ -73,9 +67,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const { user, activeOrg, currentOrgRole } = useAuthStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [showCreateFolder, setShowCreateFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,21 +104,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return;
-
-    setIsCreatingFolder(true);
-    try {
-      await createFolder(newFolderName.trim(), folderId || undefined);
-      setNewFolderName("");
-      setShowCreateFolder(false);
-    } catch (error) {
-      console.error("[DocumentManager] Create folder error", error);
-    } finally {
-      setIsCreatingFolder(false);
-    }
-  };
-
   const handleDeleteFile = async (fileId: string) => {
     if (window.confirm(`Are you sure you want to delete this file?`)) {
       try {
@@ -152,7 +128,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const handleDownload = async (fileId: string, fileName: string) => {
+  const handleDownload = async (fileId: string) => {
     try {
       await downloadFile(fileId);
     } catch (error) {

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/Button';
-import { MessageSquare, Check, X, Info } from 'lucide-react';
+import { MessageSquare, X, Info } from 'lucide-react';
 
 interface FormAssistantProps {
   formSection: string;

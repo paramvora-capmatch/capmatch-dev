@@ -81,15 +81,15 @@ async clear(): Promise<void> {
 // Encrypted Storage implementation (Placeholder - uses LocalStorage for now)
 // NOTE: Real encryption requires 'secure-ls' package and browser environment.
 export class EncryptedStorageService implements StorageService {
-private storage: any; // Should be SecureLS instance
+private storage: Record<string, unknown> | Storage; // Should be SecureLS instance
 private prefix: string;
 
 constructor(prefix: string = 'capmatch_') {
   this.prefix = prefix;
   // Use LocalStorage as a fallback for this mock implementation
-  this.storage = typeof window !== 'undefined' ? localStorage : {
+  this.storage = typeof window !== 'undefined' ? localStorage : ({
       getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {}, length: 0, key: () => null
-  };
+  } as unknown as Storage);
   if (typeof window !== 'undefined' && !localStorage) {
       console.warn("EncryptedStorageService: SecureLS not implemented, falling back to potentially insecure LocalStorage.");
   }
@@ -164,6 +164,3 @@ if (useEncryption) {
 }
 return new LocalStorageService(prefix);
 }
-
-// Import necessary types (adjust path if needed)
-import { BorrowerProfile, ProjectProfile, ProjectMessage } from '../../../src/types/enhanced-types';

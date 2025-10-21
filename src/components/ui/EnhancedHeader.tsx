@@ -2,9 +2,10 @@
 'use client';
 
 import React, { useState, useEffect, MutableRefObject } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogIn, Menu, X, Briefcase } from 'lucide-react'; // Added Briefcase for Process
+import { LogIn, Menu, X } from 'lucide-react'; // Added Briefcase for Process
 import { motion } from 'framer-motion';
 import { Button } from './Button';
 import { cn } from '@/utils/cn';
@@ -80,10 +81,12 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
             }}
           >
             <div className="flex items-center justify-center">
-              <img
+              <Image
                 ref={logoRef}
-                src="/CapMatchLogo.png"
+                src="/CapMatchLogo.svg"
                 alt="CapMatch"
+                width={56}
+                height={56}
                 className={cn(
                   "transition-all duration-300",
                   scrolled ? "h-12" : "h-14 drop-shadow-sm",

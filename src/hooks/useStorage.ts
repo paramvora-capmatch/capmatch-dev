@@ -16,7 +16,7 @@ export const useStorage = (
 		setIsLoading(true);
 		setError(null);
 		try {
-			const { data, error } = await supabase.storage
+			const { data: files, error } = await supabase.storage
 				.from(bucketId)
 				.list(folderPath, {
 					limit: 100,
@@ -26,8 +26,8 @@ export const useStorage = (
 
 			if (error) throw error;
 			// Filter out the placeholder .keep file
-			setFiles(data.filter((file) => file.name !== ".keep"));
-		} catch (e: any) {
+			setFiles(files?.filter((file) => file.name !== ".keep") || []);
+		} catch (e) {
 			setError(e.message);
 			console.error("Error listing files:", e);
 		} finally {
@@ -60,7 +60,7 @@ export const useStorage = (
 			if (error) throw error;
 			await listFiles(); // Refresh file list
 			return data;
-		} catch (e: any) {
+		} catch (e) {
 			setError(e.message);
 			console.error("Error uploading file:", e);
 			return null;
@@ -84,14 +84,14 @@ export const useStorage = (
 			if (error) throw error;
 
 			const url = URL.createObjectURL(data);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = fileName;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = fileName;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
 			URL.revokeObjectURL(url);
-		} catch (e: any) {
+		} catch (e) {
 			setError(e.message);
 			console.error("Error downloading file:", e);
 		}
@@ -113,7 +113,7 @@ export const useStorage = (
 				.remove([filePath]);
 			if (error) throw error;
 			await listFiles(); // Refresh file list
-		} catch (e: any) {
+		} catch (e) {
 			setError(e.message);
 			console.error("Error deleting file:", e);
 		} finally {

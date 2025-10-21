@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
 import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
@@ -11,30 +11,21 @@ import { LoadingOverlay } from "../../components/ui/LoadingOverlay";
 import { ProfileSummaryCard } from "../../components/project/ProfileSummaryCard"; // Import Profile Summary
 import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import Project Card
 import { Button } from "../../components/ui/Button"; // Import Button
-import {
-  PlusCircle,
-  FileText,
-  LogOut,
-  Sparkles,
-  LayoutGrid,
-  User,
-  Folder,
-} from "lucide-react"; // Added Sparkles
+import { PlusCircle, FileText, Sparkles } from "lucide-react"; // Added Sparkles
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loginSource, isLoading: authLoading } = useAuth();
-  const {
-    projects,
-    createProject,
-    isLoading: projectsLoading,
-  } = useProjects();
-  const { content: borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
-  const searchParams = useSearchParams();
+  const { projects, createProject, isLoading: projectsLoading } = useProjects();
+  const { content: borrowerProfile, isLoading: profileLoading } =
+    useBorrowerProfile();
 
   // Debug logging
   console.log("[Dashboard] 🔍 DEBUG - Component render");
-  console.log("[Dashboard] 🔍 DEBUG - User:", user ? { id: user.id, email: user.email, role: user.role } : "null");
+  console.log(
+    "[Dashboard] 🔍 DEBUG - User:",
+    user ? { id: user.id, email: user.email, role: user.role } : "null"
+  );
   console.log("[Dashboard] 🔍 DEBUG - Projects:", projects?.length || 0);
   console.log("[Dashboard] 🔍 DEBUG - Projects loading:", projectsLoading);
   console.log("[Dashboard] 🔍 DEBUG - Auth loading:", authLoading);
@@ -62,7 +53,6 @@ export default function DashboardPage() {
     // The main redirect for new users is after profile completion.
     // Let's keep the dashboard stable for now.
     // A `from=signup` param could trigger an onboarding modal in the future.
-
   }, [
     user,
     projects,

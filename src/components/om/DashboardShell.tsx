@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { ArrowLeft, Download, Home, PanelRightOpen, ChevronLeft } from 'lucide-react';
+import { Download, Home, PanelRightOpen, ChevronLeft } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { OMChatSidebar } from './OMChatSidebar';
 

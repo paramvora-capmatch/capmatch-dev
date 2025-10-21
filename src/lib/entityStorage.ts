@@ -8,21 +8,21 @@ export async function ensureEntityBucket(entityId: string): Promise<boolean> {
   try {
     // Check if bucket already exists
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    
+
     if (listError) {
       console.error('Error listing buckets:', listError);
       return false;
     }
-    
+
     const bucketExists = buckets?.some(bucket => bucket.id === entityId);
-    
+
     if (bucketExists) {
       console.log(`[EntityStorage] Bucket ${entityId} already exists`);
       return true;
     }
     
     // Create the bucket
-    const { data, error } = await supabase.storage.createBucket(entityId, {
+    const { error } = await supabase.storage.createBucket(entityId, {
       public: false,
       fileSizeLimit: 50 * 1024 * 1024, // 50MB limit
       allowedMimeTypes: [

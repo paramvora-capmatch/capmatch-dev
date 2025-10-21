@@ -1,11 +1,8 @@
 // lib/enhancedMockApiService.ts
 import { LenderProfile } from "../src/types/lender";
 import {
-  BorrowerProfile,
-  Principal,
   ProjectProfile,
   Advisor,
-  ProjectMessage,
 } from "../src/types/enhanced-types";
 
 // Get lenders data from existing mock service

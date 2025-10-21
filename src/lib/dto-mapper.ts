@@ -25,7 +25,7 @@ import {
  * @param dbProject - The project data object from Supabase.
  * @returns A ProjectProfile object.
  */
-export const dbProjectToProjectProfile = (dbProject: any): ProjectProfile => {
+export const dbProjectToProjectProfile = (dbProject: Record<string, unknown>): ProjectProfile => {
   return {
     id: dbProject.id,
     borrowerProfileId: undefined, // No longer used - projects owned by entities
@@ -79,7 +79,7 @@ export const dbProjectToProjectProfile = (dbProject: any): ProjectProfile => {
  * @returns A BorrowerProfile object.
  */
 export const dbBorrowerToBorrowerProfile = (
-	dbBorrower: any,
+	dbBorrower: Record<string, unknown>,
 	user: { email: string; name?: string }
 ): BorrowerProfile => {
 	return {
@@ -121,7 +121,7 @@ export const dbBorrowerToBorrowerProfile = (
  * @param dbPrincipal - The principal data from Supabase.
  * @returns A Principal object.
  */
-export const dbPrincipalToPrincipal = (dbPrincipal: any): Principal => {
+export const dbPrincipalToPrincipal = (dbPrincipal: Record<string, unknown>): Principal => {
 	return {
 		id: dbPrincipal.id,
 		borrowerProfileId: dbPrincipal.borrower_profile_id,
@@ -147,7 +147,7 @@ export const dbPrincipalToPrincipal = (dbPrincipal: any): Principal => {
  * @param dbMessage - The message data object from Supabase.
  * @returns A ProjectMessage object.
  */
-export const dbMessageToProjectMessage = (dbMessage: any): ProjectMessage => {
+export const dbMessageToProjectMessage = (dbMessage: Record<string, unknown>): ProjectMessage => {
 	return {
 		id: dbMessage.id,
 		thread_id: dbMessage.thread_id,
@@ -162,7 +162,7 @@ export const dbMessageToProjectMessage = (dbMessage: any): ProjectMessage => {
  * @param dbMember - The member data object from Supabase.
  * @returns A BorrowerEntityMember object.
  */
-export const dbMemberToBorrowerEntityMember = (dbMember: any): BorrowerEntityMember => {
+export const dbMemberToBorrowerEntityMember = (dbMember: Record<string, unknown>): BorrowerEntityMember => {
 	return {
 		id: dbMember.id,
 		orgId: dbMember.org_id,
@@ -190,7 +190,7 @@ export const dbMemberToBorrowerEntityMember = (dbMember: any): BorrowerEntityMem
  * @param dbProfile - The profile data from Supabase.
  * @returns A Profile object.
  */
-export const dbProfileToProfile = (dbProfile: any): Profile => {
+export const dbProfileToProfile = (dbProfile: Record<string, unknown>): Profile => {
 	return {
 		id: dbProfile.id,
 		created_at: dbProfile.created_at,
@@ -206,7 +206,7 @@ export const dbProfileToProfile = (dbProfile: any): Profile => {
  * @param dbOrg - The org data from Supabase.
  * @returns An Org object.
  */
-export const dbOrgToOrg = (dbOrg: any): Org => {
+export const dbOrgToOrg = (dbOrg: Record<string, unknown>): Org => {
 	return {
 		id: dbOrg.id,
 		created_at: dbOrg.created_at,
@@ -221,7 +221,7 @@ export const dbOrgToOrg = (dbOrg: any): Org => {
  * @param dbMember - The member data from Supabase.
  * @returns An OrgMember object.
  */
-export const dbOrgMemberToOrgMember = (dbMember: any): OrgMember => {
+export const dbOrgMemberToOrgMember = (dbMember: Record<string, unknown>): OrgMember => {
 	return {
 		org_id: dbMember.org_id,
 		user_id: dbMember.user_id,
@@ -235,7 +235,7 @@ export const dbOrgMemberToOrgMember = (dbMember: any): OrgMember => {
  * @param dbInvite - The invite data from Supabase.
  * @returns An Invite object.
  */
-export const dbInviteToInvite = (dbInvite: any): Invite => {
+export const dbInviteToInvite = (dbInvite: Record<string, unknown>): Invite => {
 	return {
 		id: dbInvite.id,
 		org_id: dbInvite.org_id,
@@ -255,7 +255,7 @@ export const dbInviteToInvite = (dbInvite: any): Invite => {
  * @param dbProject - The project data from Supabase.
  * @returns A Project object.
  */
-export const dbProjectToProject = (dbProject: any): Project => {
+export const dbProjectToProject = (dbProject: Record<string, unknown>): Project => {
 	return {
 		id: dbProject.id,
 		created_at: dbProject.created_at,
@@ -271,7 +271,7 @@ export const dbProjectToProject = (dbProject: any): Project => {
  * @param dbPermission - The permission data from Supabase.
  * @returns A DocumentPermission object.
  */
-export const dbDocumentPermissionToDocumentPermission = (dbPermission: any): DocumentPermission => {
+export const dbDocumentPermissionToDocumentPermission = (dbPermission: Record<string, unknown>): DocumentPermission => {
 	return {
 		id: dbPermission.id,
 		project_id: dbPermission.project_id,
@@ -286,7 +286,7 @@ export const dbDocumentPermissionToDocumentPermission = (dbPermission: any): Doc
  * @param dbAccess - The access data from Supabase.
  * @returns A LenderDocumentAccess object.
  */
-export const dbLenderDocumentAccessToLenderDocumentAccess = (dbAccess: any): LenderDocumentAccess => {
+export const dbLenderDocumentAccessToLenderDocumentAccess = (dbAccess: Record<string, unknown>): LenderDocumentAccess => {
 	return {
 		id: dbAccess.id,
 		project_id: dbAccess.project_id,
@@ -302,7 +302,7 @@ export const dbLenderDocumentAccessToLenderDocumentAccess = (dbAccess: any): Len
  * @param dbThread - The thread data from Supabase.
  * @returns A ChatThread object.
  */
-export const dbChatThreadToChatThread = (dbThread: any): ChatThread => {
+export const dbChatThreadToChatThread = (dbThread: Record<string, unknown>): ChatThread => {
 	return {
 		id: dbThread.id,
 		project_id: dbThread.project_id,
@@ -316,7 +316,7 @@ export const dbChatThreadToChatThread = (dbThread: any): ChatThread => {
  * @param dbParticipant - The participant data from Supabase.
  * @returns A ChatThreadParticipant object.
  */
-export const dbChatThreadParticipantToChatThreadParticipant = (dbParticipant: any): ChatThreadParticipant => {
+export const dbChatThreadParticipantToChatThreadParticipant = (dbParticipant: Record<string, unknown>): ChatThreadParticipant => {
 	return {
 		thread_id: dbParticipant.thread_id,
 		user_id: dbParticipant.user_id,
@@ -329,7 +329,7 @@ export const dbChatThreadParticipantToChatThreadParticipant = (dbParticipant: an
  * @param dbMessage - The message data from Supabase.
  * @returns A ProjectMessage object.
  */
-export const dbProjectMessageToProjectMessage = (dbMessage: any): NewProjectMessage => {
+export const dbProjectMessageToProjectMessage = (dbMessage: Record<string, unknown>): NewProjectMessage => {
 	return {
 		id: dbMessage.id,
 		thread_id: dbMessage.thread_id,
@@ -344,7 +344,7 @@ export const dbProjectMessageToProjectMessage = (dbMessage: any): NewProjectMess
  * @param dbAttachment - The attachment data from Supabase.
  * @returns A MessageAttachment object.
  */
-export const dbMessageAttachmentToMessageAttachment = (dbAttachment: any): MessageAttachment => {
+export const dbMessageAttachmentToMessageAttachment = (dbAttachment: Record<string, unknown>): MessageAttachment => {
 	return {
 		id: dbAttachment.id,
 		message_id: dbAttachment.message_id,
@@ -358,7 +358,7 @@ export const dbMessageAttachmentToMessageAttachment = (dbAttachment: any): Messa
  * @param dbNotification - The notification data from Supabase.
  * @returns A Notification object.
  */
-export const dbNotificationToNotification = (dbNotification: any): Notification => {
+export const dbNotificationToNotification = (dbNotification: Record<string, unknown>): Notification => {
 	return {
 		id: dbNotification.id,
 		user_id: dbNotification.user_id,

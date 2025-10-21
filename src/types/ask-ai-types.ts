@@ -7,7 +7,7 @@ export interface FieldContext {
   required: boolean;
   label: string;
   placeholder?: string;
-  currentValue: any;
+  currentValue: unknown;
   options?: string[];
   validationState: FieldValidationState;
 }
@@ -61,8 +61,8 @@ export interface AIContextResponse {
 }
 
 export interface FormContextType {
-  formData: any;
-  fieldChanged: (fieldId: string, value: any) => void;
-  subscribeToChanges: (callback: (fieldId: string, value: any) => void) => () => void;
+  formData: Record<string, unknown>;
+  fieldChanged: (fieldId: string, value: unknown) => void;
+  subscribeToChanges: (callback: (fieldId: string, value: unknown) => void) => () => void;
   getFieldContext: (fieldId: string) => FieldContext | null;
 } 

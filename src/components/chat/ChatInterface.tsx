@@ -1,8 +1,7 @@
 // src/components/chat/ChatInterface.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/useChatStore';
-import { useProjectStore } from '../../stores/useProjectStore';
-import { Card, CardContent, CardHeader } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { 
@@ -13,7 +12,6 @@ import {
   Plus,
   Loader2,
   AlertCircle,
-  CheckCircle
 } from 'lucide-react';
 
 interface ChatInterfaceProps {
@@ -36,14 +34,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
     loadThreadsForProject,
     createThread,
     setActiveThread,
-    loadMessages,
     sendMessage,
     loadAttachableDocuments,
-    attachDocument,
     clearError
   } = useChatStore();
-
-  const { activeProject } = useProjectStore();
   
   const [newMessage, setNewMessage] = useState('');
   const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);

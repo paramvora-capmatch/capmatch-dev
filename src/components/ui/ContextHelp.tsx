@@ -21,7 +21,6 @@ export const ContextHelp: React.FC<ContextHelpProps> = ({
   placement = 'top',
   trigger = 'hover',
   icon = <Info />,
-  iconSize = 16
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 

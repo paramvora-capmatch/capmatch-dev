@@ -4,7 +4,7 @@ import React from 'react';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
-import { Edit, FileText, MapPin, Building, DollarSign, BarChart3 } from 'lucide-react';
+import { Edit, MapPin, DollarSign, BarChart3 } from 'lucide-react';
 import { KeyValueDisplay } from '../om/KeyValueDisplay'; // Reusing this component
 
 interface ProjectResumeViewProps {
@@ -18,7 +18,7 @@ const formatCurrency = (amount: number | null | undefined): string => {
 };
 
 const formatDate = (dateString: string | null | undefined): string => {
-    if (!dateString) return 'N/A'; try { return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); } catch (e) { return 'Invalid Date'; }
+    if (!dateString) return 'N/A'; try { return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }); } catch { return 'Invalid Date'; }
 };
 
 export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, onEdit }) => {

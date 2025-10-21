@@ -4,7 +4,7 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, ResponsiveContaine
 
 interface MiniChartProps {
     type: 'line' | 'bar' | 'pie';
-    data: any[];
+    data: Record<string, unknown>[];
     dataKey?: string;
     height?: number;
     colors?: string[];
