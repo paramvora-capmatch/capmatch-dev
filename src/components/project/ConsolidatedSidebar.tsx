@@ -306,7 +306,7 @@ Provide actionable advice that helps me make the best decision for my project.`;
               <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg border-gray-300 bg-gray-50/50">
                 <MessageSquare className="h-12 w-12 text-gray-400 mb-3" />
                 <p className="text-sm text-gray-600 text-center">
-                  Click "Ask AI" on a form field to start.
+                  Click &quot;Ask AI&quot; on a form field to start.
                 </p>
               </div>
             ) : (

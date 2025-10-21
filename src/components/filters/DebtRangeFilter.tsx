@@ -36,7 +36,7 @@ const DebtRangeFilter: React.FC<DebtRangeFilterProps> = ({ value, onChange }) =>
           </button>
           {showTooltip && (
             <div className="absolute z-10 w-64 p-2 mt-2 text-xs bg-white rounded-md shadow-lg border border-gray-200 -translate-x-1/2 left-1/2">
-              Select the loan amount range you're seeking. Lenders often specialize in specific deal size ranges.
+              Select the loan amount range you&apos;re seeking. Lenders often specialize in specific deal size ranges.
             </div>
           )}
         </div>

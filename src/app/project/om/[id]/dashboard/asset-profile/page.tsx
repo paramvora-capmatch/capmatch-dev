@@ -43,7 +43,7 @@ export default function AssetProfilePage() {
                         </div>
                         <div>
                             <p className="text-gray-500">Height</p>
-                            <p className="font-medium">85' / 100'</p>
+                            <p className="font-medium">85&apos; / 100&apos;</p>
                         </div>
                     </div>
                 </div>
