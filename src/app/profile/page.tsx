@@ -8,7 +8,6 @@ import DashboardLayout from "../../components/layout/DashboardLayout";
 import { useAuth } from '@/hooks/useAuth';
 import { BorrowerResumeForm } from "../../components/forms/BorrowerResumeForm";
 
-import { useProjects } from "../../hooks/useProjects";
 import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
 
 import { BorrowerResumeContent } from "../../lib/project-queries";
@@ -17,7 +16,6 @@ import { LoadingOverlay } from "@/components/ui/LoadingOverlay"; // Import Loadi
 
 export default function ProfilePage() {
 	const router = useRouter();
-	const { createProject, projects } = useProjects();
 	// Use context hook, providing a fallback empty object if context is not ready
 	const { isLoading: profileLoading } =
 		useBorrowerProfile() || { content: null, isLoading: true };
@@ -29,29 +27,9 @@ export default function ProfilePage() {
 			return;
 		}
 
-		// If the user has no projects, create their first one after profile completion.
-		if (projects.length === 0) {
-			try {
-				console.log(
-					"First time profile completion with 0 projects. Creating default project..."
-				);
-				const newProject = await createProject({
-					projectName: "My First Project",
-					projectStatus: "Info Gathering",
-				});
-				// Redirect to the new project's workspace
-				router.replace(`/project/workspace/${newProject.id}`);
-			} catch (error) {
-				console.error(
-					"Failed to create project after profile completion:",
-					error
-				);
-				router.push("/dashboard"); // Fallback to dashboard
-			}
-		} else {
-			// User already has projects, just go back to dashboard
-			router.push("/dashboard");
-		}
+		// Profile completed successfully, redirect to dashboard
+		// The first project is already created by the edge function during onboarding
+		router.push("/dashboard");
 	};
 
 	return (
