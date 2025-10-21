@@ -57,6 +57,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               src="/CapMatchLogo.png"
               alt="CapMatch"
               className="h-10 w-auto"
+              height={32}
+              width={32}
             />
           </Link>
         </div>

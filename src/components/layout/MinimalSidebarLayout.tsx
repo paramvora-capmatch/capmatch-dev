@@ -59,6 +59,8 @@ const MinimalSidebarLayout: React.FC<MinimalSidebarLayoutProps> = ({
                 src="/CapMatchLogo.png"
                 alt="CapMatch"
                 className="h-auto w-14 lg:w-20"
+                height={32}
+                width={32}
               />
             </Link>
           </div>
