@@ -4,20 +4,21 @@ export interface CreateProjectOptions {
   name: string;
   owner_org_id: string;
   creator_id: string; // The user ID of the person creating the project
+  assigned_advisor_id?: string | null;
 }
 
 export async function createProjectWithResumeAndStorage(
   supabaseAdmin: any,
   options: CreateProjectOptions
 ) {
-  const { name, owner_org_id } = options;
+  const { name, owner_org_id, assigned_advisor_id } = options;
   console.log(`[project-utils] Creating project: ${name} for org: ${owner_org_id}`);
 
   // 1. Create the project
   console.log("[project-utils] Step 1: Creating project record");
   const { data: project, error: projectError } = await supabaseAdmin
     .from("projects")
-    .insert({ name, owner_org_id })
+    .insert({ name, owner_org_id, assigned_advisor_id })
     .select()
     .single();
   if (projectError) {

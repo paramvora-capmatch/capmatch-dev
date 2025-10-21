@@ -9,7 +9,7 @@ serve(async (req) => {
   }
 
   try {
-    const { name, owner_org_id } = await req.json();
+    const { name, owner_org_id, assigned_advisor_id } = await req.json();
     if (!name || !owner_org_id) {
       throw new Error("name and owner_org_id are required");
     }
@@ -49,6 +49,8 @@ serve(async (req) => {
     const project = await createProjectWithResumeAndStorage(supabaseAdmin, {
       name,
       owner_org_id,
+      assigned_advisor_id: assigned_advisor_id || null,
+      creator_id: user.id,
     });
 
     // --- Atomic Operation End ---

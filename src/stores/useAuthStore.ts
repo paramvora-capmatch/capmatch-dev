@@ -131,7 +131,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             // Load org memberships for borrower/lender users
             if (
               enhancedUser.role === "borrower" ||
-              enhancedUser.role === "lender"
+              enhancedUser.role === "lender" ||
+              enhancedUser.role === "advisor"
             ) {
               get().loadOrgMemberships();
             }
@@ -254,7 +255,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 // Load org memberships for borrower/lender users
                 if (
                   enhancedUser.role === "borrower" ||
-                  enhancedUser.role === "lender"
+                  enhancedUser.role === "lender" ||
+                  enhancedUser.role === "advisor"
                 ) {
                   get().loadOrgMemberships();
                 }

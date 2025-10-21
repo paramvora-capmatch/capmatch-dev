@@ -1,6 +1,8 @@
 // src/components/chat/ChatInterface.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/useChatStore';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { supabase } from '../../../lib/supabaseClient';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -38,12 +40,47 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
     loadAttachableDocuments,
     clearError
   } = useChatStore();
-  
+
+  const { user } = useAuthStore();
+  const [advisorId, setAdvisorId] = useState<string | null>(null);
+
   const [newMessage, setNewMessage] = useState('');
   const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
   const [newThreadTopic, setNewThreadTopic] = useState('');
   const [showCreateThread, setShowCreateThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load advisor ID on mount
+  useEffect(() => {
+    const loadAdvisor = async () => {
+      try {
+        // Get the advisor org
+        const { data: advisorOrg } = await supabase
+          .from('orgs')
+          .select('id')
+          .eq('entity_type', 'advisor')
+          .limit(1)
+          .single();
+
+        if (advisorOrg) {
+          const { data: advisorMember } = await supabase
+            .from('org_members')
+            .select('user_id')
+            .eq('org_id', advisorOrg.id)
+            .limit(1)
+            .single();
+
+          if (advisorMember) {
+            setAdvisorId(advisorMember.user_id);
+          }
+        }
+      } catch (error) {
+        console.warn('[ChatInterface] Could not load advisor:', error);
+      }
+    };
+
+    loadAdvisor();
+  }, []);
 
   // Load threads when component mounts
   useEffect(() => {
@@ -79,10 +116,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
     if (!newThreadTopic.trim()) return;
 
     try {
-      const threadId = await createThread(projectId, newThreadTopic.trim());
+      // Auto-add advisor as a participant in all new threads
+      const participants = [];
+      if (user?.id) participants.push(user.id);
+      if (advisorId) participants.push(advisorId);
+
+      const threadId = await createThread(
+        projectId, 
+        newThreadTopic.trim(),
+        participants
+      );
       setNewThreadTopic('');
       setShowCreateThread(false);
       setActiveThread(threadId);
+      console.log('Thread created with advisor as participant');
     } catch (err) {
       console.error('Failed to create thread:', err);
     }
@@ -125,32 +172,42 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
   }
 
   return (
-    <div className="h-96 flex border rounded-lg overflow-hidden">
+    <div className="h-[600px] flex border rounded-lg overflow-hidden bg-white">
       {/* Threads Sidebar */}
-      <div className="w-1/3 border-r bg-gray-50">
+      <div className="w-80 border-r bg-gray-50 flex flex-col">
         <div className="p-3 border-b bg-white">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-800">Chat Threads</h3>
+            <h3 className="font-semibold text-gray-800">Channels</h3>
             <Button
               size="sm"
               variant="outline"
               onClick={() => setShowCreateThread(true)}
-              className="h-8 w-8 p-0"
+              className="h-8 px-3"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4 mr-1" />
+              New
             </Button>
           </div>
           
           {showCreateThread && (
             <div className="space-y-2">
               <Input
-                placeholder="Thread topic..."
+                placeholder="Channel name (e.g., 'Financing Discussion')..."
                 value={newThreadTopic}
                 onChange={(e) => setNewThreadTopic(e.target.value)}
                 className="text-sm"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateThread();
+                  }
+                }}
               />
               <div className="flex space-x-2">
-                <Button size="sm" onClick={handleCreateThread}>
+                <Button
+                  size="sm"
+                  onClick={handleCreateThread}
+                  disabled={!newThreadTopic.trim()}
+                >
                   Create
                 </Button>
                 <Button 
@@ -165,7 +222,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
           )}
         </div>
         
-        <div className="overflow-y-auto h-full">
+        <div className="overflow-y-auto flex-1">
           {isLoading ? (
             <div className="p-3 text-center">
               <Loader2 className="h-4 w-4 animate-spin mx-auto" />
@@ -182,14 +239,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
                       : 'hover:bg-gray-100'
                   }`}
                 >
-                  <div className="font-medium truncate">
-                    {thread.topic || 'Untitled Thread'}
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="text-gray-400">#</span>
+                    <span className="font-medium truncate">
+                      {thread.topic || 'Untitled Channel'}
+                    </span>
                   </div>
                   <div className="text-xs text-gray-500">
                     {new Date(thread.created_at).toLocaleDateString()}
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+
+          {!isLoading && threads.length === 0 && (
+            <div className="p-4 text-center text-gray-500 text-sm">
+              <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No channels yet</p>
+              <p className="text-xs mt-1">Create one to start chatting</p>
             </div>
           )}
         </div>
@@ -205,7 +273,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
                 <div className="flex items-center space-x-2">
                   <MessageCircle className="h-4 w-4 text-gray-500" />
                   <span className="font-medium">
-                    {threads.find(t => t.id === activeThreadId)?.topic || 'Untitled Thread'}
+                    <span className="text-gray-400 mr-1">#</span>
+                    {threads.find(t => t.id === activeThreadId)?.topic || 'Untitled Channel'}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -233,7 +302,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
                   >
                     {message.sender && (
                       <div className="text-xs opacity-75 mb-1">
-                        {message.sender.full_name || message.sender.email}
+                        <strong>{message.sender.full_name || 'User'}</strong>
                       </div>
                     )}
                     <div className="text-sm">{message.content}</div>
@@ -319,8 +388,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
             <div className="text-center">
-              <MessageCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>Select a thread to start chatting</p>
+              <MessageCircle className="h-16 w-16 mx-auto mb-4 opacity-20" />
+              <p className="text-lg font-medium mb-2">No channel selected</p>
+              <p className="text-sm">Choose a channel or create a new one to get started</p>
             </div>
           </div>
         )}
