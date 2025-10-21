@@ -54,42 +54,8 @@ export async function createProjectWithResumeAndStorage(
   }
   console.log("[project-utils] Storage folder created successfully");
 
-  // 4. Create BORROWER_RESUME resource if it doesn't exist
-  console.log("[project-utils] Step 4: Creating/ensuring BORROWER_RESUME resource");
-  const { data: existingBorrowerResume } = await supabaseAdmin
-    .from("resources")
-    .select("id")
-    .eq("org_id", owner_org_id)
-    .eq("resource_type", "BORROWER_RESUME")
-    .maybeSingle();
-
-  let borrowerResumeResourceId;
-  if (!existingBorrowerResume) {
-    const { data: borrowerResumeResource, error: borrowerResumeError } = await supabaseAdmin
-      .from("resources")
-      .insert({
-        org_id: owner_org_id,
-        resource_type: "BORROWER_RESUME",
-        name: "Borrower Resume"
-      })
-      .select()
-      .single();
-    
-    if (borrowerResumeError) {
-      console.error(`[project-utils] Borrower resume resource creation failed: ${JSON.stringify(borrowerResumeError)}`);
-      // Rollback: delete project, resume, and storage folder
-      await supabaseAdmin.from("projects").delete().eq("id", project.id);
-      throw new Error(`Borrower resume resource creation failed: ${borrowerResumeError.message}`);
-    }
-    borrowerResumeResourceId = borrowerResumeResource.id;
-    console.log("[project-utils] Borrower resume resource created successfully");
-  } else {
-    borrowerResumeResourceId = existingBorrowerResume.id;
-    console.log("[project-utils] Borrower resume resource already exists");
-  }
-
-  // 5. Create PROJECT_RESUME resource
-  console.log("[project-utils] Step 5: Creating PROJECT_RESUME resource");
+  // 4. Create PROJECT_RESUME resource
+  console.log("[project-utils] Step 4: Creating PROJECT_RESUME resource");
   const { data: projectResumeResource, error: projectResumeError } = await supabaseAdmin
     .from("resources")
     .insert({
@@ -109,8 +75,8 @@ export async function createProjectWithResumeAndStorage(
   }
   console.log("[project-utils] Project resume resource created successfully");
 
-  // 6. Create PROJECT_DOCS_ROOT resource
-  console.log("[project-utils] Step 6: Creating PROJECT_DOCS_ROOT resource");
+  // 5. Create PROJECT_DOCS_ROOT resource
+  console.log("[project-utils] Step 5: Creating PROJECT_DOCS_ROOT resource");
   const { data: projectDocsRootResource, error: projectDocsRootError } = await supabaseAdmin
     .from("resources")
     .insert({
@@ -130,8 +96,8 @@ export async function createProjectWithResumeAndStorage(
   }
   console.log("[project-utils] Project docs root resource created successfully");
 
-  // Step 7: Grant the creator (owner) explicit access to the new project
-  console.log("[project-utils] Step 7: Granting creator access to the project");
+  // Step 6: Grant the creator (owner) explicit access to the new project
+  console.log("[project-utils] Step 6: Granting creator access to the project");
   const { error: grantError } = await supabaseAdmin
     .from("project_access_grants")
     .insert({

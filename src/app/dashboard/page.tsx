@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
-import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
+import { useBorrowerResume } from "../../hooks/useBorrowerResume";
 import { useAuth } from "../../hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LoadingOverlay } from "../../components/ui/LoadingOverlay";
@@ -14,11 +14,7 @@ import { Button } from "../../components/ui/Button"; // Import Button
 import {
   PlusCircle,
   FileText,
-  LogOut,
   Sparkles,
-  LayoutGrid,
-  User,
-  Folder,
 } from "lucide-react"; // Added Sparkles
 
 export default function DashboardPage() {
@@ -29,16 +25,9 @@ export default function DashboardPage() {
     createProject,
     isLoading: projectsLoading,
   } = useProjects();
-  const { content: borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
-  const searchParams = useSearchParams();
+  const { content: borrowerResume, isLoading: profileLoading } = useBorrowerResume();
+  const [, setSearchParams] = useSearchParams();
 
-  // Debug logging
-  console.log("[Dashboard] 🔍 DEBUG - Component render");
-  console.log("[Dashboard] 🔍 DEBUG - User:", user ? { id: user.id, email: user.email, role: user.role } : "null");
-  console.log("[Dashboard] 🔍 DEBUG - Projects:", projects?.length || 0);
-  console.log("[Dashboard] 🔍 DEBUG - Projects loading:", projectsLoading);
-  console.log("[Dashboard] 🔍 DEBUG - Auth loading:", authLoading);
-  console.log("[Dashboard] 🔍 DEBUG - Profile loading:", profileLoading);
 
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
@@ -68,7 +57,7 @@ export default function DashboardPage() {
     projects,
     loginSource,
     router,
-    borrowerProfile,
+    borrowerResume,
     initialLoadComplete,
     combinedLoading,
   ]);
@@ -97,7 +86,7 @@ export default function DashboardPage() {
           {/* Enhanced Profile Summary */}
           <div className="relative">
             <ProfileSummaryCard
-              profile={borrowerProfile}
+              profile={borrowerResume}
               isLoading={profileLoading}
             />
           </div>

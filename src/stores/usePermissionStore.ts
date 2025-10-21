@@ -46,7 +46,11 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
 
       set({ permissions: newPermissions, isLoading: false });
     } catch (e) {
-      set({ error: e.message, isLoading: false, permissions: {} });
+      set({ 
+        error: e instanceof Error ? e.message : 'Unknown error occurred', 
+        isLoading: false, 
+        permissions: {} 
+      });
     }
   },
   

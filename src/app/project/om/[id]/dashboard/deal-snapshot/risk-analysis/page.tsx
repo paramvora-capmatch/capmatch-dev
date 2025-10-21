@@ -6,18 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Shield, Info } from 'lucide-react';
 
 export default function RiskAnalysisPage() {
-  const getRiskIcon = (severity: string) => {
-    switch (severity) {
-      case 'high':
-        return <AlertTriangle className="h-6 w-6 text-red-500" />;
-      case 'medium':
-        return <Info className="h-6 w-6 text-yellow-500" />;
-      case 'low':
-        return <Shield className="h-6 w-6 text-green-500" />;
-      default:
-        return <Info className="h-6 w-6 text-gray-500" />;
-    }
-  };
 
   const getRiskColor = (severity: string) => {
     switch (severity) {

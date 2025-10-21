@@ -1,6 +1,6 @@
 // src/stores/useProjectStore.ts
 import { create } from "zustand";
-import { dbProjectToProjectProfile } from "@/lib/dto-mapper";
+import { getProjectsWithResumes, ProjectResumeContent } from "@/lib/project-queries";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuthStore } from "./useAuthStore";
 import { usePermissionStore } from "./usePermissionStore"; // Import the new store
@@ -10,47 +10,63 @@ import {
 	Project,
 } from "@/types/enhanced-types";
 
+// Maps ProjectProfile fields to core projects table columns
 const projectProfileToDbProject = (
 	profileData: Partial<ProjectProfile>
 ): any => {
 	const dbData: { [key: string]: any } = {};
 	const keyMap: { [key in keyof ProjectProfile]?: string } = {
 		projectName: "name", // Map to name in new schema
-		assetType: "asset_type",
-		// borrowerProfileId: "owner_id", // Removed - projects owned by entities, not users
-		// orgId: "owner_org_id", // Map to owner_org_id in new schema - removed as it's not in ProjectProfile
 		assignedAdvisorUserId: "assigned_advisor_id", // Map to assigned_advisor_id in new schema
-		propertyAddressStreet: "property_address_street",
-		propertyAddressCity: "property_address_city",
-		propertyAddressState: "property_address_state",
-		propertyAddressCounty: "property_address_county",
-		propertyAddressZip: "property_address_zip",
-		projectDescription: "project_description",
-		projectPhase: "project_phase",
-		loanAmountRequested: "loan_amount_requested",
-		loanType: "loan_type",
-		targetLtvPercent: "target_ltv_percent",
-		targetLtcPercent: "target_ltc_percent",
-		amortizationYears: "amortization_years",
-		interestOnlyPeriodMonths: "interest_only_period_months",
-		interestRateType: "interest_rate_type",
-		targetCloseDate: "target_close_date",
-		useOfProceeds: "use_of_proceeds",
-		recoursePreference: "recourse_preference",
-		purchasePrice: "purchase_price",
-		totalProjectCost: "total_project_cost",
-		capexBudget: "capex_budget",
-		propertyNoiT12: "property_noi_t12",
-		stabilizedNoiProjected: "stabilized_noi_projected",
-		exitStrategy: "exit_strategy",
-		businessPlanSummary: "business_plan_summary",
-		marketOverviewSummary: "market_overview_summary",
-		equityCommittedPercent: "equity_committed_percent",
-		projectStatus: "project_status",
-		completenessPercent: "completeness_percent",
-		internalAdvisorNotes: "internal_advisor_notes",
-		borrowerProgress: "borrower_progress",
-		projectProgress: "project_progress",
+	};
+	for (const key in profileData) {
+		const mappedKey = keyMap[key as keyof ProjectProfile];
+		if (mappedKey) {
+			dbData[mappedKey] = profileData[key as keyof ProjectProfile];
+		}
+	}
+	return dbData;
+};
+
+// Maps ProjectProfile fields to project_resumes.content JSONB column
+const projectProfileToResumeContent = (
+	profileData: Partial<ProjectProfile>
+): Partial<ProjectResumeContent> => {
+	const resumeContent: Partial<ProjectResumeContent> = {};
+	const keyMap: { [key in keyof ProjectProfile]?: keyof ProjectResumeContent } = {
+		projectName: "projectName",
+		assetType: "assetType",
+		projectStatus: "projectStatus",
+		propertyAddressStreet: "propertyAddressStreet",
+		propertyAddressCity: "propertyAddressCity",
+		propertyAddressState: "propertyAddressState",
+		propertyAddressCounty: "propertyAddressCounty",
+		propertyAddressZip: "propertyAddressZip",
+		projectDescription: "projectDescription",
+		projectPhase: "projectPhase",
+		loanAmountRequested: "loanAmountRequested",
+		loanType: "loanType",
+		targetLtvPercent: "targetLtvPercent",
+		targetLtcPercent: "targetLtcPercent",
+		amortizationYears: "amortizationYears",
+		interestOnlyPeriodMonths: "interestOnlyPeriodMonths",
+		interestRateType: "interestRateType",
+		targetCloseDate: "targetCloseDate",
+		useOfProceeds: "useOfProceeds",
+		recoursePreference: "recoursePreference",
+		purchasePrice: "purchasePrice",
+		totalProjectCost: "totalProjectCost",
+		capexBudget: "capexBudget",
+		propertyNoiT12: "propertyNoiT12",
+		stabilizedNoiProjected: "stabilizedNoiProjected",
+		exitStrategy: "exitStrategy",
+		businessPlanSummary: "businessPlanSummary",
+		marketOverviewSummary: "marketOverviewSummary",
+		equityCommittedPercent: "equityCommittedPercent",
+		completenessPercent: "completenessPercent",
+		internalAdvisorNotes: "internalAdvisorNotes",
+		borrowerProgress: "borrowerProgress",
+		projectProgress: "projectProgress",
 	};
 	for (const key in profileData) {
 		const mappedKey = keyMap[key as keyof ProjectProfile];
@@ -60,13 +76,13 @@ const projectProfileToDbProject = (
 				key === "targetCloseDate" &&
 				profileData.targetCloseDate === ""
 			) {
-				dbData[mappedKey] = null;
+				resumeContent[mappedKey] = null;
 			} else {
-				dbData[mappedKey] = profileData[key as keyof ProjectProfile];
+				resumeContent[mappedKey] = profileData[key as keyof ProjectProfile] as any;
 			}
 		}
 	}
-	return dbData;
+	return resumeContent;
 };
 
 interface ProjectState {
@@ -101,7 +117,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 
 		resetProjectState: () => {
-			console.log("[ProjectStore] Resetting state.");
 			set({ projects: [], activeProject: null, isLoading: false });
 		},
 
@@ -150,7 +165,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		loadUserProjects: async () => {
 			const { user } = useAuthStore.getState();
 			if (!user) {
-				console.log("[ProjectStore] No user found, resetting state.");
 				get().resetProjectState();
 				return;
 			}
@@ -158,8 +172,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			set({ isLoading: true });
 
 			try {
-				console.log("[ProjectStore] Loading projects for current user (RLS enforced).");
-
 				// RLS will only return projects the user has been granted access to.
 				// We perform a join to fetch the resource IDs for key project resources.
 				const { data, error } = await supabase
@@ -177,20 +189,27 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					throw error;
 				}
 				
-				console.log(`[ProjectStore] ✅ Found ${data?.length || 0} projects accessible by user.`);
 
-        const userProjects: ProjectProfile[] = (data || []).map(project => {
-          const projectDocsResource = project.resources.find(r => r.resource_type === 'PROJECT_DOCS_ROOT');
-          const projectResumeResource = project.resources.find(r => r.resource_type === 'PROJECT_RESUME');
+				// Get project IDs for the new query function
+				const projectIds = data?.map((project: any) => project.id) || [];
+				
+				// Use the new query function to get projects with resume content
+				const userProjects = await getProjectsWithResumes(projectIds);
 
-          return {
-            ...dbProjectToProjectProfile(project),
-            projectDocsResourceId: projectDocsResource?.id || null,
-            projectResumeResourceId: projectResumeResource?.id || null,
-          };
-        });
+				// Add resource IDs to each project
+				const projectsWithResources = userProjects.map((project: any) => {
+					const projectData = data?.find((p: any) => p.id === project.id);
+					const projectDocsResource = projectData?.resources?.find((r: any) => r.resource_type === 'PROJECT_DOCS_ROOT');
+					const projectResumeResource = projectData?.resources?.find((r: any) => r.resource_type === 'PROJECT_RESUME');
 
-				const projectsWithProgress = userProjects.map((p) => ({
+					return {
+						...project,
+						projectDocsResourceId: projectDocsResource?.id || null,
+						projectResumeResourceId: projectResumeResource?.id || null,
+					};
+				});
+
+				const projectsWithProgress = projectsWithResources.map((p) => ({
 					...p,
 					...get().calculateProgress(p),
 				}));
@@ -241,7 +260,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			// Convert the database project to ProjectProfile format
 			const newProjectData: ProjectProfile = {
 				id: data.project.id,
-				entityId: data.project.owner_org_id, // Use entityId instead of orgId
+				owner_org_id: data.project.owner_org_id,
 				assignedAdvisorUserId: data.project.assigned_advisor_id,
 				projectName: data.project.name,
 				assetType: "Multifamily",
@@ -317,15 +336,23 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						: state.activeProject,
 			}));
 
-			const updatesForDb = projectProfileToDbProject(updates);
-			const { data, error } = await supabase
-				.from("projects")
-				.update(updatesForDb)
-				.eq("id", id)
-				.select()
-				.single();
+			try {
+				// Delegate update to edge function so RLS and permissions are enforced server-side
+				const coreUpdates = projectProfileToDbProject(updates);
+				const resumeContent = projectProfileToResumeContent(updates);
 
-			if (error) {
+				const { error } = await supabase.functions.invoke('update-project', {
+					body: {
+						project_id: id,
+						core_updates: coreUpdates,
+						resume_updates: resumeContent,
+					},
+				});
+				if (error) throw error;
+
+				console.log(`[ProjectStore] Updated project ${id} via edge function.`);
+				return finalUpdatedProject;
+			} catch (error) {
 				console.error(
 					`[ProjectStore] Error updating project ${id}:`,
 					error
@@ -342,8 +369,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				}));
 				throw error;
 			}
-			console.log(`[ProjectStore] Updated project ${id} in DB.`);
-			return data as ProjectProfile;
 		},
 
 		deleteProject: async (id) => {
@@ -405,13 +430,6 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 	const prevOrgMemberships = prevAuthState.orgMemberships;
 	const currentOrgMemberships = authState.orgMemberships;
 
-	console.log("[ProjectStore Subscription] 🔍 DEBUG - Auth state changed");
-	console.log("[ProjectStore Subscription] 🔍 DEBUG - User:", user ? { id: user.id, email: user.email, role: user.role } : "null");
-	console.log("[ProjectStore Subscription] 🔍 DEBUG - Active Org:", activeOrg ? { id: activeOrg.id, name: activeOrg.name } : "null");
-	console.log("[ProjectStore Subscription] 🔍 DEBUG - Current Org Role:", currentOrgRole);
-	console.log("[ProjectStore Subscription] 🔍 DEBUG - Prev memberships:", prevOrgMemberships?.length || 0);
-	console.log("[ProjectStore Subscription] 🔍 DEBUG - Current memberships:", currentOrgMemberships?.length || 0);
-	console.log("[ProjectStore Subscription] 🔍 DEBUG - Memberships changed:", prevOrgMemberships !== currentOrgMemberships);
 
 	// Trigger project loading when:
 	// 1. User is a borrower
@@ -420,11 +438,6 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 	if (user?.role === "borrower" && user?.id && 
 		prevOrgMemberships !== currentOrgMemberships && 
 		currentOrgMemberships && currentOrgMemberships.length > 0) {
-		console.log(
-			"[ProjectStore Subscription] ✅ Org memberships loaded. Triggering project load."
-		);
 		useProjectStore.getState().loadUserProjects();
-	} else {
-		console.log("[ProjectStore Subscription] ⏭️ Not triggering project load - conditions not met");
 	}
 });

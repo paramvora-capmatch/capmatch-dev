@@ -6,53 +6,30 @@ import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import { useAuth } from '@/hooks/useAuth';
-import { BorrowerProfileForm } from "../../components/forms/BorrowerProfileForm";
+import { BorrowerResumeForm } from "../../components/forms/BorrowerResumeForm";
 
-import { useProjects } from "../../hooks/useProjects";
 import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
 
-import { BorrowerProfile } from "../../types/enhanced-types";
+import { BorrowerResumeContent } from "../../lib/project-queries";
 import { Loader2 } from "lucide-react";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay"; // Import LoadingOverlay
 
 export default function ProfilePage() {
 	const router = useRouter();
-	const { createProject, projects } = useProjects();
 	// Use context hook, providing a fallback empty object if context is not ready
-	const { borrowerProfile, isLoading: profileLoading } =
-		useBorrowerProfile() || { borrowerProfile: null, isLoading: true };
-	const { user } = useAuth();
+	const { isLoading: profileLoading } =
+		useBorrowerProfile() || { content: null, isLoading: true };
 
 	// Handle profile completion from the form's onComplete callback
-	const handleProfileComplete = async (profile: BorrowerProfile | null) => {
+	const handleProfileComplete = async (profile: BorrowerResumeContent | null) => {
 		if (!profile) {
 			router.push("/dashboard"); // Go to dashboard on failure/cancellation
 			return;
 		}
 
-		// If the user has no projects, create their first one after profile completion.
-		if (projects.length === 0) {
-			try {
-				console.log(
-					"First time profile completion with 0 projects. Creating default project..."
-				);
-				const newProject = await createProject({
-					projectName: "My First Project",
-					projectStatus: "Info Gathering",
-				});
-				// Redirect to the new project's workspace
-				router.replace(`/project/workspace/${newProject.id}`);
-			} catch (error) {
-				console.error(
-					"Failed to create project after profile completion:",
-					error
-				);
-				router.push("/dashboard"); // Fallback to dashboard
-			}
-		} else {
-			// User already has projects, just go back to dashboard
-			router.push("/dashboard");
-		}
+		// Profile completed successfully, redirect to dashboard
+		// The first project is already created by the edge function during onboarding
+		router.push("/dashboard");
 	};
 
 	return (
@@ -79,7 +56,7 @@ export default function ProfilePage() {
 								</p>
 							</div>
 							{/* Pass the completion handler */}
-							<BorrowerProfileForm
+							<BorrowerResumeForm
 								onComplete={handleProfileComplete}
 							/>
 						</div>

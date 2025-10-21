@@ -49,6 +49,7 @@ serve(async (req) => {
     const project = await createProjectWithResumeAndStorage(supabaseAdmin, {
       name,
       owner_org_id,
+      creator_id: user.id
     });
 
     // --- Atomic Operation End ---

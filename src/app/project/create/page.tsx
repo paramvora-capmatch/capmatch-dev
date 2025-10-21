@@ -14,7 +14,6 @@ import { Card, CardContent, CardHeader } from '../../../components/ui/card';
 export default function CreateProjectPage() {
   const router = useRouter();
   const { createProject, projects, isLoading } = useProjects();
-  const { activeOrg } = useAuthStore();
   const [projectName, setProjectName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 

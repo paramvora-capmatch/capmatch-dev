@@ -146,7 +146,7 @@ export default function ZoningMap({ className = '', compact = false }: ZoningMap
               <p className="text-sm text-gray-600">2.5 Acres</p>
               <p className="text-sm text-gray-600">Zoning: MU-4</p>
               <p className="text-sm text-gray-600">FAR: 3.5/4.0</p>
-              <p className="text-sm text-gray-600">Height: 85'/100'</p>
+              <p className="text-sm text-gray-600">Height: 85&apos;/100&apos;</p>
             </div>
           </Popup>
         </Polygon>
@@ -187,7 +187,7 @@ export default function ZoningMap({ className = '', compact = false }: ZoningMap
               </div>
               <div>
                 <span className="text-gray-600">Height:</span>
-                <span className="font-medium ml-1">85'/100'</span>
+                <span className="font-medium ml-1">85&apos;/100&apos;</span>
               </div>
               <div>
                 <span className="text-gray-600">Lot Size:</span>

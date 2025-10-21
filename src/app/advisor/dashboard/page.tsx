@@ -10,8 +10,6 @@ import { LoadingOverlay } from "../../../components/ui/LoadingOverlay";
 import {
 	Card,
 	CardContent,
-	CardHeader,
-	CardFooter,
 } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/Button";
 import { LogOut, ChevronLeft } from "lucide-react";
@@ -22,19 +20,15 @@ import {
 	MessageSquare,
 	PieChart,
 	Calendar,
-	ArrowRight,
 	Clock,
 	Zap,
 	CheckCircle,
 	AlertTriangle,
-	ChevronRight,
 } from "lucide-react";
 import {
-	getAdvisors,
 	getAdvisorById,
 } from "../../../../lib/enhancedMockApiService";
 import {
-	BorrowerProfile,
 	Advisor,
 	ProjectProfile,
 	ProjectMessage,
@@ -43,9 +37,8 @@ import {
 import { storageService } from "@/lib/storage";
 import { supabase } from "../../../../lib/supabaseClient";
 import {
-	dbMessageToProjectMessage,
-	dbProjectToProjectProfile,
-} from "@/lib/dto-mapper";
+	getProjectsWithResumes,
+} from "@/lib/project-queries";
 
 export default function AdvisorDashboardPage() {
 	const router = useRouter();
@@ -54,7 +47,7 @@ export default function AdvisorDashboardPage() {
 	const [advisor, setAdvisor] = useState<Advisor | null>(null);
 	const [activeProjects, setActiveProjects] = useState<ProjectProfile[]>([]);
 	const [recentMessages, setRecentMessages] = useState<ProjectMessage[]>([]);
-	const [isLoadingData, setIsLoadingData] = useState(true);
+	const [, setIsLoadingData] = useState(true);
 	const [borrowerData, setBorrowerData] = useState<
 		Record<string, { name: string; email: string }>
 	>({});
@@ -81,9 +74,6 @@ export default function AdvisorDashboardPage() {
 
 				if (user.isDemo) {
 					// --- DEMO MODE ---
-					console.log(
-						"[AdvisorDashboard] Loading data for DEMO advisor."
-					);
 
 					const advisorProfile = await getAdvisorById(user.email);
 					if (advisorProfile) setAdvisor(advisorProfile);
@@ -99,9 +89,6 @@ export default function AdvisorDashboardPage() {
 					}
 				} else {
 					// --- REAL USER MODE ---
-					console.log(
-						"[AdvisorDashboard] Loading data for REAL advisor from Supabase."
-					);
 
 					const realAdvisorProfile: Advisor = {
 						id: user.id || user.email,
@@ -128,16 +115,15 @@ export default function AdvisorDashboardPage() {
 					if (projectsError) throw projectsError;
 
 					if (projectsData) {
-						assignedProjects = projectsData.map(
-							dbProjectToProjectProfile
-						);
+						const projectIds = projectsData.map((p: ProjectProfile) => p.id);
+						assignedProjects = await getProjectsWithResumes(projectIds);
 						setActiveProjects(assignedProjects);
 
 							if (assignedProjects.length > 0) {
 								const ownerIds = Array.from(
 									new Set(
 										assignedProjects
-											.map((p) => p.entityId)
+											.map((p: ProjectProfile) => p.owner_org_id)
 											.filter(Boolean)
 									)
 								) as string[];
@@ -153,7 +139,7 @@ export default function AdvisorDashboardPage() {
 
 									if (borrowers) {
 										const borrowerMap = borrowers.reduce(
-											(acc, b) => {
+											(acc: Record<string, { name: string; email: string }>, b: { id: string; full_name?: string; email: string }) => {
 										acc[(b.id as string)] = {
 													name: b.full_name || b.email,
 													email: b.email,
@@ -233,10 +219,8 @@ export default function AdvisorDashboardPage() {
 					if (messagesError) throw messagesError;
 
 					if (messagesData) {
-						const mappedMessages = messagesData.map(msg => {
-							return dbMessageToProjectMessage(msg);
-						});
-						setRecentMessages(mappedMessages);
+						// Messages are already in the correct format from the query
+						setRecentMessages(messagesData);
 					}
 				}
 			} catch (error) {
@@ -296,7 +280,7 @@ export default function AdvisorDashboardPage() {
 	};
 
 	return (
-		<RoleBasedRoute roles={["advisor", "admin"]}>
+		<RoleBasedRoute roles={["advisor"]}>
 			<div className="flex h-screen bg-gray-50">
 				<LoadingOverlay isLoading={false} />
 
@@ -376,7 +360,7 @@ export default function AdvisorDashboardPage() {
 									// The redirect is now handled automatically by the
 									// RoleBasedRoute component when the auth state changes to logged out.
 									// Manually pushing the router here was causing issues.
-									console.log("Logout initiated...");
+									// Logout initiated
 								}}
 							>
 								Sign Out
@@ -542,11 +526,11 @@ export default function AdvisorDashboardPage() {
 															<td className="px-6 py-4 whitespace-nowrap">
 																<div className="text-sm text-gray-900">
 																	{user?.isDemo
-																		? (project.entityId
-																			? (project.entityId as string).split("_")[0]
+																		? (project.owner_org_id
+																			? (project.owner_org_id as string).split("_")[0]
 																			: "...")
-																	: (project.entityId
-																		? borrowerData[project.entityId as string]
+																	: (project.owner_org_id
+																		? borrowerData[project.owner_org_id as string]
 																		: undefined)
 																					?.name ||
 																			  "..."}

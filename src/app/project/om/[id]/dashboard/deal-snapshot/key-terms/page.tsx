@@ -9,14 +9,6 @@ import { useState } from 'react';
 export default function KeyTermsPage() {
   const [expandedCovenants, setExpandedCovenants] = useState(false);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
 
   return (
     <div className="max-w-6xl mx-auto p-6">

@@ -43,7 +43,7 @@ export default function ProjectDocumentsPage() {
 							Project not found
 						</h2>
 						<p className="text-gray-600 mb-6">
-							The project you're looking for doesn't exist or has
+							The project you&apos;re looking for doesn&apos;t exist or has
 							been removed.
 						</p>
 						<Button
@@ -77,13 +77,11 @@ export default function ProjectDocumentsPage() {
 				</div>
 
 				{/* Only render DocumentManager if we have the required data */}
-				{project.orgId || activeOrg?.id ? (
+				{project.owner_org_id || activeOrg?.id ? (
 					<DocumentManager
 						projectId={project.id}
-						folderId={null}
+						resourceId="PROJECT_ROOT"
 						title="Project Documents"
-						canUpload={true}
-						canDelete={true}
 					/>
 				) : (
 					<div className="text-center py-8">
@@ -95,7 +93,7 @@ export default function ProjectDocumentsPage() {
 								This project is not associated with an org, or your org information is not loaded.
 							</p>
 							<div className="text-sm text-yellow-600">
-								<p>Project Org ID: {project.orgId || 'Not set'}</p>
+								<p>Project Org ID: {project.owner_org_id || 'Not set'}</p>
 								<p>Your Active Org: {activeOrg?.id || 'Not loaded'}</p>
 								<p>User ID: {user?.id || 'Not loaded'}</p>
 								<p>Bucket ID Used: {activeOrg?.id || 'None'}</p>

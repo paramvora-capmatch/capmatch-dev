@@ -5,7 +5,6 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
-import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
 import { unitMixData, marketComps } from '@/services/mockOMData';
 import { MapPin, Home, Package, Building2 } from 'lucide-react';
@@ -44,7 +43,7 @@ export default function AssetProfilePage() {
                         </div>
                         <div>
                             <p className="text-gray-500">Height</p>
-                            <p className="font-medium">85' / 100'</p>
+                            <p className="font-medium">85&apos; / 100&apos;</p>
                         </div>
                     </div>
                 </div>

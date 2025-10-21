@@ -34,7 +34,7 @@ const CapitalTypeFilter: React.FC<CapitalTypeFilterProps> = ({ value, onChange }
           </button>
           {showTooltip && (
             <div className="absolute z-10 w-64 p-2 mt-2 text-xs bg-white rounded-md shadow-lg border border-gray-200 -translate-x-1/2 left-1/2">
-              Select the type of capital structure you're seeking. Different lenders specialize in different capital types.
+              Select the type of capital structure you&apos;re seeking. Different lenders specialize in different capital types.
             </div>
           )}
         </div>

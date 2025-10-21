@@ -1,14 +1,13 @@
 // src/app/accept-invite/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgStore } from '@/stores/useOrgStore';
 import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
-import { supabase } from '../../../lib/supabaseClient';
 import { 
   Mail, 
   CheckCircle, 
@@ -42,17 +41,7 @@ export default function AcceptInvitePage() {
 
   const token = searchParams.get('token');
 
-  useEffect(() => {
-    if (!token) {
-      setError('No invitation token provided');
-      setIsLoading(false);
-      return;
-    }
-
-    validateInvite();
-  }, [token]);
-
-  const validateInvite = async () => {
+  const validateInvite = useCallback(async () => {
     if (!token) return;
 
     try {
@@ -68,7 +57,17 @@ export default function AcceptInvitePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, validateInviteToken]);
+
+  useEffect(() => {
+    if (!token) {
+      setError('No invitation token provided');
+      setIsLoading(false);
+      return;
+    }
+
+    validateInvite();
+  }, [token, validateInvite]);
 
   const handleAcceptInvite = async () => {
     if (!token) return;
@@ -164,10 +163,10 @@ export default function AcceptInvitePage() {
                     <Mail className="h-6 w-6 text-green-600" />
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    You're Invited!
+                    You&apos;re Invited!
                   </h3>
                   <p className="text-sm text-gray-600">
-                    You've been invited to join <strong>{inviteData.orgName}</strong>
+                    You&apos;ve been invited to join <strong>{inviteData.orgName}</strong>
                     {inviteData.inviterName && (
                       <span> by {inviteData.inviterName}</span>
                     )}
@@ -196,7 +195,7 @@ export default function AcceptInvitePage() {
                       <div className="space-y-4">
                         <div className="text-center">
                           <p className="text-sm text-gray-600 mb-4">
-                            You'll need to create an account to join this team.
+                            You&apos;ll need to create an account to join this team.
                           </p>
                         </div>
                         
@@ -305,9 +304,9 @@ export default function AcceptInvitePage() {
                     <div className="text-sm text-blue-800">
                       <p className="font-medium mb-1">What happens next?</p>
                       <ul className="space-y-1">
-                        <li>• You'll be added to the team with appropriate permissions</li>
+                        <li>• You&apos;ll be added to the team with appropriate permissions</li>
                         <li>• You can access projects and documents based on your role</li>
-                        <li>• You'll be redirected to your dashboard after joining</li>
+                        <li>• You&apos;ll be redirected to your dashboard after joining</li>
                       </ul>
                     </div>
                   </div>
