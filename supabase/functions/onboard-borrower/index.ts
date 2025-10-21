@@ -100,7 +100,7 @@ serve(async (req) => {
       {
         const { error: bucketError } = await supabaseAdmin.storage.createBucket(orgData.id, {
           public: false,
-          fileSizeLimit: 200 * 1024 * 1024, // 200MB
+          fileSizeLimit: 50 * 1024 * 1024, // 50MB
           allowedMimeTypes: [
             "application/pdf",
             "image/jpeg",
