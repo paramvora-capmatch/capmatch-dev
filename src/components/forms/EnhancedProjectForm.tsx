@@ -1,7 +1,7 @@
 // src/components/forms/EnhancedProjectForm.tsx
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { FormWizard, Step } from "../ui/FormWizard";
 import { Card, CardContent, CardHeader } from "../ui/card";
@@ -206,15 +206,15 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
   }, [formData, existingProject, updateProject]);
 
   // Handle form field changes
-  const handleInputChange = (field: keyof ProjectProfile, value: string | number | boolean | null) => {
+  const handleInputChange = useCallback((field: keyof ProjectProfile, value: string | number | boolean | null) => {
     const newFormData = { ...formData, [field]: value };
     setFormData(newFormData);
     // Notify parent component of form data changes for AskAI
     onFormDataChange?.(newFormData);
-  };
+  }, [formData, onFormDataChange]);
 
   // Handle form submission (manual save via button)
-  const handleFormSubmit = async () => {
+  const handleFormSubmit = useCallback(async () => {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     try {
       setFormSaved(true); // Indicate loading/saving
@@ -231,7 +231,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
       // Reset saved indicator after a short delay
       setTimeout(() => setFormSaved(false), 2000);
     }
-  };
+  }, [formData, updateProject, onComplete]);
 
   // --- Define Steps for FormWizard ---
   const steps: Step[] = useMemo(
@@ -1144,9 +1144,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         ),
       },
     ],
-    [formData, formSaved, handleInputChange, handleFormSubmit, router]
-  ); // onAskAI is used in components but not needed in dependency array as it's optional callback
-  // Include dependencies for useMemo
+    [formData, formSaved, handleInputChange, handleFormSubmit, router, onAskAI]
+  );
   return (
     <FormProvider initialFormData={formData}>
       <FormWizard

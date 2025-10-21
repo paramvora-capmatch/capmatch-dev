@@ -10,7 +10,6 @@ import { useProjects } from "../../hooks/useProjects";
 import { useChatStore } from "../../stores/useChatStore";
 import { useAuth } from "../../hooks/useAuth";
 import { ProjectMessage } from "../../types/enhanced-types";
-import { getAdvisorById } from "../../../lib/enhancedMockApiService";
 import { cn } from "@/utils/cn";
 import { AIContextBuilder } from "../../services/aiContextBuilder";
 import { PresetQuestion } from "../../types/ask-ai-types";
@@ -53,7 +52,7 @@ export const ConsolidatedSidebar: React.FC<ConsolidatedSidebarProps> = ({
   } = useAskAI({ projectId, formData });
 
   // Message Panel state and hooks
-  const { getProject, activeProject } = useProjects();
+  const { activeProject } = useProjects();
   const { user } = useAuth();
   const {
     messages: projectMessages,
@@ -256,7 +255,7 @@ Provide actionable advice that helps me make the best decision for my project.`;
                         message.user_id === user?.id
                           ? "justify-end"
                           : "justify-start"
-                      )} // eslint-disable-line react/jsx-closing-bracket-location
+                      )}
                     >
                       <div
                         className={cn(
@@ -318,7 +317,7 @@ Provide actionable advice that helps me make the best decision for my project.`;
               <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg border-gray-300 bg-gray-50/50">
                 <MessageSquare className="h-12 w-12 text-gray-400 mb-3" />
                 <p className="text-sm text-gray-600 text-center">
-                  Click "Ask AI" on a form field to start.
+                  Click &ldquo;Ask AI&rdquo; on a form field to start.
                 </p>
               </div>
             ) : (

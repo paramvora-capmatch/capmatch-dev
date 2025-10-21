@@ -40,7 +40,6 @@ const geographicMarketsOptions = [ "Northeast", "Mid-Atlantic", "Southeast", "Mi
 export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComplete }) => {
   const { user } = useAuth();
   const { content: borrowerProfile, saveForProject } = useBorrowerProfileStore();
-  const principals: Principal[] = []; // Principals removed from new schema
 
 
 
@@ -81,11 +80,11 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
   }, [formData, borrowerProfile, saveForProject]);
 
   // Input change handlers
-  const handleInputChange = (field: keyof BorrowerProfile, value: string | boolean | string[] | ExperienceRange | DealValueRange | CreditScoreRange | NetWorthRange | LiquidityRange | EntityStructure) => { setFormData(prev => ({ ...prev, [field]: value })); };
-  const handlePrincipalInputChange = (field: keyof Principal, value: string | number | PrincipalRole) => { setPrincipalFormData(prev => ({ ...prev, [field]: value })); };
+  const handleInputChange = useCallback((field: keyof BorrowerProfile, value: string | boolean | string[] | ExperienceRange | DealValueRange | CreditScoreRange | NetWorthRange | LiquidityRange | EntityStructure) => { setFormData(prev => ({ ...prev, [field]: value })); }, []);
+  const handlePrincipalInputChange = useCallback((field: keyof Principal, value: string | number | PrincipalRole) => { setPrincipalFormData(prev => ({ ...prev, [field]: value })); }, []);
 
   // --- Submit Profile - Safest Context Access ---
-  const handleProfileSubmit = async () => {
+  const handleProfileSubmit = useCallback(async () => {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     try {
       setFormSaved(true);
@@ -104,16 +103,14 @@ export const BorrowerProfileForm: React.FC<BorrowerProfileFormProps> = ({ onComp
     } finally {
       setTimeout(() => setFormSaved(false), 2000);
     }
-  };
+  }, [formData, onComplete, saveForProject]);
 
   // Principals removed from new schema - these functions are no-ops
-  const handleAddPrincipal = async () => {
+  const handleAddPrincipal = useCallback(async () => {
     console.warn('Principals are no longer supported in the new schema');
-  };
+  }, []);
 
-  const handleRemovePrincipal = async (_principalId: string) => {
-    console.warn('Principals are no longer supported in the new schema');
-  };
+  // handleRemovePrincipal removed as it's not used
 
 
   // FormWizard Steps definition (useMemo)

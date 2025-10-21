@@ -79,19 +79,30 @@ const getStatusColor = (status: ProjectStatus) => {
   }
 };
 
+interface ProjectMessage {
+  id: string;
+  projectId: string;
+  senderId: string;
+  senderType: "Advisor" | "Borrower";
+  message: string;
+  createdAt: string;
+}
+
 export default function AdvisorProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
   const { user } = useAuth();
 
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<
+    (Project & { owner_entity_id: string }) | null
+  >(null);
   const [borrowerResume, setBorrowerResume] = useState<BorrowerResume | null>(
     null
-  ) as [BorrowerResume | null, (value: BorrowerResume | null) => void];
+  );
   const [projectResume, setProjectResume] = useState<ProjectResume | null>(
     null
   );
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [documentRequirements, setDocumentRequirements] = useState<
     ProjectDocumentRequirement[]
   >([]);
@@ -114,7 +125,10 @@ export default function AdvisorProjectDetailPage() {
       try {
         setIsLoadingData(true);
 
-        let foundProject: Project | undefined | null = null;
+        let foundProject:
+          | (Project & { owner_entity_id: string })
+          | undefined
+          | null = null;
         if (user.isDemo) {
           const allProjects = await storageService.getItem<ProjectProfile[]>(
             "projects"
@@ -138,7 +152,8 @@ export default function AdvisorProjectDetailPage() {
             .eq("id", projectId)
             .single();
           if (error) throw error;
-          if (data) foundProject = data;
+          if (data)
+            foundProject = data as Project & { owner_entity_id: string };
         }
 
         if (foundProject) {
@@ -250,19 +265,21 @@ export default function AdvisorProjectDetailPage() {
               if (messagesError) {
                 console.error("Error fetching messages:", messagesError);
               } else {
-                const mappedMessages = messagesData.map((msg) => {
-                  const senderRole =
-                    msg.user_id === user.id ? "advisor" : "borrower";
-                  return {
-                    id: msg.id.toString(),
-                    projectId: projectId,
-                    senderId: msg.user_id || "",
-                    senderType:
-                      senderRole === "advisor" ? "Advisor" : "Borrower",
-                    message: msg.content || "",
-                    createdAt: msg.created_at,
-                  };
-                });
+                const mappedMessages: ProjectMessage[] = messagesData.map(
+                  (msg) => {
+                    const senderRole =
+                      msg.user_id === user.id ? "advisor" : "borrower";
+                    return {
+                      id: msg.id.toString(),
+                      projectId: projectId,
+                      senderId: msg.user_id || "",
+                      senderType:
+                        senderRole === "advisor" ? "Advisor" : "Borrower",
+                      message: msg.content || "",
+                      createdAt: msg.created_at,
+                    };
+                  }
+                );
                 setMessages(mappedMessages);
               }
             }
@@ -316,7 +333,7 @@ export default function AdvisorProjectDetailPage() {
 
         const channel = supabase
           .channel(`project-messages-advisor-${projectId}`)
-          .on<any>(
+          .on(
             "postgres_changes",
             {
               event: "INSERT",
@@ -329,7 +346,7 @@ export default function AdvisorProjectDetailPage() {
               const senderRole =
                 newMessagePayload.user_id === user.id ? "advisor" : "borrower";
 
-              const newMessage = {
+              const newMessage: ProjectMessage = {
                 id: newMessagePayload.id.toString(),
                 projectId: projectId,
                 senderId: newMessagePayload.user_id || "",

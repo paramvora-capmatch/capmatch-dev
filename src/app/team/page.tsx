@@ -106,12 +106,12 @@ export default function TeamPage() {
     return new Date(expiresAt) < new Date();
   };
 
-  const getMemberDisplayName = (member: any) => {
+  const getMemberDisplayName = (member: Record<string, unknown>) => {
     // Use the userName from the processed member data
     return member.userName || "Unknown User";
   };
 
-  const getMemberEmail = (member: any) => {
+  const getMemberEmail = (member: Record<string, unknown>) => {
     // Use the userEmail from the processed member data
     return member.userEmail || "user@example.com";
   };
@@ -303,7 +303,7 @@ export default function TeamPage() {
                           </div>
                           <p className="text-sm text-gray-500">
                             Invited by{" "}
-                            {(invite as any).inviterName || "Unknown"}
+                            {(invite as Record<string, unknown>).inviterName || "Unknown"}
                           </p>
                           <p className="text-xs text-gray-400">
                             Invited {formatDate(invite.created_at)}

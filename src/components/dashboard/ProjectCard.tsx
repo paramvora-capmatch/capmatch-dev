@@ -37,7 +37,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
         month: "short",
         day: "numeric",
       });
-    } catch (e) {
+    } catch {
       return "Invalid Date";
     }
   };
@@ -51,8 +51,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
       try {
         await deleteProject(project.id);
         console.log("Project deleted successfully");
-      } catch (error) {
-        console.error("Failed to delete project:", error);
+      } catch {
+        console.error("Failed to delete project");
         // Optionally show an error toast message here
       }
     }

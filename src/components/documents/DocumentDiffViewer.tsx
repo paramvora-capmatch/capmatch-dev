@@ -23,6 +23,13 @@ interface DiffLine {
   lineNumber2?: number;
 }
 
+interface VersionInfo {
+  id: string;
+  version_number: number;
+  created_at: string;
+  storage_path: string;
+}
+
 const extractTextFromPdf = async (buffer: ArrayBuffer): Promise<string> => {
   try {
     const pdf = await pdfjs.getDocument({ data: buffer } as Record<
@@ -75,7 +82,7 @@ const extractTextFromPowerPoint = async (
     const zipData = await zip.loadAsync(buffer);
 
     let text = "";
-    const slideFiles = Object.keys(zipData.files).filter((name) =>
+    const slideFiles = Object.keys(zipData.files).filter((name: string) =>
       name.match(/ppt\/slides\/slide\d+\.xml$/)
     );
 
@@ -84,7 +91,7 @@ const extractTextFromPowerPoint = async (
       // Extract text from XML tags (simple regex-based extraction)
       const textMatches = content.match(/<a:t>([^<]+)<\/a:t>/g);
       if (textMatches) {
-        textMatches.forEach((match) => {
+        textMatches.forEach((match: string) => {
           const extractedText = match.replace(/<a:t>|<\/a:t>/g, "");
           text += extractedText + "\n";
         });
@@ -193,8 +200,8 @@ export const DocumentDiffViewer: React.FC<DiffViewerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [diffs, setDiffs] = useState<DiffLine[]>([]);
-  const [version1Info, setVersion1Info] = useState<any>(null);
-  const [version2Info, setVersion2Info] = useState<any>(null);
+  const [version1Info, setVersion1Info] = useState<VersionInfo | null>(null);
+  const [version2Info, setVersion2Info] = useState<VersionInfo | null>(null);
 
   const loadAndCompareDocs = useCallback(async () => {
     setIsLoading(true);
