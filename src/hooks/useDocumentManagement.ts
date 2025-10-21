@@ -69,7 +69,11 @@ export const useDocumentManagement = (
         .select(
           `
           id, name, resource_type, created_at,
-          current_version:document_versions!resources_current_version_id_fkey(storage_path, created_at, metadata)
+          current_version:document_versions!resources_current_version_id_fkey(
+            storage_path, 
+            created_at, 
+            metadata
+          )
         `
         )
         .eq("parent_id", parentId)
@@ -83,18 +87,23 @@ export const useDocumentManagement = (
 
       for (const resource of resources || []) {
         if (resource.resource_type === "FILE") {
-          const size = resource.current_version?.metadata?.size || 0;
+          // Handle case where current_version might be an array or object
+          const currentVersion = Array.isArray(resource.current_version) 
+            ? resource.current_version[0] 
+            : resource.current_version;
+          
+          const size = currentVersion?.metadata?.size || 0;
           filesList.push({
             id: resource.id,
             name: resource.name,
             size: size,
             type: "file",
-            storage_path: resource.current_version?.storage_path || "",
+            storage_path: currentVersion?.storage_path || "",
             resource_id: resource.id,
             created_at: resource.created_at,
             updated_at:
-              resource.current_version?.created_at || resource.created_at,
-            metadata: resource.current_version?.metadata,
+              currentVersion?.created_at || resource.created_at,
+            metadata: currentVersion?.metadata,
           });
         } else if (resource.resource_type === "FOLDER") {
           foldersList.push({
@@ -159,7 +168,10 @@ export const useDocumentManagement = (
           })
           .select()
           .single();
-        if (resourceError) throw resourceError;
+        if (resourceError) {
+          console.error("Error creating resource:", resourceError);
+          throw resourceError;
+        }
         resourceId = resource.id;
 
         const { data: version, error: versionError } = await supabase
@@ -171,14 +183,20 @@ export const useDocumentManagement = (
           })
           .select()
           .single();
-        if (versionError) throw versionError;
+        if (versionError) {
+          console.error("Error creating document version:", versionError);
+          throw versionError;
+        }
 
         // Mark the new version as active (it's the current one)
         const { error: statusError } = await supabase
           .from("document_versions")
           .update({ status: "active" })
           .eq("id", version.id);
-        if (statusError) throw statusError;
+        if (statusError) {
+          console.error("Error updating version status:", statusError);
+          throw statusError;
+        }
 
         const fileFolder = projectId
           ? `${projectId}/${resourceId}`
@@ -188,24 +206,44 @@ export const useDocumentManagement = (
         const { error: uploadError } = await supabase.storage
           .from(activeOrg.id)
           .upload(finalStoragePath, file, { upsert: false });
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("Error uploading file to storage:", uploadError);
+          throw uploadError;
+        }
 
         const { error: updateVersionError } = await supabase
           .from("document_versions")
           .update({ storage_path: finalStoragePath })
           .eq("id", version.id);
-        if (updateVersionError) throw updateVersionError;
+        if (updateVersionError) {
+          console.error("Error updating version storage path:", updateVersionError);
+          throw updateVersionError;
+        }
 
         const { error: updateResourceError } = await supabase
           .from("resources")
           .update({ current_version_id: version.id })
           .eq("id", resourceId);
-        if (updateResourceError) throw updateResourceError;
+        if (updateResourceError) {
+          console.error("Error updating resource current version:", updateResourceError);
+          throw updateResourceError;
+        }
 
         await listDocuments();
         return resource;
       } catch (err) {
-        console.error("Error uploading file:", err);
+        console.error("Error uploading file:", {
+          error: err,
+          message: err instanceof Error ? err.message : "Unknown error",
+          stack: err instanceof Error ? err.stack : undefined,
+          resourceId,
+          finalStoragePath,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          projectId,
+          activeOrgId: activeOrg?.id
+        });
         setError(err instanceof Error ? err.message : "Failed to upload file");
         if (finalStoragePath)
           await supabase.storage.from(activeOrg!.id).remove([finalStoragePath]);
@@ -353,17 +391,25 @@ export const useDocumentManagement = (
           .select(
             `
           name,
-          current_version:document_versions!resources_current_version_id_fkey(storage_path)
+          current_version:document_versions!resources_current_version_id_fkey(
+            storage_path
+          )
         `
           )
           .eq("id", fileId)
           .single();
 
         if (error) throw error;
-        if (!data?.current_version?.storage_path)
+        
+        // Handle case where current_version might be an array or object
+        const currentVersion = Array.isArray(data?.current_version) 
+          ? data.current_version[0] 
+          : data?.current_version;
+          
+        if (!currentVersion?.storage_path)
           throw new Error("File has no storage path");
 
-        const storage_path = data.current_version.storage_path;
+        const storage_path = currentVersion.storage_path;
         const file_name = data.name;
 
         // Download from storage
