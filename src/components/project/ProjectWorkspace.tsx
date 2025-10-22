@@ -40,11 +40,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [droppedFieldId, setDroppedFieldId] = useState<string | null>(null);
 
+  const [highlightedResourceId, setHighlightedResourceId] = useState<string | null>(null);
+
   const [currentFormData, setCurrentFormData] = useState<ProjectProfile | null>(
     null
   );
 
   const [activeTab, setActiveTab] = useState<"chat" | "documents">("chat");
+
 
   // Calculate if we're still in initial loading phase
   const isInitialLoading =
@@ -101,6 +104,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const projectCompleteness = activeProject?.completenessPercent || 0;
   const isProjectComplete = projectCompleteness === 100; // Check if project is complete
+
+  const handleMentionClick = (resourceId: string) => {
+    setActiveTab('documents');
+    setHighlightedResourceId(resourceId);
+    // Clear the highlight after a short delay
+    setTimeout(() => {
+      setHighlightedResourceId(null);
+    }, 3000);
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -197,7 +209,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               </CardHeader>
               <CardContent className="flex-1 p-0 overflow-hidden">
                 {activeTab === "chat" ? (
-                  <ChatInterface projectId={projectId} />
+                  <ChatInterface projectId={projectId} onMentionClick={handleMentionClick} />
                 ) : (
                   <div className="p-2 h-full">
                     <DocumentManager
@@ -206,6 +218,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       title=""
                       canUpload={true}
                       canDelete={true}
+                      highlightedResourceId={highlightedResourceId}
                     />
                   </div>
                 )}

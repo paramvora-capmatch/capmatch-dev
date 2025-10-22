@@ -1,28 +1,40 @@
 // src/components/chat/ChatInterface.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import { useChatStore } from '../../stores/useChatStore';
-import { useOrgStore } from '@/stores/useOrgStore';
-import { useAuthStore } from '../../stores/useAuthStore';
-import { useProjects } from '../../hooks/useProjects';
-import { supabase } from '../../../lib/supabaseClient';
-import { Card, CardContent } from '../ui/card';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { MultiSelect } from '../ui/MultiSelect';
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { useChatStore } from "../../stores/useChatStore";
 import {
-  MessageCircle, 
-  Send, 
-  Users, 
+  useDocumentManagement,
+  DocumentFile,
+} from "@/hooks/useDocumentManagement";
+import { useOrgStore } from "@/stores/useOrgStore";
+import { useAuthStore } from "../../stores/useAuthStore";
+import { useProjects } from "../../hooks/useProjects";
+import { supabase } from "../../../lib/supabaseClient";
+import { Card, CardContent } from "../ui/card";
+import { Button } from "../ui/Button";
+import { Input } from "../ui/Input";
+import { MultiSelect } from "../ui/MultiSelect";
+import {
+  MessageCircle,
+  Send,
+  Users,
   Plus,
   Loader2,
   AlertCircle,
-} from 'lucide-react';
+  FileText,
+} from "lucide-react";
 
 interface ChatInterfaceProps {
   projectId: string;
+  onMentionClick?: (resourceId: string) => void;
 }
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({
+  projectId,
+  onMentionClick,
+}) => {
   const {
     threads,
     activeThreadId,
@@ -34,23 +46,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
     createThread,
     setActiveThread,
     sendMessage,
-    clearError
+    clearError,
   } = useChatStore();
 
   const { user } = useAuthStore();
   const { activeProject } = useProjects();
 
-  const [newMessage, setNewMessage] = useState('');
-  const [newThreadTopic, setNewThreadTopic] = useState('');
+  const [newMessage, setNewMessage] = useState("");
+  const [newThreadTopic, setNewThreadTopic] = useState("");
   const { isOwner, members } = useOrgStore();
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
+    []
+  );
 
   const memberOptions = members
-    .filter(m => m.user_id !== user?.id) // Exclude self
-    .map(m => ({ value: m.user_id, label: m.userName || m.userEmail || '' }));
+    .filter((m) => m.user_id !== user?.id) // Exclude self
+    .map((m) => ({ value: m.user_id, label: m.userName || m.userEmail || "" }));
 
   const [showCreateThread, setShowCreateThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  // State for document mentions
+  const { files: mentionableDocuments, isLoading: isLoadingDocuments } =
+    useDocumentManagement(projectId, null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<DocumentFile[]>([]);
 
   useEffect(() => {
     if (projectId) {
@@ -59,16 +80,74 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
   }, [projectId, loadThreadsForProject]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (mentionQuery === null) {
+      textAreaRef.current?.focus();
+    }
+  }, [mentionQuery]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !activeThreadId) return;
     try {
       await sendMessage(activeThreadId, newMessage.trim());
-      setNewMessage('');
+      setNewMessage("");
     } catch (err) {
-      console.error('Failed to send message:', err);
+      console.error("Failed to send message:", err);
+    }
+  };
+
+  const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setNewMessage(text);
+
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = text.substring(0, cursorPos);
+    const atMatch = textBeforeCursor.match(/@([\w\s.-]*)$/);
+
+    if (atMatch) {
+      const query = atMatch[1].toLowerCase();
+      setMentionQuery(query);
+      const filtered = mentionableDocuments
+        .filter((doc) => doc.name.toLowerCase().includes(query))
+        .slice(0, 5);
+      setSuggestions(filtered);
+    } else {
+      setMentionQuery(null);
+      setSuggestions([]);
+    }
+  };
+
+  const handleSuggestionClick = (doc: DocumentFile) => {
+    const currentText = newMessage;
+    const cursorPos = textAreaRef.current?.selectionStart || currentText.length;
+    const textBeforeCursor = currentText.substring(0, cursorPos);
+
+    const atIndex = textBeforeCursor.lastIndexOf("@");
+    const textBeforeAt = currentText.substring(0, atIndex);
+    const textAfterCursor = currentText.substring(cursorPos);
+
+    const mentionText = `@[${doc.name}](doc:${doc.id}) `;
+    setNewMessage(textBeforeAt + mentionText + textAfterCursor);
+
+    setMentionQuery(null);
+    setSuggestions([]);
+
+    setTimeout(() => {
+      textAreaRef.current?.focus();
+      const newCursorPos = (textBeforeAt + mentionText).length;
+      textAreaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+    }, 10);
+  };
+
+  const handleMentionClick = (e: React.MouseEvent, resourceId: string) => {
+    e.preventDefault(); // Prevent default behavior, especially if it were an <a> tag
+    if (onMentionClick) {
+      onMentionClick(resourceId);
+    } else {
+      console.warn("onMentionClick handler not provided to ChatInterface");
     }
   };
 
@@ -82,23 +161,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
       }
 
       const threadId = await createThread(
-        projectId, 
+        projectId,
         newThreadTopic.trim(),
         Array.from(new Set(participantIds)) // Ensure unique IDs
       );
       setSelectedParticipants([]);
-      setNewThreadTopic('');
+      setNewThreadTopic("");
       setShowCreateThread(false);
       setActiveThread(threadId);
     } catch (err) {
-      console.error('Failed to create thread:', err);
+      console.error("Failed to create thread:", err);
     }
   };
 
   const formatMessageTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -146,22 +225,41 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
                 onChange={(e) => setNewThreadTopic(e.target.value)}
                 className="text-sm"
                 onKeyPress={(e) => {
-                  if (e.key === 'Enter') handleCreateThread();
+                  if (e.key === "Enter") handleCreateThread();
                 }}
               />
               <MultiSelect
-                options={memberOptions.map(m => m.label)}
-                value={selectedParticipants.map(id => memberOptions.find(m => m.value === id)?.label || '')}
+                options={memberOptions.map((m) => m.label)}
+                value={selectedParticipants.map(
+                  (id) => memberOptions.find((m) => m.value === id)?.label || ""
+                )}
                 onChange={(selectedLabels) => {
-                  const selectedIds = selectedLabels.map(label => memberOptions.find(m => m.label === label)?.value).filter(Boolean) as string[];
+                  const selectedIds = selectedLabels
+                    .map(
+                      (label) =>
+                        memberOptions.find((m) => m.label === label)?.value
+                    )
+                    .filter(Boolean) as string[];
                   setSelectedParticipants(selectedIds);
                 }}
                 placeholder="Select members to add..."
                 label="Add Members"
               />
               <div className="flex space-x-2">
-                <Button size="sm" onClick={handleCreateThread} disabled={!newThreadTopic.trim() || isLoading}>Create</Button>
-                <Button size="sm" variant="outline" onClick={() => setShowCreateThread(false)}>Cancel</Button>
+                <Button
+                  size="sm"
+                  onClick={handleCreateThread}
+                  disabled={!newThreadTopic.trim() || isLoading}
+                >
+                  Create
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowCreateThread(false)}
+                >
+                  Cancel
+                </Button>
               </div>
             </div>
           )}
@@ -169,7 +267,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
 
         <div className="overflow-y-auto flex-1">
           {isLoading && threads.length === 0 ? (
-            <div className="p-3 text-center"><Loader2 className="h-4 w-4 animate-spin mx-auto" /></div>
+            <div className="p-3 text-center">
+              <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+            </div>
           ) : (
             <div className="space-y-1 p-2">
               {threads.map((thread) => (
@@ -178,11 +278,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
                   onClick={() => setActiveThread(thread.id)}
                   className={`w-full text-left p-2 rounded text-sm transition-colors ${
                     activeThreadId === thread.id
-                      ? 'bg-blue-100 font-semibold text-blue-800'
-                      : 'hover:bg-gray-100'
+                      ? "bg-blue-100 font-semibold text-blue-800"
+                      : "hover:bg-gray-100"
                   }`}
                 >
-                  # {thread.topic || 'General'}
+                  # {thread.topic || "General"}
                 </button>
               ))}
             </div>
@@ -198,19 +298,59 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${message.sender?.id === user?.id ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${
+                    message.sender?.id === user?.id
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
                 >
                   <div
                     className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg ${
                       message.sender?.id === user?.id
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-800'
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-800"
                     }`}
                   >
                     <div className="text-xs opacity-75 mb-1 font-semibold">
-                      {message.sender?.full_name || 'User'}
+                      {message.sender?.full_name || "User"}
                     </div>
-                    <div className="text-sm">{message.content}</div>
+                    <div className="text-sm prose prose-sm max-w-none">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ node, ...props }) => {
+                            if (props.href?.startsWith("doc:")) {
+                              const resourceId = props.href.substring(4);
+                              const docName = props.children;
+                              return (
+                                <button
+                                  onClick={(e: React.MouseEvent) =>
+                                    handleMentionClick(e, resourceId)
+                                  }
+                                  className="inline-flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors font-medium no-underline"
+                                >
+                                  <FileText
+                                    size={14}
+                                    className="inline mr-1.5"
+                                  />
+                                  {docName}
+                                </button>
+                              );
+                            }
+                            return (
+                              <a
+                                {...props}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                              />
+                            );
+                          },
+                        }}
+                      >
+                        {message.content || ""}
+                      </ReactMarkdown>
+                    </div>
                     <div className="text-xs opacity-75 mt-1 text-right">
                       {formatMessageTime(message.created_at)}
                     </div>
@@ -220,20 +360,57 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-3 border-t bg-white">
+            <div className="p-3 border-t bg-white relative">
+              <AnimatePresence>
+                {mentionQuery !== null && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute bottom-full left-3 right-3 mb-2 border rounded-lg bg-white shadow-lg max-h-48 overflow-y-auto z-10"
+                  >
+                    {suggestions.length > 0 ? (
+                      suggestions.map((doc) => (
+                        <button
+                          key={doc.id}
+                          onClick={() => handleSuggestionClick(doc)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                        >
+                          <FileText
+                            size={16}
+                            className="mr-2 text-gray-500 flex-shrink-0"
+                          />
+                          <span className="truncate">{doc.name}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-gray-500">
+                        {isLoadingDocuments
+                          ? "Loading documents..."
+                          : "No matching documents found."}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <div className="flex space-x-2">
-                <Input
+                <textarea
+                  ref={textAreaRef}
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={handleTextAreaChange}
                   placeholder="Type a message..."
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleSendMessage();
                     }
                   }}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 min-h-[40px] max-h-32 resize-none"
                 />
-                <Button onClick={handleSendMessage} disabled={!newMessage.trim() || isLoading}>
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || isLoading}
+                >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>

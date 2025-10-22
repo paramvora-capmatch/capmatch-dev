@@ -30,6 +30,7 @@ interface DocumentManagerProps {
   title: string;
   canUpload?: boolean;
   canDelete?: boolean;
+  highlightedResourceId?: string | null;
 }
 
 const formatFileSize = (bytes: number) => {
@@ -57,6 +58,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   title,
   canUpload = true,
   canDelete = true,
+  highlightedResourceId,
 }) => {
   const {
     files,
@@ -300,6 +302,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             {/* Files */}
             {files.map((file) => {
               const isEditable = /\.(docx|xlsx|pptx)$/i.test(file.name);
+              const isHighlighted = file.id === highlightedResourceId;
               const permission = getPermission(file.id);
               const userCanEditThisFile = permission === "edit";
               const userCanViewThisFile =
@@ -310,7 +313,10 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   key={file.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className={cn(
+                    "flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-300",
+                    isHighlighted && "border-blue-500 ring-2 ring-blue-300 ring-offset-1"
+                  )}
                 >
                   <div className="flex items-center space-x-3">
                     <FileText className="h-5 w-5 text-gray-600" />
