@@ -7,14 +7,16 @@ import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
 
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
-import { Loader2, FileSpreadsheet } from "lucide-react";
+import { Loader2, FileSpreadsheet, MessageSquare, Folder } from "lucide-react";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { Button } from "../ui/Button"; // Import Button
 import { useAuth } from "@/hooks/useAuth"; // Add this import
 import { AskAIProvider } from "../ui/AskAIProvider";
-import { ProjectChatWidget } from "./ProjectChatWidget";
+import { ChatInterface } from "@/components/chat/ChatInterface";
 import { DocumentManager } from "../documents/DocumentManager";
 import { ProfileSummaryCard } from "./ProfileSummaryCard";
+import { Card, CardContent, CardHeader } from "../ui/card";
+import { cn } from "@/utils/cn";
 
 interface ProjectWorkspaceProps {
   projectId: string;
@@ -34,13 +36,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const { user, isLoading: authLoading } = useAuth(); // Add auth loading state
 
   const [isEditing, setIsEditing] = useState(false);
-  // State for Ask AI field drop
   const [droppedFieldId, setDroppedFieldId] = useState<string | null>(null);
 
-  // State to track current form data for AskAI
   const [currentFormData, setCurrentFormData] = useState<ProjectProfile | null>(
     null
   );
+
+  const [activeTab, setActiveTab] = useState<"chat" | "documents">("chat");
 
   // Calculate if we're still in initial loading phase
   const isInitialLoading =
@@ -156,20 +158,53 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
           {/* Right Column: Documents */}
           <div className="lg:col-span-2">
-            <DocumentManager
-              projectId={projectId}
-              resourceId={activeProject.projectDocsResourceId || null}
-              title="Project Documents"
-            />
+            <Card className="h-full flex flex-col">
+              <CardHeader className="p-0 border-b">
+                <div className="flex">
+                  <button
+                    onClick={() => setActiveTab("chat")}
+                    className={cn(
+                      "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
+                      activeTab === "chat"
+                        ? "border-b-2 border-blue-600 text-blue-600"
+                        : "text-gray-500 hover:bg-gray-50"
+                    )}
+                  >
+                    <MessageSquare size={16} />
+                    <span>Chat</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("documents")}
+                    className={cn(
+                      "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
+                      activeTab === "documents"
+                        ? "border-b-2 border-blue-600 text-blue-600"
+                        : "text-gray-500 hover:bg-gray-50"
+                    )}
+                  >
+                    <Folder size={16} />
+                    <span>Documents</span>
+                  </button>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 p-0 overflow-hidden">
+                {activeTab === "chat" ? (
+                  <ChatInterface projectId={projectId} />
+                ) : (
+                  <div className="p-2 h-full">
+                    <DocumentManager
+                      projectId={projectId}
+                      folderId={null}
+                      title=""
+                      canUpload={true}
+                      canDelete={true}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
-
-        <ProjectChatWidget
-          projectId={activeProject.id}
-          formData={currentFormData || activeProject}
-          droppedFieldId={droppedFieldId}
-          onFieldProcessed={() => setDroppedFieldId(null)}
-        />
       </AskAIProvider>
     </div>
   );

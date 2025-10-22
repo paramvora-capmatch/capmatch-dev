@@ -189,6 +189,46 @@ export async function createProjectWithResumeAndStorage(
   }
   console.log("[project-utils] Edit permission granted on PROJECT_RESUME");
 
+  // Step 8.5: Create a default "General" chat thread
+  console.log("[project-utils] Step 8.5: Creating default chat thread");
+  const { data: chatThread, error: chatThreadError } = await supabaseAdmin
+    .from("chat_threads")
+    .insert({
+      project_id: project.id,
+      topic: "General",
+    })
+    .select()
+    .single();
+
+  if (chatThreadError) {
+    // This is not a critical failure, so we'll log it and continue.
+    console.error(
+      `[project-utils] Default chat thread creation failed: ${
+        JSON.stringify(chatThreadError)
+      }`
+    );
+  } else {
+    console.log(
+      `[project-utils] Default chat thread created: ${chatThread.id}`
+    );
+
+    // Add participants: creator and advisor (if they exist)
+    const participants = [{ thread_id: chatThread.id, user_id: options.creator_id }];
+    if (options.assigned_advisor_id) {
+      participants.push({ thread_id: chatThread.id, user_id: options.assigned_advisor_id });
+    }
+
+    const { error: participantsError } = await supabaseAdmin
+      .from("chat_thread_participants")
+      .insert(participants);
+
+    if (participantsError) {
+      console.error(`[project-utils] Failed to add participants to default thread: ${JSON.stringify(participantsError)}`);
+    } else {
+      console.log("[project-utils] Added initial participants to default thread.");
+    }
+  }
+
   // Step 9: Apply bucket-specific storage policies for this org
   console.log("[project-utils] Step 9: Applying storage policies for org bucket");
   const { error: policyError } = await supabaseAdmin.rpc('apply_bucket_storage_policies', {
