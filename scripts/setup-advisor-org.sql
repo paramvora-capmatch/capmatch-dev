@@ -1,94 +1,38 @@
--- scripts/setup-advisor-org-v3.sql
--- Run with: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f scripts/setup-advisor-org-v3.sql
+-- scripts/setup-advisor-org-manual-user.sql
+-- Run AFTER creating the user via Supabase Dashboard
+-- Run with: psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -f scripts/setup-advisor-org-manual-user.sql
 
--- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- Create advisor user, profile, org, and membership
 DO $$
 DECLARE
-  v_advisor_user_id UUID;
-  v_advisor_email TEXT := 'cody@capmatch.com';
-  v_advisor_password TEXT := 'password123';
-  v_advisor_name TEXT := 'Cody Field';
+  v_user_id UUID;
+  v_email TEXT := 'cody@capmatch.com';
+  v_name TEXT := 'Cody Field';
   v_org_name TEXT := 'CapMatch Advisors';
-  v_advisor_org_id UUID;
-  v_user_exists BOOLEAN;
+  v_org_id UUID;
 BEGIN
-  RAISE NOTICE '🚀 Starting advisor setup...';
+  RAISE NOTICE '🚀 Starting advisor org setup...';
   
-  -- Check if user already exists
-  SELECT EXISTS (
-    SELECT 1 FROM auth.users WHERE email = v_advisor_email
-  ) INTO v_user_exists;
+  -- Step 1: Get the user ID from auth.users (user must already exist)
+  RAISE NOTICE '1️⃣ Finding user...';
+  SELECT id INTO v_user_id 
+  FROM auth.users 
+  WHERE email = v_email;
 
-  IF v_user_exists THEN
-    RAISE NOTICE '⚠️  User already exists, fetching ID...';
-    SELECT id INTO v_advisor_user_id FROM auth.users WHERE email = v_advisor_email;
-  ELSE
-    -- Step 1: Create auth user (minimal columns for compatibility)
-    RAISE NOTICE '1️⃣ Creating auth user...';
-    INSERT INTO auth.users (
-      id,
-      instance_id,
-      email,
-      encrypted_password,
-      email_confirmed_at,
-      created_at,
-      updated_at,
-      raw_app_meta_data,
-      raw_user_meta_data,
-      is_super_admin,
-      role
-    )
-    VALUES (
-      gen_random_uuid(),
-      '00000000-0000-0000-0000-000000000000',
-      v_advisor_email,
-      crypt(v_advisor_password, gen_salt('bf')),
-      NOW(),
-      NOW(),
-      NOW(),
-      '{"provider": "email", "providers": ["email"]}'::jsonb,
-      format('{"full_name": "%s"}', v_advisor_name)::jsonb,
-      FALSE,
-      'authenticated'
-    )
-    RETURNING id INTO v_advisor_user_id;
-
-    RAISE NOTICE '✅ Created user with ID: %', v_advisor_user_id;
-
-    -- Create identity record for email/password login
-    -- provider_id should be the user_id as a string for email provider
-    INSERT INTO auth.identities (
-      id,
-      user_id,
-      provider_id,
-      identity_data,
-      provider,
-      last_sign_in_at,
-      created_at,
-      updated_at
-    )
-    VALUES (
-      gen_random_uuid(),
-      v_advisor_user_id,
-      v_advisor_user_id::text,
-      format('{"sub": "%s", "email": "%s", "email_verified": true, "phone_verified": false}', v_advisor_user_id, v_advisor_email)::jsonb,
-      'email',
-      NOW(),
-      NOW(),
-      NOW()
-    );
-    
-    RAISE NOTICE '✅ Created identity record';
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'User with email % not found. Please create the user first via Supabase Dashboard.', v_email;
   END IF;
+
+  RAISE NOTICE '✅ Found user with ID: %', v_user_id;
 
   -- Step 2: Create/update profile
   RAISE NOTICE '2️⃣ Creating profile...';
   INSERT INTO public.profiles (id, email, full_name, app_role, created_at, updated_at)
-  VALUES (v_advisor_user_id, v_advisor_email, v_advisor_name, 'advisor', NOW(), NOW())
-  ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, app_role = EXCLUDED.app_role;
+  VALUES (v_user_id, v_email, v_name, 'advisor', NOW(), NOW())
+  ON CONFLICT (id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    app_role = EXCLUDED.app_role,
+    updated_at = NOW();
+  
   RAISE NOTICE '✅ Profile created';
 
   -- Step 3: Create advisor org
@@ -97,24 +41,21 @@ BEGIN
   VALUES (v_org_name, 'advisor', NOW(), NOW())
   ON CONFLICT DO NOTHING;
   
-  SELECT id INTO v_advisor_org_id FROM public.orgs WHERE entity_type = 'advisor' AND name = v_org_name;
-  RAISE NOTICE '✅ Advisor org ID: %', v_advisor_org_id;
+  SELECT id INTO v_org_id FROM public.orgs WHERE entity_type = 'advisor' AND name = v_org_name LIMIT 1;
+  RAISE NOTICE '✅ Advisor org ID: %', v_org_id;
 
   -- Step 4: Add advisor to org
   RAISE NOTICE '4️⃣ Adding org membership...';
   INSERT INTO public.org_members (org_id, user_id, role, created_at)
-  VALUES (v_advisor_org_id, v_advisor_user_id, 'owner', NOW())
+  VALUES (v_org_id, v_user_id, 'owner', NOW())
   ON CONFLICT (org_id, user_id) DO NOTHING;
   RAISE NOTICE '✅ Org membership created';
 
   -- Summary
   RAISE NOTICE '';
   RAISE NOTICE '🎉 Setup complete!';
-  RAISE NOTICE '📧 Login credentials:';
-  RAISE NOTICE '   Email: %', v_advisor_email;
-  RAISE NOTICE '   Password: %', v_advisor_password;
-  RAISE NOTICE '   User ID: %', v_advisor_user_id;
-  RAISE NOTICE '   Org ID: %', v_advisor_org_id;
+  RAISE NOTICE '   User ID: %', v_user_id;
+  RAISE NOTICE '   Org ID: %', v_org_id;
   RAISE NOTICE '';
   RAISE NOTICE '✨ This advisor will be auto-assigned to all new projects.';
   
