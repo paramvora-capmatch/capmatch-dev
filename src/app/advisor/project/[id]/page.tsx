@@ -81,14 +81,15 @@ const getStatusColor = (status: ProjectStatus) => {
 
 interface ProjectMessage {
   id: string;
-  projectId: string;
-  senderId: string;
-  senderType: "Advisor" | "Borrower";
+  projectId: string; // From params
+  thread_id: string;
+  user_id: string;
+  sender: {
+    id: string;
+    full_name?: string;
+  };
   message: string;
   createdAt: string;
-  // Added for chat functionality
-  user_id?: string | null;
-  thread_id?: string;
 }
 
 interface ChatThread {
@@ -288,21 +289,21 @@ export default function AdvisorProjectDetailPage() {
       try {
         const { data, error } = await supabase
           .from("project_messages")
-          .select("*")
+          .select("*, sender:profiles(id, full_name)")
           .eq("thread_id", threadId)
           .order("created_at", { ascending: true });
         if (error) throw error;
 
         const mapped = (data || []).map(
-          (msg) =>
+          (msg: any) =>
             ({
               id: msg.id.toString(),
               projectId,
-              senderId: msg.user_id || "",
-              senderType: msg.user_id === user?.id ? "Advisor" : "Borrower",
+              thread_id: msg.thread_id,
+              user_id: msg.user_id,
+              sender: msg.sender || { id: msg.user_id, full_name: "Unknown" },
               message: msg.content || "",
               createdAt: msg.created_at,
-              user_id: msg.user_id,
             } as ProjectMessage)
         );
         setMessages(mapped);
@@ -335,7 +336,31 @@ export default function AdvisorProjectDetailPage() {
           table: "project_messages",
           filter: `thread_id=eq.${activeThreadId}`,
         },
-        () => loadMessages(activeThreadId)
+        async (payload) => {
+          const newMessage = payload.new as any;
+          // Fetch sender profile to append to the message
+          const { data: senderProfile, error } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .eq("id", newMessage.user_id)
+            .single();
+
+          if (error) {
+            console.error("Error fetching profile for new message:", error);
+            loadMessages(activeThreadId); // Fallback to full reload
+            return;
+          }
+
+          const mappedMessage: ProjectMessage = {
+            id: newMessage.id.toString(),
+            projectId,
+            ...newMessage,
+            sender: senderProfile || { id: newMessage.user_id, full_name: "Unknown" },
+            message: newMessage.content || "",
+            createdAt: newMessage.created_at,
+          };
+          setMessages((prev) => [...prev, mappedMessage]);
+        }
       )
       .subscribe();
 
@@ -781,8 +806,7 @@ export default function AdvisorProjectDetailPage() {
                       <span className="text-xs font-semibold">
                         {isAdvisor
                           ? "You"
-                          : borrowerResume?.content?.fullLegalName ||
-                            "Borrower"}
+                          : message.sender.full_name || "Borrower"}
                       </span>
                       <span className="text-xs text-gray-500 ml-2">
                         {new Date(message.createdAt).toLocaleString()}

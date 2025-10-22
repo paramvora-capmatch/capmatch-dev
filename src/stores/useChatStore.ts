@@ -234,8 +234,27 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
           filter: `thread_id=eq.${threadId}`
         },
         async (payload) => {
-          // Instead of just appending, we re-fetch to get sender info correctly
-          await get().loadMessages(threadId);
+          const newMessage = payload.new as ProjectMessage;
+
+          // We need to fetch the sender's profile for the new message
+          const { data: senderProfile, error } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .eq('id', newMessage.user_id)
+            .single();
+
+          if (error) {
+            console.error("Error fetching profile for new message:", error);
+            // Fallback to refetching all messages if profile fetch fails
+            await get().loadMessages(threadId);
+            return;
+          }
+
+          // Append the new message with sender info to the existing messages array
+          newMessage.sender = senderProfile;
+          set((state) => ({
+            messages: [...state.messages, newMessage],
+          }));
         }
       )
       .subscribe();
