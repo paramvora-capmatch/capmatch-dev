@@ -250,6 +250,7 @@ export interface ChatThreadParticipant {
 export interface ProjectMessage {
   id: number; // BIGSERIAL
   thread_id: string; // FK to chat_threads.id
+  project_id?: string; // <-- ADD THIS LINE
   user_id?: string | null; // FK to profiles.id (SET NULL on user delete)
   content?: string;
   created_at: string;

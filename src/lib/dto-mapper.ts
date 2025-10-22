@@ -147,10 +147,11 @@ export const dbPrincipalToPrincipal = (dbPrincipal: Record<string, unknown>): Pr
  * @param dbMessage - The message data object from Supabase.
  * @returns A ProjectMessage object.
  */
-export const dbMessageToProjectMessage = (dbMessage: Record<string, unknown>): ProjectMessage => {
+export const dbMessageToProjectMessage = (dbMessage: Record<string, any>): ProjectMessage => { // Use 'any' for flexibility with joins
 	return {
 		id: dbMessage.id,
 		thread_id: dbMessage.thread_id,
+    	project_id: dbMessage.chat_threads?.project_id, // <-- ADD THIS LINE
 		user_id: dbMessage.user_id,
 		content: dbMessage.content,
 		created_at: dbMessage.created_at,

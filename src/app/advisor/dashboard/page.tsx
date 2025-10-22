@@ -107,7 +107,7 @@ export default function AdvisorDashboardPage() {
           const { data: projectsData, error: projectsError } = await supabase
             .from("projects")
             .select("*")
-            .eq("assigned_advisor_user_id", user.id);
+            .eq("assigned_advisor_id", user.id);
 
           if (projectsError) throw projectsError;
 
@@ -116,29 +116,47 @@ export default function AdvisorDashboardPage() {
             setActiveProjects(assignedProjects);
 
             if (assignedProjects.length > 0) {
-              const ownerIds = Array.from(
+              const ownerOrgIds = Array.from(
                 new Set(assignedProjects.map((p) => p.entityId).filter(Boolean))
               ) as string[];
 
-              if (ownerIds.length > 0) {
-                const { data: borrowers, error: borrowersError } =
-                  await supabase
-                    .from("profiles")
-                    .select("id, full_name, email")
-                    .in("id", ownerIds);
+              if (ownerOrgIds.length > 0) {
+                // Step 1: Find the owner's user_id for each org
+                const { data: owners, error: ownersError } = await supabase
+                  .from("org_members")
+                  .select("org_id, user_id")
+                  .in("org_id", ownerOrgIds)
+                  .eq("role", "owner");
 
-                if (borrowersError) throw borrowersError;
+                if (ownersError) throw ownersError;
 
-                if (borrowers) {
-                  const borrowerMap = borrowers.reduce((acc, b) => {
-                    acc[b.id as string] = {
-                      name: b.full_name || b.email,
-                      email: b.email,
+                const userIds = owners.map((o) => o.user_id);
+                const orgToUserMap = owners.reduce((acc, o) => {
+                  acc[o.org_id] = o.user_id;
+                  return acc;
+                }, {} as Record<string, string>);
+
+                // Step 2: Fetch profiles for those user_ids
+                const { data: profiles, error: profilesError } = await supabase
+                  .from("profiles")
+                  .select("id, full_name, email")
+                  .in("id", userIds);
+
+                if (profilesError) throw profilesError;
+
+                // Step 3: Create a map from org_id -> profile info
+                const borrowerMap = ownerOrgIds.reduce((acc, orgId) => {
+                  const userId = orgToUserMap[orgId];
+                  const profile = profiles.find((p) => p.id === userId);
+                  if (profile) {
+                    acc[orgId] = {
+                      name: profile.full_name || profile.email,
+                      email: profile.email,
                     };
-                    return acc;
-                  }, {} as Record<string, { name: string; email: string }>);
-                  setBorrowerData(borrowerMap);
-                }
+                  }
+                  return acc;
+                }, {} as Record<string, { name: string; email: string }>);
+                setBorrowerData(borrowerMap);
               }
             }
           }
@@ -196,8 +214,8 @@ export default function AdvisorDashboardPage() {
           const projectIds = assignedProjects.map((p) => p.id);
           const { data: messagesData, error: messagesError } = await supabase
             .from("project_messages")
-            .select("*")
-            .in("project_id", projectIds)
+            .select("*, chat_threads(project_id)") // <-- JOIN HERE
+            .in("chat_threads.project_id", projectIds) // <-- FILTER ON JOINED TABLE
             .order("created_at", { ascending: false })
             .limit(5);
 
@@ -613,7 +631,7 @@ export default function AdvisorDashboardPage() {
                                   size="sm"
                                   onClick={() =>
                                     router.push(
-                                      `/advisor/project/${message.thread_id}`
+                                      `/advisor/project/${message.project_id}`
                                     )
                                   }
                                 >
