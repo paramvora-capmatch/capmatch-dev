@@ -8,6 +8,7 @@ import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
 import { Loader2, FileSpreadsheet, MessageSquare, Folder } from "lucide-react";
+import { useOrgStore } from "@/stores/useOrgStore";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { Button } from "../ui/Button"; // Import Button
 import { useAuth } from "@/hooks/useAuth"; // Add this import
@@ -33,6 +34,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     getProject,
   } = useProjects();
   const { borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
+  const { loadOrg } = useOrgStore();
   const { user, isLoading: authLoading } = useAuth(); // Add auth loading state
 
   const [isEditing, setIsEditing] = useState(false);
@@ -67,6 +69,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       } else {
         // Only show error if we're confident the project doesn't exist
         // (not just because we haven't loaded projects yet)
+        // Also load the org members for the ShareModal
+        const { activeOrg } = useAuthStore.getState();
+        if (activeOrg) {
+          loadOrg(activeOrg.id);
+        }
         console.error(`Project ${projectId} not found.`);
         console.error("Project not found.");
         router.push("/dashboard");
@@ -79,6 +86,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     getProject,
     isInitialLoading,
     router,
+    loadOrg,
   ]);
 
   // Loading state render - show loading during initial loading or if project doesn't match

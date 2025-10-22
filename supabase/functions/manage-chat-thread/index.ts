@@ -62,16 +62,15 @@ serve(async (req) => {
       }
 
       // Check if user can access this project (owner or advisor)
-      const isOwner = await supabaseAdmin.rpc("is_org_owner", {
+      const { data: isOwner } = await supabaseAdmin.rpc("is_org_owner", {
         p_org_id: project.owner_org_id,
         p_user_id: user.id,
       });
 
-      const isAdvisor = project.assigned_advisor_id === user.id;
-
-      if (!isOwner.data && !isAdvisor) {
+      // NEW: Restrict thread creation to owners
+      if (!isOwner) {
         throw new Error(
-          "You don't have permission to create threads for this project"
+          "Only organization owners can create new chat channels."
         );
       }
 

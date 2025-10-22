@@ -61,8 +61,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
           {
             projectId: projectId,
             permissions: [
-              { resource_type: 'PROJECT_RESUME', permission: 'view' },
-              { resource_type: 'PROJECT_DOCS_ROOT', permission: 'view' },
+              { resource_type: 'PROJECT_RESUME', permission: 'view' }
             ],
           },
         ];

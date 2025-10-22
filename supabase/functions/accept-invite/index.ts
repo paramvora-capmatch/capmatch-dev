@@ -163,6 +163,19 @@ serve(async (req: any) => {
       });
     }
 
+    // NEW STEP: Update the user's profile to set their active organization
+    const { error: updateProfileError } = await supabase
+      .from("profiles")
+      .update({ active_org_id: invite.org_id })
+      .eq("id", userId);
+
+    if (updateProfileError) {
+      // This is not a critical failure that should roll back the user, but we should log it.
+      console.error(
+        `[accept-invite] Failed to set active_org_id for user ${userId}: ${updateProfileError.message}`
+      );
+    }
+
     // Apply initial permissions if provided
     const initial = invite.initial_permissions as any | null;
     if (initial && Array.isArray(initial)) {

@@ -1,13 +1,15 @@
 // src/components/chat/ChatInterface.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useChatStore } from '../../stores/useChatStore';
+import { useOrgStore } from '@/stores/useOrgStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useProjects } from '../../hooks/useProjects';
 import { supabase } from '../../../lib/supabaseClient';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { 
+import { MultiSelect } from '../ui/MultiSelect';
+import {
   MessageCircle, 
   Send, 
   Users, 
@@ -40,6 +42,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
 
   const [newMessage, setNewMessage] = useState('');
   const [newThreadTopic, setNewThreadTopic] = useState('');
+  const { isOwner, members } = useOrgStore();
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+
+  const memberOptions = members
+    .filter(m => m.user_id !== user?.id) // Exclude self
+    .map(m => ({ value: m.user_id, label: m.userName || m.userEmail || '' }));
+
   const [showCreateThread, setShowCreateThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -67,7 +76,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
     if (!newThreadTopic.trim() || !user?.id) return;
 
     try {
-      const participantIds: string[] = [user.id];
+      const participantIds: string[] = [user.id, ...selectedParticipants];
       if (activeProject?.assignedAdvisorUserId) {
         participantIds.push(activeProject.assignedAdvisorUserId);
       }
@@ -75,8 +84,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
       const threadId = await createThread(
         projectId, 
         newThreadTopic.trim(),
-        participantIds
+        Array.from(new Set(participantIds)) // Ensure unique IDs
       );
+      setSelectedParticipants([]);
       setNewThreadTopic('');
       setShowCreateThread(false);
       setActiveThread(threadId);
@@ -115,15 +125,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
         <div className="p-3 border-b bg-white">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-800">Channels</h3>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowCreateThread(!showCreateThread)}
-              className="h-8 px-3"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              New
-            </Button>
+            {isOwner && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowCreateThread(!showCreateThread)}
+                className="h-8 px-3"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                New
+              </Button>
+            )}
           </div>
 
           {showCreateThread && (
@@ -136,6 +148,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ projectId }) => {
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') handleCreateThread();
                 }}
+              />
+              <MultiSelect
+                options={memberOptions.map(m => m.label)}
+                value={selectedParticipants.map(id => memberOptions.find(m => m.value === id)?.label || '')}
+                onChange={(selectedLabels) => {
+                  const selectedIds = selectedLabels.map(label => memberOptions.find(m => m.label === label)?.value).filter(Boolean) as string[];
+                  setSelectedParticipants(selectedIds);
+                }}
+                placeholder="Select members to add..."
+                label="Add Members"
               />
               <div className="flex space-x-2">
                 <Button size="sm" onClick={handleCreateThread} disabled={!newThreadTopic.trim() || isLoading}>Create</Button>

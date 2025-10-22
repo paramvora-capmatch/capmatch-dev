@@ -3,7 +3,7 @@
 // Core Schema Types - Updated to match new schema
 export type AppRole = "borrower" | "lender" | "advisor";
 export type OrgType = "borrower" | "lender" | "advisor";
-export type OrgMemberRole = "owner" | "project_manager" | "member";
+export type OrgMemberRole = "owner" | "member";
 export type InviteStatus = "pending" | "accepted" | "cancelled" | "expired";
 
 // Legacy types for backward compatibility
