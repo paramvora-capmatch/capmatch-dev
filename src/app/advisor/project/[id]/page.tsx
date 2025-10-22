@@ -32,7 +32,7 @@ import {
 import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
 import { DocumentManager } from "@/components/documents/DocumentManager";
 import { storageService } from "@/lib/storage";
-import { RealtimeChannel } from "@supabase/supabase-js";
+import { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 
 // Utility functions
@@ -86,6 +86,14 @@ interface ProjectMessage {
   senderType: "Advisor" | "Borrower";
   message: string;
   createdAt: string;
+  // Added for chat functionality
+  user_id?: string | null;
+  thread_id?: string;
+}
+
+interface ChatThread {
+  id: string;
+  topic: string;
 }
 
 export default function AdvisorProjectDetailPage() {
@@ -102,11 +110,16 @@ export default function AdvisorProjectDetailPage() {
   const [projectResume, setProjectResume] = useState<ProjectResume | null>(
     null
   );
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [documentRequirements, setDocumentRequirements] = useState<
     ProjectDocumentRequirement[]
   >([]);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
+  const [isSending, setIsSending] = useState<boolean>(false);
+  const [currentTab, setCurrentTab] = useState("details");
   const [newMessage, setNewMessage] = useState("");
   const [selectedStatus, setSelectedStatus] =
     useState<ProjectStatus>("Info Gathering");
@@ -230,61 +243,20 @@ export default function AdvisorProjectDetailPage() {
             }
           }
 
-          // Fetch initial messages
+          // Fetch chat threads
           try {
-            const { data: threadData, error: threadError } =
-              (await supabase.functions.invoke("manage-chat-thread", {
-                body: {
-                  action: "get_thread",
-                  project_id: projectId,
-                },
-              })) as {
-                data: { thread?: { id: string } } | null;
-                error: Error | null;
-              };
-
+            const { data: threadData, error: threadError } = await supabase
+              .from("chat_threads")
+              .select("id, topic")
+              .eq("project_id", projectId);
             if (threadError) {
-              console.error("Error fetching chat thread:", threadError);
-            } else if (threadData?.thread) {
-              const { data: messagesData, error: messagesError } =
-                await supabase
-                  .from("project_messages")
-                  .select<
-                    string,
-                    {
-                      id: string;
-                      user_id: string;
-                      content: string;
-                      created_at: string;
-                      thread_id: string;
-                    }
-                  >("*")
-                  .eq("thread_id", threadData.thread.id)
-                  .order("created_at", { ascending: true });
-
-              if (messagesError) {
-                console.error("Error fetching messages:", messagesError);
-              } else {
-                const mappedMessages: ProjectMessage[] = messagesData.map(
-                  (msg) => {
-                    const senderRole =
-                      msg.user_id === user.id ? "advisor" : "borrower";
-                    return {
-                      id: msg.id.toString(),
-                      projectId: projectId,
-                      senderId: msg.user_id || "",
-                      senderType:
-                        senderRole === "advisor" ? "Advisor" : "Borrower",
-                      message: msg.content || "",
-                      createdAt: msg.created_at,
-                    };
-                  }
-                );
-                setMessages(mappedMessages);
-              }
+              throw threadError;
+            }
+            if (threadData) {
+              setThreads(threadData);
             }
           } catch (error) {
-            console.error("Error in chat thread management:", error);
+            console.error("Error fetching threads:", error);
           }
 
           const allRequirements = await storageService.getItem<
@@ -310,68 +282,71 @@ export default function AdvisorProjectDetailPage() {
     loadProjectData();
   }, [user, projectId, router]);
 
-  // Realtime message subscription
+  const loadMessages = useCallback(
+    async (threadId: string) => {
+      setIsLoadingMessages(true);
+      try {
+        const { data, error } = await supabase
+          .from("project_messages")
+          .select("*")
+          .eq("thread_id", threadId)
+          .order("created_at", { ascending: true });
+        if (error) throw error;
+
+        const mapped = (data || []).map(
+          (msg) =>
+            ({
+              id: msg.id.toString(),
+              projectId,
+              senderId: msg.user_id || "",
+              senderType: msg.user_id === user?.id ? "Advisor" : "Borrower",
+              message: msg.content || "",
+              createdAt: msg.created_at,
+              user_id: msg.user_id,
+            } as ProjectMessage)
+        );
+        setMessages(mapped);
+      } catch (error) {
+        console.error("Error loading messages:", error);
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    },
+    [projectId, user?.id]
+  );
+
+  // Effect for loading messages and setting up subscriptions
   useEffect(() => {
-    if (!projectId || !user) return;
+    if (!activeThreadId) return;
+
+    loadMessages(activeThreadId);
 
     if (messageSubscriptionRef.current) {
       supabase.removeChannel(messageSubscriptionRef.current);
     }
 
-    supabase.functions
-      .invoke("manage-chat-thread", {
-        body: {
-          action: "get_thread",
-          project_id: projectId,
+    const channel = supabase
+      .channel(`project-messages-advisor-${activeThreadId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "project_messages",
+          filter: `thread_id=eq.${activeThreadId}`,
         },
-      })
-      .then(({ data: threadData, error: threadError }) => {
-        if (threadError || !threadData?.thread) {
-          console.warn("No chat thread found for project:", projectId);
-          return;
-        }
+        () => loadMessages(activeThreadId)
+      )
+      .subscribe();
 
-        const channel = supabase
-          .channel(`project-messages-advisor-${projectId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "project_messages",
-              filter: `thread_id=eq.${threadData.thread.id}`,
-            },
-            (payload) => {
-              const newMessagePayload = payload.new;
-              const senderRole =
-                newMessagePayload.user_id === user.id ? "advisor" : "borrower";
-
-              const newMessage: ProjectMessage = {
-                id: newMessagePayload.id.toString(),
-                projectId: projectId,
-                senderId: newMessagePayload.user_id || "",
-                senderType: senderRole === "advisor" ? "Advisor" : "Borrower",
-                message: newMessagePayload.content || "",
-                createdAt: newMessagePayload.created_at,
-              };
-
-              setMessages((currentMessages) => [
-                ...currentMessages,
-                newMessage,
-              ]);
-            }
-          )
-          .subscribe();
-
-        messageSubscriptionRef.current = channel;
-      });
+    messageSubscriptionRef.current = channel;
 
     return () => {
       if (messageSubscriptionRef.current) {
         supabase.removeChannel(messageSubscriptionRef.current);
       }
     };
-  }, [projectId, user]);
+  }, [activeThreadId, user, loadMessages]);
 
   const handleStatusChange = useCallback(
     async (newStatus: ProjectStatus) => {
@@ -414,43 +389,18 @@ export default function AdvisorProjectDetailPage() {
 
   const handleSendMessage = useCallback(
     async (messageText?: string, isSystemMessage = false) => {
-      if (!project || !user || !user.id) return;
+      if (!activeThreadId || !user || !user.id) return;
 
       const messageContent = messageText || newMessage;
       if (!messageContent.trim()) return;
 
+      setIsSending(true);
       try {
-        const { data: threadData, error: threadError } =
-          await supabase.functions.invoke("manage-chat-thread", {
-            body: {
-              action: "get_thread",
-              project_id: project.id,
-            },
-          });
-
-        let chatThread;
-        if (threadError || !threadData?.thread) {
-          const { data: createData, error: createError } =
-            await supabase.functions.invoke("manage-chat-thread", {
-              body: {
-                action: "create",
-                project_id: project.id,
-                topic: `Project: ${project.name}`,
-              },
-            });
-
-          if (createError) throw createError;
-          chatThread = createData.thread;
-        } else {
-          chatThread = threadData.thread;
-        }
-
         const { error } = await supabase.from("project_messages").insert({
-          thread_id: chatThread.id,
+          thread_id: activeThreadId,
           user_id: user.id,
           content: messageContent,
         });
-
         if (error) {
           console.error("Failed to send message", error);
         } else {
@@ -460,9 +410,11 @@ export default function AdvisorProjectDetailPage() {
         }
       } catch (error) {
         console.error("Error sending message:", error);
+      } finally {
+        setIsSending(false);
       }
     },
-    [project, user, newMessage]
+    [activeThreadId, user, newMessage]
   );
 
   const generateFeedback = useCallback(async () => {
@@ -781,70 +733,102 @@ export default function AdvisorProjectDetailPage() {
 
   const renderMessageBoard = useCallback(() => {
     return (
-      <>
-        <div className="flex-1 space-y-4 overflow-y-auto mb-4 p-2 border rounded bg-gray-50/50 min-h-[300px]">
-          {messages.length > 0 ? (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${
-                  message.senderType === "Advisor"
-                    ? "justify-end"
-                    : "justify-start"
+      <div className="h-full flex flex-col">
+        {/* Thread List */}
+        <div className="p-2 border-b">
+          <h4 className="text-sm font-semibold mb-2 px-2">Channels</h4>
+          <div className="space-y-1">
+            {threads.map((thread) => (
+              <button
+                key={thread.id}
+                onClick={() => setActiveThreadId(thread.id)}
+                className={`w-full text-left p-2 rounded text-sm ${
+                  activeThreadId === thread.id
+                    ? "bg-blue-100 font-semibold text-blue-800"
+                    : "hover:bg-gray-100"
                 }`}
               >
+                # {thread.topic}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Message Area */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
+          {isLoadingMessages ? (
+            <div className="flex justify-center items-center h-full">
+              <p>Loading messages...</p>
+            </div>
+          ) : messages.length > 0 ? (
+            messages.map((message) => {
+              const isAdvisor = message.user_id === user?.id;
+              return (
                 <div
-                  className={`max-w-[85%] rounded-lg px-3 py-2 shadow-sm ${
-                    message.senderType === "Advisor"
-                      ? "bg-blue-100 text-blue-900"
-                      : "bg-gray-100 text-gray-900"
+                  key={message.id}
+                  className={`flex ${
+                    isAdvisor ? "justify-end" : "justify-start"
                   }`}
                 >
-                  <div className="flex items-center mb-1">
-                    <span className="text-xs font-semibold">
-                      {message.senderType === "Advisor"
-                        ? "You"
-                        : borrowerResume?.content?.fullLegalName || "Borrower"}
-                    </span>
-                    <span className="text-xs text-gray-500 ml-2">
-                      {new Date(message.createdAt).toLocaleString()}
-                    </span>
+                  <div
+                    className={`max-w-[85%] rounded-lg px-3 py-2 shadow-sm ${
+                      isAdvisor
+                        ? "bg-blue-100 text-blue-900"
+                        : "bg-gray-100 text-gray-900"
+                    }`}
+                  >
+                    <div className="flex items-center mb-1">
+                      <span className="text-xs font-semibold">
+                        {isAdvisor
+                          ? "You"
+                          : borrowerResume?.content?.fullLegalName ||
+                            "Borrower"}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-2">
+                        {new Date(message.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm whitespace-pre-line">
+                      {message.message}
+                    </p>
                   </div>
-                  <p className="text-sm whitespace-pre-line">
-                    {message.message}
-                  </p>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500">No messages yet</p>
             </div>
           )}
         </div>
-
-        <div className="flex space-x-2">
+        {/* Message Input */}
+        <div className="p-4 border-t flex space-x-2">
           <textarea
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             placeholder="Type your message here..."
             rows={2}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
+            disabled={!activeThreadId || isSending}
           />
           <div className="flex flex-col space-y-2">
             <Button
               onClick={() => handleSendMessage()}
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || !activeThreadId || isSending}
               leftIcon={<Send size={16} />}
             >
               Send
             </Button>
-            <Button variant="secondary" onClick={generateFeedback}>
+            <Button
+              variant="secondary"
+              onClick={generateFeedback}
+              disabled={!activeThreadId || isSending}
+            >
               Generate Feedback
             </Button>
           </div>
         </div>
-      </>
+      </div>
     );
   }, [
     messages,
@@ -852,6 +836,10 @@ export default function AdvisorProjectDetailPage() {
     borrowerResume,
     handleSendMessage,
     generateFeedback,
+    threads,
+    activeThreadId,
+    isLoadingMessages,
+    isSending,
   ]);
 
   return (
@@ -884,142 +872,148 @@ export default function AdvisorProjectDetailPage() {
             </div>
           </header>
 
-          <main className="p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Main Content Column */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Project Information */}
-                <Card className="shadow-sm">
-                  <CardHeader className="border-b bg-gray-50">
-                    <div className="flex justify-between items-center">
+          <main className="p-6 flex flex-col h-full">
+            {/* Tabs */}
+            <div className="border-b border-gray-200 mb-6">
+              <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                <button
+                  onClick={() => setCurrentTab("details")}
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                    currentTab === "details"
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  Details & Documents
+                </button>
+                <button
+                  onClick={() => setCurrentTab("chat")}
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                    currentTab === "chat"
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  Chat
+                </button>
+              </nav>
+            </div>
+
+            {currentTab === "details" && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div className="space-y-6">
+                  <Card className="shadow-sm">
+                    <CardHeader className="border-b bg-gray-50 flex flex-row justify-between items-center">
                       <h2 className="text-lg font-semibold text-gray-800 flex items-center">
                         <FileText className="h-5 w-5 mr-2 text-blue-600" />
                         Project Details
                       </h2>
-                      <div className="flex items-center space-x-3">
-                        <span className="text-sm text-gray-500">Status:</span>
-                        <Select
-                          options={[
-                            {
-                              value: "Info Gathering",
-                              label: "Info Gathering",
-                            },
-                            {
-                              value: "Advisor Review",
-                              label: "Advisor Review",
-                            },
-                            {
-                              value: "Matches Curated",
-                              label: "Matches Curated",
-                            },
-                            {
-                              value: "Introductions Sent",
-                              label: "Introductions Sent",
-                            },
-                            {
-                              value: "Term Sheet Received",
-                              label: "Term Sheet Received",
-                            },
-                            {
-                              value: "Closed",
-                              label: "Closed",
-                            },
-                            {
-                              value: "Withdrawn",
-                              label: "Withdrawn",
-                            },
-                            {
-                              value: "Stalled",
-                              label: "Stalled",
-                            },
-                          ]}
-                          value={selectedStatus}
-                          onChange={(e) =>
-                            handleStatusChange(e.target.value as ProjectStatus)
-                          }
-                          size="sm"
-                          className="w-40"
+                      <Select
+                        options={[
+                          { value: "Info Gathering", label: "Info Gathering" },
+                          { value: "Advisor Review", label: "Advisor Review" },
+                          {
+                            value: "Matches Curated",
+                            label: "Matches Curated",
+                          },
+                          {
+                            value: "Introductions Sent",
+                            label: "Introductions Sent",
+                          },
+                          {
+                            value: "Term Sheet Received",
+                            label: "Term Sheet Received",
+                          },
+                          { value: "Closed", label: "Closed" },
+                          { value: "Withdrawn", label: "Withdrawn" },
+                          { value: "Stalled", label: "Stalled" },
+                        ]}
+                        value={selectedStatus}
+                        onChange={(e) =>
+                          handleStatusChange(e.target.value as ProjectStatus)
+                        }
+                        size="sm"
+                        className="w-48"
+                      />
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {renderProjectDetails()}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-sm">
+                    <CardHeader className="border-b bg-gray-50">
+                      <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                        Document Requirements
+                      </h2>
+                    </CardHeader>
+                    {renderDocumentRequirements()}
+                  </Card>
+
+                  <Card className="shadow-sm">
+                    <CardContent className="p-0">
+                      {project && (
+                        <DocumentManager
+                          bucketId={project.owner_entity_id}
+                          folderPath={project.id}
+                          title="Project-Specific Documents"
+                          canUpload={true}
+                          canDelete={true}
+                          projectId={project.id}
                         />
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    {renderProjectDetails()}
-                  </CardContent>
-                </Card>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
 
-                {/* Document Requirements */}
-                <Card className="shadow-sm">
-                  <CardHeader className="border-b bg-gray-50">
-                    <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                      <FileText className="h-5 w-5 mr-2 text-blue-600" />
-                      Document Requirements
-                    </h2>
-                  </CardHeader>
-                  {renderDocumentRequirements()}
-                </Card>
+                {/* Right Column */}
+                <div className="space-y-6">
+                  <Card className="shadow-sm">
+                    <CardHeader className="border-b bg-gray-50">
+                      <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                        <User className="h-5 w-5 mr-2 text-blue-600" />
+                        Borrower Details
+                      </h2>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      {renderBorrowerDetails()}
+                    </CardContent>
+                  </Card>
 
-                {/* Project Documents */}
-                <Card className="shadow-sm">
-                  <CardContent className="p-0">
-                    {project && (
-                      <DocumentManager
-                        bucketId={project.owner_entity_id}
-                        folderPath={project.id}
-                        title="Project-Specific Documents"
-                        canUpload={true} // Advisors can upload
-                        canDelete={true} // Advisors can manage
-                        projectId={project.id}
-                      />
-                    )}
-                  </CardContent>
-                </Card>
+                  <Card className="shadow-sm">
+                    <CardContent className="p-0">
+                      {project && (
+                        <DocumentManager
+                          bucketId={project.owner_entity_id}
+                          folderPath="borrower_docs"
+                          title="General Borrower Documents"
+                          canUpload={true}
+                          canDelete={true}
+                        />
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
+            )}
 
-              {/* Sidebar Column */}
-              <div className="lg:col-span-1 space-y-6">
-                {/* Borrower Information */}
-                <Card className="shadow-sm">
-                  <CardHeader className="border-b bg-gray-50">
-                    <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                      <User className="h-5 w-5 mr-2 text-blue-600" />
-                      Borrower Details
-                    </h2>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    {renderBorrowerDetails()}
-                  </CardContent>
-                </Card>
-
-                {/* Borrower Documents */}
-                <Card className="shadow-sm">
-                  <CardContent className="p-0">
-                    {project && (
-                      <DocumentManager
-                        bucketId={project.owner_entity_id}
-                        folderPath="borrower_docs"
-                        title="General Borrower Documents"
-                        canUpload={true} // Advisors can upload
-                        canDelete={true} // Advisors can manage
-                      />
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Message Board */}
-                <Card className="shadow-sm flex flex-col">
+            {currentTab === "chat" && (
+              <div className="flex-1 h-full min-h-[600px]">
+                <Card className="shadow-sm h-full flex flex-col">
                   <CardHeader className="border-b bg-gray-50">
                     <h2 className="text-lg font-semibold text-gray-800 flex items-center">
                       <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
                       Project Message Board
                     </h2>
                   </CardHeader>
-                  <CardContent className="p-4 flex-1 flex flex-col">
+                  <CardContent className="p-0 flex-1 flex flex-col">
                     {renderMessageBoard()}
                   </CardContent>
                 </Card>
               </div>
-            </div>
+            )}
           </main>
         </div>
       </div>

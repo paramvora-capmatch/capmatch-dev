@@ -212,20 +212,30 @@ export default function AdvisorDashboardPage() {
         // Get recent messages from Supabase
         if (assignedProjects.length > 0) {
           const projectIds = assignedProjects.map((p) => p.id);
-          const { data: messagesData, error: messagesError } = await supabase
-            .from("project_messages")
-            .select("*, chat_threads(project_id)") // <-- JOIN HERE
-            .in("chat_threads.project_id", projectIds) // <-- FILTER ON JOINED TABLE
-            .order("created_at", { ascending: false })
-            .limit(5);
+          // Fetch threads first
+          const { data: threads, error: threadsError } = await supabase
+            .from("chat_threads")
+            .select("id, project_id")
+            .in("project_id", projectIds);
 
-          if (messagesError) throw messagesError;
+          if (threadsError) throw threadsError;
 
-          if (messagesData) {
-            const mappedMessages = messagesData.map((msg) => {
-              return dbMessageToProjectMessage(msg);
-            });
-            setRecentMessages(mappedMessages);
+          if (threads && threads.length > 0) {
+            const threadIds = threads.map((t) => t.id);
+            const { data: messagesData, error: messagesError } =
+              await supabase
+                .from("project_messages")
+                .select(`*, chat_threads!inner(project_id)`)
+                .in("thread_id", threadIds)
+                .order("created_at", { ascending: false })
+                .limit(5);
+
+            if (messagesError) throw messagesError;
+
+            if (messagesData) {
+              const mappedMessages = messagesData.map(dbMessageToProjectMessage);
+              setRecentMessages(mappedMessages);
+            }
           }
         }
       } catch (error) {
@@ -623,7 +633,8 @@ export default function AdvisorDashboardPage() {
                               <p className="mt-1 text-sm text-gray-700">
                                 {message.content && message.content.length > 120
                                   ? `${message.content.substring(0, 120)}...`
-                                  : message.content || "No content"}
+                                  : message.content || "No content"}{" "}
+                                (Project: {message.project_id})
                               </p>
                               <div className="mt-2 flex justify-end">
                                 <Button
@@ -631,7 +642,7 @@ export default function AdvisorDashboardPage() {
                                   size="sm"
                                   onClick={() =>
                                     router.push(
-                                      `/advisor/project/${message.project_id}`
+                                      `/advisor/project/${message.project_id!}`
                                     )
                                   }
                                 >
