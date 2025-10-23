@@ -106,7 +106,7 @@ export const useDocumentManagement = (
       
       console.log('[DocumentManagement] File resource IDs:', fileResourceIds);
 
-      let versionsMap = new Map();
+      const versionsMap = new Map();
       if (fileResourceIds && fileResourceIds.length > 0) {
         const { data: versions, error: versionsError } = await supabase
           .from("document_versions")

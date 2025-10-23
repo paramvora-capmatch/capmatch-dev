@@ -117,7 +117,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
     };
 
     loadAndEnrichParticipants();
-  }, [isOpen, thread, loadParticipants, participants.length, members, activeProject]);
+  }, [isOpen, thread, loadParticipants, participants, members, activeProject]);
 
   const availableMembers = members.filter(
     (m) => !participants.some((p) => p.user_id === m.user_id)

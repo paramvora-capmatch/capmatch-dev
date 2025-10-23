@@ -268,7 +268,7 @@ export default function AdvisorProjectDetailPage() {
         setIsLoadingMessages(false);
       }
     },
-    [projectId, user?.id]
+    [projectId]
   );
 
   // Effect for loading messages and setting up subscriptions
@@ -329,7 +329,7 @@ export default function AdvisorProjectDetailPage() {
         supabase.removeChannel(messageSubscriptionRef.current);
       }
     };
-  }, [activeThreadId, user, loadMessages]);
+  }, [activeThreadId, projectId, loadMessages]);
 
   const handleStatusChange = useCallback(
     async (newStatus: ProjectStatus) => {
