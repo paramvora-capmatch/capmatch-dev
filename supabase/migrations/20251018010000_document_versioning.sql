@@ -5,6 +5,15 @@
 -- This migration introduces tables and functions to support versioning
 -- of documents uploaded to the system.
 
+-- Step 0: Temporarily disable RLS on all tables to allow migration operations
+ALTER TABLE public.resources DISABLE ROW LEVEL SECURITY;
+
+ALTER TABLE public.permissions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orgs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.org_members DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projects DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
+
 -- Step 1: Create the document_versions table to store each snapshot.
 CREATE TABLE public.document_versions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -138,8 +147,9 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION public.delete_folder_and_children IS 'Recursively deletes a folder resource and all its descendant resources from the database. Does NOT handle storage object deletion.';
 
 
--- Step 7: Update storage RLS policy - drop old version that references resources.storage_path
--- We must drop the policy BEFORE dropping the function, since the policy depends on it.
+-- Step 7: Update storage RLS policy - drop ALL policies that depend on get_resource_by_storage_path
+-- We must drop ALL policies BEFORE dropping the function, since they depend on it.
+DROP POLICY IF EXISTS "Unified storage access policy" ON storage.objects;
 DROP POLICY IF EXISTS "Users can upload files to folders they can edit" ON storage.objects;
 DROP POLICY IF EXISTS "Users can view files they have access to" ON storage.objects;
 DROP POLICY IF EXISTS "Users can update files they can edit" ON storage.objects;

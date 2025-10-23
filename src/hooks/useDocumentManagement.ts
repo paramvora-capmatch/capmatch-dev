@@ -50,95 +50,128 @@ export const useDocumentManagement = (
           .eq("project_id", projectId)
           .eq("resource_type", "PROJECT_DOCS_ROOT")
           .single();
-        if (error) throw error;
+        if (error) throw new Error(`Failed to find PROJECT_DOCS_ROOT: ${error.message || JSON.stringify(error)}`);
+        if (!root?.id) {
+          throw new Error("Project docs root has no ID");
+        }
         parentId = folderId || root.id;
       } else {
-        // Borrower-level documents root
+        // For org-level documents, use BORROWER_DOCS_ROOT
+        console.log('[DocumentManagement] Looking for BORROWER_DOCS_ROOT for org:', activeOrg.id);
         const { data: root, error } = await supabase
           .from("resources")
           .select("id")
           .eq("org_id", activeOrg.id)
           .eq("resource_type", "BORROWER_DOCS_ROOT")
-          .single();
-        if (error) throw error;
+          .maybeSingle();
+        
+        console.log('[DocumentManagement] BORROWER_DOCS_ROOT query result:', { root, error });
+        
+        if (error) {
+          throw new Error(`Failed to query BORROWER_DOCS_ROOT: ${error.message || JSON.stringify(error)}`);
+        }
+        if (!root) {
+          throw new Error(`BORROWER_DOCS_ROOT not found for org ${activeOrg.id}. This should have been created during onboarding.`);
+        }
+        if (!root.id) {
+          throw new Error(`BORROWER_DOCS_ROOT exists but has no ID for org ${activeOrg.id}`);
+        }
         parentId = folderId || root.id;
       }
+
+      console.log('[DocumentManagement] Using parent ID:', parentId);
 
       // First, get all resources (files and folders)
       const { data: resources, error } = await supabase
         .from("resources")
-        .select(
-          "id, name, resource_type, created_at, updated_at, current_version_id"
-        )
+        .select("*")
         .eq("parent_id", parentId)
         .in("resource_type", ["FOLDER", "FILE"])
         .order("name");
 
-      if (error) throw error;
+      if (error) {
+        console.error('[DocumentManagement] Resources query error:', error);
+        throw new Error(`Failed to fetch resources: ${error.message || JSON.stringify(error)}`);
+      }
+      
+      console.log('[DocumentManagement] Resources fetched:', resources?.length || 0);
 
       const filesList: DocumentFile[] = [];
       const foldersList: DocumentFolder[] = [];
 
-      // Get all current version IDs for files
-      const fileResources =
-        resources?.filter(
-          (r) => r.resource_type === "FILE" && r.current_version_id
-        ) || [];
-      const versionIds = fileResources
-        .map((r) => r.current_version_id)
-        .filter(Boolean);
+      // Second, fetch all document versions for files in one query
+      const fileResourceIds = resources
+        ?.filter((r) => r.resource_type === "FILE")
+        .map((r) => r.id);
+      
+      console.log('[DocumentManagement] File resource IDs:', fileResourceIds);
 
-      // Fetch all current versions in one query
       let versionsMap = new Map();
-      if (versionIds.length > 0) {
+      if (fileResourceIds && fileResourceIds.length > 0) {
         const { data: versions, error: versionsError } = await supabase
           .from("document_versions")
-          .select("id, storage_path, created_at, metadata")
-          .in("id", versionIds);
+          .select("*")
+          .in("resource_id", fileResourceIds)
+          .order("version_number", { ascending: false });
 
         if (versionsError) {
           console.error("Error fetching versions:", versionsError);
+          throw new Error(`Failed to fetch document versions: ${versionsError.message || JSON.stringify(versionsError)}`);
         } else {
+          console.log('[DocumentManagement] Versions fetched:', versions?.length || 0);
           versions?.forEach((v) => versionsMap.set(v.id, v));
         }
       }
 
-      for (const resource of resources || []) {
-        if (resource.resource_type === "FILE") {
-          const currentVersion = versionsMap.get(resource.current_version_id);
-          if (!currentVersion || !currentVersion.storage_path) {
-            console.warn(`File ${resource.id} has no current version`);
-            continue;
-          }
-          const size = currentVersion.metadata?.size || 0;
-          filesList.push({
-            id: resource.id,
-            name: resource.name,
-            size: size,
-            type: "file",
-            storage_path: currentVersion.storage_path,
-            resource_id: resource.id,
-            created_at: resource.created_at,
-            updated_at: currentVersion.created_at || resource.created_at,
-            metadata: currentVersion.metadata,
-          });
-        } else if (resource.resource_type === "FOLDER") {
+      // Third, process each resource
+      resources?.forEach((resource) => {
+        if (resource.resource_type === "FOLDER") {
           foldersList.push({
             id: resource.id,
             name: resource.name,
-            resource_id: resource.id,
-            parent_id: parentId,
             created_at: resource.created_at,
-            updated_at: resource.created_at,
           });
-        }
-      }
+        } else if (resource.resource_type === "FILE") {
+          // Find the current version for this file
+          const currentVersion = resource.current_version_id
+            ? versionsMap.get(resource.current_version_id)
+            : null;
 
+          if (currentVersion) {
+            filesList.push({
+              id: currentVersion.id,
+              resource_id: resource.id,
+              name: resource.name,
+              storage_path: currentVersion.storage_path,
+              version_number: currentVersion.version_number,
+              created_at: currentVersion.created_at,
+              updated_at: resource.updated_at,
+              metadata: currentVersion.metadata || {},
+            });
+          } else {
+            console.warn(
+              `[DocumentManagement] File resource ${resource.id} has no current version`
+            );
+          }
+        }
+      });
+
+      console.log('[DocumentManagement] Processed:', { files: filesList.length, folders: foldersList.length });
       setFiles(filesList);
       setFolders(foldersList);
     } catch (err) {
-      console.error("Error listing documents:", err);
-      setError(err instanceof Error ? err.message : "Failed to list documents");
+      console.error("[DocumentManagement] Error listing documents:", err);
+      if (err instanceof Error) {
+        console.error("[DocumentManagement] Error message:", err.message);
+        console.error("[DocumentManagement] Error stack:", err.stack);
+        setError(err.message);
+      } else {
+        console.error("[DocumentManagement] Unknown error type:", typeof err);
+        console.error("[DocumentManagement] Error value:", err);
+        setError("An unknown error occurred while listing documents");
+      }
+      console.error("[DocumentManagement] Active org:", activeOrg?.id);
+      console.error("[DocumentManagement] Project ID:", projectId);
     } finally {
       setIsLoading(false);
     }
@@ -185,7 +218,10 @@ export const useDocumentManagement = (
           })
           .select()
           .single();
-        if (resourceError) throw resourceError;
+        if (resourceError) {
+          console.error("Error creating resource:", resourceError);
+          throw resourceError;
+        }
         resourceId = resource.id;
 
         const { data: version, error: versionError } = await supabase
@@ -197,14 +233,20 @@ export const useDocumentManagement = (
           })
           .select()
           .single();
-        if (versionError) throw versionError;
+        if (versionError) {
+          console.error("Error creating document version:", versionError);
+          throw versionError;
+        }
 
         // Mark the new version as active (it's the current one)
         const { error: statusError } = await supabase
           .from("document_versions")
           .update({ status: "active" })
           .eq("id", version.id);
-        if (statusError) throw statusError;
+        if (statusError) {
+          console.error("Error updating version status:", statusError);
+          throw statusError;
+        }
 
         const fileFolder = projectId
           ? `${projectId}/${resourceId}`
@@ -214,24 +256,44 @@ export const useDocumentManagement = (
         const { error: uploadError } = await supabase.storage
           .from(activeOrg.id)
           .upload(finalStoragePath, file, { upsert: false });
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("Error uploading file to storage:", uploadError);
+          throw uploadError;
+        }
 
         const { error: updateVersionError } = await supabase
           .from("document_versions")
           .update({ storage_path: finalStoragePath })
           .eq("id", version.id);
-        if (updateVersionError) throw updateVersionError;
+        if (updateVersionError) {
+          console.error("Error updating version storage path:", updateVersionError);
+          throw updateVersionError;
+        }
 
         const { error: updateResourceError } = await supabase
           .from("resources")
           .update({ current_version_id: version.id })
           .eq("id", resourceId);
-        if (updateResourceError) throw updateResourceError;
+        if (updateResourceError) {
+          console.error("Error updating resource current version:", updateResourceError);
+          throw updateResourceError;
+        }
 
         await listDocuments();
         return resource;
       } catch (err) {
-        console.error("Error uploading file:", err);
+        console.error("Error uploading file:", {
+          error: err,
+          message: err instanceof Error ? err.message : "Unknown error",
+          stack: err instanceof Error ? err.stack : undefined,
+          resourceId,
+          finalStoragePath,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          projectId,
+          activeOrgId: activeOrg?.id
+        });
         setError(err instanceof Error ? err.message : "Failed to upload file");
         if (finalStoragePath)
           await supabase.storage.from(activeOrg!.id).remove([finalStoragePath]);
@@ -375,26 +437,27 @@ export const useDocumentManagement = (
       if (!activeOrg) throw new Error("Missing context");
       try {
         // Get the resource and its current version
-        const { data, error } = await supabase
+        const { data: resource, error: resourceError } = await supabase
           .from("resources")
           .select("name, current_version_id")
           .eq("id", fileId)
           .single();
-
-        if (error) throw error;
-        if (!data?.current_version_id) throw new Error("File has no current version");
-
+        if (resourceError) throw resourceError;
+        if (!resource.current_version_id) throw new Error("File has no current version.");
+        
         const { data: version, error: versionError } = await supabase
           .from("document_versions")
           .select("storage_path")
-          .eq("id", data.current_version_id)
+          .eq("id", resource.current_version_id)
           .single();
 
-        if (versionError || !version?.storage_path)
+        if (versionError) throw versionError;
+
+        if (!version?.storage_path)
           throw new Error("File has no storage path");
 
         const storage_path = version.storage_path;
-        const file_name = data.name;
+        const file_name = resource.name;
 
         // Download from storage
         const { data: downloadedFile, error: downloadError } =

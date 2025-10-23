@@ -7,7 +7,7 @@ import { useAuth } from "../../hooks/useAuth";
 
 interface RoleBasedRouteProps {
   children: React.ReactNode;
-  roles: ("borrower" | "advisor" | "lender" | "admin")[];
+  roles: ("borrower" | "advisor" | "lender")[];
   redirectTo?: string;
 }
 
@@ -52,7 +52,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     if (!hasChecked) {
       setHasChecked(true);
     }
-  }, [isLoading, hasChecked, isAuthenticated, user, roles, router, redirectTo]);
+  }, [isLoading, isAuthenticated, user, roles, router, redirectTo, hasChecked]);
 
   // While the initial check is pending on first load, show a full-page loader.
   if (!hasChecked) {

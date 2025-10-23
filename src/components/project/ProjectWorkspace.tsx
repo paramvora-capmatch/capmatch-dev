@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useProjects } from "../../hooks/useProjects";
-import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
+import { useProjects } from "@/hooks/useProjects";
+import { useBorrowerResume } from "../../hooks/useBorrowerResume";
 
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
@@ -12,7 +12,6 @@ import { Users as AccessControlIcon } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { Button } from "../ui/Button"; // Import Button
-import { useAuth } from "@/hooks/useAuth"; // Add this import;
 import { useAuthStore } from "@/stores/useAuthStore";
 import { AskAIProvider } from "../ui/AskAIProvider";
 import { ChatInterface } from "@/components/chat/ChatInterface";
@@ -37,11 +36,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     isLoading: projectsLoading,
     getProject,
   } = useProjects();
-  const { content: borrowerProfile, isLoading: profileLoading } =
-    useBorrowerProfile();
-  const { loadOrg } = useOrgStore();
-  const { isOwner } = useOrgStore();
-  const { user, isLoading: authLoading } = useAuth();
+  const { content: borrowerResume, isLoading: profileLoading } = useBorrowerResume();
+  const { loadOrg, isOwner } = useOrgStore();
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.isLoading);
 
   const [isEditing, setIsEditing] = useState(false);
   const [droppedFieldId, setDroppedFieldId] = useState<string | null>(null);
@@ -70,20 +68,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   // Load org data when we have a project
   useEffect(() => {
     const loadOrgData = async () => {
-      if (!activeProject?.entityId) return;
+      if (!activeProject?.owner_org_id) return;
 
       const { currentOrg } = useOrgStore.getState();
       // Only load if we haven't loaded this org yet
-      if (currentOrg?.id !== activeProject.entityId) {
+      if (currentOrg?.id !== activeProject.owner_org_id) {
         console.log(
-          `[ProjectWorkspace] Loading org data for: ${activeProject.entityId}`
+          `[ProjectWorkspace] Loading org data for: ${activeProject.owner_org_id}`
         );
-        await loadOrg(activeProject.entityId);
+        await loadOrg(activeProject.owner_org_id);
       }
     };
-
     loadOrgData();
-  }, [activeProject?.entityId, loadOrg]);
+  }, [activeProject?.owner_org_id, loadOrg]);
 
   // useEffect for loading and setting active project
   useEffect(() => {
@@ -102,8 +99,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           setActiveProject(projectData);
 
           // Load org data for permission checks
-          if (projectData.entityId) {
-            await loadOrg(projectData.entityId);
+          if (projectData.owner_org_id) {
+            await loadOrg(projectData.owner_org_id);
           }
         } else {
           // Only show error if we're confident the project doesn't exist
@@ -151,7 +148,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   return (
     <div className="space-y-6 animate-fadeIn">
       <ProfileSummaryCard
-        profile={borrowerProfile}
+        profile={borrowerResume}
         isLoading={profileLoading}
       />
 
@@ -265,7 +262,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   <div className="p-2 h-full">
                     <DocumentManager
                       projectId={projectId}
-                      folderId={null}
+                      resourceId="PROJECT_ROOT"
                       title=""
                       canUpload={true}
                       canDelete={true}

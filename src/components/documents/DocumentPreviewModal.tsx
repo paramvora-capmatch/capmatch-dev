@@ -46,17 +46,50 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
       if (!resourceId) return;
       setIsLoading(true);
       setError(null);
+
+      console.log('[DocumentPreviewModal] Fetching resource details for:', resourceId);
+
       try {
+        // First, get the resource
         const { data, error } = await supabase
           .from("resources")
-          .select("*, current_version:document_versions!current_version_id(*)")
+          .select("*")
           .eq("id", resourceId)
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error('[DocumentPreviewModal] Error fetching resource:', error);
+          throw new Error(`Failed to fetch resource: ${error.message}`);
+        }
+
+        if (!data) {
+          throw new Error("Resource not found");
+        }
+
+        console.log('[DocumentPreviewModal] Resource data:', data);
+
+        // If there's no current_version_id, this resource has no versions yet
+        if (!data.current_version_id) {
+          throw new Error("This document has no versions. It may not have been uploaded correctly.");
+        }
+
+        // Now fetch the current version separately
+        const { data: currentVersion, error: versionError } = await supabase
+          .from("document_versions")
+          .select("*")
+          .eq("id", data.current_version_id)
+          .single();
+
+        if (versionError) {
+          console.error('[DocumentPreviewModal] Error fetching version:', versionError);
+          throw new Error(`Failed to fetch document version: ${versionError.message}`);
+        }
         
-        const currentVersion = data.current_version;
-        if (!currentVersion) throw new Error("Document version not found.");
+        if (!currentVersion) {
+          throw new Error("Document version not found");
+        }
+
+        console.log('[DocumentPreviewModal] Current version:', currentVersion);
 
         const formattedResource: ResourceDetails = {
           id: data.id,
@@ -66,13 +99,15 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           storage_path: currentVersion.storage_path,
           created_at: data.created_at,
           updated_at: currentVersion.created_at,
-          size: currentVersion.metadata?.size || 0,
-          type: currentVersion.metadata?.mimetype || 'unknown',
+          version_number: currentVersion.version_number,
           resource_id: data.id,
           metadata: currentVersion.metadata
         };
+
+        console.log('[DocumentPreviewModal] Formatted resource:', formattedResource);
         setResource(formattedResource);
       } catch (err) {
+        console.error('[DocumentPreviewModal] Error in fetchResourceDetails:', err);
         setError(err instanceof Error ? err.message : "Failed to load document details.");
       } finally {
         setIsLoading(false);

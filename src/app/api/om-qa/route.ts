@@ -1,12 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { streamObject } from "ai";
-import {
-  createGoogleGenerativeAI,
-  GoogleGenerativeAIProviderOptions,
-} from "@ai-sdk/google";
-import { OmQaSchema } from "@/types/om-types";
-import {
-  scenarioData,
+import { NextRequest, NextResponse } from 'next/server';
+import { streamObject } from 'ai';
+import { createGoogleGenerativeAI, GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
+import { OmQaSchema } from '@/types/om-types';
+import { 
+  scenarioData, 
   marketComps,
   marketContextDetails,
   dealSnapshotDetails,

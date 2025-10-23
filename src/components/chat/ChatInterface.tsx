@@ -70,16 +70,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   );
   const [managingThread, setManagingThread] = useState<ChatThread | null>(null);
 
-  // Check if user has owner permissions for this specific project
+  // Check if user is an owner of the org that owns this project
   const hasOwnerPermissions = useMemo(() => {
-    if (!activeProject?.entityId || !currentOrg) return false;
-
-    // User is owner if:
-    // 1. The isOwner flag is true (they're owner of the org)
-    // 2. The current org matches the project's owner org
-    const isProjectOwner = isOwner && currentOrg.id === activeProject.entityId;
-    console.log(`[ChatInterface] Has owner permissions: ${isProjectOwner}`);
-    return isProjectOwner;
+    if (!activeProject?.owner_org_id || !currentOrg) return false;
+    const canManage = isOwner && currentOrg.id === activeProject.owner_org_id;
+    console.log(`[ChatInterface] Has owner permissions: ${canManage}, isOwner: ${isOwner}, currentOrg: ${currentOrg?.id}, projectOwner: ${activeProject.owner_org_id}`);
+    return canManage;
   }, [isOwner, currentOrg, activeProject]);
 
   const memberOptions = useMemo(() => members

@@ -154,9 +154,7 @@ export default function ZoningMap({
               <p className="text-sm text-gray-600">2.5 Acres</p>
               <p className="text-sm text-gray-600">Zoning: MU-4</p>
               <p className="text-sm text-gray-600">FAR: 3.5/4.0</p>
-              <p className="text-sm text-gray-600">
-                Height: 85&apos;/100&apos;
-              </p>
+              <p className="text-sm text-gray-600">Height: 85&apos;/100&apos;</p>
             </div>
           </Popup>
         </Polygon>

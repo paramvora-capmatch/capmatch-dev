@@ -16,7 +16,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 	const { getProject } = useProjects();
 	const project = projectId ? getProject(projectId) : null;
 
-	// Since this is a client component, we can use the context hook here.
+	// All hooks must be called before any conditional logic
 	const { scenario, setScenario } = useOMDashboard();
 
 	if (!project) {

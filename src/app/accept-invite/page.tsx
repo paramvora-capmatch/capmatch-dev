@@ -1,18 +1,18 @@
 // src/app/accept-invite/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
-import { useOrgStore } from "@/stores/useOrgStore";
-import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/card";
-import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
-import {
-  Mail,
-  CheckCircle,
-  AlertCircle,
-  Clock,
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { useOrgStore } from '@/stores/useOrgStore';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { 
+  Mail, 
+  CheckCircle, 
+  AlertCircle, 
+  Clock, 
   UserPlus,
   ArrowRight,
 } from "lucide-react";
@@ -61,7 +61,7 @@ export default function AcceptInvitePage() {
 
   useEffect(() => {
     if (!token) {
-      setError("No invitation token provided");
+      setError('No invitation token provided');
       setIsLoading(false);
       return;
     }
@@ -176,8 +176,7 @@ export default function AcceptInvitePage() {
                     You&apos;re Invited!
                   </h3>
                   <p className="text-sm text-gray-600">
-                    You&apos;ve been invited to join{" "}
-                    <strong>{inviteData.orgName}</strong>
+                    You&apos;ve been invited to join <strong>{inviteData.orgName}</strong>
                     {inviteData.inviterName && (
                       <span> by {inviteData.inviterName}</span>
                     )}
@@ -207,8 +206,7 @@ export default function AcceptInvitePage() {
                       <div className="space-y-4">
                         <div className="text-center">
                           <p className="text-sm text-gray-600 mb-4">
-                            You&apos;ll need to create an account to join this
-                            team.
+                            You&apos;ll need to create an account to join this team.
                           </p>
                         </div>
 
@@ -326,18 +324,9 @@ export default function AcceptInvitePage() {
                     <div className="text-sm text-blue-800">
                       <p className="font-medium mb-1">What happens next?</p>
                       <ul className="space-y-1">
-                        <li>
-                          • You&apos;ll be added to the team with appropriate
-                          permissions
-                        </li>
-                        <li>
-                          • You can access projects and documents based on your
-                          role
-                        </li>
-                        <li>
-                          • You&apos;ll be redirected to your dashboard after
-                          joining
-                        </li>
+                        <li>• You&apos;ll be added to the team with appropriate permissions</li>
+                        <li>• You can access projects and documents based on your role</li>
+                        <li>• You&apos;ll be redirected to your dashboard after joining</li>
                       </ul>
                     </div>
                   </div>

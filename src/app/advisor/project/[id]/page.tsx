@@ -21,11 +21,11 @@ import {
   Send,
 } from "lucide-react";
 import {
-  BorrowerProfile,
+  BorrowerProfile, // Used for demo mode mapping
   ProjectProfile,
   ProjectStatus,
   ProjectDocumentRequirement,
-  Project,
+  Project, // Base Project type, useful for some contexts
   BorrowerResume,
   ProjectResume,
 } from "../../../../types/enhanced-types";
@@ -34,6 +34,7 @@ import { DocumentManager } from "@/components/documents/DocumentManager";
 import { storageService } from "@/lib/storage";
 import { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
+import { getProjectWithResume } from "@/lib/project-queries";
 
 // Utility functions
 const formatDate = (dateString: string) => {
@@ -102,9 +103,7 @@ export default function AdvisorProjectDetailPage() {
   const params = useParams();
   const { user } = useAuth();
 
-  const [project, setProject] = useState<
-    (Project & { owner_entity_id: string }) | null
-  >(null);
+  const [project, setProject] = useState<ProjectProfile | null>(null);
   const [borrowerResume, setBorrowerResume] = useState<BorrowerResume | null>(
     null
   );
@@ -139,139 +138,95 @@ export default function AdvisorProjectDetailPage() {
       try {
         setIsLoadingData(true);
 
-        let foundProject:
-          | (Project & { owner_entity_id: string })
-          | undefined
-          | null = null;
-        if (user.isDemo) {
-          const allProjects = await storageService.getItem<ProjectProfile[]>(
-            "projects"
-          );
-          const legacyProject = allProjects?.find((p) => p.id === projectId);
-          if (legacyProject) {
-            foundProject = {
-              id: legacyProject.id,
-              created_at: legacyProject.createdAt,
-              updated_at: legacyProject.updatedAt,
-              name: legacyProject.projectName,
-              owner_org_id: legacyProject.orgId,
-              assigned_advisor_id: legacyProject.assignedAdvisorUserId,
-              owner_entity_id: legacyProject.orgId, // Assuming orgId maps to owner_entity_id for demo
-            };
-          }
-        } else {
-          const { data, error } = await supabase
-            .from("projects")
-            .select("*")
-            .eq("id", projectId)
-            .single();
-          if (error) throw error;
-          if (data)
-            foundProject = data as Project & { owner_entity_id: string };
-        }
-
-        if (foundProject) {
-          setProject(foundProject);
-          // For now, we'll use a default status or try to get from project_resume
-          setSelectedStatus("Info Gathering"); // Default
-
-          // Load borrower resume
-          if (user.isDemo) {
-            const allProfiles = await storageService.getItem<BorrowerProfile[]>(
-              "borrowerProfiles"
-            );
-            const profile = allProfiles?.find(
-              (p) => p.entityId === foundProject!.owner_entity_id
-            );
-            if (profile) {
-              setBorrowerResume({
-                id: `resume-${profile.id}`,
-                entity_id: foundProject!.owner_entity_id,
-                content: {
-                  fullLegalName: profile.fullLegalName,
-                  primaryEntityName: profile.primaryEntityName,
-                  contactEmail: profile.contactEmail,
-                  contactPhone: profile.contactPhone,
-                  yearsCREExperienceRange: profile.yearsCREExperienceRange,
-                  assetClassesExperience: profile.assetClassesExperience,
-                  geographicMarketsExperience:
-                    profile.geographicMarketsExperience,
-                  creditScoreRange: profile.creditScoreRange,
-                  netWorthRange: profile.netWorthRange,
-                  liquidityRange: profile.liquidityRange,
-                  bankruptcyHistory: profile.bankruptcyHistory,
-                  foreclosureHistory: profile.foreclosureHistory,
-                  litigationHistory: profile.litigationHistory,
-                },
-                created_at: profile.createdAt,
-                updated_at: profile.updatedAt,
-              });
-            }
-          } else {
-            const { data: borrowerResumeData, error: borrowerResumeError } =
-              await supabase
-                .from("borrower_resumes")
-                .select("*")
-                .eq("entity_id", foundProject.owner_entity_id)
-                .single();
-
-            if (
-              borrowerResumeError &&
-              borrowerResumeError.code !== "PGRST116"
-            ) {
-              console.warn(
-                "Error loading borrower resume:",
-                borrowerResumeError
-              );
-            } else if (borrowerResumeData) {
-              setBorrowerResume(borrowerResumeData);
-            }
-
-            const { data: projectResumeData, error: projectResumeError } =
-              await supabase
-                .from("project_resumes")
-                .select("*")
-                .eq("project_id", foundProject.id)
-                .single();
-
-            if (projectResumeError && projectResumeError.code !== "PGRST116") {
-              console.warn("Error loading project resume:", projectResumeError);
-            } else if (projectResumeData) {
-              setProjectResume(projectResumeData);
-              if (projectResumeData.content?.status) {
-                setSelectedStatus(projectResumeData.content.status);
-              }
-            }
-          }
-
-          // Fetch chat threads
-          try {
-            const { data: threadData, error: threadError } = await supabase
-              .from("chat_threads")
-              .select("id, topic")
-              .eq("project_id", projectId);
-            if (threadError) {
-              throw threadError;
-            }
-            if (threadData) {
-              setThreads(threadData);
-            }
-          } catch (error) {
-            console.error("Error fetching threads:", error);
-          }
-
-          const allRequirements = await storageService.getItem<
-            ProjectDocumentRequirement[]
-          >("documentRequirements");
-          if (allRequirements) {
-            const projectRequirements = allRequirements.filter(
-              (r) => r.projectId === projectId
-            );
-            setDocumentRequirements(projectRequirements);
-          }
-        } else {
+        // 1. Load project with resume content using the new query function
+        const foundProject = await getProjectWithResume(projectId);
+        if (!foundProject) {
           console.error("Project not found");
           router.push("/advisor/dashboard");
+          return;
+        }
+        setProject(foundProject);
+        setSelectedStatus(
+          (foundProject.projectStatus as ProjectStatus) || "Info Gathering"
+        );
+        setProjectResume(foundProject.projectResume || null); // Assuming projectResume is part of ProjectProfile
+
+        // 2. Load borrower resume for the owning org
+        if (user.isDemo) {
+          const allProfiles = await storageService.getItem<BorrowerProfile[]>(
+            "borrowerProfiles"
+          );
+          const profile = allProfiles?.find(
+            (p) => p.entityId === foundProject.owner_org_id
+          );
+          if (profile) {
+            setBorrowerResume({
+              id: `resume-${profile.id}`,
+              org_id: foundProject.owner_org_id,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              content: {
+                fullLegalName: profile.fullLegalName,
+                primaryEntityName: profile.primaryEntityName,
+                contactEmail: profile.contactEmail,
+                contactPhone: profile.contactPhone,
+                yearsCREExperienceRange: profile.yearsCREExperienceRange,
+                assetClassesExperience: profile.assetClassesExperience,
+                geographicMarketsExperience:
+                  profile.geographicMarketsExperience,
+                creditScoreRange: profile.creditScoreRange,
+                netWorthRange: profile.netWorthRange,
+                liquidityRange: profile.liquidityRange,
+                bankruptcyHistory: profile.bankruptcyHistory,
+                foreclosureHistory: profile.foreclosureHistory,
+                litigationHistory: profile.litigationHistory,
+              },
+            });
+          }
+        } else {
+          const { data: borrowerResumeData, error: borrowerResumeError } =
+            await supabase
+              .from("borrower_resumes")
+              .select("*")
+              .eq("org_id", foundProject.owner_org_id)
+              .single();
+
+          if (borrowerResumeError && borrowerResumeError.code !== "PGRST116") {
+            console.warn("Error loading borrower resume:", borrowerResumeError);
+          } else if (borrowerResumeData) {
+            setBorrowerResume(borrowerResumeData);
+          }
+        }
+
+        // 3. Fetch chat threads
+        try {
+          const { data: threadData, error: threadError } = await supabase
+            .from("chat_threads")
+            .select("id, topic")
+            .eq("project_id", projectId);
+          if (threadError) {
+            throw threadError;
+          }
+          if (threadData) {
+            setThreads(threadData);
+            // Optionally set the first thread as active by default
+            if (threadData.length > 0) {
+              setActiveThreadId(threadData[0].id);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching threads:", error);
+        }
+
+        // 4. Fetch document requirements
+        const allRequirements = await storageService.getItem<
+          ProjectDocumentRequirement[]
+        >("documentRequirements");
+        if (allRequirements) {
+          const projectRequirements = allRequirements.filter(
+            (r) => r.projectId === projectId
+          );
+          setDocumentRequirements(projectRequirements);
         }
       } catch (error) {
         console.error("Error loading project data:", error);
@@ -355,7 +310,10 @@ export default function AdvisorProjectDetailPage() {
             id: newMessage.id.toString(),
             projectId,
             ...newMessage,
-            sender: senderProfile || { id: newMessage.user_id, full_name: "Unknown" },
+            sender: senderProfile || {
+              id: newMessage.user_id,
+              full_name: "Unknown",
+            },
             message: newMessage.content || "",
             createdAt: newMessage.created_at,
           };
@@ -464,7 +422,7 @@ export default function AdvisorProjectDetailPage() {
             <h3 className="text-sm font-medium text-gray-500 mb-1">
               Project Name
             </h3>
-            <p className="text-sm text-gray-800">{project.name}</p>
+            <p className="text-sm text-gray-800">{project.projectName}</p>
           </div>
 
           <div>
@@ -476,10 +434,10 @@ export default function AdvisorProjectDetailPage() {
 
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Owner Entity ID
+              Owner Org ID
             </h3>
             <p className="text-sm text-gray-800 font-mono">
-              {project.owner_entity_id}
+              {project.owner_org_id}
             </p>
           </div>
 
@@ -585,11 +543,11 @@ export default function AdvisorProjectDetailPage() {
               <div>
                 <p className="text-sm text-gray-800">
                   <span className="font-medium">Created:</span>{" "}
-                  {formatDate(project.created_at)}
+                  {formatDate(project.createdAt)}
                 </p>
                 <p className="text-sm text-gray-800">
                   <span className="font-medium">Last Updated:</span>{" "}
-                  {formatDate(project.updated_at)}
+                  {formatDate(project.updatedAt)}
                 </p>
               </div>
             </div>
@@ -857,7 +815,7 @@ export default function AdvisorProjectDetailPage() {
   }, [
     messages,
     newMessage,
-    borrowerResume,
+    user, // Changed from borrowerResume as sender is from profiles
     handleSendMessage,
     generateFeedback,
     threads,
@@ -884,7 +842,7 @@ export default function AdvisorProjectDetailPage() {
             </Button>
             <div>
               <h1 className="text-2xl font-semibold text-gray-800">
-                {project?.name || "Project Details"}
+                {project?.projectName || "Project Details"}
               </h1>
               <div
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getStatusColor(
@@ -980,7 +938,7 @@ export default function AdvisorProjectDetailPage() {
                     <CardContent className="p-0">
                       {project && (
                         <DocumentManager
-                          bucketId={project.owner_entity_id}
+                          bucketId={project.owner_org_id} // Assuming owner_org_id is the bucketId
                           folderPath={project.id}
                           title="Project-Specific Documents"
                           canUpload={true}
@@ -1010,7 +968,7 @@ export default function AdvisorProjectDetailPage() {
                     <CardContent className="p-0">
                       {project && (
                         <DocumentManager
-                          bucketId={project.owner_entity_id}
+                          bucketId={project.owner_org_id} // Assuming owner_org_id is the bucketId
                           folderPath="borrower_docs"
                           title="General Borrower Documents"
                           canUpload={true}

@@ -19,7 +19,10 @@ export interface ButtonProps
   fullWidth?: boolean;
 }
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+export const Button = React.forwardRef<
+  HTMLButtonElement,
+  ButtonProps
+>(
   (
     {
       className,
@@ -37,7 +40,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
-    const Component = as;
+    const Component = as as any;
     const baseStyles =
       "inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500";
 

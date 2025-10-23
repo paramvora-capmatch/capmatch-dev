@@ -1,29 +1,29 @@
 // src/app/project/om/[id]/dashboard/asset-profile/page.tsx
 "use client";
 
-import React from "react";
-import { useParams } from "next/navigation";
-import { useProjects } from "@/hooks/useProjects";
-import { QuadrantGrid } from "@/components/om/QuadrantGrid";
-import { MiniChart } from "@/components/om/widgets/MiniChart";
-import { unitMixData, marketComps } from "@/services/mockOMData";
-import { MapPin, Home, Package, Building2 } from "lucide-react";
-import ZoningMap from "@/components/om/ZoningMap";
+import React from 'react';
+import { useParams } from 'next/navigation';
+import { useProjects } from '@/hooks/useProjects';
+import { QuadrantGrid } from '@/components/om/QuadrantGrid';
+import { MiniChart } from '@/components/om/widgets/MiniChart';
+import { unitMixData, marketComps } from '@/services/mockOMData';
+import { MapPin, Home, Package, Building2 } from 'lucide-react';
+import ZoningMap from '@/components/om/ZoningMap';
 
 export default function AssetProfilePage() {
   const params = useParams();
   const projectId = params?.id as string;
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
-
+  
   if (!project) return <div>Project not found</div>;
-
+  
   const quadrants = [
     {
-      id: "site-zoning",
-      title: "Site & Zoning",
+      id: 'site-zoning',
+      title: 'Site & Zoning',
       icon: MapPin,
-      color: "from-purple-400 to-purple-500",
+      color: 'from-purple-400 to-purple-500',
       href: `/project/om/${projectId}/dashboard/asset-profile/site-plan`,
       metrics: (
         <div className="space-y-3">
@@ -47,27 +47,22 @@ export default function AssetProfilePage() {
             </div>
           </div>
         </div>
-      ),
+      )
     },
     {
-      id: "design-amenities",
-      title: "Design & Amenities",
+      id: 'design-amenities',
+      title: 'Design & Amenities',
       icon: Home,
-      color: "from-blue-400 to-blue-500",
+      color: 'from-blue-400 to-blue-500',
       href: `/project/om/${projectId}/dashboard/asset-profile/amenities`,
       metrics: (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            {["Pool", "Gym", "Lounge", "Rooftop", "Co-work", "Pet Spa"].map(
-              (amenity) => (
-                <div
-                  key={amenity}
-                  className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded text-center"
-                >
-                  {amenity}
-                </div>
-              )
-            )}
+            {['Pool', 'Gym', 'Lounge', 'Rooftop', 'Co-work', 'Pet Spa'].map((amenity) => (
+              <div key={amenity} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded text-center">
+                {amenity}
+              </div>
+            ))}
           </div>
           <div className="pt-2">
             <p className="text-xs text-gray-500 mb-2">Building Stats</p>
@@ -87,13 +82,13 @@ export default function AssetProfilePage() {
             </div>
           </div>
         </div>
-      ),
+      )
     },
     {
-      id: "unit-economics",
-      title: "Unit Economics",
+      id: 'unit-economics',
+      title: 'Unit Economics',
       icon: Package,
-      color: "from-green-400 to-green-500",
+      color: 'from-green-400 to-green-500',
       href: `/project/om/${projectId}/dashboard/asset-profile/unit-mix`,
       metrics: (
         <div className="space-y-3">
@@ -118,13 +113,13 @@ export default function AssetProfilePage() {
             </div>
           </div>
         </div>
-      ),
+      )
     },
     {
-      id: "comparable-assets",
-      title: "Comparable Assets",
+      id: 'comparable-assets',
+      title: 'Comparable Assets',
       icon: Building2,
-      color: "from-amber-400 to-amber-500",
+      color: 'from-amber-400 to-amber-500',
       href: `/project/om/${projectId}/dashboard/asset-profile/comparables`,
       metrics: (
         <div className="space-y-3">
@@ -147,10 +142,10 @@ export default function AssetProfilePage() {
             ))}
           </div>
         </div>
-      ),
-    },
+      )
+    }
   ];
-
+  
   return (
     <div className="max-w-6xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">

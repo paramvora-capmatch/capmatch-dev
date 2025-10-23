@@ -19,13 +19,13 @@ const LoginForm = () => {
   const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const searchParams = useSearchParams();
   const {
     signInWithPassword,
     signUp,
     signInWithGoogle,
     isLoading: authLoading,
   } = useAuth();
-  const searchParams = useSearchParams();
   const [loginSource, setLoginSource] = useState<"direct" | "lenderline">(
     "direct"
   );

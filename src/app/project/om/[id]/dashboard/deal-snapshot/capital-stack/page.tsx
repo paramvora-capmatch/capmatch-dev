@@ -1,14 +1,14 @@
 // src/app/project/om/[id]/dashboard/deal-snapshot/capital-stack/page.tsx
 "use client";
 
-import React from "react";
-import { useParams } from "next/navigation";
-import { useProjects } from "@/hooks/useProjects";
-import { useOMDashboard } from "@/contexts/OMDashboardContext";
-import { capitalStackData } from "@/services/mockOMData";
-import { MetricCard } from "@/components/om/widgets/MetricCard";
-import { MiniChart } from "@/components/om/widgets/MiniChart";
-import { DollarSign, TrendingUp, FileText, AlertTriangle } from "lucide-react";
+import React from 'react';
+import { useParams } from 'next/navigation';
+import { useProjects } from '@/hooks/useProjects';
+import { useOMDashboard } from '@/contexts/OMDashboardContext';
+import { capitalStackData } from '@/services/mockOMData';
+import { MetricCard } from '@/components/om/widgets/MetricCard';
+import { MiniChart } from '@/components/om/widgets/MiniChart';
+import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
 
 export default function CapitalStackPage() {
   const params = useParams();

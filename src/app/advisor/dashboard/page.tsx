@@ -26,15 +26,25 @@ import { getAdvisorById } from "../../../../lib/enhancedMockApiService";
 import {
   Advisor,
   ProjectProfile,
-  ProjectStatus,
   ProjectMessage,
+  ProjectStatus,
 } from "../../../types/enhanced-types";
 import { storageService } from "@/lib/storage";
 import { supabase } from "../../../../lib/supabaseClient";
-import {
-  dbMessageToProjectMessage,
-  dbProjectToProjectProfile,
-} from "@/lib/dto-mapper";
+import { getProjectsWithResumes } from "@/lib/project-queries";
+
+const dbMessageToProjectMessage = (
+  dbMessage: Record<string, any>
+): ProjectMessage => {
+  return {
+    id: dbMessage.id,
+    thread_id: dbMessage.thread_id,
+    project_id: dbMessage.chat_threads?.project_id,
+    user_id: dbMessage.user_id,
+    content: dbMessage.content,
+    created_at: dbMessage.created_at,
+  };
+};
 
 export default function AdvisorDashboardPage() {
   const router = useRouter();
@@ -80,7 +90,6 @@ export default function AdvisorDashboardPage() {
             assignedProjects = allProjects.filter(
               (p) => p.assignedAdvisorUserId === user.email
             );
-            setActiveProjects(assignedProjects);
           }
         } else {
           // --- REAL USER MODE ---
@@ -112,12 +121,14 @@ export default function AdvisorDashboardPage() {
           if (projectsError) throw projectsError;
 
           if (projectsData) {
-            assignedProjects = projectsData.map(dbProjectToProjectProfile);
-            setActiveProjects(assignedProjects);
+            const projectIds = projectsData.map((p) => p.id);
+            assignedProjects = await getProjectsWithResumes(projectIds);
 
             if (assignedProjects.length > 0) {
               const ownerOrgIds = Array.from(
-                new Set(assignedProjects.map((p) => p.entityId).filter(Boolean))
+                new Set(
+                  assignedProjects.map((p) => p.owner_org_id).filter(Boolean)
+                )
               ) as string[];
 
               if (ownerOrgIds.length > 0) {
@@ -130,11 +141,14 @@ export default function AdvisorDashboardPage() {
 
                 if (ownersError) throw ownersError;
 
-                const userIds = owners.map((o) => o.user_id);
-                const orgToUserMap = owners.reduce((acc, o) => {
-                  acc[o.org_id] = o.user_id;
-                  return acc;
-                }, {} as Record<string, string>);
+                const userIds = owners?.map((o) => o.user_id) || [];
+                const orgToUserMap =
+                  owners?.reduce((acc, o) => {
+                    if (o.org_id) {
+                      acc[o.org_id] = o.user_id;
+                    }
+                    return acc;
+                  }, {} as Record<string, string>) || {};
 
                 // Step 2: Fetch profiles for those user_ids
                 const { data: profiles, error: profilesError } = await supabase
@@ -146,7 +160,7 @@ export default function AdvisorDashboardPage() {
 
                 // Step 3: Create a map from org_id -> profile info
                 const borrowerMap = ownerOrgIds.reduce((acc, orgId) => {
-                  const userId = orgToUserMap[orgId];
+                  const userId = orgToUserMap[orgId as string];
                   const profile = profiles.find((p) => p.id === userId);
                   if (profile) {
                     acc[orgId] = {
@@ -161,6 +175,8 @@ export default function AdvisorDashboardPage() {
             }
           }
         }
+
+        setActiveProjects(assignedProjects);
 
         if (assignedProjects.length > 0) {
           // Calculate status counts
@@ -241,8 +257,6 @@ export default function AdvisorDashboardPage() {
         }
       } catch (error) {
         console.error("Error loading advisor data:", error);
-      } finally {
-        // setIsLoadingData(false); // Removed as per refactor
       }
     };
 
@@ -525,11 +539,15 @@ export default function AdvisorDashboardPage() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {user?.isDemo
-                                  ? project.entityId
-                                    ? (project.entityId as string).split("_")[0]
+                                  ? project.owner_org_id
+                                    ? (project.owner_org_id as string).split(
+                                        "_"
+                                      )[0]
                                     : "..."
-                                  : (project.entityId
-                                      ? borrowerData[project.entityId as string]
+                                  : (project.owner_org_id
+                                      ? borrowerData[
+                                          project.owner_org_id as string
+                                        ]
                                       : undefined
                                     )?.name || "..."}
                               </div>

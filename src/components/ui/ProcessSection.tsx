@@ -185,8 +185,7 @@ export const ProcessSection: React.FC = () => {
           <span className="text-green-400">Minutes</span>.
         </h2>
         <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
-          CapMatch&apos;s intelligent platform automates and accelerates every
-          step of your commercial real estate financing.
+          CapMatch&apos;s intelligent platform automates and accelerates every step of your commercial real estate financing.
         </p>
       </motion.div>
 

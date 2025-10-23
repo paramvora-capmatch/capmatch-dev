@@ -87,6 +87,7 @@ export async function POST(request: NextRequest) {
             id,
             version_number,
             resource_id,
+            version_number,
             resources!document_versions_resource_id_fkey ( id, name, project_id )
         `
       )
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     const documentVersion = versionData;
-    const resource = versionData.resources;
+    const resource = versionData.resources as { id: string; name: string; project_id: string };
 
     // --- VERSIONING CHANGES END ---
 
@@ -199,11 +200,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(finalConfig);
   } catch (error: unknown) {
     console.error("Error generating OnlyOffice config:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      {
-        error: "Internal Server Error",
-        message: error instanceof Error ? error.message : String(error),
-      },
+      { error: "Internal Server Error", message },
       { status: 500 }
     );
   }

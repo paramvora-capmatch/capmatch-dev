@@ -24,64 +24,81 @@ interface MemberPermissionInfo {
 export const AccessControlTab: React.FC<AccessControlTabProps> = ({
   projectId,
 }) => {
-  const { members, isLoading: isOrgLoading, currentOrg } = useOrgStore();
+  const { members, loadMembers, currentOrg } = useOrgStore();
   const { activeProject } = useProjects();
   const [permissions, setPermissions] = useState<MemberPermissionInfo[]>([]);
   const [advisor, setAdvisor] = useState<Advisor | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchAllData = useCallback(async () => {
-    if (!activeProject || isOrgLoading) return;
+    if (!activeProject) {
+      console.log('[AccessControlTab] No active project');
+      setIsLoading(false);
+      return;
+    }
 
-    // Ensure we have the right org loaded
-    if (!currentOrg || currentOrg.id !== activeProject.entityId) {
-      console.log(`[AccessControlTab] Waiting for correct org to load...`);
+    if (!currentOrg) {
+      console.log('[AccessControlTab] No current org');
+      setIsLoading(false);
+      return;
+    }
+
+    // Verify we're looking at the right org
+    if (currentOrg.id !== activeProject.owner_org_id) {
+      console.log(`[AccessControlTab] Org mismatch. Current: ${currentOrg.id}, Project owner: ${activeProject.owner_org_id}`);
+      setError('Organization mismatch. Please refresh the page.');
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
-    console.log(`[AccessControlTab] Loading permissions for project: ${projectId}`);
+    setError(null);
+    console.log(`[AccessControlTab] Loading data for project: ${projectId}`);
+    console.log(`[AccessControlTab] Active project:`, activeProject);
+    console.log(`[AccessControlTab] Current org:`, currentOrg);
 
-    // Fetch advisor details from the database
-    if (activeProject.assignedAdvisorUserId) {
-      try {
-        console.log(`[AccessControlTab] Fetching advisor with ID: ${activeProject.assignedAdvisorUserId}`);
-
-        const { data: advisorProfile, error: advisorError } = await supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .eq('id', activeProject.assignedAdvisorUserId)
-          .single();
-
-        if (advisorError) {
-          console.error(`[AccessControlTab] Error fetching advisor: ${advisorError.message}`);
-        } else if (advisorProfile) {
-          // Transform the profile data to match the Advisor type
-          setAdvisor({
-            id: advisorProfile.id,
-            userId: advisorProfile.id,
-            name: advisorProfile.full_name || advisorProfile.email,
-            email: advisorProfile.email,
-            title: "Capital Advisor",
-            phone: "",
-            bio: "Capital Advisor at CapMatch",
-            avatar: "",
-            specialties: [],
-            yearsExperience: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-          console.log(`[AccessControlTab] Advisor loaded: ${advisorProfile.full_name}`);
-        }
-      } catch (e) {
-        console.error("[AccessControlTab] Failed to fetch advisor", e);
-      }
-    } else {
-      console.log(`[AccessControlTab] No advisor assigned to project`);
-    }
-
-    // Fetch member permissions
     try {
+      // Fetch advisor details if assigned
+      if (activeProject.assignedAdvisorUserId) {
+        console.log(`[AccessControlTab] Fetching advisor: ${activeProject.assignedAdvisorUserId}`);
+        try {
+          const { data: advisorProfile, error: advisorError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .eq('id', activeProject.assignedAdvisorUserId)
+            .maybeSingle();
+
+          if (advisorError) {
+            console.error(`[AccessControlTab] Advisor fetch error:`, advisorError);
+          } else if (advisorProfile) {
+            setAdvisor({
+              id: advisorProfile.id,
+              userId: advisorProfile.id,
+              name: advisorProfile.full_name || advisorProfile.email,
+              email: advisorProfile.email,
+              title: "Capital Advisor",
+              phone: "",
+              bio: "Capital Advisor at CapMatch",
+              avatar: "",
+              specialties: [],
+              yearsExperience: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+            console.log(`[AccessControlTab] Advisor loaded:`, advisorProfile);
+          } else {
+            console.log(`[AccessControlTab] No advisor found for ID: ${activeProject.assignedAdvisorUserId}`);
+          }
+        } catch (e) {
+          console.error("[AccessControlTab] Exception fetching advisor:", e);
+        }
+      } else {
+        console.log('[AccessControlTab] No advisor assigned');
+      }
+
+      // Fetch PROJECT_RESUME resource
+      console.log('[AccessControlTab] Fetching PROJECT_RESUME resource');
       const { data: resource, error: resourceError } = await supabase
         .from("resources")
         .select("id")
@@ -89,19 +106,41 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
         .eq("resource_type", "PROJECT_RESUME")
         .single();
 
-      if (resourceError) throw resourceError;
+      if (resourceError) {
+        console.error('[AccessControlTab] Resource fetch error:', resourceError);
+        throw new Error(`Failed to find PROJECT_RESUME resource: ${resourceError.message}`);
+      }
+
+      if (!resource?.id) {
+        throw new Error('PROJECT_RESUME resource not found');
+      }
+
+      console.log('[AccessControlTab] PROJECT_RESUME resource ID:', resource.id);
       const projectResumeResourceId = resource.id;
 
+      // Fetch permissions for this resource
+      console.log('[AccessControlTab] Fetching permissions');
       const { data: perms, error: permsError } = await supabase
         .from("permissions")
         .select("user_id, permission")
         .eq("resource_id", projectResumeResourceId);
 
-      if (permsError) throw permsError;
+      if (permsError) {
+        console.error('[AccessControlTab] Permissions fetch error:', permsError);
+        throw new Error(`Failed to fetch permissions: ${permsError.message}`);
+      }
 
-      const permsMap = new Map(perms.map((p) => [p.user_id, p.permission]));
+      console.log('[AccessControlTab] Permissions fetched:', perms);
 
-      const memberPerms = members
+      const permsMap = new Map((perms || []).map((p) => [p.user_id, p.permission]));
+
+      // Load members if not already loaded
+      console.log('[AccessControlTab] Current members count:', members?.length || 0);
+      if (!members || members.length === 0) {
+        await loadMembers();
+      }
+
+      const memberPerms = (members || [])
         .filter((m) => m.role !== "owner") // Owners always have edit access
         .map((member) => ({
           userId: member.user_id,
@@ -112,17 +151,42 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
             (permsMap.get(member.user_id) as Permission | "none") || "none",
         }));
 
+      console.log('[AccessControlTab] Member permissions:', memberPerms);
+
       setPermissions(memberPerms);
-    } catch (e) {
-      console.error("Failed to fetch permissions", e);
+
+    } catch (err) {
+      console.error('[AccessControlTab] Error in fetchAllData:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load access control data';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, activeProject, members, isOrgLoading, currentOrg]);
+  }, [projectId, activeProject, members, currentOrg, loadMembers]);
 
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
+
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 font-medium">Error loading access control</p>
+          <p className="text-red-600 text-sm mt-1">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              fetchAllData();
+            }}
+            className="mt-3 text-sm text-red-600 hover:text-red-700 underline"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handlePermissionChange = async (
     userId: string,
@@ -156,8 +220,9 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
 
   if (isLoading) {
     return (
-      <div className="p-4 flex justify-center items-center">
-        <Loader2 className="animate-spin" />
+      <div className="p-4 flex flex-col items-center justify-center h-64">
+        <Loader2 className="animate-spin h-8 w-8 text-blue-600 mb-2" />
+        <p className="text-sm text-gray-600">Loading access control...</p>
       </div>
     );
   }
