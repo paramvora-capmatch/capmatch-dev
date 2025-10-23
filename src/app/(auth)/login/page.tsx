@@ -2,9 +2,8 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "../../../hooks/useAuth";
-import { motion } from "framer-motion";
 
 import AuthLayout from "../../../components/layout/AuthLayout";
 import { Form, FormGroup } from "../../../components/ui/Form";
@@ -27,7 +26,6 @@ const LoginForm = () => {
     signInWithGoogle,
     isLoading: authLoading,
   } = useAuth();
-
   const [loginSource, setLoginSource] = useState<"direct" | "lenderline">(
     "direct"
   );

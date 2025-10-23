@@ -2,10 +2,10 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
 
-interface FormProps extends React.FormHTMLAttributes<HTMLFormElement> {}
+type FormProps = React.FormHTMLAttributes<HTMLFormElement>;
 
 export const Form: React.FC<FormProps> = ({ 
-  className, 
+  className,
   children, 
   ...props 
 }) => {

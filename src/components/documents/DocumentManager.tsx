@@ -2,28 +2,28 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import { useDocumentManagement } from "@/hooks/useDocumentManagement";
-import type {
-  DocumentFile,
-  DocumentFolder,
-} from "@/hooks/useDocumentManagement";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/Button";
 import {
   FileText,
   Upload,
-  Download,
-  Trash2,
   Loader2,
   AlertCircle,
-  Folder,
+  Download,
   FolderOpen,
   Edit,
+  Trash2,
+  Plus,
 } from "lucide-react";
-import Link from "next/link";
-import { VersionHistoryDropdown } from "./VersionHistoryDropdown";
 import { motion } from "framer-motion";
+import { useOrgStore } from "@/stores/useOrgStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePermissions } from "@/hooks/usePermissions";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { cn } from "@/utils/cn";
+import { DocumentFile, DocumentFolder } from "@/hooks/useDocumentManagement";
+import { VersionHistoryDropdown } from "./VersionHistoryDropdown";
+import Link from "next/link";
 
 interface DocumentManagerProps {
   projectId: string | null;
@@ -34,6 +34,8 @@ interface DocumentManagerProps {
   title: string;
   canUpload?: boolean;
   canDelete?: boolean;
+  highlightedResourceId?: string | null;
+  // folderPath and bucketId removed as they are managed internally by the hook
 }
 
 const formatFileSize = (bytes: number) => {
@@ -61,7 +63,23 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   title,
   canUpload = true,
   canDelete = true,
+  highlightedResourceId,
 }) => {
+  // Convert special string values to null before passing to the hook
+  const actualResourceId = React.useMemo(() => {
+    if (resourceId === "PROJECT_ROOT" || resourceId === "BORROWER_ROOT") {
+      return null;
+    }
+    return resourceId;
+  }, [resourceId]);
+
+  console.log("[DocumentManager] Props:", {
+    projectId,
+    resourceId,
+    actualResourceId,
+    title,
+  });
+
   const {
     files,
     folders,
@@ -73,7 +91,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     deleteFolder,
     downloadFile,
     refresh,
-  } = useDocumentManagement(projectId, resourceId);
+  } = useDocumentManagement(projectId, actualResourceId);
 
   const { user, activeOrg, currentOrgRole } = useAuthStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -81,21 +99,14 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [previewingResourceId, setPreviewingResourceId] = useState<
+    string | null
+  >(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // We need to find the root resource ID for the documents to pass to the hook
-  const [rootResourceId, setRootResourceId] = useState<string | null>(null);
-  useEffect(() => {
-    // Handle special values that indicate we should use the root folder
-    if (resourceId === "PROJECT_ROOT" || resourceId === "BORROWER_ROOT") {
-      setRootResourceId(null);
-    } else {
-      setRootResourceId(resourceId);
-    }
-  }, [resourceId]);
-  
-  const { canEdit: canPerformActions, isLoading: isLoadingPermissionsRoot } = usePermissions(rootResourceId);
-
+  // Use actualResourceId for permissions check too
+  const { canEdit: canPerformActions, isLoading: isLoadingPermissionsRoot } =
+    usePermissions(actualResourceId);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -119,7 +130,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         fileType: selectedFile.type,
       });
 
-      await uploadFile(selectedFile, resourceId || undefined);
+      await uploadFile(selectedFile, actualResourceId || undefined);
 
       setSelectedFile(null);
       if (fileInputRef.current) {
@@ -137,7 +148,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
     setIsCreatingFolder(true);
     try {
-      await createFolder(newFolderName.trim(), resourceId || undefined);
+      await createFolder(newFolderName.trim(), actualResourceId || undefined);
       setNewFolderName("");
       setShowCreateFolder(false);
     } catch (error) {
@@ -149,9 +160,14 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
   const handleDeleteFile = async (file: DocumentFile) => {
     if (window.confirm(`Are you sure you want to delete "${file.name}"?`)) {
-
       try {
-        await deleteFile(file.id);
+        // deleteFile expects the resource ID, not the version ID
+        console.log("[DocumentManager] Deleting file:", {
+          resourceId: file.resource_id,
+          name: file.name,
+        });
+        await deleteFile(file.resource_id);
+        await refresh(); // Refresh the list after deletion
       } catch (error) {
         console.error("[DocumentManager] Delete file error", error);
       }
@@ -172,9 +188,16 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const handleDownload = async (fileId: string, fileName: string) => {
+  const handleDownload = async (file: DocumentFile) => {
     try {
-      await downloadFile(fileId);
+      // downloadFile might expect either version ID or resource ID - check the implementation
+      // For now, use the version ID since we're downloading a specific version
+      console.log("[DocumentManager] Downloading file:", {
+        versionId: file.id,
+        resourceId: file.resource_id,
+        name: file.name,
+      });
+      await downloadFile(file.id);
     } catch (error) {
       console.error("[DocumentManager] Download error", error);
     }
@@ -189,8 +212,17 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <div className="flex space-x-2">
-            {canUpload && canEdit && (
+            {canEdit && (
               <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCreateFolder(!showCreateFolder)}
+                  disabled={isCreatingFolder}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Folder
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -208,7 +240,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
       <CardContent className="flex-1 overflow-y-auto p-4">
         {/* Upload Area */}
-        {selectedFile && canUpload && canEdit && (
+        {selectedFile && canEdit && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -246,6 +278,36 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
           </motion.div>
         )}
 
+        {/* Create Folder Area */}
+        {showCreateFolder && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center space-x-2"
+          >
+            <FolderOpen className="h-5 w-5 text-gray-600" />
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Enter folder name..."
+              className="flex-1 px-2 py-1 border border-gray-300 rounded-md text-sm"
+              autoFocus
+            />
+            <Button
+              size="sm"
+              onClick={handleCreateFolder}
+              disabled={isCreatingFolder}
+            >
+              {isCreatingFolder ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Create"
+              )}
+            </Button>
+          </motion.div>
+        )}
+
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -280,14 +342,15 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
           <div className="space-y-2">
             {/* Folders */}
             {folders.map((folder) => (
-              <motion.div
+              <motion.button
                 key={folder.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                // onClick={() => handleFolderClick(folder.id)} // TODO: Implement folder navigation
+                className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-left"
               >
-                <div className="flex items-center space-x-3">
-                  <FolderOpen className="h-5 w-5 text-blue-600" />
+                <div className="flex items-center">
+                  <FolderOpen className="h-5 w-5 text-blue-600 mr-3" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">
                       {folder.name}
@@ -299,7 +362,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   <span className="text-xs text-gray-500">
                     {formatDate(folder.created_at)}
                   </span>
-                  {canDelete && canEdit && (
+                  {canEdit && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -309,37 +372,48 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     </Button>
                   )}
                 </div>
-              </motion.div>
+              </motion.button>
             ))}
 
             {/* Files */}
             {files.map((file) => {
               const isEditable = /\.(docx|xlsx|pptx)$/i.test(file.name);
-
+              console.log("[DocumentManager] Rendering file:", {
+                name: file.name,
+                versionId: file.id,
+                resourceId: file.resource_id,
+              });
               return (
                 <motion.div
                   key={file.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className={cn(
+                    "w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-300 text-left",
+                    file.id === highlightedResourceId &&
+                      "border-blue-500 ring-2 ring-blue-300 ring-offset-1"
+                  )}
                 >
-                  <div className="flex items-center space-x-3">
-                    <FileText className="h-5 w-5 text-gray-600" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
+                  <button
+                    onClick={() => setPreviewingResourceId(file.resource_id)}
+                    className="flex items-center space-x-3 overflow-hidden text-left"
+                  >
+                    <FileText className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                    <div className="truncate">
+                      <p className="text-sm font-medium text-gray-900 truncate">
                         {file.name}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {formatFileSize(file.metadata?.size)} •{" "}
-                        {formatDate(file.created_at)}
+                        {formatFileSize((file.metadata?.size as number) || 0)} •{" "}
+                        {formatDate(file.updated_at)}
                       </p>
                     </div>
-                  </div>
+                  </button>
                   <div className="flex items-center space-x-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDownload(file.id, file.name)}
+                      onClick={() => handleDownload(file)}
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -354,24 +428,17 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         href={`/documents/edit?bucket=${
                           activeOrg?.id
                         }&path=${encodeURIComponent(file.storage_path)}`}
-                        passHref
-                        legacyBehavior
+                        className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-md text-xs px-2.5 py-1.5"
+                        title="Edit Document"
                       >
-                        <Button
-                          as="a"
-                          size="sm"
-                          variant="outline"
-                          title="Edit Document"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <Edit className="h-4 w-4" />
                       </Link>
                     )}
                     {canEdit && (
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDeleteFile(file)}
+                        onClick={() => handleDeleteFile(file)} // This will now use resource_id internally
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -396,6 +463,15 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
           </div>
         )}
       </CardContent>
+      {previewingResourceId && (
+        <DocumentPreviewModal
+          resourceId={previewingResourceId}
+          onClose={() => setPreviewingResourceId(null)}
+          onDeleteSuccess={() => {
+            // Optionally refresh the list after delete
+          }}
+        />
+      )}
     </Card>
   );
 };

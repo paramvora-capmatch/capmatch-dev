@@ -3,7 +3,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/Button';
-import { ChevronRight, Building, MessageSquare, DollarSign } from 'lucide-react';
+import { ChevronRight, Building, DollarSign } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { ProjectProfile } from '../../types/enhanced-types';
 
@@ -133,7 +133,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           variant="outline"
           size="sm"
           rightIcon={<ChevronRight size={16} />}
-          onClick={() => router.push(`/project/${project.id}`)}
+          onClick={() => router.push(`/project/workspace/${project.id}`)}
           fullWidth
         >
           Continue

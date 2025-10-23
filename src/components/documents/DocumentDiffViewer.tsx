@@ -1,13 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { Button } from "../ui/Button";
 import { X, Loader2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import * as mammoth from "mammoth";
 import * as XLSX from "xlsx";
-import * as pdfjs from "pdfjs-dist";
+import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
+
+// Set workerSrc to a CDN to avoid bundling issues with Next.js
+// @ts-ignore
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
 
 interface DiffViewerProps {
   resourceId: string;
@@ -23,16 +27,26 @@ interface DiffLine {
   lineNumber2?: number;
 }
 
+interface VersionInfo {
+  id: string;
+  version_number: number;
+  created_at: string;
+  storage_path: string;
+}
+
 const extractTextFromPdf = async (buffer: ArrayBuffer): Promise<string> => {
   try {
-    const pdf = await pdfjs.getDocument({ data: buffer }).promise;
+    const pdf = await pdfjs.getDocument({ data: buffer } as Record<
+      string,
+      unknown
+    >).promise;
     let text = "";
 
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
       const pageText = textContent.items
-        .map((item: any) => item.str)
+        .map((item: { str: string }) => item.str)
         .join(" ");
       text += pageText + "\n";
     }
@@ -63,14 +77,16 @@ const extractTextFromExcel = async (buffer: ArrayBuffer): Promise<string> => {
   }
 };
 
-const extractTextFromPowerPoint = async (buffer: ArrayBuffer): Promise<string> => {
+const extractTextFromPowerPoint = async (
+  buffer: ArrayBuffer
+): Promise<string> => {
   try {
     // PowerPoint files are ZIP archives - we need to extract XML content
     const zip = await import("jszip").then((m) => new m.default());
     const zipData = await zip.loadAsync(buffer);
 
     let text = "";
-    const slideFiles = Object.keys(zipData.files).filter((name) =>
+    const slideFiles = Object.keys(zipData.files).filter((name: string) =>
       name.match(/ppt\/slides\/slide\d+\.xml$/)
     );
 
@@ -79,7 +95,7 @@ const extractTextFromPowerPoint = async (buffer: ArrayBuffer): Promise<string> =
       // Extract text from XML tags (simple regex-based extraction)
       const textMatches = content.match(/<a:t>([^<]+)<\/a:t>/g);
       if (textMatches) {
-        textMatches.forEach((match) => {
+        textMatches.forEach((match: string) => {
           const extractedText = match.replace(/<a:t>|<\/a:t>/g, "");
           text += extractedText + "\n";
         });
@@ -104,7 +120,10 @@ const extractTextFromDocx = async (buffer: ArrayBuffer): Promise<string> => {
   }
 };
 
-const extractText = async (buffer: ArrayBuffer, filename: string): Promise<string> => {
+const extractText = async (
+  buffer: ArrayBuffer,
+  filename: string
+): Promise<string> => {
   const ext = filename.split(".").pop()?.toLowerCase();
 
   switch (ext) {
@@ -185,14 +204,10 @@ export const DocumentDiffViewer: React.FC<DiffViewerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [diffs, setDiffs] = useState<DiffLine[]>([]);
-  const [version1Info, setVersion1Info] = useState<any>(null);
-  const [version2Info, setVersion2Info] = useState<any>(null);
+  const [version1Info, setVersion1Info] = useState<VersionInfo | null>(null);
+  const [version2Info, setVersion2Info] = useState<VersionInfo | null>(null);
 
-  useEffect(() => {
-    loadAndCompareDocs();
-  }, [versionId1, versionId2]);
-
-  const loadAndCompareDocs = async () => {
+  const loadAndCompareDocs = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -201,8 +216,10 @@ export const DocumentDiffViewer: React.FC<DiffViewerProps> = ({
       const { data: versions, error: versionError } = await supabase
         .from("document_versions")
         .select("id, version_number, created_at, storage_path")
-        .in("id", [versionId1, versionId2]);
-
+        .in("id", [versionId1, versionId2]) as {
+          data: Array<{ id: string; version_number: number; created_at: string; storage_path: string }> | null;
+          error: Error | null;
+        };
       if (versionError) throw versionError;
 
       const v1 = versions?.find((v) => v.id === versionId1);
@@ -249,7 +266,7 @@ export const DocumentDiffViewer: React.FC<DiffViewerProps> = ({
       // Compute diff
       const diffLines = computeDiff(text1, text2);
       setDiffs(diffLines);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error loading diff:", err);
       setError(
         err instanceof Error
@@ -259,7 +276,11 @@ export const DocumentDiffViewer: React.FC<DiffViewerProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [resourceId, versionId1, versionId2]); // Dependencies for useCallback
+
+  useEffect(() => {
+    loadAndCompareDocs();
+  }, [loadAndCompareDocs]); // Effect depends on the memoized function
 
   const addedCount = diffs.filter((d) => d.type === "added").length;
   const removedCount = diffs.filter((d) => d.type === "removed").length;
@@ -280,8 +301,13 @@ export const DocumentDiffViewer: React.FC<DiffViewerProps> = ({
               {version2Info?.version_number}
             </h2>
             <p className="text-xs text-gray-600 mt-1">
-              {new Date(version1Info?.created_at).toLocaleDateString()} →{" "}
-              {new Date(version2Info?.created_at).toLocaleDateString()}
+              {version1Info?.created_at
+                ? new Date(version1Info.created_at).toLocaleDateString()
+                : "N/A"}{" "}
+              →{" "}
+              {version2Info?.created_at
+                ? new Date(version2Info.created_at).toLocaleDateString()
+                : "N/A"}
             </p>
           </div>
           <div className="flex items-center gap-4">

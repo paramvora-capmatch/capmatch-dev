@@ -1,970 +1,990 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { RoleBasedRoute } from "../../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../../hooks/useAuth";
 
 import { LoadingOverlay } from "../../../../components/ui/LoadingOverlay";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-} from "../../../../components/ui/card";
+import { Card, CardContent, CardHeader } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/Button";
 import { Select } from "../../../../components/ui/Select";
 import {
-	ChevronLeft,
-	FileText,
-	User,
-	MessageSquare,
-	Calendar,
-	Building,
-	MapPin,
-	DollarSign,
-	Send,
+  ChevronLeft,
+  FileText,
+  User,
+  MessageSquare,
+  Calendar,
+  Building,
+  MapPin,
+  DollarSign,
+  Send,
 } from "lucide-react";
 import {
-	BorrowerProfile,
-	ProjectProfile,
-	ProjectStatus,
-	ProjectDocumentRequirement,
-	BorrowerResume,
-	ProjectResume,
+  BorrowerProfile, // Used for demo mode mapping
+  ProjectProfile,
+  ProjectStatus,
+  ProjectDocumentRequirement,
+  Project, // Base Project type, useful for some contexts
+  BorrowerResume,
+  ProjectResume,
 } from "../../../../types/enhanced-types";
 import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
-import { DocumentManager } from '@/components/documents/DocumentManager';
+import { DocumentManager } from "@/components/documents/DocumentManager";
 import { storageService } from "@/lib/storage";
-import { RealtimeChannel } from "@supabase/supabase-js";
+import { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
-import {
-	getProjectWithResume,
-} from "@/lib/project-queries";
+import { getProjectWithResume } from "@/lib/project-queries";
+
+// Utility functions
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+const getStatusColor = (status: ProjectStatus) => {
+  switch (status) {
+    case "Draft":
+      return "text-gray-600 bg-gray-100";
+    case "Info Gathering":
+      return "text-blue-600 bg-blue-50";
+    case "Advisor Review":
+      return "text-amber-600 bg-amber-50";
+    case "Matches Curated":
+      return "text-purple-600 bg-purple-50";
+    case "Introductions Sent":
+      return "text-indigo-600 bg-indigo-50";
+    case "Term Sheet Received":
+      return "text-teal-600 bg-teal-50";
+    case "Closed":
+      return "text-green-600 bg-green-50";
+    case "Withdrawn":
+      return "text-red-600 bg-red-50";
+    case "Stalled":
+      return "text-orange-600 bg-orange-50";
+    default:
+      return "text-gray-600 bg-gray-100";
+  }
+};
+
+interface ProjectMessage {
+  id: string;
+  projectId: string; // From params
+  thread_id: string;
+  user_id: string;
+  sender: {
+    id: string;
+    full_name?: string;
+  };
+  message: string;
+  createdAt: string;
+}
+
+interface ChatThread {
+  id: string;
+  topic: string;
+}
 
 export default function AdvisorProjectDetailPage() {
-	const router = useRouter();
-	const params = useParams();
-	const { user } = useAuth();
+  const router = useRouter();
+  const params = useParams();
+  const { user } = useAuth();
 
-	const [project, setProject] = useState<ProjectProfile | null>(null);
-	const [borrowerResume, setBorrowerResume] = useState<BorrowerResume | null>(null);
-	const [projectResume, setProjectResume] = useState<ProjectResume | null>(null);
-	const [messages, setMessages] = useState<{
-		id: string;
-		projectId: string;
-		senderId: string;
-		senderType: string;
-		message: string;
-		createdAt: string;
-	}[]>([]);
-	const [documentRequirements, setDocumentRequirements] = useState<
-		ProjectDocumentRequirement[]
-	>([]);
-	const [, setIsLoadingData] = useState(true);
-	const [newMessage, setNewMessage] = useState("");
-	const [selectedStatus, setSelectedStatus] =
-		useState<ProjectStatus>("Info Gathering");
-	const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
+  const [project, setProject] = useState<ProjectProfile | null>(null);
+  const [borrowerResume, setBorrowerResume] = useState<BorrowerResume | null>(
+    null
+  );
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ProjectMessage[]>([]);
+  const [documentRequirements, setDocumentRequirements] = useState<
+    ProjectDocumentRequirement[]
+  >([]);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
+  const [isSending, setIsSending] = useState<boolean>(false);
+  const [currentTab, setCurrentTab] = useState("details");
+  const [newMessage, setNewMessage] = useState("");
+  const [selectedStatus, setSelectedStatus] =
+    useState<ProjectStatus>("Info Gathering");
+  const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
 
-	useEffect(() => {
-		const loadProjectData = async () => {
-			if (!user || user.role !== "advisor") return;
+  const projectId = params?.id as string;
 
-			try {
-				setIsLoadingData(true);
+  // Effect for initial data loading
+  useEffect(() => {
+    const loadProjectData = async () => {
+      if (!user || user.role !== "advisor" || !projectId) {
+        router.push("/advisor/dashboard");
+        return;
+      }
 
-				const projectId = params?.id as string;
-				if (!projectId) {
-					router.push("/advisor/dashboard");
-					return;
-				}
+      try {
+        setIsLoadingData(true);
 
-				// Load project with resume content using the new query function
-				const foundProject = await getProjectWithResume(projectId);
-				setProject(foundProject);
-				setSelectedStatus(foundProject.projectStatus as ProjectStatus || "Info Gathering");
+        // 1. Load project with resume content using the new query function
+        const foundProject = await getProjectWithResume(projectId);
+        if (!foundProject) {
+          console.error("Project not found");
+          router.push("/advisor/dashboard");
+          return;
+        }
+        setProject(foundProject);
+        setSelectedStatus(
+          (foundProject.projectStatus as ProjectStatus) || "Info Gathering"
+        );
 
-				// Load borrower resume for the owning org
-				if (user.isDemo) {
-						// For demo mode, we'll use legacy data
-						const allProfiles = await storageService.getItem<
-							BorrowerProfile[]
-						>("borrowerProfiles");
-						// Find profile by entity ID (this is a simplified mapping for demo)
-						const profile = allProfiles?.find(
-							(p) => p.entityId === foundProject.owner_org_id
-						);
-						if (profile) {
-							// Convert legacy BorrowerProfile to BorrowerResume
-							setBorrowerResume({
-								id: `resume-${profile.id}`,
-								org_id: foundProject.owner_org_id,
-								created_at: new Date().toISOString(),
-								updated_at: new Date().toISOString(),
-								content: {
-									// Map relevant fields from BorrowerProfile to resume content
-									fullLegalName: profile.fullLegalName,
-									primaryEntityName: profile.primaryEntityName,
-									contactEmail: profile.contactEmail,
-									contactPhone: profile.contactPhone,
-									yearsCREExperienceRange: profile.yearsCREExperienceRange,
-									assetClassesExperience: profile.assetClassesExperience,
-									geographicMarketsExperience: profile.geographicMarketsExperience,
-									creditScoreRange: profile.creditScoreRange,
-									netWorthRange: profile.netWorthRange,
-									liquidityRange: profile.liquidityRange,
-									bankruptcyHistory: profile.bankruptcyHistory,
-									foreclosureHistory: profile.foreclosureHistory,
-									litigationHistory: profile.litigationHistory
-								},
-							});
-						}
-					} else {
-						// Load borrower resume from new schema
-						const { data: borrowerResumeData, error: borrowerResumeError } = await supabase
-							.from("borrower_resumes")
-							.select("*")
-							.eq("org_id", foundProject.owner_org_id)
-							.single();
-						
-						if (borrowerResumeError && borrowerResumeError.code !== 'PGRST116') {
-							console.warn("Error loading borrower resume:", borrowerResumeError);
-						} else if (borrowerResumeData) {
-							setBorrowerResume(borrowerResumeData);
-						}
+        // 2. Load borrower resume for the owning org
+        if (user.isDemo) {
+          const allProfiles = await storageService.getItem<BorrowerProfile[]>(
+            "borrowerProfiles"
+          );
+          const profile = allProfiles?.find(
+            (p) => p.entityId === foundProject.owner_org_id
+          );
+          if (profile) {
+            setBorrowerResume({
+              id: `resume-${profile.id}`,
+              org_id: foundProject.owner_org_id,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              content: {
+                fullLegalName: profile.fullLegalName,
+                primaryEntityName: profile.primaryEntityName,
+                contactEmail: profile.contactEmail,
+                contactPhone: profile.contactPhone,
+                yearsCREExperienceRange: profile.yearsCREExperienceRange,
+                assetClassesExperience: profile.assetClassesExperience,
+                geographicMarketsExperience:
+                  profile.geographicMarketsExperience,
+                creditScoreRange: profile.creditScoreRange,
+                netWorthRange: profile.netWorthRange,
+                liquidityRange: profile.liquidityRange,
+                bankruptcyHistory: profile.bankruptcyHistory,
+                foreclosureHistory: profile.foreclosureHistory,
+                litigationHistory: profile.litigationHistory,
+              },
+            });
+          }
+        } else {
+          const { data: borrowerResumeData, error: borrowerResumeError } =
+            await supabase
+              .from("borrower_resumes")
+              .select("*")
+              .eq("org_id", foundProject.owner_org_id)
+              .single();
 
-						// Load project resume
-						const { data: projectResumeData, error: projectResumeError } = await supabase
-							.from("project_resumes")
-							.select("*")
-							.eq("project_id", foundProject.id)
-							.single();
-						
-						if (projectResumeError && projectResumeError.code !== 'PGRST116') {
-							console.warn("Error loading project resume:", projectResumeError);
-						} else if (projectResumeData) {
-							setProjectResume(projectResumeData);
-						}
-					}
+          if (borrowerResumeError && borrowerResumeError.code !== "PGRST116") {
+            console.warn("Error loading borrower resume:", borrowerResumeError);
+          } else if (borrowerResumeData) {
+            setBorrowerResume(borrowerResumeData);
+          }
+        }
 
-					// Fetch initial messages using the chat thread edge function
-					try {
-						const { data: threadData, error: threadError } = await supabase.functions.invoke('manage-chat-thread', {
-							body: {
-								action: 'get_thread',
-								project_id: projectId
-							}
-						});
+        // 3. Fetch chat threads
+        try {
+          const { data: threadData, error: threadError } = await supabase
+            .from("chat_threads")
+            .select("id, topic")
+            .eq("project_id", projectId);
+          if (threadError) {
+            throw threadError;
+          }
+          if (threadData) {
+            setThreads(threadData);
+            // Optionally set the first thread as active by default
+            if (threadData.length > 0) {
+              setActiveThreadId(threadData[0].id);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching threads:", error);
+        }
 
-						if (threadError) {
-							console.error("Error fetching chat thread:", threadError);
-						} else if (threadData?.thread) {
-							// Fetch messages from the thread
-							const { data: messagesData, error: messagesError } = await supabase
-								.from("project_messages")
-								.select("*")
-								.eq("thread_id", threadData.thread.id)
-								.order("created_at", { ascending: true });
+        // 4. Fetch document requirements
+        const allRequirements = await storageService.getItem<
+          ProjectDocumentRequirement[]
+        >("documentRequirements");
+        if (allRequirements) {
+          const projectRequirements = allRequirements.filter(
+            (r) => r.projectId === projectId
+          );
+          setDocumentRequirements(projectRequirements);
+        }
+      } catch (error) {
+        console.error("Error loading project data:", error);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
 
-							if (messagesError) {
-								console.error("Error fetching messages:", messagesError);
-							} else {
-								const mappedMessages = messagesData.map((msg: any) => {
-									const senderRole = msg.user_id === user.id ? 'advisor' : 'borrower';
-									return {
-										id: msg.id.toString(),
-										projectId: projectId,
-										senderId: msg.user_id || '',
-										senderType: senderRole === 'advisor' ? 'Advisor' : 'Borrower',
-										message: msg.content || '',
-										createdAt: msg.created_at
-									};
-								});
-								setMessages(mappedMessages);
-							}
-						}
-					} catch (error) {
-						console.error("Error in chat thread management:", error);
-					}
+    loadProjectData();
+  }, [user, projectId, router]);
 
-					// Docs are still from local storage, which is fine for now.
-					const allRequirements = await storageService.getItem<
-						ProjectDocumentRequirement[]
-					>("documentRequirements");
-					if (allRequirements) {
-						const projectRequirements = allRequirements.filter(
-							(r) => r.projectId === projectId
-						);
-						setDocumentRequirements(projectRequirements);
-					}
-			} catch (error) {
-				console.error("Error loading project data:", error);
-			} finally {
-				setIsLoadingData(false);
-			}
-		};
+  const loadMessages = useCallback(
+    async (threadId: string) => {
+      setIsLoadingMessages(true);
+      try {
+        const { data, error } = await supabase
+          .from("project_messages")
+          .select("*, sender:profiles(id, full_name)")
+          .eq("thread_id", threadId)
+          .order("created_at", { ascending: true });
+        if (error) throw error;
 
-		loadProjectData();
-	}, [user, params, router]);
+        const mapped = (data || []).map(
+          (msg: any) =>
+            ({
+              id: msg.id.toString(),
+              projectId,
+              thread_id: msg.thread_id,
+              user_id: msg.user_id,
+              sender: msg.sender || { id: msg.user_id, full_name: "Unknown" },
+              message: msg.content || "",
+              createdAt: msg.created_at,
+            } as ProjectMessage)
+        );
+        setMessages(mapped);
+      } catch (error) {
+        console.error("Error loading messages:", error);
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    },
+    [projectId]
+  );
 
-	// Realtime message subscription
-	useEffect(() => {
-		const projectId = params?.id as string;
-		if (!projectId || !user) return;
+  // Effect for loading messages and setting up subscriptions
+  useEffect(() => {
+    if (!activeThreadId) return;
 
-		// Unsubscribe from previous channel if it exists
-		if (messageSubscriptionRef.current) {
-			supabase.removeChannel(messageSubscriptionRef.current);
-		}
+    loadMessages(activeThreadId);
 
-		// Get the chat thread ID for this project using the edge function
-		supabase.functions.invoke('manage-chat-thread', {
-			body: {
-				action: 'get_thread',
-				project_id: projectId
-			}
-		}).then(({ data: threadData, error: threadError }: any) => {
-			if (threadError || !threadData?.thread) {
-				console.warn("No chat thread found for project:", projectId);
-				return;
-			}
+    if (messageSubscriptionRef.current) {
+      supabase.removeChannel(messageSubscriptionRef.current);
+    }
 
-			const channel = supabase
-				.channel(`project-messages-advisor-${projectId}`)
-				.on<any>(
-					"postgres_changes",
-					{
-						event: "INSERT",
-						schema: "public",
-						table: "project_messages",
-						filter: `thread_id=eq.${threadData.thread.id}`,
-					},
-					(payload: any) => {
-						const newMessagePayload = payload.new;
-						const senderRole =
-							newMessagePayload.user_id === user.id
-								? "advisor"
-								: "borrower";
+    const channel = supabase
+      .channel(`project-messages-advisor-${activeThreadId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "project_messages",
+          filter: `thread_id=eq.${activeThreadId}`,
+        },
+        async (payload) => {
+          const newMessage = payload.new as any;
+          // Fetch sender profile to append to the message
+          const { data: senderProfile, error } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .eq("id", newMessage.user_id)
+            .single();
 
-						const newMessage = {
-							id: newMessagePayload.id.toString(),
-							projectId: projectId,
-							senderId: newMessagePayload.user_id || '',
-							senderType: senderRole === 'advisor' ? 'Advisor' : 'Borrower',
-							message: newMessagePayload.content || '',
-							createdAt: newMessagePayload.created_at
-						};
+          if (error) {
+            console.error("Error fetching profile for new message:", error);
+            loadMessages(activeThreadId); // Fallback to full reload
+            return;
+          }
 
-						setMessages((currentMessages) => [
-							...currentMessages,
-							newMessage,
-						]);
-					}
-				)
-				.subscribe();
+          const mappedMessage: ProjectMessage = {
+            id: newMessage.id.toString(),
+            projectId,
+            ...newMessage,
+            sender: senderProfile || {
+              id: newMessage.user_id,
+              full_name: "Unknown",
+            },
+            message: newMessage.content || "",
+            createdAt: newMessage.created_at,
+          };
+          setMessages((prev) => [...prev, mappedMessage]);
+        }
+      )
+      .subscribe();
 
-			messageSubscriptionRef.current = channel;
-		});
+    messageSubscriptionRef.current = channel;
 
-		return () => {
-			if (messageSubscriptionRef.current) {
-				supabase.removeChannel(messageSubscriptionRef.current);
-			}
-		};
-	}, [params, user]);
+    return () => {
+      if (messageSubscriptionRef.current) {
+        supabase.removeChannel(messageSubscriptionRef.current);
+      }
+    };
+  }, [activeThreadId, projectId, loadMessages]);
 
-	const formatDate = (dateString: string) => {
-		const date = new Date(dateString);
-		return date.toLocaleDateString("en-US", {
-			month: "short",
-			day: "numeric",
-			year: "numeric",
-		});
-	};
+  const handleStatusChange = useCallback(
+    async (newStatus: ProjectStatus) => {
+      if (!project) return;
+      try {
+        setSelectedStatus(newStatus);
 
-	const formatCurrency = (amount: number) => {
-		return new Intl.NumberFormat("en-US", {
-			style: "currency",
-			currency: "USD",
-			minimumFractionDigits: 0,
-			maximumFractionDigits: 0,
-		}).format(amount);
-	};
+        if (project) {
+          const updatedContent = { ...project, projectStatus: newStatus };
 
-	const getStatusColor = (status: ProjectStatus) => {
-		switch (status) {
-			case "Draft":
-				return "text-gray-600 bg-gray-100";
-			case "Info Gathering":
-				return "text-blue-600 bg-blue-50";
-			case "Advisor Review":
-				return "text-amber-600 bg-amber-50";
-			case "Matches Curated":
-				return "text-purple-600 bg-purple-50";
-			case "Introductions Sent":
-				return "text-indigo-600 bg-indigo-50";
-			case "Term Sheet Received":
-				return "text-teal-600 bg-teal-50";
-			case "Closed":
-				return "text-green-600 bg-green-50";
-			case "Withdrawn":
-				return "text-red-600 bg-red-50";
-			case "Stalled":
-				return "text-orange-600 bg-orange-50";
-			default:
-				return "text-gray-600 bg-gray-100";
-		}
-	};
+          if (user?.isDemo) {
+            console.log(
+              "Demo mode: Project status would be updated to",
+              newStatus
+            );
+          } else {
+            const { error } = await supabase
+              .from("project_resumes")
+              .update({
+                content: updatedContent,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("project_id", project.id);
+            if (error) throw error;
+          }
+        }
 
-	const handleStatusChange = async (newStatus: ProjectStatus) => {
-		if (!project) return;
+        console.log("Project status updated successfully");
+      } catch (error) {
+        console.error("Error updating project status:", error);
+      }
+    },
+    [project, user]
+  );
 
-		try {
-			// Note: In the new schema, project status is not stored in the projects table
-			// It would be stored in a separate project_status table or in the project_resume content
-			// For now, we'll just update the local state
-			setSelectedStatus(newStatus);
+  const handleSendMessage = useCallback(
+    async (messageText?: string, isSystemMessage = false) => {
+      if (!activeThreadId || !user || !user.id) return;
 
-			// If we have a project resume, we could update its content with the status
-			if (projectResume) {
-				const updatedContent = {
-					...projectResume.content,
-					status: newStatus,
-					lastUpdated: new Date().toISOString()
-				};
+      const messageContent = messageText || newMessage;
+      if (!messageContent.trim()) return;
 
-				if (user?.isDemo) {
-					// Local storage update for demo
-				} else {
-					const { error } = await supabase
-						.from("project_resumes")
-						.update({
-							content: updatedContent,
-							updated_at: new Date().toISOString(),
-						})
-						.eq("project_id", project.id);
-					if (error) throw error;
-				}
-			}
+      setIsSending(true);
+      try {
+        const { error } = await supabase.from("project_messages").insert({
+          thread_id: activeThreadId,
+          user_id: user.id,
+          content: messageContent,
+        });
+        if (error) {
+          console.error("Failed to send message", error);
+        } else {
+          if (!isSystemMessage) {
+            setNewMessage("");
+          }
+        }
+      } catch (error) {
+        console.error("Error sending message:", error);
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [activeThreadId, user, newMessage]
+  );
 
-		} catch (error) {
-			console.error("Error updating project status:", error);
-		}
-	};
+  const generateFeedback = useCallback(async () => {
+    if (!project || !user || !user.id) return;
 
-	const handleSendMessage = async (
-		messageText?: string,
-		isSystemMessage = false
-	) => {
-		if (!project) return;
-		if (!user || !user.id) return;
+    try {
+      const feedback = await generateProjectFeedback(project.id, project);
+      await handleSendMessage(`[AI Feedback Suggestion]: ${feedback}`, true);
+      console.log("Feedback generated and sent");
+    } catch (error) {
+      console.error("Error generating feedback:", error);
+    }
+  }, [project, user, handleSendMessage]);
 
-		const messageContent = messageText || newMessage;
-		if (!messageContent.trim()) return;
+  // Render functions for sections
+  const renderProjectDetails = useCallback(() => {
+    if (!project) return null;
+    return (
+      <div className="grid md:grid-cols-2 gap-4 p-4">
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Project Name
+            </h3>
+            <p className="text-sm text-gray-800">{project.projectName}</p>
+          </div>
 
-		try {
-			// Use the edge function to get or create a chat thread for this project
-			const { data: threadData, error: threadError } = await supabase.functions.invoke('manage-chat-thread', {
-				body: {
-					action: 'get_thread',
-					project_id: project.id
-				}
-			});
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Project ID
+            </h3>
+            <p className="text-sm text-gray-800 font-mono">{project.id}</p>
+          </div>
 
-			let chatThread;
-			if (threadError || !threadData?.thread) {
-				// Thread doesn't exist, create one using the edge function
-				const { data: createData, error: createError } = await supabase.functions.invoke('manage-chat-thread', {
-					body: {
-						action: 'create',
-						project_id: project.id,
-						topic: `Project: ${project.projectName}`
-					}
-				});
-				
-				if (createError) throw createError;
-				chatThread = createData.thread;
-			} else {
-				chatThread = threadData.thread;
-			}
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Owner Org ID
+            </h3>
+            <p className="text-sm text-gray-800 font-mono">
+              {project.owner_org_id}
+            </p>
+          </div>
 
-			// Insert the message
-			const { error } = await supabase.from("project_messages").insert({
-				thread_id: chatThread.id,
-				user_id: user.id,
-				content: messageContent,
-			});
+          {project && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-1">
+                Project Details
+              </h3>
+              <div className="space-y-2">
+                {project.propertyAddressStreet && (
+                  <div className="flex items-start">
+                    <MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-800">
+                        {`${project.propertyAddressStreet}, ${project.propertyAddressCity}, ${project.propertyAddressState} ${project.propertyAddressZip}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {project.assetType && (
+                  <p className="text-sm text-gray-800">
+                    <span className="font-medium">Asset Type:</span>{" "}
+                    {project.assetType}
+                  </p>
+                )}
+                {project.projectDescription && (
+                  <p className="text-sm text-gray-800">
+                    <span className="font-medium">Description:</span>{" "}
+                    {project.projectDescription}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
-			if (error) {
-				console.error("Failed to send message", error);
-			} else {
-				if (!isSystemMessage) {
-					setNewMessage("");
-				}
-			}
-		} catch (error) {
-			console.error("Error sending message:", error);
-		}
-	};
+        <div className="space-y-6">
+          {project && (
+            <>
+              {project.loanAmountRequested && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">
+                    Loan Information
+                  </h3>
+                  <div className="flex items-start">
+                    <DollarSign className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-800">
+                        <span className="font-medium">Amount Requested:</span>{" "}
+                        {formatCurrency(project.loanAmountRequested)}
+                      </p>
+                      {project.loanType && (
+                        <p className="text-sm text-gray-800">
+                          <span className="font-medium">Type:</span>{" "}
+                          {project.loanType}
+                        </p>
+                      )}
+                      {project.targetLtvPercent && (
+                        <p className="text-sm text-gray-800">
+                          <span className="font-medium">Target LTV:</span>{" "}
+                          {project.targetLtvPercent}%
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
-	const generateFeedback = async () => {
-		if (!project || !user || !user.id) return;
+              {project.purchasePrice && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">
+                    Capital Stack
+                  </h3>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm text-gray-800">
+                      <span className="font-medium">Purchase Price:</span>{" "}
+                      {formatCurrency(project.purchasePrice)}
+                    </p>
+                    {project.totalProjectCost && (
+                      <p className="text-sm text-gray-800">
+                        <span className="font-medium">Total Project Cost:</span>{" "}
+                        {formatCurrency(project.totalProjectCost)}
+                      </p>
+                    )}
+                    {project.exitStrategy && (
+                      <p className="text-sm text-gray-800">
+                        <span className="font-medium">Exit Strategy:</span>{" "}
+                        {project.exitStrategy}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
-		try {
-			// Generate feedback
-			const feedback = await generateProjectFeedback(project.id, project);
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Project Dates
+            </h3>
+            <div className="flex items-start">
+              <Calendar className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+              <div>
+                <p className="text-sm text-gray-800">
+                  <span className="font-medium">Created:</span>{" "}
+                  {formatDate(project.createdAt)}
+                </p>
+                <p className="text-sm text-gray-800">
+                  <span className="font-medium">Last Updated:</span>{" "}
+                  {formatDate(project.updatedAt)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }, [project]);
 
-			const { error } = await supabase.from("project_messages").insert({
-				project_id: project.id,
-				sender_id: user.id,
-				message: `[AI Feedback Suggestion]: ${feedback}`,
-			});
+  const renderDocumentRequirements = useCallback(() => {
+    return (
+      <CardContent className="p-0">
+        {documentRequirements.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Document Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {documentRequirements.map((req) => (
+                  <tr key={req.id}>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {req.requiredDocType}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          req.status === "Approved"
+                            ? "bg-green-100 text-green-800"
+                            : req.status === "Rejected"
+                            ? "bg-red-100 text-red-800"
+                            : req.status === "Uploaded"
+                            ? "bg-blue-100 text-blue-800"
+                            : req.status === "In Review"
+                            ? "bg-amber-100 text-amber-800"
+                            : req.status === "Not Applicable"
+                            ? "bg-gray-100 text-gray-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {req.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-500">No document requirements</p>
+          </div>
+        )}
+      </CardContent>
+    );
+  }, [documentRequirements]);
 
-			if (error) throw error;
-		} catch (error) {
-			console.error("Error generating feedback:", error);
-		}
-	};
+  const renderBorrowerDetails = useCallback(() => {
+    if (!borrowerResume?.content) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-gray-500">Borrower resume not found</p>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-medium text-gray-500 mb-1">Borrower</h3>
+          <div className="flex items-start">
+            <User className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+            <div>
+              <p className="text-sm text-gray-800">
+                {String(borrowerResume.content.fullLegalName) || "Not provided"}
+              </p>
+              <p className="text-sm text-gray-600">
+                {String(borrowerResume.content.contactEmail) || "Not provided"}
+              </p>
+              <p className="text-sm text-gray-600">
+                {String(borrowerResume.content.contactPhone) || "Not provided"}
+              </p>
+            </div>
+          </div>
+        </div>
 
-	return (
-		<RoleBasedRoute roles={["advisor"]}>
-			<div className="flex h-screen bg-gray-50">
-				<LoadingOverlay isLoading={false} />
+        <div>
+          <h3 className="text-sm font-medium text-gray-500 mb-1">Entity</h3>
+          <div className="flex items-start">
+            <Building className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+            <div>
+              <p className="text-sm text-gray-800">
+                {String(borrowerResume.content.primaryEntityName) || "Not provided"}
+              </p>
+              <p className="text-sm text-gray-600">
+                {String(borrowerResume.content.primaryEntityStructure) ||
+                  "Not provided"}
+              </p>
+            </div>
+          </div>
+        </div>
 
-				{/* Main content */}
-				<div className="flex-1 overflow-auto">
-					<header className="bg-white shadow-sm py-4 px-6 flex items-center">
-						<Button
-							variant="outline"
-							leftIcon={<ChevronLeft size={16} />}
-							onClick={() => router.push("/advisor/dashboard")}
-							className="mr-4"
-						>
-							Back
-						</Button>
-						<div>
-							<h1 className="text-2xl font-semibold text-gray-800">
-								{project?.projectName || "Project Details"}
-							</h1>
-							<div
-								className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getStatusColor(
-									selectedStatus
-								)}`}
-							>
-								{selectedStatus}
-							</div>
-						</div>
-					</header>
+        <div>
+          <h3 className="text-sm font-medium text-gray-500 mb-1">Experience</h3>
+          <p className="text-sm text-gray-800">
+            <span className="font-medium">Years of Experience:</span>{" "}
+            {String(borrowerResume.content.yearsCREExperienceRange) || "Not provided"}
+          </p>
+          <p className="text-sm text-gray-800">
+            <span className="font-medium">Asset Classes:</span>{" "}
+            {(borrowerResume.content.assetClassesExperience as string[])?.join(", ") ||
+              "Not provided"}
+          </p>
+          <p className="text-sm text-gray-800">
+            <span className="font-medium">Markets:</span>{" "}
+            {(borrowerResume.content.geographicMarketsExperience as string[])?.join(", ") ||
+              "Not provided"}
+          </p>
+        </div>
 
-					<main className="p-6">
-						<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-							{/* Main Content Column */}
-							<div className="lg:col-span-2 space-y-6">
-							{/* Project Information */}
-							<Card className="shadow-sm">
-								<CardHeader className="border-b bg-gray-50">
-									<div className="flex justify-between items-center">
-										<h2 className="text-lg font-semibold text-gray-800 flex items-center">
-											<FileText className="h-5 w-5 mr-2 text-blue-600" />
-											Project Details
-										</h2>
-										<div className="flex items-center space-x-3">
-											<span className="text-sm text-gray-500">
-												Status:
-											</span>
-											<Select
-												options={[
-													{
-														value: "Info Gathering",
-														label: "Info Gathering",
-													},
-													{
-														value: "Advisor Review",
-														label: "Advisor Review",
-													},
-													{
-														value: "Matches Curated",
-														label: "Matches Curated",
-													},
-													{
-														value: "Introductions Sent",
-														label: "Introductions Sent",
-													},
-													{
-														value: "Term Sheet Received",
-														label: "Term Sheet Received",
-													},
-													{
-														value: "Closed",
-														label: "Closed",
-													},
-													{
-														value: "Withdrawn",
-														label: "Withdrawn",
-													},
-													{
-														value: "Stalled",
-														label: "Stalled",
-													},
-												]}
-												value={selectedStatus}
-												onChange={(e) =>
-													handleStatusChange(
-														e.target
-															.value as ProjectStatus
-													)
-												}
-												size="sm"
-												className="w-40"
-											/>
-										</div>
-									</div>
-								</CardHeader>
-								<CardContent className="p-0">
-									{project && (
-										<div className="grid md:grid-cols-2 gap-4 p-4">
-											<div className="space-y-6">
-												<div>
-													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Project Name
-													</h3>
-													<p className="text-sm text-gray-800">
-														{project.projectName}
-													</p>
-												</div>
+        <div>
+          <h3 className="text-sm font-medium text-gray-500 mb-1">Financial</h3>
+          <p className="text-sm text-gray-800">
+            <span className="font-medium">Credit Score:</span>{" "}
+            {String(borrowerResume.content.creditScoreRange) || "Not provided"}
+          </p>
+          <p className="text-sm text-gray-800">
+            <span className="font-medium">Net Worth:</span>{" "}
+            {String(borrowerResume.content.netWorthRange) || "Not provided"}
+          </p>
+          <p className="text-sm text-gray-800">
+            <span className="font-medium">Liquidity:</span>{" "}
+            {String(borrowerResume.content.liquidityRange) || "Not provided"}
+          </p>
+        </div>
 
-												<div>
-													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Project ID
-													</h3>
-													<p className="text-sm text-gray-800 font-mono">
-														{project.id}
-													</p>
-												</div>
+        {(Boolean(borrowerResume.content.bankruptcyHistory) ||
+          Boolean(borrowerResume.content.foreclosureHistory) ||
+          Boolean(borrowerResume.content.litigationHistory)) && (
+          <div className="bg-amber-50 p-3 rounded border border-amber-200">
+            <h3 className="text-sm font-medium text-amber-800 mb-1">
+              Special Considerations
+            </h3>
+            <ul className="text-sm text-amber-700 list-disc list-inside">
+              {Boolean(borrowerResume.content.bankruptcyHistory) && (
+                <li>Bankruptcy history in the past 7 years</li>
+              )}
+              {Boolean(borrowerResume.content.foreclosureHistory) && (
+                <li>Foreclosure history in the past 7 years</li>
+              )}
+              {Boolean(borrowerResume.content.litigationHistory) && (
+                <li>Significant litigation history</li>
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }, [borrowerResume]);
 
-												<div>
-													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Owner Org ID
-													</h3>
-													<p className="text-sm text-gray-800 font-mono">
-														{project.owner_org_id}
-													</p>
-												</div>
+  const renderMessageBoard = useCallback(() => {
+    return (
+      <div className="h-full flex flex-col">
+        {/* Thread List */}
+        <div className="p-2 border-b">
+          <h4 className="text-sm font-semibold mb-2 px-2">Channels</h4>
+          <div className="space-y-1">
+            {threads.map((thread) => (
+              <button
+                key={thread.id}
+                onClick={() => setActiveThreadId(thread.id)}
+                className={`w-full text-left p-2 rounded text-sm ${
+                  activeThreadId === thread.id
+                    ? "bg-blue-100 font-semibold text-blue-800"
+                    : "hover:bg-gray-100"
+                }`}
+              >
+                # {thread.topic}
+              </button>
+            ))}
+          </div>
+        </div>
 
-												{projectResume?.content && (
-													<div>
-														<h3 className="text-sm font-medium text-gray-500 mb-1">
-															Project Details
-														</h3>
-														<div className="space-y-2">
-															{projectResume.content.propertyAddress && (
-																<div className="flex items-start">
-																	<MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-																	<div>
-																		<p className="text-sm text-gray-800">
-																			{projectResume.content.propertyAddress}
-																		</p>
-																	</div>
-																</div>
-															)}
-															{projectResume.content.assetType && (
-																<p className="text-sm text-gray-800">
-																	<span className="font-medium">Asset Type:</span> {projectResume.content.assetType}
-																</p>
-															)}
-															{projectResume.content.description && (
-																<p className="text-sm text-gray-800">
-																	<span className="font-medium">Description:</span> {projectResume.content.description}
-																</p>
-															)}
-														</div>
-													</div>
-												)}
-											</div>
+        {/* Message Area */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
+          {isLoadingMessages ? (
+            <div className="flex justify-center items-center h-full">
+              <p>Loading messages...</p>
+            </div>
+          ) : messages.length > 0 ? (
+            messages.map((message) => {
+              const isAdvisor = message.user_id === user?.id;
+              return (
+                <div
+                  key={message.id}
+                  className={`flex ${
+                    isAdvisor ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-lg px-3 py-2 shadow-sm ${
+                      isAdvisor
+                        ? "bg-blue-100 text-blue-900"
+                        : "bg-gray-100 text-gray-900"
+                    }`}
+                  >
+                    <div className="flex items-center mb-1">
+                      <span className="text-xs font-semibold">
+                        {isAdvisor
+                          ? "You"
+                          : message.sender.full_name || "Borrower"}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-2">
+                        {new Date(message.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm whitespace-pre-line">
+                      {message.message}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No messages yet</p>
+            </div>
+          )}
+        </div>
+        {/* Message Input */}
+        <div className="p-4 border-t flex space-x-2">
+          <textarea
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+            placeholder="Type your message here..."
+            rows={2}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            disabled={!activeThreadId || isSending}
+          />
+          <div className="flex flex-col space-y-2">
+            <Button
+              onClick={() => handleSendMessage()}
+              disabled={!newMessage.trim() || !activeThreadId || isSending}
+              leftIcon={<Send size={16} />}
+            >
+              Send
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={generateFeedback}
+              disabled={!activeThreadId || isSending}
+            >
+              Generate Feedback
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }, [
+    messages,
+    newMessage,
+    user, // Changed from borrowerResume as sender is from profiles
+    handleSendMessage,
+    generateFeedback,
+    threads,
+    activeThreadId,
+    isLoadingMessages,
+    isSending,
+  ]);
 
-											<div className="space-y-6">
-												{projectResume?.content && (
-													<>
-														{projectResume.content.loanAmount && (
-															<div>
-																<h3 className="text-sm font-medium text-gray-500 mb-1">
-																	Loan Information
-																</h3>
-																<div className="flex items-start">
-																	<DollarSign className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-																	<div>
-																		<p className="text-sm text-gray-800">
-																			<span className="font-medium">Amount Requested:</span> {formatCurrency(projectResume.content.loanAmount)}
-																		</p>
-																		{projectResume.content.loanType && (
-																			<p className="text-sm text-gray-800">
-																				<span className="font-medium">Type:</span> {projectResume.content.loanType}
-																			</p>
-																		)}
-																		{projectResume.content.targetLTV && (
-																			<p className="text-sm text-gray-800">
-																				<span className="font-medium">Target LTV:</span> {projectResume.content.targetLTV}%
-																			</p>
-																		)}
-																	</div>
-																</div>
-															</div>
-														)}
+  return (
+    <RoleBasedRoute roles={["advisor"]}>
+      <div className="flex h-screen bg-gray-50">
+        <LoadingOverlay isLoading={isLoadingData} />
 
-														{projectResume.content.purchasePrice && (
-															<div>
-																<h3 className="text-sm font-medium text-gray-500 mb-1">
-																	Capital Stack
-																</h3>
-																<div className="flex flex-col gap-1">
-																	<p className="text-sm text-gray-800">
-																		<span className="font-medium">Purchase Price:</span> {formatCurrency(projectResume.content.purchasePrice)}
-																	</p>
-																	{projectResume.content.totalProjectCost && (
-																		<p className="text-sm text-gray-800">
-																			<span className="font-medium">Total Project Cost:</span> {formatCurrency(projectResume.content.totalProjectCost)}
-																		</p>
-																	)}
-																	{projectResume.content.exitStrategy && (
-																		<p className="text-sm text-gray-800">
-																			<span className="font-medium">Exit Strategy:</span> {projectResume.content.exitStrategy}
-																		</p>
-																	)}
-																</div>
-															</div>
-														)}
-													</>
-												)}
+        {/* Main content */}
+        <div className="flex-1 overflow-auto">
+          <header className="bg-white shadow-sm py-4 px-6 flex items-center">
+            <Button
+              variant="outline"
+              leftIcon={<ChevronLeft size={16} />}
+              onClick={() => router.push("/advisor/dashboard")}
+              className="mr-4"
+            >
+              Back
+            </Button>
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-800">
+                {project?.projectName || "Project Details"}
+              </h1>
+              <div
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getStatusColor(
+                  selectedStatus
+                )}`}
+              >
+                {selectedStatus}
+              </div>
+            </div>
+          </header>
 
-												<div>
-													<h3 className="text-sm font-medium text-gray-500 mb-1">
-														Project Dates
-													</h3>
-													<div className="flex items-start">
-														<Calendar className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-														<div>
-															<p className="text-sm text-gray-800">
-																<span className="font-medium">Created:</span> {formatDate(project.createdAt)}
-															</p>
-															<p className="text-sm text-gray-800">
-																<span className="font-medium">Last Updated:</span> {formatDate(project.updatedAt)}
-															</p>
-														</div>
-													</div>
-												</div>
-											</div>
-										</div>
-									)}
-								</CardContent>
-							</Card>
+          <main className="p-6 flex flex-col h-full">
+            {/* Tabs */}
+            <div className="border-b border-gray-200 mb-6">
+              <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                <button
+                  onClick={() => setCurrentTab("details")}
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                    currentTab === "details"
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  Details & Documents
+                </button>
+                <button
+                  onClick={() => setCurrentTab("chat")}
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
+                    currentTab === "chat"
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  Chat
+                </button>
+              </nav>
+            </div>
 
-							{/* Document Requirements */}
-							<Card className="shadow-sm">
-								<CardHeader className="border-b bg-gray-50">
-									<h2 className="text-lg font-semibold text-gray-800 flex items-center">
-										<FileText className="h-5 w-5 mr-2 text-blue-600" />
-										Document Requirements
-									</h2>
-								</CardHeader>
-								<CardContent className="p-0">
-									{documentRequirements.length > 0 ? (
-										<div className="overflow-x-auto">
-											<table className="min-w-full divide-y divide-gray-200">
-												<thead className="bg-gray-50">
-													<tr>
-														<th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-															Document Type
-														</th>
-														<th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-															Status
-														</th>
-													</tr>
-												</thead>
-												<tbody className="bg-white divide-y divide-gray-200">
-													{documentRequirements.map(
-														(req) => (
-															<tr key={req.id}>
-																<td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-																	{
-																		req.requiredDocType
-																	}
-																</td>
-																<td className="px-4 py-3 whitespace-nowrap">
-																	<span
-																		className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-																			req.status ===
-																			"Approved"
-																				? "bg-green-100 text-green-800"
-																				: req.status ===
-																				  "Rejected"
-																				? "bg-red-100 text-red-800"
-																				: req.status ===
-																				  "Uploaded"
-																				? "bg-blue-100 text-blue-800"
-																				: req.status ===
-																				  "In Review"
-																				? "bg-amber-100 text-amber-800"
-																				: req.status ===
-																				  "Not Applicable"
-																				? "bg-gray-100 text-gray-800"
-																				: "bg-gray-100 text-gray-800"
-																		}`}
-																	>
-																		{
-																			req.status
-																		}
-																	</span>
-																</td>
-															</tr>
-														)
-													)}
-												</tbody>
-											</table>
-										</div>
-									) : (
-										<div className="text-center py-8">
-											<p className="text-gray-500">
-												No document requirements
-											</p>
-										</div>
-									)}
-								</CardContent>
-							</Card>
+            {currentTab === "details" && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div className="space-y-6">
+                  <Card className="shadow-sm">
+                    <CardHeader className="border-b bg-gray-50 flex flex-row justify-between items-center">
+                      <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                        Project Details
+                      </h2>
+                      <Select
+                        options={[
+                          { value: "Info Gathering", label: "Info Gathering" },
+                          { value: "Advisor Review", label: "Advisor Review" },
+                          {
+                            value: "Matches Curated",
+                            label: "Matches Curated",
+                          },
+                          {
+                            value: "Introductions Sent",
+                            label: "Introductions Sent",
+                          },
+                          {
+                            value: "Term Sheet Received",
+                            label: "Term Sheet Received",
+                          },
+                          { value: "Closed", label: "Closed" },
+                          { value: "Withdrawn", label: "Withdrawn" },
+                          { value: "Stalled", label: "Stalled" },
+                        ]}
+                        value={selectedStatus}
+                        onChange={(e) =>
+                          handleStatusChange(e.target.value as ProjectStatus)
+                        }
+                        size="sm"
+                        className="w-48"
+                      />
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {renderProjectDetails()}
+                    </CardContent>
+                  </Card>
 
-							{/* Project Documents */}
-							<Card className="shadow-sm">
-								<CardContent className="p-0">
-									{project && (
-										<DocumentManager
-											projectId={project.id}
-											resourceId={project.projectDocsResourceId || null}
-											title="Project-Specific Documents"
-										/>
-									)}
-								</CardContent>
-							</Card>
+                  <Card className="shadow-sm">
+                    <CardHeader className="border-b bg-gray-50">
+                      <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                        Document Requirements
+                      </h2>
+                    </CardHeader>
+                    {renderDocumentRequirements()}
+                  </Card>
 
+                  <Card className="shadow-sm">
+                    <CardContent className="p-0">
+                      {project && (
+                        <DocumentManager
+                          resourceId="PROJECT_ROOT"
+                          title="Project-Specific Documents"
+                          projectId={project.id}
+                        />
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
 
-							</div>
+                {/* Right Column */}
+                <div className="space-y-6">
+                  <Card className="shadow-sm">
+                    <CardHeader className="border-b bg-gray-50">
+                      <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                        <User className="h-5 w-5 mr-2 text-blue-600" />
+                        Borrower Details
+                      </h2>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      {renderBorrowerDetails()}
+                    </CardContent>
+                  </Card>
 
+                  <Card className="shadow-sm">
+                    <CardContent className="p-0">
+                      {project && (
+                        <DocumentManager
+                          resourceId="BORROWER_ROOT"
+                          title="General Borrower Documents"
+                          projectId={null}
+                        />
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
 
-							{/* Sidebar Column */}
-							<div className="lg:col-span-1 space-y-6">
-							{/* Borrower Information */}
-							<Card className="shadow-sm">
-								<CardHeader className="border-b bg-gray-50">
-									<h2 className="text-lg font-semibold text-gray-800 flex items-center">
-										<User className="h-5 w-5 mr-2 text-blue-600" />
-										Borrower Details
-									</h2>
-								</CardHeader>
-								<CardContent className="p-4">
-									{borrowerResume?.content ? (
-										<div className="space-y-4">
-											<div>
-												<h3 className="text-sm font-medium text-gray-500 mb-1">
-													Borrower
-												</h3>
-												<div className="flex items-start">
-													<User className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-													<div>
-														<p className="text-sm text-gray-800">
-															{borrowerResume.content.fullLegalName || 'Not provided'}
-														</p>
-														<p className="text-sm text-gray-600">
-															{borrowerResume.content.contactEmail || 'Not provided'}
-														</p>
-														<p className="text-sm text-gray-600">
-															{borrowerResume.content.contactPhone || 'Not provided'}
-														</p>
-													</div>
-												</div>
-											</div>
-
-											<div>
-												<h3 className="text-sm font-medium text-gray-500 mb-1">
-													Entity
-												</h3>
-												<div className="flex items-start">
-													<Building className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-													<div>
-														<p className="text-sm text-gray-800">
-															{borrowerResume.content.primaryEntityName || 'Not provided'}
-														</p>
-														<p className="text-sm text-gray-600">
-															{borrowerResume.content.primaryEntityStructure || 'Not provided'}
-														</p>
-													</div>
-												</div>
-											</div>
-
-											<div>
-												<h3 className="text-sm font-medium text-gray-500 mb-1">
-													Experience
-												</h3>
-												<p className="text-sm text-gray-800">
-													<span className="font-medium">Years of Experience:</span> {borrowerResume.content.yearsCREExperienceRange || 'Not provided'}
-												</p>
-												<p className="text-sm text-gray-800">
-													<span className="font-medium">Asset Classes:</span> {borrowerResume.content.assetClassesExperience?.join(", ") || 'Not provided'}
-												</p>
-												<p className="text-sm text-gray-800">
-													<span className="font-medium">Markets:</span> {borrowerResume.content.geographicMarketsExperience?.join(", ") || 'Not provided'}
-												</p>
-											</div>
-
-											<div>
-												<h3 className="text-sm font-medium text-gray-500 mb-1">
-													Financial
-												</h3>
-												<p className="text-sm text-gray-800">
-													<span className="font-medium">Credit Score:</span> {borrowerResume.content.creditScoreRange || 'Not provided'}
-												</p>
-												<p className="text-sm text-gray-800">
-													<span className="font-medium">Net Worth:</span> {borrowerResume.content.netWorthRange || 'Not provided'}
-												</p>
-												<p className="text-sm text-gray-800">
-													<span className="font-medium">Liquidity:</span> {borrowerResume.content.liquidityRange || 'Not provided'}
-												</p>
-											</div>
-
-											{(borrowerResume.content.bankruptcyHistory ||
-												borrowerResume.content.foreclosureHistory ||
-												borrowerResume.content.litigationHistory) && (
-												<div className="bg-amber-50 p-3 rounded border border-amber-200">
-													<h3 className="text-sm font-medium text-amber-800 mb-1">
-														Special Considerations
-													</h3>
-													<ul className="text-sm text-amber-700 list-disc list-inside">
-														{borrowerResume.content.bankruptcyHistory && (
-															<li>Bankruptcy history in the past 7 years</li>
-														)}
-														{borrowerResume.content.foreclosureHistory && (
-															<li>Foreclosure history in the past 7 years</li>
-														)}
-														{borrowerResume.content.litigationHistory && (
-															<li>Significant litigation history</li>
-														)}
-													</ul>
-												</div>
-											)}
-										</div>
-									) : (
-										<div className="text-center py-8">
-											<p className="text-gray-500">
-												Borrower resume not found
-											</p>
-										</div>
-									)}
-								</CardContent>
-							</Card>
-
-							{/* Borrower Documents */}
-							<Card className="shadow-sm">
-								<CardContent className="p-0">
-									{project && (
-										<DocumentManager
-											projectId={project.id}
-											resourceId={project.projectDocsResourceId || null}
-											title="General Borrower Documents"
-										/>
-									)}
-								</CardContent>
-							</Card>
-
-							{/* Message Board */}
-							<Card className="shadow-sm flex flex-col">
-								<CardHeader className="border-b bg-gray-50">
-									<h2 className="text-lg font-semibold text-gray-800 flex items-center">
-										<MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
-										Project Message Board
-									</h2>
-								</CardHeader>
-								<CardContent className="p-4 flex-1 flex flex-col">
-									<div className="flex-1 space-y-4 overflow-y-auto mb-4 p-2 border rounded bg-gray-50/50 min-h-[300px]">
-										{messages.length > 0 ? (
-											messages.map((message) => (
-												<div
-													key={message.id}
-													className={`flex ${
-														message.senderType ===
-														"Advisor"
-															? "justify-end"
-															: "justify-start"
-													}`}
-												>
-													<div
-														className={`max-w-[85%] rounded-lg px-3 py-2 shadow-sm ${
-															message.senderType ===
-															"Advisor"
-																? "bg-blue-100 text-blue-900"
-																: "bg-gray-100 text-gray-900"
-														}`}
-													>
-														<div className="flex items-center mb-1">
-															<span className="text-xs font-semibold">
-																{message.senderType ===
-																"Advisor"
-																	? "You"
-																	: borrowerResume?.content?.fullLegalName ||
-																	  "Borrower"}
-															</span>
-															<span className="text-xs text-gray-500 ml-2">
-																{new Date(
-																	message.createdAt
-																).toLocaleString()}
-															</span>
-														</div>
-														<p className="text-sm whitespace-pre-line">
-															{message.message}
-														</p>
-													</div>
-												</div>
-											))
-										) : (
-											<div className="text-center py-8">
-												<p className="text-gray-500">
-													No messages yet
-												</p>
-											</div>
-										)}
-									</div>
-
-									<div className="flex space-x-2">
-										<textarea
-											className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
-											placeholder="Type your message here..."
-											rows={2}
-											value={newMessage}
-											onChange={(e) =>
-												setNewMessage(e.target.value)
-											}
-										/>
-										<div className="flex flex-col space-y-2">
-											<Button
-												onClick={() =>
-													handleSendMessage()
-												}
-												disabled={!newMessage.trim()}
-												leftIcon={<Send size={16} />}
-											>
-												Send
-											</Button>
-											<Button
-												variant="secondary"
-												onClick={generateFeedback}
-											>
-												Generate Feedback
-											</Button>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-							</div>
-						</div>
-					</main>
-				</div>
-			</div>
-		</RoleBasedRoute>
-	);
+            {currentTab === "chat" && (
+              <div className="flex-1 h-full min-h-[600px]">
+                <Card className="shadow-sm h-full flex flex-col">
+                  <CardHeader className="border-b bg-gray-50">
+                    <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                      <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
+                      Project Message Board
+                    </h2>
+                  </CardHeader>
+                  <CardContent className="p-0 flex-1 flex flex-col">
+                    {renderMessageBoard()}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    </RoleBasedRoute>
+  );
 }

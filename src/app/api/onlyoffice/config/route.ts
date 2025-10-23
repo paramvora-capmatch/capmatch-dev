@@ -52,26 +52,23 @@ export async function POST(request: NextRequest) {
         },
       }
     );
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Fetch user's name from their profile
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("full_name")
       .eq("id", user.id)
       .single();
 
-    const userName = profile?.full_name || user.email || "Anonymous";
+    const userName = (profile && !profileError) ? profile.full_name : (user.email || "Anonymous");
 
     const body = await request.json();
-    const { bucketId, filePath } = body;
+    const { bucketId, filePath, mode = 'edit' } = body;
 
     if (!bucketId || !filePath) {
       return NextResponse.json(
@@ -88,6 +85,7 @@ export async function POST(request: NextRequest) {
       .select(
         `
             id,
+            version_number,
             resource_id,
             version_number,
             resources!document_versions_resource_id_fkey ( id, name, project_id )
@@ -105,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     const documentVersion = versionData;
-    const resource = versionData.resources[0] as { id: string; name: string; project_id: string };
+    const resource = versionData.resources as unknown as { id: string; name: string; project_id: string };
 
     // --- VERSIONING CHANGES END ---
 
@@ -148,7 +146,7 @@ export async function POST(request: NextRequest) {
     const documentType = documentTypeMap[fileType] || "word";
 
     // Callback URL now includes the logical resource ID
-    const callbackUrl = `${internalServerUrl}/api/onlyoffice/callback?resourceId=${encodeURIComponent(
+    const callbackUrl = `${internalServerUrl}?resourceId=${encodeURIComponent(
       resource.id
     )}`;
 
@@ -158,7 +156,9 @@ export async function POST(request: NextRequest) {
     // Format: {resourceId}_{versionNumber}_{timestamp}
     // The timestamp ensures that even if versions get the same name,
     // opening the same version twice gets a fresh load.
-    const documentKey = `${resource.id}_v${documentVersion.version_number}_${Date.now()}`;
+    const documentKey = `${resource.id}_v${
+      documentVersion.version_number
+    }_${Date.now()}`;
 
     console.log("[OnlyOffice Config] Document key generated:", {
       resourceId: resource.id,
@@ -172,11 +172,15 @@ export async function POST(request: NextRequest) {
         key: documentKey,
         title: fileName,
         url: documentUrl,
-        permissions: { edit: true, download: true, print: true },
+        permissions: {
+          edit: mode === 'edit',
+          download: true,
+          print: true
+        },
       },
       documentType,
       editorConfig: {
-        mode: "edit",
+        mode: mode,
         lang: "en",
         callbackUrl: callbackUrl,
         user: { id: user.id, name: userName },
@@ -187,7 +191,7 @@ export async function POST(request: NextRequest) {
       type: "desktop",
     };
 
-    const token = jwt.sign(config, jwtSecret, { noTimestamp: true });
+    const token = jwt.sign(config, jwtSecret);
     const finalConfig = { ...config, token };
 
     console.log("[OnlyOffice Config] Document URL:", documentUrl);

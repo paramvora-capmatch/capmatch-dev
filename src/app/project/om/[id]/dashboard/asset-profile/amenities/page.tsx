@@ -11,10 +11,11 @@ import {
   PawPrint, 
   Inbox
 } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 
 export default function AmenitiesPage() {
-  const getAmenityIcon = (name: string) => {
-    const iconMap: { [key: string]: any } = {
+  const getAmenityIcon = (name: string): LucideIcon => {
+    const iconMap: { [key: string]: LucideIcon } = {
       'Resort-Style Pool': Waves,
       'Fitness Center': Heart,
       'Sky Lounge': Sun,

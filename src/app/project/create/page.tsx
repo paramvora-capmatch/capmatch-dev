@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import MinimalSidebarLayout from '../../../components/layout/MinimalSidebarLayout';
 import { RoleBasedRoute } from '../../../components/auth/RoleBasedRoute';
 import { useProjects } from '../../../hooks/useProjects';
-import { useAuthStore } from '../../../stores/useAuthStore';
 import { Loader2, Plus, ArrowLeft } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../../../components/ui/card';

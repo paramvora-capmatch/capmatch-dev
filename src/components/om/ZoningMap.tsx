@@ -1,17 +1,21 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { MapContainer, TileLayer, Polygon, Popup, Circle } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import { MapPin, Building2, TreePine, Car } from 'lucide-react';
+import React from "react";
+import { MapContainer, TileLayer, Polygon, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import { MapPin } from "lucide-react";
 
 // Fix for default markers in react-leaflet
-import L from 'leaflet';
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+import L from "leaflet";
+// @ts-ignore
+delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
 interface ZoningMapProps {
@@ -19,7 +23,10 @@ interface ZoningMapProps {
   compact?: boolean;
 }
 
-export default function ZoningMap({ className = '', compact = false }: ZoningMapProps) {
+export default function ZoningMap({
+  className = "",
+  compact = false,
+}: ZoningMapProps) {
   // Mock zoning data
   const siteCenter = [37.7749, -122.4194];
   const siteBoundary = [
@@ -28,60 +35,60 @@ export default function ZoningMap({ className = '', compact = false }: ZoningMap
     [37.7745, -122.4189],
     [37.7745, -122.4194],
   ];
-  
+
   const zoningAreas = [
     {
-      name: 'MU-4 (Mixed Use)',
+      name: "MU-4 (Mixed Use)",
       boundary: [
         [37.7752, -122.4197],
         [37.7752, -122.4186],
         [37.7742, -122.4186],
         [37.7742, -122.4197],
       ],
-      color: '#3b82f6',
-      description: 'Mixed Use - 4 Stories Max',
-      far: '4.0',
-      height: '100 ft',
-      setbacks: '15 ft front, 10 ft side/rear'
+      color: "#3b82f6",
+      description: "Mixed Use - 4 Stories Max",
+      far: "4.0",
+      height: "100 ft",
+      setbacks: "15 ft front, 10 ft side/rear",
     },
     {
-      name: 'R-3 (Residential)',
+      name: "R-3 (Residential)",
       boundary: [
-        [37.7755, -122.4200],
+        [37.7755, -122.42],
         [37.7755, -122.4197],
         [37.7749, -122.4197],
-        [37.7749, -122.4200],
+        [37.7749, -122.42],
       ],
-      color: '#10b981',
-      description: 'Residential - 3 Stories Max',
-      far: '2.5',
-      height: '75 ft',
-      setbacks: '20 ft front, 15 ft side/rear'
+      color: "#10b981",
+      description: "Residential - 3 Stories Max",
+      far: "2.5",
+      height: "75 ft",
+      setbacks: "20 ft front, 15 ft side/rear",
     },
     {
-      name: 'C-2 (Commercial)',
+      name: "C-2 (Commercial)",
       boundary: [
         [37.7749, -122.4186],
-        [37.7749, -122.4180],
-        [37.7742, -122.4180],
+        [37.7749, -122.418],
+        [37.7742, -122.418],
         [37.7742, -122.4186],
       ],
-      color: '#f59e0b',
-      description: 'Commercial - 2 Stories Max',
-      far: '1.5',
-      height: '50 ft',
-      setbacks: '25 ft front, 20 ft side/rear'
-    }
+      color: "#f59e0b",
+      description: "Commercial - 2 Stories Max",
+      far: "1.5",
+      height: "50 ft",
+      setbacks: "25 ft front, 20 ft side/rear",
+    },
   ];
 
-  const height = compact ? 'h-48' : 'h-64';
+  const height = compact ? "h-48" : "h-64";
 
   return (
     <div className={`w-full ${height} rounded-lg overflow-hidden ${className}`}>
       <MapContainer
         center={siteCenter as [number, number]}
         zoom={17}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: "100%", width: "100%" }}
         className="rounded-lg"
         zoomControl={!compact}
         scrollWheelZoom={!compact}
@@ -93,7 +100,7 @@ export default function ZoningMap({ className = '', compact = false }: ZoningMap
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        
+
         {/* Zoning Areas */}
         {zoningAreas.map((zone, index) => (
           <Polygon
@@ -108,7 +115,9 @@ export default function ZoningMap({ className = '', compact = false }: ZoningMap
           >
             <Popup>
               <div className="text-center min-w-[200px]">
-                <h3 className="font-semibold text-gray-800 mb-2">{zone.name}</h3>
+                <h3 className="font-semibold text-gray-800 mb-2">
+                  {zone.name}
+                </h3>
                 <p className="text-sm text-gray-600 mb-3">{zone.description}</p>
                 <div className="space-y-1 text-xs text-left">
                   <div className="flex justify-between">
@@ -128,13 +137,13 @@ export default function ZoningMap({ className = '', compact = false }: ZoningMap
             </Popup>
           </Polygon>
         ))}
-        
+
         {/* Site Boundary */}
         <Polygon
           positions={siteBoundary as [number, number][]}
           pathOptions={{
-            color: '#ef4444',
-            fillColor: '#ef4444',
+            color: "#ef4444",
+            fillColor: "#ef4444",
             fillOpacity: 0.6,
             weight: 3,
           }}
@@ -150,15 +159,17 @@ export default function ZoningMap({ className = '', compact = false }: ZoningMap
             </div>
           </Popup>
         </Polygon>
-        
+
         {/* Zoning Legend */}
         {!compact && (
           <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 z-[1000]">
-            <h4 className="font-semibold text-gray-800 text-sm mb-2">Zoning Legend</h4>
+            <h4 className="font-semibold text-gray-800 text-sm mb-2">
+              Zoning Legend
+            </h4>
             <div className="space-y-2 text-xs">
               {zoningAreas.map((zone, index) => (
                 <div key={index} className="flex items-center">
-                  <div 
+                  <div
                     className="w-3 h-3 rounded mr-2"
                     style={{ backgroundColor: zone.color }}
                   />
@@ -172,7 +183,7 @@ export default function ZoningMap({ className = '', compact = false }: ZoningMap
             </div>
           </div>
         )}
-        
+
         {/* Zoning Summary */}
         {compact && (
           <div className="absolute bottom-2 left-2 right-2 bg-white rounded-lg shadow-lg p-2 z-[1000]">
@@ -199,4 +210,4 @@ export default function ZoningMap({ className = '', compact = false }: ZoningMap
       </MapContainer>
     </div>
   );
-} 
+}

@@ -4,20 +4,21 @@ export interface CreateProjectOptions {
   name: string;
   owner_org_id: string;
   creator_id: string; // The user ID of the person creating the project
+  assigned_advisor_id?: string | null;
 }
 
 export async function createProjectWithResumeAndStorage(
   supabaseAdmin: any,
   options: CreateProjectOptions
 ) {
-  const { name, owner_org_id } = options;
+  const { name, owner_org_id, assigned_advisor_id } = options;
   console.log(`[project-utils] Creating project: ${name} for org: ${owner_org_id}`);
 
   // 1. Create the project
   console.log("[project-utils] Step 1: Creating project record");
   const { data: project, error: projectError } = await supabaseAdmin
     .from("projects")
-    .insert({ name, owner_org_id })
+    .insert({ name, owner_org_id, assigned_advisor_id })
     .select()
     .single();
   if (projectError) {
@@ -153,6 +154,46 @@ export async function createProjectWithResumeAndStorage(
     throw new Error(`Failed to grant permissions on PROJECT_RESUME: ${projectResumePermError.message}`);
   }
   console.log("[project-utils] Edit permission granted on PROJECT_RESUME");
+
+  // Step 8.5: Create a default "General" chat thread
+  console.log("[project-utils] Step 8.5: Creating default chat thread");
+  const { data: chatThread, error: chatThreadError } = await supabaseAdmin
+    .from("chat_threads")
+    .insert({
+      project_id: project.id,
+      topic: "General",
+    })
+    .select()
+    .single();
+
+  if (chatThreadError) {
+    // This is not a critical failure, so we'll log it and continue.
+    console.error(
+      `[project-utils] Default chat thread creation failed: ${
+        JSON.stringify(chatThreadError)
+      }`
+    );
+  } else {
+    console.log(
+      `[project-utils] Default chat thread created: ${chatThread.id}`
+    );
+
+    // Add participants: creator and advisor (if they exist)
+    const participants = [{ thread_id: chatThread.id, user_id: options.creator_id }];
+    if (options.assigned_advisor_id) {
+      participants.push({ thread_id: chatThread.id, user_id: options.assigned_advisor_id });
+    }
+
+    const { error: participantsError } = await supabaseAdmin
+      .from("chat_thread_participants")
+      .insert(participants);
+
+    if (participantsError) {
+      console.error(`[project-utils] Failed to add participants to default thread: ${JSON.stringify(participantsError)}`);
+    } else {
+      console.log("[project-utils] Added initial participants to default thread.");
+    }
+  }
 
   // Step 9: Apply bucket-specific storage policies for this org
   console.log("[project-utils] Step 9: Applying storage policies for org bucket");

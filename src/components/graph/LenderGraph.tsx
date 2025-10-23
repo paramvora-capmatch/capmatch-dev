@@ -1,49 +1,35 @@
 // src/components/graph/LenderGraph.tsx
 'use client';
 
+import { LenderFilters } from "@/contexts/LenderContext";
 import type React from "react";
 import { useRef, useEffect, useState } from "react";
 import type { LenderProfile } from "../../types/lender";
 import LenderDetailCard from "../lender-detail-card";
-import { X, Check } from 'lucide-react';
 
 const filterKeys = ['asset_types', 'deal_types', 'capital_types', 'debt_ranges', 'locations'];
 
-// This function determines if the GRAPH should consider its UI filters active for display purposes.
-// It's used for conditional rendering of certain graph elements based on formData.
-function graphHasActiveUIFilters(formData: any): boolean {
-  if (!formData) return false;
-  return filterKeys.some(
-    (key) =>
-      formData[key] &&
-      (Array.isArray(formData[key])
-        ? formData[key].length > 0
-        : true)
-  );
-}
-
 // This function calculates a score for a lender based *only* on the graph's current formData.
 // It helps decide if a node appears "matched" by the graph's current UI filters.
-function computeLenderScoreForGraphDisplay(lender: LenderProfile, formData: any): number {
+function computeLenderScoreForGraphDisplay(lender: LenderProfile, formData: Partial<LenderFilters> | undefined): number {
   const activeUIFilterCategories = filterKeys.filter(
     (key) =>
       formData &&
-      formData[key] &&
-      (Array.isArray(formData[key]) ? formData[key].length > 0 : true)
+      formData[key as keyof LenderFilters] &&
+      ((Array.isArray(formData[key as keyof LenderFilters]) ? (formData[key as keyof LenderFilters] as any[]).length : 0) > 0)
   );
 
   if (activeUIFilterCategories.length === 0) return 0; // No UI filters active in graph, so no match score from graph's perspective
 
   let matchCount = 0;
   for (const key of activeUIFilterCategories) {
+    const filterValue = formData?.[key as keyof LenderFilters];
+    if (!filterValue || !Array.isArray(filterValue)) continue;
+
     if (key === "locations") {
       if (
         lender.locations.includes("nationwide") ||
-        lender.locations.some((loc) =>
-          Array.isArray(formData[key])
-            ? formData[key].includes(loc)
-            : formData[key] === loc
-        )
+        lender.locations.some(loc => filterValue.includes(loc))
       ) {
         matchCount++;
       }
@@ -51,11 +37,7 @@ function computeLenderScoreForGraphDisplay(lender: LenderProfile, formData: any)
       // Ensure lender.debt_ranges exists and is an array before trying to use .some()
       if (
         lender.debt_ranges && Array.isArray(lender.debt_ranges) &&
-        lender.debt_ranges.some((dr) =>
-          Array.isArray(formData[key])
-            ? formData[key].includes(dr)
-            : formData[key] === dr
-        )
+        lender.debt_ranges.some(dr => filterValue.includes(dr))
       ) {
         matchCount++;
       }
@@ -63,11 +45,7 @@ function computeLenderScoreForGraphDisplay(lender: LenderProfile, formData: any)
       const lenderVals = lender[key as keyof LenderProfile] as string[] | undefined;
       if (
         lenderVals && Array.isArray(lenderVals) && // Ensure lenderVals is an array
-        lenderVals.some((item: string) =>
-          Array.isArray(formData[key])
-            ? formData[key].includes(item)
-            : formData[key] === item
-        )
+        lenderVals.some((item: string) => filterValue.includes(item))
       ) {
         matchCount++;
       }
@@ -79,7 +57,7 @@ function computeLenderScoreForGraphDisplay(lender: LenderProfile, formData: any)
 
 function getLenderColor(
     lenderFromContext: LenderProfile,
-    formDataForGraphDisplay: any,
+    formDataForGraphDisplay: Partial<LenderFilters> | undefined,
     graphConsidersNodeActive: boolean, // If graph's UI filters make this node "active"
     filtersAreAppliedOnPage: boolean // If ANY filter is applied on the page (from props)
   ): string {
@@ -108,15 +86,15 @@ function getLenderColor(
 
 interface LenderGraphProps {
   lenders: LenderProfile[];
-  formData?: any;
+  formData?: Partial<LenderFilters>;
   filtersApplied: boolean; // True if ANY filter category is selected by the user on the page
-  allFiltersSelected?: boolean;
+  allFiltersSelected?: boolean; 
   onLenderClick?: (lender: LenderProfile | null) => void;
 }
 
 export default function LenderGraph({
   lenders,
-  formData,
+  formData = {},
   filtersApplied, // This prop tells the graph if any filter is active in the UI (from page.tsx)
   allFiltersSelected = false, 
   onLenderClick,

@@ -29,7 +29,7 @@ export default function ProfilePage() {
 
 		// Profile completed successfully, redirect to dashboard
 		// The first project is already created by the edge function during onboarding
-		router.push("/dashboard");
+		router.replace("/dashboard");
 	};
 
 	return (
@@ -66,3 +66,4 @@ export default function ProfilePage() {
 		</RoleBasedRoute>
 	);
 }
+

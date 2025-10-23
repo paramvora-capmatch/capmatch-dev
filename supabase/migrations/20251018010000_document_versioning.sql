@@ -150,11 +150,6 @@ COMMENT ON FUNCTION public.delete_folder_and_children IS 'Recursively deletes a 
 -- Step 7: Update storage RLS policy - drop ALL policies that depend on get_resource_by_storage_path
 -- We must drop ALL policies BEFORE dropping the function, since they depend on it.
 DROP POLICY IF EXISTS "Unified storage access policy" ON storage.objects;
-DROP POLICY IF EXISTS "Users can view files they have access to" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update files they can edit" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete files they can edit" ON storage.objects;
--- Step 7: Update storage RLS policy - drop old version that references resources.storage_path
--- We must drop the policy BEFORE dropping the function, since the policy depends on it.
 DROP POLICY IF EXISTS "Users can upload files to folders they can edit" ON storage.objects;
 DROP POLICY IF EXISTS "Users can view files they have access to" ON storage.objects;
 DROP POLICY IF EXISTS "Users can update files they can edit" ON storage.objects;

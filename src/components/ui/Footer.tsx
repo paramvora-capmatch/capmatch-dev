@@ -1,7 +1,7 @@
 // src/components/ui/Footer.tsx
 import React from 'react';
 import Link from 'next/link';
-import { Mail, Linkedin, Twitter, Facebook } from 'lucide-react';
+import { Linkedin, Twitter, Facebook } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();

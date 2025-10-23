@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ButtonSelect } from '../../components/ui/ButtonSelect';
 import { Info } from 'lucide-react';
 
 interface DealTypeFilterProps {

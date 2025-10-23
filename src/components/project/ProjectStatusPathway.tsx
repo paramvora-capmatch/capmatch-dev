@@ -8,11 +8,9 @@ import {
   FileText, 
   ChevronRight, 
   UserCheck,
-  Building,
   MessageSquare,
   Zap,
   FileCheck,
-  CheckCircle
 } from 'lucide-react';
 import { ProjectStatus } from '../../types/enhanced-types';
 

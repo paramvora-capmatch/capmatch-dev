@@ -31,7 +31,7 @@ interface AskAIProviderProps {
   onFieldAskAI: (fieldId: string) => void;
 }
 
-export const AskAIProvider: React.FC<AskAIProviderProps> = ({ children, onFieldAskAI }) => {
+export const AskAIProvider: React.FC<AskAIProviderProps> = ({ children }) => {
   return (
     <div>
       {children}

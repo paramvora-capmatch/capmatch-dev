@@ -26,8 +26,6 @@ export default function DashboardPage() {
     isLoading: projectsLoading,
   } = useProjects();
   const { content: borrowerResume, isLoading: profileLoading } = useBorrowerResume();
-  const [, setSearchParams] = useSearchParams();
-
 
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
@@ -51,7 +49,6 @@ export default function DashboardPage() {
     // The main redirect for new users is after profile completion.
     // Let's keep the dashboard stable for now.
     // A `from=signup` param could trigger an onboarding modal in the future.
-
   }, [
     user,
     projects,

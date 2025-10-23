@@ -2,18 +2,18 @@
 import { FieldContext, ProjectContext, PresetQuestion } from '../types/ask-ai-types';
 
 export class AIContextBuilder {
-    static async buildFieldContext(fieldId: string, formData: any): Promise<FieldContext> {
+    static async buildFieldContext(fieldId: string, formData: Record<string, unknown>): Promise<FieldContext> {
     // Try to find the field element with retry mechanism
     let fieldElement = null;
     let attempts = 0;
     const maxAttempts = 3;
-    
+
     while (!fieldElement && attempts < maxAttempts) {
       // Try different selectors to find the field
       fieldElement = document.querySelector(`[data-field-id="${fieldId}"]`) ||
                     document.querySelector(`#${fieldId}`) ||
                     document.querySelector(`[id="${fieldId}"]`);
-      
+
       if (!fieldElement) {
         attempts++;
         // Wait a bit before retrying
@@ -24,23 +24,20 @@ export class AIContextBuilder {
         }
       }
     }
-    
+
     if (!fieldElement) {
       // Debug: List all available fields
       const allFields = document.querySelectorAll('[data-field-id]');
       const fieldIds = Array.from(allFields).map(el => el.getAttribute('data-field-id'));
       
       // Also check for fields by ID
-      const allFieldsById = document.querySelectorAll('[id]');
-      const fieldIdsById = Array.from(allFieldsById).map(el => el.getAttribute('id'));
-      
       throw new Error(`Field with ID "${fieldId}" not found after ${maxAttempts} attempts. Make sure the field has data-field-id="${fieldId}" attribute. Available fields: ${fieldIds.join(', ')}`);
     }
 
     return {
       id: fieldId,
-      type: (fieldElement.getAttribute('data-field-type') as any) || 'input',
-      section: (fieldElement.getAttribute('data-field-section') as any) || 'basic-info',
+      type: (fieldElement.getAttribute('data-field-type') as FieldContext['type']) || 'input',
+      section: (fieldElement.getAttribute('data-field-section') as FieldContext['section']) || 'basic-info',
       required: fieldElement.getAttribute('data-field-required') === 'true',
       label: fieldElement.getAttribute('data-field-label') || '',
       placeholder: fieldElement.getAttribute('data-field-placeholder') || undefined,
@@ -58,18 +55,18 @@ export class AIContextBuilder {
     };
   }
 
-  static buildProjectContext(formData: any): ProjectContext {
+  static buildProjectContext(formData: Record<string, unknown>): ProjectContext {
     return {
-      projectName: formData.projectName || 'Unnamed Project',
-      assetType: formData.assetType || 'Not specified',
-      projectPhase: formData.projectPhase || 'Not specified',
-      loanAmountRequested: formData.loanAmountRequested || 0,
-      targetLtvPercent: formData.targetLtvPercent || 0,
-      targetLtcPercent: formData.targetLtcPercent || 0,
-      purchasePrice: formData.purchasePrice || null,
-      totalProjectCost: formData.totalProjectCost || null,
-      propertyAddressCity: formData.propertyAddressCity || 'Not specified',
-      propertyAddressState: formData.propertyAddressState || 'Not specified'
+      projectName: (formData.projectName as string) || 'Unnamed Project',
+      assetType: (formData.assetType as string) || 'Not specified',
+      projectPhase: (formData.projectPhase as string) || 'Not specified',
+      loanAmountRequested: (formData.loanAmountRequested as number) || 0,
+      targetLtvPercent: (formData.targetLtvPercent as number) || 0,
+      targetLtcPercent: (formData.targetLtcPercent as number) || 0,
+      purchasePrice: (formData.purchasePrice as number) || null,
+      totalProjectCost: (formData.totalProjectCost as number) || null,
+      propertyAddressCity: (formData.propertyAddressCity as string) || 'Not specified',
+      propertyAddressState: (formData.propertyAddressState as string) || 'Not specified'
     };
   }
 

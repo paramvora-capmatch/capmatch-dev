@@ -1,9 +1,8 @@
 // components/filters/LocationFilter.tsx
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { ButtonSelect } from '../../components/ui/ButtonSelect';
-import { Info } from 'lucide-react';
+import React, { useState } from "react";
+import { Info } from "lucide-react";
 
 interface LocationFilterProps {
   value: string[];
@@ -14,8 +13,13 @@ const LocationFilter: React.FC<LocationFilterProps> = ({ value, onChange }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const locationOptions = [
-    "nationwide", "Northeast", "Southeast", "Midwest",
-    "Southwest", "West Coast", "Other"
+    "nationwide",
+    "Northeast",
+    "Southeast",
+    "Midwest",
+    "Southwest",
+    "West Coast",
+    "Other",
   ];
 
   return (
@@ -34,7 +38,8 @@ const LocationFilter: React.FC<LocationFilterProps> = ({ value, onChange }) => {
           </button>
           {showTooltip && (
             <div className="absolute z-10 w-64 p-2 mt-2 text-xs bg-white rounded-md shadow-lg border border-gray-200 -translate-x-1/2 left-1/2">
-              Select the geographic region(s) of your project. Many lenders focus on specific regions.
+              Select the geographic region(s) of your project. Many lenders
+              focus on specific regions.
             </div>
           )}
         </div>
@@ -46,8 +51,8 @@ const LocationFilter: React.FC<LocationFilterProps> = ({ value, onChange }) => {
             type="button"
             className={`px-3 py-1.5 text-sm rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
               value.includes(option)
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
             }`}
             onClick={() => {
               const newValue = value.includes(option)

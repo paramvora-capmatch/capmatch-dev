@@ -33,38 +33,62 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let body: Record<string, unknown>;
   try {
-    const body = await request.json();
+    body = await request.json();
+  } catch (jsonError) {
+    console.error(
+      "[OnlyOffice Callback] Failed to parse request body as JSON:",
+      jsonError
+    );
+    return NextResponse.json(
+      { error: 1, message: "Invalid request body" },
+      { status: 400 }
+    );
+  }
 
+  try {
     console.log("[OnlyOffice Callback] Request body received:", {
       status: body.status,
       hasToken: !!body.token,
       hasUrl: !!body.url,
-      tokenLength: body.token?.length || 0,
+      tokenLength: (body.token as string)?.length || 0,
     });
 
-    let decoded: any;
+    let decoded: { actions?: Array<{ userid?: string }> } | undefined;
 
     // Verify JWT from OnlyOffice
     if (body.token) {
       try {
-        decoded = jwt.verify(body.token, jwtSecret);
+        decoded = jwt.verify(body.token as string, jwtSecret) as
+          | { actions?: Array<{ userid?: string }> }
+          | undefined;
         console.log("[OnlyOffice Callback] Token verified successfully.");
       } catch (err) {
         console.error("[OnlyOffice Callback] JWT verification failed:", {
           error: err instanceof Error ? err.message : String(err),
           tokenSecret: jwtSecret ? "set" : "NOT SET",
         });
-        return NextResponse.json({ error: 1, message: "Invalid token" }, { status: 403 });
+        return NextResponse.json(
+          { error: 1, message: "Invalid token" },
+          { status: 403 }
+        );
       }
     } else {
-      console.error("[OnlyOffice Callback] JWT token is missing from callback.");
+      console.error(
+        "[OnlyOffice Callback] JWT token is missing from callback."
+      );
       return NextResponse.json(
         { error: 1, message: "Missing token" },
-        { status: 403 });
+        { status: 403 }
+      );
     }
 
-    const { status, url, changesurl } = body;
+    const { status, url, changesurl } = body as {
+      status: number;
+      url?: string;
+      changesurl?: string;
+    };
 
     // Handle document save (status 2 or 6)
     if (status === 2 || status === 6) {
@@ -72,11 +96,15 @@ export async function POST(request: NextRequest) {
       const userId = decoded?.actions?.[0]?.userid;
 
       if (!userId) {
-        console.error("[OnlyOffice Callback] No userId found in token for a save operation (status 2 or 6). Decoded payload:", decoded);
+        console.error(
+          "[OnlyOffice Callback] No userId found in token for a save operation (status 2 or 6). Decoded payload:",
+          decoded
+        );
         return NextResponse.json(
           {
             error: 1,
-            message: "Invalid token payload; user cannot be identified for saving.",
+            message:
+              "Invalid token payload; user cannot be identified for saving.",
           },
           { status: 403 }
         );
@@ -146,7 +174,9 @@ export async function POST(request: NextRequest) {
         .eq("resource_id", resourceId)
         .neq("id", newVersion.id);
       if (supersedError)
-        throw new Error(`Failed to mark previous versions as superseded: ${supersedError.message}`);
+        throw new Error(
+          `Failed to mark previous versions as superseded: ${supersedError.message}`
+        );
 
       // 3. Construct the new storage path
       const newStoragePath = `${resource.project_id}/${resourceId}/v${newVersion.version_number}_${resource.name}`;
@@ -232,12 +262,17 @@ export async function POST(request: NextRequest) {
 
     // For all other statuses (0, 1, 3, 4, 7), we don't need to do anything.
     // Just acknowledge the callback with success.
-    console.log(`[OnlyOffice Callback] Acknowledging status ${status}. No save action taken.`);
+    console.log(
+      `[OnlyOffice Callback] Acknowledging status ${status}. No save action taken.`
+    );
     return NextResponse.json({ error: 0 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error processing OnlyOffice callback:", error);
     return NextResponse.json(
-      { error: 1, message: error.message },
+      {
+        error: 1,
+        message: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

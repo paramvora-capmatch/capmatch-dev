@@ -161,17 +161,17 @@ export default function DemographicsPage() {
                         {radius.replace(/([A-Z])/g, ' $1').trim()} Radius
                       </h4>
                       <Badge variant="outline" className="border-gray-200 bg-white">
-                        {(data as any).population.toLocaleString()}
+                      {(data as Record<string, number>).population.toLocaleString()}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Income</p>
-                        <p className="font-semibold text-gray-800">${(data as any).medianIncome.toLocaleString()}</p>
+                      <p className="font-semibold text-gray-800">${(data as Record<string, number>).medianIncome.toLocaleString()}</p>
                       </div>
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Age</p>
-                        <p className="font-semibold text-gray-800">{(data as any).medianAge} years</p>
+                      <p className="font-semibold text-gray-800">{(data as Record<string, number>).medianAge} years</p>
                       </div>
                     </div>
                   </div>
@@ -201,12 +201,12 @@ export default function DemographicsPage() {
                       <span className="text-sm font-medium text-gray-700 capitalize">
                         {radius.replace(/([A-Z])/g, ' $1').trim()}
                       </span>
-                      <span className="text-sm text-gray-500">${(data as any).medianIncome.toLocaleString()}</span>
+                    <span className="text-sm text-gray-500">${(data as Record<string, number>).medianIncome.toLocaleString()}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                       <div 
                         className={`h-3 rounded-full bg-gradient-to-r ${color} shadow-sm`}
-                        style={{ width: `${((data as any).medianIncome / 100000) * 100}%` }}
+                      style={{ width: `${((data as Record<string, number>).medianIncome / 100000) * 100}%` }}
                       />
                     </div>
                   </div>

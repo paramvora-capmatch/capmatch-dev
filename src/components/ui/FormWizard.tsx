@@ -1,7 +1,7 @@
 // src/components/ui/FormWizard.tsx
 import React, { useState, useEffect } from 'react';
 import { cn } from '../../utils/cn';
-import { CheckCircle, ChevronLeft, ChevronRight, Circle } from 'lucide-react';
+import { CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './Button';
 
 export interface Step {

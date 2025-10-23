@@ -6,15 +6,13 @@ import { useAuthStore } from "./useAuthStore";
 import { usePermissionStore } from "./usePermissionStore"; // Import the new store
 import {
 	ProjectProfile,
-  // New schema types
-	Project,
 } from "@/types/enhanced-types";
 
 // Maps ProjectProfile fields to core projects table columns
 const projectProfileToDbProject = (
 	profileData: Partial<ProjectProfile>
-): any => {
-	const dbData: { [key: string]: any } = {};
+): Record<string, unknown> => {
+	const dbData: Record<string, unknown> = {};
 	const keyMap: { [key in keyof ProjectProfile]?: string } = {
 		projectName: "name", // Map to name in new schema
 		assignedAdvisorUserId: "assigned_advisor_id", // Map to assigned_advisor_id in new schema
@@ -246,11 +244,42 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					"Must be part of an org to create a project."
 				);
 
+			// Find an advisor to auto-assign
+			console.log("[ProjectStore] Looking for advisor to auto-assign...");
+			let advisorId: string | null = null;
+
+			try {
+				// Get the first advisor org member
+				const { data: advisorOrg } = await supabase
+					.from('orgs')
+					.select('id')
+					.eq('entity_type', 'advisor')
+					.limit(1)
+					.single();
+
+				if (advisorOrg) {
+					const { data: advisorMember } = await supabase
+						.from('org_members')
+						.select('user_id')
+						.eq('org_id', advisorOrg.id)
+						.limit(1)
+						.single();
+
+					if (advisorMember) {
+						advisorId = advisorMember.user_id;
+						console.log(`[ProjectStore] Found advisor: ${advisorId}`);
+					}
+				}
+			} catch (error) {
+				console.warn("[ProjectStore] Could not find advisor for auto-assignment:", error);
+			}
+
 			// Use the create-project edge function
 			const { data, error } = await supabase.functions.invoke('create-project', {
 				body: {
 					name: projectData.projectName || `New Project ${get().projects.length + 1}`,
-					owner_org_id: activeOrg.id
+					owner_org_id: activeOrg.id,
+					assigned_advisor_id: advisorId
 				}
 			});
 
@@ -310,7 +339,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		updateProject: async (id, updates) => {
-			const { user } = useAuthStore.getState();
 			const projectToUpdate = get().getProject(id);
 			if (!projectToUpdate) return null;
 
@@ -372,7 +400,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		deleteProject: async (id) => {
-			const { user } = useAuthStore.getState();
 			const { error } = await supabase
 				.from("projects")
 				.delete()

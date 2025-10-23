@@ -107,7 +107,7 @@ Remember: Get straight to the point. Users want quick, actionable answers, not l
     });
 
     return result.toTextStreamResponse();
-  } catch (e: any) {
+  } catch (e) {
     console.error('project-qa error:', e);
     return NextResponse.json({ error: 'Failed to get answer' }, { status: 500 });
   }

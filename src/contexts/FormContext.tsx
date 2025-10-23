@@ -16,17 +16,17 @@ export const useFormContext = () => {
 
 interface FormProviderProps {
   children: React.ReactNode;
-  initialFormData: any;
+  initialFormData: Record<string, unknown>;
 }
 
 export const FormProvider: React.FC<FormProviderProps> = ({ children, initialFormData }) => {
   const [formData, setFormData] = useState(initialFormData);
-  const subscribers = useRef<Set<(fieldId: string, value: any) => void>>(new Set());
+  const subscribers = useRef<Set<(fieldId: string, value: unknown) => void>>(new Set());
   const fieldContextCache = useRef<Map<string, FieldContext>>(new Map());
 
-  const fieldChanged = useCallback((fieldId: string, value: any) => {
-    setFormData((prev: any) => ({ ...prev, [fieldId]: value }));
-    
+  const fieldChanged = useCallback((fieldId: string, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [fieldId]: value }));
+
     // Notify all subscribers
     subscribers.current.forEach(callback => {
       try {
@@ -37,7 +37,7 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children, initialFor
     });
   }, []);
 
-  const subscribeToChanges = useCallback((callback: (fieldId: string, value: any) => void) => {
+  const subscribeToChanges = useCallback((callback: (fieldId: string, value: unknown) => void) => {
     subscribers.current.add(callback);
     
     // Return unsubscribe function
@@ -58,13 +58,13 @@ export const FormProvider: React.FC<FormProviderProps> = ({ children, initialFor
 
     const context: FieldContext = {
       id: fieldId,
-      type: (fieldElement.getAttribute('data-field-type') as any) || 'input',
-      section: (fieldElement.getAttribute('data-field-section') as any) || 'basic-info',
+      type: (fieldElement.getAttribute('data-field-type') as FieldContext['type']) || 'input',
+      section: (fieldElement.getAttribute('data-field-section') as FieldContext['section']) || 'basic-info',
       required: fieldElement.getAttribute('data-field-required') === 'true',
       label: fieldElement.getAttribute('data-field-label') || '',
       placeholder: fieldElement.getAttribute('data-field-placeholder') || undefined,
       currentValue: formData[fieldId as keyof typeof formData],
-      options: fieldElement.getAttribute('data-field-options') 
+      options: fieldElement.getAttribute('data-field-options')
         ? JSON.parse(fieldElement.getAttribute('data-field-options') || '[]')
         : undefined,
       validationState: {

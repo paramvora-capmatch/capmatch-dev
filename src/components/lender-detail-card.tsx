@@ -2,17 +2,16 @@
 
 'use client';
 
-import { X, Check, Building2, Mail, Phone, ArrowRight } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { Button } from "./ui/Button";
-import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
+import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
 import type { LenderProfile } from "../types/lender";
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { LenderFilters } from "@/contexts/LenderContext";
 
 interface LenderDetailCardProps {
   lender: LenderProfile;
-  formData?: any;
+  formData?: Partial<LenderFilters>;
   onClose: () => void;
   color: string;
   onContactLender?: () => void;
@@ -46,19 +45,19 @@ export default function LenderDetailCard({
   };
 
   const criteriaMatches = (
-    lenderCriteria: string[],
-    formCriteria: string[],
-    criteriaType: "assetTypes" | "dealTypes" | "capitalTypes" | "debtRange" | "locations"
+    lenderCriteria: string[] | undefined,
+    formCriteria: string[] | undefined,
+    criteriaType: keyof Pick<LenderFilters, "asset_types" | "deal_types" | "capital_types" | "locations" | "debt_ranges">
   ) => {
-    if (!formData || !formData[criteriaType] || formData[criteriaType].length === 0) {
+    if (!formCriteria || formCriteria.length === 0) {
       return null;
     }
 
-    if (criteriaType === "locations" && lenderCriteria.includes("nationwide")) {
+    if (criteriaType === "locations" && lenderCriteria?.includes("nationwide")) {
       return true;
     }
 
-    const anyMatch = formCriteria.some((item) => lenderCriteria.includes(item));
+    const anyMatch = formCriteria.some((item) => lenderCriteria?.includes(item));
     return anyMatch;
   };
 
@@ -93,12 +92,12 @@ export default function LenderDetailCard({
           <div className="grid grid-cols-[120px_1fr] gap-y-3">
             <div className="text-gray-500">Asset Types:</div>
             <div className="text-gray-900">
-              {criteriaMatches(lender.asset_types, formData?.asset_types || [], "assetTypes") === false ? (
+              {criteriaMatches(lender.asset_types, formData?.asset_types, "asset_types") === false ? (
                 <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
                   <X className="h-3 w-3 mr-1" />
                   Mismatch
                 </Badge>
-              ) : criteriaMatches(lender.asset_types, formData?.asset_types || [], "assetTypes") === true ? (
+              ) : criteriaMatches(lender.asset_types, formData?.asset_types, "asset_types") === true ? (
                 <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
                   <Check className="h-3 w-3 mr-1" />
                   Match
@@ -110,12 +109,12 @@ export default function LenderDetailCard({
 
             <div className="text-gray-500">Deal Types:</div>
             <div className="text-gray-900">
-              {criteriaMatches(lender.deal_types, formData?.deal_types || [], "dealTypes") === false ? (
+              {criteriaMatches(lender.deal_types, formData?.deal_types, "deal_types") === false ? (
                 <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
                   <X className="h-3 w-3 mr-1" />
                   Mismatch
                 </Badge>
-              ) : criteriaMatches(lender.deal_types, formData?.deal_types || [], "dealTypes") === true ? (
+              ) : criteriaMatches(lender.deal_types, formData?.deal_types, "deal_types") === true ? (
                 <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
                   <Check className="h-3 w-3 mr-1" />
                   Match
@@ -127,12 +126,12 @@ export default function LenderDetailCard({
 
             <div className="text-gray-500">Capital Types:</div>
             <div className="text-gray-900">
-              {criteriaMatches(lender.capital_types, formData?.capital_types || [], "capitalTypes") === false ? (
+              {criteriaMatches(lender.capital_types, formData?.capital_types, "capital_types") === false ? (
                 <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
                   <X className="h-3 w-3 mr-1" />
                   Mismatch
                 </Badge>
-              ) : criteriaMatches(lender.capital_types, formData?.capital_types || [], "capitalTypes") === true ? (
+              ) : criteriaMatches(lender.capital_types, formData?.capital_types, "capital_types") === true ? (
                 <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
                   <Check className="h-3 w-3 mr-1" />
                   Match
@@ -144,12 +143,12 @@ export default function LenderDetailCard({
 
             <div className="text-gray-500">Debt Range:</div>
             <div className="text-gray-900 font-medium">
-              {criteriaMatches(lender.debt_ranges ?? [], formData?.debt_ranges || [], "debtRange") === false ? (
+              {criteriaMatches(lender.debt_ranges, formData?.debt_ranges, "debt_ranges") === false ? (
                 <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
                   <X className="h-3 w-3 mr-1" />
                   Mismatch
                 </Badge>
-              ) : criteriaMatches(lender.debt_ranges ?? [], formData?.debt_ranges || [], "debtRange") === true ? (
+              ) : criteriaMatches(lender.debt_ranges, formData?.debt_ranges, "debt_ranges") === true ? (
                 <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
                   <Check className="h-3 w-3 mr-1" />
                   Match
@@ -166,12 +165,12 @@ export default function LenderDetailCard({
 
             <div className="text-gray-500">Locations:</div>
             <div className="text-gray-900">
-              {criteriaMatches(lender.locations, formData?.locations || [], "locations") === false ? (
+              {criteriaMatches(lender.locations, formData?.locations, "locations") === false ? (
                 <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
                   <X className="h-3 w-3 mr-1" />
                   Mismatch
                 </Badge>
-              ) : criteriaMatches(lender.locations, formData?.locations || [], "locations") === true ? (
+              ) : criteriaMatches(lender.locations, formData?.locations, "locations") === true ? (
                 <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
                   <Check className="h-3 w-3 mr-1" />
                   Match

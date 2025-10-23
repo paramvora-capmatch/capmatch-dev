@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select } from '@/components/ui/Select';
-import { OrgMemberRole, Project, Permission } from '@/types/enhanced-types';
+import { OrgMemberRole, Permission } from '@/types/enhanced-types';
 import { useProjects } from '@/hooks/useProjects';
 import { X, Copy, Check, Mail, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -61,8 +61,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
           {
             projectId: projectId,
             permissions: [
-              { resource_type: 'PROJECT_RESUME', permission: 'view' },
-              { resource_type: 'PROJECT_DOCS_ROOT', permission: 'view' },
+              { resource_type: 'PROJECT_RESUME', permission: 'view' }
             ],
           },
         ];
