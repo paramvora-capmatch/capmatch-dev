@@ -57,16 +57,16 @@ export class AIContextBuilder {
 
   static buildProjectContext(formData: Record<string, unknown>): ProjectContext {
     return {
-      projectName: formData.projectName || 'Unnamed Project',
-      assetType: formData.assetType || 'Not specified',
-      projectPhase: formData.projectPhase || 'Not specified',
-      loanAmountRequested: formData.loanAmountRequested || 0,
-      targetLtvPercent: formData.targetLtvPercent || 0,
-      targetLtcPercent: formData.targetLtcPercent || 0,
-      purchasePrice: formData.purchasePrice || null,
-      totalProjectCost: formData.totalProjectCost || null,
-      propertyAddressCity: formData.propertyAddressCity || 'Not specified',
-      propertyAddressState: formData.propertyAddressState || 'Not specified'
+      projectName: (formData.projectName as string) || 'Unnamed Project',
+      assetType: (formData.assetType as string) || 'Not specified',
+      projectPhase: (formData.projectPhase as string) || 'Not specified',
+      loanAmountRequested: (formData.loanAmountRequested as number) || 0,
+      targetLtvPercent: (formData.targetLtvPercent as number) || 0,
+      targetLtcPercent: (formData.targetLtcPercent as number) || 0,
+      purchasePrice: (formData.purchasePrice as number) || null,
+      totalProjectCost: (formData.totalProjectCost as number) || null,
+      propertyAddressCity: (formData.propertyAddressCity as string) || 'Not specified',
+      propertyAddressState: (formData.propertyAddressState as string) || 'Not specified'
     };
   }
 

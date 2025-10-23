@@ -24,7 +24,7 @@ interface MemberPermissionInfo {
 export const AccessControlTab: React.FC<AccessControlTabProps> = ({
   projectId,
 }) => {
-  const { members, loadMembers, currentOrg } = useOrgStore();
+  const { members, loadOrg, currentOrg } = useOrgStore();
   const { activeProject } = useProjects();
   const [permissions, setPermissions] = useState<MemberPermissionInfo[]>([]);
   const [advisor, setAdvisor] = useState<Advisor | null>(null);
@@ -137,7 +137,7 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
       // Load members if not already loaded
       console.log('[AccessControlTab] Current members count:', members?.length || 0);
       if (!members || members.length === 0) {
-        await loadMembers();
+        await loadOrg(currentOrg.id);
       }
 
       const memberPerms = (members || [])
@@ -162,7 +162,7 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, activeProject, members, currentOrg, loadMembers]);
+  }, [projectId, activeProject, members, currentOrg, loadOrg]);
 
   useEffect(() => {
     fetchAllData();

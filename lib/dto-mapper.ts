@@ -1,3 +1,5 @@
+import { ProjectMessage } from "@/types/enhanced-types";
+
 export const dbMessageToProjectMessage = (
   dbMessage: Record<string, any>
 ): ProjectMessage => {

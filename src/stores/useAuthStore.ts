@@ -6,6 +6,7 @@ import {
   EnhancedUser,
   // New schema types
   Org,
+  OrgMemberRole,
   OrgMember,
 } from "@/types/enhanced-types";
 import { mockProfiles, mockProjects } from "../../lib/mockData";
@@ -544,9 +545,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       }
 
       // Single-org assumption: pick the first membership
-      const firstMembership = orgMemberships[0] as Record<string, unknown>; // Added type assertion
+      const firstMembership = orgMemberships[0];
       const activeOrg = (firstMembership.orgs as Org) || null; // Added type assertion
-      const currentOrgRole = firstMembership.role || null;
+      const currentOrgRole = (firstMembership.role as OrgMemberRole) || null;
 
       console.log(
         "[AuthStore] 🔍 DEBUG - Setting active org:",

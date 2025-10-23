@@ -103,7 +103,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
       const { data: memberEmails, error: emailsError } =
         await supabase.functions.invoke("get-user-data", {
-          body: { userIds: memberUserIds },
+          body: { userIds: memberUserIds as string[] },
         });
 
       if (emailsError) {
@@ -125,8 +125,8 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const processedMembers =
         members?.map((member) => {
           const profile = memberProfiles?.find((p) => p.id === member.user_id);
-          const emailData = memberEmails?.find(
-            (e) => (e.id as string) === member.user_id
+          const emailData = (memberEmails as {id: string; email: string}[])?.find(
+            (e: {id: string}) => e.id === member.user_id
           );
           return {
             ...member,

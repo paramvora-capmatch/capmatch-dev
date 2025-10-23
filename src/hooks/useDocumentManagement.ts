@@ -6,6 +6,7 @@ export interface DocumentFile {
   id: string;
   name: string;
   size: number;
+  version_number: number;
   type: string;
   storage_path: string; // Path of the CURRENT version
   resource_id: string;
@@ -128,8 +129,10 @@ export const useDocumentManagement = (
         if (resource.resource_type === "FOLDER") {
           foldersList.push({
             id: resource.id,
+            resource_id: resource.id,
             name: resource.name,
             created_at: resource.created_at,
+            updated_at: resource.updated_at,
           });
         } else if (resource.resource_type === "FILE") {
           // Find the current version for this file
@@ -142,7 +145,9 @@ export const useDocumentManagement = (
               id: currentVersion.id,
               resource_id: resource.id,
               name: resource.name,
+              size: (currentVersion.metadata?.size as number) || 0,
               storage_path: currentVersion.storage_path,
+              type: (currentVersion.metadata?.mimeType as string) || "application/octet-stream",
               version_number: currentVersion.version_number,
               created_at: currentVersion.created_at,
               updated_at: resource.updated_at,

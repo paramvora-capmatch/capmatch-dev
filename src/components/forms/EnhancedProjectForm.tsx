@@ -1147,7 +1147,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
     [formData, formSaved, handleInputChange, handleFormSubmit, router, onAskAI]
   );
   return (
-    <FormProvider initialFormData={formData}>
+    <FormProvider initialFormData={formData as Record<string, any>}>
       <FormWizard
         steps={steps}
         onComplete={handleFormSubmit} // Trigger save on final step if needed

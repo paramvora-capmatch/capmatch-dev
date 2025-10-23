@@ -81,19 +81,26 @@ async clear(): Promise<void> {
 // Encrypted Storage implementation (Placeholder - uses LocalStorage for now)
 // NOTE: Real encryption requires 'secure-ls' package and browser environment.
 export class EncryptedStorageService implements StorageService {
-private storage: Record<string, unknown> | Storage; // Should be SecureLS instance
-private prefix: string;
+  private storage: Storage;
+  private prefix: string;
 
-constructor(prefix: string = 'capmatch_') {
-  this.prefix = prefix;
-  // Use LocalStorage as a fallback for this mock implementation
-  this.storage = typeof window !== 'undefined' ? localStorage : ({
-      getItem: () => null, setItem: () => {}, removeItem: () => {}, clear: () => {}, length: 0, key: () => null
-  } as unknown as Storage);
-  if (typeof window !== 'undefined' && !localStorage) {
-      console.warn("EncryptedStorageService: SecureLS not implemented, falling back to potentially insecure LocalStorage.");
+  constructor(prefix: string = "capmatch_") {
+    this.prefix = prefix;
+    // Use LocalStorage as a fallback for this mock implementation
+    if (typeof window !== "undefined") {
+      this.storage = localStorage;
+    } else {
+      // Mock storage for SSR
+      this.storage = {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+        clear: () => {},
+        length: 0,
+        key: () => null,
+      };
+    }
   }
-}
 
 private getKeyWithPrefix(key: string): string {
   return `${this.prefix}${key}`;
@@ -102,7 +109,7 @@ private getKeyWithPrefix(key: string): string {
 async getItem<T>(key: string): Promise<T | null> {
    try {
       // Ensure this runs only in the browser
-      if (typeof window === 'undefined') return null;
+      if (!this.storage) return null;
       const item = this.storage.getItem(this.getKeyWithPrefix(key));
       if (!item) return null;
       return JSON.parse(item) as T;
@@ -115,7 +122,7 @@ async getItem<T>(key: string): Promise<T | null> {
 async setItem<T>(key: string, value: T): Promise<void> {
    try {
       // Ensure this runs only in the browser
-      if (typeof window === 'undefined') return;
+      if (!this.storage) return;
       this.storage.setItem(this.getKeyWithPrefix(key), JSON.stringify(value));
     } catch (error) {
       console.error(`Error setting item ${key} in secure storage:`, error);
@@ -126,7 +133,7 @@ async setItem<T>(key: string, value: T): Promise<void> {
 async removeItem(key: string): Promise<void> {
    try {
       // Ensure this runs only in the browser
-      if (typeof window === 'undefined') return;
+      if (!this.storage) return;
       this.storage.removeItem(this.getKeyWithPrefix(key));
     } catch (error) {
       console.error(`Error removing item ${key} from secure storage:`, error);
@@ -137,7 +144,7 @@ async removeItem(key: string): Promise<void> {
 async clear(): Promise<void> {
   try {
     // Ensure this runs only in the browser
-    if (typeof window === 'undefined') return;
+    if (!this.storage) return;
     const keysToRemove = [];
     for (let i = 0; i < this.storage.length; i++) {
       const key = this.storage.key(i);

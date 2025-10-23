@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     const documentVersion = versionData;
-    const resource = versionData.resources as { id: string; name: string; project_id: string };
+    const resource = versionData.resources as unknown as { id: string; name: string; project_id: string };
 
     // --- VERSIONING CHANGES END ---
 

@@ -21,6 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { OrgMemberRole } from "@/types/enhanced-types";
+import { ProjectGrant } from "@/types/enhanced-types";
 
 export default function TeamPage() {
   const { user, activeOrg } = useAuth();
@@ -49,10 +50,7 @@ export default function TeamPage() {
   const handleInviteMember = async (
     email: string,
     role: OrgMemberRole,
-    projectGrants: Array<{
-      projectId: string;
-      permissions: string[];
-    }>
+    projectGrants: ProjectGrant[]
   ) => {
     try {
       const inviteLink = await inviteMember(email, role, projectGrants);
@@ -104,16 +102,6 @@ export default function TeamPage() {
 
   const isInviteExpired = (expiresAt: string) => {
     return new Date(expiresAt) < new Date();
-  };
-
-  const getMemberDisplayName = (member: Record<string, unknown>) => {
-    // Use the userName from the processed member data
-    return member.userName || "Unknown User";
-  };
-
-  const getMemberEmail = (member: Record<string, unknown>) => {
-    // Use the userEmail from the processed member data
-    return member.userEmail || "user@example.com";
   };
 
   if (!activeOrg) {
@@ -184,8 +172,7 @@ export default function TeamPage() {
                     >
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
-                          {(member as Record<string, unknown>).role ===
-                          "owner" ? (
+                          {member.role === "owner" ? (
                             <Crown className="h-5 w-5 text-blue-600" />
                           ) : (
                             <User className="h-5 w-5 text-gray-600" />
@@ -194,21 +181,20 @@ export default function TeamPage() {
                         <div>
                           <div className="flex items-center space-x-2">
                             <p className="font-medium text-gray-900">
-                              {getMemberDisplayName(member as Record<string, unknown>)}
+                              {member.userName || "Unknown User"}
                             </p>
                             <span
                               className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                (member as Record<string, unknown>).role ===
-                                "owner"
+                                member.role === "owner"
                                   ? "bg-purple-100 text-purple-800"
                                   : "bg-gray-100 text-gray-800"
                               }`}
                             >
-                              {(member as Record<string, unknown>).role}
+                              {member.role}
                             </span>
                           </div>
                           <p className="text-sm text-gray-500">
-                            {getMemberEmail(member)}
+                            {member.userEmail}
                           </p>
                           <p className="text-xs text-gray-400">
                             Joined {formatDate(member.created_at)}
@@ -303,7 +289,7 @@ export default function TeamPage() {
                           </div>
                           <p className="text-sm text-gray-500">
                             Invited by{" "}
-                            {(invite as Record<string, unknown>).inviterName || "Unknown"}
+                            {invite.inviterName || "Unknown"}
                           </p>
                           <p className="text-xs text-gray-400">
                             Invited {formatDate(invite.created_at)}

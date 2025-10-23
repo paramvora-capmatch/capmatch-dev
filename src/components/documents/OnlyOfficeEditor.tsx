@@ -102,22 +102,15 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       docEditorRef.current = null;
     }
 
-    // Clear any global docEditor instance that might be lingering
-    // @ts-expect-error Global docEditor instance cleanup
-    if (
-      (window as any).docEditor &&
-      (window as any).docEditor !== docEditorRef.current
-    ) {
-      // @ts-expect-error Global docEditor instance cleanup
+    if ((window as any).docEditor && (window as any).docEditor !== docEditorRef.current) {
       try {
         (window as any).docEditor.destroyEditor();
       } catch (e) {
         console.warn(
-          "[OnlyOfficeEditor] Error destroying window.docEditor:",
+          "[OnlyOfficeEditor] Error destroying global window.docEditor:",
           e
         );
       }
-      // @ts-expect-error Global docEditor instance cleanup
       (window as any).docEditor = null;
     }
 
@@ -164,7 +157,6 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       );
 
       docEditorRef.current = newDocEditor;
-      // @ts-expect-error Setting global docEditor instance
       (window as any).docEditor = newDocEditor;
       console.log("[OnlyOfficeEditor] Editor initialized successfully");
     } catch (err: unknown) {

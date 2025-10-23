@@ -310,7 +310,7 @@ export default function AdvisorDashboardPage() {
   };
 
   return (
-    <RoleBasedRoute roles={["advisor", "admin"]}>
+    <RoleBasedRoute roles={["advisor"]}>
       <div className="flex h-screen bg-gray-50">
         <LoadingOverlay isLoading={false} />
 

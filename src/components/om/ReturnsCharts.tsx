@@ -97,7 +97,7 @@ export default function ReturnsCharts({
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-800">{label}</p>
-          {payload.map((entry: Record<string, unknown>, index: number) => (
+          {payload.map((entry: any, index: number) => (
             <p
               key={index}
               className="text-sm"

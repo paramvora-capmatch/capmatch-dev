@@ -35,6 +35,7 @@ interface DocumentManagerProps {
   canUpload?: boolean;
   canDelete?: boolean;
   highlightedResourceId?: string | null;
+  // folderPath and bucketId removed as they are managed internally by the hook
 }
 
 const formatFileSize = (bytes: number) => {
@@ -403,7 +404,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         {file.name}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {formatFileSize(file.metadata?.size)} •{" "}
+                        {formatFileSize((file.metadata?.size as number) || 0)} •{" "}
                         {formatDate(file.updated_at)}
                       </p>
                     </div>
@@ -423,17 +424,15 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                       />
                     )}
                     {isEditable && canEdit && (
-                      <Button
-                        as="a"
+                      <Link
                         href={`/documents/edit?bucket=${
                           activeOrg?.id
                         }&path=${encodeURIComponent(file.storage_path)}`}
-                        size="sm"
-                        variant="outline"
+                        className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-md text-xs px-2.5 py-1.5"
                         title="Edit Document"
                       >
                         <Edit className="h-4 w-4" />
-                      </Button>
+                      </Link>
                     )}
                     {canEdit && (
                       <Button

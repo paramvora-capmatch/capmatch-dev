@@ -107,9 +107,6 @@ export default function AdvisorProjectDetailPage() {
   const [borrowerResume, setBorrowerResume] = useState<BorrowerResume | null>(
     null
   );
-  const [projectResume, setProjectResume] = useState<ProjectResume | null>(
-    null
-  );
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
@@ -149,7 +146,6 @@ export default function AdvisorProjectDetailPage() {
         setSelectedStatus(
           (foundProject.projectStatus as ProjectStatus) || "Info Gathering"
         );
-        setProjectResume(foundProject.projectResume || null); // Assuming projectResume is part of ProjectProfile
 
         // 2. Load borrower resume for the owning org
         if (user.isDemo) {
@@ -334,16 +330,11 @@ export default function AdvisorProjectDetailPage() {
   const handleStatusChange = useCallback(
     async (newStatus: ProjectStatus) => {
       if (!project) return;
-
       try {
         setSelectedStatus(newStatus);
 
-        if (projectResume) {
-          const updatedContent = {
-            ...projectResume.content,
-            status: newStatus,
-            lastUpdated: new Date().toISOString(),
-          };
+        if (project) {
+          const updatedContent = { ...project, projectStatus: newStatus };
 
           if (user?.isDemo) {
             console.log(
@@ -367,7 +358,7 @@ export default function AdvisorProjectDetailPage() {
         console.error("Error updating project status:", error);
       }
     },
-    [project, projectResume, user]
+    [project, user]
   );
 
   const handleSendMessage = useCallback(
@@ -441,32 +432,32 @@ export default function AdvisorProjectDetailPage() {
             </p>
           </div>
 
-          {projectResume?.content && (
+          {project && (
             <div>
               <h3 className="text-sm font-medium text-gray-500 mb-1">
                 Project Details
               </h3>
               <div className="space-y-2">
-                {projectResume.content.propertyAddress && (
+                {project.propertyAddressStreet && (
                   <div className="flex items-start">
                     <MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
                     <div>
                       <p className="text-sm text-gray-800">
-                        {projectResume.content.propertyAddress}
+                        {`${project.propertyAddressStreet}, ${project.propertyAddressCity}, ${project.propertyAddressState} ${project.propertyAddressZip}`}
                       </p>
                     </div>
                   </div>
                 )}
-                {projectResume.content.assetType && (
+                {project.assetType && (
                   <p className="text-sm text-gray-800">
                     <span className="font-medium">Asset Type:</span>{" "}
-                    {projectResume.content.assetType}
+                    {project.assetType}
                   </p>
                 )}
-                {projectResume.content.description && (
+                {project.projectDescription && (
                   <p className="text-sm text-gray-800">
                     <span className="font-medium">Description:</span>{" "}
-                    {projectResume.content.description}
+                    {project.projectDescription}
                   </p>
                 )}
               </div>
@@ -475,9 +466,9 @@ export default function AdvisorProjectDetailPage() {
         </div>
 
         <div className="space-y-6">
-          {projectResume?.content && (
+          {project && (
             <>
-              {projectResume.content.loanAmount && (
+              {project.loanAmountRequested && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
                     Loan Information
@@ -487,18 +478,18 @@ export default function AdvisorProjectDetailPage() {
                     <div>
                       <p className="text-sm text-gray-800">
                         <span className="font-medium">Amount Requested:</span>{" "}
-                        {formatCurrency(projectResume.content.loanAmount)}
+                        {formatCurrency(project.loanAmountRequested)}
                       </p>
-                      {projectResume.content.loanType && (
+                      {project.loanType && (
                         <p className="text-sm text-gray-800">
                           <span className="font-medium">Type:</span>{" "}
-                          {projectResume.content.loanType}
+                          {project.loanType}
                         </p>
                       )}
-                      {projectResume.content.targetLTV && (
+                      {project.targetLtvPercent && (
                         <p className="text-sm text-gray-800">
                           <span className="font-medium">Target LTV:</span>{" "}
-                          {projectResume.content.targetLTV}%
+                          {project.targetLtvPercent}%
                         </p>
                       )}
                     </div>
@@ -506,7 +497,7 @@ export default function AdvisorProjectDetailPage() {
                 </div>
               )}
 
-              {projectResume.content.purchasePrice && (
+              {project.purchasePrice && (
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">
                     Capital Stack
@@ -514,18 +505,18 @@ export default function AdvisorProjectDetailPage() {
                   <div className="flex flex-col gap-1">
                     <p className="text-sm text-gray-800">
                       <span className="font-medium">Purchase Price:</span>{" "}
-                      {formatCurrency(projectResume.content.purchasePrice)}
+                      {formatCurrency(project.purchasePrice)}
                     </p>
-                    {projectResume.content.totalProjectCost && (
+                    {project.totalProjectCost && (
                       <p className="text-sm text-gray-800">
                         <span className="font-medium">Total Project Cost:</span>{" "}
-                        {formatCurrency(projectResume.content.totalProjectCost)}
+                        {formatCurrency(project.totalProjectCost)}
                       </p>
                     )}
-                    {projectResume.content.exitStrategy && (
+                    {project.exitStrategy && (
                       <p className="text-sm text-gray-800">
                         <span className="font-medium">Exit Strategy:</span>{" "}
-                        {projectResume.content.exitStrategy}
+                        {project.exitStrategy}
                       </p>
                     )}
                   </div>
@@ -555,7 +546,7 @@ export default function AdvisorProjectDetailPage() {
         </div>
       </div>
     );
-  }, [project, projectResume]);
+  }, [project]);
 
   const renderDocumentRequirements = useCallback(() => {
     return (
@@ -628,13 +619,13 @@ export default function AdvisorProjectDetailPage() {
             <User className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
             <div>
               <p className="text-sm text-gray-800">
-                {borrowerResume.content.fullLegalName || "Not provided"}
+                {String(borrowerResume.content.fullLegalName) || "Not provided"}
               </p>
               <p className="text-sm text-gray-600">
-                {borrowerResume.content.contactEmail || "Not provided"}
+                {String(borrowerResume.content.contactEmail) || "Not provided"}
               </p>
               <p className="text-sm text-gray-600">
-                {borrowerResume.content.contactPhone || "Not provided"}
+                {String(borrowerResume.content.contactPhone) || "Not provided"}
               </p>
             </div>
           </div>
@@ -646,10 +637,10 @@ export default function AdvisorProjectDetailPage() {
             <Building className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
             <div>
               <p className="text-sm text-gray-800">
-                {borrowerResume.content.primaryEntityName || "Not provided"}
+                {String(borrowerResume.content.primaryEntityName) || "Not provided"}
               </p>
               <p className="text-sm text-gray-600">
-                {borrowerResume.content.primaryEntityStructure ||
+                {String(borrowerResume.content.primaryEntityStructure) ||
                   "Not provided"}
               </p>
             </div>
@@ -660,16 +651,16 @@ export default function AdvisorProjectDetailPage() {
           <h3 className="text-sm font-medium text-gray-500 mb-1">Experience</h3>
           <p className="text-sm text-gray-800">
             <span className="font-medium">Years of Experience:</span>{" "}
-            {borrowerResume.content.yearsCREExperienceRange || "Not provided"}
+            {String(borrowerResume.content.yearsCREExperienceRange) || "Not provided"}
           </p>
           <p className="text-sm text-gray-800">
             <span className="font-medium">Asset Classes:</span>{" "}
-            {borrowerResume.content.assetClassesExperience?.join(", ") ||
+            {(borrowerResume.content.assetClassesExperience as string[])?.join(", ") ||
               "Not provided"}
           </p>
           <p className="text-sm text-gray-800">
             <span className="font-medium">Markets:</span>{" "}
-            {borrowerResume.content.geographicMarketsExperience?.join(", ") ||
+            {(borrowerResume.content.geographicMarketsExperience as string[])?.join(", ") ||
               "Not provided"}
           </p>
         </div>
@@ -678,33 +669,33 @@ export default function AdvisorProjectDetailPage() {
           <h3 className="text-sm font-medium text-gray-500 mb-1">Financial</h3>
           <p className="text-sm text-gray-800">
             <span className="font-medium">Credit Score:</span>{" "}
-            {borrowerResume.content.creditScoreRange || "Not provided"}
+            {String(borrowerResume.content.creditScoreRange) || "Not provided"}
           </p>
           <p className="text-sm text-gray-800">
             <span className="font-medium">Net Worth:</span>{" "}
-            {borrowerResume.content.netWorthRange || "Not provided"}
+            {String(borrowerResume.content.netWorthRange) || "Not provided"}
           </p>
           <p className="text-sm text-gray-800">
             <span className="font-medium">Liquidity:</span>{" "}
-            {borrowerResume.content.liquidityRange || "Not provided"}
+            {String(borrowerResume.content.liquidityRange) || "Not provided"}
           </p>
         </div>
 
-        {(borrowerResume.content.bankruptcyHistory ||
-          borrowerResume.content.foreclosureHistory ||
-          borrowerResume.content.litigationHistory) && (
+        {(Boolean(borrowerResume.content.bankruptcyHistory) ||
+          Boolean(borrowerResume.content.foreclosureHistory) ||
+          Boolean(borrowerResume.content.litigationHistory)) && (
           <div className="bg-amber-50 p-3 rounded border border-amber-200">
             <h3 className="text-sm font-medium text-amber-800 mb-1">
               Special Considerations
             </h3>
             <ul className="text-sm text-amber-700 list-disc list-inside">
-              {borrowerResume.content.bankruptcyHistory && (
+              {Boolean(borrowerResume.content.bankruptcyHistory) && (
                 <li>Bankruptcy history in the past 7 years</li>
               )}
-              {borrowerResume.content.foreclosureHistory && (
+              {Boolean(borrowerResume.content.foreclosureHistory) && (
                 <li>Foreclosure history in the past 7 years</li>
               )}
-              {borrowerResume.content.litigationHistory && (
+              {Boolean(borrowerResume.content.litigationHistory) && (
                 <li>Significant litigation history</li>
               )}
             </ul>
@@ -825,7 +816,7 @@ export default function AdvisorProjectDetailPage() {
   ]);
 
   return (
-    <RoleBasedRoute roles={["advisor", "admin"]}>
+    <RoleBasedRoute roles={["advisor"]}>
       <div className="flex h-screen bg-gray-50">
         <LoadingOverlay isLoading={isLoadingData} />
 
@@ -938,11 +929,8 @@ export default function AdvisorProjectDetailPage() {
                     <CardContent className="p-0">
                       {project && (
                         <DocumentManager
-                          bucketId={project.owner_org_id} // Assuming owner_org_id is the bucketId
-                          folderPath={project.id}
+                          resourceId="PROJECT_ROOT"
                           title="Project-Specific Documents"
-                          canUpload={true}
-                          canDelete={true}
                           projectId={project.id}
                         />
                       )}
@@ -968,11 +956,9 @@ export default function AdvisorProjectDetailPage() {
                     <CardContent className="p-0">
                       {project && (
                         <DocumentManager
-                          bucketId={project.owner_org_id} // Assuming owner_org_id is the bucketId
-                          folderPath="borrower_docs"
+                          resourceId="BORROWER_ROOT"
                           title="General Borrower Documents"
-                          canUpload={true}
-                          canDelete={true}
+                          projectId={null}
                         />
                       )}
                     </CardContent>

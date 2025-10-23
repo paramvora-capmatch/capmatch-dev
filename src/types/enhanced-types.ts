@@ -3,7 +3,7 @@
 // Core Schema Types - Updated to match new schema
 export type AppRole = "borrower" | "lender" | "advisor";
 export type OrgType = "borrower" | "lender" | "advisor";
-export type OrgMemberRole = "owner" | "member";
+export type OrgMemberRole = "owner" | "project_manager" | "member";
 export type InviteStatus = "pending" | "accepted" | "cancelled" | "expired";
 
 // Legacy types for backward compatibility
@@ -76,8 +76,8 @@ export interface OrgMember {
   created_at: string;
   // Additional properties added by the org store
   userName?: string;
-  userEmail?: string;
-  userRole?: string;
+  userEmail?: string | null;
+  userRole?: AppRole;
 }
 
 // New Invite Type
@@ -92,6 +92,8 @@ export interface Invite {
   expires_at: string;
   accepted_at?: string | null;
   created_at: string;
+  // Added by org store
+  inviterName?: string;
 }
 
 // Legacy BorrowerProfile - kept for backward compatibility but deprecated
@@ -286,6 +288,8 @@ export interface ProjectProfile {
   projectResumeResourceId?: string | null;
   // Optional fields
   assignedAdvisorUserId?: string | null;
+  // Legacy `borrowerProfileId` no longer exists, but keep for older mock data compatibility
+  borrowerProfileId?: string;
   propertyAddressStreet?: string | null;
   propertyAddressCity?: string | null;
   propertyAddressState?: string | null;
@@ -402,7 +406,6 @@ export interface Advisor {
   updatedAt: string;
 }
 
-
 // Enhanced User type with role and login source - Updated for new schema
 export interface EnhancedUser {
   id?: string; // Add user's auth ID (UUID)
@@ -418,7 +421,6 @@ export interface EnhancedUser {
   orgMemberships?: OrgMember[]; // loaded on login
 }
 
-
 export type PermissionType = "file" | "folder";
 
 export type Permission = "view" | "edit";
@@ -430,4 +432,3 @@ export type ProjectGrant = {
     permission: Permission;
   }[];
 };
-

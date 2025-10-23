@@ -28,7 +28,7 @@ interface EnrichedParticipant {
   created_at: string;
   userName: string;
   userEmail: string;
-  userRole: 'owner' | 'member' | 'advisor';
+  userRole: 'owner' | 'member' | 'advisor' | 'project_manager';
   isAdvisor: boolean;
 }
 
@@ -61,7 +61,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
             ...participant,
             userName: memberInfo.userName || memberInfo.userEmail || 'Unknown',
             userEmail: memberInfo.userEmail || '',
-            userRole: memberInfo.role,
+            userRole: memberInfo.role as any,
             isAdvisor: false,
           });
         } else if (activeProject?.assignedAdvisorUserId === participant.user_id) {

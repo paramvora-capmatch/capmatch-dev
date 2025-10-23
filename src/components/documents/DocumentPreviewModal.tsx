@@ -99,9 +99,11 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
           storage_path: currentVersion.storage_path,
           created_at: data.created_at,
           updated_at: currentVersion.created_at,
-          version_number: currentVersion.version_number,
           resource_id: data.id,
-          metadata: currentVersion.metadata
+          metadata: currentVersion.metadata,
+          size: (currentVersion.metadata?.size as number) || 0,
+          version_number: currentVersion.version_number,
+          type: (currentVersion.metadata?.mimeType as string) || 'unknown',
         };
 
         console.log('[DocumentPreviewModal] Formatted resource:', formattedResource);

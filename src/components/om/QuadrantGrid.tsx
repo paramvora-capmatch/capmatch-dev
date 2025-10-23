@@ -1,6 +1,7 @@
 // src/components/om/QuadrantGrid.tsx
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { type ClassValue } from 'clsx';
 import { cn } from '@/utils/cn';
 import { LucideIcon, Expand } from 'lucide-react';
 
@@ -81,8 +82,7 @@ export const QuadrantGrid: React.FC<QuadrantGridProps> = ({ quadrants, className
                                     {React.Children.map(quadrant.metrics.props.children, (child, index) => {
                                         if (React.isValidElement(child)) {
                                     return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
-                                                className: cn(
-                                            (child as React.ReactElement<Record<string, unknown>>).props.className,
+                                        className: cn((child.props as any).className,
                                                     "transition-all duration-500 transform-gpu",
                                                     `delay-[${index * 150}ms]`,
                                                     isAnimated

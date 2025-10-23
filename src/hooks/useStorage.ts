@@ -28,7 +28,7 @@ export const useStorage = (
 			// Filter out the placeholder .keep file
 			setFiles(files?.filter((file) => file.name !== ".keep") || []);
 		} catch (e) {
-			setError(e.message);
+			setError(e instanceof Error ? e.message : String(e));
 			console.error("Error listing files:", e);
 		} finally {
 			setIsLoading(false);
@@ -61,7 +61,7 @@ export const useStorage = (
 			await listFiles(); // Refresh file list
 			return data;
 		} catch (e) {
-			setError(e.message);
+			setError(e instanceof Error ? e.message : String(e));
 			console.error("Error uploading file:", e);
 			return null;
 		} finally {
@@ -92,7 +92,7 @@ export const useStorage = (
 			document.body.removeChild(link);
 			URL.revokeObjectURL(url);
 		} catch (e) {
-			setError(e.message);
+			setError(e instanceof Error ? e.message : String(e));
 			console.error("Error downloading file:", e);
 		}
 	};
@@ -114,7 +114,7 @@ export const useStorage = (
 			if (error) throw error;
 			await listFiles(); // Refresh file list
 		} catch (e) {
-			setError(e.message);
+			setError(e instanceof Error ? e.message : String(e));
 			console.error("Error deleting file:", e);
 		} finally {
 			setIsLoading(false);

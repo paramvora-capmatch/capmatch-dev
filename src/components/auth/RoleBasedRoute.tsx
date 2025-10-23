@@ -7,7 +7,7 @@ import { useAuth } from "../../hooks/useAuth";
 
 interface RoleBasedRouteProps {
   children: React.ReactNode;
-  roles: ("borrower" | "advisor" | "lender")[];
+  roles: ("borrower" | "advisor" | "lender" | "admin")[];
   redirectTo?: string;
 }
 

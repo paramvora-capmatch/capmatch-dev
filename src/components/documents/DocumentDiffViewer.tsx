@@ -7,7 +7,11 @@ import { X, Loader2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import * as mammoth from "mammoth";
 import * as XLSX from "xlsx";
-import * as pdfjs from "pdfjs-dist";
+import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
+
+// Set workerSrc to a CDN to avoid bundling issues with Next.js
+// @ts-ignore
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
 
 interface DiffViewerProps {
   resourceId: string;
