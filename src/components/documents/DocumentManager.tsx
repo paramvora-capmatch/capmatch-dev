@@ -1,28 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Fragment } from "react";
 import { useDocumentManagement } from "@/hooks/useDocumentManagement";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/Button";
 import {
-  Share2,
   FileText,
   Upload,
-  Download,
-  Trash2,
   Loader2,
   AlertCircle,
   FolderOpen,
-  Edit,
 } from "lucide-react";
-import Link from "next/link";
-import { VersionHistoryDropdown } from "./VersionHistoryDropdown";
 import { motion } from "framer-motion";
 import { useOrgStore } from "@/stores/useOrgStore";
-import { ShareModal } from "./ShareModal";
-import { DocumentFile, DocumentFolder } from "@/hooks/useDocumentManagement";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { usePermissionStore } from "@/stores/usePermissionStore";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { cn } from "@/utils/cn";
 
 interface DocumentManagerProps {
   projectId: string | null;
@@ -64,20 +57,13 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     files,
     folders,
     isLoading,
-    error,
     uploadFile,
-    deleteFile,
-    deleteFolder,
-    downloadFile,
+    error
   } = useDocumentManagement(projectId, folderId);
 
-  const { user, activeOrg, currentOrgRole } = useAuthStore();
+  const { currentOrgRole } = useAuthStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const { isOwner } = useOrgStore();
-  const [sharingResource, setSharingResource] = useState<
-    DocumentFile | DocumentFolder | null
-  >(null);
-  const { getPermission } = usePermissionStore();
+  const [previewingResourceId, setPreviewingResourceId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -92,19 +78,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     setIsUploading(true);
 
     try {
-      console.log("[DocumentManager] Starting upload", {
-        projectId,
-        folderId,
-        activeOrgId: activeOrg?.id,
-        userId: user?.id,
-        currentOrgRole,
-        fileName: selectedFile.name,
-        fileSize: selectedFile.size,
-        fileType: selectedFile.type,
-      });
-
       await uploadFile(selectedFile, folderId || undefined);
-
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -113,38 +87,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
       console.error("[DocumentManager] Upload error", error);
     } finally {
       setIsUploading(false);
-    }
-  };
-
-  const handleDeleteFile = async (fileId: string) => {
-    if (window.confirm(`Are you sure you want to delete this file?`)) {
-      try {
-        await deleteFile(fileId);
-      } catch (error) {
-        console.error("[DocumentManager] Delete file error", error);
-      }
-    }
-  };
-
-  const handleDeleteFolder = async (folderId: string, folderName: string) => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete the folder "${folderName}"? This will also delete all files and subfolders inside it.`
-      )
-    ) {
-      try {
-        await deleteFolder(folderId);
-      } catch (error) {
-        console.error("[DocumentManager] Delete folder error", error);
-      }
-    }
-  };
-
-  const handleDownload = async (fileId: string, fileName: string) => {
-    try {
-      await downloadFile(fileId, fileName);
-    } catch (error) {
-      console.error("[DocumentManager] Download error", error);
     }
   };
 
@@ -246,149 +188,50 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         {!isLoading && (
           <div className="space-y-2">
             {/* Folders */}
-            {folders.map((folder) => {
-              const permission = getPermission(folder.id);
-              const userCanEditThis = permission === "edit";
-              const userCanViewThis = permission === "view" || userCanEditThis;
-
-              return (
-                <motion.div
-                  key={folder.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <FolderOpen className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {folder.name}
-                      </p>
-                      <p className="text-xs text-gray-500">Folder</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs text-gray-500">
-                      {formatDate(folder.created_at)}
-                    </span>
-                    {userCanEditThis && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSharingResource(folder)}
-                          title="Share"
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </Button>
-                        {canDelete && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              handleDeleteFolder(folder.id, folder.name)
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
+            {folders.map((folder) => (
+              <motion.button
+                key={folder.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                // onClick={() => handleFolderClick(folder.id)} // TODO: Implement folder navigation
+                className="w-full flex items-center p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-left"
+              >
+                <FolderOpen className="h-5 w-5 text-blue-600 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {folder.name}
+                  </p>
+                  <p className="text-xs text-gray-500">Folder</p>
+                </div>
+              </motion.button>
+            ))}
 
             {/* Files */}
-            {files.map((file) => {
-              const isEditable = /\.(docx|xlsx|pptx)$/i.test(file.name);
-              const isHighlighted = file.id === highlightedResourceId;
-              const permission = getPermission(file.id);
-              const userCanEditThisFile = permission === "edit";
-              const userCanViewThisFile =
-                permission === "view" || userCanEditThisFile;
-
-              return (
-                <motion.div
-                  key={file.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className={cn(
-                    "flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-300",
-                    isHighlighted && "border-blue-500 ring-2 ring-blue-300 ring-offset-1"
-                  )}
-                >
-                  <div className="flex items-center space-x-3">
-                    <FileText className="h-5 w-5 text-gray-600" />
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {file.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatFileSize(file.metadata?.size)} •{" "}
-                        {formatDate(file.created_at)}
-                      </p>
-                    </div>
+            {files.map((file) => (
+              <motion.button
+                key={file.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                onClick={() => setPreviewingResourceId(file.id)}
+                className={cn(
+                  "w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-300 text-left",
+                  file.id === highlightedResourceId && "border-blue-500 ring-2 ring-blue-300 ring-offset-1"
+                )}
+              >
+                <div className="flex items-center space-x-3 overflow-hidden">
+                  <FileText className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                  <div className="truncate">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {formatFileSize(file.metadata?.size)} •{" "}
+                      {formatDate(file.updated_at)}
+                    </p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    {userCanViewThisFile && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDownload(file.id, file.name)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {userCanEditThisFile && (
-                      <VersionHistoryDropdown
-                        resourceId={file.id}
-                        onRollbackSuccess={() => window.location.reload()}
-                      />
-                    )}
-                    {isEditable && userCanEditThisFile && (
-                      <Link
-                        href={`/documents/edit?bucket=${
-                          activeOrg?.id
-                        }&path=${encodeURIComponent(file.storage_path)}`}
-                        passHref
-                        legacyBehavior
-                      >
-                        <Button
-                          as="a"
-                          size="sm"
-                          variant="outline"
-                          title="Edit Document"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    )}
-                    {userCanEditThisFile && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSharingResource(file)}
-                          title="Share"
-                        >
-                          <Share2 className="h-4 w-4" />
-                        </Button>
-                        {canDelete && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteFile(file.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })}
+                </div>
+              </motion.button>
+            ))}
 
             {/* Empty State */}
             {files.length === 0 && folders.length === 0 && !isLoading && (
@@ -405,11 +248,13 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
           </div>
         )}
       </CardContent>
-      {sharingResource && (
-        <ShareModal
-          resource={sharingResource}
-          isOpen={!!sharingResource}
-          onClose={() => setSharingResource(null)}
+      {previewingResourceId && (
+        <DocumentPreviewModal
+          resourceId={previewingResourceId}
+          onClose={() => setPreviewingResourceId(null)}
+          onDeleteSuccess={() => {
+            // Optionally refresh the list after delete
+          }}
         />
       )}
     </Card>

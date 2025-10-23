@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     const userName = (profile && !profileError) ? profile.full_name : (user.email || "Anonymous");
 
     const body = await request.json();
-    const { bucketId, filePath } = body;
+    const { bucketId, filePath, mode = 'edit' } = body;
 
     if (!bucketId || !filePath) {
       return NextResponse.json(
@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
       .select(
         `
             id,
+            version_number,
             resource_id,
             resources!document_versions_resource_id_fkey ( id, name, project_id )
         `
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
     const documentType = documentTypeMap[fileType] || "word";
 
     // Callback URL now includes the logical resource ID
-    const callbackUrl = `${internalServerUrl}/api/onlyoffice/callback?resourceId=${encodeURIComponent(
+    const callbackUrl = `${internalServerUrl}?resourceId=${encodeURIComponent(
       resource.id
     )}`;
 
@@ -170,11 +171,15 @@ export async function POST(request: NextRequest) {
         key: documentKey,
         title: fileName,
         url: documentUrl,
-        permissions: { edit: true, download: true, print: true },
+        permissions: {
+          edit: mode === 'edit',
+          download: true,
+          print: true
+        },
       },
       documentType,
       editorConfig: {
-        mode: "edit",
+        mode: mode,
         lang: "en",
         callbackUrl: callbackUrl,
         user: { id: user.id, name: userName },
@@ -185,7 +190,7 @@ export async function POST(request: NextRequest) {
       type: "desktop",
     };
 
-    const token = jwt.sign(config, jwtSecret, { noTimestamp: true });
+    const token = jwt.sign(config, jwtSecret);
     const finalConfig = { ...config, token };
 
     console.log("[OnlyOffice Config] Document URL:", documentUrl);

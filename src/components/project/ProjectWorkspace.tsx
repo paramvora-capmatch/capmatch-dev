@@ -19,6 +19,7 @@ import { ProfileSummaryCard } from "./ProfileSummaryCard";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { cn } from "@/utils/cn";
 
+import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 interface ProjectWorkspaceProps {
   projectId: string;
 }
@@ -40,6 +41,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [droppedFieldId, setDroppedFieldId] = useState<string | null>(null);
 
+  const [previewingResourceId, setPreviewingResourceId] = useState<string | null>(null);
   const [highlightedResourceId, setHighlightedResourceId] = useState<string | null>(null);
 
   const [currentFormData, setCurrentFormData] = useState<ProjectProfile | null>(
@@ -106,6 +108,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const isProjectComplete = projectCompleteness === 100; // Check if project is complete
 
   const handleMentionClick = (resourceId: string) => {
+    setPreviewingResourceId(resourceId); // Open the preview modal
     setActiveTab('documents');
     setHighlightedResourceId(resourceId);
     // Clear the highlight after a short delay
@@ -227,6 +230,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           </div>
         </div>
       </AskAIProvider>
+      {previewingResourceId && (
+        <DocumentPreviewModal
+            resourceId={previewingResourceId}
+            onClose={() => setPreviewingResourceId(null)}
+            onDeleteSuccess={() => {
+              // Optionally refresh something, but DocumentManager will refetch
+            }}
+        />
+      )}
     </div>
   );
 };

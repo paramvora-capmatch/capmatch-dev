@@ -9,11 +9,15 @@ import { useRouter } from "next/navigation";
 interface OnlyOfficeEditorProps {
   bucketId: string;
   filePath: string;
+  mode?: 'edit' | 'view';
 }
+
+const onlyofficeApiUrl = `${process.env.NEXT_PUBLIC_ONLYOFFICE_URL}/web-apps/apps/api/documents/api.js`;
 
 export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
   bucketId,
   filePath,
+  mode = 'edit',
 }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -117,7 +121,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       const res = await fetch("/api/onlyoffice/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bucketId, filePath }),
+        body: JSON.stringify({ bucketId, filePath, mode }),
       });
 
       if (!res.ok) {
@@ -166,7 +170,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
       setIsLoading(false);
       initializationRef.current = false;
     }
-  }, [isScriptReady, bucketId, filePath]);
+  }, [isScriptReady, bucketId, filePath, mode]);
 
   // Check if script is already loaded (for subsequent component mounts)
   React.useEffect(() => {
