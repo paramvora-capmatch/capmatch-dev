@@ -16,6 +16,7 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { MultiSelect } from "../ui/MultiSelect";
+import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 import {
   MessageCircle,
   Send,
@@ -51,6 +52,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const { user } = useAuthStore();
   const { activeProject } = useProjects();
+
+  const [previewingResourceId, setPreviewingResourceId] = useState<
+    string | null
+  >(null);
 
   const [newMessage, setNewMessage] = useState("");
   const [newThreadTopic, setNewThreadTopic] = useState("");
@@ -142,13 +147,67 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }, 10);
   };
 
-  const handleMentionClick = (e: React.MouseEvent, resourceId: string) => {
-    e.preventDefault(); // Prevent default behavior, especially if it were an <a> tag
-    if (onMentionClick) {
-      onMentionClick(resourceId);
-    } else {
-      console.warn("onMentionClick handler not provided to ChatInterface");
+  const handleMentionClick = (resourceId: string) => {
+    setPreviewingResourceId(resourceId);
+  };
+
+  // Parse message content and render with document mention buttons
+  const renderMessageContent = (content?: string) => {
+    if (!content) return null;
+
+    // Regex to find @[name](doc:id) patterns
+    const mentionRegex = /@\[([^\]]+)\]\(doc:([^)]+)\)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = mentionRegex.exec(content)) !== null) {
+      // Add text before the mention
+      if (match.index > lastIndex) {
+        const textBefore = content.substring(lastIndex, match.index);
+        parts.push(
+          <ReactMarkdown key={`text-${lastIndex}`} remarkPlugins={[remarkGfm]}>
+            {textBefore}
+          </ReactMarkdown>
+        );
+      }
+
+      // Add the document mention button
+      const docName = match[1];
+      const resourceId = match[2];
+      parts.push(
+        <button
+          key={`doc-${resourceId}-${match.index}`}
+          type="button"
+          onClick={() => handleMentionClick(resourceId)}
+          className="inline-flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors font-medium cursor-pointer border-0 mx-1"
+        >
+          <FileText size={14} className="inline mr-1.5" />
+          {docName}
+        </button>
+      );
+
+      lastIndex = match.index + match[0].length;
     }
+
+    // Add remaining text after the last mention
+    if (lastIndex < content.length) {
+      const textAfter = content.substring(lastIndex);
+      parts.push(
+        <ReactMarkdown key={`text-${lastIndex}`} remarkPlugins={[remarkGfm]}>
+          {textAfter}
+        </ReactMarkdown>
+      );
+    }
+
+    // If no mentions found, just render the whole content as markdown
+    if (parts.length === 0) {
+      return (
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      );
+    }
+
+    return <>{parts}</>;
   };
 
   const handleCreateThread = async () => {
@@ -315,41 +374,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       {message.sender?.full_name || "User"}
                     </div>
                     <div className="text-sm prose prose-sm max-w-none">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          a: ({ node, ...props }) => {
-                            if (props.href?.startsWith("doc:")) {
-                              const resourceId = props.href.substring(4);
-                              const docName = props.children;
-                              return (
-                                <button
-                                  onClick={(e: React.MouseEvent) =>
-                                    handleMentionClick(e, resourceId)
-                                  }
-                                  className="inline-flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors font-medium no-underline"
-                                >
-                                  <FileText
-                                    size={14}
-                                    className="inline mr-1.5"
-                                  />
-                                  {docName}
-                                </button>
-                              );
-                            }
-                            return (
-                              <a
-                                {...props}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-500 hover:underline"
-                              />
-                            );
-                          },
-                        }}
-                      >
-                        {message.content || ""}
-                      </ReactMarkdown>
+                      {renderMessageContent(message.content)}
                     </div>
                     <div className="text-xs opacity-75 mt-1 text-right">
                       {formatMessageTime(message.created_at)}
@@ -425,6 +450,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         )}
       </div>
+
+      {previewingResourceId && (
+        <DocumentPreviewModal
+          resourceId={previewingResourceId}
+          onClose={() => setPreviewingResourceId(null)}
+        />
+      )}
     </div>
   );
 };

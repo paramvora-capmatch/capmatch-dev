@@ -41,15 +41,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [droppedFieldId, setDroppedFieldId] = useState<string | null>(null);
 
-  const [previewingResourceId, setPreviewingResourceId] = useState<string | null>(null);
-  const [highlightedResourceId, setHighlightedResourceId] = useState<string | null>(null);
+  const [previewingResourceId, setPreviewingResourceId] = useState<
+    string | null
+  >(null);
+  const [highlightedResourceId, setHighlightedResourceId] = useState<
+    string | null
+  >(null);
 
   const [currentFormData, setCurrentFormData] = useState<ProjectProfile | null>(
     null
   );
 
   const [activeTab, setActiveTab] = useState<"chat" | "documents">("chat");
-
 
   // Calculate if we're still in initial loading phase
   const isInitialLoading =
@@ -109,7 +112,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const handleMentionClick = (resourceId: string) => {
     setPreviewingResourceId(resourceId); // Open the preview modal
-    setActiveTab('documents');
+    setPreviewingResourceId(resourceId); // Open the preview modal
+    setActiveTab("documents");
     setHighlightedResourceId(resourceId);
     // Clear the highlight after a short delay
     setTimeout(() => {
@@ -212,7 +216,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               </CardHeader>
               <CardContent className="flex-1 p-0 overflow-hidden">
                 {activeTab === "chat" ? (
-                  <ChatInterface projectId={projectId} onMentionClick={handleMentionClick} />
+                  <ChatInterface
+                    projectId={projectId}
+                    onMentionClick={handleMentionClick}
+                  />
                 ) : (
                   <div className="p-2 h-full">
                     <DocumentManager
@@ -232,11 +239,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       </AskAIProvider>
       {previewingResourceId && (
         <DocumentPreviewModal
-            resourceId={previewingResourceId}
-            onClose={() => setPreviewingResourceId(null)}
-            onDeleteSuccess={() => {
-              // Optionally refresh something, but DocumentManager will refetch
-            }}
+          resourceId={previewingResourceId}
+          onClose={() => setPreviewingResourceId(null)}
+          onDeleteSuccess={() => {
+            // Optionally refresh something, but DocumentManager will refetch
+          }}
         />
       )}
     </div>
