@@ -222,18 +222,19 @@ export default function AdvisorDashboardPage() {
 
           if (threads && threads.length > 0) {
             const threadIds = threads.map((t) => t.id);
-            const { data: messagesData, error: messagesError } =
-              await supabase
-                .from("project_messages")
-                .select(`*, chat_threads!inner(project_id)`)
-                .in("thread_id", threadIds)
-                .order("created_at", { ascending: false })
-                .limit(5);
+            const { data: messagesData, error: messagesError } = await supabase
+              .from("project_messages")
+              .select(`*, chat_threads!inner(project_id)`)
+              .in("thread_id", threadIds)
+              .order("created_at", { ascending: false })
+              .limit(5);
 
             if (messagesError) throw messagesError;
 
             if (messagesData) {
-              const mappedMessages = messagesData.map(dbMessageToProjectMessage);
+              const mappedMessages = messagesData.map(
+                dbMessageToProjectMessage
+              );
               setRecentMessages(mappedMessages);
             }
           }
@@ -632,11 +633,10 @@ export default function AdvisorDashboardPage() {
                               </div>
                               <p className="mt-1 text-sm text-gray-700">
                                 {message.content && message.content.length > 120
-                                  ? `${message.content.substring(0, 120)}...`
-                                  : message.content || "No content"}{" "}
-                                (Project: {message.project_id})
+                                  ? `${message.content.substring(0, 120)}... `
+                                  : `${message.content || "No content"} `}
                               </p>
-                              <div className="mt-2 flex justify-end">
+                              <div className="mt-2 flex justify-between items-center">
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -648,6 +648,12 @@ export default function AdvisorDashboardPage() {
                                 >
                                   Go to Thread
                                 </Button>
+                                <p className="text-xs text-gray-400">
+                                  Project:{" "}
+                                  {activeProjects.find(
+                                    (p) => p.id === message.project_id
+                                  )?.projectName || message.project_id}
+                                </p>
                               </div>
                             </div>
                           </div>

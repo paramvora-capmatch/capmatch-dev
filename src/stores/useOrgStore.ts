@@ -61,6 +61,8 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
   loadOrg: async (orgId: string) => {
     set({ isLoading: true, error: null });
 
+    console.log(`[OrgStore] Loading org: ${orgId}`);
+
     try {
       // Load org details
       const { data: org, error: orgError } = await supabase
@@ -156,6 +158,11 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
           (member) =>
             member.user_id === currentUserId && member.role === "owner"
         ) || false;
+
+      console.log(`[OrgStore] Org loaded successfully`);
+      console.log(`[OrgStore] Current user ID: ${currentUserId}`);
+      console.log(`[OrgStore] Is owner: ${isOwner}`);
+      console.log(`[OrgStore] Members count: ${processedMembers.length}`);
 
       set({
         currentOrg: org,

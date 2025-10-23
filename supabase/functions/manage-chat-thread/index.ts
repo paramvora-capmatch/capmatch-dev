@@ -67,10 +67,10 @@ serve(async (req) => {
         p_user_id: user.id,
       });
 
-      // NEW: Restrict thread creation to owners
-      if (!isOwner) {
+      const isAdvisor = project.assigned_advisor_id === user.id;
+      if (!isOwner.data && !isAdvisor) {
         throw new Error(
-          "Only organization owners can create new chat channels."
+          "You don't have permission to create a new channel in this project."
         );
       }
 

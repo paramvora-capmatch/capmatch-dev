@@ -1,5 +1,5 @@
 // src/components/chat/ChatInterface.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -24,6 +24,7 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  MoreVertical,
   FileText,
 } from "lucide-react";
 
@@ -31,6 +32,10 @@ interface ChatInterfaceProps {
   projectId: string;
   onMentionClick?: (resourceId: string) => void;
 }
+
+import { ManageChannelMembersModal } from "./ManageChannelMembersModal";
+import { ChatThread } from "@/types/enhanced-types";
+
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   projectId,
@@ -59,14 +64,27 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const [newMessage, setNewMessage] = useState("");
   const [newThreadTopic, setNewThreadTopic] = useState("");
-  const { isOwner, members } = useOrgStore();
+  const { isOwner, members, currentOrg } = useOrgStore();
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
     []
   );
+  const [managingThread, setManagingThread] = useState<ChatThread | null>(null);
 
-  const memberOptions = members
+  // Check if user has owner permissions for this specific project
+  const hasOwnerPermissions = useMemo(() => {
+    if (!activeProject?.entityId || !currentOrg) return false;
+
+    // User is owner if:
+    // 1. The isOwner flag is true (they're owner of the org)
+    // 2. The current org matches the project's owner org
+    const isProjectOwner = isOwner && currentOrg.id === activeProject.entityId;
+    console.log(`[ChatInterface] Has owner permissions: ${isProjectOwner}`);
+    return isProjectOwner;
+  }, [isOwner, currentOrg, activeProject]);
+
+  const memberOptions = useMemo(() => members
     .filter((m) => m.user_id !== user?.id) // Exclude self
-    .map((m) => ({ value: m.user_id, label: m.userName || m.userEmail || "" }));
+    .map((m) => ({ value: m.user_id, label: m.userName || m.userEmail || "" })), [members, user]);
 
   const [showCreateThread, setShowCreateThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -263,7 +281,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <div className="p-3 border-b bg-white">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-gray-800">Channels</h3>
-            {isOwner && (
+            {hasOwnerPermissions && (
               <Button
                 size="sm"
                 variant="outline"
@@ -330,19 +348,28 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <Loader2 className="h-4 w-4 animate-spin mx-auto" />
             </div>
           ) : (
-            <div className="space-y-1 p-2">
+            <div className="space-y-1 p-2 ">
               {threads.map((thread) => (
-                <button
-                  key={thread.id}
-                  onClick={() => setActiveThread(thread.id)}
-                  className={`w-full text-left p-2 rounded text-sm transition-colors ${
-                    activeThreadId === thread.id
-                      ? "bg-blue-100 font-semibold text-blue-800"
-                      : "hover:bg-gray-100"
-                  }`}
-                >
-                  # {thread.topic || "General"}
-                </button>
+                <div key={thread.id} className="flex items-center group">
+                  <button
+                    onClick={() => setActiveThread(thread.id)}
+                    className={`flex-1 text-left p-2 rounded text-sm transition-colors ${
+                      activeThreadId === thread.id
+                        ? "bg-blue-100 font-semibold text-blue-800"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    # {thread.topic || "General"}
+                  </button>
+                  {hasOwnerPermissions && (
+                      <button
+                        onClick={() => setManagingThread(thread)}
+                        className="p-1 rounded-full hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -455,6 +482,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <DocumentPreviewModal
           resourceId={previewingResourceId}
           onClose={() => setPreviewingResourceId(null)}
+        />
+      )}
+      {managingThread && hasOwnerPermissions && (
+        <ManageChannelMembersModal
+          thread={managingThread}
+          isOpen={!!managingThread}
+          onClose={() => setManagingThread(null)}
         />
       )}
     </div>

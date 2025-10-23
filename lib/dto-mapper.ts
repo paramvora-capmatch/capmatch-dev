@@ -5,7 +5,7 @@ export const dbMessageToProjectMessage = (
   return {
     id: dbMessage.id,
     thread_id: dbMessage.thread_id, // This will be null if not joined
-    project_id: dbMessage.chat_threads?.project_id,
+    project_id: dbMessage.chat_threads?.project_id, // Add project_id from joined chat_threads
     user_id: dbMessage.user_id,
     content: dbMessage.content,
     created_at: dbMessage.created_at,

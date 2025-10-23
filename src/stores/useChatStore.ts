@@ -68,8 +68,8 @@ interface ChatActions {
   setActiveThread: (threadId: string | null) => void;
   
   // Participants
-  addParticipant: (threadId: string, userId: string) => Promise<void>;
-  removeParticipant: (threadId: string, userId: string) => Promise<void>;
+  addParticipant: (threadId: string, userIds: string[]) => Promise<void>;
+  removeParticipant: (threadId: string, userIds: string) => Promise<void>;
   loadParticipants: (threadId: string) => Promise<void>;
   
   // Messages
@@ -161,12 +161,34 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     }
   },
 
-  addParticipant: async (threadId: string, userId: string) => {
-    // Implementation...
+  addParticipant: async (threadId: string, userIds: string[]) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { error } = await supabase.functions.invoke('manage-chat-thread', {
+        body: { action: 'add_participant', thread_id: threadId, participant_ids: userIds }
+      });
+      if (error) throw error;
+      await get().loadParticipants(threadId);
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to add participant(s)' });
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   removeParticipant: async (threadId: string, userId: string) => {
-    // Implementation...
+    set({ isLoading: true, error: null });
+    try {
+      const { error } = await supabase.functions.invoke('manage-chat-thread', {
+        body: { action: 'remove_participant', thread_id: threadId, participant_ids: [userId] }
+      });
+      if (error) throw error;
+      await get().loadParticipants(threadId);
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to remove participant' });
+    } finally {
+      set({ isLoading: false });
+    }
   },
 
   loadParticipants: async (threadId: string) => {

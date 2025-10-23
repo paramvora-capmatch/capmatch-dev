@@ -51,6 +51,13 @@ BEGIN
   ON CONFLICT (org_id, user_id) DO NOTHING;
   RAISE NOTICE '✅ Org membership created';
 
+  -- Step 5: Set active_org_id for the advisor
+  RAISE NOTICE '5️⃣ Setting active organization...';
+  UPDATE public.profiles
+  SET active_org_id = v_org_id
+  WHERE id = v_user_id;
+  RAISE NOTICE '✅ Active org set'
+
   -- Summary
   RAISE NOTICE '';
   RAISE NOTICE '🎉 Setup complete!';

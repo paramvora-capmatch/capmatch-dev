@@ -8,14 +8,17 @@ import { useBorrowerProfile } from "../../hooks/useBorrowerProfile";
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
 import { Loader2, FileSpreadsheet, MessageSquare, Folder } from "lucide-react";
+import { Users as AccessControlIcon } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { Button } from "../ui/Button"; // Import Button
-import { useAuth } from "@/hooks/useAuth"; // Add this import
+import { useAuth } from "@/hooks/useAuth"; // Add this import;
+import { useAuthStore } from "@/stores/useAuthStore";
 import { AskAIProvider } from "../ui/AskAIProvider";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { DocumentManager } from "../documents/DocumentManager";
 import { ProfileSummaryCard } from "./ProfileSummaryCard";
+import { AccessControlTab } from "./AccessControlTab";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { cn } from "@/utils/cn";
 
@@ -34,9 +37,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     isLoading: projectsLoading,
     getProject,
   } = useProjects();
-  const { borrowerProfile, isLoading: profileLoading } = useBorrowerProfile();
+  const { content: borrowerProfile, isLoading: profileLoading } =
+    useBorrowerProfile();
   const { loadOrg } = useOrgStore();
-  const { user, isLoading: authLoading } = useAuth(); // Add auth loading state
+  const { isOwner } = useOrgStore();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
   const [droppedFieldId, setDroppedFieldId] = useState<string | null>(null);
@@ -52,7 +57,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     null
   );
 
-  const [activeTab, setActiveTab] = useState<"chat" | "documents">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "documents" | "access">(
+    "chat"
+  );
 
   // Calculate if we're still in initial loading phase
   const isInitialLoading =
@@ -60,33 +67,53 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     projectsLoading ||
     (user?.role === "borrower" && profileLoading);
 
+  // Load org data when we have a project
+  useEffect(() => {
+    const loadOrgData = async () => {
+      if (!activeProject?.entityId) return;
+
+      const { currentOrg } = useOrgStore.getState();
+      // Only load if we haven't loaded this org yet
+      if (currentOrg?.id !== activeProject.entityId) {
+        console.log(
+          `[ProjectWorkspace] Loading org data for: ${activeProject.entityId}`
+        );
+        await loadOrg(activeProject.entityId);
+      }
+    };
+
+    loadOrgData();
+  }, [activeProject?.entityId, loadOrg]);
+
   // useEffect for loading and setting active project
   useEffect(() => {
-    if (!projectId) return;
+    const loadProjectData = async () => {
+      if (!projectId) return;
 
-    // Don't proceed if still in initial loading phase
-    if (isInitialLoading) {
-      return;
-    }
-
-    // Only check for project existence after initial loading is complete
-    if (!activeProject || activeProject.id !== projectId) {
-      const projectData = getProject(projectId);
-      if (projectData) {
-        setActiveProject(projectData);
-      } else {
-        // Only show error if we're confident the project doesn't exist
-        // (not just because we haven't loaded projects yet)
-        // Also load the org members for the ShareModal
-        const { activeOrg } = useAuthStore.getState();
-        if (activeOrg) {
-          loadOrg(activeOrg.id);
-        }
-        console.error(`Project ${projectId} not found.`);
-        console.error("Project not found.");
-        router.push("/dashboard");
+      // Don't proceed if still in initial loading phase
+      if (isInitialLoading) {
+        return;
       }
-    }
+
+      // Only check for project existence after initial loading is complete
+      if (!activeProject || activeProject.id !== projectId) {
+        const projectData = getProject(projectId);
+        if (projectData) {
+          setActiveProject(projectData);
+
+          // Load org data for permission checks
+          if (projectData.entityId) {
+            await loadOrg(projectData.entityId);
+          }
+        } else {
+          // Only show error if we're confident the project doesn't exist
+          console.error(`Project ${projectId} not found.`);
+          router.push("/dashboard");
+        }
+      }
+    };
+
+    loadProjectData();
   }, [
     projectId,
     activeProject,
@@ -212,6 +239,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     <Folder size={16} />
                     <span>Documents</span>
                   </button>
+                  {isOwner && (
+                    <button
+                      onClick={() => setActiveTab("access")}
+                      className={cn(
+                        "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
+                        activeTab === "access"
+                          ? "border-b-2 border-blue-600 text-blue-600"
+                          : "text-gray-500 hover:bg-gray-50"
+                      )}
+                    >
+                      <AccessControlIcon size={16} />
+                      <span>Access Control</span>
+                    </button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="flex-1 p-0 overflow-hidden">
@@ -220,7 +261,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     projectId={projectId}
                     onMentionClick={handleMentionClick}
                   />
-                ) : (
+                ) : activeTab === "documents" ? (
                   <div className="p-2 h-full">
                     <DocumentManager
                       projectId={projectId}
@@ -231,7 +272,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       highlightedResourceId={highlightedResourceId}
                     />
                   </div>
-                )}
+                ) : activeTab === "access" && isOwner ? (
+                  <AccessControlTab projectId={projectId} />
+                ) : null}
               </CardContent>
             </Card>
           </div>
