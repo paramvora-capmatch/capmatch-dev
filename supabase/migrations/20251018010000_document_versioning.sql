@@ -40,7 +40,7 @@ COMMENT ON COLUMN public.resources.current_version_id IS 'Points to the currentl
 CREATE INDEX idx_resources_current_version_id ON public.resources(current_version_id);
 
 -- Step 3: Create a sequence and trigger for auto-incrementing version numbers per resource.
-CREATE SEQUENCE public.version_number_seq;
+CREATE SEQUENCE IF NOT EXISTS public.version_number_seq;
 
 CREATE OR REPLACE FUNCTION public.set_version_number()
 RETURNS TRIGGER AS $$

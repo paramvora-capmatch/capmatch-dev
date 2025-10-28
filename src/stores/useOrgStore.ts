@@ -41,7 +41,12 @@ interface OrgActions {
   }) => Promise<void>;
   validateInviteToken: (
     inviteToken: string
-  ) => Promise<{ valid: boolean; orgName?: string; inviterName?: string }>;
+  ) => Promise<{
+    valid: boolean;
+    orgName?: string;
+    inviterName?: string;
+    email?: string;
+  }>;
 
   // Utility methods
   refreshMembers: () => Promise<void>;
@@ -354,6 +359,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
         valid: true,
         orgName: (invite.orgs as Org | undefined)?.name,
         inviterName: "Team Owner", // Simplified for now
+        email: invite.invited_email,
       };
     } catch (error) {
       console.error("Error validating invite token:", error);
