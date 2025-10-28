@@ -68,7 +68,7 @@ serve(async (req) => {
       });
 
       const isAdvisor = project.assigned_advisor_id === user.id;
-      if (!isOwner.data && !isAdvisor) {
+      if (!isOwner && !isAdvisor) {
         throw new Error(
           "You don't have permission to create a new channel in this project."
         );
@@ -88,13 +88,10 @@ serve(async (req) => {
         throw new Error(`Failed to create thread: ${threadError.message}`);
       }
 
-      // Add current user as participant
+      // Add current user as participant (idempotent)
       const { error: currentUserError } = await supabaseAdmin
         .from("chat_thread_participants")
-        .insert({
-          thread_id: thread.id,
-          user_id: user.id,
-        });
+        .upsert({ thread_id: thread.id, user_id: user.id }, { onConflict: 'thread_id,user_id' });
 
       if (currentUserError) {
         throw new Error(
@@ -104,14 +101,11 @@ serve(async (req) => {
 
       // Add additional participants if provided
       if (participant_ids && participant_ids.length > 0) {
-        const participantInserts = participant_ids.map((pid) => ({
-          thread_id: thread.id,
-          user_id: pid,
-        }));
+        const participantInserts = participant_ids.map((pid) => ({ thread_id: thread.id, user_id: pid }));
 
         const { error: participantsError } = await supabaseAdmin
           .from("chat_thread_participants")
-          .insert(participantInserts);
+          .upsert(participantInserts, { onConflict: 'thread_id,user_id' });
 
         if (participantsError) {
           console.warn(
@@ -164,14 +158,11 @@ serve(async (req) => {
       }
 
       // Add participants
-      const participantInserts = participant_ids.map((pid) => ({
-        thread_id,
-        user_id: pid,
-      }));
+      const participantInserts = participant_ids.map((pid) => ({ thread_id, user_id: pid }));
 
       const { error: participantsError } = await supabaseAdmin
         .from("chat_thread_participants")
-        .insert(participantInserts);
+        .upsert(participantInserts, { onConflict: 'thread_id,user_id' });
 
       if (participantsError) {
         throw new Error(
