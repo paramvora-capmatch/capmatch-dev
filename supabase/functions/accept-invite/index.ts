@@ -197,17 +197,23 @@ serve(async (req: any) => {
           }
         }
 
-        // 2) Apply per-doc exclusions (explicit 'none')
-        if (grant.exclusions && Array.isArray(grant.exclusions) && grant.exclusions.length > 0) {
-          const rows = grant.exclusions.map((resource_id: string) => ({
-            resource_id,
+        // 2) Apply per-doc overrides (none/view/edit) and back-compat exclusions
+        if (grant.fileOverrides && Array.isArray(grant.fileOverrides) && grant.fileOverrides.length > 0) {
+          const rows = grant.fileOverrides.map((o: any) => ({
+            resource_id: o.resource_id,
             user_id: userId,
-            permission: 'none',
+            permission: o.permission,
             granted_by: invite.invited_by,
           }));
-          const { error: exclError } = await supabase
+          const { error: ovErr } = await supabase
             .from('permissions')
             .upsert(rows, { onConflict: 'resource_id,user_id' });
+          if (ovErr) {
+            console.error(`[accept-invite] Failed to apply file overrides for project ${grant.projectId}: ${JSON.stringify(ovErr)}`);
+          }
+        } else if (grant.exclusions && Array.isArray(grant.exclusions) && grant.exclusions.length > 0) {
+          const rows = grant.exclusions.map((resource_id: string) => ({ resource_id, user_id: userId, permission: 'none', granted_by: invite.invited_by }));
+          const { error: exclError } = await supabase.from('permissions').upsert(rows, { onConflict: 'resource_id,user_id' });
           if (exclError) {
             console.error(`[accept-invite] Failed to apply exclusions for project ${grant.projectId}: ${JSON.stringify(exclError)}`);
           }
@@ -259,8 +265,14 @@ serve(async (req: any) => {
           }
         }
       }
-      // Apply org-level exclusions if any
-      if (Array.isArray(orgGrants.exclusions) && orgGrants.exclusions.length > 0) {
+      // Apply org-level per-file overrides or exclusions
+      if (Array.isArray(orgGrants.fileOverrides) && orgGrants.fileOverrides.length > 0) {
+        const rows = orgGrants.fileOverrides.map((o: any) => ({ resource_id: o.resource_id, user_id: userId, permission: o.permission, granted_by: invite.invited_by }));
+        const { error: orgOvErr } = await supabase.from('permissions').upsert(rows, { onConflict: 'resource_id,user_id' });
+        if (orgOvErr) {
+          console.error(`[accept-invite] Failed to apply org file overrides: ${JSON.stringify(orgOvErr)}`);
+        }
+      } else if (Array.isArray(orgGrants.exclusions) && orgGrants.exclusions.length > 0) {
         const rows = orgGrants.exclusions.map((resource_id: string) => ({ resource_id, user_id: userId, permission: 'none', granted_by: invite.invited_by }));
         const { error: orgExclErr } = await supabase.from('permissions').upsert(rows, { onConflict: 'resource_id,user_id' });
         if (orgExclErr) {

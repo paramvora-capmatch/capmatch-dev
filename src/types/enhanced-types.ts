@@ -425,13 +425,21 @@ export type PermissionType = "file" | "folder";
 
 export type Permission = "view" | "edit";
 
+export type FilePermissionOverride = {
+  resource_id: string;
+  permission: Permission | 'none';
+};
+
 export type ProjectGrant = {
   projectId: string;
   permissions: {
     resource_type: string; // e.g., 'PROJECT_RESUME', 'PROJECT_DOCS_ROOT'
     permission: Permission; // 'view' | 'edit'
   }[];
-  exclusions?: string[]; // resource_ids (FILE) to explicitly deny ('none')
+  // Per-file overrides. If absent for a file, root Project Docs permission applies.
+  fileOverrides?: FilePermissionOverride[];
+  // Back-compat: exclusions (maps to permission 'none')
+  exclusions?: string[];
 };
 
 export type OrgGrant = {
@@ -439,5 +447,6 @@ export type OrgGrant = {
     resource_type: 'BORROWER_RESUME' | 'BORROWER_DOCS_ROOT';
     permission: Permission;
   }[];
+  fileOverrides?: FilePermissionOverride[];
   exclusions?: string[]; // org-level FILE resource_ids to set 'none'
 };

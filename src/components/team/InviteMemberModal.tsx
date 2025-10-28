@@ -5,19 +5,12 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select } from '@/components/ui/Select';
-import { OrgMemberRole, Permission, OrgGrant } from '@/types/enhanced-types';
+import { OrgMemberRole, Permission, OrgGrant, ProjectGrant } from '@/types/enhanced-types';
 import { useProjects } from '@/hooks/useProjects';
 import { X, Copy, Check, Mail, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
-type ProjectGrant = {
-  projectId: string;
-  permissions: {
-    resource_type: string;
-    permission: Permission;
-  }[];
-  exclusions?: string[];
-};
+// Use the shared ProjectGrant type from '@/types/enhanced-types'
 
 interface InviteMemberModalProps {
   isOpen: boolean;
@@ -71,12 +64,16 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
           {
             projectId: projectId,
             permissions: [
-              { resource_type: 'PROJECT_RESUME', permission: 'view' }
+              { resource_type: 'PROJECT_RESUME', permission: 'view' },
+              { resource_type: 'PROJECT_DOCS_ROOT', permission: 'view' }
             ],
+            fileOverrides: []
           },
         ];
       }
     });
+    // Ensure docs are loaded so granular controls show immediately when expanded
+    ensureProjectDocsLoaded(projectId);
   };
 
   const updatePermission = (projectId: string, resourceType: string, permission: Permission) => {
@@ -102,6 +99,8 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
         newSet.delete(projectId);
       } else {
         newSet.add(projectId);
+        // Lazy-load docs on first expand so granular controls render
+        ensureProjectDocsLoaded(projectId);
       }
       return newSet;
     });
@@ -156,12 +155,20 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     } catch (e) {}
   };
 
-  const toggleOrgDocExclusion = (resourceId: string) => {
+  const setOrgDocPermission = (resourceId: string, permission: Permission | 'none') => {
     setOrgGrants(prev => {
-      const base: OrgGrant = prev || { permissions: [], exclusions: [] };
-      const exclusions = new Set(base.exclusions || []);
-      if (exclusions.has(resourceId)) exclusions.delete(resourceId); else exclusions.add(resourceId);
-      return { ...base, exclusions: Array.from(exclusions) };
+      const base: OrgGrant = prev || { permissions: [], fileOverrides: [] } as OrgGrant;
+      const overrides = [...(base.fileOverrides || [])];
+      const idx = overrides.findIndex(o => o.resource_id === resourceId);
+      // Determine baseline from root BORROWER_DOCS_ROOT permission
+      const rootPerm = base.permissions.find(p => p.resource_type==='BORROWER_DOCS_ROOT')?.permission;
+      // If override equals root, remove it; else set/replace
+      if (permission === (rootPerm || 'view')) {
+        if (idx >= 0) overrides.splice(idx,1);
+      } else {
+        if (idx >= 0) overrides[idx] = { resource_id: resourceId, permission } as any; else overrides.push({ resource_id: resourceId, permission } as any);
+      }
+      return { ...base, fileOverrides: overrides } as OrgGrant;
     });
   };
 
@@ -178,12 +185,18 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     setProjectDocsMap(prev => ({ ...prev, [projectId]: data || [] }));
   };
 
-  const toggleProjectDocExclusion = (projectId: string, resourceId: string) => {
+  const setProjectDocPermission = (projectId: string, resourceId: string, permission: Permission | 'none') => {
     setProjectGrants(prev => prev.map(g => {
       if (g.projectId !== projectId) return g;
-      const exclusions = new Set(g.exclusions || []);
-      if (exclusions.has(resourceId)) exclusions.delete(resourceId); else exclusions.add(resourceId);
-      return { ...g, exclusions: Array.from(exclusions) };
+      const overrides = [...(g.fileOverrides || [])];
+      const idx = overrides.findIndex(o => o.resource_id === resourceId);
+      const rootPerm = g.permissions.find(p => p.resource_type==='PROJECT_DOCS_ROOT')?.permission;
+      if (permission === (rootPerm || 'view')) {
+        if (idx >= 0) overrides.splice(idx,1);
+      } else {
+        if (idx >= 0) overrides[idx] = { resource_id: resourceId, permission } as any; else overrides.push({ resource_id: resourceId, permission } as any);
+      }
+      return { ...g, fileOverrides: overrides };
     }));
   };
 
@@ -191,8 +204,9 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     setProjectGrants(prev => prev.map(g => {
       if (g.projectId !== projectId) return g;
       const others = g.permissions.filter(p => p.resource_type !== 'PROJECT_DOCS_ROOT');
-      if (!permission) return { ...g, permissions: others };
-      return { ...g, permissions: [...others, { resource_type: 'PROJECT_DOCS_ROOT', permission }] };
+      // Reset per-file overrides to baseline when changing 'all'
+      if (!permission) return { ...g, permissions: others, fileOverrides: [] };
+      return { ...g, permissions: [...others, { resource_type: 'PROJECT_DOCS_ROOT', permission }], fileOverrides: [] };
     }));
   };
 
@@ -326,18 +340,28 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                       </div>
                       {orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT') && orgDocs.length>0 && (
                         <div className="mt-2 border-t pt-2 space-y-1">
-                          <div className="text-xs text-gray-500">Exclude specific documents</div>
-                          {orgDocs.map(doc => (
-                            <label key={doc.id} className="flex items-center justify-between text-sm">
-                              <span className="text-gray-700 truncate pr-2">{doc.name}</span>
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4"
-                                checked={!!orgGrants?.exclusions?.includes(doc.id)}
-                                onChange={() => toggleOrgDocExclusion(doc.id)}
-                              />
-                            </label>
-                          ))}
+                          <div className="text-xs text-gray-500">Set per-document permissions</div>
+                          {orgDocs.map(doc => {
+                            const rootPerm = orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT')?.permission;
+                            const current = orgGrants?.fileOverrides?.find(o=>o.resource_id===doc.id)?.permission || rootPerm || 'view';
+                            const Pill = ({label, val, color}:{label:string; val:'none'|'view'|'edit'; color:string}) => (
+                              <button
+                                type="button"
+                                onClick={() => setOrgDocPermission(doc.id, val)}
+                                className={`px-2 py-1 rounded text-xs border ${current===val ? color+" text-white" : 'bg-white text-gray-700'}`}
+                              >{label}</button>
+                            );
+                            return (
+                              <div key={doc.id} className="flex items-center justify-between text-sm py-1">
+                                <span className="text-gray-700 truncate pr-2">{doc.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <Pill label="None" val="none" color="bg-red-600" />
+                                  <Pill label="View" val="view" color="bg-blue-600" />
+                                  <Pill label="Edit" val="edit" color="bg-green-600" />
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -410,18 +434,28 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                                   </div>
                                   {grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT') && (projectDocsMap[project.id]?.length || 0) > 0 && (
                                     <div className="border-t pt-2 space-y-1">
-                                      <div className="text-xs text-gray-500">Exclude specific documents</div>
-                                      {(projectDocsMap[project.id] || []).map(doc => (
-                                        <label key={doc.id} className="flex items-center justify-between text-sm">
-                                          <span className="text-gray-700 truncate pr-2">{doc.name}</span>
-                                          <input
-                                            type="checkbox"
-                                            className="h-4 w-4"
-                                            checked={!!grant.exclusions?.includes(doc.id)}
-                                            onChange={() => toggleProjectDocExclusion(project.id, doc.id)}
-                                          />
-                                        </label>
-                                      ))}
+                                      <div className="text-xs text-gray-500">Set per-document permissions</div>
+                                      {(projectDocsMap[project.id] || []).map(doc => {
+                                        const rootPerm = grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT')?.permission;
+                                        const current = grant.fileOverrides?.find(o=>o.resource_id===doc.id)?.permission || rootPerm || 'view';
+                                        const Pill = ({label, val, color}:{label:string; val:'none'|'view'|'edit'; color:string}) => (
+                                          <button
+                                            type="button"
+                                            onClick={() => setProjectDocPermission(project.id, doc.id, val)}
+                                            className={`px-2 py-1 rounded text-xs border ${current===val ? color+" text-white" : 'bg-white text-gray-700'}`}
+                                          >{label}</button>
+                                        );
+                                        return (
+                                          <div key={doc.id} className="flex items-center justify-between text-sm py-1">
+                                            <span className="text-gray-700 truncate pr-2">{doc.name}</span>
+                                            <div className="flex items-center gap-2">
+                                              <Pill label="None" val="none" color="bg-red-600" />
+                                              <Pill label="View" val="view" color="bg-blue-600" />
+                                              <Pill label="Edit" val="edit" color="bg-green-600" />
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
                                   )}
                                 </div>

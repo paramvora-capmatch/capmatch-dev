@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissionStore } from "@/stores/usePermissionStore";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { cn } from "@/utils/cn";
 import { DocumentFile, DocumentFolder } from "@/hooks/useDocumentManagement";
@@ -105,8 +106,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Use actualResourceId for permissions check too
-  const { canEdit: canPerformActions, isLoading: isLoadingPermissionsRoot } =
+  const { canEdit: canEditRoot, isLoading: isLoadingPermissionsRoot } =
     usePermissions(actualResourceId);
+  const getPermission = usePermissionStore((state) => state.getPermission);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -203,8 +205,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const canEdit =
-    currentOrgRole === "owner" || currentOrgRole === "project_manager";
+  const canEdit = canEditRoot; // Gate root-level actions (upload/create folder) by edit on current folder
 
   return (
     <Card className="shadow-sm h-full flex flex-col">
@@ -377,6 +378,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
             {/* Files */}
             {files.map((file) => {
+              const fileCanEdit = getPermission(file.resource_id) === 'edit';
               const isEditable = /\.(docx|xlsx|pptx)$/i.test(file.name);
               console.log("[DocumentManager] Rendering file:", {
                 name: file.name,
@@ -417,13 +419,13 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     >
                       <Download className="h-4 w-4" />
                     </Button>
-                    {canEdit && (
+                    {fileCanEdit && (
                       <VersionHistoryDropdown
                         resourceId={file.resource_id}
                         onRollbackSuccess={() => refresh()}
                       />
                     )}
-                    {isEditable && canEdit && (
+                    {isEditable && fileCanEdit && (
                       <Link
                         href={`/documents/edit?bucket=${
                           activeOrg?.id
@@ -434,7 +436,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         <Edit className="h-4 w-4" />
                       </Link>
                     )}
-                    {canEdit && (
+                    {fileCanEdit && (
                       <Button
                         size="sm"
                         variant="outline"
