@@ -212,6 +212,25 @@ serve(async (req: any) => {
             console.error(`[accept-invite] Failed to apply exclusions for project ${grant.projectId}: ${JSON.stringify(exclError)}`);
           }
         }
+
+        // 3) Ensure the user is a participant in existing chat threads for this project (e.g., General)
+        if (grant.projectId) {
+          const { data: threads, error: threadsError } = await supabase
+            .from('chat_threads')
+            .select('id')
+            .eq('project_id', grant.projectId);
+          if (threadsError) {
+            console.error(`[accept-invite] Failed to fetch chat threads for project ${grant.projectId}: ${threadsError.message}`);
+          } else if (threads && threads.length > 0) {
+            const participantRows = threads.map((t: any) => ({ thread_id: t.id, user_id: userId }));
+            const { error: addPartErr } = await supabase
+              .from('chat_thread_participants')
+              .upsert(participantRows, { onConflict: 'thread_id,user_id' });
+            if (addPartErr) {
+              console.error(`[accept-invite] Failed to add user to chat threads for project ${grant.projectId}: ${addPartErr.message}`);
+            }
+          }
+        }
       }
     }
 
