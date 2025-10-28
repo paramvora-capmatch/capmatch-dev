@@ -21,7 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { OrgMemberRole } from "@/types/enhanced-types";
-import { ProjectGrant } from "@/types/enhanced-types";
+import { ProjectGrant, OrgGrant } from "@/types/enhanced-types";
 
 export default function TeamPage() {
   const { user, activeOrg } = useAuth();
@@ -50,10 +50,11 @@ export default function TeamPage() {
   const handleInviteMember = async (
     email: string,
     role: OrgMemberRole,
-    projectGrants: ProjectGrant[]
+    projectGrants: ProjectGrant[],
+    orgGrants: OrgGrant | null
   ) => {
     try {
-      const inviteLink = await inviteMember(email, role, projectGrants);
+      const inviteLink = await inviteMember(email, role, projectGrants, orgGrants);
       // Reload org data to show the new pending invite
       if (activeOrg) {
         loadOrg(activeOrg.id);

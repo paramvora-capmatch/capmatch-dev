@@ -10,16 +10,10 @@
 --   permission logic through RLS policies
 --
 
--- Step 1: Drop all RLS policies on resources
-DROP POLICY IF EXISTS "Allow inserts for authenticated users - validation via trigger" ON public.resources;
-DROP POLICY IF EXISTS "Authenticated users can insert resources" ON public.resources;
-DROP POLICY IF EXISTS "Users can create resources in folders they can edit" ON public.resources;
-DROP POLICY IF EXISTS "Users can view resources they have access to" ON public.resources;
-DROP POLICY IF EXISTS "Users can update resources they can edit" ON public.resources;
-DROP POLICY IF EXISTS "Users can delete resources they can edit (with safeguards)" ON public.resources;
+-- Step 1: Keep existing RLS policies on resources (no-op)
 
--- Step 2: Disable RLS on resources entirely
-ALTER TABLE public.resources DISABLE ROW LEVEL SECURITY;
+-- Step 2: Do not disable RLS on resources; keep it enabled (no-op)
+-- ALTER TABLE public.resources DISABLE ROW LEVEL SECURITY;
 
 -- Step 3: The authorization trigger remains as the enforcement layer
 -- This trigger validates all writes to resources
@@ -83,9 +77,9 @@ BEFORE DELETE ON public.resources
 FOR EACH ROW
 EXECUTE FUNCTION public.validate_resource_delete();
 
--- Step 6: Keep RLS disabled on related tables that have complex hierarchies
-ALTER TABLE public.permissions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.project_access_grants DISABLE ROW LEVEL SECURITY;
+-- Step 6: Keep RLS enabled on related tables (no-op)
+-- ALTER TABLE public.permissions DISABLE ROW LEVEL SECURITY;
+-- ALTER TABLE public.project_access_grants DISABLE ROW LEVEL SECURITY;
 
 -- Step 7: Keep other tables' RLS intact for security
--- (profiles, orgs, org_members, projects, etc. can still use RLS if configured)
+-- (profiles, orgs, org_members, projects, etc. continue to use RLS)

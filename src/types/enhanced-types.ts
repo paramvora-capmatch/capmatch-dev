@@ -428,7 +428,16 @@ export type Permission = "view" | "edit";
 export type ProjectGrant = {
   projectId: string;
   permissions: {
-    resource_type: string;
+    resource_type: string; // e.g., 'PROJECT_RESUME', 'PROJECT_DOCS_ROOT'
+    permission: Permission; // 'view' | 'edit'
+  }[];
+  exclusions?: string[]; // resource_ids (FILE) to explicitly deny ('none')
+};
+
+export type OrgGrant = {
+  permissions: {
+    resource_type: 'BORROWER_RESUME' | 'BORROWER_DOCS_ROOT';
     permission: Permission;
   }[];
+  exclusions?: string[]; // org-level FILE resource_ids to set 'none'
 };

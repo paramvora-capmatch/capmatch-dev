@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select } from '@/components/ui/Select';
-import { OrgMemberRole, Permission } from '@/types/enhanced-types';
+import { OrgMemberRole, Permission, OrgGrant } from '@/types/enhanced-types';
 import { useProjects } from '@/hooks/useProjects';
 import { X, Copy, Check, Mail, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -16,12 +16,18 @@ type ProjectGrant = {
     resource_type: string;
     permission: Permission;
   }[];
+  exclusions?: string[];
 };
 
 interface InviteMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onInvite: (email: string, role: OrgMemberRole, projectGrants: ProjectGrant[]) => Promise<string>;
+  onInvite: (
+    email: string,
+    role: OrgMemberRole,
+    projectGrants: ProjectGrant[],
+    orgGrants: OrgGrant | null
+  ) => Promise<string>;
 }
 
 export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
@@ -39,12 +45,16 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   const { projects, isLoading: isLoadingProjects } = useProjects();
   const [projectGrants, setProjectGrants] = useState<ProjectGrant[]>([]);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [orgGrants, setOrgGrants] = useState<OrgGrant | null>(null);
+  const [orgDocs, setOrgDocs] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     // When the modal opens, reset the project grants
     if (isOpen) {
       setProjectGrants([]);
       setExpandedProjects(new Set());
+      setOrgGrants(null);
+      setOrgDocs([]);
     }
   }, [isOpen]);
 
@@ -106,7 +116,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const link = await onInvite(email, role, projectGrants);
+      const link = await onInvite(email, role, projectGrants, orgGrants);
       setInviteLink(link);
     } catch (error) {
       console.error('Failed to invite member:', error);
@@ -115,6 +125,86 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
       setIsLoading(false);
     }
   };
+  const toggleOrgPermission = (resourceType: 'BORROWER_RESUME' | 'BORROWER_DOCS_ROOT', permission: Permission | null) => {
+    setOrgGrants(prev => {
+      if (!permission) {
+        if (!prev) return null;
+        return {
+          permissions: prev.permissions.filter(p => p.resource_type !== resourceType),
+          exclusions: prev.exclusions || []
+        };
+      }
+      const base: OrgGrant = prev || { permissions: [], exclusions: [] };
+      const others = base.permissions.filter(p => p.resource_type !== resourceType);
+      return {
+        permissions: [...others, { resource_type: resourceType, permission }],
+        exclusions: base.exclusions
+      };
+    });
+  };
+
+  const loadOrgDocsIfNeeded = async () => {
+    if (orgDocs.length > 0) return;
+    try {
+      const { supabase } = await import("../../../lib/supabaseClient");
+      const { data } = await supabase
+        .from('resources')
+        .select('id,name')
+        .eq('resource_type', 'FILE')
+        .is('project_id', null);
+      setOrgDocs(data || []);
+    } catch (e) {}
+  };
+
+  const toggleOrgDocExclusion = (resourceId: string) => {
+    setOrgGrants(prev => {
+      const base: OrgGrant = prev || { permissions: [], exclusions: [] };
+      const exclusions = new Set(base.exclusions || []);
+      if (exclusions.has(resourceId)) exclusions.delete(resourceId); else exclusions.add(resourceId);
+      return { ...base, exclusions: Array.from(exclusions) };
+    });
+  };
+
+  const [projectDocsMap, setProjectDocsMap] = useState<Record<string, { id: string; name: string }[]>>({});
+
+  const ensureProjectDocsLoaded = async (projectId: string) => {
+    if (projectDocsMap[projectId]) return;
+    const { supabase } = await import("../../../lib/supabaseClient");
+    const { data } = await supabase
+      .from('resources')
+      .select('id,name')
+      .eq('resource_type','FILE')
+      .eq('project_id', projectId);
+    setProjectDocsMap(prev => ({ ...prev, [projectId]: data || [] }));
+  };
+
+  const toggleProjectDocExclusion = (projectId: string, resourceId: string) => {
+    setProjectGrants(prev => prev.map(g => {
+      if (g.projectId !== projectId) return g;
+      const exclusions = new Set(g.exclusions || []);
+      if (exclusions.has(resourceId)) exclusions.delete(resourceId); else exclusions.add(resourceId);
+      return { ...g, exclusions: Array.from(exclusions) };
+    }));
+  };
+
+  const setProjectDocsPermission = (projectId: string, permission: Permission | null) => {
+    setProjectGrants(prev => prev.map(g => {
+      if (g.projectId !== projectId) return g;
+      const others = g.permissions.filter(p => p.resource_type !== 'PROJECT_DOCS_ROOT');
+      if (!permission) return { ...g, permissions: others };
+      return { ...g, permissions: [...others, { resource_type: 'PROJECT_DOCS_ROOT', permission }] };
+    }));
+  };
+
+  const setProjectResumePermission = (projectId: string, permission: Permission | null) => {
+    setProjectGrants(prev => prev.map(g => {
+      if (g.projectId !== projectId) return g;
+      const others = g.permissions.filter(p => p.resource_type !== 'PROJECT_RESUME');
+      if (!permission) return { ...g, permissions: others };
+      return { ...g, permissions: [...others, { resource_type: 'PROJECT_RESUME', permission }] };
+    }));
+  };
+
 
   const handleCopyLink = async () => {
     if (inviteLink) {
@@ -197,6 +287,63 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                   />
                 </div>
 
+                {/* Org-level Access */}
+                {role === 'member' && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Organization Access (Optional)
+                    </label>
+                    <div className="space-y-2 border border-gray-200 rounded-md p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-800">Borrower Resume</span>
+                        <Select
+                          value={orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_RESUME')?.permission || ''}
+                          onChange={e => toggleOrgPermission('BORROWER_RESUME', (e.target.value as Permission) || null)}
+                          options={[
+                            { value: '', label: 'None' },
+                            { value: 'view', label: 'View' },
+                            { value: 'edit', label: 'Edit' },
+                          ]}
+                          className="w-28"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-800">Borrower Documents</span>
+                        <Select
+                          value={orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT')?.permission || ''}
+                          onChange={e => {
+                            const val = e.target.value as Permission | '';
+                            toggleOrgPermission('BORROWER_DOCS_ROOT', val ? (val as Permission) : null);
+                            if (val) loadOrgDocsIfNeeded();
+                          }}
+                          options={[
+                            { value: '', label: 'None' },
+                            { value: 'view', label: 'View' },
+                            { value: 'edit', label: 'Edit' },
+                          ]}
+                          className="w-28"
+                        />
+                      </div>
+                      {orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT') && orgDocs.length>0 && (
+                        <div className="mt-2 border-t pt-2 space-y-1">
+                          <div className="text-xs text-gray-500">Exclude specific documents</div>
+                          {orgDocs.map(doc => (
+                            <label key={doc.id} className="flex items-center justify-between text-sm">
+                              <span className="text-gray-700 truncate pr-2">{doc.name}</span>
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={!!orgGrants?.exclusions?.includes(doc.id)}
+                                onChange={() => toggleOrgDocExclusion(doc.id)}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Project Access Selection */}
                 {role === 'member' && (
                   <div className="space-y-2">
@@ -236,23 +383,47 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                                 )}
                               </div>
                               {hasAccess && isExpanded && grant && (
-                                <div className="bg-gray-50 p-3 pl-10 space-y-2">
-                                  {grant.permissions.map(p => (
-                                    <div key={p.resource_type} className="flex items-center justify-between">
-                                      <span className="text-sm text-gray-600">
-                                        {p.resource_type.replace(/_/g, ' ').replace('ROOT', '').trim()}
-                                      </span>
+                                <div className="bg-gray-50 p-3 pl-10 space-y-3">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm text-gray-600">Project Resume</span>
                                       <Select
-                                        value={p.permission}
-                                        onChange={e => updatePermission(project.id, p.resource_type, e.target.value as Permission)}
-                                        options={[
-                                          { value: 'view', label: 'View' },
-                                          { value: 'edit', label: 'Edit' },
-                                        ]}
-                                        className="w-24"
+                                        value={grant.permissions.find(p=>p.resource_type==='PROJECT_RESUME')?.permission || ''}
+                                        onChange={e => setProjectResumePermission(project.id, (e.target.value as Permission) || null)}
+                                        options={[{value:'',label:'None'},{value:'view',label:'View'},{value:'edit',label:'Edit'}]}
+                                        className="w-28"
                                       />
                                     </div>
-                                  ))}
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm text-gray-600">Project Documents</span>
+                                      <Select
+                                        value={grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT')?.permission || ''}
+                                        onChange={e => {
+                                          const val = e.target.value as Permission | '';
+                                          setProjectDocsPermission(project.id, val ? (val as Permission) : null);
+                                          if (val) ensureProjectDocsLoaded(project.id);
+                                        }}
+                                        options={[{value:'',label:'None'},{value:'view',label:'View'},{value:'edit',label:'Edit'}]}
+                                        className="w-28"
+                                      />
+                                    </div>
+                                  </div>
+                                  {grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT') && (projectDocsMap[project.id]?.length || 0) > 0 && (
+                                    <div className="border-t pt-2 space-y-1">
+                                      <div className="text-xs text-gray-500">Exclude specific documents</div>
+                                      {(projectDocsMap[project.id] || []).map(doc => (
+                                        <label key={doc.id} className="flex items-center justify-between text-sm">
+                                          <span className="text-gray-700 truncate pr-2">{doc.name}</span>
+                                          <input
+                                            type="checkbox"
+                                            className="h-4 w-4"
+                                            checked={!!grant.exclusions?.includes(doc.id)}
+                                            onChange={() => toggleProjectDocExclusion(project.id, doc.id)}
+                                          />
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>

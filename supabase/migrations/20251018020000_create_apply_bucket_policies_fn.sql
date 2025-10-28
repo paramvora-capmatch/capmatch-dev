@@ -24,8 +24,8 @@ BEGIN
     -- INSERT (upload) policy scoped to this bucket
     EXECUTE format('DROP POLICY IF EXISTS "%s" ON storage.objects', v_up_name);
     EXECUTE format(
-        'CREATE POLICY "%s" ON storage.objects FOR INSERT TO public WITH CHECK (
-            bucket_id = %L AND public.can_upload_to_path(bucket_id, path_tokens)
+        'CREATE POLICY "%s" ON storage.objects FOR INSERT TO authenticated WITH CHECK (
+            bucket_id = %L AND public.can_upload_to_path_for_user(auth.uid(), bucket_id, string_to_array(name,''/''))
         )',
         v_up_name, v_bucket_id
     );
@@ -33,7 +33,7 @@ BEGIN
     -- SELECT (download) policy scoped to this bucket
     EXECUTE format('DROP POLICY IF EXISTS "%s" ON storage.objects', v_sel_name);
     EXECUTE format(
-        'CREATE POLICY "%s" ON storage.objects FOR SELECT TO public USING (
+        'CREATE POLICY "%s" ON storage.objects FOR SELECT TO authenticated USING (
             bucket_id = %L AND public.can_view(auth.uid(), public.get_resource_by_storage_path(name))
         )',
         v_sel_name, v_bucket_id
@@ -42,7 +42,7 @@ BEGIN
     -- UPDATE (overwrite) policy scoped to this bucket
     EXECUTE format('DROP POLICY IF EXISTS "%s" ON storage.objects', v_upd_name);
     EXECUTE format(
-        'CREATE POLICY "%s" ON storage.objects FOR UPDATE TO public USING (
+        'CREATE POLICY "%s" ON storage.objects FOR UPDATE TO authenticated USING (
             bucket_id = %L AND public.can_edit(auth.uid(), public.get_resource_by_storage_path(name))
         )',
         v_upd_name, v_bucket_id
@@ -51,7 +51,7 @@ BEGIN
     -- DELETE policy scoped to this bucket
     EXECUTE format('DROP POLICY IF EXISTS "%s" ON storage.objects', v_del_name);
     EXECUTE format(
-        'CREATE POLICY "%s" ON storage.objects FOR DELETE TO public USING (
+        'CREATE POLICY "%s" ON storage.objects FOR DELETE TO authenticated USING (
             bucket_id = %L AND public.can_edit(auth.uid(), public.get_resource_by_storage_path(name))
         )',
         v_del_name, v_bucket_id
@@ -60,3 +60,6 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 COMMENT ON FUNCTION public.apply_bucket_storage_policies IS 'Installs per-bucket storage RLS policies with unique names, scoped by bucket_id.';
+
+-- This function is administrative and should not be callable by clients.
+REVOKE EXECUTE ON FUNCTION public.apply_bucket_storage_policies(TEXT) FROM PUBLIC;

@@ -97,6 +97,70 @@ CREATE TABLE public.notifications (
 CREATE INDEX idx_notifications_user_id ON public.notifications(user_id);
 
 -- =============================================================================
+-- RLS for Chat and Notifications
+-- =============================================================================
+
+-- chat_threads: participants can view threads
+ALTER TABLE public.chat_threads ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Participants can view chat threads" ON public.chat_threads;
+CREATE POLICY "Participants can view chat threads" ON public.chat_threads
+FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.chat_thread_participants p
+    WHERE p.thread_id = id AND p.user_id = auth.uid()
+  )
+);
+
+-- chat_thread_participants: users can view their own memberships
+ALTER TABLE public.chat_thread_participants ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their chat memberships" ON public.chat_thread_participants;
+CREATE POLICY "Users can view their chat memberships" ON public.chat_thread_participants
+FOR SELECT USING (user_id = auth.uid());
+
+-- project_messages: participants can read/write messages in their threads
+ALTER TABLE public.project_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Participants can read messages" ON public.project_messages;
+DROP POLICY IF EXISTS "Participants can write messages" ON public.project_messages;
+CREATE POLICY "Participants can read messages" ON public.project_messages
+FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.chat_thread_participants p
+    WHERE p.thread_id = thread_id AND p.user_id = auth.uid()
+  )
+);
+CREATE POLICY "Participants can write messages" ON public.project_messages
+FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM public.chat_thread_participants p
+    WHERE p.thread_id = thread_id AND p.user_id = auth.uid()
+  )
+);
+
+-- message_attachments: participants can view attachments via their message's thread
+ALTER TABLE public.message_attachments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Participants can view attachments" ON public.message_attachments;
+CREATE POLICY "Participants can view attachments" ON public.message_attachments
+FOR SELECT USING (
+  EXISTS (
+    SELECT 1
+    FROM public.project_messages m
+    JOIN public.chat_thread_participants p ON p.thread_id = m.thread_id
+    WHERE m.id = message_id AND p.user_id = auth.uid()
+  )
+);
+
+-- notifications: users can view their own; users can insert their own (service role bypasses for system)
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can create their notifications" ON public.notifications;
+CREATE POLICY "Users can view their notifications" ON public.notifications
+FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Users can create their notifications" ON public.notifications
+FOR INSERT TO authenticated
+WITH CHECK (user_id = auth.uid());
+
+-- =============================================================================
 -- Core Helper Functions
 -- =============================================================================
 

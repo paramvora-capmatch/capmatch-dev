@@ -42,18 +42,20 @@ RETURNS BOOLEAN AS $$
 DECLARE
     v_org_id UUID := p_bucket_id::UUID;
     v_context_token TEXT := p_path_tokens[1];
+    v_resource_token TEXT := CASE WHEN array_length(p_path_tokens, 1) >= 2 THEN p_path_tokens[2] ELSE NULL END;
     v_path_depth INT := array_length(p_path_tokens, 1);
     v_parent_id UUID;
+    v_target_file_id UUID;
     v_current_folder_name TEXT;
     i INT;
 BEGIN
-    -- A valid path must have at least a context (e.g., project_id) and a filename.
+    -- A valid path must have at least a context (e.g., project_id or borrower_docs) and a filename.
     IF v_path_depth < 2 THEN
         RETURN FALSE;
     END IF;
 
     -- Step 1: Determine the root folder based on the path's context.
-    IF v_context_token = 'borrower-docs' THEN
+    IF v_context_token IN ('borrower-docs', 'borrower_docs') THEN
         -- This is an org-level document. The root is BORROWER_DOCS_ROOT.
         SELECT id INTO v_parent_id FROM public.resources WHERE org_id = v_org_id AND resource_type = 'BORROWER_DOCS_ROOT';
     ELSE
@@ -71,22 +73,34 @@ BEGIN
         RETURN FALSE;
     END IF;
 
-    -- Step 2: Traverse subfolders if the path is nested.
-    -- The loop runs from the first subfolder up to the parent of the file.
+    -- Fast-path: If the second token is a UUID referencing an existing FILE resource under the root,
+    -- allow upload when the user can edit that file (new version uploads pattern: <context>/<resourceId>/<fileName>)
+    IF v_resource_token IS NOT NULL THEN
+        BEGIN
+            SELECT id INTO v_target_file_id
+            FROM public.resources
+            WHERE id = v_resource_token::UUID AND parent_id = v_parent_id AND resource_type = 'FILE';
+        EXCEPTION WHEN invalid_text_representation THEN
+            v_target_file_id := NULL;
+        END;
+
+        IF v_target_file_id IS NOT NULL THEN
+            RETURN public.can_edit(auth.uid(), v_target_file_id) OR public.can_edit(auth.uid(), v_parent_id);
+        END IF;
+    END IF;
+
+    -- Fallback: Traverse subfolders by names (classic folder paths)
     IF v_path_depth > 2 THEN
         FOR i IN 2..(v_path_depth - 1) LOOP
             v_current_folder_name := p_path_tokens[i];
             SELECT id INTO v_parent_id FROM public.resources WHERE parent_id = v_parent_id AND name = v_current_folder_name AND resource_type = 'FOLDER';
-
-            -- If any folder in the path doesn't exist, the path is invalid.
             IF v_parent_id IS NULL THEN
                 RETURN FALSE;
             END IF;
         END LOOP;
     END IF;
 
-    -- Step 3: Check permission on the final parent folder.
-    -- `v_parent_id` now holds the ID of the immediate destination folder.
+    -- Final check on the computed destination parent
     RETURN public.can_edit(auth.uid(), v_parent_id);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
@@ -100,8 +114,10 @@ RETURNS BOOLEAN AS $$
 DECLARE
     v_org_id UUID := p_bucket_id::UUID;
     v_context_token TEXT := p_path_tokens[1];
+    v_resource_token TEXT := CASE WHEN array_length(p_path_tokens, 1) >= 2 THEN p_path_tokens[2] ELSE NULL END;
     v_path_depth INT := array_length(p_path_tokens, 1);
     v_parent_id UUID;
+    v_target_file_id UUID;
     v_current_folder_name TEXT;
     i INT;
 BEGIN
@@ -109,7 +125,7 @@ BEGIN
         RETURN FALSE;
     END IF;
 
-    IF v_context_token = 'borrower-docs' THEN
+    IF v_context_token IN ('borrower-docs', 'borrower_docs') THEN
         SELECT id INTO v_parent_id FROM public.resources WHERE org_id = v_org_id AND resource_type = 'BORROWER_DOCS_ROOT';
     ELSE
         BEGIN
@@ -121,6 +137,21 @@ BEGIN
 
     IF v_parent_id IS NULL THEN
         RETURN FALSE;
+    END IF;
+
+    -- Fast-path for versioned file uploads using <context>/<resourceId>/...
+    IF v_resource_token IS NOT NULL THEN
+        BEGIN
+            SELECT id INTO v_target_file_id
+            FROM public.resources
+            WHERE id = v_resource_token::UUID AND parent_id = v_parent_id AND resource_type = 'FILE';
+        EXCEPTION WHEN invalid_text_representation THEN
+            v_target_file_id := NULL;
+        END;
+
+        IF v_target_file_id IS NOT NULL THEN
+            RETURN public.can_edit(p_user_id, v_target_file_id) OR public.can_edit(p_user_id, v_parent_id);
+        END IF;
     END IF;
 
     IF v_path_depth > 2 THEN

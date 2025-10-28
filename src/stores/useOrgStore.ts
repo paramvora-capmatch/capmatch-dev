@@ -7,6 +7,7 @@ import {
   Invite,
   OrgMemberRole,
   ProjectGrant,
+  OrgGrant,
 } from "../types/enhanced-types";
 
 interface OrgState {
@@ -26,7 +27,8 @@ interface OrgActions {
   inviteMember: (
     email: string,
     role: OrgMemberRole,
-    projectGrants: ProjectGrant[]
+    projectGrants: ProjectGrant[],
+    orgGrants: OrgGrant | null
   ) => Promise<string>;
   cancelInvite: (inviteId: string) => Promise<void>;
   removeMember: (userId: string) => Promise<void>;
@@ -185,7 +187,8 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
   inviteMember: async (
     email: string,
     role: OrgMemberRole,
-    projectGrants: ProjectGrant[]
+    projectGrants: ProjectGrant[],
+    orgGrants: OrgGrant | null
   ) => {
     set({ isLoading: true, error: null });
 
@@ -202,6 +205,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
             invited_email: email,
             role,
             project_grants: projectGrants,
+            org_grants: orgGrants,
           },
         }
       );
@@ -329,31 +333,14 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
   validateInviteToken: async (inviteToken: string) => {
     try {
-      const { data: invite } = await supabase
-        .from("invites")
-        .select(
-          `
-          *,
-          orgs(name)
-        `
-        )
-        .eq("token", inviteToken)
-        .eq("status", "pending")
-        .single();
-
-      if (!invite) {
-        return { valid: false };
-      }
-
-      // Check if invite is expired
-      if (new Date(invite.expires_at) < new Date()) {
-        return { valid: false };
-      }
-
+      const { data, error } = await supabase.functions.invoke("validate-invite", {
+        body: { token: inviteToken },
+      });
+      if (error || !data) return { valid: false };
       return {
-        valid: true,
-        orgName: (invite.orgs as Org | undefined)?.name,
-        inviterName: "Team Owner", // Simplified for now
+        valid: !!data.valid,
+        orgName: data.orgName,
+        inviterName: data.inviterName,
       };
     } catch (error) {
       console.error("Error validating invite token:", error);
