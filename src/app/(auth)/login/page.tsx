@@ -56,25 +56,11 @@ const LoginForm = () => {
     }
 
     try {
-      // 1) Try to sign in
+      // Single call: store handles sign-in or onboarding fallback
       await signInWithPassword(email, password, loginSource);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn("Sign-in failed, attempting sign-up via onboarding:", message);
-      try {
-        // 2) If sign-in fails, attempt sign-up (onboard-borrower)
-        await signUp(email, password, loginSource);
-      } catch (signUpErr) {
-        const signUpMsg = signUpErr instanceof Error ? signUpErr.message : String(signUpErr);
-        // Edge case: email already registered via Google/OAuth
-        if (/already\s*(registered|exists)/i.test(signUpMsg)) {
-          setValidationError(
-            "This email is already registered. If you used Google, please sign in with Google; otherwise check your password."
-          );
-        } else {
-          setValidationError(signUpMsg || "Could not sign you in. Please try again.");
-        }
-      }
+      const msg = err instanceof Error ? err.message : String(err);
+      setValidationError(msg || "Could not sign you in. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

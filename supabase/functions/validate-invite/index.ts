@@ -24,7 +24,7 @@ serve(async (req) => {
     // Step 1: fetch invite by token
     const { data: invite, error } = await supabaseAdmin
       .from("invites")
-      .select("id, org_id, invited_by, status, expires_at")
+      .select("id, org_id, invited_by, invited_email, status, expires_at")
       .eq("token", token)
       .maybeSingle();
 
@@ -64,6 +64,8 @@ serve(async (req) => {
         valid: true,
         orgName: org?.name ?? undefined,
         inviterName: inviter?.full_name ?? undefined,
+        // Expose the invited email so the frontend can auto sign-in after onboarding
+        email: invite?.invited_email ?? undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
