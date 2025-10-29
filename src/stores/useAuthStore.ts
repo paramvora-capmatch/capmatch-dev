@@ -266,8 +266,71 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   `[AuthStore] ✅ User authenticated via ${event}: ${enhancedUser.email}`
                 );
               } else {
-                console.error("[AuthStore] Profile fetch failed:", error);
-                await supabase.auth.signOut();
+                console.warn("[AuthStore] Profile not found. Attempting onboarding for existing user (e.g., Google sign-in)");
+                try {
+                  const userEmail = authUser.email;
+                  const fullName = authUser.user_metadata?.name || profile?.full_name || "New User";
+                  if (!userEmail) {
+                    throw new Error("Authenticated user has no email");
+                  }
+                  const { error: onboardError } = await supabase.functions.invoke(
+                    "onboard-borrower",
+                    {
+                      body: {
+                        existing_user: true,
+                        user_id: authUser.id,
+                        email: userEmail,
+                        full_name: fullName,
+                      },
+                    }
+                  );
+                  if (onboardError) {
+                    console.error("[AuthStore] Onboarding existing user failed:", onboardError);
+                    await supabase.auth.signOut();
+                    return;
+                  }
+
+                  // Fetch profile again after onboarding
+                  const { data: profileAfter, error: profileAfterErr } = await supabase
+                    .from("profiles")
+                    .select("app_role, full_name")
+                    .eq("id", authUser.id)
+                    .single();
+
+                  if (profileAfter && !profileAfterErr) {
+                    const role = profileAfter.app_role as EnhancedUser["role"]; // Removed 'as any'
+                    const enhancedUser: EnhancedUser = {
+                      id: authUser.id,
+                      email: authUser.email!,
+                      role,
+                      loginSource: oauthLoginSource, // Used oauthLoginSource
+                      lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
+                      name: profileAfter.full_name || authUser.user_metadata.name,
+                      isDemo: false,
+                    };
+
+                    set({
+                      user: enhancedUser,
+                      isAuthenticated: true,
+                      loginSource: oauthLoginSource, // Used oauthLoginSource
+                      isDemo: false,
+                    });
+
+                    if (
+                      enhancedUser.role === "borrower" ||
+                      enhancedUser.role === "lender" ||
+                      enhancedUser.role === "advisor"
+                    ) {
+                      get().loadOrgMemberships();
+                    }
+                  } else {
+                    console.error("[AuthStore] Profile still missing after onboarding:", profileAfterErr);
+                    await supabase.auth.signOut();
+                  }
+                } catch (onboardException) {
+                  console.error("[AuthStore] Exception during existing user onboarding:", onboardException);
+                  await supabase.auth.signOut();
+                }
               }
             } else if (event === "SIGNED_OUT") {
               set({
