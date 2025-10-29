@@ -17,78 +17,16 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // 1. Get thread details, including project and owner entity
-    const { data: thread, error: threadError } = await supabaseAdmin
-      .from("chat_threads")
-      .select("project_id, projects!inner(owner_entity_id)")
-      .eq("id", thread_id)
-      .single();
-    if (threadError) throw new Error(`Failed to get thread project: ${threadError.message}`);
-
-    const { project_id, projects: { owner_entity_id } } = thread;
-
-    // 2. Get all participants in the thread
-    const { data: participants, error: participantsError } = await supabaseAdmin
-      .from("chat_thread_participants")
-      .select("user_id")
-      .eq("thread_id", thread_id);
-    if (participantsError) throw new Error(`Failed to get thread participants: ${participantsError.message}`);
-    if (!participants || participants.length === 0) {
-      return new Response(JSON.stringify({ documents: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
-    }
-
-    const participantIds = participants.map(p => p.user_id);
-
-    // 3. Identify which participants are owners
-    const { data: owners, error: ownersError } = await supabaseAdmin
-      .from("entity_members")
-      .select("user_id")
-      .eq("entity_id", owner_entity_id)
-      .eq("role", "owner")
-      .in("user_id", participantIds);
-    if (ownersError) throw new Error(`Failed to get entity owners: ${ownersError.message}`);
-
-    const ownerIds = new Set(owners.map(o => o.user_id));
-    const memberIds = participantIds.filter(id => !ownerIds.has(id));
-
-    // 4. Get all documents for the entire project (for owners)
-    const { data: allProjectDocs, error: allDocsError } = await supabaseAdmin
-      .from("document_permissions") // Assuming this table tracks all possible docs
-      .select("document_path")
-      .eq("project_id", project_id);
-    if (allDocsError) throw new Error(`Failed to get all project documents: ${allDocsError.message}`);
-    const allProjectDocPaths = new Set(allProjectDocs.map(d => d.document_path));
-
-
-    // 5. Build permission sets for each participant
-    const permissionSets = [];
-
-    for (const id of participantIds) {
-      if (ownerIds.has(id)) {
-        // Owners can access all documents
-        permissionSets.push(allProjectDocPaths);
-      } else {
-        // Members' permissions must be checked explicitly
-        const { data: memberPerms, error: memberPermsError } = await supabaseAdmin
-          .from("document_permissions")
-          .select("document_path")
-          .eq("project_id", project_id)
-          .eq("user_id", id);
-        if (memberPermsError) throw new Error(`Failed to get permissions for member ${id}: ${memberPermsError.message}`);
-        permissionSets.push(new Set(memberPerms.map(p => p.document_path)));
-      }
-    }
-
-    // 6. Compute the intersection of all permission sets
-    if (permissionSets.length === 0) {
-      return new Response(JSON.stringify({ documents: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
-    }
-
-    const commonDocuments = [...permissionSets[0]].filter(docPath => 
-      permissionSets.every(set => set.has(docPath))
+    const { data: documents, error: commonDocsError } = await supabaseAdmin.rpc(
+      "get_common_file_resources_for_thread",
+      { p_thread_id: thread_id }
     );
 
-    return new Response(JSON.stringify({ documents: commonDocuments }), {
+    if (commonDocsError) {
+      throw new Error(`Failed to retrieve common documents: ${commonDocsError.message}`);
+    }
+
+    return new Response(JSON.stringify({ documents: documents ?? [] }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
