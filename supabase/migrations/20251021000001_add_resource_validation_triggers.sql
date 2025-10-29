@@ -1,24 +1,38 @@
 -- =============================================================================
--- Migration: Disable RLS on Resources Table
+-- Migration: Add Resource Validation Triggers
 -- =============================================================================
 --
--- Complex hierarchical permission systems don't work well with RLS policies.
--- Instead, we implement authorization at the application/trigger level:
--- - The trigger validates permissions before any write
--- - The client-side code validates permissions before reads
--- - This is more maintainable and debuggable than trying to express complex
---   permission logic through RLS policies
+-- This migration adds triggers for INSERT, UPDATE, and DELETE operations on resources.
+-- These triggers provide an additional layer of authorization validation alongside RLS.
 --
 
--- Step 1: Keep existing RLS policies on resources (no-op)
+-- Step 1: Create the validate_resource_insert function if it doesn't exist
+CREATE OR REPLACE FUNCTION public.validate_resource_insert()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    v_user_id := auth.uid();
+    
+    -- If parent_id is null, this is a root resource - only allow for root types
+    IF NEW.parent_id IS NULL THEN
+        IF NEW.resource_type NOT IN ('BORROWER_RESUME', 'BORROWER_DOCS_ROOT', 'PROJECT_RESUME', 'PROJECT_DOCS_ROOT') THEN
+            RAISE EXCEPTION 'Only root resource types (BORROWER_RESUME, BORROWER_DOCS_ROOT, PROJECT_RESUME, PROJECT_DOCS_ROOT) can have null parent_id';
+        END IF;
+        RETURN NEW;
+    END IF;
 
--- Step 2: Do not disable RLS on resources; keep it enabled (no-op)
--- ALTER TABLE public.resources DISABLE ROW LEVEL SECURITY;
+    -- For non-root resources, check if user has 'edit' permission on the parent
+    IF NOT public.can_edit(v_user_id, NEW.parent_id) THEN
+        RAISE EXCEPTION 'User does not have edit permission on the parent resource';
+    END IF;
 
--- Step 3: The authorization trigger remains as the enforcement layer
--- This trigger validates all writes to resources
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Step 2: Create the validation triggers for resources
 DROP TRIGGER IF EXISTS validate_resource_insert_trigger ON public.resources;
-
 CREATE TRIGGER validate_resource_insert_trigger
 BEFORE INSERT ON public.resources
 FOR EACH ROW
@@ -76,10 +90,3 @@ CREATE TRIGGER validate_resource_delete_trigger
 BEFORE DELETE ON public.resources
 FOR EACH ROW
 EXECUTE FUNCTION public.validate_resource_delete();
-
--- Step 6: Keep RLS enabled on related tables (no-op)
--- ALTER TABLE public.permissions DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.project_access_grants DISABLE ROW LEVEL SECURITY;
-
--- Step 7: Keep other tables' RLS intact for security
--- (profiles, orgs, org_members, projects, etc. continue to use RLS)

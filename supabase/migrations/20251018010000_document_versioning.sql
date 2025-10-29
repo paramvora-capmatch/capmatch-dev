@@ -5,14 +5,7 @@
 -- This migration introduces tables and functions to support versioning
 -- of documents uploaded to the system.
 
--- Step 0: Temporarily disable RLS on all tables to allow migration operations
-ALTER TABLE public.resources DISABLE ROW LEVEL SECURITY;
-
-ALTER TABLE public.permissions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.orgs DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.org_members DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.projects DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
+-- Step 0: noise (RLS remains enabled - disable was temporary for migration but is now handled by later migrations)
 
 -- Step 1: Create the document_versions table to store each snapshot.
 CREATE TABLE public.document_versions (

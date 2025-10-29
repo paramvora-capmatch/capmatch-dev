@@ -1,20 +1,17 @@
 -- =============================================================================
--- Migration: Disable RLS INSERT on Resources - Use Trigger for Validation
+-- Migration: Set Final RLS Policies for Resources Table
 -- =============================================================================
 --
--- The RLS policy evaluation happens BEFORE the trigger fires, which creates
--- a catch-22. The solution is to:
--- 1. Remove ALL policies from resources table
--- 2. Re-enable RLS
--- 3. Create a single permissive INSERT policy that delegates to the trigger
--- 4. Keep restrictive policies for SELECT, UPDATE, DELETE
-
--- Step 1: Drop ALL existing policies on resources
+-- This migration sets the final RLS policies for the resources table.
+-- Validation of permissions happens via triggers defined in 20251021000001.
+--
+-- Step 1: Ensure RLS is enabled and set final policies
 DROP POLICY IF EXISTS "Authenticated users can insert resources" ON public.resources;
 DROP POLICY IF EXISTS "Users can create resources in folders they can edit" ON public.resources;
 DROP POLICY IF EXISTS "Users can view resources they have access to" ON public.resources;
 DROP POLICY IF EXISTS "Users can update resources they can edit" ON public.resources;
 DROP POLICY IF EXISTS "Users can delete resources they can edit (with safeguards)" ON public.resources;
+DROP POLICY IF EXISTS "Allow inserts for authenticated users - validation via trigger" ON public.resources;
 
 -- Step 2: Ensure RLS is enabled
 ALTER TABLE public.resources ENABLE ROW LEVEL SECURITY;
@@ -44,11 +41,5 @@ FOR DELETE USING (
     resource_type NOT IN ('BORROWER_RESUME', 'PROJECT_RESUME', 'BORROWER_DOCS_ROOT', 'PROJECT_DOCS_ROOT')
 );
 
--- Step 7: Verify the trigger still exists (it should from the previous migration)
--- If it doesn't, recreate it here:
-DROP TRIGGER IF EXISTS validate_resource_insert_trigger ON public.resources;
-
-CREATE TRIGGER validate_resource_insert_trigger
-BEFORE INSERT ON public.resources
-FOR EACH ROW
-EXECUTE FUNCTION public.validate_resource_insert();
+-- Step 7: Note - The validate_resource_insert trigger is created in migration 20251021000001
+-- No need to recreate it here as migration 20251021000001 runs before this one

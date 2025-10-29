@@ -1,6 +1,10 @@
 -- =============================================================================
--- Converted to NO-OP: Keep RLS enabled and remove dev-permissive storage policies
+-- Migration: Ensure RLS Enabled on All Tables
 -- =============================================================================
+--
+-- This migration ensures that Row Level Security is enabled on all tables.
+-- It also removes any dev-permissive storage policies.
+--
 
 -- Step 1: Ensure RLS is enabled on all public tables (idempotent)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -26,7 +30,7 @@ DROP POLICY IF EXISTS "Dev: Allow all bucket operations for authenticated users"
 
 -- Step 3: Preserve resource authorization triggers and functions (no drops here)
 
--- Step 4: Clarifying comments
-COMMENT ON TABLE public.profiles IS 'RLS ENABLED - This migration is now a no-op to keep RLS in pre-prod.';
-COMMENT ON TABLE public.resources IS 'RLS ENABLED - This migration is now a no-op to keep RLS in pre-prod.';
-COMMENT ON TABLE public.permissions IS 'RLS ENABLED - This migration is now a no-op to keep RLS in pre-prod.';
+-- Step 4: Add clarifying comments
+COMMENT ON TABLE public.profiles IS 'RLS ENABLED';
+COMMENT ON TABLE public.resources IS 'RLS ENABLED';
+COMMENT ON TABLE public.permissions IS 'RLS ENABLED';
