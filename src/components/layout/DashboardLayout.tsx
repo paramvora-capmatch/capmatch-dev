@@ -25,7 +25,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, currentOrgRole } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -96,7 +96,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <p className="text-sm font-medium text-gray-700 truncate">
                   {user.email}
                 </p>
-                <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                <p className="text-xs text-gray-500 capitalize">
+                  {user.role}
+                  {currentOrgRole && ` - ${currentOrgRole.charAt(0).toUpperCase() + currentOrgRole.slice(1)}`}
+                </p>
               </div>
             </div>
           )}

@@ -9,6 +9,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { InviteMemberModal } from "@/components/team/InviteMemberModal";
+import { EditMemberPermissionsModal } from "@/components/team/EditMemberPermissionsModal";
 import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
 import {
   Users,
@@ -19,12 +20,13 @@ import {
   User,
   MoreVertical,
   Trash2,
+  Edit,
 } from "lucide-react";
 import { OrgMemberRole } from "@/types/enhanced-types";
-import { ProjectGrant, OrgGrant } from "@/types/enhanced-types";
+import { ProjectGrant, OrgGrant, OrgMember } from "@/types/enhanced-types";
 
 export default function TeamPage() {
-  const { user, activeOrg } = useAuth();
+  const { user, activeOrg, currentOrgRole } = useAuth();
   const {
     members,
     pendingInvites,
@@ -35,11 +37,18 @@ export default function TeamPage() {
     inviteMember,
     cancelInvite,
     removeMember,
+    updateMemberPermissions,
     clearError,
   } = useOrgStore();
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showMemberMenu, setShowMemberMenu] = useState<string | null>(null);
+  const [showEditPermissionsModal, setShowEditPermissionsModal] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<OrgMember | null>(null);
+
+  // Get current user's member information
+  const currentUserMember = members.find((m) => m.user_id === user?.id);
+  const isMember = currentOrgRole === "member";
 
   useEffect(() => {
     if (activeOrg) {
@@ -91,6 +100,29 @@ export default function TeamPage() {
     }
   };
 
+  const handleEditPermissions = (member: OrgMember) => {
+    setSelectedMember(member);
+    setShowMemberMenu(null);
+    setShowEditPermissionsModal(true);
+  };
+
+  const handleUpdatePermissions = async (
+    userId: string,
+    projectGrants: ProjectGrant[],
+    orgGrants: OrgGrant | null
+  ): Promise<void> => {
+    try {
+      await updateMemberPermissions(userId, projectGrants, orgGrants);
+      // Reload org data to show the updated permissions
+      if (activeOrg) {
+        loadOrg(activeOrg.id);
+      }
+    } catch (error) {
+      console.error("Failed to update member permissions:", error);
+      throw error;
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -121,7 +153,7 @@ export default function TeamPage() {
 
   return (
     <RoleBasedRoute roles={["borrower"]}>
-      <DashboardLayout title="Team Management">
+      <DashboardLayout title={isMember ? "Your Team" : "Team Management"}>
         <LoadingOverlay isLoading={isLoading} />
 
         {error && (
@@ -135,25 +167,85 @@ export default function TeamPage() {
           </div>
         )}
 
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Team Management
-              </h1>
-              <p className="text-gray-600">{activeOrg.name}</p>
-            </div>
-            {isOwner && (
-              <Button
-                variant="primary"
-                leftIcon={<UserPlus size={18} />}
-                onClick={() => setShowInviteModal(true)}
-              >
-                Invite Member
-              </Button>
-            )}
+        {isMember ? (
+          // Member View - Show their own profile information
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <Card className="w-full max-w-2xl">
+              <CardHeader>
+                <h2 className="text-xl font-bold text-gray-900 text-center">
+                  Your Team Information
+                </h2>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {/* User Profile Section */}
+                  <div className="flex items-start space-x-4 p-6 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full flex-shrink-0">
+                      <User className="h-8 w-8 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        {currentUserMember?.userName || user?.name || "Unknown User"}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {currentUserMember?.userEmail || user?.email}
+                      </p>
+                      <span className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800">
+                        {currentUserMember?.role || currentOrgRole}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Organization Section */}
+                  <div className="p-6 border border-gray-200 rounded-lg">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <Users className="h-5 w-5 text-gray-600" />
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Organization
+                      </h3>
+                    </div>
+                    <p className="text-base text-gray-900 font-medium mb-2">
+                      {activeOrg.name}
+                    </p>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span>
+                        Joined on {currentUserMember ? formatDate(currentUserMember.created_at) : "Unknown"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Info Note */}
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      You are a member of this organization. If you need to manage team settings or invite new members, please contact an organization owner.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
+        ) : (
+          // Owner View - Show team management interface
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Team Management
+                </h1>
+                <p className="text-gray-600">{activeOrg.name}</p>
+              </div>
+              {isOwner && (
+                <Button
+                  variant="primary"
+                  leftIcon={<UserPlus size={18} />}
+                  onClick={() => setShowInviteModal(true)}
+                >
+                  Invite Member
+                </Button>
+              )}
+            </div>
 
           {/* Active Members */}
           <Card>
@@ -222,6 +314,15 @@ export default function TeamPage() {
                           {showMemberMenu === member.user_id && (
                             <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                               <div className="py-1">
+                                {member.role === 'member' && (
+                                  <button
+                                    className="flex items-center w-full px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+                                    onClick={() => handleEditPermissions(member)}
+                                  >
+                                    <Edit size={16} className="mr-2" />
+                                    Edit Permissions
+                                  </button>
+                                )}
                                 <button
                                   className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                                   onClick={() =>
@@ -319,7 +420,8 @@ export default function TeamPage() {
               </CardContent>
             </Card>
           )}
-        </div>
+          </div>
+        )}
 
         {/* Modals */}
         {showInviteModal && (
@@ -327,6 +429,19 @@ export default function TeamPage() {
             isOpen={showInviteModal}
             onClose={() => setShowInviteModal(false)}
             onInvite={handleInviteMember}
+          />
+        )}
+
+        {showEditPermissionsModal && selectedMember && activeOrg && (
+          <EditMemberPermissionsModal
+            isOpen={showEditPermissionsModal}
+            onClose={() => {
+              setShowEditPermissionsModal(false);
+              setSelectedMember(null);
+            }}
+            member={selectedMember}
+            orgId={activeOrg.id}
+            onUpdate={handleUpdatePermissions}
           />
         )}
       </DashboardLayout>
