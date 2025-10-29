@@ -12,7 +12,7 @@ DROP POLICY IF EXISTS "Users can create resources in folders they can edit" ON p
 -- Step 2: Create a simpler INSERT policy that allows inserts from authenticated users
 -- The actual permission check will be done by a trigger
 CREATE POLICY "Authenticated users can insert resources" ON public.resources
-FOR INSERT TO authenticated
+FOR INSERT TO public
 WITH CHECK (true);
 
 -- Step 3: Create a trigger function to validate permissions on resource creation
@@ -53,7 +53,10 @@ EXECUTE FUNCTION public.validate_resource_insert();
 -- Step 6: Update the SELECT policy to use the hierarchical permissions
 DROP POLICY IF EXISTS "Users can view resources they have access to" ON public.resources;
 CREATE POLICY "Users can view resources they have access to" ON public.resources
-FOR SELECT USING (public.can_view(auth.uid(), id));
+FOR SELECT USING (
+    public.can_view(auth.uid(), id)
+    OR public.can_edit(auth.uid(), parent_id)
+);
 
 -- Step 7: Update the UPDATE policy
 DROP POLICY IF EXISTS "Users can update resources they can edit" ON public.resources;

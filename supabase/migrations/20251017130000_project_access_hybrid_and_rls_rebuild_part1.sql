@@ -163,3 +163,23 @@ CREATE POLICY "Owners can delete projects" ON public.projects
 FOR DELETE USING (
     public.is_org_owner(owner_org_id, auth.uid())
 );
+
+-- Org Members RLS (added)
+ALTER TABLE public.org_members ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own org membership" ON public.org_members;
+DROP POLICY IF EXISTS "Owners can view org membership" ON public.org_members;
+DROP POLICY IF EXISTS "Owners can manage org membership" ON public.org_members;
+CREATE POLICY "Users can view their own org membership" ON public.org_members
+FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Owners can view org membership" ON public.org_members
+FOR SELECT USING (public.is_org_owner(org_id, auth.uid()));
+CREATE POLICY "Owners can manage org membership" ON public.org_members
+FOR ALL USING (public.is_org_owner(org_id, auth.uid()))
+WITH CHECK (public.is_org_owner(org_id, auth.uid()));
+
+-- Invites RLS (added)
+ALTER TABLE public.invites ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Owners can manage invites" ON public.invites;
+CREATE POLICY "Owners can manage invites" ON public.invites
+FOR ALL USING (public.is_org_owner(org_id, auth.uid()))
+WITH CHECK (public.is_org_owner(org_id, auth.uid()));

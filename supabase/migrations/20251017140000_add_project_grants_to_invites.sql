@@ -30,6 +30,8 @@
 -- =============================================================================
 
 ALTER TABLE public.invites
-ADD COLUMN project_grants JSONB;
+ADD COLUMN project_grants JSONB,
+ADD COLUMN org_grants JSONB;
 
 COMMENT ON COLUMN public.invites.project_grants IS 'Stores an array of projects and permissions to be granted upon invite acceptance.';
+COMMENT ON COLUMN public.invites.org_grants IS 'Stores org-level permissions (BORROWER_RESUME, BORROWER_DOCS_ROOT) and optional exclusions upon invite acceptance.';

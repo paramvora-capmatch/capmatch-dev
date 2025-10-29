@@ -8,7 +8,7 @@ serve(async (req) => {
   }
 
   try {
-    const { org_id, invited_email, role, project_grants } = await req.json();
+    const { org_id, invited_email, role, project_grants, org_grants } = await req.json();
     if (!org_id || !invited_email || !role) {
       throw new Error("org_id, invited_email, and role are required");
     }
@@ -16,6 +16,12 @@ serve(async (req) => {
     // Validate project_grants structure
     if (project_grants && !Array.isArray(project_grants)) {
         throw new Error("project_grants must be an array.");
+    }
+    // Validate org_grants structure
+    if (org_grants) {
+      if (!org_grants.permissions || !Array.isArray(org_grants.permissions)) {
+        throw new Error("org_grants.permissions must be an array");
+      }
     }
     if (project_grants) {
         for (const grant of project_grants) {
@@ -74,6 +80,7 @@ serve(async (req) => {
         invited_email,
         role,
         project_grants: project_grants || null, // Ensure it's null if undefined
+        org_grants: org_grants || null,
       })
       .select()
       .single();

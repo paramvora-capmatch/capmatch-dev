@@ -22,12 +22,15 @@ ALTER TABLE public.resources ENABLE ROW LEVEL SECURITY;
 -- Step 3: Create a VERY PERMISSIVE INSERT policy
 -- This bypasses RLS for INSERT - the real validation happens in the trigger
 CREATE POLICY "Allow inserts for authenticated users - validation via trigger" ON public.resources
-FOR INSERT TO authenticated
+FOR INSERT TO public
 WITH CHECK (true);
 
 -- Step 4: Keep SELECT restricted to resources the user can view
 CREATE POLICY "Users can view resources they have access to" ON public.resources
-FOR SELECT USING (public.can_view(auth.uid(), id));
+FOR SELECT USING (
+  public.can_view(auth.uid(), id)
+  OR public.can_edit(auth.uid(), parent_id)
+);
 
 -- Step 5: Keep UPDATE restricted
 CREATE POLICY "Users can update resources they can edit" ON public.resources

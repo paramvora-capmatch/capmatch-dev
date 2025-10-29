@@ -195,15 +195,7 @@ export async function createProjectWithResumeAndStorage(
     }
   }
 
-  // Step 9: Apply bucket-specific storage policies for this org
-  console.log("[project-utils] Step 9: Applying storage policies for org bucket");
-  const { error: policyError } = await supabaseAdmin.rpc('apply_bucket_storage_policies', {
-    p_bucket_id: owner_org_id,
-  });
-  if (policyError) {
-    console.warn(`[project-utils] Warning: Storage policy application failed: ${JSON.stringify(policyError)}`);
-    // Don't fail the whole operation for this, as it may already exist
-  }
+  // Step 9: Storage policies are global now; skip per-bucket RPC
   console.log(`[project-utils] Project creation completed successfully: ${project.id}`);
   return project;
 }
