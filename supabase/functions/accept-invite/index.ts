@@ -219,22 +219,27 @@ serve(async (req: any) => {
           }
         }
 
-        // 3) Ensure the user is a participant in existing chat threads for this project (e.g., General)
+        // 3) Ensure the user is a participant in the General chat thread for this project
         if (grant.projectId) {
-          const { data: threads, error: threadsError } = await supabase
+          const { data: generalThread, error: threadsError } = await supabase
             .from('chat_threads')
             .select('id')
-            .eq('project_id', grant.projectId);
+            .eq('project_id', grant.projectId)
+            .eq('topic', 'General')
+            .maybeSingle();
           if (threadsError) {
-            console.error(`[accept-invite] Failed to fetch chat threads for project ${grant.projectId}: ${threadsError.message}`);
-          } else if (threads && threads.length > 0) {
-            const participantRows = threads.map((t: any) => ({ thread_id: t.id, user_id: userId }));
+            console.error(`[accept-invite] Failed to fetch General chat thread for project ${grant.projectId}: ${threadsError.message}`);
+          } else if (generalThread) {
             const { error: addPartErr } = await supabase
               .from('chat_thread_participants')
-              .upsert(participantRows, { onConflict: 'thread_id,user_id' });
+              .upsert({ thread_id: generalThread.id, user_id: userId }, { onConflict: 'thread_id,user_id' });
             if (addPartErr) {
-              console.error(`[accept-invite] Failed to add user to chat threads for project ${grant.projectId}: ${addPartErr.message}`);
+              console.error(`[accept-invite] Failed to add user to General chat thread for project ${grant.projectId}: ${addPartErr.message}`);
+            } else {
+              console.log(`[accept-invite] Successfully added user ${userId} to General chat thread for project ${grant.projectId}`);
             }
+          } else {
+            console.warn(`[accept-invite] No General chat thread found for project ${grant.projectId} - user will not be added to any chat thread`);
           }
         }
       }

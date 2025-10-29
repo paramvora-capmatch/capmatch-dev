@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useRouter } from "next/navigation";
 import { useChatStore } from "../../stores/useChatStore";
 import {
   useDocumentManagement,
@@ -26,6 +27,7 @@ import {
   AlertCircle,
   MoreVertical,
   FileText,
+  UserPlus,
 } from "lucide-react";
 
 interface ChatInterfaceProps {
@@ -41,6 +43,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   projectId,
   onMentionClick,
 }) => {
+  const router = useRouter();
   const {
     threads,
     activeThreadId,
@@ -61,6 +64,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
   >(null);
+  
+  // State to track which members have access to this project
+  const [projectMemberIds, setProjectMemberIds] = useState<Set<string>>(new Set());
 
   const [newMessage, setNewMessage] = useState("");
   const [newThreadTopic, setNewThreadTopic] = useState("");
@@ -78,9 +84,53 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return canManage;
   }, [isOwner, currentOrg, activeProject]);
 
+  // Filter members to only show those with access to this project
+  // This state is now handled below with useState
+
+  useEffect(() => {
+    const fetchProjectMembers = async () => {
+      if (!projectId) {
+        setProjectMemberIds(new Set());
+        return;
+      }
+
+      try {
+        // Get all users who have been granted access to this project
+        const { data: grants, error } = await supabase
+          .from('project_access_grants')
+          .select('user_id')
+          .eq('project_id', projectId);
+
+        if (error) {
+          console.error('[ChatInterface] Failed to fetch project members:', error);
+          setProjectMemberIds(new Set());
+          return;
+        }
+
+        // Add the advisor if assigned
+        const userIds = new Set(grants?.map(g => g.user_id) || []);
+        if (activeProject?.assignedAdvisorUserId) {
+          userIds.add(activeProject.assignedAdvisorUserId);
+        }
+
+        setProjectMemberIds(userIds);
+      } catch (err) {
+        console.error('[ChatInterface] Error fetching project members:', err);
+        setProjectMemberIds(new Set());
+      }
+    };
+
+    fetchProjectMembers();
+  }, [projectId, activeProject?.assignedAdvisorUserId]);
+
   const memberOptions = useMemo(() => members
-    .filter((m) => m.user_id !== user?.id) // Exclude self
-    .map((m) => ({ value: m.user_id, label: m.userName || m.userEmail || "" })), [members, user]);
+    .filter((m) => {
+      // Exclude self
+      if (m.user_id === user?.id) return false;
+      // Only include members who have access to this project
+      return projectMemberIds.has(m.user_id);
+    })
+    .map((m) => ({ value: m.user_id, label: m.userName || m.userEmail || "" })), [members, user, projectMemberIds]);
 
   const [showCreateThread, setShowCreateThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -301,23 +351,43 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   if (e.key === "Enter") handleCreateThread();
                 }}
               />
-              <MultiSelect
-                options={memberOptions.map((m) => m.label)}
-                value={selectedParticipants.map(
-                  (id) => memberOptions.find((m) => m.value === id)?.label || ""
-                )}
-                onChange={(selectedLabels) => {
-                  const selectedIds = selectedLabels
-                    .map(
-                      (label) =>
-                        memberOptions.find((m) => m.label === label)?.value
-                    )
-                    .filter(Boolean) as string[];
-                  setSelectedParticipants(selectedIds);
-                }}
-                placeholder="Select members to add..."
-                label="Add Members"
-              />
+              {memberOptions.length === 0 ? (
+                <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+                  <div className="flex flex-col items-center justify-center text-center space-y-2">
+                    <UserPlus className="h-5 w-5 text-gray-400" />
+                    <p className="text-sm text-gray-600">Invite members</p>
+                    <p className="text-xs text-gray-500">
+                      Add members to your project to invite them to channels
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.push("/team")}
+                      className="mt-2"
+                    >
+                      Go to Team Page
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <MultiSelect
+                  options={memberOptions.map((m) => m.label)}
+                  value={selectedParticipants.map(
+                    (id) => memberOptions.find((m) => m.value === id)?.label || ""
+                  )}
+                  onChange={(selectedLabels) => {
+                    const selectedIds = selectedLabels
+                      .map(
+                        (label) =>
+                          memberOptions.find((m) => m.label === label)?.value
+                      )
+                      .filter(Boolean) as string[];
+                    setSelectedParticipants(selectedIds);
+                  }}
+                  placeholder="Select members to add..."
+                  label="Add Members"
+                />
+              )}
               <div className="flex space-x-2">
                 <Button
                   size="sm"

@@ -2,13 +2,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/Modal';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { useOrgStore } from '@/stores/useOrgStore';
 import { useProjects } from '@/hooks/useProjects';
 import { useChatStore } from '@/stores/useChatStore';
-import { Loader2, User, X, Plus, Trash2 } from 'lucide-react';
+import { Loader2, User, X, Plus, Trash2, UserPlus } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 
 interface ChatThread {
@@ -37,11 +38,13 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
   isOpen,
   onClose,
 }) => {
+  const router = useRouter();
   const { members, isOwner } = useOrgStore();
   const { activeProject } = useProjects();
   const { participants, loadParticipants, addParticipant, removeParticipant, isLoading } = useChatStore();
   const [selectedMembersToAdd, setSelectedMembersToAdd] = useState<string[]>([]);
   const [enrichedParticipants, setEnrichedParticipants] = useState<EnrichedParticipant[]>([]);
+  const [projectMemberIds, setProjectMemberIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadAndEnrichParticipants = async () => {
@@ -119,8 +122,46 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
     loadAndEnrichParticipants();
   }, [isOpen, thread, loadParticipants, participants, members, activeProject]);
 
+  // Fetch project members when modal opens
+  useEffect(() => {
+    const fetchProjectMembers = async () => {
+      if (!activeProject?.id) {
+        setProjectMemberIds(new Set());
+        return;
+      }
+
+      try {
+        const { data: grants, error } = await supabase
+          .from('project_access_grants')
+          .select('user_id')
+          .eq('project_id', activeProject.id);
+
+        if (error) {
+          console.error('[ManageChannelMembersModal] Failed to fetch project members:', error);
+          setProjectMemberIds(new Set());
+          return;
+        }
+
+        // Add the advisor if assigned
+        const userIds = new Set(grants?.map(g => g.user_id) || []);
+        if (activeProject?.assignedAdvisorUserId) {
+          userIds.add(activeProject.assignedAdvisorUserId);
+        }
+
+        setProjectMemberIds(userIds);
+      } catch (err) {
+        console.error('[ManageChannelMembersModal] Error fetching project members:', err);
+        setProjectMemberIds(new Set());
+      }
+    };
+
+    if (isOpen) {
+      fetchProjectMembers();
+    }
+  }, [isOpen, activeProject]);
+
   const availableMembers = members.filter(
-    (m) => !participants.some((p) => p.user_id === m.user_id)
+    (m) => !participants.some((p) => p.user_id === m.user_id) && projectMemberIds.has(m.user_id)
   );
 
   const handleAdd = async () => {
@@ -142,24 +183,47 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
           {/* Add Members Section */}
           <div>
             <h4 className="font-medium text-gray-800 mb-2">Add Members</h4>
-            <div className="flex items-center space-x-2">
-              <div className="flex-grow">
-                <MultiSelect
-                  options={availableMembers.map(m => m.userName || m.userEmail || '')}
-                  value={selectedMembersToAdd.map(id => members.find(m => m.user_id === id)?.userName || '')}
-                  onChange={(selectedLabels) => {
-                    const selectedIds = selectedLabels
-                      .map(label => members.find(m => m.userName === label)?.user_id)
-                      .filter(Boolean) as string[];
-                    setSelectedMembersToAdd(selectedIds);
-                  }}
-                  placeholder="Select members..."
-                />
+            {availableMembers.length === 0 ? (
+              <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+                <div className="flex flex-col items-center justify-center text-center space-y-2">
+                  <UserPlus className="h-5 w-5 text-gray-400" />
+                  <p className="text-sm text-gray-600">Invite members</p>
+                  <p className="text-xs text-gray-500">
+                    Add members to your project to invite them to channels
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      router.push("/team");
+                      onClose();
+                    }}
+                    className="mt-2"
+                  >
+                    Go to Team Page
+                  </Button>
+                </div>
               </div>
-              <Button onClick={handleAdd} disabled={isLoading || selectedMembersToAdd.length === 0}>
-                <Plus size={16} /> Add
-              </Button>
-            </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <div className="flex-grow">
+                  <MultiSelect
+                    options={availableMembers.map(m => m.userName || m.userEmail || '')}
+                    value={selectedMembersToAdd.map(id => members.find(m => m.user_id === id)?.userName || '')}
+                    onChange={(selectedLabels) => {
+                      const selectedIds = selectedLabels
+                        .map(label => members.find(m => m.userName === label)?.user_id)
+                        .filter(Boolean) as string[];
+                      setSelectedMembersToAdd(selectedIds);
+                    }}
+                    placeholder="Select members..."
+                  />
+                </div>
+                <Button onClick={handleAdd} disabled={isLoading || selectedMembersToAdd.length === 0}>
+                  <Plus size={16} /> Add
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Current Members Section */}
