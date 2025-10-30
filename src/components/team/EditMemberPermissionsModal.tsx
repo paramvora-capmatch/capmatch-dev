@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select } from '@/components/ui/Select';
+import { PillToggle, TriPermission } from '@/components/ui/PillToggle';
 import { Permission, OrgGrant, ProjectGrant, OrgMember } from '@/types/enhanced-types';
 import { useProjects } from '@/hooks/useProjects';
 import { X, ChevronDown, ChevronUp, Briefcase, Save } from 'lucide-react';
@@ -286,6 +287,39 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
     }));
   };
 
+  const getProjectLevel = (projectId: string): TriPermission => {
+    const grant = projectGrants.find(g => g.projectId === projectId);
+    if (!grant) return 'none';
+    const resume = grant.permissions.find(p => p.resource_type === 'PROJECT_RESUME')?.permission;
+    const docs = grant.permissions.find(p => p.resource_type === 'PROJECT_DOCS_ROOT')?.permission;
+    if (resume === 'edit' && docs === 'edit') return 'edit';
+    return 'view';
+  };
+
+  const setProjectLevel = (projectId: string, level: TriPermission) => {
+    if (level === 'none') {
+      setProjectGrants(prev => prev.filter(g => g.projectId !== projectId));
+      return;
+    }
+    setProjectGrants(prev => {
+      const existing = prev.find(g => g.projectId === projectId);
+      const nextPerm: Permission = level === 'edit' ? 'edit' : 'view';
+      const base: ProjectGrant = existing || { projectId, permissions: [], fileOverrides: [] } as ProjectGrant;
+      const others = base.permissions.filter(p => p.resource_type !== 'PROJECT_RESUME' && p.resource_type !== 'PROJECT_DOCS_ROOT');
+      const updated: ProjectGrant = {
+        ...base,
+        permissions: [
+          ...others,
+          { resource_type: 'PROJECT_RESUME', permission: nextPerm },
+          { resource_type: 'PROJECT_DOCS_ROOT', permission: nextPerm },
+        ],
+        fileOverrides: [],
+      };
+      ensureProjectDocsLoaded(projectId);
+      return existing ? prev.map(g => (g.projectId === projectId ? updated : g)) : [...prev, updated];
+    });
+  };
+
   const handleClose = () => {
     setError(null);
     setProjectGrants([]);
@@ -299,11 +333,11 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <Card className="border-0 shadow-none">
           <CardHeader className="flex flex-row items-center justify-between">
-            <h3 className="flex items-center text-lg font-semibold">
+            <h3 className="flex items-center text-xl font-semibold">
               <Save className="h-5 w-5 mr-2" />
               Edit Permissions for {member.userName || member.userEmail}
             </h3>
@@ -329,11 +363,11 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
 
                 {/* Member Info */}
                 <div className="bg-gray-50 p-3 rounded-md">
-                  <p className="text-sm text-gray-700">
+                  <p className="text-base text-gray-700">
                     <strong>Member:</strong> {member.userName || 'Unknown'}
                   </p>
-                  <p className="text-sm text-gray-500">{member.userEmail}</p>
-                  <p className="text-xs text-gray-500 mt-1 capitalize">
+                  <p className="text-base text-gray-500">{member.userEmail}</p>
+                  <p className="text-sm text-gray-500 mt-1 capitalize">
                     <strong>Role:</strong> {member.role}
                   </p>
                 </div>
@@ -341,43 +375,33 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
                 {/* Org-level Access */}
                 {member.role === 'member' && (
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-base font-medium text-gray-700 mb-1">
                       Organization Access
                     </label>
                     <div className="space-y-2 border border-gray-200 rounded-md p-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-800">Borrower Resume</span>
-                        <Select
-                          value={orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_RESUME')?.permission || ''}
-                          onChange={e => toggleOrgPermission('BORROWER_RESUME', (e.target.value as Permission) || null)}
-                          options={[
-                            { value: '', label: 'None' },
-                            { value: 'view', label: 'View' },
-                            { value: 'edit', label: 'Edit' },
-                          ]}
-                          className="w-28"
+                        <span className="text-base text-gray-800">Borrower Resume</span>
+                        <PillToggle
+                          value={(orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_RESUME')?.permission as TriPermission) || 'view'}
+                          onChange={(val) => toggleOrgPermission('BORROWER_RESUME', val === 'none' ? null : (val as Permission))}
+                          size="sm"
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-800">Borrower Documents</span>
-                        <Select
-                          value={orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT')?.permission || ''}
-                          onChange={e => {
-                            const val = e.target.value as Permission | '';
-                            toggleOrgPermission('BORROWER_DOCS_ROOT', val ? (val as Permission) : null);
-                            if (val) loadOrgDocsIfNeeded();
+                        <span className="text-base text-gray-800">Borrower Documents</span>
+                        <PillToggle
+                          value={(orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT')?.permission as TriPermission) || 'view'}
+                          onChange={(val) => {
+                            const perm = val === 'none' ? null : (val as Permission);
+                            toggleOrgPermission('BORROWER_DOCS_ROOT', perm);
+                            if (perm) loadOrgDocsIfNeeded();
                           }}
-                          options={[
-                            { value: '', label: 'None' },
-                            { value: 'view', label: 'View' },
-                            { value: 'edit', label: 'Edit' },
-                          ]}
-                          className="w-28"
+                          size="sm"
                         />
                       </div>
                       {orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT') && orgDocs.length>0 && (
                         <div className="mt-2 border-t pt-2 space-y-1">
-                          <div className="text-xs text-gray-500">Set per-document permissions</div>
+                          <div className="text-sm text-gray-500">Set per-document permissions</div>
                           {orgDocs.map(doc => {
                             const rootPerm = orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT')?.permission;
                             const current = orgGrants?.fileOverrides?.find(o=>o.resource_id===doc.id)?.permission || rootPerm || 'view';
@@ -389,7 +413,7 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
                               >{label}</button>
                             );
                             return (
-                              <div key={doc.id} className="flex items-center justify-between text-sm py-1">
+                              <div key={doc.id} className="flex items-center justify-between text-base py-1">
                                 <span className="text-gray-700 truncate pr-2">{doc.name}</span>
                                 <div className="flex items-center gap-2">
                                   <Pill label="None" val="none" color="bg-red-600" />
@@ -408,7 +432,7 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
                 {/* Project Access Selection */}
                 {member.role === 'member' && (
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-base font-medium text-gray-700 mb-1">
                       Project Access
                     </label>
                     <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto">
@@ -425,53 +449,47 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
                           return (
                             <div key={project.id} className="border-b last:border-b-0">
                               <div className="flex items-center justify-between p-3">
-                                <div className="flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    id={`project-${project.id}`}
-                                    checked={hasAccess}
-                                    onChange={() => toggleProjectAccess(project.id)}
-                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                <div className="flex items-center gap-3">
+                                  <span className="text-base text-gray-800">{project.projectName}</span>
+                                  <PillToggle
+                                    value={getProjectLevel(project.id)}
+                                    onChange={(val) => setProjectLevel(project.id, val)}
+                                    size="sm"
                                   />
-                                  <label htmlFor={`project-${project.id}`} className="ml-3 text-sm text-gray-800">
-                                    {project.projectName}
-                                  </label>
                                 </div>
-                                {hasAccess && (
+                                {getProjectLevel(project.id) !== 'none' && (
                                   <Button variant="outline" size="sm" onClick={() => toggleExpandProject(project.id)}>
                                     {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                   </Button>
                                 )}
                               </div>
-                              {hasAccess && isExpanded && grant && (
+                              {getProjectLevel(project.id) !== 'none' && isExpanded && grant && (
                                 <div className="bg-gray-50 p-3 pl-10 space-y-3">
                                   <div className="space-y-2">
                                     <div className="flex items-center justify-between">
-                                      <span className="text-sm text-gray-600">Project Resume</span>
-                                      <Select
-                                        value={grant.permissions.find(p=>p.resource_type==='PROJECT_RESUME')?.permission || ''}
-                                        onChange={e => setProjectResumePermission(project.id, (e.target.value as Permission) || null)}
-                                        options={[{value:'',label:'None'},{value:'view',label:'View'},{value:'edit',label:'Edit'}]}
-                                        className="w-28"
+                                      <span className="text-base text-gray-600">Project Resume</span>
+                                      <PillToggle
+                                        value={(grant.permissions.find(p=>p.resource_type==='PROJECT_RESUME')?.permission as TriPermission) || 'view'}
+                                        onChange={(val) => setProjectResumePermission(project.id, val === 'none' ? null : (val as Permission))}
+                                        size="sm"
                                       />
                                     </div>
                                     <div className="flex items-center justify-between">
-                                      <span className="text-sm text-gray-600">Project Documents</span>
-                                      <Select
-                                        value={grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT')?.permission || ''}
-                                        onChange={e => {
-                                          const val = e.target.value as Permission | '';
-                                          setProjectDocsPermission(project.id, val ? (val as Permission) : null);
-                                          if (val) ensureProjectDocsLoaded(project.id);
+                                      <span className="text-base text-gray-600">Project Documents</span>
+                                      <PillToggle
+                                        value={(grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT')?.permission as TriPermission) || 'view'}
+                                        onChange={(val) => {
+                                          const perm = val === 'none' ? null : (val as Permission);
+                                          setProjectDocsPermission(project.id, perm);
+                                          if (perm) ensureProjectDocsLoaded(project.id);
                                         }}
-                                        options={[{value:'',label:'None'},{value:'view',label:'View'},{value:'edit',label:'Edit'}]}
-                                        className="w-28"
+                                        size="sm"
                                       />
                                     </div>
                                   </div>
                                   {grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT') && (projectDocsMap[project.id]?.length || 0) > 0 && (
                                     <div className="border-t pt-2 space-y-1">
-                                      <div className="text-xs text-gray-500">Set per-document permissions</div>
+                                      <div className="text-sm text-gray-500">Set per-document permissions</div>
                                       {(projectDocsMap[project.id] || []).map(doc => {
                                         const rootPerm = grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT')?.permission;
                                         const current = grant.fileOverrides?.find(o=>o.resource_id===doc.id)?.permission || rootPerm || 'view';
@@ -483,7 +501,7 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
                                           >{label}</button>
                                         );
                                         return (
-                                          <div key={doc.id} className="flex items-center justify-between text-sm py-1">
+                                          <div key={doc.id} className="flex items-center justify-between text-base py-1">
                                             <span className="text-gray-700 truncate pr-2">{doc.name}</span>
                                             <div className="flex items-center gap-2">
                                               <Pill label="None" val="none" color="bg-red-600" />
