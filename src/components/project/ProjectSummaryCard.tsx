@@ -1,26 +1,26 @@
-// src/components/project/ProfileSummaryCard.tsx
+// src/components/project/ProjectSummaryCard.tsx
 import React from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '../ui/card';
-import { Button } from '../ui/Button';
-import { Loader2, User } from 'lucide-react';
-import { BorrowerResumeContent } from '@/lib/project-queries';
+import { Loader2 } from 'lucide-react';
+import { ProjectProfile } from '@/types/enhanced-types';
 
-interface ProfileSummaryCardProps {
-  profile: BorrowerResumeContent | null;
+interface ProjectSummaryCardProps {
+  project: ProjectProfile | null;
   isLoading: boolean;
+  onEdit?: () => void;
 }
 
-export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile, isLoading }) => {
-  const router = useRouter();
-
-  const completeness = profile?.completenessPercent || 0;
+export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
+  project,
+  isLoading,
+  onEdit
+}) => {
+  const completeness = project?.completenessPercent || 0;
   const progressColor = completeness === 100 ? 'bg-green-600' : 'bg-blue-600';
   const progressBgColor = completeness === 100 ? 'bg-emerald-50' : 'bg-blue-50';
 
-
   const handleCardClick = () => {
-    router.push('/dashboard/borrower-resume');
+    onEdit?.();
   };
 
   return (
@@ -35,13 +35,16 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
         {isLoading ? (
           <div className="h-12 flex items-center justify-center text-gray-500">
             <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-            <span className="ml-3">Loading profile...</span>
+            <span className="ml-3">Loading project...</span>
           </div>
-        ) : profile ? (
+        ) : project ? (
             <>
                 <div className="w-full">
                     <div className="flex justify-between items-center mb-2 text-sm">
-                        <span className="font-medium text-gray-700">Completion Progress</span>
+                        <span className="font-medium text-gray-700 flex items-center animate-pulse">
+                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
+                          Complete your project details to unlock the Offering Memorandum
+                        </span>
                         <span className={`font-semibold transition-colors duration-300 ${completeness === 100 ? 'text-emerald-600' : 'text-blue-600'}`}>
                             {completeness}%
                         </span>
@@ -53,11 +56,11 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
                             style={{ width: `${completeness}%` }}
                         >
                             {/* Shimmer effect */}
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
-                                 style={{ 
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"
+                                 style={{
                                    backgroundSize: '200% 100%',
                                    animation: 'shimmer 2s infinite'
-                                 }} 
+                                 }}
                             />
                         </div>
                         {/* Subtle glow effect for incomplete progress */}
@@ -65,21 +68,11 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
                           <div className={`absolute inset-0 ${progressBgColor} rounded-full animate-pulse opacity-20`} />
                         )}
                     </div>
-                    
-                    {/* Additional context for incomplete profiles */}
-                    {completeness < 100 && (
-                      <div className="mt-2 text-xs text-gray-600">
-                        <p className="flex items-center animate-pulse">
-                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
-                          Complete your profile to improve lender matching and project success.
-                        </p>
-                      </div>
-                    )}
                 </div>
             </>
         ) : (
           <div className="text-center py-4 text-gray-500">
-            No profile found. Please create one to get started.
+            No project found.
           </div>
         )}
       </CardContent>

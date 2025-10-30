@@ -183,7 +183,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
           onClick={goNext}
           // Add validation logic if needed: disabled={!isStepValid}
         >
-          {isLastStep ? 'Complete' : 'Next'}
+          {isLastStep ? 'Complete' : 'Save and Next'}
         </Button>
       </div>
     </div>
