@@ -43,7 +43,8 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
       // If not authorized after the check, redirect.
       // This also handles the case where a user's session expires.
       setIsAuthorized(false);
-      console.error("Unauthorized access to route, redirecting.");
+      // Downgrade to debug to avoid flashing errors in Next.js console during intended redirects
+      console.debug("[RoleBasedRoute] Unauthorized access, redirecting to:", redirectTo);
       router.push(redirectTo);
     }
 

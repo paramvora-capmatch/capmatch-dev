@@ -32,6 +32,11 @@ interface OrgActions {
   ) => Promise<string>;
   cancelInvite: (inviteId: string) => Promise<void>;
   removeMember: (userId: string) => Promise<void>;
+  updateMemberPermissions: (
+    userId: string,
+    projectGrants: ProjectGrant[],
+    orgGrants: OrgGrant | null
+  ) => Promise<void>;
 
   // Role management (Note: Roles are immutable in new schema - must remove and re-invite)
 
@@ -43,7 +48,12 @@ interface OrgActions {
   }) => Promise<void>;
   validateInviteToken: (
     inviteToken: string
-  ) => Promise<{ valid: boolean; orgName?: string; inviterName?: string }>;
+  ) => Promise<{
+    valid: boolean;
+    orgName?: string;
+    inviterName?: string;
+    email?: string;
+  }>;
 
   // Utility methods
   refreshMembers: () => Promise<void>;
@@ -291,6 +301,46 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
     }
   },
 
+  updateMemberPermissions: async (
+    userId: string,
+    projectGrants: ProjectGrant[],
+    orgGrants: OrgGrant | null
+  ) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      const { currentOrg } = get();
+      if (!currentOrg) throw new Error("No active org");
+
+      // Use the update-member-permissions edge function
+      const { error: invokeError } = await supabase.functions.invoke(
+        "update-member-permissions",
+        {
+          body: {
+            org_id: currentOrg.id,
+            user_id: userId,
+            project_grants: projectGrants,
+            org_grants: orgGrants,
+          },
+        }
+      );
+
+      if (invokeError) throw invokeError;
+
+      // Refresh members list after successful update
+      await get().refreshMembers();
+      set({ isLoading: false });
+    } catch (error) {
+      console.error("Error updating member permissions:", error);
+      set({
+        error:
+          error instanceof Error ? error.message : "Failed to update permissions",
+        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
   acceptInvite: async (params: {
     token: string;
     password: string;
@@ -341,6 +391,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
         valid: !!data.valid,
         orgName: data.orgName,
         inviterName: data.inviterName,
+        email: (data as { email?: string }).email,
       };
     } catch (error) {
       console.error("Error validating invite token:", error);

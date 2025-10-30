@@ -143,12 +143,90 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             );
             console.log("[AuthStore] 🔍 Debug - User object:", enhancedUser);
           } else {
-            console.error(
-              "[AuthStore] ❌ Error fetching profile:",
-              profileError
+            console.warn(
+              "[AuthStore] Profile not found during initial session. Attempting onboarding for existing user."
             );
-            await supabase.auth.signOut();
-            set({ isLoading: false });
+
+            try {
+              const userEmail = authUser.email;
+              const fullName = authUser.user_metadata?.name || "New User";
+              if (!userEmail) {
+                throw new Error("Authenticated user has no email");
+              }
+
+              const { error: onboardError } = await supabase.functions.invoke(
+                "onboard-borrower",
+                {
+                  body: {
+                    existing_user: true,
+                    user_id: authUser.id,
+                    email: userEmail,
+                    full_name: fullName,
+                  },
+                }
+              );
+
+              if (onboardError) {
+                console.error(
+                  "[AuthStore] Onboarding existing user during initial session failed:",
+                  onboardError
+                );
+                await supabase.auth.signOut();
+                set({ isLoading: false });
+                return;
+              }
+
+              // Fetch profile again after onboarding
+              const { data: profileAfter, error: profileAfterErr } = await supabase
+                .from("profiles")
+                .select("app_role, full_name")
+                .eq("id", authUser.id)
+                .single();
+
+              if (profileAfter && !profileAfterErr) {
+                const role = profileAfter.app_role as EnhancedUser["role"]; // Removed 'as any'
+                const loginSource = authUser.user_metadata.loginSource || "direct";
+                const enhancedUser: EnhancedUser = {
+                  id: authUser.id,
+                  email: authUser.email!,
+                  role,
+                  loginSource,
+                  lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
+                  name: profileAfter.full_name || authUser.user_metadata.name,
+                  isDemo: false,
+                };
+
+                set({
+                  user: enhancedUser,
+                  isAuthenticated: true,
+                  loginSource,
+                  isDemo: false,
+                  isLoading: false,
+                });
+
+                if (
+                  enhancedUser.role === "borrower" ||
+                  enhancedUser.role === "lender" ||
+                  enhancedUser.role === "advisor"
+                ) {
+                  get().loadOrgMemberships();
+                }
+              } else {
+                console.error(
+                  "[AuthStore] Profile still missing after onboarding during initial session:",
+                  profileAfterErr
+                );
+                await supabase.auth.signOut();
+                set({ isLoading: false });
+              }
+            } catch (e) {
+              console.error(
+                "[AuthStore] Exception during onboarding for initial session:",
+                e
+              );
+              await supabase.auth.signOut();
+              set({ isLoading: false });
+            }
           }
         } else {
           console.log("[AuthStore] ℹ️ No existing session found.");
@@ -266,8 +344,71 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   `[AuthStore] ✅ User authenticated via ${event}: ${enhancedUser.email}`
                 );
               } else {
-                console.error("[AuthStore] Profile fetch failed:", error);
-                await supabase.auth.signOut();
+                console.warn("[AuthStore] Profile not found. Attempting onboarding for existing user (e.g., Google sign-in)");
+                try {
+                  const userEmail = authUser.email;
+                  const fullName = authUser.user_metadata?.name || "New User";
+                  if (!userEmail) {
+                    throw new Error("Authenticated user has no email");
+                  }
+                  const { error: onboardError } = await supabase.functions.invoke(
+                    "onboard-borrower",
+                    {
+                      body: {
+                        existing_user: true,
+                        user_id: authUser.id,
+                        email: userEmail,
+                        full_name: fullName,
+                      },
+                    }
+                  );
+                  if (onboardError) {
+                    console.error("[AuthStore] Onboarding existing user failed:", onboardError);
+                    await supabase.auth.signOut();
+                    return;
+                  }
+
+                  // Fetch profile again after onboarding
+                  const { data: profileAfter, error: profileAfterErr } = await supabase
+                    .from("profiles")
+                    .select("app_role, full_name")
+                    .eq("id", authUser.id)
+                    .single();
+
+                  if (profileAfter && !profileAfterErr) {
+                    const role = profileAfter.app_role as EnhancedUser["role"]; // Removed 'as any'
+                    const enhancedUser: EnhancedUser = {
+                      id: authUser.id,
+                      email: authUser.email!,
+                      role,
+                      loginSource: oauthLoginSource, // Used oauthLoginSource
+                      lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
+                      name: profileAfter.full_name || authUser.user_metadata.name,
+                      isDemo: false,
+                    };
+
+                    set({
+                      user: enhancedUser,
+                      isAuthenticated: true,
+                      loginSource: oauthLoginSource, // Used oauthLoginSource
+                      isDemo: false,
+                    });
+
+                    if (
+                      enhancedUser.role === "borrower" ||
+                      enhancedUser.role === "lender" ||
+                      enhancedUser.role === "advisor"
+                    ) {
+                      get().loadOrgMemberships();
+                    }
+                  } else {
+                    console.error("[AuthStore] Profile still missing after onboarding:", profileAfterErr);
+                    await supabase.auth.signOut();
+                  }
+                } catch (onboardException) {
+                  console.error("[AuthStore] Exception during existing user onboarding:", onboardException);
+                  await supabase.auth.signOut();
+                }
               }
             } else if (event === "SIGNED_OUT") {
               set({
@@ -390,8 +531,54 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           email,
           password,
         });
-        if (error) throw error;
-        // Auth listener will handle state update
+
+        if (error) {
+          // If credentials are invalid, attempt onboarding as a new user.
+          // If the email already exists (e.g., different auth method), onboarding will fail and we surface invalid credentials.
+          const message = (error as any)?.message || String(error);
+          console.warn("[Auth] Sign-in failed, attempting onboarding fallback:", message);
+          try {
+            const { data: onboardData, error: onboardError } = await supabase.functions.invoke(
+              "onboard-borrower",
+              {
+                body: {
+                  email,
+                  password,
+                  full_name: "New User",
+                },
+              }
+            );
+
+            if (onboardError) {
+              const oeMsg = typeof onboardError === "object" && onboardError !== null && "message" in onboardError
+                ? (onboardError as any).message
+                : String(onboardError);
+              // If user already exists, treat as invalid credentials for this flow
+              if (/already\s*(registered|exists)/i.test(oeMsg)) {
+                throw new Error("Invalid email or password.");
+              }
+              throw new Error(oeMsg);
+            }
+
+            if (!onboardData?.user) {
+              throw new Error("Onboarding did not return user data");
+            }
+
+            // After onboarding, sign the user in
+            const { error: postOnboardSignInError } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            if (postOnboardSignInError) {
+              throw postOnboardSignInError;
+            }
+            // Auth listener will handle state update
+          } catch (fallbackErr) {
+            console.error("[Auth] Fallback onboarding flow failed:", fallbackErr);
+            throw fallbackErr;
+          }
+        }
+        // If no error, auth listener will handle state update
       }
     } catch (error) {
       console.error("[Auth] ❌ Sign in failed:", error);

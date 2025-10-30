@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgStore } from '@/stores/useOrgStore';
 import { Button } from '@/components/ui/Button';
@@ -20,7 +20,7 @@ import {
 export default function AcceptInvitePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, signInWithPassword } = useAuth();
   const { validateInviteToken, acceptInvite } = useOrgStore();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +31,7 @@ export default function AcceptInvitePage() {
     valid: boolean;
     orgName?: string;
     inviterName?: string;
+    email?: string;
   } | null>(null);
 
   // Account creation form state
@@ -117,7 +118,15 @@ export default function AcceptInvitePage() {
         password,
         full_name: fullName.trim(),
       });
-      router.push("/dashboard");
+
+      // NEW: Automatically sign in the new user
+      if (inviteData?.email) {
+        await signInWithPassword(inviteData.email, password);
+        // After successful sign-in, redirect to the dashboard.
+        router.push("/dashboard");
+      } else {
+        router.push("/login"); // Fallback to login page if email is missing
+      }
     } catch (error) {
       console.error(
         "[AcceptInvite] Error creating account and accepting invite:",

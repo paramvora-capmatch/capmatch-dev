@@ -15,7 +15,7 @@ serve(async (req) => {
 
   try {
     console.log("[onboard-borrower] Starting user onboarding process");
-    const { email, password, full_name } = await req.json();
+    const { email, password, full_name, existing_user, user_id } = await req.json();
     console.log(
       `[onboard-borrower] Parsed request data: email=${email}, full_name=${full_name}`
     );
@@ -40,44 +40,59 @@ serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Step 1: Create the user in Supabase Auth
-    console.log("[onboard-borrower] Step 1: Creating user in Supabase Auth");
-    const { data: authData, error: authError } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: email,
-        password: password,
-        email_confirm: true,
-        user_metadata: { full_name: full_name },
-      });
+    // Step 1: Create or reuse the user in Supabase Auth
+    if (existing_user) {
+      console.log("[onboard-borrower] Step 1: Using existing auth user for onboarding");
+      if (!user_id || !email) {
+        throw new Error("existing_user requires user_id and email");
+      }
+      // Fetch the user to validate existence
+      const { data: existingUserData, error: existingUserError } = await supabaseAdmin.auth.admin.getUserById(user_id);
+      if (existingUserError || !existingUserData?.user) {
+        throw new Error(`Existing user lookup failed: ${existingUserError?.message || "User not found"}`);
+      }
+      newUser = existingUserData.user;
+      console.log(`[onboard-borrower] Using existing user: ${newUser.id}`);
+    } else {
+      console.log("[onboard-borrower] Step 1: Creating user in Supabase Auth");
+      const { data: authData, error: authError } =
+        await supabaseAdmin.auth.admin.createUser({
+          email: email,
+          password: password,
+          email_confirm: true,
+          user_metadata: { full_name: full_name },
+        });
 
-    if (authError) {
-      console.error(
-        `[onboard-borrower] Auth Error: ${JSON.stringify(authError)}`
-      );
-      throw new Error(`Auth Error: ${authError.message}`);
+      if (authError) {
+        console.error(
+          `[onboard-borrower] Auth Error: ${JSON.stringify(authError)}`
+        );
+        throw new Error(`Auth Error: ${authError.message}`);
+      }
+      if (!authData.user) {
+        console.error(
+          "[onboard-borrower] User not created, but no error was thrown"
+        );
+        throw new Error("User not created, but no error was thrown.");
+      }
+      newUser = authData.user;
+      console.log(`[onboard-borrower] User created successfully: ${newUser.id}`);
     }
-    if (!authData.user) {
-      console.error(
-        "[onboard-borrower] User not created, but no error was thrown"
-      );
-      throw new Error("User not created, but no error was thrown.");
-    }
-    newUser = authData.user;
-    console.log(`[onboard-borrower] User created successfully: ${newUser.id}`);
 
     const app_role = email.endsWith("@advisor.com") ? "advisor" : "borrower";
     console.log(`[onboard-borrower] Determined app_role: ${app_role}`);
 
     // Step 2: Create the user's profile
     console.log("[onboard-borrower] Step 2: Creating user profile");
+    // Upsert profile for idempotency (covers existing_user flows)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .insert({
+      .upsert({
         id: newUser.id,
         full_name: full_name,
         email: email,
         app_role: app_role,
-      });
+      }, { onConflict: "id" });
     if (profileError) {
       console.error(
         `[onboard-borrower] Profile Error: ${JSON.stringify(profileError)}`

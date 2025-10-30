@@ -14,7 +14,6 @@ import { Sparkles, Mail, Lock, Chrome } from "lucide-react";
 import { LoadingOverlay } from "../../../components/ui/LoadingOverlay";
 
 const LoginForm = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -57,18 +56,11 @@ const LoginForm = () => {
     }
 
     try {
-      if (isSignUp) {
-        await signUp(email, password, loginSource);
-      } else {
-        await signInWithPassword(email, password, loginSource);
-      }
+      // Single call: store handles sign-in or onboarding fallback
+      await signInWithPassword(email, password, loginSource);
     } catch (err) {
-      console.error("Login Error:", err);
-      setValidationError(
-        err instanceof Error
-          ? err.message
-          : "An error occurred. Please try again."
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      setValidationError(msg || "Could not sign you in. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -83,11 +75,7 @@ const LoginForm = () => {
             Welcome to CapMatch
           </h2>
         </div>
-        <p className="text-gray-600">
-          {isSignUp
-            ? "Create an account to get started."
-            : "Sign in to access your dashboard."}
-        </p>
+        <p className="text-gray-600">Sign in or create your account in one step.</p>
       </div>
       <div>
         <Form onSubmit={handleLogin} className="space-y-6">
@@ -127,62 +115,7 @@ const LoginForm = () => {
             Continue with Email
           </Button>
 
-          {/* Quick Login Buttons */}
-          <div className="space-y-3 pt-2">
-            <p className="text-center text-xs text-gray-500">
-              Or use a test account (password: password123):
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="text-xs"
-                onClick={() => {
-                  setEmail("owner@test.com");
-                  setPassword("password123");
-                }}
-                disabled={authLoading}
-              >
-                Test Owner
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="text-xs"
-                onClick={() => {
-                  setEmail("member@test.com");
-                  setPassword("password123");
-                }}
-                disabled={authLoading}
-              >
-                Test Member
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="text-xs"
-                onClick={() => {
-                  setEmail("advisor@test.com");
-                  setPassword("password123");
-                }}
-                disabled={authLoading}
-              >
-                Test Advisor
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="text-xs"
-                onClick={() => {
-                  setEmail("borrower1@example.com");
-                  setPassword("password123");
-                }}
-                disabled={authLoading}
-              >
-                Demo Borrower
-              </Button>
-            </div>
-          </div>
+          {/* Removed test account quick login buttons */}
 
           <div className="relative my-4">
             <div
@@ -208,16 +141,7 @@ const LoginForm = () => {
             Sign in with Google
           </Button>
 
-          <p className="text-center text-sm text-gray-600">
-            {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              {isSignUp ? "Sign In" : "Sign Up"}
-            </button>
-          </p>
+          {/* Unified flow: remove sign-in/sign-up toggle */}
 
           <p className="text-center text-xs text-gray-500 pt-2">
             By continuing, you agree to our Terms of Service and Privacy Policy.

@@ -56,7 +56,7 @@ BEGIN
   UPDATE public.profiles
   SET active_org_id = v_org_id
   WHERE id = v_user_id;
-  RAISE NOTICE '✅ Active org set'
+  RAISE NOTICE '✅ Active org set';
 
   -- Summary
   RAISE NOTICE '';
