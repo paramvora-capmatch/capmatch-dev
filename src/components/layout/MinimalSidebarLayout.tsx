@@ -13,11 +13,13 @@ import { LoadingOverlay } from "../ui/LoadingOverlay"; // Import LoadingOverlay
 interface MinimalSidebarLayoutProps {
   children: ReactNode;
   title: string; // Add title prop
+  breadcrumb?: ReactNode; // New optional prop for breadcrumbs
 }
 
 const MinimalSidebarLayout: React.FC<MinimalSidebarLayoutProps> = ({
   children,
   title,
+  breadcrumb, // Add to props
 }) => {
   const { user, logout } = useAuth(); // Get logout function
 
@@ -68,55 +70,38 @@ const MinimalSidebarLayout: React.FC<MinimalSidebarLayoutProps> = ({
           {/* Navigation Links */}
           <nav className="mt-6 px-2 lg:px-4">
             <ul className="space-y-2">
-              <li>
-                <Link
-                  href="/dashboard"
-                  className="flex items-center justify-center lg:justify-start p-3 lg:py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-blue-50 hover:text-blue-700 group"
-                >
-                  <LayoutDashboard className="h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-blue-600" />
-                  <span className="hidden lg:inline ml-3">Dashboard</span>
-                </Link>
-              </li>
-              <li>
-                {/* Placeholder for Refer a Friend */}
-                <button
-                  onClick={() => alert("Referral feature coming soon!")}
-                  className="w-full flex items-center justify-center lg:justify-start p-3 lg:py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-blue-50 hover:text-blue-700 group"
-                >
-                  <Gift className="h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-blue-600" />
-                  <span className="hidden lg:inline ml-3">Refer a Friend</span>
-                </button>
-              </li>
+              {/* No nav items here, dashboard removed */}
             </ul>
           </nav>
         </div>
         {/* Bottom Section (User/Logout) */}
         <div className="p-2 lg:p-4 border-t border-gray-200">
-          {/* User Info - simplified */}
+          {/* User Info + Sign Out Icon */}
           <div className="mb-4 hidden lg:flex items-center">
             <div className="bg-blue-600 h-8 w-8 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
               {user?.email?.charAt(0).toUpperCase() || "?"}
             </div>
-            <div className="ml-3 truncate">
-              <p className="text-sm font-medium text-gray-700 truncate">
+            <div className="ml-3 flex items-center truncate">
+              <p className="text-sm font-medium text-gray-700 truncate mr-2">
                 {user?.email}
               </p>
+              <button
+                onClick={handleLogout}
+                className="ml-1 p-1 rounded hover:bg-red-50 text-gray-500 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+                title="Sign out"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
             </div>
           </div>
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center lg:justify-start p-3 lg:py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-red-50 hover:text-red-700 group"
-          >
-            <LogOut className="h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-red-600" />
-            <span className="hidden lg:inline ml-3">Sign Out</span>
-          </button>
         </div>
       </div>
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-sm">
           <div className="py-4 px-6">
+            {/* Breadcrumb above header title, if provided */}
+            {breadcrumb}
             <h1 className="text-2xl font-semibold text-gray-800">{title}</h1>
           </div>
         </header>
