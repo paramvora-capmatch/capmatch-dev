@@ -15,6 +15,7 @@ import {
   PlusCircle,
   FileText,
   Sparkles,
+  User,
 } from "lucide-react"; // Added Sparkles
 
 export default function DashboardPage() {
@@ -80,12 +81,29 @@ export default function DashboardPage() {
 
         {/* Enhanced Main Content */}
         <div className="space-y-8">
-          {/* Enhanced Profile Summary */}
-          <div className="relative">
-            <ProfileSummaryCard
-              profile={borrowerResume}
-              isLoading={profileLoading}
-            />
+          {/* Borrower Resume Section */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-bold text-gray-800">Borrower Resume</h2>
+                <p className="text-gray-600">Complete your profile to improve lender matching and project success.</p>
+              </div>
+              <Button
+                variant="primary"
+                leftIcon={<User size={18} />}
+                onClick={() => router.push("/dashboard/borrower-resume")}
+                className="shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center"
+              >
+                View Profile
+              </Button>
+            </div>
+
+            <div className="relative">
+              <ProfileSummaryCard
+                profile={borrowerResume}
+                isLoading={profileLoading}
+              />
+            </div>
           </div>
 
           {/* Enhanced Projects Section */}
@@ -104,7 +122,7 @@ export default function DashboardPage() {
                 variant="primary"
                 leftIcon={<PlusCircle size={18} />}
                 onClick={handleCreateNewProject}
-                className="shadow-sm hover:shadow-md transition-all duration-200 px-6"
+                className="shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center"
               >
                 Create New Project
               </Button>

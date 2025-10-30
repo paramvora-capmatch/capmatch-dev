@@ -1151,7 +1151,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
       <FormWizard
         steps={steps}
         onComplete={handleFormSubmit} // Trigger save on final step if needed
-        showProgressBar={true}
+        showProgressBar={false}
         showStepIndicators={true}
         allowSkip={true} // Allow skipping optional steps
       />

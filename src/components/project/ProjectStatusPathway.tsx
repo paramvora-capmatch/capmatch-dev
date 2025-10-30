@@ -84,7 +84,7 @@ export const ProjectStatusPathway: React.FC<ProjectStatusPathwayProps> = ({
   const handleStepClick = (stepId: string) => {
     switch (stepId) {
       case 'profile':
-        router.push('/profile');
+        router.push('/dashboard/borrower-resume');
         break;
       case 'project':
         router.push(`/project/edit/${projectId}`);
@@ -105,9 +105,9 @@ export const ProjectStatusPathway: React.FC<ProjectStatusPathwayProps> = ({
   const getNextAction = () => {
     if (!borrowerProfileComplete) {
       return {
-        label: 'Complete Profile',
+        label: 'Complete Borrower Resume',
         icon: <UserCheck size={16} />,
-        action: () => router.push('/profile'),
+        action: () => router.push('/dashboard/borrower-resume'),
       };
     }
     

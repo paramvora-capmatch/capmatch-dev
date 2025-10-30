@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import MinimalSidebarLayout from '../../../components/layout/MinimalSidebarLayout';
+import DashboardLayout from '../../../components/layout/DashboardLayout';
 import { RoleBasedRoute } from '../../../components/auth/RoleBasedRoute';
 import { useProjects } from '../../../hooks/useProjects';
 import { Loader2, Plus, ArrowLeft } from 'lucide-react';
@@ -52,19 +52,19 @@ export default function CreateProjectPage() {
   if (isLoading) {
     return (
       <RoleBasedRoute roles={['borrower']}>
-        <MinimalSidebarLayout title="Creating New Project...">
+        <DashboardLayout title="Creating New Project...">
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <span className="ml-3 text-gray-600">Preparing your new project...</span>
           </div>
-        </MinimalSidebarLayout>
+        </DashboardLayout>
       </RoleBasedRoute>
     );
   }
 
   return (
     <RoleBasedRoute roles={['borrower']}>
-      <MinimalSidebarLayout title="Create New Project">
+      <DashboardLayout title="Create New Project">
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardHeader>
@@ -139,7 +139,7 @@ export default function CreateProjectPage() {
             </CardContent>
           </Card>
         </div>
-      </MinimalSidebarLayout>
+      </DashboardLayout>
     </RoleBasedRoute>
   );
 }

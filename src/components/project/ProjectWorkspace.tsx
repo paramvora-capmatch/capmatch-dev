@@ -3,12 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
-import { useBorrowerResume } from "../../hooks/useBorrowerResume";
 
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
+import { ProjectSummaryCard } from "./ProjectSummaryCard"; // New component for project progress
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
 import { Loader2, FileSpreadsheet, MessageSquare, Folder } from "lucide-react";
-import { Users as AccessControlIcon } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { Button } from "../ui/Button"; // Import Button
@@ -16,8 +15,6 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { AskAIProvider } from "../ui/AskAIProvider";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { DocumentManager } from "../documents/DocumentManager";
-import { ProfileSummaryCard } from "./ProfileSummaryCard";
-import { AccessControlTab } from "./AccessControlTab";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { cn } from "@/utils/cn";
 
@@ -36,7 +33,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     isLoading: projectsLoading,
     getProject,
   } = useProjects();
-  const { content: borrowerResume, isLoading: profileLoading } = useBorrowerResume();
   const { loadOrg, isOwner } = useOrgStore();
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.isLoading);
@@ -55,15 +51,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     null
   );
 
-  const [activeTab, setActiveTab] = useState<"chat" | "documents" | "access">(
+  const [activeTab, setActiveTab] = useState<"chat" | "documents">(
     "chat"
   );
 
   // Calculate if we're still in initial loading phase
   const isInitialLoading =
     authLoading ||
-    projectsLoading ||
-    (user?.role === "borrower" && profileLoading);
+    projectsLoading;
 
   // Load org data when we have a project
   useEffect(() => {
@@ -147,10 +142,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      <ProfileSummaryCard
-        profile={borrowerResume}
-        isLoading={profileLoading}
-      />
+      {/* Project Progress Card */}
+      <div className="relative">
+        <ProjectSummaryCard
+          project={activeProject}
+          isLoading={projectsLoading}
+          onEdit={() => setIsEditing(true)}
+        />
+      </div>
 
       {/* Section for OM Link - Only show if project is complete */}
       {isProjectComplete && (
@@ -189,7 +188,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       >
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Left Column: Project Resume (View or Edit) */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 h-[90vh] overflow-y-auto">
             {isEditing ? (
               <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
                 <EnhancedProjectForm
@@ -208,7 +207,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           </div>
 
           {/* Right Column: Documents */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 h-[90vh] overflow-y-auto">
             <Card className="h-full flex flex-col">
               <CardHeader className="p-0 border-b">
                 <div className="flex">
@@ -236,20 +235,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     <Folder size={16} />
                     <span>Documents</span>
                   </button>
-                  {isOwner && (
-                    <button
-                      onClick={() => setActiveTab("access")}
-                      className={cn(
-                        "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
-                        activeTab === "access"
-                          ? "border-b-2 border-blue-600 text-blue-600"
-                          : "text-gray-500 hover:bg-gray-50"
-                      )}
-                    >
-                      <AccessControlIcon size={16} />
-                      <span>Access Control</span>
-                    </button>
-                  )}
                 </div>
               </CardHeader>
               <CardContent className="flex-1 p-0 overflow-hidden">
@@ -269,8 +254,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       highlightedResourceId={highlightedResourceId}
                     />
                   </div>
-                ) : activeTab === "access" && isOwner ? (
-                  <AccessControlTab projectId={projectId} />
                 ) : null}
               </CardContent>
             </Card>

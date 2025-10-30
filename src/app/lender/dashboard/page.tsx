@@ -7,7 +7,7 @@ import { RoleBasedRoute } from "../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../hooks/useAuth";
 import { Button } from "../../../components/ui/Button";
 import { LogOut, Construction } from "lucide-react";
-import MinimalSidebarLayout from "@/components/layout/MinimalSidebarLayout";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function LenderDashboardPage() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function LenderDashboardPage() {
 
   return (
     <RoleBasedRoute roles={["lender"]}>
-      <MinimalSidebarLayout title="Lender Dashboard">
+      <DashboardLayout title="Lender Dashboard">
         <div className="text-center p-8 bg-white rounded-lg shadow-md border border-gray-200">
           <Construction className="h-16 w-16 mx-auto text-amber-500 mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">
@@ -44,7 +44,7 @@ export default function LenderDashboardPage() {
             </Button>
           </div>
         </div>
-      </MinimalSidebarLayout>
+      </DashboardLayout>
     </RoleBasedRoute>
   );
 }
