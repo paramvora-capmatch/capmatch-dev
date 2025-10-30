@@ -1,31 +1,27 @@
 // src/components/chat/ChatInterface.tsx
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useChatStore } from "../../stores/useChatStore";
-import {
-  useDocumentManagement,
-  DocumentFile,
-} from "@/hooks/useDocumentManagement";
+import { useChatStore, AttachableDocument } from "../../stores/useChatStore";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useProjects } from "../../hooks/useProjects";
 import { supabase } from "../../../lib/supabaseClient";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/Button";
-import { Input } from "../ui/Input";
-import { MultiSelect } from "../ui/MultiSelect";
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
+import { Modal } from "../ui/Modal";
+import { CreateChannelModal } from "./CreateChannelModal";
 import {
   MessageCircle,
   Send,
-  Users,
   Plus,
   Loader2,
   AlertCircle,
   MoreVertical,
   FileText,
+  X,
 } from "lucide-react";
 
 interface ChatInterfaceProps {
@@ -35,6 +31,32 @@ interface ChatInterfaceProps {
 
 import { ManageChannelMembersModal } from "./ManageChannelMembersModal";
 import { ChatThread } from "@/types/enhanced-types";
+
+
+interface BlockedDocInfo {
+  resourceId: string;
+  missingUserIds: string[];
+}
+
+interface BlockedState {
+  threadId: string;
+  message: string;
+  docs: BlockedDocInfo[];
+}
+
+const mentionLookupRegex = /@\[([^\]]+)\]\(doc:([^)]+)\)/g;
+
+function extractMentionNames(content: string): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!content) return map;
+
+  const regex = new RegExp(mentionLookupRegex.source, 'g');
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    map.set(match[2], match[1]);
+  }
+  return map;
+}
 
 
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -53,6 +75,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setActiveThread,
     sendMessage,
     clearError,
+    attachableDocuments,
+    loadAttachableDocuments,
+    isLoadingAttachable,
   } = useChatStore();
 
   const { user } = useAuthStore();
@@ -61,14 +86,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
   >(null);
+  
+  // State to track which members have access to this project
+  const [projectMemberIds, setProjectMemberIds] = useState<Set<string>>(new Set());
 
   const [newMessage, setNewMessage] = useState("");
-  const [newThreadTopic, setNewThreadTopic] = useState("");
   const { isOwner, members, currentOrg } = useOrgStore();
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
-    []
-  );
   const [managingThread, setManagingThread] = useState<ChatThread | null>(null);
+  const [showCreateThreadModal, setShowCreateThreadModal] = useState(false);
+
+  const baseParticipantIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (user?.id) ids.add(user.id);
+    if (activeProject?.assignedAdvisorUserId) ids.add(activeProject.assignedAdvisorUserId);
+    return Array.from(ids);
+  }, [user?.id, activeProject?.assignedAdvisorUserId]);
 
   // Check if user is an owner of the org that owns this project
   const hasOwnerPermissions = useMemo(() => {
@@ -78,19 +110,135 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return canManage;
   }, [isOwner, currentOrg, activeProject]);
 
-  const memberOptions = useMemo(() => members
-    .filter((m) => m.user_id !== user?.id) // Exclude self
-    .map((m) => ({ value: m.user_id, label: m.userName || m.userEmail || "" })), [members, user]);
+  // Filter members to only show those with access to this project
+  // This state is now handled below with useState
 
-  const [showCreateThread, setShowCreateThread] = useState(false);
+  useEffect(() => {
+    const fetchProjectMembers = async () => {
+      if (!projectId) {
+        setProjectMemberIds(new Set());
+        return;
+      }
+
+      try {
+        // Get all users who have been granted access to this project
+        const { data: grants, error } = await supabase
+          .from('project_access_grants')
+          .select('user_id')
+          .eq('project_id', projectId);
+
+        if (error) {
+          console.error('[ChatInterface] Failed to fetch project members:', error);
+          setProjectMemberIds(new Set());
+          return;
+        }
+
+        // Add the advisor if assigned
+        const userIds = new Set(grants?.map(g => g.user_id) || []);
+        if (activeProject?.assignedAdvisorUserId) {
+          userIds.add(activeProject.assignedAdvisorUserId);
+        }
+
+        setProjectMemberIds(userIds);
+      } catch (err) {
+        console.error('[ChatInterface] Error fetching project members:', err);
+        setProjectMemberIds(new Set());
+      }
+    };
+
+    fetchProjectMembers();
+  }, [projectId, activeProject?.assignedAdvisorUserId]);
+
+  const getDisplayLabel = useCallback((
+    userId: string,
+    name?: string | null,
+    email?: string | null
+  ) => {
+    const base = (name && name.trim()) || (email && email.trim()) || "Member";
+    const suffix = userId.slice(0, 6);
+    return `${base} (${suffix})`;
+  }, []);
+
+  const participantLabelLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    members.forEach((member) => {
+      map.set(
+        member.user_id,
+        getDisplayLabel(member.user_id, member.userName, member.userEmail)
+      );
+    });
+    participants.forEach((participant) => {
+      if (participant.user) {
+        map.set(
+          participant.user_id,
+          getDisplayLabel(
+            participant.user_id,
+            participant.user.full_name,
+            participant.user.email
+          )
+        );
+      }
+    });
+    return map;
+  }, [getDisplayLabel, members, participants]);
+
+  const baseParticipantLabels = useMemo(() => {
+    return baseParticipantIds.map((id) => {
+      if (id === user?.id) return "You";
+      return (
+        participantLabelLookup.get(id) ||
+        getDisplayLabel(id, undefined, undefined)
+      );
+    });
+  }, [baseParticipantIds, participantLabelLookup, user?.id, getDisplayLabel]);
+
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<AttachableDocument[]>([]);
+  const [showDocPicker, setShowDocPicker] = useState(false);
+  const [blockedState, setBlockedState] = useState<BlockedState | null>(null);
+  const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
+  const [accessRequested, setAccessRequested] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
-  // State for document mentions
-  const { files: mentionableDocuments, isLoading: isLoadingDocuments } =
-    useDocumentManagement(projectId, null);
-  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<DocumentFile[]>([]);
+  const canCreateThreads = useMemo(() => {
+    if (!user) return false;
+    if (hasOwnerPermissions) return true;
+    return activeProject?.assignedAdvisorUserId === user.id;
+  }, [hasOwnerPermissions, activeProject?.assignedAdvisorUserId, user]);
+
+  const memberOptions = useMemo(() => {
+    const baseSet = new Set(baseParticipantIds);
+    return members
+      .filter((m) => {
+        if (baseSet.has(m.user_id)) return false;
+        if (m.user_id === user?.id) return false;
+        return projectMemberIds.has(m.user_id);
+      })
+      .map((m) => ({
+        value: m.user_id,
+        label: getDisplayLabel(m.user_id, m.userName, m.userEmail),
+      }));
+  }, [baseParticipantIds, getDisplayLabel, members, projectMemberIds, user]);
+
+  const blockedDocDetails = useMemo(() => {
+    if (!blockedState) return [] as Array<{
+      resourceId: string;
+      name: string;
+      missing: { id: string; name: string }[];
+    }>;
+
+    const lookup = extractMentionNames(blockedState.message);
+    return blockedState.docs.map((doc) => ({
+      resourceId: doc.resourceId,
+      name: lookup.get(doc.resourceId) || "Document",
+      missing: doc.missingUserIds.map((id) => ({
+        id,
+        name:
+          participantLabelLookup.get(id) || getDisplayLabel(id, undefined, undefined),
+      })),
+    }));
+  }, [blockedState, participantLabelLookup, getDisplayLabel]);
 
   useEffect(() => {
     if (projectId) {
@@ -108,14 +256,43 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [mentionQuery]);
 
+  useEffect(() => {
+    setShowDocPicker(false);
+    setBlockedState(null);
+    setAccessRequested(false);
+  }, [activeThreadId]);
+
+  const processSend = async (threadId: string, message: string) => {
+    try {
+      await sendMessage(threadId, message.trim());
+      setNewMessage("");
+      setBlockedState(null);
+      setAccessRequested(false);
+      return true;
+    } catch (err) {
+      if (typeof err === "object" && err && (err as any).code === "DOC_ACCESS_DENIED") {
+        const blockedDocs: BlockedDocInfo[] = ((err as any).blocked || []).map((doc: any) => ({
+          resourceId: doc.resource_id ?? doc.resourceId,
+          missingUserIds: doc.missing_user_ids ?? doc.missingUserIds ?? [],
+        }));
+
+        setBlockedState({
+          threadId,
+          message,
+          docs: blockedDocs,
+        });
+        setAccessRequested(false);
+        setNewMessage(message);
+      } else {
+        console.error("Failed to send message:", err);
+      }
+      return false;
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !activeThreadId) return;
-    try {
-      await sendMessage(activeThreadId, newMessage.trim());
-      setNewMessage("");
-    } catch (err) {
-      console.error("Failed to send message:", err);
-    }
+    await processSend(activeThreadId, newMessage);
   };
 
   const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -129,7 +306,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (atMatch) {
       const query = atMatch[1].toLowerCase();
       setMentionQuery(query);
-      const filtered = mentionableDocuments
+      const filtered = attachableDocuments
         .filter((doc) => doc.name.toLowerCase().includes(query))
         .slice(0, 5);
       setSuggestions(filtered);
@@ -139,7 +316,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  const handleSuggestionClick = (doc: DocumentFile) => {
+  const handleSuggestionClick = (doc: AttachableDocument) => {
     const currentText = newMessage;
     const cursorPos = textAreaRef.current?.selectionStart || currentText.length;
     const textBeforeCursor = currentText.substring(0, cursorPos);
@@ -148,11 +325,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const textBeforeAt = currentText.substring(0, atIndex);
     const textAfterCursor = currentText.substring(cursorPos);
 
-    const mentionText = `@[${doc.name}](doc:${doc.id}) `;
+    const mentionText = `@[${doc.name}](doc:${doc.resourceId}) `;
     setNewMessage(textBeforeAt + mentionText + textAfterCursor);
 
     setMentionQuery(null);
     setSuggestions([]);
+    setShowDocPicker(false);
 
     setTimeout(() => {
       textAreaRef.current?.focus();
@@ -163,6 +341,120 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleMentionClick = (resourceId: string) => {
     setPreviewingResourceId(resourceId);
+  };
+
+  const handleGrantAccess = async () => {
+    if (!blockedState || !hasOwnerPermissions) return;
+    setIsProcessingBlocked(true);
+    try {
+      for (const doc of blockedState.docs) {
+        await Promise.all(
+          doc.missingUserIds.map((userId) =>
+            supabase.rpc('set_permission_for_resource', {
+              p_resource_id: doc.resourceId,
+              p_user_id: userId,
+              p_permission: 'view',
+            }).then(({ error }) => {
+              if (error) {
+                throw new Error(error.message || 'Failed to grant access');
+              }
+            })
+          )
+        );
+      }
+
+      await loadAttachableDocuments(blockedState.threadId);
+      await processSend(blockedState.threadId, blockedState.message);
+    } catch (error) {
+      console.error('Failed to grant access:', error);
+    } finally {
+      setIsProcessingBlocked(false);
+    }
+  };
+
+  const handleRequestAccess = async () => {
+    if (!blockedState) return;
+    setIsProcessingBlocked(true);
+    try {
+      for (const doc of blockedState.docs) {
+        const { error } = await supabase.functions.invoke('request-document-access', {
+          body: {
+            resource_id: doc.resourceId,
+            thread_id: blockedState.threadId,
+            missing_user_ids: doc.missingUserIds,
+          },
+        });
+        if (error) {
+          throw new Error(error.message || 'Failed to request access');
+        }
+      }
+      setAccessRequested(true);
+    } catch (error) {
+      console.error('Failed to request access:', error);
+    } finally {
+      setIsProcessingBlocked(false);
+    }
+  };
+
+  const handleSendWithoutDocs = async () => {
+    if (!blockedState) return;
+    let sanitized = blockedState.message;
+    const lookup = extractMentionNames(blockedState.message);
+    blockedState.docs.forEach((doc) => {
+      const label = lookup.get(doc.resourceId) || 'document';
+      const regex = new RegExp(`@\\[[^\\]]+\\]\\(doc:${doc.resourceId}\\)`, 'g');
+      sanitized = sanitized.replace(regex, label);
+    });
+
+    setNewMessage(sanitized);
+    setIsProcessingBlocked(true);
+    try {
+      await processSend(blockedState.threadId, sanitized);
+    } finally {
+      setIsProcessingBlocked(false);
+    }
+  };
+
+  const handleCreateRestrictedThread = async () => {
+    if (!blockedState || !canCreateThreads) return;
+    const blockedUserSet = new Set<string>();
+    blockedState.docs.forEach((doc) => {
+      doc.missingUserIds.forEach((id) => blockedUserSet.add(id));
+    });
+
+    const allowedParticipants = participants
+      .map((p) => p.user_id)
+      .filter((id) => !blockedUserSet.has(id));
+
+    if (user?.id && !allowedParticipants.includes(user.id)) {
+      allowedParticipants.push(user.id);
+    }
+
+    const uniqueParticipants = Array.from(new Set(allowedParticipants));
+    if (uniqueParticipants.length === 0) {
+      console.warn('No eligible participants for the new thread');
+      return;
+    }
+
+    setIsProcessingBlocked(true);
+    try {
+      const docNames = blockedDocDetails.map((doc) => doc.name).filter(Boolean);
+      const topicBase = docNames.length > 0 ? `Docs: ${docNames.join(', ')}` : 'Restricted discussion';
+      const topic = topicBase.slice(0, 60);
+
+      const newThreadId = await createThread(
+        projectId,
+        topic,
+        uniqueParticipants
+      );
+
+      setActiveThread(newThreadId);
+      await processSend(newThreadId, blockedState.message);
+    } catch (error) {
+      console.error('Failed to create restricted thread:', error);
+    } finally {
+      setIsProcessingBlocked(false);
+    }
   };
 
   // Parse message content and render with document mention buttons
@@ -224,26 +516,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return <>{parts}</>;
   };
 
-  const handleCreateThread = async () => {
-    if (!newThreadTopic.trim() || !user?.id) return;
+  const handleCreateChannel = async (
+    topic: string,
+    selectedMemberIds: string[]
+  ) => {
+    if (!user?.id) return;
 
     try {
-      const participantIds: string[] = [user.id, ...selectedParticipants];
-      if (activeProject?.assignedAdvisorUserId) {
-        participantIds.push(activeProject.assignedAdvisorUserId);
-      }
+      const participantsSet = new Set<string>(baseParticipantIds);
+      selectedMemberIds.forEach((id) => participantsSet.add(id));
 
       const threadId = await createThread(
         projectId,
-        newThreadTopic.trim(),
-        Array.from(new Set(participantIds)) // Ensure unique IDs
+        topic.trim(),
+        Array.from(participantsSet)
       );
-      setSelectedParticipants([]);
-      setNewThreadTopic("");
-      setShowCreateThread(false);
+      setShowCreateThreadModal(false);
       setActiveThread(threadId);
     } catch (err) {
       console.error("Failed to create thread:", err);
+      throw err;
     }
   };
 
@@ -281,7 +573,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setShowCreateThread(!showCreateThread)}
+                onClick={() => setShowCreateThreadModal(true)}
                 className="h-8 px-3"
               >
                 <Plus className="h-4 w-4 mr-1" />
@@ -289,53 +581,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </Button>
             )}
           </div>
-
-          {showCreateThread && (
-            <div className="space-y-2 mt-2">
-              <Input
-                placeholder="Channel name (e.g., 'Financing Discussion')..."
-                value={newThreadTopic}
-                onChange={(e) => setNewThreadTopic(e.target.value)}
-                className="text-sm"
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") handleCreateThread();
-                }}
-              />
-              <MultiSelect
-                options={memberOptions.map((m) => m.label)}
-                value={selectedParticipants.map(
-                  (id) => memberOptions.find((m) => m.value === id)?.label || ""
-                )}
-                onChange={(selectedLabels) => {
-                  const selectedIds = selectedLabels
-                    .map(
-                      (label) =>
-                        memberOptions.find((m) => m.label === label)?.value
-                    )
-                    .filter(Boolean) as string[];
-                  setSelectedParticipants(selectedIds);
-                }}
-                placeholder="Select members to add..."
-                label="Add Members"
-              />
-              <div className="flex space-x-2">
-                <Button
-                  size="sm"
-                  onClick={handleCreateThread}
-                  disabled={!newThreadTopic.trim() || isLoading}
-                >
-                  Create
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowCreateThread(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="overflow-y-auto flex-1">
@@ -420,7 +665,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     {suggestions.length > 0 ? (
                       suggestions.map((doc) => (
                         <button
-                          key={doc.id}
+                          key={doc.resourceId}
                           onClick={() => handleSuggestionClick(doc)}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
                         >
@@ -433,7 +678,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       ))
                     ) : (
                       <div className="px-3 py-2 text-sm text-gray-500">
-                        {isLoadingDocuments
+                        {isLoadingAttachable
                           ? "Loading documents..."
                           : "No matching documents found."}
                       </div>
@@ -441,7 +686,64 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </motion.div>
                 )}
               </AnimatePresence>
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 items-end">
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 flex items-center justify-center"
+                    onClick={() => setShowDocPicker((prev) => !prev)}
+                    disabled={!activeThreadId}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  {showDocPicker && (
+                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border rounded-lg shadow-lg z-20">
+                      <div className="flex items-center justify-between px-3 py-2 border-b">
+                        <span className="text-sm font-semibold text-gray-700">
+                          Shared documents
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowDocPicker(false)}
+                          className="p-1 rounded hover:bg-gray-100"
+                        >
+                          <X className="h-4 w-4 text-gray-500" />
+                        </button>
+                      </div>
+                      <div className="max-h-56 overflow-y-auto">
+                        {isLoadingAttachable ? (
+                          <div className="px-3 py-4 text-sm text-gray-500 flex items-center space-x-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Loading...</span>
+                          </div>
+                        ) : attachableDocuments.length === 0 ? (
+                          <div className="px-3 py-4 text-sm text-gray-500">
+                            No documents are shared with all participants.
+                          </div>
+                        ) : (
+                          attachableDocuments.map((doc) => (
+                            <button
+                              key={doc.resourceId}
+                              type="button"
+                              onClick={() => handleSuggestionClick(doc)}
+                              className="w-full flex items-start px-3 py-2 text-left hover:bg-gray-100"
+                            >
+                              <FileText className="h-4 w-4 text-gray-500 mt-0.5 mr-2" />
+                              <div>
+                                <div className="text-sm text-gray-800 truncate">{doc.name}</div>
+                                <div className="text-xs text-gray-500 uppercase tracking-wide">
+                                  {doc.scope === "org" ? "Org" : "Project"}
+                                </div>
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <textarea
                   ref={textAreaRef}
                   value={newMessage}
@@ -479,6 +781,93 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           resourceId={previewingResourceId}
           onClose={() => setPreviewingResourceId(null)}
         />
+      )}
+      <CreateChannelModal
+        isOpen={showCreateThreadModal}
+        onClose={() => setShowCreateThreadModal(false)}
+        onCreate={handleCreateChannel}
+        memberOptions={memberOptions}
+        baseParticipantIds={baseParticipantIds}
+        baseParticipantLabels={baseParticipantLabels}
+        projectId={projectId}
+      />
+      {blockedState && (
+        <Modal
+          isOpen={true}
+          onClose={() => {
+            if (!isProcessingBlocked) {
+              setBlockedState(null);
+              setAccessRequested(false);
+            }
+          }}
+          title="Document access required"
+        >
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              Some participants in this channel do not have permission to view the referenced documents. Choose how you want to proceed.
+            </div>
+            <div className="space-y-3">
+              {blockedDocDetails.map((doc) => (
+                <div key={doc.resourceId} className="border rounded-md p-3 bg-gray-50">
+                  <div className="text-sm font-semibold text-gray-800">{doc.name}</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Missing access:
+                  </div>
+                  <ul className="text-sm text-gray-700 list-disc list-inside">
+                    {doc.missing.map((user) => (
+                      <li key={user.id}>{user.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col space-y-2">
+              {hasOwnerPermissions && (
+                <Button
+                  onClick={handleGrantAccess}
+                  disabled={isProcessingBlocked}
+                >
+                  Grant access and send
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={handleSendWithoutDocs}
+                disabled={isProcessingBlocked}
+              >
+                Remove references and send
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleRequestAccess}
+                disabled={isProcessingBlocked || accessRequested}
+              >
+                {accessRequested ? "Request sent" : "Request access from owners"}
+              </Button>
+              {canCreateThreads && (
+                <Button
+                  variant="outline"
+                  onClick={handleCreateRestrictedThread}
+                  disabled={isProcessingBlocked}
+                >
+                  Create new thread with permitted members
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (!isProcessingBlocked) {
+                    setBlockedState(null);
+                    setAccessRequested(false);
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
       {managingThread && hasOwnerPermissions && (
         <ManageChannelMembersModal

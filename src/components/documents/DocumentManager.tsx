@@ -25,6 +25,7 @@ import { cn } from "@/utils/cn";
 import { DocumentFile, DocumentFolder } from "@/hooks/useDocumentManagement";
 import { VersionHistoryDropdown } from "./VersionHistoryDropdown";
 import Link from "next/link";
+import { supabase } from "../../../lib/supabaseClient";
 
 interface DocumentManagerProps {
   projectId: string | null;
@@ -105,9 +106,56 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   >(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Use actualResourceId for permissions check too
+  // Get the PROJECT_DOCS_ROOT or BORROWER_DOCS_ROOT resource ID for permission checking
+  const [docsRootId, setDocsRootId] = React.useState<string | null>(null);
+  
+  React.useEffect(() => {
+    const fetchDocsRoot = async () => {
+      if (projectId) {
+        // For projects, fetch PROJECT_DOCS_ROOT
+        try {
+          const { data: root, error } = await supabase
+            .from("resources")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("resource_type", "PROJECT_DOCS_ROOT")
+            .single();
+          if (error) {
+            console.error("[DocumentManager] Error fetching PROJECT_DOCS_ROOT:", error);
+            return;
+          }
+          setDocsRootId(root?.id || null);
+        } catch (err) {
+          console.error("[DocumentManager] Error in fetchDocsRoot:", err);
+        }
+      } else if (activeOrg) {
+        // For borrower docs, fetch BORROWER_DOCS_ROOT
+        try {
+          const { data: root, error } = await supabase
+            .from("resources")
+            .select("id")
+            .eq("org_id", activeOrg.id)
+            .eq("resource_type", "BORROWER_DOCS_ROOT")
+            .maybeSingle();
+          if (error) {
+            console.error("[DocumentManager] Error fetching BORROWER_DOCS_ROOT:", error);
+            return;
+          }
+          setDocsRootId(root?.id || null);
+        } catch (err) {
+          console.error("[DocumentManager] Error in fetchDocsRoot:", err);
+        }
+      } else {
+        setDocsRootId(null);
+      }
+    };
+    fetchDocsRoot();
+  }, [projectId, activeOrg]);
+
+  // Use docsRootId for permissions check when viewing project root or borrower root
+  const resourceIdForPermissions = actualResourceId || docsRootId;
   const { canEdit: canEditRoot, isLoading: isLoadingPermissionsRoot } =
-    usePermissions(actualResourceId);
+    usePermissions(resourceIdForPermissions);
   const getPermission = usePermissionStore((state) => state.getPermission);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -380,10 +428,14 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             {files.map((file) => {
               const fileCanEdit = getPermission(file.resource_id) === 'edit';
               const isEditable = /\.(docx|xlsx|pptx)$/i.test(file.name);
+              const filePermission = getPermission(file.resource_id);
               console.log("[DocumentManager] Rendering file:", {
                 name: file.name,
                 versionId: file.id,
                 resourceId: file.resource_id,
+                permission: filePermission,
+                canEdit: fileCanEdit,
+                allPermissions: usePermissionStore.getState().permissions,
               });
               return (
                 <motion.div

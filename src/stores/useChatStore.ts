@@ -41,6 +41,12 @@ interface MessageAttachment {
   created_at: string;
 }
 
+export interface AttachableDocument {
+  resourceId: string;
+  name: string;
+  scope: "project" | "org";
+}
+
 interface ChatState {
   // Current thread context
   activeThreadId: string | null;
@@ -57,7 +63,7 @@ interface ChatState {
   messageChannel: RealtimeChannel | null;
   
   // Safe attachment UX
-  attachableDocuments: string[];
+  attachableDocuments: AttachableDocument[];
   isLoadingAttachable: boolean;
 }
 
@@ -152,12 +158,13 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
     if (get().activeThreadId === threadId) return;
     
     get().unsubscribeFromMessages();
-    set({ activeThreadId: threadId, messages: [], participants: [] });
+    set({ activeThreadId: threadId, messages: [], participants: [], attachableDocuments: [] });
 
     if (threadId) {
       get().loadMessages(threadId);
       get().loadParticipants(threadId);
       get().subscribeToMessages(threadId);
+      get().loadAttachableDocuments(threadId);
     }
   },
 
@@ -226,19 +233,32 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
 
   sendMessage: async (threadId: string, content: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { error } = await supabase
-        .from('project_messages')
-        .insert({
+      const { data, error } = await supabase.functions.invoke('send-thread-message', {
+        body: {
           thread_id: threadId,
-          user_id: user.id,
-          content
-        });
+          content,
+        },
+      });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || 'Failed to send message');
+      }
+
+      if (data?.status === 'blocked') {
+        throw {
+          code: data.code,
+          message: data.message,
+          blocked: data.blocked || [],
+        };
+      }
+
+      if (!data?.message_id) {
+        throw new Error('Failed to send message');
+      }
     } catch (err) {
+      if (typeof err === 'object' && err && 'code' in err) {
+        throw err;
+      }
       set({ error: err instanceof Error ? err.message : 'Failed to send message' });
       throw err;
     }
@@ -294,7 +314,33 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
 
   loadAttachments: async (messageId: number) => { /* Implementation... */ },
   attachDocument: async (messageId: number, documentPath: string) => { /* Implementation... */ },
-  loadAttachableDocuments: async (threadId: string) => { /* Implementation... */ },
+  loadAttachableDocuments: async (threadId: string) => {
+    if (!threadId) {
+      set({ attachableDocuments: [], isLoadingAttachable: false });
+      return;
+    }
+
+    set({ isLoadingAttachable: true });
+    try {
+      const { data, error } = await supabase.functions.invoke('get-common-documents-for-thread', {
+        body: { thread_id: threadId },
+      });
+
+      if (error) throw error;
+
+      const documents = (data?.documents as any[]) || [];
+      const parsed: AttachableDocument[] = documents.map((doc) => ({
+        resourceId: doc.resource_id,
+        name: doc.name,
+        scope: doc.scope,
+      }));
+
+      set({ attachableDocuments: parsed, isLoadingAttachable: false });
+    } catch (err) {
+      console.error('Failed to load attachable documents:', err);
+      set({ attachableDocuments: [], isLoadingAttachable: false });
+    }
+  },
 
   reset: () => {
     get().unsubscribeFromMessages();
