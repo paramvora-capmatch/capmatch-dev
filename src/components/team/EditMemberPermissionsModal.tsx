@@ -39,99 +39,90 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [orgGrants, setOrgGrants] = useState<OrgGrant | null>(null);
   const [orgDocs, setOrgDocs] = useState<{ id: string; name: string }[]>([]);
+  const [projectDocsMap, setProjectDocsMap] = useState<Record<string, { id: string; name: string }[]>>({});
 
   // Load current permissions when modal opens
   useEffect(() => {
-    if (isOpen && member) {
-      loadCurrentPermissions();
-    }
-  }, [isOpen, member?.user_id]);
+    if (!(isOpen && member)) return;
+    let isCancelled = false;
+    const load = async () => {
+      setIsLoadingPermissions(true);
+      try {
+        const { data: permissions, error: permError } = await supabase
+          .from('permissions')
+          .select('resource_id, permission, resources(id, name, resource_type, project_id, org_id)')
+          .eq('user_id', member.user_id);
 
-  const loadCurrentPermissions = async () => {
-    setIsLoadingPermissions(true);
-    try {
-      // Get all permissions for this user
-      const { data: permissions, error: permError } = await supabase
-        .from('permissions')
-        .select('resource_id, permission, resources(id, name, resource_type, project_id, org_id)')
-        .eq('user_id', member.user_id);
-
-      if (permError) {
-        console.error('Error loading permissions:', permError);
-        setIsLoadingPermissions(false);
-        return;
-      }
-
-      // Separate org-level and project-level permissions
-      const orgPermissions: OrgGrant = { permissions: [], fileOverrides: [] };
-      const projectPermsMap = new Map<string, ProjectGrant>();
-
-      permissions?.forEach((perm: any) => {
-        const resource = perm.resources;
-        if (!resource) return;
-
-        // Org-level permissions
-        if (resource.org_id === orgId && !resource.project_id) {
-          if (resource.resource_type === 'BORROWER_RESUME' || resource.resource_type === 'BORROWER_DOCS_ROOT') {
-            orgPermissions.permissions.push({
-              resource_type: resource.resource_type,
-              permission: perm.permission
-            });
-          } else if (resource.resource_type === 'FILE') {
-            orgPermissions.fileOverrides = orgPermissions.fileOverrides || [];
-            orgPermissions.fileOverrides.push({
-              resource_id: resource.id,
-              permission: perm.permission
-            });
-          }
+        if (permError) {
+          console.error('Error loading permissions:', permError);
+          if (!isCancelled) setIsLoadingPermissions(false);
+          return;
         }
 
-        // Project-level permissions
-        if (resource.project_id) {
-          if (!projectPermsMap.has(resource.project_id)) {
-            projectPermsMap.set(resource.project_id, {
-              projectId: resource.project_id,
-              permissions: [],
-              fileOverrides: []
-            });
+        const orgPermissions: OrgGrant = { permissions: [], fileOverrides: [] };
+        const projectPermsMap = new Map<string, ProjectGrant>();
+
+        permissions?.forEach((perm: any) => {
+          const resource = perm.resources;
+          if (!resource) return;
+
+          if (resource.org_id === orgId && !resource.project_id) {
+            if (resource.resource_type === 'BORROWER_RESUME' || resource.resource_type === 'BORROWER_DOCS_ROOT') {
+              orgPermissions.permissions.push({ resource_type: resource.resource_type, permission: perm.permission });
+            } else if (resource.resource_type === 'FILE') {
+              orgPermissions.fileOverrides = orgPermissions.fileOverrides || [];
+              orgPermissions.fileOverrides.push({ resource_id: resource.id, permission: perm.permission });
+            }
           }
 
-          const projectGrant = projectPermsMap.get(resource.project_id)!;
+          if (resource.project_id) {
+            if (!projectPermsMap.has(resource.project_id)) {
+              projectPermsMap.set(resource.project_id, { projectId: resource.project_id, permissions: [], fileOverrides: [] });
+            }
+            const projectGrant = projectPermsMap.get(resource.project_id)!;
+            if (resource.resource_type === 'PROJECT_RESUME' || resource.resource_type === 'PROJECT_DOCS_ROOT') {
+              projectGrant.permissions.push({ resource_type: resource.resource_type, permission: perm.permission });
+            } else if (resource.resource_type === 'FILE') {
+              projectGrant.fileOverrides = projectGrant.fileOverrides || [];
+              projectGrant.fileOverrides.push({ resource_id: resource.id, permission: perm.permission });
+            }
+          }
+        });
 
-          if (resource.resource_type === 'PROJECT_RESUME' || resource.resource_type === 'PROJECT_DOCS_ROOT') {
-            projectGrant.permissions.push({
-              resource_type: resource.resource_type,
-              permission: perm.permission
-            });
-          } else if (resource.resource_type === 'FILE') {
-            projectGrant.fileOverrides = projectGrant.fileOverrides || [];
-            projectGrant.fileOverrides.push({
-              resource_id: resource.id,
-              permission: perm.permission
-            });
+        if (!isCancelled) {
+          setOrgGrants(orgPermissions.permissions.length > 0 ? orgPermissions : null);
+          setProjectGrants(Array.from(projectPermsMap.values()));
+        }
+
+        if (orgPermissions.permissions.some(p => p.resource_type === 'BORROWER_DOCS_ROOT') && orgDocs.length === 0) {
+          const { data } = await supabase
+            .from('resources')
+            .select('id,name')
+            .eq('resource_type', 'FILE')
+            .is('project_id', null)
+            .eq('org_id', orgId);
+          if (!isCancelled) setOrgDocs(data || []);
+        }
+
+        for (const projectId of projectPermsMap.keys()) {
+          if (!projectDocsMap[projectId]) {
+            const { data } = await supabase
+              .from('resources')
+              .select('id,name')
+              .eq('resource_type', 'FILE')
+              .eq('project_id', projectId);
+            if (!isCancelled) setProjectDocsMap(prev => ({ ...prev, [projectId]: data || [] }));
           }
         }
-      });
-
-      setOrgGrants(orgPermissions.permissions.length > 0 ? orgPermissions : null);
-      setProjectGrants(Array.from(projectPermsMap.values()));
-
-      // Load org docs if there are org-level doc permissions
-      if (orgPermissions.permissions.some(p => p.resource_type === 'BORROWER_DOCS_ROOT')) {
-        await loadOrgDocsIfNeeded();
+      } catch (err) {
+        console.error('Error loading current permissions:', err);
+      } finally {
+        if (!isCancelled) setIsLoadingPermissions(false);
       }
-
-      // Load project docs for projects with permissions
-      for (const projectId of projectPermsMap.keys()) {
-        await ensureProjectDocsLoaded(projectId);
-      }
-
-    } catch (err) {
-      console.error('Error loading current permissions:', err);
-    } finally {
-      setIsLoadingPermissions(false);
-    }
-  };
+    };
+    load();
+    return () => { isCancelled = true; };
+  }, [isOpen, member, member?.user_id, orgId, orgDocs.length, projectDocsMap]);
 
   const toggleProjectAccess = (projectId: string) => {
     setProjectGrants(prevGrants => {
@@ -249,7 +240,7 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
     });
   };
 
-  const [projectDocsMap, setProjectDocsMap] = useState<Record<string, { id: string; name: string }[]>>({});
+  
 
   const ensureProjectDocsLoaded = async (projectId: string) => {
     if (projectDocsMap[projectId]) return;

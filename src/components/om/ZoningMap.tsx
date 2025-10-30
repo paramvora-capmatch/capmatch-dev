@@ -7,7 +7,7 @@ import { MapPin } from "lucide-react";
 
 // Fix for default markers in react-leaflet
 import L from "leaflet";
-// @ts-ignore
+// @ts-expect-error Leaflet's type defs hide _getIconUrl on Default icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:

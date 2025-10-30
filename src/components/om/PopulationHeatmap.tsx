@@ -7,7 +7,7 @@ import { Users, TrendingUp, MapPin } from 'lucide-react';
 
 // Fix for default markers in react-leaflet
 import L from 'leaflet';
-// @ts-ignore
+// @ts-expect-error Leaflet Default icon prototype lacks _getIconUrl in types
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',

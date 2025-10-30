@@ -149,7 +149,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
             try {
               const userEmail = authUser.email;
-              const fullName = authUser.user_metadata?.name || profile?.full_name || "New User";
+              const fullName = authUser.user_metadata?.name || "New User";
               if (!userEmail) {
                 throw new Error("Authenticated user has no email");
               }
@@ -347,7 +347,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 console.warn("[AuthStore] Profile not found. Attempting onboarding for existing user (e.g., Google sign-in)");
                 try {
                   const userEmail = authUser.email;
-                  const fullName = authUser.user_metadata?.name || profile?.full_name || "New User";
+                  const fullName = authUser.user_metadata?.name || "New User";
                   if (!userEmail) {
                     throw new Error("Authenticated user has no email");
                   }
