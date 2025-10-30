@@ -27,23 +27,46 @@ serve(async (req) => {
       throw new Error("An array of userIds is required");
     }
 
-    // Fetch user data for all userIds in parallel
-    const userPromises = userIds.map(id => supabaseAdmin.auth.admin.getUserById(id));
+    // Fetch auth users (emails)
+    const userPromises = userIds.map((id) =>
+      supabaseAdmin.auth.admin.getUserById(id)
+    );
     const userResults = await Promise.all(userPromises);
 
-    // Process results, extracting email and handling potential errors
-    const userEmails = userResults.map((result, index) => {
-      if (result.error) {
-        console.error(`Error fetching user ${userIds[index]}:`, result.error);
-        return null; // or some error indication
-      }
-      return {
-        id: result.data.user.id,
-        email: result.data.user.email,
-      };
-    }).filter(user => user !== null); // Filter out any users that had errors
+    // Fetch profiles (full_name) in one query
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", userIds);
 
-    return new Response(JSON.stringify(userEmails), {
+    if (profilesError) {
+      console.error("get-user-data: profiles fetch error", profilesError);
+    }
+
+    const profileById = new Map(
+      (profiles || []).map((p: { id: string; full_name: string | null }) => [
+        p.id,
+        p.full_name,
+      ])
+    );
+
+    // Merge results: id, email, full_name
+    const users = userResults
+      .map((result, index) => {
+        if (result.error) {
+          console.error(`Error fetching user ${userIds[index]}:`, result.error);
+          return null;
+        }
+        const id = result.data.user.id;
+        return {
+          id,
+          email: result.data.user.email,
+          full_name: profileById.get(id) ?? null,
+        };
+      })
+      .filter((u) => u !== null);
+
+    return new Response(JSON.stringify(users), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

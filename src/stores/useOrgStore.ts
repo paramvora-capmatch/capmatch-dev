@@ -102,25 +102,34 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
       if (invitesError) throw invitesError;
 
-      // Get user details for members - join with profiles to get full_name
+      // Get user details for members
       const memberUserIds =
         members?.map((m) => m.user_id).filter(Boolean) || [];
+
+      // Use edge function to fetch email + full_name (bypasses RLS safely)
+      const { data: memberBasicData, error: basicDataError } = await supabase
+        .functions.invoke("get-user-data", {
+          body: { userIds: memberUserIds as string[] },
+        });
+
+      if (basicDataError) {
+        console.error("Error fetching user basic data:", basicDataError);
+      }
+
+      // Also fetch app_role from profiles (non-sensitive), if accessible
       const { data: memberProfiles } =
         memberUserIds.length > 0
           ? await supabase
               .from("profiles")
-              .select("id, full_name, app_role")
+              .select("id, app_role")
               .in("id", memberUserIds)
           : { data: [] };
 
-      const { data: memberEmails, error: emailsError } =
-        await supabase.functions.invoke("get-user-data", {
-          body: { userIds: memberUserIds as string[] },
-        });
-
-      if (emailsError) {
-        console.error("Error fetching user emails:", emailsError);
-      }
+      const basicById = new Map(
+        ((memberBasicData as { id: string; email: string | null; full_name: string | null }[]) || []).map(
+          (u) => [u.id, u]
+        )
+      );
 
       // Get user details for inviters
       const inviterIds =
@@ -136,14 +145,14 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Process members data to include profile information
       const processedMembers =
         members?.map((member) => {
+          const basic = basicById.get(member.user_id) as
+            | { id: string; email: string | null; full_name: string | null }
+            | undefined;
           const profile = memberProfiles?.find((p) => p.id === member.user_id);
-          const emailData = (memberEmails as {id: string; email: string}[])?.find(
-            (e: {id: string}) => e.id === member.user_id
-          );
           return {
             ...member,
-            userName: profile?.full_name || "Unknown User",
-            userEmail: emailData?.email || "user@example.com",
+            userName: (basic?.full_name && basic.full_name.trim()) || "Unknown User",
+            userEmail: basic?.email || "user@example.com",
             userRole: profile?.app_role,
           };
         }) || [];

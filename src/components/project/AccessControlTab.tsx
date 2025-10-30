@@ -7,6 +7,7 @@ import { useProjects } from "@/hooks/useProjects";
 import { supabase } from "../../../lib/supabaseClient";
 import { Advisor, Permission } from "@/types/enhanced-types";
 import { Select } from "../ui/Select";
+import { PillToggle, TriPermission } from "../ui/PillToggle";
 import { Loader2, User, Shield, Briefcase } from "lucide-react";
 
 interface AccessControlTabProps {
@@ -275,20 +276,10 @@ export const AccessControlTab: React.FC<AccessControlTabProps> = ({
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-600">Resume Access:</span>
-                <Select
-                  value={p.resumePermission}
-                  onChange={(e) =>
-                    handlePermissionChange(
-                      p.userId,
-                      e.target.value as Permission | "none"
-                    )
-                  }
-                  options={[
-                    { value: "edit", label: "Can Edit" },
-                    { value: "view", label: "Can View" },
-                    { value: "none", label: "No Access" },
-                  ]}
-                  className="w-32"
+                <PillToggle
+                  value={(p.resumePermission as TriPermission) || 'view'}
+                  onChange={(val) => handlePermissionChange(p.userId, val as Permission | 'none')}
+                  size="xs"
                 />
               </div>
             </div>

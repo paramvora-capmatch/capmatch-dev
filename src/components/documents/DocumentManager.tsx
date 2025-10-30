@@ -26,6 +26,8 @@ import { DocumentFile, DocumentFolder } from "@/hooks/useDocumentManagement";
 import { VersionHistoryDropdown } from "./VersionHistoryDropdown";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
+import UploadPermissionsModal from "./UploadPermissionsModal";
+import { Permission } from "@/types/enhanced-types";
 
 interface DocumentManagerProps {
   projectId: string | null;
@@ -96,7 +98,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   } = useDocumentManagement(projectId, actualResourceId);
 
   const { user, activeOrg, currentOrgRole } = useAuthStore();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -105,6 +107,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     string | null
   >(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [showUploadPerms, setShowUploadPerms] = useState(false);
 
   // Get the PROJECT_DOCS_ROOT or BORROWER_DOCS_ROOT resource ID for permission checking
   const [docsRootId, setDocsRootId] = React.useState<string | null>(null);
@@ -159,37 +162,64 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const getPermission = usePermissionStore((state) => state.getPermission);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setSelectedFiles(files);
+      setShowUploadPerms(true);
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) return;
-    setIsUploading(true);
-
-    try {
-      console.log("[DocumentManager] Starting upload", {
-        projectId,
-        resourceId,
-        activeOrgId: activeOrg?.id,
-        userId: user?.id,
-        currentOrgRole,
-        fileName: selectedFile.name,
-        fileSize: selectedFile.size,
-        fileType: selectedFile.type,
-      });
-
-      await uploadFile(selectedFile, actualResourceId || undefined);
-
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+  const applyPermissions = async (
+    resourceId: string,
+    selections: Record<string, Record<string, Permission | "none">>,
+    fileKey: string
+  ) => {
+    // Iterate member selections for this fileKey and call RPC
+    const entries = Object.entries(selections);
+    for (const [userId, perFiles] of entries) {
+      const perm = perFiles[fileKey];
+      if (!perm) continue;
+      // Owners are excluded from modal; only MEMBERS here
+      try {
+        const { error: rpcError } = await supabase.rpc(
+          "set_permission_for_resource",
+          {
+            p_resource_id: resourceId,
+            p_user_id: userId,
+            p_permission: perm,
+          }
+        );
+        if (rpcError) {
+          console.error("[DocumentManager] set_permission_for_resource error", rpcError);
+        }
+      } catch (err) {
+        console.error("[DocumentManager] Error applying permission", err);
       }
+    }
+  };
+
+  const handleConfirmUpload = async (
+    selections: Record<string, Record<string, Permission | "none">>
+  ) => {
+    if (!selectedFiles.length) return;
+    setIsUploading(true);
+    try {
+      for (const f of selectedFiles) {
+        const created = await uploadFile(f, actualResourceId || undefined);
+        const rId = created?.id as string;
+        const key = `${f.name}__${f.size}__${f.type}`;
+        if (rId) {
+          await applyPermissions(rId, selections, key);
+        }
+      }
+      await refresh();
     } catch (error) {
-      console.error("[DocumentManager] Upload error", error);
+      console.error("[DocumentManager] Upload with permissions error", error);
     } finally {
       setIsUploading(false);
+      setSelectedFiles([]);
+      setShowUploadPerms(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -288,44 +318,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
       </CardHeader>
 
       <CardContent className="flex-1 overflow-y-auto p-4">
-        {/* Upload Area */}
-        {selectedFile && canEdit && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <FileText className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-sm font-medium text-blue-900">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-xs text-blue-700">
-                    {formatFileSize(selectedFile.size)}
-                  </p>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <Button size="sm" onClick={handleUpload} disabled={isUploading}>
-                  {isUploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Upload"
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSelectedFile(null)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
+        {/* Upload permissions handled via modal after file selection */}
 
         {/* Create Folder Area */}
         {showCreateFolder && (
@@ -363,7 +356,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
           type="file"
           onChange={handleFileChange}
           className="hidden"
-          multiple={false}
+          multiple={true}
         />
 
         {/* Error Display */}
@@ -517,6 +510,19 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
           </div>
         )}
       </CardContent>
+      {/* Permissions modal for uploads */}
+      {showUploadPerms && canEdit && (
+        <UploadPermissionsModal
+          isOpen={showUploadPerms}
+          onClose={() => {
+            setShowUploadPerms(false);
+            setSelectedFiles([]);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          }}
+          files={selectedFiles}
+          onConfirm={handleConfirmUpload}
+        />
+      )}
       {previewingResourceId && (
         <DocumentPreviewModal
           resourceId={previewingResourceId}
