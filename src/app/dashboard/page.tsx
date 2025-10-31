@@ -20,7 +20,7 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loginSource, isLoading: authLoading } = useAuth();
+  const { user, loginSource, currentOrgRole, isLoading: authLoading } = useAuth();
   const {
     projects,
     createProject,
@@ -149,14 +149,16 @@ export default function DashboardPage() {
                   <p className="text-gray-600">Manage and track your commercial real estate deals</p>
                 </div>
 
-                <Button
-                  variant="primary"
-                  leftIcon={<PlusCircle size={18} />}
-                  onClick={handleCreateNewProject}
-                  className="shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center"
-                >
-                  Create New Project
-                </Button>
+                {currentOrgRole !== "member" && (
+                  <Button
+                    variant="primary"
+                    leftIcon={<PlusCircle size={18} />}
+                    onClick={handleCreateNewProject}
+                    className="shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center"
+                  >
+                    Create New Project
+                  </Button>
+                )}
               </div>
 
               {projects.length > 0 ? (
