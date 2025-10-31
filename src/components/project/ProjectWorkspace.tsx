@@ -7,7 +7,7 @@ import { useProjects } from "@/hooks/useProjects";
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { ProjectSummaryCard } from "./ProjectSummaryCard"; // New component for project progress
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
-import { Loader2, FileSpreadsheet, MessageSquare, Folder } from "lucide-react";
+import { Loader2, FileSpreadsheet, MessageSquare, Brain } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { Button } from "../ui/Button"; // Import Button
@@ -51,9 +51,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     null
   );
 
-  const [activeTab, setActiveTab] = useState<"chat" | "documents">(
-    "chat"
-  );
+  // Documents are now displayed above the workspace; right column has its own tabs
+  const [rightTab, setRightTab] = useState<"team" | "ai">("team");
 
   // Calculate if we're still in initial loading phase
   const isInitialLoading =
@@ -131,8 +130,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const handleMentionClick = (resourceId: string) => {
     setPreviewingResourceId(resourceId); // Open the preview modal
-    setPreviewingResourceId(resourceId); // Open the preview modal
-    setActiveTab("documents");
+    setPreviewingResourceId(resourceId);
     setHighlightedResourceId(resourceId);
     // Clear the highlight after a short delay
     setTimeout(() => {
@@ -181,14 +179,33 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         </div>
       )}
 
+      {/* Top: Document Manager now sits above the workspace */}
+      <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+        <DocumentManager
+          projectId={projectId}
+          resourceId="PROJECT_ROOT"
+          title="Project Documents"
+          canUpload={true}
+          canDelete={true}
+          highlightedResourceId={highlightedResourceId}
+        />
+      </div>
+
       <AskAIProvider
         onFieldAskAI={(fieldId: string) => {
           setDroppedFieldId(fieldId); // This will be passed to the chat widget
         }}
       >
+        {/** Right column tab state: Team Chat vs AI Chat */}
+        {/** Keep local state here so header and content are in sync */}
+        {/** Using explicit type for readability */}
+        {(() => {
+          // inline IIFE to keep hooks at top-level avoided; use outer state instead
+          return null;
+        })()}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Left Column: Project Resume (View or Edit) */}
-          <div className="lg:col-span-3 h-[90vh] overflow-y-auto">
+          <div className={`lg:col-span-3 h-[90vh] ${isEditing ? 'overflow-y-auto' : 'overflow-hidden'}`}>
             {isEditing ? (
               <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
                 <EnhancedProjectForm
@@ -206,55 +223,47 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             )}
           </div>
 
-          {/* Right Column: Documents */}
+          {/* Right Column: Chat with tabs */}
           <div className="lg:col-span-2 h-[90vh] overflow-y-auto">
             <Card className="h-full flex flex-col">
               <CardHeader className="p-0 border-b">
                 <div className="flex">
                   <button
-                    onClick={() => setActiveTab("chat")}
+                    onClick={() => setRightTab("team")}
                     className={cn(
                       "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
-                      activeTab === "chat"
-                        ? "border-b-2 border-blue-600 text-blue-600"
-                        : "text-gray-500 hover:bg-gray-50"
+                      rightTab === "team" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:bg-gray-50"
                     )}
                   >
                     <MessageSquare size={16} />
-                    <span>Chat</span>
+                    <span>Team Chat</span>
                   </button>
                   <button
-                    onClick={() => setActiveTab("documents")}
+                    onClick={() => setRightTab("ai")}
                     className={cn(
                       "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
-                      activeTab === "documents"
-                        ? "border-b-2 border-blue-600 text-blue-600"
-                        : "text-gray-500 hover:bg-gray-50"
+                      rightTab === "ai" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:bg-gray-50"
                     )}
                   >
-                    <Folder size={16} />
-                    <span>Documents</span>
+                    <Brain size={16} />
+                    <span>AI Chat</span>
                   </button>
                 </div>
               </CardHeader>
               <CardContent className="flex-1 p-0 overflow-hidden">
-                {activeTab === "chat" ? (
+                {rightTab === "team" ? (
                   <ChatInterface
+                    embedded
                     projectId={projectId}
                     onMentionClick={handleMentionClick}
                   />
-                ) : activeTab === "documents" ? (
-                  <div className="p-2 h-full">
-                    <DocumentManager
-                      projectId={projectId}
-                      resourceId="PROJECT_ROOT"
-                      title=""
-                      canUpload={true}
-                      canDelete={true}
-                      highlightedResourceId={highlightedResourceId}
-                    />
+                ) : (
+                  <div className="h-full flex items-center justify-center bg-white">
+                    <div className="text-center text-gray-500 text-sm">
+                      AI Chat will appear here.
+                    </div>
                   </div>
-                ) : null}
+                )}
               </CardContent>
             </Card>
           </div>

@@ -23,11 +23,13 @@ import {
   FileText,
   X,
   Hash,
+  PanelRightOpen,
 } from "lucide-react";
 
 interface ChatInterfaceProps {
   projectId: string;
   onMentionClick?: (resourceId: string) => void;
+  embedded?: boolean; // when true, render without outer border/radius so parents can frame it
 }
 
 import { ManageChannelMembersModal } from "./ManageChannelMembersModal";
@@ -63,7 +65,9 @@ function extractMentionNames(content: string): Map<string, string> {
 export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   projectId,
   onMentionClick,
+  embedded = false,
 }) => {
+  const BASE_INPUT_HEIGHT = 44; // px, matches Button h-11
   const {
     threads,
     activeThreadId,
@@ -263,6 +267,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setAccessRequested(false);
   }, [activeThreadId]);
 
+  // Initialize textarea height on mount and when message changes from programmatic updates
+  useEffect(() => {
+    if (textAreaRef.current) {
+      textAreaRef.current.style.height = 'auto';
+      const raw = textAreaRef.current.scrollHeight;
+      const next = Math.min(Math.max(raw, BASE_INPUT_HEIGHT), 160);
+      textAreaRef.current.style.height = `${next}px`;
+    }
+  }, [newMessage]);
+
   const processSend = async (threadId: string, message: string) => {
     try {
       await sendMessage(threadId, message.trim());
@@ -314,6 +328,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } else {
       setMentionQuery(null);
       setSuggestions([]);
+    }
+
+    // Auto-size the textarea height on input with baseline equal to send button height
+    if (textAreaRef.current) {
+      textAreaRef.current.style.height = 'auto';
+      const raw = textAreaRef.current.scrollHeight;
+      const next = Math.min(Math.max(raw, BASE_INPUT_HEIGHT), 160);
+      textAreaRef.current.style.height = `${next}px`;
     }
   };
 
@@ -564,43 +586,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }
 
   return (
-    <div className="h-full flex border rounded-lg overflow-hidden bg-white">
+    <div className={embedded ? "h-full flex" : "h-full flex border rounded-lg overflow-hidden bg-white"}>
       {/* Threads Drawer */}
       <div className="group relative flex-shrink-0 bg-gray-50 border-r">
-        {/* Collapsed State - Shows when not hovered */}
-        <div className="w-12 h-full flex flex-col items-center py-3 space-y-2 transition-opacity duration-300 group-hover:opacity-0">
-          <div className="text-xs text-gray-500 font-medium mb-2 rotate-90 whitespace-nowrap">
-            {threads.length}
+        {/* Collapsed State - minimal, subtle indicator */}
+        <div className="w-10 h-full flex flex-col items-center justify-center py-3 transition-opacity duration-300 group-hover:opacity-0">
+          <div className="flex flex-col items-center text-gray-400">
+            <PanelRightOpen size={18} className="opacity-60" />
           </div>
-          {threads.map((thread, index) => (
-            <button
-              key={thread.id}
-              onClick={() => setActiveThread(thread.id)}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                activeThreadId === thread.id
-                  ? "bg-blue-100 text-blue-600"
-                  : "hover:bg-gray-100 text-gray-600"
-              }`}
-              title={`# ${thread.topic || "General"}`}
-            >
-              <Hash size={16} />
-            </button>
-          ))}
-          {hasOwnerPermissions && (
-            <button
-              onClick={() => setShowCreateThreadModal(true)}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 text-gray-600 transition-colors mt-2"
-              title="New Channel"
-            >
-              <Plus size={16} />
-            </button>
-          )}
         </div>
 
         {/* Expanded State - Shows when hovered */}
-        <div className="absolute top-0 left-0 w-48 h-full bg-gray-50 border-r opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none group-hover:pointer-events-auto">
+        <div className="absolute top-0 left-0 w-48 h-full bg-gray-50 border-r opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none group-hover:pointer-events-auto z-50 shadow-xl">
           <div className="p-3 border-b bg-white">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="font-semibold text-gray-800 text-sm">Channels</h3>
               {hasOwnerPermissions && (
                 <Button
@@ -614,6 +613,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 </Button>
               )}
             </div>
+            <div className="text-[11px] text-gray-500">Switch between discussion channels</div>
           </div>
 
           <div className="overflow-y-auto flex-1">
@@ -688,7 +688,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-3 border-t bg-white relative">
+            <div className="p-3 bg-white relative">
               <AnimatePresence>
                 {mentionQuery !== null && (
                   <motion.div
@@ -721,24 +721,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </motion.div>
                 )}
               </AnimatePresence>
-              <div className="flex space-x-2 items-end">
-                <div className="relative">
-                  <Button
+              <div className="flex items-end gap-2">
+                <div className="relative flex-1 flex items-center border border-gray-300 rounded-md bg-white">
+                  <button
                     type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-10 w-10 flex items-center justify-center"
                     onClick={() => setShowDocPicker((prev) => !prev)}
                     disabled={!activeThreadId}
+                    className="h-11 w-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                    title="Attach document"
                   >
                     <Plus className="h-4 w-4" />
-                  </Button>
+                  </button>
                   {showDocPicker && (
                     <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border rounded-lg shadow-lg z-20">
                       <div className="flex items-center justify-between px-3 py-2 border-b">
-                        <span className="text-sm font-semibold text-gray-700">
-                          Shared documents
-                        </span>
+                        <span className="text-sm font-semibold text-gray-700">Shared documents</span>
                         <button
                           type="button"
                           onClick={() => setShowDocPicker(false)}
@@ -754,9 +751,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             <span>Loading...</span>
                           </div>
                         ) : attachableDocuments.length === 0 ? (
-                          <div className="px-3 py-4 text-sm text-gray-500">
-                            No documents are shared with all participants.
-                          </div>
+                          <div className="px-3 py-4 text-sm text-gray-500">No documents are shared with all participants.</div>
                         ) : (
                           attachableDocuments.map((doc) => (
                             <button
@@ -768,9 +763,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               <FileText className="h-4 w-4 text-gray-500 mt-0.5 mr-2" />
                               <div>
                                 <div className="text-sm text-gray-800 truncate">{doc.name}</div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wide">
-                                  {doc.scope === "org" ? "Org" : "Project"}
-                                </div>
+                                <div className="text-xs text-gray-500 uppercase tracking-wide">{doc.scope === "org" ? "Org" : "Project"}</div>
                               </div>
                             </button>
                           ))
@@ -778,23 +771,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       </div>
                     </div>
                   )}
+                  <textarea
+                    ref={textAreaRef}
+                    value={newMessage}
+                    onChange={handleTextAreaChange}
+                    placeholder="Type a message..."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    className="flex-1 h-[44px] max-h-40 px-3 py-2 border-0 focus:outline-none focus:ring-0 disabled:bg-gray-100 resize-none overflow-y-auto"
+                  />
                 </div>
-                <textarea
-                  ref={textAreaRef}
-                  value={newMessage}
-                  onChange={handleTextAreaChange}
-                  placeholder="Type a message..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 min-h-[40px] max-h-32 resize-none"
-                />
                 <Button
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim() || isLoading}
+                  className="h-11 px-4"
                 >
                   <Send className="h-4 w-4" />
                 </Button>

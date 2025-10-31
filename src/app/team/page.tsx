@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
@@ -21,11 +22,13 @@ import {
   MoreVertical,
   Trash2,
   Edit,
+  ArrowLeft,
 } from "lucide-react";
 import { OrgMemberRole } from "@/types/enhanced-types";
 import { ProjectGrant, OrgGrant, OrgMember } from "@/types/enhanced-types";
 
 export default function TeamPage() {
+  const router = useRouter();
   const { user, activeOrg, currentOrgRole } = useAuth();
   const {
     members,
@@ -138,9 +141,28 @@ export default function TeamPage() {
   };
 
   if (!activeOrg) {
+    const breadcrumb = (
+      <nav className="flex items-center space-x-2 text-2xl mb-2">
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md mr-2 transition-colors"
+          aria-label="Go back to Dashboard"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="text-gray-500 hover:text-gray-700 font-medium"
+        >
+          Dashboard
+        </button>
+        <span className="text-gray-400">/</span>
+        <span className="text-gray-800 font-semibold">Team Management</span>
+      </nav>
+    );
     return (
       <RoleBasedRoute roles={["borrower"]}>
-        <DashboardLayout title="Team Management">
+        <DashboardLayout breadcrumb={breadcrumb}>
           <div className="text-center py-8">
             <p className="text-gray-500">
               No active org found. Please contact support.
@@ -151,9 +173,30 @@ export default function TeamPage() {
     );
   }
 
+  // Breadcrumb for main Team page
+  const breadcrumb = (
+    <nav className="flex items-center space-x-2 text-2xl mb-2">
+      <button
+        onClick={() => router.push("/dashboard")}
+        className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md mr-2 transition-colors"
+        aria-label="Go back to Dashboard"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </button>
+      <button
+        onClick={() => router.push("/dashboard")}
+        className="text-gray-500 hover:text-gray-700 font-medium"
+      >
+        Dashboard
+      </button>
+      <span className="text-gray-400">/</span>
+      <span className="text-gray-800 font-semibold">Team Management</span>
+    </nav>
+  );
+
   return (
     <RoleBasedRoute roles={["borrower"]}>
-      <DashboardLayout title={isMember ? "Your Team" : "Team Management"}>
+      <DashboardLayout breadcrumb={breadcrumb}>
         <LoadingOverlay isLoading={isLoading} />
 
         {error && (

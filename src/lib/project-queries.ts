@@ -360,12 +360,16 @@ export const saveBorrowerResume = async (
   orgId: string, 
   content: Partial<BorrowerResumeContent>
 ): Promise<void> => {
+  // Fetch existing content to avoid overwriting fields that were not provided
+  const existing = await getBorrowerResume(orgId);
+  const mergedContent = { ...(existing || {}), ...content } as any;
+
   const { error } = await supabase
     .from('borrower_resumes')
     .upsert(
       { 
         org_id: orgId, 
-        content: content as any // Cast to any for JSONB storage
+        content: mergedContent // Merge to preserve existing JSONB fields
       }, 
       { onConflict: 'org_id' }
     );

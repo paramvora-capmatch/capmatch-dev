@@ -21,10 +21,10 @@ import {
   DollarSign,
   Globe,
   Award,
-  CheckCircle,
   Briefcase,
   AlertTriangle,
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   EntityStructure,
   ExperienceRange,
@@ -41,6 +41,7 @@ import { useBorrowerResumeStore } from "../../stores/useBorrowerResumeStore";
 
 interface BorrowerResumeFormProps {
   onComplete?: (profile: BorrowerResumeContent | null) => void; // Allow null in callback
+  onProgressChange?: (percent: number) => void;
 }
 
 // Options definitions (no changes)
@@ -136,9 +137,10 @@ const geographicMarketsOptions = [
 
 export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   onComplete,
+  onProgressChange,
 }) => {
   const { user } = useAuth();
-  const { content: borrowerResume, saveForOrg } = useBorrowerResumeStore();
+  const { content: borrowerResume, saveForOrg, isSaving } = useBorrowerResumeStore();
   // Principals removed from new schema - kept as empty array for form compatibility
   const principals: Principal[] = [];
 
@@ -150,9 +152,56 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   >({ principalRoleDefault: "Key Principal" });
   const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const initializedRef = useRef(false);
 
-  // Initialize form
+  const computeCompletionPercent = useCallback((data: Partial<BorrowerResumeContent>): number => {
+    // Fields to consider for completion
+    const fields: (keyof BorrowerResumeContent)[] = [
+      'fullLegalName',
+      'primaryEntityName',
+      'primaryEntityStructure', // default counts as completed
+      'contactEmail', // default from user email counts as completed
+      'contactPhone',
+      'contactAddress',
+      'bioNarrative',
+      'linkedinUrl',
+      'websiteUrl',
+      'yearsCREExperienceRange', // default counts as completed
+      'assetClassesExperience',
+      'geographicMarketsExperience',
+      'totalDealValueClosedRange', // default counts as completed
+      'existingLenderRelationships',
+      'creditScoreRange', // default counts as completed
+      'netWorthRange', // default counts as completed
+      'liquidityRange', // default counts as completed
+      // booleans considered answered only when true (explicit signal)
+      'bankruptcyHistory',
+      'foreclosureHistory',
+      'litigationHistory',
+    ];
+
+    let answered = 0;
+    let total = fields.length;
+
+    fields.forEach((key) => {
+      const value = (data as any)[key];
+      if (Array.isArray(value)) {
+        if (value.length > 0) answered += 1;
+      } else if (typeof value === 'string') {
+        if (value && value.trim().length > 0) answered += 1;
+      } else if (typeof value === 'boolean') {
+        if (value === true) answered += 1;
+      } else if (value != null) {
+        answered += 1;
+      }
+    });
+
+    return Math.min(100, Math.round((answered / Math.max(1, total)) * 100));
+  }, []);
+
+  // Initialize form once on first load (avoid resetting on each store update)
   useEffect(() => {
+    if (initializedRef.current) return;
     const defaultData: Partial<BorrowerResumeContent> = {
       primaryEntityStructure: "LLC",
       contactEmail: user?.email || "",
@@ -168,6 +217,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       geographicMarketsExperience: [],
     };
     setFormData(borrowerResume ? { ...borrowerResume } : { ...defaultData });
+    // Mark initialized after first set (when either default or resume is applied)
+    initializedRef.current = true;
   }, [borrowerResume, user?.email]);
 
   // Debounced auto-save effect for profile form
@@ -182,7 +233,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         JSON.stringify(formData) !== JSON.stringify(borrowerResume)
       ) {
         try {
-          await saveForOrg(formData);
+          const completenessPercent = computeCompletionPercent(formData);
+          onProgressChange?.(completenessPercent);
+          await saveForOrg({ ...formData, completenessPercent });
         } catch (error) {
           console.error("[ProfileForm] Auto-save failed:", error);
         }
@@ -194,7 +247,14 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [formData, borrowerResume, saveForOrg]);
+  }, [formData, borrowerResume, saveForOrg, computeCompletionPercent, onProgressChange]);
+
+  // Report progress on any local change immediately (for live banner updates)
+  useEffect(() => {
+    const completenessPercent = computeCompletionPercent(formData);
+    onProgressChange?.(completenessPercent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData]);
 
   // Input change handlers
   const handleInputChange = useCallback(
@@ -218,7 +278,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     try {
       setFormSaved(true);
-      await saveForOrg(formData);
+      const completenessPercent = computeCompletionPercent(formData);
+      onProgressChange?.(completenessPercent);
+      await saveForOrg({ ...formData, completenessPercent });
 
       if (onComplete) {
         // Pass the updated formData as the profile
@@ -230,7 +292,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     } finally {
       setTimeout(() => setFormSaved(false), 2000);
     }
-  }, [formData, onComplete, saveForOrg]);
+  }, [formData, onComplete, saveForOrg, computeCompletionPercent, onProgressChange]);
 
   // Principals removed from new schema - these functions are no-ops
   const handleAddPrincipal = useCallback(async () => {
@@ -253,9 +315,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           <Card>
             {" "}
             <CardHeader>
-              <h2 className="text-xl font-semibold flex items-center">
-                <User className="mr-2" /> Basic Info
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold flex items-center">
+                  <User className="mr-2" /> Basic Info
+                </h2>
+                {isSaving && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <span className="ml-2">Saving…</span>
+                  </div>
+                )}
+              </div>
             </CardHeader>{" "}
             <CardContent className="p-4 space-y-6">
               {" "}
@@ -348,9 +418,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           <Card>
             {" "}
             <CardHeader>
-              <h2 className="text-xl font-semibold flex items-center">
-                <Briefcase className="mr-2" /> Experience
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold flex items-center">
+                  <Briefcase className="mr-2" /> Experience
+                </h2>
+                {isSaving && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <span className="ml-2">Saving…</span>
+                  </div>
+                )}
+              </div>
             </CardHeader>{" "}
             <CardContent className="p-4 space-y-6">
               <FormGroup>
@@ -448,9 +526,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           <Card>
             {" "}
             <CardHeader>
-              <h2 className="text-xl font-semibold flex items-center">
-                <DollarSign className="mr-2" /> Financial Info
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold flex items-center">
+                  <DollarSign className="mr-2" /> Financial Info
+                </h2>
+                {isSaving && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <span className="ml-2">Saving…</span>
+                  </div>
+                )}
+              </div>
             </CardHeader>{" "}
             <CardContent className="p-4 space-y-6">
               <FormGroup>
@@ -543,9 +629,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           <Card>
             {" "}
             <CardHeader>
-              <h2 className="text-xl font-semibold flex items-center">
-                <Globe className="mr-2" /> Online Presence (Opt)
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold flex items-center">
+                  <Globe className="mr-2" /> Online Presence (Opt)
+                </h2>
+                {isSaving && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <span className="ml-2">Saving…</span>
+                  </div>
+                )}
+              </div>
             </CardHeader>{" "}
             <CardContent className="p-4 space-y-6">
               <FormGroup>
@@ -583,9 +677,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           <Card>
             {" "}
             <CardHeader>
-              <h2 className="text-xl font-semibold flex items-center">
-                <Award className="mr-2" /> Key Principals (Opt)
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold flex items-center">
+                  <Award className="mr-2" /> Key Principals (Opt)
+                </h2>
+                {isSaving && (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <span className="ml-2">Saving…</span>
+                  </div>
+                )}
+              </div>
             </CardHeader>{" "}
             <CardContent className="p-4 space-y-6">
               <div className="border rounded p-4 bg-gray-50">
@@ -690,35 +792,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           </Card>
         ),
       },
-      // Step 6: Review & Save (JSX)
-      {
-        id: "review",
-        title: "Review & Save",
-        component: (
-          <Card>
-            {" "}
-            <CardHeader>
-              <h2 className="text-xl font-semibold flex items-center">
-                <CheckCircle className="mr-2" /> Review & Save
-              </h2>
-            </CardHeader>{" "}
-            <CardContent className="p-4 space-y-6">
-              <div className="p-3 bg-blue-50 rounded text-sm border border-blue-100">
-                Review details. Changes auto-save. Click below to manually
-                confirm save and finish.
-              </div>
-              <Button
-                onClick={handleProfileSubmit}
-                isLoading={formSaved}
-                disabled={formSaved}
-                className="min-w-[140px]"
-              >
-                {formSaved ? "Saved!" : "Save & Finish"}
-              </Button>
-            </CardContent>{" "}
-          </Card>
-        ),
-      },
+      // Review & Save step removed; autosave covers all updates
     ],
     [
       formData,
@@ -737,9 +811,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     <FormWizard
       steps={steps}
       onComplete={handleProfileSubmit}
-      showProgressBar={true}
-      showStepIndicators={true}
+      showProgressBar={false}
+      showStepIndicators={false}
       allowSkip={true}
+      variant="tabs"
     />
   );
 };
