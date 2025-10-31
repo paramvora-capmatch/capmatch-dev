@@ -20,6 +20,7 @@ interface FormWizardProps {
   showProgressBar?: boolean;
   showStepIndicators?: boolean;
   initialStep?: number;
+  variant?: 'wizard' | 'tabs';
 }
 
 export const FormWizard: React.FC<FormWizardProps> = ({
@@ -30,6 +31,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   showProgressBar = true,
   showStepIndicators = true,
   initialStep = 0,
+  variant = 'wizard',
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(initialStep);
   // Internal completion tracking for visual state
@@ -75,11 +77,14 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   };
 
   const goToStep = (index: number) => {
+    if (variant === 'tabs') {
+      setCurrentStepIndex(index);
+      return;
+    }
     // Allow navigation only to steps before the current one if they are marked complete
     if (index < currentStepIndex || internallyCompletedSteps[steps[index-1]?.id] || allowSkip) {
        setCurrentStepIndex(index);
     }
-    // Add logic here if you want to prevent jumping far ahead
   };
 
   // Calculate progress based on *internal* completion tracking for visuals
@@ -90,8 +95,28 @@ export const FormWizard: React.FC<FormWizardProps> = ({
 
   return (
     <div className={cn("w-full", className)}>
+      {/* Tabs header when in tabs variant */}
+      {variant === 'tabs' && (
+        <div className="mb-6 border-b">
+          <div className="flex gap-2 overflow-x-auto">
+            {steps.map((step, index) => (
+              <button
+                key={step.id}
+                className={cn(
+                  "px-3 py-2 text-sm font-medium rounded-t-md border-b-2",
+                  index === currentStepIndex ? "border-blue-600 text-blue-600" : "border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+                )}
+                onClick={() => goToStep(index)}
+              >
+                {step.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Progress bar */}
-      {showProgressBar && (
+      {variant === 'wizard' && showProgressBar && (
         <div className="mb-6">
           <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
@@ -106,14 +131,14 @@ export const FormWizard: React.FC<FormWizardProps> = ({
       )}
 
       {/* Step indicators and titles */}
-      {showStepIndicators && (
-        <div className="flex justify-between items-start mb-8 px-4 md:px-8 relative"> {/* Added relative positioning */}
+      {variant === 'wizard' && showStepIndicators && (
+        <div className="flex justify-between items-start mb-8 px-4 md:px-8 relative z-0"> {/* Ensure below page header */}
           {steps.map((step, index) => (
             <div key={step.id} className="flex-1 flex flex-col items-center relative group"> {/* Added group */}
               {/* Step Circle */}
               <div
                 className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all z-10",
+                  "flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all",
                   currentStepIndex === index ? "bg-blue-600 border-blue-600 text-white" :
                   internallyCompletedSteps[step.id] ? "bg-green-500 border-green-500 text-white" :
                   index < currentStepIndex ? "bg-white border-blue-600 text-blue-600" : // Completed but not active
@@ -157,35 +182,37 @@ export const FormWizard: React.FC<FormWizardProps> = ({
         {currentStep?.component} {/* Added optional chaining */}
       </div>
 
-      {/* Navigation buttons */}
-      <div className={cn(
-        "flex items-center pt-4 border-t", // Added border-t for separation
-        isFirstStep ? "justify-end" : "justify-between"
-      )}>
-        {!isFirstStep && (
+      {/* Navigation buttons (wizard variant only) */}
+      {variant === 'wizard' && (
+        <div className={cn(
+          "flex items-center pt-4 border-t", // Added border-t for separation
+          isFirstStep ? "justify-end" : "justify-between"
+        )}>
+          {!isFirstStep && (
+            <Button
+              variant="outline"
+              leftIcon={<ChevronLeft size={16} />}
+              onClick={goPrevious}
+            >
+              Previous
+            </Button>
+          )}
+          {/* Show skip button only if allowed and step is optional */}
+          {allowSkip && currentStep?.isOptional && !isLastStep && (
+               <Button variant="ghost" onClick={goNext} className="text-sm text-gray-500 hover:text-gray-700">
+                  Skip (Optional)
+               </Button>
+          )}
           <Button
-            variant="outline"
-            leftIcon={<ChevronLeft size={16} />}
-            onClick={goPrevious}
+            variant="primary"
+            rightIcon={!isLastStep ? <ChevronRight size={16} /> : <CheckCircle size={16} />}
+            onClick={goNext}
+            // Add validation logic if needed: disabled={!isStepValid}
           >
-            Previous
+            {isLastStep ? 'Complete' : 'Save and Next'}
           </Button>
-        )}
-        {/* Show skip button only if allowed and step is optional */}
-        {allowSkip && currentStep?.isOptional && !isLastStep && (
-             <Button variant="ghost" onClick={goNext} className="text-sm text-gray-500 hover:text-gray-700">
-                Skip (Optional)
-             </Button>
-        )}
-        <Button
-          variant="primary"
-          rightIcon={!isLastStep ? <ChevronRight size={16} /> : <CheckCircle size={16} />}
-          onClick={goNext}
-          // Add validation logic if needed: disabled={!isStepValid}
-        >
-          {isLastStep ? 'Complete' : 'Save and Next'}
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   );
 };

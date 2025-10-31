@@ -8,6 +8,7 @@ interface BorrowerResumeState {
   content: BorrowerResumeContent | null;
   isLoading: boolean;
   error: string | null;
+  isSaving?: boolean;
 }
 
 interface BorrowerResumeActions {
@@ -20,6 +21,7 @@ export const useBorrowerResumeStore = create<BorrowerResumeState & BorrowerResum
   content: null,
   isLoading: false,
   error: null,
+  isSaving: false,
 
   reset: () => set({ content: null, isLoading: false, error: null }),
 
@@ -43,12 +45,12 @@ export const useBorrowerResumeStore = create<BorrowerResumeState & BorrowerResum
     const id = orgId || useAuthStore.getState().activeOrg?.id;
     if (!id) throw new Error('No active org');
     
-    set({ isLoading: true, error: null });
+    set({ isSaving: true, error: null });
     try {
       await saveBorrowerResume(id, content);
-      set({ content: { ...get().content, ...content }, isLoading: false });
+      set({ content: { ...get().content, ...content }, isSaving: false });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Failed to save', isLoading: false });
+      set({ error: err instanceof Error ? err.message : 'Failed to save', isSaving: false });
       throw err;
     }
   },

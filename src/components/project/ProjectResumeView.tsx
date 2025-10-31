@@ -26,10 +26,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
     const progressColor = completeness === 100 ? 'bg-green-600' : 'bg-blue-600';
 
     return (
-        <Card className="shadow-sm border border-gray-200 relative group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30">
+        <Card className="h-full flex flex-col shadow-sm border border-gray-200 relative group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-lg" />
             
-            <CardHeader className="border-b bg-gray-50/50 flex flex-row items-center justify-between relative z-10">
+            <CardHeader className="sticky top-0 border-b bg-gray-50/50 flex flex-row items-center justify-between relative z-10">
                 <div>
                     <h2 className="text-lg font-semibold text-gray-800 flex items-center">
                         <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
@@ -43,17 +43,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                 </Button>
             </CardHeader>
 
-            <CardContent className="p-4 relative z-10">
-                <div className="mb-6">
-                    <div className="flex justify-between mb-1 text-xs">
-                        <span className="font-medium text-gray-700">Overall Completeness</span>
-                        <span className={`font-semibold transition-colors duration-300 ${completeness === 100 ? 'text-emerald-600' : 'text-blue-600'}`}>{completeness}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden shadow-inner">
-                        <div className={`h-full rounded-full transition-all duration-1000 ease-out ${progressColor} shadow-sm`} style={{ width: `${completeness}%` }} />
-                    </div>
-                </div>
-
+            <CardContent className="flex-1 overflow-y-auto p-4 relative z-10">
                 <div className="space-y-6">
                     {/* Basic Info */}
                     <div>

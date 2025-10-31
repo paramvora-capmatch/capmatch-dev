@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
@@ -21,11 +22,13 @@ import {
   MoreVertical,
   Trash2,
   Edit,
+  ArrowLeft,
 } from "lucide-react";
 import { OrgMemberRole } from "@/types/enhanced-types";
 import { ProjectGrant, OrgGrant, OrgMember } from "@/types/enhanced-types";
 
 export default function TeamPage() {
+  const router = useRouter();
   const { user, activeOrg, currentOrgRole } = useAuth();
   const {
     members,
@@ -138,9 +141,28 @@ export default function TeamPage() {
   };
 
   if (!activeOrg) {
+    const breadcrumb = (
+      <nav className="flex items-center space-x-2 text-2xl mb-2">
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md mr-2 transition-colors"
+          aria-label="Go back to Dashboard"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="text-gray-500 hover:text-gray-700 font-medium"
+        >
+          Dashboard
+        </button>
+        <span className="text-gray-400">/</span>
+        <span className="text-gray-800 font-semibold">Team Management</span>
+      </nav>
+    );
     return (
       <RoleBasedRoute roles={["borrower"]}>
-        <DashboardLayout title="Team Management">
+        <DashboardLayout breadcrumb={breadcrumb}>
           <div className="text-center py-8">
             <p className="text-gray-500">
               No active org found. Please contact support.
@@ -151,28 +173,70 @@ export default function TeamPage() {
     );
   }
 
+  // Breadcrumb for main Team page
+  const breadcrumb = (
+    <nav className="flex items-center space-x-2 text-2xl mb-2">
+      <button
+        onClick={() => router.push("/dashboard")}
+        className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md mr-2 transition-colors"
+        aria-label="Go back to Dashboard"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </button>
+      <button
+        onClick={() => router.push("/dashboard")}
+        className="text-gray-500 hover:text-gray-700 font-medium"
+      >
+        Dashboard
+      </button>
+      <span className="text-gray-400">/</span>
+      <span className="text-gray-800 font-semibold">Team Management</span>
+    </nav>
+  );
+
   return (
     <RoleBasedRoute roles={["borrower"]}>
-      <DashboardLayout title={isMember ? "Your Team" : "Team Management"}>
+      <DashboardLayout breadcrumb={breadcrumb}>
         <LoadingOverlay isLoading={isLoading} />
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-            <div className="flex justify-between items-center">
-              <p className="text-red-800">{error}</p>
-              <Button variant="outline" size="sm" onClick={clearError}>
-                Dismiss
-              </Button>
-            </div>
+        {/* Decorative Background Layer (mirrors dashboard) */}
+        <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
+          {/* Subtle grid pattern */}
+          <div className="pointer-events-none absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
+            <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
+              <defs>
+                <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                  <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
           </div>
-        )}
 
-        {isMember ? (
+          {/* Blue blurred blob at top */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+            <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
+          </div>
+
+          {/* Main content with X padding and top gap */}
+          <div className="relative z-[1] mx-auto px-3 sm:px-5 lg:px-32 pt-20 pb-6">
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex justify-between items-center">
+                  <p className="text-red-800">{error}</p>
+                  <Button variant="outline" size="sm" onClick={clearError}>
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {isMember ? (
           // Member View - Show their own profile information
           <div className="flex items-center justify-center min-h-[60vh]">
             <Card className="w-full max-w-2xl">
               <CardHeader>
-                <h2 className="text-xl font-bold text-gray-900 text-center">
+                <h2 className="text-xl font-bold text-gray-900 text-center mb-4">
                   Your Team Information
                 </h2>
               </CardHeader>
@@ -225,16 +289,16 @@ export default function TeamPage() {
               </CardContent>
             </Card>
           </div>
-        ) : (
+            ) : (
           // Owner View - Show team management interface
           <div className="space-y-6">
             {/* Header */}
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-4xl font-bold text-gray-900">
                   Team Management
                 </h1>
-                <p className="text-gray-600">{activeOrg.name}</p>
+                <p className="text-gray-600 text-2xl mt-3">{activeOrg.name}</p>
               </div>
               {isOwner && (
                 <Button
@@ -248,71 +312,35 @@ export default function TeamPage() {
             </div>
 
           {/* Active Members */}
-          <Card>
-            <CardHeader>
-              <h3 className="flex items-center text-lg font-semibold">
+          <div>
+            <div className="mb-4">
+              <h3 className="flex items-center text-2xl font-semibold mb-6">
                 <Users className="h-5 w-5 mr-2" />
                 Active Members ({members.length})
               </h3>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div>
               {members.length > 0 ? (
-                <div className="space-y-4">
-                  {members.map((member) => (
-                    <div
-                      key={member.user_id}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
-                          {member.role === "owner" ? (
-                            <Crown className="h-5 w-5 text-blue-600" />
-                          ) : (
-                            <User className="h-5 w-5 text-gray-600" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <p className="font-medium text-gray-900">
-                              {member.userName || "Unknown User"}
-                            </p>
-                            <span
-                              className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                member.role === "owner"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {member.role}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            {member.userEmail}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            Joined {formatDate(member.created_at)}
-                          </p>
-                        </div>
-                      </div>
-
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {members.map((member, index) => (
+                    <div key={member.user_id} className="relative animate-fade-up" style={{ animationDelay: `${index * 80}ms` }}>
+                      {/* Actions menu (outside overflow-hidden card) */}
                       {isOwner && member.user_id !== user?.id && (
-                        <div className="relative">
+                        <div className="absolute right-3 top-3 z-20">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() =>
                               setShowMemberMenu(
-                                showMemberMenu === member.user_id
-                                  ? null
-                                  : member.user_id
+                                showMemberMenu === member.user_id ? null : member.user_id
                               )
                             }
+                            className="h-8 w-8 p-0"
                           >
                             <MoreVertical size={16} />
                           </Button>
-
                           {showMemberMenu === member.user_id && (
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                            <div className="absolute right-0 top-9 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
                               <div className="py-1">
                                 {member.role === 'member' && (
                                   <button
@@ -325,9 +353,7 @@ export default function TeamPage() {
                                 )}
                                 <button
                                   className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                                  onClick={() =>
-                                    handleRemoveMember(member.user_id)
-                                  }
+                                  onClick={() => handleRemoveMember(member.user_id)}
                                 >
                                   <Trash2 size={16} className="mr-2" />
                                   Remove Member
@@ -337,6 +363,42 @@ export default function TeamPage() {
                           )}
                         </div>
                       )}
+
+                      {/* Card body */}
+                      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                        {/* Avatar */}
+                        <div className="flex items-center justify-center">
+                          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-blue-100">
+                            {member.role === "owner" ? (
+                              <Crown className="h-7 w-7 text-blue-600" />
+                            ) : (
+                              <User className="h-7 w-7 text-gray-600" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Text */}
+                        <div className="mt-4 text-center">
+                          <p className="font-medium text-gray-900 break-words">
+                            {member.userName || "Unknown User"}
+                          </p>
+                          <div className="mt-1 flex justify-center">
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                member.role === "owner"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {member.role}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1 break-words">{member.userEmail}</p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Joined {formatDate(member.created_at)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -346,32 +408,33 @@ export default function TeamPage() {
                   <p className="mt-2 text-gray-500">No active members</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Pending Invites */}
           {pendingInvites.length > 0 && (
-            <Card>
-              <CardHeader>
+            <div>
+              <div className="mb-4 mt-8">
                 <h3 className="flex items-center text-lg font-semibold">
                   <Mail className="h-5 w-5 mr-2" />
                   Pending Invitations ({pendingInvites.length})
                 </h3>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {pendingInvites.map((invite) => (
-                    <div
-                      key={invite.id}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center justify-center w-10 h-10 bg-yellow-100 rounded-full">
-                          <Clock className="h-5 w-5 text-yellow-600" />
+              </div>
+              <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {pendingInvites.map((invite, index) => (
+                    <div key={invite.id} className="relative animate-fade-up" style={{ animationDelay: `${index * 80}ms` }}>
+                      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                        {/* Avatar */}
+                        <div className="flex items-center justify-center">
+                          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100">
+                            <Clock className="h-7 w-7 text-yellow-600" />
+                          </div>
                         </div>
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <p className="font-medium text-gray-900">
+                        {/* Text */}
+                        <div className="mt-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <p className="font-medium text-gray-900 break-words">
                               {invite.invited_email}
                             </p>
                             <span
@@ -390,60 +453,73 @@ export default function TeamPage() {
                             )}
                           </div>
                           <p className="text-sm text-gray-500">
-                            Invited by{" "}
-                            {invite.inviterName || "Unknown"}
+                            Invited by {invite.inviterName || "Unknown"}
                           </p>
                           <p className="text-xs text-gray-400">
                             Invited {formatDate(invite.created_at)}
                             {!isInviteExpired(invite.expires_at) && (
-                              <span>
-                                {" "}
-                                • Expires {formatDate(invite.expires_at)}
-                              </span>
+                              <span> • Expires {formatDate(invite.expires_at)}</span>
                             )}
                           </p>
                         </div>
-                      </div>
 
-                      {isOwner && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCancelInvite(invite.id)}
-                        >
-                          Cancel
-                        </Button>
-                      )}
+                        {/* Actions */}
+                        {isOwner && (
+                          <div className="mt-4 flex justify-center">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCancelInvite(invite.id)}
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
           </div>
-        )}
+            )}
 
-        {/* Modals */}
-        {showInviteModal && (
-          <InviteMemberModal
-            isOpen={showInviteModal}
-            onClose={() => setShowInviteModal(false)}
-            onInvite={handleInviteMember}
-          />
-        )}
+            {/* Modals */}
+            {showInviteModal && (
+              <InviteMemberModal
+                isOpen={showInviteModal}
+                onClose={() => setShowInviteModal(false)}
+                onInvite={handleInviteMember}
+              />
+            )}
 
-        {showEditPermissionsModal && selectedMember && activeOrg && (
-          <EditMemberPermissionsModal
-            isOpen={showEditPermissionsModal}
-            onClose={() => {
-              setShowEditPermissionsModal(false);
-              setSelectedMember(null);
-            }}
-            member={selectedMember}
-            orgId={activeOrg.id}
-            onUpdate={handleUpdatePermissions}
-          />
-        )}
+            {showEditPermissionsModal && selectedMember && activeOrg && (
+              <EditMemberPermissionsModal
+                isOpen={showEditPermissionsModal}
+                onClose={() => {
+                  setShowEditPermissionsModal(false);
+                  setSelectedMember(null);
+                }}
+                member={selectedMember}
+                orgId={activeOrg.id}
+                onUpdate={handleUpdatePermissions}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Local styles for subtle animations */}
+        <style jsx>{`
+          @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(16px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+          .animate-fade-up {
+            animation: fadeUp 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          }
+        `}</style>
       </DashboardLayout>
     </RoleBasedRoute>
   );
