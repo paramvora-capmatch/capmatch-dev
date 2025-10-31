@@ -15,8 +15,17 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
   const router = useRouter();
 
   const completeness = profile?.completenessPercent || 0;
-  const progressColor = completeness === 100 ? 'bg-green-600' : 'bg-blue-600';
-  const progressBgColor = completeness === 100 ? 'bg-emerald-50' : 'bg-blue-50';
+  const isAtRisk = completeness < 70;
+  const progressColor = completeness === 100
+    ? 'bg-green-600'
+    : isAtRisk
+      ? 'bg-red-600'
+      : 'bg-blue-600';
+  const progressBgColor = completeness === 100
+    ? 'bg-emerald-50'
+    : isAtRisk
+      ? 'bg-red-50'
+      : 'bg-blue-50';
 
 
   const handleCardClick = () => {
@@ -25,7 +34,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
 
   return (
     <Card
-      className="shadow-sm border border-gray-200 relative overflow-hidden group cursor-pointer hover:shadow-md transition-all duration-200"
+      className={`shadow-sm border relative overflow-hidden group cursor-pointer hover:shadow-md transition-all duration-200 ${isAtRisk ? 'border-red-300' : 'border-gray-200'}`}
       onClick={handleCardClick}
     >
       {/* Animated background gradient */}
@@ -42,11 +51,11 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
                 <div className="w-full">
                     <div className="flex justify-between items-center mb-2 text-sm">
                         <span className="font-medium text-gray-700">Completion Progress</span>
-                        <span className={`font-semibold transition-colors duration-300 ${completeness === 100 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                        <span className={`font-semibold transition-colors duration-300 ${completeness === 100 ? 'text-emerald-600' : isAtRisk ? 'text-red-600' : 'text-blue-600'}`}>
                             {completeness}%
                         </span>
                     </div>
-                    <div className="relative w-full bg-gray-200 rounded-full h-2.5 overflow-hidden shadow-inner">
+                    <div className="relative w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
                         {/* Progress bar with solid color and animation */}
                         <div
                             className={`h-full rounded-full transition-all duration-1000 ease-out ${progressColor} shadow-sm relative overflow-hidden`}

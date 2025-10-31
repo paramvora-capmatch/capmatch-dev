@@ -41,9 +41,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* No sidebar - header-only layout */}
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto overflow-x-hidden">
         <header className="bg-white shadow-sm sticky top-0 z-10">
-          <div className="py-4 px-6 flex items-center justify-between">
+          <div className="py-4 px-3 sm:px-5 lg:px-32 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Link href="/dashboard">
                 <Image
@@ -63,19 +63,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </div>
             </div>
             {(isAuthenticated && user) && (
-              <div className="flex items-center space-x-4">
-                {/* Team button */}
-                <Link
-                  href="/team"
-                  className="inline-flex items-center px-4 py-3 text-base font-medium text-gray-600 rounded-md border border-gray-300 hover:bg-gray-100 hover:text-gray-900"
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Team
-                </Link>
+              <div className="flex items-center gap-3">
                 {/* User email */}
                 <span className="text-sm text-gray-700 hidden sm:inline">
                   {user.email} {currentOrgRole && activeOrg ? `| ${activeOrg.name}` : ""}
                 </span>
+                {/* Team button */}
+                <Link
+                  href="/team"
+                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg border border-blue-600 hover:bg-blue-700 hover:border-blue-700 transition-colors duration-200 shadow-sm"
+                >
+                  <Users className="h-4 w-4" />
+                  Team
+                </Link>
                 {/* Settings dropdown */}
                 <div className="relative">
                   <details className="group">
