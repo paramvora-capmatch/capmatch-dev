@@ -1,5 +1,5 @@
 // src/components/dashboard/ProjectCard.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/Button";
@@ -11,9 +11,18 @@ import {
   Building,
   TrendingUp,
   FileSpreadsheet,
+  Users,
 } from "lucide-react";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { useProjectStore as useProjects } from "@/stores/useProjectStore";
+import { useOrgStore } from "@/stores/useOrgStore";
+import { supabase } from "../../../lib/supabaseClient";
+
+interface ProjectMember {
+  userId: string;
+  userName: string;
+  userEmail: string;
+}
 
 interface ProjectCardProps {
   project: ProjectProfile;
@@ -22,9 +31,149 @@ interface ProjectCardProps {
 export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
   const router = useRouter();
   const { deleteProject } = useProjects();
+  const { isOwner, currentOrg, members: orgMembers, loadOrg, isLoading: orgLoading } = useOrgStore();
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
 
   const completeness = project.completenessPercent || 0;
   const isComplete = completeness === 100;
+
+  // Check if current user is owner of the project's owner org
+  const isProjectOwner = isOwner && currentOrg?.id === project.owner_org_id;
+
+  // Ensure org is loaded for this project
+  useEffect(() => {
+    const ensureOrgLoaded = async () => {
+      if (!project.owner_org_id) return;
+      
+      const { currentOrg: currentOrgState } = useOrgStore.getState();
+      // Only load if we haven't loaded this org yet
+      if (currentOrgState?.id !== project.owner_org_id) {
+        console.log(`[ProjectCard] Loading org data for: ${project.owner_org_id}`);
+        await loadOrg(project.owner_org_id);
+      }
+    };
+    
+    ensureOrgLoaded();
+  }, [project.owner_org_id, loadOrg]);
+
+  // Fetch project members if user is an owner
+  useEffect(() => {
+    const fetchProjectMembers = async () => {
+      // Wait for org to be loaded and check ownership
+      if (!currentOrg || !isOwner || currentOrg.id !== project.owner_org_id || !project.id) {
+        console.log('[ProjectCard] Skipping member fetch:', {
+          hasCurrentOrg: !!currentOrg,
+          isOwner,
+          orgId: currentOrg?.id,
+          projectOrgId: project.owner_org_id,
+          projectId: project.id
+        });
+        setProjectMembers([]);
+        return;
+      }
+
+      // Don't fetch if org is still loading or orgMembers not yet populated
+      if (orgLoading) {
+        console.log('[ProjectCard] Waiting for org to load...');
+        return;
+      }
+
+      setIsLoadingMembers(true);
+      try {
+        console.log('[ProjectCard] Fetching project members for project:', project.id, 'owned by org:', project.owner_org_id);
+        
+        // Get all users who have been granted access to this project
+        // As an owner, we should be able to see all grants for projects in our org
+        const { data: grants, error: grantsError } = await supabase
+          .from('project_access_grants')
+          .select('user_id, org_id, granted_by')
+          .eq('project_id', project.id)
+          .eq('org_id', project.owner_org_id); // Explicitly filter by org_id to ensure we get all grants
+
+        if (grantsError) {
+          console.error('[ProjectCard] Failed to fetch project grants:', grantsError);
+          setProjectMembers([]);
+          setIsLoadingMembers(false);
+          return;
+        }
+
+        console.log('[ProjectCard] Found grants:', grants?.length || 0, grants);
+        console.log('[ProjectCard] Org members available:', orgMembers?.length || 0, orgMembers);
+
+        // Collect all user IDs from grants - these are ALL members with explicit project access
+        const userIdsFromGrants = new Set<string>(grants?.map(g => g.user_id) || []);
+        console.log('[ProjectCard] User IDs from grants:', Array.from(userIdsFromGrants));
+        
+        // Also include all org owners (they have implicit access even if not in grants)
+        // This ensures owners are shown even if they don't have explicit grants
+        orgMembers
+          .filter(m => m.role === 'owner')
+          .forEach(m => {
+            console.log('[ProjectCard] Adding org owner:', m.user_id);
+            userIdsFromGrants.add(m.user_id);
+          });
+        
+        console.log('[ProjectCard] Total unique user IDs after adding owners:', userIdsFromGrants.size, Array.from(userIdsFromGrants));
+        
+        // Add assigned advisor if exists
+        if (project.assignedAdvisorUserId) {
+          console.log('[ProjectCard] Adding assigned advisor:', project.assignedAdvisorUserId);
+          userIdsFromGrants.add(project.assignedAdvisorUserId);
+        }
+
+        // Fetch profile information for all members using edge function to bypass RLS
+        // The profiles table has RLS that only allows users to see their own profile,
+        // so we need to use the get-user-data edge function like the org store does
+        if (userIdsFromGrants.size > 0) {
+          const userIdsArray = Array.from(userIdsFromGrants);
+          
+          const { data: memberBasicData, error: basicDataError } = await supabase.functions.invoke(
+            'get-user-data',
+            {
+              body: { userIds: userIdsArray },
+            }
+          );
+
+          if (!basicDataError && memberBasicData) {
+            console.log('[ProjectCard] Fetched user data:', memberBasicData?.length || 0, memberBasicData);
+            
+            // Create a map for easy lookup
+            const basicById = new Map(
+              (memberBasicData || []).map((u: { id: string; email: string | null; full_name: string | null }) => [u.id, u])
+            );
+
+            const membersData: ProjectMember[] = userIdsArray
+              .map(userId => {
+                const basic = basicById.get(userId) as { id: string; email: string | null; full_name: string | null } | undefined;
+                return {
+                  userId,
+                  userName: (basic?.full_name && basic.full_name.trim()) || basic?.email || 'Unknown',
+                  userEmail: basic?.email || '',
+                };
+              })
+              .filter(m => m.userId); // Filter out any invalid entries
+
+            console.log('[ProjectCard] Setting project members:', membersData);
+            setProjectMembers(membersData);
+          } else {
+            console.error('[ProjectCard] Failed to fetch member data via edge function:', basicDataError);
+            setProjectMembers([]);
+          }
+        } else {
+          console.log('[ProjectCard] No members found');
+          setProjectMembers([]);
+        }
+      } catch (err) {
+        console.error('[ProjectCard] Error fetching project members:', err);
+        setProjectMembers([]);
+      } finally {
+        setIsLoadingMembers(false);
+      }
+    };
+
+    fetchProjectMembers();
+  }, [isOwner, currentOrg, project.id, project.owner_org_id, project.assignedAdvisorUserId, orgMembers, orgLoading]);
 
   // Format date helper (could be moved to utils)
   const formatDate = (dateString?: string) => {
@@ -144,6 +293,33 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
                 </span>
               </span>
             </div>
+
+            {/* Project Members - Only visible to owners */}
+            {isProjectOwner && (
+              <div className="flex items-start text-sm text-gray-600">
+                <Users className="h-4 w-4 mr-2 text-purple-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  {isLoadingMembers ? (
+                    <span className="text-gray-400">Loading members...</span>
+                  ) : projectMembers.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-gray-700">Members:</span>
+                      {projectMembers.map((member, index) => (
+                        <span
+                          key={member.userId}
+                          className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-xs font-medium text-gray-700 truncate max-w-[120px]"
+                          title={member.userEmail || member.userName}
+                        >
+                          {member.userName}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-gray-400">No members assigned</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="mb-5 mt-auto">

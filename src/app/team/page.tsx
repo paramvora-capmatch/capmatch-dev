@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { InviteMemberModal } from "@/components/team/InviteMemberModal";
 import { EditMemberPermissionsModal } from "@/components/team/EditMemberPermissionsModal";
-import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+import { SplashScreen } from "@/components/ui/SplashScreen";
 import {
   Users,
   UserPlus,
@@ -19,7 +19,6 @@ import {
   Clock,
   Crown,
   User,
-  MoreVertical,
   Trash2,
   Edit,
   ArrowLeft,
@@ -45,7 +44,6 @@ export default function TeamPage() {
   } = useOrgStore();
 
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [showMemberMenu, setShowMemberMenu] = useState<string | null>(null);
   const [showEditPermissionsModal, setShowEditPermissionsModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState<OrgMember | null>(null);
 
@@ -86,7 +84,6 @@ export default function TeamPage() {
     ) {
       try {
         await removeMember(memberId);
-        setShowMemberMenu(null);
       } catch (error) {
         console.error("Failed to remove member:", error);
       }
@@ -105,7 +102,6 @@ export default function TeamPage() {
 
   const handleEditPermissions = (member: OrgMember) => {
     setSelectedMember(member);
-    setShowMemberMenu(null);
     setShowEditPermissionsModal(true);
   };
 
@@ -197,7 +193,7 @@ export default function TeamPage() {
   return (
     <RoleBasedRoute roles={["borrower"]}>
       <DashboardLayout breadcrumb={breadcrumb}>
-        <LoadingOverlay isLoading={isLoading} />
+        {isLoading && <SplashScreen />}
 
         {/* Decorative Background Layer (mirrors dashboard) */}
         <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
@@ -300,189 +296,231 @@ export default function TeamPage() {
                 </h1>
                 <p className="text-gray-600 text-2xl mt-3">{activeOrg.name}</p>
               </div>
-              {isOwner && (
-                <Button
-                  variant="primary"
-                  leftIcon={<UserPlus size={18} />}
-                  onClick={() => setShowInviteModal(true)}
-                >
-                  Invite Member
-                </Button>
-              )}
             </div>
 
-          {/* Active Members */}
-          <div>
-            <div className="mb-4">
-              <h3 className="flex items-center text-2xl font-semibold mb-6">
-                <Users className="h-5 w-5 mr-2" />
-                Active Members ({members.length})
-              </h3>
-            </div>
-            <div>
-              {members.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {members.map((member, index) => (
-                    <div key={member.user_id} className="relative animate-fade-up" style={{ animationDelay: `${index * 80}ms` }}>
-                      {/* Actions menu (outside overflow-hidden card) */}
-                      {isOwner && member.user_id !== user?.id && (
-                        <div className="absolute right-3 top-3 z-20">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setShowMemberMenu(
-                                showMemberMenu === member.user_id ? null : member.user_id
-                              )
-                            }
-                            className="h-8 w-8 p-0"
-                          >
-                            <MoreVertical size={16} />
-                          </Button>
-                          {showMemberMenu === member.user_id && (
-                            <div className="absolute right-0 top-9 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                              <div className="py-1">
-                                {member.role === 'member' && (
-                                  <button
-                                    className="flex items-center w-full px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
-                                    onClick={() => handleEditPermissions(member)}
-                                  >
-                                    <Edit size={16} className="mr-2" />
-                                    Edit Permissions
-                                  </button>
-                                )}
-                                <button
-                                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                                  onClick={() => handleRemoveMember(member.user_id)}
-                                >
-                                  <Trash2 size={16} className="mr-2" />
-                                  Remove Member
-                                </button>
+          {/* Separate owners and members */}
+          {(() => {
+            const owners = members.filter(m => m.role === "owner");
+            const regularMembers = members.filter(m => m.role === "member");
+            
+            return (
+              <>
+                {/* Pending Invites Section - Always visible, above Active Members */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="flex items-center text-2xl font-semibold">
+                      <Mail className="h-5 w-5 mr-2" />
+                      Pending Invitations {pendingInvites.length > 0 && `(${pendingInvites.length})`}
+                    </h3>
+                    {isOwner && (
+                      <Button
+                        variant="primary"
+                        leftIcon={<UserPlus size={18} />}
+                        onClick={() => setShowInviteModal(true)}
+                      >
+                        Invite Member
+                      </Button>
+                    )}
+                  </div>
+                  {pendingInvites.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {pendingInvites.map((invite, index) => (
+                        <div key={invite.id} className="relative animate-fade-up" style={{ animationDelay: `${index * 80}ms` }}>
+                          <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                            {/* Avatar */}
+                            <div className="flex items-center justify-center">
+                              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100">
+                                <Clock className="h-7 w-7 text-yellow-600" />
                               </div>
+                            </div>
+                            {/* Text */}
+                            <div className="mt-4 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <p className="font-medium text-gray-900 break-words">
+                                  {invite.invited_email}
+                                </p>
+                                <span
+                                  className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                    invite.role === "owner"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : "bg-gray-100 text-gray-800"
+                                  }`}
+                                >
+                                  {invite.role}
+                                </span>
+                                {isInviteExpired(invite.expires_at) && (
+                                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                                    Expired
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500">
+                                Invited by {invite.inviterName || "Unknown"}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                Invited {formatDate(invite.created_at)}
+                                {!isInviteExpired(invite.expires_at) && (
+                                  <span> • Expires {formatDate(invite.expires_at)}</span>
+                                )}
+                              </p>
+                            </div>
+
+                            {/* Actions */}
+                            {isOwner && (
+                              <div className="mt-4 flex justify-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCancelInvite(invite.id)}
+                                  className="text-red-600 border-red-200 hover:bg-red-50"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
+                      <Mail className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                      <p className="text-gray-500">No pending invitations</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Members Section - 2-column list layout */}
+                <div>
+                  <div className="mb-4">
+                    <h3 className="flex items-center text-2xl font-semibold">
+                      <Users className="h-5 w-5 mr-2" />
+                      Active Members ({members.length})
+                    </h3>
+                  </div>
+                  {members.length > 0 ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* Owners Column */}
+                      <div>
+                        <div className="mb-4">
+                          <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                            <Crown className="h-4 w-4 mr-2 text-purple-600" />
+                            Owners ({owners.length})
+                          </h4>
+                        </div>
+                        <div className="space-y-3">
+                          {owners.length > 0 ? (
+                            owners.map((member, index) => (
+                              <div key={member.user_id} className="animate-fade-up" style={{ animationDelay: `${index * 50}ms` }}>
+                                {/* List item */}
+                                <div className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md transition-shadow">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium text-gray-900 break-words">
+                                        {member.userName || "Unknown User"}
+                                      </p>
+                                      <p className="text-sm text-gray-600 break-words truncate">
+                                        {member.userEmail}
+                                      </p>
+                                      <p className="text-xs text-gray-400 mt-1">
+                                        Joined {formatDate(member.created_at)}
+                                      </p>
+                                    </div>
+                                    {isOwner && member.user_id !== user?.id && (
+                                      <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleRemoveMember(member.user_id)}
+                                          className="text-red-600 border-red-200 hover:bg-red-50"
+                                        >
+                                          <Trash2 size={16} className="mr-2" />
+                                          Remove
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-4 text-gray-500 text-sm">
+                              No owners
                             </div>
                           )}
                         </div>
-                      )}
+                      </div>
 
-                      {/* Card body */}
-                      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                        {/* Avatar */}
-                        <div className="flex items-center justify-center">
-                          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-blue-100">
-                            {member.role === "owner" ? (
-                              <Crown className="h-7 w-7 text-blue-600" />
-                            ) : (
-                              <User className="h-7 w-7 text-gray-600" />
-                            )}
-                          </div>
+                      {/* Members Column */}
+                      <div>
+                        <div className="mb-4">
+                          <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                            <User className="h-4 w-4 mr-2 text-gray-600" />
+                            Members ({regularMembers.length})
+                          </h4>
                         </div>
-
-                        {/* Text */}
-                        <div className="mt-4 text-center">
-                          <p className="font-medium text-gray-900 break-words">
-                            {member.userName || "Unknown User"}
-                          </p>
-                          <div className="mt-1 flex justify-center">
-                            <span
-                              className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                member.role === "owner"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {member.role}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-600 mt-1 break-words">{member.userEmail}</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Joined {formatDate(member.created_at)}
-                          </p>
+                        <div className="space-y-3">
+                          {regularMembers.length > 0 ? (
+                            regularMembers.map((member, index) => (
+                              <div key={member.user_id} className="animate-fade-up" style={{ animationDelay: `${index * 50}ms` }}>
+                                {/* List item */}
+                                <div className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md transition-shadow">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium text-gray-900 break-words">
+                                        {member.userName || "Unknown User"}
+                                      </p>
+                                      <p className="text-sm text-gray-600 break-words truncate">
+                                        {member.userEmail}
+                                      </p>
+                                      <p className="text-xs text-gray-400 mt-1">
+                                        Joined {formatDate(member.created_at)}
+                                      </p>
+                                    </div>
+                                    {isOwner && member.user_id !== user?.id && (
+                                      <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleEditPermissions(member)}
+                                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                        >
+                                          <Edit size={16} className="mr-2" />
+                                          Edit Permissions
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleRemoveMember(member.user_id)}
+                                          className="text-red-600 border-red-200 hover:bg-red-50"
+                                        >
+                                          <Trash2 size={16} className="mr-2" />
+                                          Remove
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-4 text-gray-500 text-sm">
+                              No members
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Users className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-gray-500">No active members</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Pending Invites */}
-          {pendingInvites.length > 0 && (
-            <div>
-              <div className="mb-4 mt-8">
-                <h3 className="flex items-center text-lg font-semibold">
-                  <Mail className="h-5 w-5 mr-2" />
-                  Pending Invitations ({pendingInvites.length})
-                </h3>
-              </div>
-              <div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {pendingInvites.map((invite, index) => (
-                    <div key={invite.id} className="relative animate-fade-up" style={{ animationDelay: `${index * 80}ms` }}>
-                      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-                        {/* Avatar */}
-                        <div className="flex items-center justify-center">
-                          <div className="flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100">
-                            <Clock className="h-7 w-7 text-yellow-600" />
-                          </div>
-                        </div>
-                        {/* Text */}
-                        <div className="mt-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <p className="font-medium text-gray-900 break-words">
-                              {invite.invited_email}
-                            </p>
-                            <span
-                              className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                invite.role === "owner"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {invite.role}
-                            </span>
-                            {isInviteExpired(invite.expires_at) && (
-                              <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-                                Expired
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-500">
-                            Invited by {invite.inviterName || "Unknown"}
-                          </p>
-                          <p className="text-xs text-gray-400">
-                            Invited {formatDate(invite.created_at)}
-                            {!isInviteExpired(invite.expires_at) && (
-                              <span> • Expires {formatDate(invite.expires_at)}</span>
-                            )}
-                          </p>
-                        </div>
-
-                        {/* Actions */}
-                        {isOwner && (
-                          <div className="mt-4 flex justify-center">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCancelInvite(invite.id)}
-                              className="text-red-600 border-red-200 hover:bg-red-50"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        )}
-                      </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="mx-auto h-12 w-12 text-gray-400" />
+                      <p className="mt-2 text-gray-500">No active members</p>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            </div>
-          )}
+              </>
+            );
+          })()}
           </div>
             )}
 
