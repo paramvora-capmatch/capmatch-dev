@@ -141,9 +141,35 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title={resource?.name || "Loading..."} size="full">
-        <div className="flex flex-col h-[calc(100vh-10rem)]">
-            <div className="flex-1 bg-gray-200 rounded-md overflow-hidden relative">
+    <>
+      <Modal isOpen={true} onClose={onClose} title={resource?.name || "Loading..."} size="full">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            {/* Action buttons above preview */}
+            <div className="flex-shrink-0 pb-4 mb-4 border-b border-gray-200">
+                <div className="flex items-center justify-end space-x-2">
+                    {canEdit && (
+                        <VersionHistoryDropdown resourceId={resourceId} onRollbackSuccess={onClose} defaultOpen={false} />
+                    )}
+                    {canEdit && isEditableInOffice && (
+                        <Link
+                          href={`/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(resource.storage_path)}`}
+                          passHref
+                          legacyBehavior
+                        >
+                            <Button as="a" variant="primary" leftIcon={<Edit size={16}/>}>Edit</Button>
+                        </Link>
+                    )}
+                    <Button variant="outline" onClick={handleDownload} leftIcon={<Download size={16}/>}>Download</Button>
+                    {canEdit && (
+                        <>
+                            <Button variant="outline" onClick={() => setIsSharing(true)} leftIcon={<Share2 size={16}/>}>Share</Button>
+                            <Button variant="danger" onClick={handleDelete} leftIcon={<Trash2 size={16}/>}>Delete</Button>
+                        </>
+                    )}
+                </div>
+            </div>
+            {/* Preview area - extends to bottom */}
+            <div className="flex-1 bg-gray-200 rounded-md overflow-hidden relative min-h-0" style={{ minHeight: '500px' }}>
                 {isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
                         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -160,38 +186,24 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                         bucketId={resource.org_id}
                         filePath={resource.storage_path}
                         mode="view"
+                        hideHeader={true}
                     />
                 )}
-            </div>
-            <div className="flex-shrink-0 pt-4 mt-4 border-t border-gray-200">
-                <div className="flex items-center justify-end space-x-2">
-                    {canEdit && isEditableInOffice && (
-                        <Link
-                          href={`/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(resource.storage_path)}`}
-                          passHref
-                          legacyBehavior
-                        >
-                            <Button as="a" variant="primary" leftIcon={<Edit size={16}/>}>Edit</Button>
-                        </Link>
-                    )}
-                    <Button variant="outline" onClick={handleDownload} leftIcon={<Download size={16}/>}>Download</Button>
-                    {canEdit && (
-                        <>
-                            <Button variant="outline" onClick={() => setIsSharing(true)} leftIcon={<Share2 size={16}/>}>Share</Button>
-                            <VersionHistoryDropdown resourceId={resourceId} onRollbackSuccess={onClose} />
-                            <Button variant="danger" onClick={handleDelete} leftIcon={<Trash2 size={16}/>}>Delete</Button>
-                        </>
-                    )}
-                </div>
+                {!resource && !isLoading && !error && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                        <p className="text-gray-500">No document loaded</p>
+                    </div>
+                )}
             </div>
         </div>
-        {isSharing && resource && (
-            <ShareModal
-                resource={resource}
-                isOpen={isSharing}
-                onClose={() => setIsSharing(false)}
-            />
-        )}
-    </Modal>
+      </Modal>
+      {isSharing && resource && (
+        <ShareModal
+            resource={resource}
+            isOpen={isSharing}
+            onClose={() => setIsSharing(false)}
+        />
+      )}
+    </>
   );
 };

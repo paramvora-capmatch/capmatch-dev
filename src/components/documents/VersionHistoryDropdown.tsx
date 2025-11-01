@@ -25,6 +25,7 @@ interface Version {
 interface VersionHistoryDropdownProps {
   resourceId: string;
   onRollbackSuccess?: () => void;
+  defaultOpen?: boolean;
 }
 
 const formatDate = (dateString: string) => {
@@ -49,8 +50,9 @@ const formatFileSize = (bytes: number) => {
 export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
   resourceId,
   onRollbackSuccess,
+  defaultOpen = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [versions, setVersions] = useState<Version[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,10 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
     [string, string] | null
   >(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
 
   const fetchVersions = useCallback(async () => {
     setIsLoading(true);
@@ -92,6 +98,35 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
       fetchVersions();
     }
   }, [isOpen, versions.length, fetchVersions]);
+
+  // Calculate dropdown position when it opens and update on scroll
+  useEffect(() => {
+    if (!isOpen) {
+      setDropdownPosition(null);
+      return;
+    }
+
+    const updatePosition = () => {
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + window.scrollY + 8, // 8px gap (mt-2 = 0.5rem = 8px)
+          left: rect.left + window.scrollX - 240, // -left-60 = -15rem = -240px
+        });
+      }
+    };
+
+    updatePosition();
+
+    // Update position on scroll
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [isOpen]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -156,16 +191,21 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         title="View Version History"
       >
-        <History className="h-4 w-4" />
+        <History className="h-4 w-4 mr-1" />
+        Versions
       </Button>
 
       <AnimatePresence>
-        {isOpen && (
+        {isOpen && dropdownPosition && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute -left-60 top-full mt-2 w-96 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+            className="fixed w-96 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999]"
+            style={{
+              top: `${dropdownPosition.top}px`,
+              left: `${dropdownPosition.left}px`,
+            }}
           >
             <div className="p-4">
               <h3 className="font-semibold text-gray-900 mb-3">

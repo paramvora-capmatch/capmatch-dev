@@ -10,12 +10,14 @@ interface OnlyOfficeEditorProps {
   bucketId: string;
   filePath: string;
   mode?: "edit" | "view";
+  hideHeader?: boolean;
 }
 
 export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
   bucketId,
   filePath,
   mode = "edit",
+  hideHeader = false,
 }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -228,24 +230,26 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
         onLoad={handleScriptLoad}
         onError={handleScriptError}
       />
-      <div className="h-screen w-screen flex flex-col bg-gray-100">
-        <header className="bg-white shadow-sm p-3 flex justify-between items-center z-10 flex-shrink-0">
-          <Button
-            variant="outline"
-            onClick={() => router.back()}
-            leftIcon={<ArrowLeft size={16} />}
-          >
-            Back
-          </Button>
-          <div
-            className="text-sm text-gray-600 truncate px-4"
-            title={filePath.split("/").pop()}
-          >
-            {filePath.split("/").pop()}
-          </div>
-        </header>
+      <div className={`flex flex-col bg-gray-100 ${hideHeader ? 'h-full w-full absolute inset-0' : 'h-screen w-screen'}`}>
+        {!hideHeader && (
+          <header className="bg-white shadow-sm p-3 flex justify-between items-center z-10 flex-shrink-0">
+            <Button
+              variant="outline"
+              onClick={() => router.back()}
+              leftIcon={<ArrowLeft size={16} />}
+            >
+              Back
+            </Button>
+            <div
+              className="text-sm text-gray-600 truncate px-4"
+              title={filePath.split("/").pop()}
+            >
+              {filePath.split("/").pop()}
+            </div>
+          </header>
+        )}
 
-        <main className="flex-1 relative">
+        <main className="relative flex-1 min-h-0">
           {(isLoading || error || !isScriptReady) && (
             <div className="absolute inset-0 flex items-center justify-center bg-white z-20">
               {error ? (

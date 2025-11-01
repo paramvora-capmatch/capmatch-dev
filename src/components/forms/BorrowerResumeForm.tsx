@@ -9,6 +9,7 @@ import React, {
   useCallback,
 } from "react";
 import { useAuth } from "../../hooks/useAuth";
+import { cn } from "../../utils/cn";
 
 import { FormWizard, Step } from "../ui/FormWizard";
 import { Card, CardContent, CardHeader } from "../ui/card";
@@ -23,6 +24,7 @@ import {
   Award,
   Briefcase,
   AlertTriangle,
+  Check,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import {
@@ -37,6 +39,7 @@ import {
 } from "../../types/enhanced-types";
 import { BorrowerResumeContent } from "../../lib/project-queries";
 import { MultiSelect } from "../ui/MultiSelect";
+import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { useBorrowerResumeStore } from "../../stores/useBorrowerResumeStore";
 
 interface BorrowerResumeFormProps {
@@ -146,12 +149,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
   // State variables
   const [formSaved, setFormSaved] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [formData, setFormData] = useState<Partial<BorrowerResumeContent>>({});
   const [principalFormData, setPrincipalFormData] = useState<
     Partial<Principal>
   >({ principalRoleDefault: "Key Principal" });
   const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const prevIsSavingRef = useRef<boolean>(false);
   const initializedRef = useRef(false);
 
   const computeCompletionPercent = useCallback((data: Partial<BorrowerResumeContent>): number => {
@@ -181,7 +187,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     ];
 
     let answered = 0;
-    let total = fields.length;
+    const total = fields.length;
 
     fields.forEach((key) => {
       const value = (data as any)[key];
@@ -256,6 +262,30 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
 
+  // Track when saving completes to show "All Changes Saved"
+  useEffect(() => {
+    // If we transition from saving (true) to not saving (false), show the saved message
+    if (prevIsSavingRef.current && !isSaving) {
+      setJustSaved(true);
+      // Clear any existing timeout
+      if (savedTimeoutRef.current) {
+        clearTimeout(savedTimeoutRef.current);
+      }
+      // Hide the message after 2 seconds
+      savedTimeoutRef.current = setTimeout(() => {
+        setJustSaved(false);
+      }, 2000);
+    }
+    // Update the ref to track the previous state (default to false if undefined)
+    prevIsSavingRef.current = isSaving ?? false;
+
+    return () => {
+      if (savedTimeoutRef.current) {
+        clearTimeout(savedTimeoutRef.current);
+      }
+    };
+  }, [isSaving]);
+
   // Input change handlers
   const handleInputChange = useCallback(
     (field: keyof BorrowerResumeContent, value: any) => {
@@ -319,10 +349,19 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                 <h2 className="text-xl font-semibold flex items-center">
                   <User className="mr-2" /> Basic Info
                 </h2>
-                {isSaving && (
+                {(isSaving || justSaved) && (
                   <div className="flex items-center text-xs text-gray-500">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    <span className="ml-2">Saving…</span>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="ml-2">Saving…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 text-green-600" />
+                        <span className="ml-2 text-green-600">All Changes Saved</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -422,10 +461,19 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                 <h2 className="text-xl font-semibold flex items-center">
                   <Briefcase className="mr-2" /> Experience
                 </h2>
-                {isSaving && (
+                {(isSaving || justSaved) && (
                   <div className="flex items-center text-xs text-gray-500">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    <span className="ml-2">Saving…</span>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="ml-2">Saving…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 text-green-600" />
+                        <span className="ml-2 text-green-600">All Changes Saved</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -448,26 +496,22 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               </FormGroup>
               <FormGroup>
                 {" "}
-                <label className="block text-sm font-medium mb-1">
-                  Asset Classes Experience
-                </label>{" "}
-                <MultiSelect
+                <MultiSelectPills
+                  label="Asset Classes Experience"
                   options={assetClassOptions}
-                  value={formData.assetClassesExperience || []}
-                  onChange={(v) =>
+                  selectedValues={formData.assetClassesExperience || []}
+                  onSelect={(v) =>
                     handleInputChange("assetClassesExperience", v)
                   }
                 />{" "}
               </FormGroup>
               <FormGroup>
                 {" "}
-                <label className="block text-sm font-medium mb-1">
-                  Geographic Markets Experience
-                </label>{" "}
-                <MultiSelect
+                <MultiSelectPills
+                  label="Geographic Markets Experience"
                   options={geographicMarketsOptions}
-                  value={formData.geographicMarketsExperience || []}
-                  onChange={(v) =>
+                  selectedValues={formData.geographicMarketsExperience || []}
+                  onSelect={(v) =>
                     handleInputChange("geographicMarketsExperience", v)
                   }
                 />{" "}
@@ -530,10 +574,19 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                 <h2 className="text-xl font-semibold flex items-center">
                   <DollarSign className="mr-2" /> Financial Info
                 </h2>
-                {isSaving && (
+                {(isSaving || justSaved) && (
                   <div className="flex items-center text-xs text-gray-500">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    <span className="ml-2">Saving…</span>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="ml-2">Saving…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 text-green-600" />
+                        <span className="ml-2 text-green-600">All Changes Saved</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -573,47 +626,56 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                 />{" "}
               </FormGroup>
               <div className="p-4 bg-amber-50 rounded border border-amber-200">
-                <h3 className="text-sm font-semibold mb-2 flex items-center">
+                <h3 className="text-sm font-semibold mb-3 flex items-center">
                   <AlertTriangle className="mr-2 h-4 w-4" /> Financial
                   Background
                 </h3>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.bankruptcyHistory || false}
-                      onChange={(e) =>
-                        handleInputChange("bankruptcyHistory", e.target.checked)
-                      }
-                      className="mr-2"
-                    />{" "}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <Button
+                    type="button"
+                    variant={(formData.bankruptcyHistory || false) ? 'primary' : 'outline'}
+                    onClick={() =>
+                      handleInputChange("bankruptcyHistory", !(formData.bankruptcyHistory || false))
+                    }
+                    className={cn(
+                      "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
+                      (formData.bankruptcyHistory || false)
+                        ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    )}
+                  >
                     Bankruptcy (7yr)
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.foreclosureHistory || false}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "foreclosureHistory",
-                          e.target.checked
-                        )
-                      }
-                      className="mr-2"
-                    />{" "}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={(formData.foreclosureHistory || false) ? 'primary' : 'outline'}
+                    onClick={() =>
+                      handleInputChange("foreclosureHistory", !(formData.foreclosureHistory || false))
+                    }
+                    className={cn(
+                      "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
+                      (formData.foreclosureHistory || false)
+                        ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    )}
+                  >
                     Foreclosure (7yr)
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.litigationHistory || false}
-                      onChange={(e) =>
-                        handleInputChange("litigationHistory", e.target.checked)
-                      }
-                      className="mr-2"
-                    />{" "}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={(formData.litigationHistory || false) ? 'primary' : 'outline'}
+                    onClick={() =>
+                      handleInputChange("litigationHistory", !(formData.litigationHistory || false))
+                    }
+                    className={cn(
+                      "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
+                      (formData.litigationHistory || false)
+                        ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    )}
+                  >
                     Litigation
-                  </label>
+                  </Button>
                 </div>
               </div>
             </CardContent>{" "}
@@ -633,10 +695,19 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                 <h2 className="text-xl font-semibold flex items-center">
                   <Globe className="mr-2" /> Online Presence (Opt)
                 </h2>
-                {isSaving && (
+                {(isSaving || justSaved) && (
                   <div className="flex items-center text-xs text-gray-500">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    <span className="ml-2">Saving…</span>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="ml-2">Saving…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 text-green-600" />
+                        <span className="ml-2 text-green-600">All Changes Saved</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -681,10 +752,19 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                 <h2 className="text-xl font-semibold flex items-center">
                   <Award className="mr-2" /> Key Principals (Opt)
                 </h2>
-                {isSaving && (
+                {(isSaving || justSaved) && (
                   <div className="flex items-center text-xs text-gray-500">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                    <span className="ml-2">Saving…</span>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="ml-2">Saving…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 text-green-600" />
+                        <span className="ml-2 text-green-600">All Changes Saved</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -798,9 +878,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       formData,
       principalFormData,
       isAddingPrincipal,
-      formSaved,
+      isSaving,
+      justSaved,
       handleInputChange,
-      handleProfileSubmit,
       handleAddPrincipal,
       handlePrincipalInputChange,
       borrowerResume?.fullLegalName,
