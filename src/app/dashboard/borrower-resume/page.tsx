@@ -65,7 +65,7 @@ export default function BorrowerResumePage() {
 
 	return (
 		<RoleBasedRoute roles={["borrower"]}>
-            <DashboardLayout breadcrumb={breadcrumb}>
+            <DashboardLayout breadcrumb={breadcrumb} scrollableContent={false}>
 				<LoadingOverlay isLoading={false} />{" "}
 				{/* Display loading overlay based on UI context */}
 				{isInitialLoading ? ( // Only block UI on initial load when there's no content
@@ -76,54 +76,73 @@ export default function BorrowerResumePage() {
 						</span>
 					</div>
 				) : (
-                    <>
-                        <div className="max-w-5xl mx-auto">
-                            {/* Borrower Resume Completion Summary */}
-                            {(() => {
-                                const completionValue = localCompletion ?? (borrowerContent?.completenessPercent ?? 0);
-                                return (
-                                    <div className={`mb-6 rounded-lg p-4 border ${(completionValue >= 90) ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40'}`}>
-                                <div className="flex justify-between items-center mb-2 text-sm">
-                                    <span className={`font-medium ${(completionValue >= 90) ? 'text-emerald-800' : 'text-red-800'}`}>Borrower Resume Completion</span>
-                                    <span className={`font-semibold ${(completionValue >= 90) ? 'text-emerald-700' : 'text-red-700'}`}>{Math.round(completionValue)}%</span>
+                    <div className="h-full w-full flex flex-row animate-fadeIn">
+                        {/* Left Column: Scrollable content */}
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <div className="space-y-6">
+                                {/* Borrower Resume Completion Summary */}
+                                {(() => {
+                                    const completionValue = localCompletion ?? (borrowerContent?.completenessPercent ?? 0);
+                                    return (
+                                        <div className={`rounded-lg p-4 border ${(completionValue >= 90) ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40'}`}>
+                                            <div className="flex justify-between items-center mb-2 text-sm">
+                                                <span className={`font-medium ${(completionValue >= 90) ? 'text-emerald-800' : 'text-red-800'}`}>Borrower Resume Completion</span>
+                                                <span className={`font-semibold ${(completionValue >= 90) ? 'text-emerald-700' : 'text-red-700'}`}>{Math.round(completionValue)}%</span>
+                                            </div>
+                                            <div className="relative w-full bg-gray-200 rounded-md h-4 overflow-hidden shadow-inner">
+                                                <div
+                                                    className={`h-full rounded-md transition-all duration-700 ${(completionValue >= 90) ? 'bg-green-600' : 'bg-red-600'}`}
+                                                    style={{ width: `${Math.round(completionValue)}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                                {/* Borrower Documents moved from /documents */}
+                                <div className="p-4 bg-white rounded shadow-sm border">
+                                    <p className="text-gray-600">
+                                        Manage documents related to you as a borrower, such as Personal Financial Statements (PFS), Schedule of Real Estate Owned (SREO), and entity documents. These documents can be used across multiple projects.
+                                    </p>
                                 </div>
-                                <div className="relative w-full bg-gray-200 rounded-md h-4 overflow-hidden shadow-inner">
-                                    <div
-                                        className={`h-full rounded-md transition-all duration-700 ${(completionValue >= 90) ? 'bg-green-600' : 'bg-red-600'}`}
-                                        style={{ width: `${Math.round(completionValue)}%` }}
+                                <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+                                    <DocumentManager
+                                        projectId={null}
+                                        resourceId="BORROWER_ROOT"
+                                        title="General Borrower Documents"
                                     />
                                 </div>
+                                <div className="p-4 bg-white rounded shadow-sm border">
+                                    <p className="text-gray-600">
+                                        Your borrower resume is used across all your
+                                        projects. Complete it thoroughly to help match
+                                        you with appropriate lenders. Changes are
+                                        auto-saved.
+                                    </p>
+                                </div>
+                                {/* Pass the completion handler */}
+                                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                                    <BorrowerResumeForm
+                                        onComplete={handleBorrowerResumeComplete}
+                                        onProgressChange={(p) => setLocalCompletion(p)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Column: Fixed Ask AI Chat */}
+                        <div className="w-1/3 border-l bg-white flex flex-col h-full">
+                            <div className="flex-shrink-0 border-b p-4">
+                                <h3 className="text-lg font-semibold text-gray-800">Ask AI</h3>
+                            </div>
+                            <div className="flex-1 p-0 overflow-hidden min-h-0">
+                                <div className="h-full flex items-center justify-center bg-white">
+                                    <div className="text-center text-gray-500 text-sm">
+                                        Ask AI will appear here.
                                     </div>
-                                );
-                            })()}
-                            {/* Borrower Documents moved from /documents */}
-                            <div className="mb-6 p-4 bg-white rounded shadow-sm border">
-                                <p className="text-gray-600">
-                                    Manage documents related to you as a borrower, such as Personal Financial Statements (PFS), Schedule of Real Estate Owned (SREO), and entity documents. These documents can be used across multiple projects.
-                                </p>
+                                </div>
                             </div>
-                            <div className="mb-8">
-                                <DocumentManager
-                                    projectId={null}
-                                    resourceId="BORROWER_ROOT"
-                                    title="General Borrower Documents"
-                                />
-                            </div>
-							<div className="mb-6 p-4 bg-white rounded shadow-sm border">
-								<p className="text-gray-600">
-									Your borrower resume is used across all your
-									projects. Complete it thoroughly to help match
-									you with appropriate lenders. Changes are
-									auto-saved.
-								</p>
-							</div>
-							{/* Pass the completion handler */}
-                            <BorrowerResumeForm
-                                onComplete={handleBorrowerResumeComplete}
-                                onProgressChange={(p) => setLocalCompletion(p)}
-                            />
-						</div>
-					</>
+                        </div>
+                    </div>
 				)}
 			</DashboardLayout>
 		</RoleBasedRoute>

@@ -8,7 +8,7 @@ export interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | '8xl' | '9xl' | '10xl' | 'full';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -74,33 +74,49 @@ export const Modal: React.FC<ModalProps> = ({
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
-    full: 'max-w-full mx-4',
+    '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
+    '6xl': 'max-w-6xl',
+    '7xl': 'max-w-7xl',
+    '8xl': 'max-w-8xl',
+    '9xl': 'max-w-9xl',
+    '10xl': 'max-w-10xl',
+    full: 'w-[98vw]',
   };
 
+  const isFullSize = size === 'full';
+  
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/20 backdrop-blur-sm">
+    <div className={cn(
+      "fixed inset-0 z-50 flex overflow-y-auto bg-black/20 backdrop-blur-sm",
+      isFullSize ? "p-1" : "items-center justify-center p-4"
+    )}>
       <div 
         ref={modalRef}
         className={cn(
-          'bg-white rounded-lg shadow-xl transform transition-all w-full',
-          sizeClasses[size]
+          'bg-white rounded-lg shadow-xl transform transition-all flex flex-col',
+          isFullSize 
+            ? 'w-[98vw] h-[98vh] m-auto' 
+            : `w-full ${sizeClasses[size]}`
         )}
         role="dialog"
         aria-modal="true"
       >
         {title && (
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-500 focus:outline-none"
+              className="text-gray-600 hover:text-gray-900 focus:outline-none p-1 rounded-md hover:bg-gray-100 transition-colors"
               aria-label="Close"
             >
-              <X size={20} />
+              <X size={24} />
             </button>
           </div>
         )}
-        <div className={cn("p-6", !title && "pt-10")}>
+        <div className={cn("flex-1 overflow-hidden flex flex-col", !title && "pt-10", title ? "p-6" : "p-6")}>
           {children}
         </div>
       </div>

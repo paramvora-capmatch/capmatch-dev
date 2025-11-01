@@ -14,12 +14,14 @@ interface DashboardLayoutProps {
   children: ReactNode;
   title?: string; // Made optional since we can use breadcrumb instead
   breadcrumb?: ReactNode; // Optional breadcrumb to replace title
+  scrollableContent?: boolean; // If true, makes main scrollable (default true for backwards compat)
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   title,
   breadcrumb,
+  scrollableContent = true,
 }) => {
   const router = useRouter();
   const { user, logout, isAuthenticated, currentOrgRole, activeOrg } = useAuth();
@@ -41,8 +43,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* No sidebar - header-only layout */}
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto overflow-x-hidden">
-        <header className="bg-white shadow-sm sticky top-0 z-10">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white shadow-sm sticky top-0 z-10 flex-shrink-0">
           <div className="py-4 px-3 sm:px-5 lg:px-32 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Link href="/dashboard">
@@ -98,7 +100,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </header>
 
-        <main className="px-6 pt-2 pb-6">{children}</main>
+        <main className={scrollableContent ? "flex-1 overflow-auto px-6 pt-2 pb-6" : "flex-1 overflow-hidden"}>{children}</main>
       </div>
     </div>
   );

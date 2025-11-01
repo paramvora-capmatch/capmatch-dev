@@ -15,7 +15,6 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { AskAIProvider } from "../ui/AskAIProvider";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { DocumentManager } from "../documents/DocumentManager";
-import { Card, CardContent, CardHeader } from "../ui/card";
 import { cn } from "@/utils/cn";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
@@ -139,73 +138,67 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Project Progress Card */}
-      <div className="relative">
-        <ProjectSummaryCard
-          project={activeProject}
-          isLoading={projectsLoading}
-          onEdit={() => setIsEditing(true)}
-        />
-      </div>
-
-      {/* Section for OM Link - Only show if project is complete */}
-      {isProjectComplete && (
-        <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border border-emerald-200 rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group animate-fadeInUp">
-          {/* Animated background pattern */}
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-green-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-          {/* Success pulse effect */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-200 to-green-200 rounded-lg blur-sm opacity-30 group-hover:opacity-50 transition-opacity duration-300 animate-pulse" />
-
-          <div className="relative z-10">
-            <h3 className="text-base font-semibold text-emerald-800 flex items-center">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse"></span>
-              Project Ready!
-            </h3>
-            <p className="text-sm text-emerald-700">
-              This project profile is complete. You can view the generated
-              Offering Memorandum.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => router.push(`/project/om/${projectId}`)}
-            className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10"
-          >
-            <FileSpreadsheet className="mr-2 h-5 w-5" />
-            View OM
-          </Button>
-        </div>
-      )}
-
-      {/* Top: Document Manager now sits above the workspace */}
-      <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
-        <DocumentManager
-          projectId={projectId}
-          resourceId="PROJECT_ROOT"
-          title="Project Documents"
-          canUpload={true}
-          canDelete={true}
-          highlightedResourceId={highlightedResourceId}
-        />
-      </div>
-
+    <div className="h-full w-full flex flex-row animate-fadeIn">
       <AskAIProvider
         onFieldAskAI={(fieldId: string) => {
           setDroppedFieldId(fieldId); // This will be passed to the chat widget
         }}
       >
-        {/** Right column tab state: Team Chat vs AI Chat */}
-        {/** Keep local state here so header and content are in sync */}
-        {/** Using explicit type for readability */}
-        {(() => {
-          // inline IIFE to keep hooks at top-level avoided; use outer state instead
-          return null;
-        })()}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left Column: Project Resume (View or Edit) */}
-          <div className={`lg:col-span-3 h-[90vh] ${isEditing ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+        {/* Left Column: Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="space-y-6">
+            {/* Project Progress Card */}
+            <div className="relative">
+              <ProjectSummaryCard
+                project={activeProject}
+                isLoading={projectsLoading}
+                onEdit={() => setIsEditing(true)}
+              />
+            </div>
+
+            {/* Section for OM Link - Only show if project is complete */}
+            {isProjectComplete && (
+              <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border border-emerald-200 rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group animate-fadeInUp">
+                {/* Animated background pattern */}
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-green-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                {/* Success pulse effect */}
+                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-200 to-green-200 rounded-lg blur-sm opacity-30 group-hover:opacity-50 transition-opacity duration-300 animate-pulse" />
+
+                <div className="relative z-10">
+                  <h3 className="text-base font-semibold text-emerald-800 flex items-center">
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse"></span>
+                    Project Ready!
+                  </h3>
+                  <p className="text-sm text-emerald-700">
+                    This project profile is complete. You can view the generated
+                    Offering Memorandum.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(`/project/om/${projectId}`)}
+                  className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10"
+                >
+                  <FileSpreadsheet className="mr-2 h-5 w-5" />
+                  View OM
+                </Button>
+              </div>
+            )}
+
+            {/* Document Manager */}
+            <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+              <DocumentManager
+                projectId={projectId}
+                resourceId="PROJECT_ROOT"
+                title="Project Documents"
+                canUpload={true}
+                canDelete={true}
+                highlightedResourceId={highlightedResourceId}
+              />
+            </div>
+
+            {/* Project Resume (View or Edit) */}
             {isEditing ? (
               <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
                 <EnhancedProjectForm
@@ -222,50 +215,48 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               />
             )}
           </div>
+        </div>
 
-          {/* Right Column: Chat with tabs */}
-          <div className="lg:col-span-2 h-[90vh] overflow-y-auto">
-            <Card className="h-full flex flex-col">
-              <CardHeader className="p-0 border-b">
-                <div className="flex">
-                  <button
-                    onClick={() => setRightTab("team")}
-                    className={cn(
-                      "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
-                      rightTab === "team" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:bg-gray-50"
-                    )}
-                  >
-                    <MessageSquare size={16} />
-                    <span>Team Chat</span>
-                  </button>
-                  <button
-                    onClick={() => setRightTab("ai")}
-                    className={cn(
-                      "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
-                      rightTab === "ai" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:bg-gray-50"
-                    )}
-                  >
-                    <Brain size={16} />
-                    <span>AI Chat</span>
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 p-0 overflow-hidden">
-                {rightTab === "team" ? (
-                  <ChatInterface
-                    embedded
-                    projectId={projectId}
-                    onMentionClick={handleMentionClick}
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center bg-white">
-                    <div className="text-center text-gray-500 text-sm">
-                      AI Chat will appear here.
-                    </div>
-                  </div>
+        {/* Right Column: Fixed Chat with tabs */}
+        <div className="w-1/3 border-l bg-white flex flex-col h-full">
+          <div className="flex-shrink-0 border-b">
+            <div className="flex">
+              <button
+                onClick={() => setRightTab("team")}
+                className={cn(
+                  "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
+                  rightTab === "team" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:bg-gray-50"
                 )}
-              </CardContent>
-            </Card>
+              >
+                <MessageSquare size={16} />
+                <span>Team Chat</span>
+              </button>
+              <button
+                onClick={() => setRightTab("ai")}
+                className={cn(
+                  "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
+                  rightTab === "ai" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:bg-gray-50"
+                )}
+              >
+                <Brain size={16} />
+                <span>AI Chat</span>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 p-0 overflow-hidden min-h-0">
+            {rightTab === "team" ? (
+              <ChatInterface
+                embedded
+                projectId={projectId}
+                onMentionClick={handleMentionClick}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center bg-white">
+                <div className="text-center text-gray-500 text-sm">
+                  AI Chat will appear here.
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </AskAIProvider>

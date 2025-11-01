@@ -33,8 +33,6 @@ interface AskAIProviderProps {
 
 export const AskAIProvider: React.FC<AskAIProviderProps> = ({ children }) => {
   return (
-    <div>
-      {children}
-    </div>
+    <>{children}</>
   );
 }; 

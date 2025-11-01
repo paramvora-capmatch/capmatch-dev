@@ -23,7 +23,6 @@ import {
   FileText,
   X,
   Hash,
-  PanelRightOpen,
 } from "lucide-react";
 
 interface ChatInterfaceProps {
@@ -587,68 +586,58 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   return (
     <div className={embedded ? "h-full flex" : "h-full flex border rounded-lg overflow-hidden bg-white"}>
-      {/* Threads Drawer */}
-      <div className="group relative flex-shrink-0 bg-gray-50 border-r">
-        {/* Collapsed State - minimal, subtle indicator */}
-        <div className="w-10 h-full flex flex-col items-center justify-center py-3 transition-opacity duration-300 group-hover:opacity-0">
-          <div className="flex flex-col items-center text-gray-400">
-            <PanelRightOpen size={18} className="opacity-60" />
-          </div>
-        </div>
-
-        {/* Expanded State - Shows when hovered */}
-        <div className="absolute top-0 left-0 w-48 h-full bg-gray-50 border-r opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none group-hover:pointer-events-auto z-50 shadow-xl">
-          <div className="p-3 border-b bg-white">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="font-semibold text-gray-800 text-sm">Channels</h3>
-              {hasOwnerPermissions && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowCreateThreadModal(true)}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Plus className="h-3 w-3 mr-1" />
-                  New
-                </Button>
-              )}
-            </div>
-            <div className="text-[11px] text-gray-500">Switch between discussion channels</div>
-          </div>
-
-          <div className="overflow-y-auto flex-1">
-            {isLoading && threads.length === 0 ? (
-              <div className="p-3 text-center">
-                <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-              </div>
-            ) : (
-              <div className="space-y-1 p-2">
-                {threads.map((thread) => (
-                  <div key={thread.id} className="flex items-center group">
-                    <button
-                      onClick={() => setActiveThread(thread.id)}
-                      className={`flex-1 text-left p-2 rounded text-sm transition-colors ${
-                        activeThreadId === thread.id
-                          ? "bg-blue-100 font-semibold text-blue-800"
-                          : "hover:bg-gray-100"
-                      }`}
-                    >
-                      <Hash size={14} className="inline mr-1" />
-                      {thread.topic || "General"}
-                    </button>
-                    {hasOwnerPermissions && (
-                      <button
-                        onClick={() => setManagingThread(thread)}
-                        className="p-1 rounded-full hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <MoreVertical size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+      {/* Threads Sidebar - Always Visible */}
+      <div className="flex-shrink-0 bg-gray-50 border-r w-48 flex flex-col">
+        <div className="p-3 border-b bg-white">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="font-semibold text-gray-800 text-sm">Channels</h3>
+            {hasOwnerPermissions && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowCreateThreadModal(true)}
+                className="h-7 px-2 text-xs"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                New
+              </Button>
             )}
           </div>
+          <div className="text-[11px] text-gray-500">Switch between discussion channels</div>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          {isLoading && threads.length === 0 ? (
+            <div className="p-3 text-center">
+              <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+            </div>
+          ) : (
+            <div className="space-y-1 p-2">
+              {threads.map((thread) => (
+                <div key={thread.id} className="flex items-center group">
+                  <button
+                    onClick={() => setActiveThread(thread.id)}
+                    className={`flex-1 text-left p-2 rounded text-sm transition-colors ${
+                      activeThreadId === thread.id
+                        ? "bg-blue-100 font-semibold text-blue-800"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    <Hash size={14} className="inline mr-1" />
+                    {thread.topic || "General"}
+                  </button>
+                  {hasOwnerPermissions && (
+                    <button
+                      onClick={() => setManagingThread(thread)}
+                      className="p-1 rounded-full hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

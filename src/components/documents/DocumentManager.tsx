@@ -13,7 +13,7 @@ import {
   FolderOpen,
   Edit,
   Trash2,
-  Plus,
+  Share2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -24,6 +24,7 @@ import { DocumentPreviewModal } from "./DocumentPreviewModal";
 import { cn } from "@/utils/cn";
 import { DocumentFile, DocumentFolder } from "@/hooks/useDocumentManagement";
 import { VersionHistoryDropdown } from "./VersionHistoryDropdown";
+import { ShareModal } from "./ShareModal";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
 import UploadPermissionsModal from "./UploadPermissionsModal";
@@ -90,7 +91,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     isLoading,
     error,
     uploadFile,
-    createFolder,
     deleteFile,
     deleteFolder,
     downloadFile,
@@ -100,14 +100,12 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const { user, activeOrg, currentOrgRole } = useAuthStore();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [showCreateFolder, setShowCreateFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
   >(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [showUploadPerms, setShowUploadPerms] = useState(false);
+  const [sharingFile, setSharingFile] = useState<DocumentFile | null>(null);
 
   // Get the PROJECT_DOCS_ROOT or BORROWER_DOCS_ROOT resource ID for permission checking
   const [docsRootId, setDocsRootId] = React.useState<string | null>(null);
@@ -223,20 +221,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return;
-
-    setIsCreatingFolder(true);
-    try {
-      await createFolder(newFolderName.trim(), actualResourceId || undefined);
-      setNewFolderName("");
-      setShowCreateFolder(false);
-    } catch (error) {
-      console.error("[DocumentManager] Create folder error", error);
-    } finally {
-      setIsCreatingFolder(false);
-    }
-  };
 
   const handleDeleteFile = async (file: DocumentFile) => {
     if (window.confirm(`Are you sure you want to delete "${file.name}"?`)) {
@@ -288,30 +272,19 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   return (
     <Card className="shadow-sm h-full flex flex-col">
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <div className="flex space-x-2">
             {canEdit && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowCreateFolder(!showCreateFolder)}
-                  disabled={isCreatingFolder}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Folder
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                >
-                  <Upload className="h-4 w-4 mr-1" />
-                  {isUploading ? "Uploading..." : "Upload"}
-                </Button>
-              </>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                <Upload className="h-4 w-4 mr-1" />
+                {isUploading ? "Uploading..." : "Upload"}
+              </Button>
             )}
           </div>
         </div>
@@ -319,36 +292,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
       <CardContent className="flex-1 overflow-y-auto p-4">
         {/* Upload permissions handled via modal after file selection */}
-
-        {/* Create Folder Area */}
-        {showCreateFolder && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center space-x-2"
-          >
-            <FolderOpen className="h-5 w-5 text-gray-600" />
-            <input
-              type="text"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="Enter folder name..."
-              className="flex-1 px-2 py-1 border border-gray-300 rounded-md text-sm"
-              autoFocus
-            />
-            <Button
-              size="sm"
-              onClick={handleCreateFolder}
-              disabled={isCreatingFolder}
-            >
-              {isCreatingFolder ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Create"
-              )}
-            </Button>
-          </motion.div>
-        )}
 
         {/* Hidden file input */}
         <input
@@ -410,7 +353,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                       variant="outline"
                       onClick={() => handleDeleteFolder(folder)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
                     </Button>
                   )}
                 </div>
@@ -457,13 +401,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     </div>
                   </button>
                   <div className="flex items-center space-x-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDownload(file)}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
                     {fileCanEdit && (
                       <VersionHistoryDropdown
                         resourceId={file.resource_id}
@@ -478,8 +415,27 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-md text-xs px-2.5 py-1.5"
                         title="Edit Document"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
                       </Link>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDownload(file)}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                    </Button>
+                    {fileCanEdit && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSharingFile(file)}
+                      >
+                        <Share2 className="h-4 w-4 mr-1" />
+                        Share
+                      </Button>
                     )}
                     {fileCanEdit && (
                       <Button
@@ -487,7 +443,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         variant="outline"
                         onClick={() => handleDeleteFile(file)} // This will now use resource_id internally
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
                       </Button>
                     )}
                   </div>
@@ -530,6 +487,13 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
           onDeleteSuccess={() => {
             // Optionally refresh the list after delete
           }}
+        />
+      )}
+      {sharingFile && (
+        <ShareModal
+          resource={{ ...sharingFile, id: sharingFile.resource_id }}
+          isOpen={!!sharingFile}
+          onClose={() => setSharingFile(null)}
         />
       )}
     </Card>

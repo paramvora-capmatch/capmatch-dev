@@ -28,6 +28,32 @@ export default function DashboardPage() {
   } = useProjects();
   const { content: borrowerResume, isLoading: profileLoading } = useBorrowerResume();
 
+  // Calculate completion percentage and determine button state
+  const completionPercent = borrowerResume?.completenessPercent || 0;
+  // Get button variant, color classes, and text based on completion percentage
+  const getButtonConfig = () => {
+    if (completionPercent < 30) {
+      return { 
+        variant: "outline" as const, 
+        customClasses: "border-red-500 text-red-600 hover:bg-red-50 hover:border-red-600", 
+        buttonText: "Complete Profile" 
+      }; // White background, red text
+    } else if (completionPercent < 70) {
+      return { 
+        variant: "outline" as const, 
+        customClasses: "border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:border-yellow-600", 
+        buttonText: "Complete Profile" 
+      }; // White background, yellow text
+    } else {
+      return { 
+        variant: "primary" as const, 
+        customClasses: "", 
+        buttonText: "View Profile" 
+      }; // Blue filled (default primary)
+    }
+  };
+  const buttonConfig = getButtonConfig();
+
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -124,12 +150,12 @@ export default function DashboardPage() {
                   <p className="text-gray-600">Complete your profile to improve lender matching and project success.</p>
                 </div>
                 <Button
-                  variant="primary"
+                  variant={buttonConfig.variant}
                   leftIcon={<User size={18} />}
                   onClick={() => router.push("/dashboard/borrower-resume")}
-                  className="shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center"
+                  className={`shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center ${buttonConfig.customClasses}`}
                 >
-                  View Profile
+                  {buttonConfig.buttonText}
                 </Button>
               </div>
 

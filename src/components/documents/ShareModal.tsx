@@ -6,8 +6,8 @@ import { Loader2, User, Crown } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { supabase } from "../../../lib/supabaseClient";
 import { DocumentFile, DocumentFolder } from "@/hooks/useDocumentManagement";
-import { Select } from "../ui/Select";
 import { Permission } from "@/types/enhanced-types";
+import { cn } from "@/utils/cn";
 
 interface ShareModalProps {
   resource: DocumentFile | DocumentFolder;
@@ -93,7 +93,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Share "${resource.name}"`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Share "${resource.name}"`} size="4xl">
       <ModalBody>
         {isLoading ? (
           <div className="flex justify-center items-center h-24">
@@ -103,46 +103,61 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           <div className="text-red-600">{error}</div>
         ) : (
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {permissions.map((p) => (
-              <div
-                key={p.user_id}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                    {members.find((m) => m.user_id === p.user_id)?.role ===
-                    "owner" ? (
-                      <Crown size={16} />
-                    ) : (
-                      <User size={16} />
-                    )}
+            {permissions.map((p) => {
+              const isOwner = members.find((m) => m.user_id === p.user_id)?.role === "owner";
+              return (
+                <div
+                  key={p.user_id}
+                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white"
+                >
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                      {isOwner ? (
+                        <Crown size={16} />
+                      ) : (
+                        <User size={16} />
+                      )}
+                    </div>
+                    <span>{p.full_name}</span>
                   </div>
-                  <span>{p.full_name}</span>
+                  {isOwner ? (
+                    <span className="text-sm font-medium text-gray-500">
+                      Owner
+                    </span>
+                  ) : (
+                    <div className="flex gap-2 flex-shrink-0">
+                      {(["none", "view", "edit"] as (Permission | "none")[]).map(
+                        (perm) => (
+                          <button
+                            key={perm}
+                            onClick={() => handlePermissionChange(p.user_id, perm)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                              p.permission === perm
+                                ? perm === "edit"
+                                  ? "bg-blue-600 text-white border-blue-600"
+                                  : perm === "view"
+                                  ? "bg-gray-700 text-white border-gray-700"
+                                  : "bg-gray-400 text-white border-gray-400"
+                                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                            )}
+                            title={
+                              perm === "none"
+                                ? "No Access"
+                                : perm === "view"
+                                ? "Can View"
+                                : "Can Edit"
+                            }
+                          >
+                            {perm === "none" ? "None" : perm === "view" ? "View" : "Edit"}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
-                {members.find((m) => m.user_id === p.user_id)?.role ===
-                "owner" ? (
-                  <span className="text-sm font-medium text-gray-500">
-                    Owner
-                  </span>
-                ) : (
-                  <Select
-                    value={p.permission}
-                    onChange={(e) =>
-                      handlePermissionChange(
-                        p.user_id,
-                        e.target.value as Permission | "none"
-                      )
-                    }
-                    options={[
-                      { value: "edit", label: "Can Edit" },
-                      { value: "view", label: "Can View" },
-                      { value: "none", label: "No Access" },
-                    ]}
-                    className="w-32"
-                  />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </ModalBody>
