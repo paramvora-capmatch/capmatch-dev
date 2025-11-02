@@ -195,7 +195,32 @@ export async function createProjectWithResumeAndStorage(
     }
   }
 
-  // Step 9: Storage policies are global now; skip per-bucket RPC
+  // Step 9: If an advisor is assigned, grant them permissions on all resources
+  // This ensures permissions are set even if the trigger fails or there's a timing issue
+  if (assigned_advisor_id) {
+    console.log("[project-utils] Step 9: Granting advisor permissions on project resources");
+    
+    // Grant permissions using the database function which handles all resources
+    const { error: advisorPermError } = await supabaseAdmin.rpc(
+      'grant_advisor_project_permissions',
+      {
+        p_project_id: project.id,
+        p_advisor_id: assigned_advisor_id,
+        p_granted_by_id: options.creator_id
+      }
+    );
+    
+    if (advisorPermError) {
+      // Log the error but don't fail project creation - the trigger should handle it
+      console.error(
+        `[project-utils] Failed to grant advisor permissions: ${JSON.stringify(advisorPermError)}`
+      );
+    } else {
+      console.log("[project-utils] Advisor permissions granted successfully");
+    }
+  }
+
+  // Step 10: Storage policies are global now; skip per-bucket RPC
   console.log(`[project-utils] Project creation completed successfully: ${project.id}`);
   return project;
 }

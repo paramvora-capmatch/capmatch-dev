@@ -15,6 +15,7 @@ interface DashboardLayoutProps {
   title?: string; // Made optional since we can use breadcrumb instead
   breadcrumb?: ReactNode; // Optional breadcrumb to replace title
   scrollableContent?: boolean; // If true, makes main scrollable (default true for backwards compat)
+  hideTeamButton?: boolean; // If true, hides the Team button
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -22,6 +23,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   title,
   breadcrumb,
   scrollableContent = true,
+  hideTeamButton = false,
 }) => {
   const router = useRouter();
   const { user, logout, isAuthenticated, currentOrgRole, activeOrg } = useAuth();
@@ -71,13 +73,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   {user.email} {currentOrgRole && activeOrg ? `| ${activeOrg.name}` : ""}
                 </span>
                 {/* Team button */}
-                <Link
-                  href="/team"
-                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg border border-blue-600 hover:bg-blue-700 hover:border-blue-700 transition-colors duration-200 shadow-sm"
-                >
-                  <Users className="h-4 w-4" />
-                  Team
-                </Link>
+                {!hideTeamButton && (
+                  <Link
+                    href="/team"
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg border border-blue-600 hover:bg-blue-700 hover:border-blue-700 transition-colors duration-200 shadow-sm"
+                  >
+                    <Users className="h-4 w-4" />
+                    Team
+                  </Link>
+                )}
                 {/* Settings dropdown */}
                 <div className="relative">
                   <details className="group">

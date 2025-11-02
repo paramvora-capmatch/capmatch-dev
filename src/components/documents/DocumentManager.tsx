@@ -40,6 +40,8 @@ interface DocumentManagerProps {
   canUpload?: boolean;
   canDelete?: boolean;
   highlightedResourceId?: string | null;
+  // Optional: allows querying a different org's documents (e.g., for advisors viewing borrower docs)
+  orgId?: string | null;
   // folderPath and bucketId removed as they are managed internally by the hook
 }
 
@@ -69,6 +71,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   canUpload = true,
   canDelete = true,
   highlightedResourceId,
+  orgId,
 }) => {
   // Convert special string values to null before passing to the hook
   const actualResourceId = React.useMemo(() => {
@@ -95,7 +98,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     deleteFolder,
     downloadFile,
     refresh,
-  } = useDocumentManagement(projectId, actualResourceId);
+  } = useDocumentManagement(projectId, actualResourceId, orgId);
 
   const { user, activeOrg, currentOrgRole } = useAuthStore();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -120,7 +123,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             .select("id")
             .eq("project_id", projectId)
             .eq("resource_type", "PROJECT_DOCS_ROOT")
-            .single();
+            .maybeSingle();
           if (error) {
             console.error("[DocumentManager] Error fetching PROJECT_DOCS_ROOT:", error);
             return;
@@ -129,29 +132,33 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         } catch (err) {
           console.error("[DocumentManager] Error in fetchDocsRoot:", err);
         }
-      } else if (activeOrg) {
-        // For borrower docs, fetch BORROWER_DOCS_ROOT
-        try {
-          const { data: root, error } = await supabase
-            .from("resources")
-            .select("id")
-            .eq("org_id", activeOrg.id)
-            .eq("resource_type", "BORROWER_DOCS_ROOT")
-            .maybeSingle();
-          if (error) {
-            console.error("[DocumentManager] Error fetching BORROWER_DOCS_ROOT:", error);
-            return;
-          }
-          setDocsRootId(root?.id || null);
-        } catch (err) {
-          console.error("[DocumentManager] Error in fetchDocsRoot:", err);
-        }
       } else {
-        setDocsRootId(null);
+        // For borrower docs, fetch BORROWER_DOCS_ROOT
+        // Use provided orgId if available, otherwise fall back to activeOrg
+        const targetOrgId = orgId || activeOrg?.id;
+        if (targetOrgId) {
+          try {
+            const { data: root, error } = await supabase
+              .from("resources")
+              .select("id")
+              .eq("org_id", targetOrgId)
+              .eq("resource_type", "BORROWER_DOCS_ROOT")
+              .maybeSingle();
+            if (error) {
+              console.error("[DocumentManager] Error fetching BORROWER_DOCS_ROOT:", error);
+              return;
+            }
+            setDocsRootId(root?.id || null);
+          } catch (err) {
+            console.error("[DocumentManager] Error in fetchDocsRoot:", err);
+          }
+        } else {
+          setDocsRootId(null);
+        }
       }
     };
     fetchDocsRoot();
-  }, [projectId, activeOrg]);
+  }, [projectId, activeOrg, orgId]);
 
   // Use docsRootId for permissions check when viewing project root or borrower root
   const resourceIdForPermissions = actualResourceId || docsRootId;

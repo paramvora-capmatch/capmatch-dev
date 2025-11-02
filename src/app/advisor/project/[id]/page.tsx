@@ -8,7 +8,7 @@ import { useAuth } from "../../../../hooks/useAuth";
 import { LoadingOverlay } from "../../../../components/ui/LoadingOverlay";
 import { Card, CardContent, CardHeader } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/Button";
-import { Select } from "../../../../components/ui/Select";
+import { SingleSelectChips } from "../../../../components/ui/SingleSelectChips";
 import {
   ChevronLeft,
   FileText,
@@ -35,6 +35,7 @@ import { storageService } from "@/lib/storage";
 import { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 import { getProjectWithResume } from "@/lib/project-queries";
+import { cn } from "@/utils/cn";
 
 // Utility functions
 const formatDate = (dateString: string) => {
@@ -107,6 +108,7 @@ export default function AdvisorProjectDetailPage() {
   const [borrowerResume, setBorrowerResume] = useState<BorrowerResume | null>(
     null
   );
+  const [ownerOrgName, setOwnerOrgName] = useState<string | null>(null);
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
@@ -116,10 +118,10 @@ export default function AdvisorProjectDetailPage() {
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
-  const [currentTab, setCurrentTab] = useState("details");
   const [newMessage, setNewMessage] = useState("");
   const [selectedStatus, setSelectedStatus] =
     useState<ProjectStatus>("Info Gathering");
+  const [activeTab, setActiveTab] = useState<"project" | "borrower">("project");
   const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
 
   const projectId = params?.id as string;
@@ -147,7 +149,22 @@ export default function AdvisorProjectDetailPage() {
           (foundProject.projectStatus as ProjectStatus) || "Info Gathering"
         );
 
-        // 2. Load borrower resume for the owning org
+        // 2. Load owner org name
+        if (foundProject.owner_org_id) {
+          const { data: orgData, error: orgError } = await supabase
+            .from("orgs")
+            .select("name")
+            .eq("id", foundProject.owner_org_id)
+            .single();
+
+          if (!orgError && orgData) {
+            setOwnerOrgName(orgData.name);
+          } else {
+            console.warn("Error loading owner org name:", orgError);
+          }
+        }
+
+        // 3. Load borrower resume for the owning org
         if (user.isDemo) {
           const allProfiles = await storageService.getItem<BorrowerProfile[]>(
             "borrowerProfiles"
@@ -194,7 +211,7 @@ export default function AdvisorProjectDetailPage() {
           }
         }
 
-        // 3. Fetch chat threads
+        // 4. Fetch chat threads
         try {
           const { data: threadData, error: threadError } = await supabase
             .from("chat_threads")
@@ -214,7 +231,7 @@ export default function AdvisorProjectDetailPage() {
           console.error("Error fetching threads:", error);
         }
 
-        // 4. Fetch document requirements
+        // 5. Fetch document requirements
         const allRequirements = await storageService.getItem<
           ProjectDocumentRequirement[]
         >("documentRequirements");
@@ -406,132 +423,280 @@ export default function AdvisorProjectDetailPage() {
   // Render functions for sections
   const renderProjectDetails = useCallback(() => {
     if (!project) return null;
+
+    const formatValue = (value: any, formatter?: (val: any) => string): string => {
+      if (value === null || value === undefined || value === "") {
+        return "Not provided";
+      }
+      return formatter ? formatter(value) : String(value);
+    };
+
+    const formatDateValue = (dateString: string | null | undefined): string => {
+      if (!dateString) return "Not provided";
+      return formatDate(dateString);
+    };
+
+    const formatPercent = (value: number | null | undefined): string => {
+      if (value === null || value === undefined) return "Not provided";
+      return `${value}%`;
+    };
+
     return (
-      <div className="grid md:grid-cols-2 gap-4 p-4">
+      <div className="grid md:grid-cols-2 gap-6">
         <div className="space-y-6">
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">
               Project Name
             </h3>
-            <p className="text-sm text-gray-800">{project.projectName}</p>
+            <p className="text-sm text-gray-800 font-medium">{project.projectName}</p>
           </div>
 
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Project ID
+              Owner Organization
             </h3>
-            <p className="text-sm text-gray-800 font-mono">{project.id}</p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Owner Org ID
-            </h3>
-            <p className="text-sm text-gray-800 font-mono">
-              {project.owner_org_id}
+            <p className={`text-sm ${ownerOrgName ? "text-gray-800 font-medium" : "text-gray-400 italic"}`}>
+              {ownerOrgName || "Not provided"}
             </p>
           </div>
 
-          {project && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">
-                Project Details
-              </h3>
-              <div className="space-y-2">
-                {project.propertyAddressStreet && (
-                  <div className="flex items-start">
-                    <MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-                    <div>
-                      <p className="text-sm text-gray-800">
-                        {`${project.propertyAddressStreet}, ${project.propertyAddressCity}, ${project.propertyAddressState} ${project.propertyAddressZip}`}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {project.assetType && (
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Property Address
+            </h3>
+            <div className="flex items-start">
+              <MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                {project.propertyAddressStreet ? (
                   <p className="text-sm text-gray-800">
-                    <span className="font-medium">Asset Type:</span>{" "}
-                    {project.assetType}
+                    {[
+                      project.propertyAddressStreet,
+                      project.propertyAddressCity,
+                      project.propertyAddressState,
+                      project.propertyAddressZip,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
                   </p>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">Not provided</p>
                 )}
-                {project.projectDescription && (
-                  <p className="text-sm text-gray-800">
-                    <span className="font-medium">Description:</span>{" "}
-                    {project.projectDescription}
+                {project.propertyAddressCounty && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    County: {project.propertyAddressCounty}
                   </p>
                 )}
               </div>
             </div>
-          )}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Asset Type
+            </h3>
+            <p className={`text-sm ${project.assetType ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {formatValue(project.assetType)}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Project Phase
+            </h3>
+            <p className={`text-sm ${project.projectPhase ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {formatValue(project.projectPhase)}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Project Description
+            </h3>
+            <p className={`text-sm ${project.projectDescription ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {formatValue(project.projectDescription)}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Target Close Date
+            </h3>
+            <p className={`text-sm ${project.targetCloseDate ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {formatDateValue(project.targetCloseDate)}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Use of Proceeds
+            </h3>
+            <p className={`text-sm ${project.useOfProceeds ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {formatValue(project.useOfProceeds)}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Recourse Preference
+            </h3>
+            <p className={`text-sm ${project.recoursePreference ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {formatValue(project.recoursePreference)}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Exit Strategy
+            </h3>
+            <p className={`text-sm ${project.exitStrategy ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {formatValue(project.exitStrategy)}
+            </p>
+          </div>
         </div>
 
         <div className="space-y-6">
-          {project && (
-            <>
-              {project.loanAmountRequested && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">
-                    Loan Information
-                  </h3>
-                  <div className="flex items-start">
-                    <DollarSign className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-                    <div>
-                      <p className="text-sm text-gray-800">
-                        <span className="font-medium">Amount Requested:</span>{" "}
-                        {formatCurrency(project.loanAmountRequested)}
-                      </p>
-                      {project.loanType && (
-                        <p className="text-sm text-gray-800">
-                          <span className="font-medium">Type:</span>{" "}
-                          {project.loanType}
-                        </p>
-                      )}
-                      {project.targetLtvPercent && (
-                        <p className="text-sm text-gray-800">
-                          <span className="font-medium">Target LTV:</span>{" "}
-                          {project.targetLtvPercent}%
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Loan Information
+            </h3>
+            <div className="flex items-start">
+              <DollarSign className="h-5 w-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-gray-800">
+                  <span className="font-medium">Amount Requested:</span>{" "}
+                  <span className={project.loanAmountRequested ? "" : "text-gray-400 italic"}>
+                    {project.loanAmountRequested
+                      ? formatCurrency(project.loanAmountRequested)
+                      : "Not provided"}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-800">
+                  <span className="font-medium">Loan Type:</span>{" "}
+                  <span className={project.loanType ? "" : "text-gray-400 italic"}>
+                    {formatValue(project.loanType)}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-800">
+                  <span className="font-medium">Target LTV:</span>{" "}
+                  <span className={project.targetLtvPercent ? "" : "text-gray-400 italic"}>
+                    {formatPercent(project.targetLtvPercent)}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-800">
+                  <span className="font-medium">Target LTC:</span>{" "}
+                  <span className={project.targetLtcPercent ? "" : "text-gray-400 italic"}>
+                    {formatPercent(project.targetLtcPercent)}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-800">
+                  <span className="font-medium">Amortization Years:</span>{" "}
+                  <span className={project.amortizationYears ? "" : "text-gray-400 italic"}>
+                    {formatValue(project.amortizationYears)}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-800">
+                  <span className="font-medium">Interest Only Period:</span>{" "}
+                  <span className={project.interestOnlyPeriodMonths ? "" : "text-gray-400 italic"}>
+                    {project.interestOnlyPeriodMonths
+                      ? `${project.interestOnlyPeriodMonths} months`
+                      : "Not provided"}
+                  </span>
+                </p>
+                <p className="text-sm text-gray-800">
+                  <span className="font-medium">Interest Rate Type:</span>{" "}
+                  <span className={project.interestRateType ? "" : "text-gray-400 italic"}>
+                    {formatValue(project.interestRateType)}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
 
-              {project.purchasePrice && (
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">
-                    Capital Stack
-                  </h3>
-                  <div className="flex flex-col gap-1">
-                    <p className="text-sm text-gray-800">
-                      <span className="font-medium">Purchase Price:</span>{" "}
-                      {formatCurrency(project.purchasePrice)}
-                    </p>
-                    {project.totalProjectCost && (
-                      <p className="text-sm text-gray-800">
-                        <span className="font-medium">Total Project Cost:</span>{" "}
-                        {formatCurrency(project.totalProjectCost)}
-                      </p>
-                    )}
-                    {project.exitStrategy && (
-                      <p className="text-sm text-gray-800">
-                        <span className="font-medium">Exit Strategy:</span>{" "}
-                        {project.exitStrategy}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Capital Stack
+            </h3>
+            <div className="space-y-2">
+              <p className="text-sm text-gray-800">
+                <span className="font-medium">Purchase Price:</span>{" "}
+                <span className={project.purchasePrice ? "" : "text-gray-400 italic"}>
+                  {project.purchasePrice
+                    ? formatCurrency(project.purchasePrice)
+                    : "Not provided"}
+                </span>
+              </p>
+              <p className="text-sm text-gray-800">
+                <span className="font-medium">Total Project Cost:</span>{" "}
+                <span className={project.totalProjectCost ? "" : "text-gray-400 italic"}>
+                  {project.totalProjectCost
+                    ? formatCurrency(project.totalProjectCost)
+                    : "Not provided"}
+                </span>
+              </p>
+              <p className="text-sm text-gray-800">
+                <span className="font-medium">CAPEX Budget:</span>{" "}
+                <span className={project.capexBudget ? "" : "text-gray-400 italic"}>
+                  {project.capexBudget ? formatCurrency(project.capexBudget) : "Not provided"}
+                </span>
+              </p>
+              <p className="text-sm text-gray-800">
+                <span className="font-medium">Equity Committed:</span>{" "}
+                <span className={project.equityCommittedPercent ? "" : "text-gray-400 italic"}>
+                  {formatPercent(project.equityCommittedPercent)}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              NOI Information
+            </h3>
+            <div className="space-y-2">
+              <p className="text-sm text-gray-800">
+                <span className="font-medium">Property NOI (T12):</span>{" "}
+                <span className={project.propertyNoiT12 ? "" : "text-gray-400 italic"}>
+                  {project.propertyNoiT12
+                    ? formatCurrency(project.propertyNoiT12)
+                    : "Not provided"}
+                </span>
+              </p>
+              <p className="text-sm text-gray-800">
+                <span className="font-medium">Stabilized NOI (Projected):</span>{" "}
+                <span className={project.stabilizedNoiProjected ? "" : "text-gray-400 italic"}>
+                  {project.stabilizedNoiProjected
+                    ? formatCurrency(project.stabilizedNoiProjected)
+                    : "Not provided"}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Business Plan Summary
+            </h3>
+            <p className={`text-sm ${project.businessPlanSummary ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {formatValue(project.businessPlanSummary)}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">
+              Market Overview Summary
+            </h3>
+            <p className={`text-sm ${project.marketOverviewSummary ? "text-gray-800" : "text-gray-400 italic"}`}>
+              {formatValue(project.marketOverviewSummary)}
+            </p>
+          </div>
 
           <div>
             <h3 className="text-sm font-medium text-gray-500 mb-1">
               Project Dates
             </h3>
             <div className="flex items-start">
-              <Calendar className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
-              <div>
+              <Calendar className="h-5 w-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
                 <p className="text-sm text-gray-800">
                   <span className="font-medium">Created:</span>{" "}
                   {formatDate(project.createdAt)}
@@ -546,27 +711,27 @@ export default function AdvisorProjectDetailPage() {
         </div>
       </div>
     );
-  }, [project]);
+  }, [project, ownerOrgName]);
 
   const renderDocumentRequirements = useCallback(() => {
     return (
-      <CardContent className="p-0">
+      <div>
         {documentRequirements.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-100">
+              <thead className="bg-gray-50/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Document Type
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Status
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {documentRequirements.map((req) => (
-                  <tr key={req.id}>
+                  <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                       {req.requiredDocType}
                     </td>
@@ -595,11 +760,11 @@ export default function AdvisorProjectDetailPage() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8">
+          <div className="text-center py-12">
             <p className="text-gray-500">No document requirements</p>
           </div>
         )}
-      </CardContent>
+      </div>
     );
   }, [documentRequirements]);
 
@@ -707,99 +872,130 @@ export default function AdvisorProjectDetailPage() {
 
   const renderMessageBoard = useCallback(() => {
     return (
-      <div className="h-full flex flex-col">
-        {/* Thread List */}
-        <div className="p-2 border-b">
-          <h4 className="text-sm font-semibold mb-2 px-2">Channels</h4>
-          <div className="space-y-1">
-            {threads.map((thread) => (
-              <button
-                key={thread.id}
-                onClick={() => setActiveThreadId(thread.id)}
-                className={`w-full text-left p-2 rounded text-sm ${
-                  activeThreadId === thread.id
-                    ? "bg-blue-100 font-semibold text-blue-800"
-                    : "hover:bg-gray-100"
-                }`}
-              >
-                # {thread.topic}
-              </button>
-            ))}
+      <div className="h-full flex">
+        {/* Threads Sidebar - Left Side */}
+        <div className="flex-shrink-0 bg-gray-50 border-r border-gray-100 w-48 flex flex-col">
+          <div className="p-3 border-b border-gray-100 bg-white">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-semibold text-gray-800 text-sm">Channels</h3>
+            </div>
+            <div className="text-[11px] text-gray-500">
+              Switch between discussion channels
+            </div>
+          </div>
+
+          <div className="overflow-y-auto flex-1">
+            {threads.length === 0 ? (
+              <div className="p-3 text-center text-sm text-gray-500">
+                No channels yet
+              </div>
+            ) : (
+              <div className="space-y-1 p-2">
+                {threads.map((thread) => (
+                  <button
+                    key={thread.id}
+                    onClick={() => setActiveThreadId(thread.id)}
+                    className={`w-full text-left p-2 rounded text-sm transition-colors ${
+                      activeThreadId === thread.id
+                        ? "bg-blue-100 font-semibold text-blue-800"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    # {thread.topic}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Message Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
-          {isLoadingMessages ? (
-            <div className="flex justify-center items-center h-full">
-              <p>Loading messages...</p>
-            </div>
-          ) : messages.length > 0 ? (
-            messages.map((message) => {
-              const isAdvisor = message.user_id === user?.id;
-              return (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    isAdvisor ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-lg px-3 py-2 shadow-sm ${
-                      isAdvisor
-                        ? "bg-blue-100 text-blue-900"
-                        : "bg-gray-100 text-gray-900"
-                    }`}
-                  >
-                    <div className="flex items-center mb-1">
-                      <span className="text-xs font-semibold">
-                        {isAdvisor
-                          ? "You"
-                          : message.sender.full_name || "Borrower"}
-                      </span>
-                      <span className="text-xs text-gray-500 ml-2">
-                        {new Date(message.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-sm whitespace-pre-line">
-                      {message.message}
-                    </p>
+        {/* Main Chat Area - Right Side */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {activeThreadId ? (
+            <>
+              {/* Message Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
+                {isLoadingMessages ? (
+                  <div className="flex justify-center items-center h-full">
+                    <p>Loading messages...</p>
                   </div>
+                ) : messages.length > 0 ? (
+                  messages.map((message) => {
+                    const isAdvisor = message.user_id === user?.id;
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex ${
+                          isAdvisor ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`max-w-[85%] rounded-lg px-3 py-2 shadow-sm ${
+                            isAdvisor
+                              ? "bg-blue-100 text-blue-900"
+                              : "bg-gray-100 text-gray-900"
+                          }`}
+                        >
+                          <div className="flex items-center mb-1">
+                            <span className="text-xs font-semibold">
+                              {isAdvisor
+                                ? "You"
+                                : message.sender.full_name || "Borrower"}
+                            </span>
+                            <span className="text-xs text-gray-500 ml-2">
+                              {new Date(message.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-sm whitespace-pre-line">
+                            {message.message}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No messages yet</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Message Input */}
+              <div className="flex-shrink-0 p-4 border-t border-gray-100 bg-white flex space-x-2">
+                <textarea
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  placeholder="Type your message here..."
+                  rows={2}
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  disabled={!activeThreadId || isSending}
+                />
+                <div className="flex flex-col space-y-2">
+                  <Button
+                    onClick={() => handleSendMessage()}
+                    disabled={!newMessage.trim() || !activeThreadId || isSending}
+                    leftIcon={<Send size={16} />}
+                  >
+                    Send
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={generateFeedback}
+                    disabled={!activeThreadId || isSending}
+                  >
+                    Generate Feedback
+                  </Button>
                 </div>
-              );
-            })
+              </div>
+            </>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No messages yet</p>
+            <div className="flex-1 flex items-center justify-center text-gray-500">
+              <div className="text-center">
+                <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                <p>Select a channel to start chatting</p>
+              </div>
             </div>
           )}
-        </div>
-        {/* Message Input */}
-        <div className="p-4 border-t flex space-x-2">
-          <textarea
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            placeholder="Type your message here..."
-            rows={2}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            disabled={!activeThreadId || isSending}
-          />
-          <div className="flex flex-col space-y-2">
-            <Button
-              onClick={() => handleSendMessage()}
-              disabled={!newMessage.trim() || !activeThreadId || isSending}
-              leftIcon={<Send size={16} />}
-            >
-              Send
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={generateFeedback}
-              disabled={!activeThreadId || isSending}
-            >
-              Generate Feedback
-            </Button>
-          </div>
         </div>
       </div>
     );
@@ -817,116 +1013,142 @@ export default function AdvisorProjectDetailPage() {
 
   return (
     <RoleBasedRoute roles={["advisor"]}>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex flex-col h-screen bg-gray-50">
         <LoadingOverlay isLoading={isLoadingData} />
 
-        {/* Main content */}
-        <div className="flex-1 overflow-auto">
-          <header className="bg-white shadow-sm py-4 px-6 flex items-center">
-            <Button
-              variant="outline"
-              leftIcon={<ChevronLeft size={16} />}
-              onClick={() => router.push("/advisor/dashboard")}
-              className="mr-4"
+        {/* Header */}
+        <header className="bg-white shadow-sm py-4 px-6 flex items-center flex-shrink-0">
+          <Button
+            variant="outline"
+            leftIcon={<ChevronLeft size={16} />}
+            onClick={() => router.push("/advisor/dashboard")}
+            className="mr-4"
+          >
+            Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-800">
+              {project?.projectName || "Project Details"}
+            </h1>
+            <div
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getStatusColor(
+                selectedStatus
+              )}`}
             >
-              Back
-            </Button>
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-800">
-                {project?.projectName || "Project Details"}
-              </h1>
-              <div
-                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getStatusColor(
-                  selectedStatus
-                )}`}
-              >
-                {selectedStatus}
+              {selectedStatus}
+            </div>
+          </div>
+        </header>
+
+        {/* Main content with flex layout */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left Column: Scrollable content with tabs */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Tabs */}
+            <div className="flex-shrink-0 border-b bg-white">
+              <div className="flex">
+                <button
+                  onClick={() => setActiveTab("project")}
+                  className={cn(
+                    "flex-1 flex items-center justify-center space-x-2 py-3 px-4 text-sm font-medium transition-colors",
+                    activeTab === "project"
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:bg-gray-50"
+                  )}
+                >
+                  <FileText size={16} />
+                  <span>Project Info</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab("borrower")}
+                  className={cn(
+                    "flex-1 flex items-center justify-center space-x-2 py-3 px-4 text-sm font-medium transition-colors",
+                    activeTab === "borrower"
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:bg-gray-50"
+                  )}
+                >
+                  <User size={16} />
+                  <span>Borrower Info</span>
+                </button>
               </div>
             </div>
-          </header>
 
-          <main className="p-6 flex flex-col h-full">
-            {/* Tabs */}
-            <div className="border-b border-gray-200 mb-6">
-              <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                <button
-                  onClick={() => setCurrentTab("details")}
-                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
-                    currentTab === "details"
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  Details & Documents
-                </button>
-                <button
-                  onClick={() => setCurrentTab("chat")}
-                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm ${
-                    currentTab === "chat"
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  Chat
-                </button>
-              </nav>
-            </div>
+            {/* Tab Content with Grid Background */}
+            <div className="flex-1 overflow-y-auto relative">
+              {/* Grid Background */}
+              <div className="pointer-events-none absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
+                <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
+                  <defs>
+                    <pattern id="advisor-grid-pattern" width="24" height="24" patternUnits="userSpaceOnUse">
+                      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#advisor-grid-pattern)" />
+                </svg>
+              </div>
 
-            {currentTab === "details" && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left Column */}
-                <div className="space-y-6">
-                  <Card className="shadow-sm">
-                    <CardHeader className="border-b bg-gray-50 flex flex-row justify-between items-center">
-                      <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                        <FileText className="h-5 w-5 mr-2 text-blue-600" />
-                        Project Details
-                      </h2>
-                      <Select
-                        options={[
-                          { value: "Info Gathering", label: "Info Gathering" },
-                          { value: "Advisor Review", label: "Advisor Review" },
-                          {
-                            value: "Matches Curated",
-                            label: "Matches Curated",
-                          },
-                          {
-                            value: "Introductions Sent",
-                            label: "Introductions Sent",
-                          },
-                          {
-                            value: "Term Sheet Received",
-                            label: "Term Sheet Received",
-                          },
-                          { value: "Closed", label: "Closed" },
-                          { value: "Withdrawn", label: "Withdrawn" },
-                          { value: "Stalled", label: "Stalled" },
-                        ]}
-                        value={selectedStatus}
-                        onChange={(e) =>
-                          handleStatusChange(e.target.value as ProjectStatus)
-                        }
-                        size="sm"
-                        className="w-48"
-                      />
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      {renderProjectDetails()}
-                    </CardContent>
-                  </Card>
+              {/* Blue Blob */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+                <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
+              </div>
 
-                  <Card className="shadow-sm">
-                    <CardHeader className="border-b bg-gray-50">
-                      <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                        <FileText className="h-5 w-5 mr-2 text-blue-600" />
-                        Document Requirements
-                      </h2>
-                    </CardHeader>
-                    {renderDocumentRequirements()}
-                  </Card>
+              {/* Content with padding */}
+              <div className="relative z-[1] p-6">
+                {activeTab === "project" && (
+                  <div className="space-y-6">
+                    {/* Project Details */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="p-6 sm:p-8">
+                        <div className="flex flex-row justify-between items-start mb-6">
+                          <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                            <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                            Project Details
+                          </h2>
+                        </div>
+                        <div className="mb-6">
+                          <label className="block text-sm font-medium text-gray-700 mb-3">
+                            Project Status
+                          </label>
+                          <SingleSelectChips
+                            options={[
+                              "Info Gathering",
+                              "Advisor Review",
+                              "Matches Curated",
+                              "Introductions Sent",
+                              "Term Sheet Received",
+                              "Closed",
+                              "Withdrawn",
+                              "Stalled",
+                            ]}
+                            value={selectedStatus}
+                            onChange={(value) =>
+                              handleStatusChange(value as ProjectStatus)
+                            }
+                            size="sm"
+                            layout="row"
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="border-t border-gray-100 pt-6">
+                          {renderProjectDetails()}
+                        </div>
+                      </div>
+                    </div>
 
-                  <Card className="shadow-sm">
-                    <CardContent className="p-0">
+                    {/* Document Requirements */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="p-6 sm:p-8">
+                        <h2 className="text-xl font-bold text-gray-800 flex items-center mb-6">
+                          <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                          Document Requirements
+                        </h2>
+                        {renderDocumentRequirements()}
+                      </div>
+                    </div>
+
+                    {/* Project Documents */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                       {project && (
                         <DocumentManager
                           resourceId="PROJECT_ROOT"
@@ -934,55 +1156,52 @@ export default function AdvisorProjectDetailPage() {
                           projectId={project.id}
                         />
                       )}
-                    </CardContent>
-                  </Card>
-                </div>
+                    </div>
+                  </div>
+                )}
 
-                {/* Right Column */}
-                <div className="space-y-6">
-                  <Card className="shadow-sm">
-                    <CardHeader className="border-b bg-gray-50">
-                      <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                        <User className="h-5 w-5 mr-2 text-blue-600" />
-                        Borrower Details
-                      </h2>
-                    </CardHeader>
-                    <CardContent className="p-4">
-                      {renderBorrowerDetails()}
-                    </CardContent>
-                  </Card>
+                {activeTab === "borrower" && (
+                  <div className="space-y-6">
+                    {/* Borrower Details */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="p-6 sm:p-8">
+                        <h2 className="text-xl font-bold text-gray-800 flex items-center mb-6">
+                          <User className="h-5 w-5 mr-2 text-blue-600" />
+                          Borrower Details
+                        </h2>
+                        {renderBorrowerDetails()}
+                      </div>
+                    </div>
 
-                  <Card className="shadow-sm">
-                    <CardContent className="p-0">
+                    {/* Borrower Documents */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                       {project && (
                         <DocumentManager
                           resourceId="BORROWER_ROOT"
                           title="General Borrower Documents"
                           projectId={null}
+                          orgId={project.owner_org_id as string | null}
                         />
                       )}
-                    </CardContent>
-                  </Card>
-                </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          </div>
 
-            {currentTab === "chat" && (
-              <div className="flex-1 h-full min-h-[600px]">
-                <Card className="shadow-sm h-full flex flex-col">
-                  <CardHeader className="border-b bg-gray-50">
-                    <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                      <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
-                      Project Message Board
-                    </h2>
-                  </CardHeader>
-                  <CardContent className="p-0 flex-1 flex flex-col">
-                    {renderMessageBoard()}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </main>
+          {/* Right Column: Fixed Chat */}
+          <div className="w-1/3 bg-white flex flex-col h-full rounded-l-2xl shadow-xl overflow-hidden relative z-10 -ml-4">
+            <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50 px-4 py-3">
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
+                Project Message Board
+              </h2>
+            </div>
+            <div className="flex-1 overflow-hidden min-h-0">
+              {renderMessageBoard()}
+            </div>
+          </div>
         </div>
       </div>
     </RoleBasedRoute>

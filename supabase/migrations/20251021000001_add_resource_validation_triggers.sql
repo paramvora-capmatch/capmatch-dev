@@ -90,3 +90,4 @@ CREATE TRIGGER validate_resource_delete_trigger
 BEFORE DELETE ON public.resources
 FOR EACH ROW
 EXECUTE FUNCTION public.validate_resource_delete();
+

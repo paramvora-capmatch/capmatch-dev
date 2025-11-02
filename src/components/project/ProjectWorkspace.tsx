@@ -145,8 +145,27 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         }}
       >
         {/* Left Column: Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto relative">
+          {/* Grid Background */}
+          <div className="pointer-events-none absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
+            <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
+              <defs>
+                <pattern id="borrower-grid-pattern" width="24" height="24" patternUnits="userSpaceOnUse">
+                  <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#borrower-grid-pattern)" />
+            </svg>
+          </div>
+
+          {/* Blue Blob */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+            <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
+          </div>
+
+          {/* Content with padding */}
+          <div className="relative z-[1] p-6">
+            <div className="space-y-6">
             {/* Project Progress Card */}
             <div className="relative">
               <ProjectSummaryCard
@@ -187,26 +206,30 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             )}
 
             {/* Document Manager */}
-            <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
-              <DocumentManager
-                projectId={projectId}
-                resourceId="PROJECT_ROOT"
-                title="Project Documents"
-                canUpload={true}
-                canDelete={true}
-                highlightedResourceId={highlightedResourceId}
-              />
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-3">
+                <DocumentManager
+                  projectId={projectId}
+                  resourceId="PROJECT_ROOT"
+                  title="Project Documents"
+                  canUpload={true}
+                  canDelete={true}
+                  highlightedResourceId={highlightedResourceId}
+                />
+              </div>
             </div>
 
             {/* Project Resume (View or Edit) */}
             {isEditing ? (
-              <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                <EnhancedProjectForm
-                  existingProject={activeProject}
-                  onComplete={() => setIsEditing(false)} // Close form on complete
-                  onAskAI={(fieldId) => setDroppedFieldId(fieldId)}
-                  onFormDataChange={setCurrentFormData}
-                />
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-4">
+                  <EnhancedProjectForm
+                    existingProject={activeProject}
+                    onComplete={() => setIsEditing(false)} // Close form on complete
+                    onAskAI={(fieldId) => setDroppedFieldId(fieldId)}
+                    onFormDataChange={setCurrentFormData}
+                  />
+                </div>
               </div>
             ) : (
               <ProjectResumeView
@@ -214,12 +237,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 onEdit={() => setIsEditing(true)}
               />
             )}
+            </div>
           </div>
         </div>
 
         {/* Right Column: Fixed Chat with tabs */}
-        <div className="w-1/3 border-l bg-white flex flex-col h-full">
-          <div className="flex-shrink-0 border-b">
+        <div className="w-1/3 bg-white flex flex-col h-full rounded-r-2xl shadow-xl overflow-hidden relative z-10 -mr-4">
+          <div className="flex-shrink-0 border-b border-gray-100">
             <div className="flex">
               <button
                 onClick={() => setRightTab("team")}
