@@ -27,16 +27,20 @@ export interface DocumentFolder {
 
 export const useDocumentManagement = (
   projectId: string | null,
-  folderId?: string | null
+  folderId?: string | null,
+  orgId?: string | null // Optional: allows querying a different org's documents (e.g., for advisors viewing borrower docs)
 ) => {
   const [files, setFiles] = useState<DocumentFile[]>([]);
   const [folders, setFolders] = useState<DocumentFolder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user, activeOrg } = useAuthStore();
+  
+  // Use provided orgId if available, otherwise fall back to activeOrg
+  const targetOrgId = orgId || activeOrg?.id;
 
   const listDocuments = useCallback(async () => {
-    if (!activeOrg) return;
+    if (!targetOrgId) return;
     setIsLoading(true);
     setError(null);
 
@@ -50,19 +54,28 @@ export const useDocumentManagement = (
           .select("id")
           .eq("project_id", projectId)
           .eq("resource_type", "PROJECT_DOCS_ROOT")
-          .single();
-        if (error) throw new Error(`Failed to find PROJECT_DOCS_ROOT: ${error.message || JSON.stringify(error)}`);
-        if (!root?.id) {
-          throw new Error("Project docs root has no ID");
+          .maybeSingle();
+        if (error) {
+          throw new Error(`Failed to find PROJECT_DOCS_ROOT: ${error.message || JSON.stringify(error)}`);
+        }
+        if (!root || !root.id) {
+          // This could be either a missing resource OR an RLS permissions issue
+          // Provide a helpful error message
+          throw new Error(
+            `PROJECT_DOCS_ROOT not found for project ${projectId}. ` +
+            `This could mean: (1) The resource was not created during project creation, or ` +
+            `(2) You don't have permissions to view it. ` +
+            `Please ensure you have 'view' or 'edit' permissions on the PROJECT_DOCS_ROOT resource.`
+          );
         }
         parentId = folderId || root.id;
       } else {
         // For org-level documents, use BORROWER_DOCS_ROOT
-        console.log('[DocumentManagement] Looking for BORROWER_DOCS_ROOT for org:', activeOrg.id);
+        console.log('[DocumentManagement] Looking for BORROWER_DOCS_ROOT for org:', targetOrgId);
         const { data: root, error } = await supabase
           .from("resources")
           .select("id")
-          .eq("org_id", activeOrg.id)
+          .eq("org_id", targetOrgId)
           .eq("resource_type", "BORROWER_DOCS_ROOT")
           .maybeSingle();
         
@@ -72,10 +85,10 @@ export const useDocumentManagement = (
           throw new Error(`Failed to query BORROWER_DOCS_ROOT: ${error.message || JSON.stringify(error)}`);
         }
         if (!root) {
-          throw new Error(`BORROWER_DOCS_ROOT not found for org ${activeOrg.id}. This should have been created during onboarding.`);
+          throw new Error(`BORROWER_DOCS_ROOT not found for org ${targetOrgId}. This should have been created during onboarding.`);
         }
         if (!root.id) {
-          throw new Error(`BORROWER_DOCS_ROOT exists but has no ID for org ${activeOrg.id}`);
+          throw new Error(`BORROWER_DOCS_ROOT exists but has no ID for org ${targetOrgId}`);
         }
         parentId = folderId || root.id;
       }
@@ -175,16 +188,17 @@ export const useDocumentManagement = (
         console.error("[DocumentManagement] Error value:", err);
         setError("An unknown error occurred while listing documents");
       }
+      console.error("[DocumentManagement] Target org:", targetOrgId);
       console.error("[DocumentManagement] Active org:", activeOrg?.id);
       console.error("[DocumentManagement] Project ID:", projectId);
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, folderId, activeOrg]);
+  }, [projectId, folderId, targetOrgId, activeOrg?.id]);
 
   const uploadFile = useCallback(
     async (file: File, folderId?: string) => {
-      if (!activeOrg || !user) throw new Error("Missing context");
+      if (!targetOrgId || !user) throw new Error("Missing context");
       setIsLoading(true);
       setError(null);
       let resourceId: string | null = null;
@@ -198,14 +212,17 @@ export const useDocumentManagement = (
             .select("id")
             .eq("project_id", projectId)
             .eq("resource_type", "PROJECT_DOCS_ROOT")
-            .single();
+            .maybeSingle();
           if (error) throw error;
+          if (!root || !root.id) {
+            throw new Error(`PROJECT_DOCS_ROOT not found for project ${projectId}`);
+          }
           parentId = folderId || root.id;
         } else {
           const { data: root, error } = await supabase
             .from("resources")
             .select("id")
-            .eq("org_id", activeOrg.id)
+            .eq("org_id", targetOrgId)
             .eq("resource_type", "BORROWER_DOCS_ROOT")
             .single();
           if (error) throw error;
@@ -215,7 +232,7 @@ export const useDocumentManagement = (
         const { data: resource, error: resourceError } = await supabase
           .from("resources")
           .insert({
-            org_id: activeOrg.id,
+            org_id: targetOrgId,
             project_id: projectId,
             parent_id: parentId,
             resource_type: "FILE",
@@ -259,7 +276,7 @@ export const useDocumentManagement = (
         finalStoragePath = `${fileFolder}/v${version.version_number}_${file.name}`;
 
         const { error: uploadError } = await supabase.storage
-          .from(activeOrg.id)
+          .from(targetOrgId)
           .upload(finalStoragePath, file, { upsert: false });
         if (uploadError) {
           console.error("Error uploading file to storage:", uploadError);
@@ -300,8 +317,8 @@ export const useDocumentManagement = (
           activeOrgId: activeOrg?.id
         });
         setError(err instanceof Error ? err.message : "Failed to upload file");
-        if (finalStoragePath)
-          await supabase.storage.from(activeOrg!.id).remove([finalStoragePath]);
+        if (finalStoragePath && targetOrgId)
+          await supabase.storage.from(targetOrgId).remove([finalStoragePath]);
         if (resourceId)
           await supabase.from("resources").delete().eq("id", resourceId);
         throw err;
@@ -309,13 +326,13 @@ export const useDocumentManagement = (
         setIsLoading(false);
       }
     },
-    [projectId, activeOrg, user, listDocuments]
+    [projectId, targetOrgId, user, listDocuments, activeOrg?.id]
   );
 
   const createFolder = useCallback(
     async (folderName: string, parentFolderId?: string) => {
-      if (!activeOrg)
-        throw new Error("Cannot create folder without an active org.");
+      if (!targetOrgId)
+        throw new Error("Cannot create folder without an org ID.");
       setIsLoading(true);
       setError(null);
       try {
@@ -326,14 +343,17 @@ export const useDocumentManagement = (
             .select("id")
             .eq("project_id", projectId)
             .eq("resource_type", "PROJECT_DOCS_ROOT")
-            .single();
+            .maybeSingle();
           if (error) throw error;
+          if (!root || !root.id) {
+            throw new Error(`PROJECT_DOCS_ROOT not found for project ${projectId}`);
+          }
           parentId = parentFolderId || root.id;
         } else {
           const { data: root, error } = await supabase
             .from("resources")
             .select("id")
-            .eq("org_id", activeOrg.id)
+            .eq("org_id", targetOrgId)
             .eq("resource_type", "BORROWER_DOCS_ROOT")
             .single();
           if (error) throw error;
@@ -343,7 +363,7 @@ export const useDocumentManagement = (
         const { data, error } = await supabase
           .from("resources")
           .insert({
-            org_id: activeOrg.id,
+            org_id: targetOrgId,
             project_id: projectId,
             parent_id: parentId,
             resource_type: "FOLDER",
@@ -365,12 +385,12 @@ export const useDocumentManagement = (
         setIsLoading(false);
       }
     },
-    [projectId, activeOrg, listDocuments]
+    [projectId, targetOrgId, listDocuments]
   );
 
   const deleteFile = useCallback(
     async (fileId: string) => {
-      if (!activeOrg) return;
+      if (!targetOrgId) return;
       try {
         const { data: resource } = await supabase
           .from("resources")
@@ -383,7 +403,7 @@ export const useDocumentManagement = (
           ? `${resource.project_id}/${fileId}`
           : `borrower_docs/${fileId}`;
         const { data: filesInFolder, error: listError } = await supabase.storage
-          .from(activeOrg.id)
+          .from(targetOrgId)
           .list(folderToDelete);
         if (listError) throw listError;
 
@@ -392,7 +412,7 @@ export const useDocumentManagement = (
         );
         if (filePaths.length > 0) {
           const { error: removeError } = await supabase.storage
-            .from(activeOrg.id)
+            .from(targetOrgId)
             .remove(filePaths);
           if (removeError) throw removeError;
         }
@@ -410,7 +430,7 @@ export const useDocumentManagement = (
         throw err;
       }
     },
-    [activeOrg, listDocuments]
+    [targetOrgId, listDocuments]
   );
 
   const deleteFolder = useCallback(
@@ -439,7 +459,7 @@ export const useDocumentManagement = (
 
   const downloadFile = useCallback(
     async (fileId: string) => {
-      if (!activeOrg) throw new Error("Missing context");
+      if (!targetOrgId) throw new Error("Missing context");
       try {
         // Get the resource and its current version
         const { data: resource, error: resourceError } = await supabase
@@ -466,7 +486,7 @@ export const useDocumentManagement = (
 
         // Download from storage
         const { data: downloadedFile, error: downloadError } =
-          await supabase.storage.from(activeOrg.id).download(storage_path);
+          await supabase.storage.from(targetOrgId).download(storage_path);
 
         if (downloadError) {
           throw new Error(`Failed to download file: ${downloadError.message}`);
@@ -489,7 +509,7 @@ export const useDocumentManagement = (
         throw err;
       }
     },
-    [activeOrg]
+    [targetOrgId]
   );
 
   useEffect(() => {

@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { ProjectProfile } from '@/types/enhanced-types';
-import { Card, CardContent, CardHeader } from '../ui/card';
 import { Button } from '../ui/Button';
 import { Edit, MapPin, DollarSign, BarChart3 } from 'lucide-react';
 import { KeyValueDisplay } from '../om/KeyValueDisplay'; // Reusing this component
@@ -26,10 +25,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
     const progressColor = completeness === 100 ? 'bg-green-600' : 'bg-blue-600';
 
     return (
-        <Card className="h-full flex flex-col shadow-sm border border-gray-200 relative group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-lg" />
+        <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             
-            <CardHeader className="sticky top-0 border-b bg-gray-50/50 flex flex-row items-center justify-between relative z-10">
+            <div className="sticky top-0 border-b border-gray-100 bg-gray-50/50 flex flex-row items-center justify-between relative z-10 px-6 py-4">
                 <div>
                     <h2 className="text-lg font-semibold text-gray-800 flex items-center">
                         <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
@@ -41,9 +40,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
                 </Button>
-            </CardHeader>
+            </div>
 
-            <CardContent className="flex-1 overflow-y-auto p-4 relative z-10">
+            <div className="flex-1 overflow-y-auto p-6 relative z-10">
                 <div className="space-y-6">
                     {/* Basic Info */}
                     <div>
@@ -90,7 +89,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                         </div>
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 };
