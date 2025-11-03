@@ -1,6 +1,6 @@
 // src/components/project/ProjectResumeView.tsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { Button } from '../ui/Button';
 import { Edit, MapPin, DollarSign, BarChart3 } from 'lucide-react';
@@ -21,6 +21,7 @@ const formatDate = (dateString: string | null | undefined): string => {
 };
 
 export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, onEdit }) => {
+    const [showDetails, setShowDetails] = useState(false);
     const completeness = project.completenessPercent || 0;
     const progressColor = completeness === 100 ? 'bg-green-600' : 'bg-blue-600';
 
@@ -36,12 +37,18 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                     </h2>
                     <p className="text-sm text-gray-500">{project.projectName}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={onEdit}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowDetails((s) => !s)}>
+                        {showDetails ? 'Hide Details' : 'Show Project Details'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={onEdit}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                    </Button>
+                </div>
             </div>
 
+            {showDetails && (
             <div className="flex-1 overflow-y-auto p-6 relative z-10">
                 <div className="space-y-6">
                     {/* Basic Info */}
@@ -90,6 +97,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                     </div>
                 </div>
             </div>
+            )}
         </div>
     );
 };

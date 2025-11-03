@@ -26,9 +26,23 @@ interface ProjectMember {
 
 interface ProjectCardProps {
   project: ProjectProfile;
+  primaryCtaHref?: string;
+  primaryCtaLabel?: string;
+  onPrimaryCtaClick?: (e: React.MouseEvent) => void;
+  showDeleteButton?: boolean;
+  unread?: boolean;
+  disableOrgLoading?: boolean;
 }
 
-export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
+export const ProjectCard: React.FC<ProjectCardProps> = ({
+  project,
+  primaryCtaHref,
+  primaryCtaLabel,
+  onPrimaryCtaClick,
+  showDeleteButton = true,
+  unread = false,
+  disableOrgLoading = false,
+}) => {
   const router = useRouter();
   const { deleteProject } = useProjects();
   const { isOwner, currentOrg, members: orgMembers, loadOrg, isLoading: orgLoading } = useOrgStore();
@@ -41,11 +55,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
   // Check if current user is owner of the project's owner org
   const isProjectOwner = isOwner && currentOrg?.id === project.owner_org_id;
 
-  // Ensure org is loaded for this project
+  // Ensure org is loaded for this project (skip when disabled)
   useEffect(() => {
     const ensureOrgLoaded = async () => {
+      if (disableOrgLoading) return;
       if (!project.owner_org_id) return;
-      
+
       const { currentOrg: currentOrgState } = useOrgStore.getState();
       // Only load if we haven't loaded this org yet
       if (currentOrgState?.id !== project.owner_org_id) {
@@ -53,13 +68,17 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
         await loadOrg(project.owner_org_id);
       }
     };
-    
-    ensureOrgLoaded();
-  }, [project.owner_org_id, loadOrg]);
 
-  // Fetch project members if user is an owner
+    ensureOrgLoaded();
+  }, [project.owner_org_id, loadOrg, disableOrgLoading]);
+
+  // Fetch project members if user is an owner (skip when disabled)
   useEffect(() => {
     const fetchProjectMembers = async () => {
+      if (disableOrgLoading) {
+        setProjectMembers([]);
+        return;
+      }
       // Wait for org to be loaded and check ownership
       if (!currentOrg || !isOwner || currentOrg.id !== project.owner_org_id || !project.id) {
         console.log('[ProjectCard] Skipping member fetch:', {
@@ -173,7 +192,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
     };
 
     fetchProjectMembers();
-  }, [isOwner, currentOrg, project.id, project.owner_org_id, project.assignedAdvisorUserId, orgMembers, orgLoading]);
+  }, [isOwner, currentOrg, project.id, project.owner_org_id, project.assignedAdvisorUserId, orgMembers, orgLoading, disableOrgLoading]);
 
   // Format date helper (could be moved to utils)
   const formatDate = (dateString?: string) => {
@@ -251,6 +270,11 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
               title={project.projectName || "Unnamed Project"}
             >
               {project.projectName || "Unnamed Project"}
+              {unread && (
+                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-semibold">
+                  New Messages
+                </span>
+              )}
             </h3>
             <div className="flex items-center space-x-2 flex-shrink-0">
               <span
@@ -265,14 +289,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
                 )}
                 {project.projectStatus}
               </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDelete}
-                className="h-6 w-6 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-full"
-              >
-                <Trash2 size={14} />
-              </Button>
+              {showDeleteButton && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDelete}
+                  className="h-6 w-6 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-full"
+                >
+                  <Trash2 size={14} />
+                </Button>
+              )}
             </div>
           </div>
 
@@ -375,10 +401,20 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
               fullWidth
               size="sm"
               rightIcon={<ChevronRight size={16} />}
-              onClick={() => router.push(`/project/workspace/${project.id}`)}
+              onClick={(e) => {
+                if (onPrimaryCtaClick) {
+                  onPrimaryCtaClick(e);
+                  return;
+                }
+                if (primaryCtaHref) {
+                  router.push(primaryCtaHref);
+                  return;
+                }
+                router.push(`/project/workspace/${project.id}`);
+              }}
               className="font-medium"
             >
-              {isComplete ? "Open Workspace" : "Continue Setup"}
+              {primaryCtaLabel || (isComplete ? "Open Workspace" : "Continue Setup")}
             </Button>
           </div>
         </CardContent>

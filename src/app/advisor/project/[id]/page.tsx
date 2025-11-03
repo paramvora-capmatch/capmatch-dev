@@ -24,7 +24,6 @@ import {
   BorrowerProfile, // Used for demo mode mapping
   ProjectProfile,
   ProjectStatus,
-  ProjectDocumentRequirement,
   Project, // Base Project type, useful for some contexts
   BorrowerResume,
   ProjectResume,
@@ -36,6 +35,11 @@ import { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 import { getProjectWithResume } from "@/lib/project-queries";
 import { cn } from "@/utils/cn";
+import { ProjectResumeView } from "@/components/project/ProjectResumeView";
+import { EnhancedProjectForm } from "@/components/forms/EnhancedProjectForm";
+import { ProjectCompletionCard } from "@/components/project/ProjectCompletionCard";
+import { ProjectSummaryCard } from "@/components/project/ProjectSummaryCard";
+import { BorrowerResumeForm } from "@/components/forms/BorrowerResumeForm";
 
 // Utility functions
 const formatDate = (dateString: string) => {
@@ -112,9 +116,6 @@ export default function AdvisorProjectDetailPage() {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
-  const [documentRequirements, setDocumentRequirements] = useState<
-    ProjectDocumentRequirement[]
-  >([]);
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
@@ -123,6 +124,8 @@ export default function AdvisorProjectDetailPage() {
     useState<ProjectStatus>("Info Gathering");
   const [activeTab, setActiveTab] = useState<"project" | "borrower">("project");
   const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
+  const [isEditingProject, setIsEditingProject] = useState<boolean>(false);
+  const borrowerResumeRef = useRef<HTMLDivElement | null>(null);
 
   const projectId = params?.id as string;
 
@@ -231,16 +234,7 @@ export default function AdvisorProjectDetailPage() {
           console.error("Error fetching threads:", error);
         }
 
-        // 5. Fetch document requirements
-        const allRequirements = await storageService.getItem<
-          ProjectDocumentRequirement[]
-        >("documentRequirements");
-        if (allRequirements) {
-          const projectRequirements = allRequirements.filter(
-            (r) => r.projectId === projectId
-          );
-          setDocumentRequirements(projectRequirements);
-        }
+        // Removed document requirements section
       } catch (error) {
         console.error("Error loading project data:", error);
       } finally {
@@ -423,350 +417,26 @@ export default function AdvisorProjectDetailPage() {
   // Render functions for sections
   const renderProjectDetails = useCallback(() => {
     if (!project) return null;
-
-    const formatValue = (value: any, formatter?: (val: any) => string): string => {
-      if (value === null || value === undefined || value === "") {
-        return "Not provided";
-      }
-      return formatter ? formatter(value) : String(value);
-    };
-
-    const formatDateValue = (dateString: string | null | undefined): string => {
-      if (!dateString) return "Not provided";
-      return formatDate(dateString);
-    };
-
-    const formatPercent = (value: number | null | undefined): string => {
-      if (value === null || value === undefined) return "Not provided";
-      return `${value}%`;
-    };
-
     return (
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Project Name
-            </h3>
-            <p className="text-sm text-gray-800 font-medium">{project.projectName}</p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Owner Organization
-            </h3>
-            <p className={`text-sm ${ownerOrgName ? "text-gray-800 font-medium" : "text-gray-400 italic"}`}>
-              {ownerOrgName || "Not provided"}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Property Address
-            </h3>
-            <div className="flex items-start">
-              <MapPin className="h-5 w-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                {project.propertyAddressStreet ? (
-                  <p className="text-sm text-gray-800">
-                    {[
-                      project.propertyAddressStreet,
-                      project.propertyAddressCity,
-                      project.propertyAddressState,
-                      project.propertyAddressZip,
-                    ]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">Not provided</p>
-                )}
-                {project.propertyAddressCounty && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    County: {project.propertyAddressCounty}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Asset Type
-            </h3>
-            <p className={`text-sm ${project.assetType ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {formatValue(project.assetType)}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Project Phase
-            </h3>
-            <p className={`text-sm ${project.projectPhase ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {formatValue(project.projectPhase)}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Project Description
-            </h3>
-            <p className={`text-sm ${project.projectDescription ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {formatValue(project.projectDescription)}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Target Close Date
-            </h3>
-            <p className={`text-sm ${project.targetCloseDate ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {formatDateValue(project.targetCloseDate)}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Use of Proceeds
-            </h3>
-            <p className={`text-sm ${project.useOfProceeds ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {formatValue(project.useOfProceeds)}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Recourse Preference
-            </h3>
-            <p className={`text-sm ${project.recoursePreference ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {formatValue(project.recoursePreference)}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Exit Strategy
-            </h3>
-            <p className={`text-sm ${project.exitStrategy ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {formatValue(project.exitStrategy)}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Loan Information
-            </h3>
-            <div className="flex items-start">
-              <DollarSign className="h-5 w-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-              <div className="flex-1 space-y-2">
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">Amount Requested:</span>{" "}
-                  <span className={project.loanAmountRequested ? "" : "text-gray-400 italic"}>
-                    {project.loanAmountRequested
-                      ? formatCurrency(project.loanAmountRequested)
-                      : "Not provided"}
-                  </span>
-                </p>
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">Loan Type:</span>{" "}
-                  <span className={project.loanType ? "" : "text-gray-400 italic"}>
-                    {formatValue(project.loanType)}
-                  </span>
-                </p>
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">Target LTV:</span>{" "}
-                  <span className={project.targetLtvPercent ? "" : "text-gray-400 italic"}>
-                    {formatPercent(project.targetLtvPercent)}
-                  </span>
-                </p>
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">Target LTC:</span>{" "}
-                  <span className={project.targetLtcPercent ? "" : "text-gray-400 italic"}>
-                    {formatPercent(project.targetLtcPercent)}
-                  </span>
-                </p>
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">Amortization Years:</span>{" "}
-                  <span className={project.amortizationYears ? "" : "text-gray-400 italic"}>
-                    {formatValue(project.amortizationYears)}
-                  </span>
-                </p>
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">Interest Only Period:</span>{" "}
-                  <span className={project.interestOnlyPeriodMonths ? "" : "text-gray-400 italic"}>
-                    {project.interestOnlyPeriodMonths
-                      ? `${project.interestOnlyPeriodMonths} months`
-                      : "Not provided"}
-                  </span>
-                </p>
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">Interest Rate Type:</span>{" "}
-                  <span className={project.interestRateType ? "" : "text-gray-400 italic"}>
-                    {formatValue(project.interestRateType)}
-                  </span>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Capital Stack
-            </h3>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-800">
-                <span className="font-medium">Purchase Price:</span>{" "}
-                <span className={project.purchasePrice ? "" : "text-gray-400 italic"}>
-                  {project.purchasePrice
-                    ? formatCurrency(project.purchasePrice)
-                    : "Not provided"}
-                </span>
-              </p>
-              <p className="text-sm text-gray-800">
-                <span className="font-medium">Total Project Cost:</span>{" "}
-                <span className={project.totalProjectCost ? "" : "text-gray-400 italic"}>
-                  {project.totalProjectCost
-                    ? formatCurrency(project.totalProjectCost)
-                    : "Not provided"}
-                </span>
-              </p>
-              <p className="text-sm text-gray-800">
-                <span className="font-medium">CAPEX Budget:</span>{" "}
-                <span className={project.capexBudget ? "" : "text-gray-400 italic"}>
-                  {project.capexBudget ? formatCurrency(project.capexBudget) : "Not provided"}
-                </span>
-              </p>
-              <p className="text-sm text-gray-800">
-                <span className="font-medium">Equity Committed:</span>{" "}
-                <span className={project.equityCommittedPercent ? "" : "text-gray-400 italic"}>
-                  {formatPercent(project.equityCommittedPercent)}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              NOI Information
-            </h3>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-800">
-                <span className="font-medium">Property NOI (T12):</span>{" "}
-                <span className={project.propertyNoiT12 ? "" : "text-gray-400 italic"}>
-                  {project.propertyNoiT12
-                    ? formatCurrency(project.propertyNoiT12)
-                    : "Not provided"}
-                </span>
-              </p>
-              <p className="text-sm text-gray-800">
-                <span className="font-medium">Stabilized NOI (Projected):</span>{" "}
-                <span className={project.stabilizedNoiProjected ? "" : "text-gray-400 italic"}>
-                  {project.stabilizedNoiProjected
-                    ? formatCurrency(project.stabilizedNoiProjected)
-                    : "Not provided"}
-                </span>
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Business Plan Summary
-            </h3>
-            <p className={`text-sm ${project.businessPlanSummary ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {formatValue(project.businessPlanSummary)}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Market Overview Summary
-            </h3>
-            <p className={`text-sm ${project.marketOverviewSummary ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {formatValue(project.marketOverviewSummary)}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">
-              Project Dates
-            </h3>
-            <div className="flex items-start">
-              <Calendar className="h-5 w-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">Created:</span>{" "}
-                  {formatDate(project.createdAt)}
-                </p>
-                <p className="text-sm text-gray-800">
-                  <span className="font-medium">Last Updated:</span>{" "}
-                  {formatDate(project.updatedAt)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }, [project, ownerOrgName]);
-
-  const renderDocumentRequirements = useCallback(() => {
-    return (
-      <div>
-        {documentRequirements.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Document Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {documentRequirements.map((req) => (
-                  <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {req.requiredDocType}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          req.status === "Approved"
-                            ? "bg-green-100 text-green-800"
-                            : req.status === "Rejected"
-                            ? "bg-red-100 text-red-800"
-                            : req.status === "Uploaded"
-                            ? "bg-blue-100 text-blue-800"
-                            : req.status === "In Review"
-                            ? "bg-amber-100 text-amber-800"
-                            : req.status === "Not Applicable"
-                            ? "bg-gray-100 text-gray-800"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {req.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {isEditingProject ? (
+          <div className="p-4">
+            <EnhancedProjectForm
+              existingProject={project}
+              onComplete={() => setIsEditingProject(false)}
+              onFormDataChange={() => {}}
+            />
           </div>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No document requirements</p>
+          <div className="p-4">
+            <ProjectResumeView project={project} onEdit={() => setIsEditingProject(true)} />
           </div>
         )}
       </div>
     );
-  }, [documentRequirements]);
+  }, [project, isEditingProject]);
+
+  // Document requirements removed
 
   const renderBorrowerDetails = useCallback(() => {
     if (!borrowerResume?.content) {
@@ -1021,7 +691,13 @@ export default function AdvisorProjectDetailPage() {
           <Button
             variant="outline"
             leftIcon={<ChevronLeft size={16} />}
-            onClick={() => router.push("/advisor/dashboard")}
+            onClick={() => {
+              if (activeTab === "borrower") {
+                setActiveTab("project");
+              } else {
+                router.push("/advisor/dashboard");
+              }
+            }}
             className="mr-4"
           >
             Back
@@ -1029,6 +705,9 @@ export default function AdvisorProjectDetailPage() {
           <div>
             <h1 className="text-2xl font-semibold text-gray-800">
               {project?.projectName || "Project Details"}
+              {activeTab === "borrower" && (
+                <span className="ml-3 text-lg font-semibold text-gray-600">/ Borrower Details</span>
+              )}
             </h1>
             <div
               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getStatusColor(
@@ -1040,44 +719,13 @@ export default function AdvisorProjectDetailPage() {
           </div>
         </header>
 
-        {/* Main content with flex layout */}
+        {/* Main content with flex layout (mirrors borrower workspace visuals) */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left Column: Scrollable content with tabs */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Tabs */}
-            <div className="flex-shrink-0 border-b bg-white">
-              <div className="flex">
-                <button
-                  onClick={() => setActiveTab("project")}
-                  className={cn(
-                    "flex-1 flex items-center justify-center space-x-2 py-3 px-4 text-sm font-medium transition-colors",
-                    activeTab === "project"
-                      ? "border-b-2 border-blue-600 text-blue-600"
-                      : "text-gray-500 hover:bg-gray-50"
-                  )}
-                >
-                  <FileText size={16} />
-                  <span>Project Info</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab("borrower")}
-                  className={cn(
-                    "flex-1 flex items-center justify-center space-x-2 py-3 px-4 text-sm font-medium transition-colors",
-                    activeTab === "borrower"
-                      ? "border-b-2 border-blue-600 text-blue-600"
-                      : "text-gray-500 hover:bg-gray-50"
-                  )}
-                >
-                  <User size={16} />
-                  <span>Borrower Info</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Tab Content with Grid Background */}
-            <div className="flex-1 overflow-y-auto relative">
-              {/* Grid Background */}
-              <div className="pointer-events-none absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
+          {/* Left Column: Scrollable content */}
+          <div className="flex-1 relative z-[1] flex flex-col min-h-0">
+            {/* Background visuals */}
+            <div className="pointer-events-none absolute inset-0 z-0">
+              <div className="absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
                 <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
                   <defs>
                     <pattern id="advisor-grid-pattern" width="24" height="24" patternUnits="userSpaceOnUse">
@@ -1087,65 +735,61 @@ export default function AdvisorProjectDetailPage() {
                   <rect width="100%" height="100%" fill="url(#advisor-grid-pattern)" />
                 </svg>
               </div>
-
-              {/* Blue Blob */}
-              <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+              <div className="absolute inset-x-0 top-0 flex justify-center">
                 <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
               </div>
+            </div>
 
-              {/* Content with padding */}
-              <div className="relative z-[1] p-6">
-                {activeTab === "project" && (
-                  <div className="space-y-6">
-                    {/* Project Details */}
+            {/* Content with padding */}
+            <div className="relative p-6 flex-1 overflow-y-auto">
+              <div className="space-y-6">
+                {/* Top summaries */}
+                <div className="relative">
+                  <ProjectSummaryCard
+                    project={project}
+                    isLoading={isLoadingData}
+                    onEdit={() => setIsEditingProject(true)}
+                    onBorrowerClick={() => {
+                      setActiveTab("borrower");
+                    }}
+                  />
+                </div>
+
+                {activeTab === "project" ? (
+                  <>
+                    {/* Project Status control */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                       <div className="p-6 sm:p-8">
-                        <div className="flex flex-row justify-between items-start mb-6">
-                          <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                            <FileText className="h-5 w-5 mr-2 text-blue-600" />
-                            Project Details
-                          </h2>
-                        </div>
-                        <div className="mb-6">
-                          <label className="block text-sm font-medium text-gray-700 mb-3">
-                            Project Status
-                          </label>
-                          <SingleSelectChips
-                            options={[
-                              "Info Gathering",
-                              "Advisor Review",
-                              "Matches Curated",
-                              "Introductions Sent",
-                              "Term Sheet Received",
-                              "Closed",
-                              "Withdrawn",
-                              "Stalled",
-                            ]}
-                            value={selectedStatus}
-                            onChange={(value) =>
-                              handleStatusChange(value as ProjectStatus)
-                            }
-                            size="sm"
-                            layout="row"
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="border-t border-gray-100 pt-6">
-                          {renderProjectDetails()}
-                        </div>
+                        <label className="block text-sm font-medium text-gray-700 mb-3">Project Status</label>
+                        <SingleSelectChips
+                          options={[
+                            "Info Gathering",
+                            "Advisor Review",
+                            "Matches Curated",
+                            "Introductions Sent",
+                            "Term Sheet Received",
+                            "Closed",
+                            "Withdrawn",
+                            "Stalled",
+                          ]}
+                          value={selectedStatus}
+                          onChange={(value) => handleStatusChange(value as ProjectStatus)}
+                          size="sm"
+                          layout="row"
+                          className="w-full"
+                        />
                       </div>
                     </div>
 
-                    {/* Document Requirements */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                      <div className="p-6 sm:p-8">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center mb-6">
-                          <FileText className="h-5 w-5 mr-2 text-blue-600" />
-                          Document Requirements
-                        </h2>
-                        {renderDocumentRequirements()}
-                      </div>
-                    </div>
+                    {/* Project completion banner */}
+                    <ProjectCompletionCard
+                      project={project}
+                      isLoading={isLoadingData}
+                      onEdit={() => setIsEditingProject(true)}
+                    />
+
+                    {/* Project Resume View/Edit */}
+                    {renderProjectDetails()}
 
                     {/* Project Documents */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -1157,22 +801,9 @@ export default function AdvisorProjectDetailPage() {
                         />
                       )}
                     </div>
-                  </div>
-                )}
-
-                {activeTab === "borrower" && (
-                  <div className="space-y-6">
-                    {/* Borrower Details */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                      <div className="p-6 sm:p-8">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center mb-6">
-                          <User className="h-5 w-5 mr-2 text-blue-600" />
-                          Borrower Details
-                        </h2>
-                        {renderBorrowerDetails()}
-                      </div>
-                    </div>
-
+                  </>
+                ) : (
+                  <>
                     {/* Borrower Documents */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                       {project && (
@@ -1184,13 +815,26 @@ export default function AdvisorProjectDetailPage() {
                         />
                       )}
                     </div>
-                  </div>
+
+                    {/* Borrower Resume (Advisor editable) */}
+                    <div ref={borrowerResumeRef} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="p-6 sm:p-8">
+                        <h2 className="text-xl font-bold text-gray-800 flex items-center mb-6">
+                          <User className="h-5 w-5 mr-2 text-blue-600" />
+                          Borrower Resume
+                        </h2>
+                        {project && (
+                          <BorrowerResumeForm orgId={project.owner_org_id as string} />
+                        )}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Right Column: Fixed Chat */}
+          {/* Right Column: Fixed Chat (keep existing advisor message board) */}
           <div className="w-1/3 bg-white flex flex-col h-full rounded-l-2xl shadow-xl overflow-hidden relative z-10 -ml-4">
             <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50 px-4 py-3">
               <h2 className="text-lg font-semibold text-gray-800 flex items-center">

@@ -5,17 +5,20 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { useBorrowerResumeStore } from '@/stores/useBorrowerResumeStore';
+import { Button } from '@/components/ui/Button';
 
 interface ProjectSummaryCardProps {
   project: ProjectProfile | null;
   isLoading: boolean;
   onEdit?: () => void;
+  onBorrowerClick?: () => void; // Optional override for borrower resume click behavior
 }
 
 export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
   project,
   isLoading,
-  onEdit
+  onEdit,
+  onBorrowerClick
 }) => {
   const router = useRouter();
   const completeness = project?.completenessPercent || 0;
@@ -53,7 +56,11 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
             } bg-white cursor-pointer hover:opacity-95 transition`}
             onClick={(e) => {
               e.stopPropagation();
-              router.push('/dashboard/borrower-resume');
+              if (onBorrowerClick) {
+                onBorrowerClick();
+              } else {
+                router.push('/dashboard/borrower-resume');
+              }
             }}
             role="button"
             aria-label="Open borrower resume"
@@ -63,7 +70,23 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
                 <span className={`w-1.5 h-1.5 ${isBorrowerHealthy ? 'bg-emerald-400' : 'bg-red-400'} rounded-full mr-2 animate-pulse`}></span>
                 Complete your borrower resume
               </span>
-              <span className={`font-semibold ${isBorrowerHealthy ? 'text-emerald-700' : 'text-red-700'}`}>{borrowerCompleteness}%</span>
+              <div className="flex items-center gap-2">
+                <span className={`font-semibold ${isBorrowerHealthy ? 'text-emerald-700' : 'text-red-700'}`}>{borrowerCompleteness}%</span>
+                <Button
+                  size="sm"
+                  variant={borrowerCompleteness < 80 ? 'default' : 'secondary'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onBorrowerClick) {
+                      onBorrowerClick();
+                    } else {
+                      router.push('/dashboard/borrower-resume');
+                    }
+                  }}
+                >
+                  {borrowerCompleteness < 80 ? 'Complete Borrower Profile' : 'View Profile'}
+                </Button>
+              </div>
             </div>
             <div className="relative w-full bg-gray-200 rounded-md h-4 overflow-hidden shadow-inner">
               <div

@@ -45,6 +45,7 @@ import { useBorrowerResumeStore } from "../../stores/useBorrowerResumeStore";
 interface BorrowerResumeFormProps {
   onComplete?: (profile: BorrowerResumeContent | null) => void; // Allow null in callback
   onProgressChange?: (percent: number) => void;
+  orgId?: string; // Optional override to edit a specific org's resume (e.g., advisor editing borrower)
 }
 
 // Options definitions (no changes)
@@ -141,9 +142,10 @@ const geographicMarketsOptions = [
 export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   onComplete,
   onProgressChange,
+  orgId,
 }) => {
   const { user } = useAuth();
-  const { content: borrowerResume, saveForOrg, isSaving } = useBorrowerResumeStore();
+  const { content: borrowerResume, saveForOrg, isSaving, loadForOrg } = useBorrowerResumeStore();
   // Principals removed from new schema - kept as empty array for form compatibility
   const principals: Principal[] = [];
 
@@ -205,6 +207,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     return Math.min(100, Math.round((answered / Math.max(1, total)) * 100));
   }, []);
 
+  // If an orgId override is provided (advisor editing a borrower's resume), ensure the store is loaded for that org.
+  useEffect(() => {
+    if (orgId) {
+      loadForOrg(orgId);
+    }
+  }, [orgId, loadForOrg]);
+
   // Initialize form once on first load (avoid resetting on each store update)
   useEffect(() => {
     if (initializedRef.current) return;
@@ -241,7 +250,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         try {
           const completenessPercent = computeCompletionPercent(formData);
           onProgressChange?.(completenessPercent);
-          await saveForOrg({ ...formData, completenessPercent });
+          await saveForOrg({ ...formData, completenessPercent }, orgId);
         } catch (error) {
           console.error("[ProfileForm] Auto-save failed:", error);
         }
@@ -310,7 +319,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       setFormSaved(true);
       const completenessPercent = computeCompletionPercent(formData);
       onProgressChange?.(completenessPercent);
-      await saveForOrg({ ...formData, completenessPercent });
+      await saveForOrg({ ...formData, completenessPercent }, orgId);
 
       if (onComplete) {
         // Pass the updated formData as the profile
@@ -322,7 +331,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     } finally {
       setTimeout(() => setFormSaved(false), 2000);
     }
-  }, [formData, onComplete, saveForOrg, computeCompletionPercent, onProgressChange]);
+  }, [formData, onComplete, saveForOrg, computeCompletionPercent, onProgressChange, orgId]);
 
   // Principals removed from new schema - these functions are no-ops
   const handleAddPrincipal = useCallback(async () => {
