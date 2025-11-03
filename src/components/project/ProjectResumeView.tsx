@@ -236,7 +236,6 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                 </div>
                 )}
             </div>
-            )}
         </div>
     );
 };

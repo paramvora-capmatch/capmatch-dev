@@ -40,6 +40,7 @@ import { EnhancedProjectForm } from "@/components/forms/EnhancedProjectForm";
 import { ProjectCompletionCard } from "@/components/project/ProjectCompletionCard";
 import { ProjectSummaryCard } from "@/components/project/ProjectSummaryCard";
 import { BorrowerResumeForm } from "@/components/forms/BorrowerResumeForm";
+import { StickyChatCard } from "@/components/chat/StickyChatCard";
 
 // Utility functions
 const formatDate = (dateString: string) => {
@@ -125,6 +126,7 @@ export default function AdvisorProjectDetailPage() {
   const [activeTab, setActiveTab] = useState<"project" | "borrower">("project");
   const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
   const [isEditingProject, setIsEditingProject] = useState<boolean>(false);
+  const [focusFieldId, setFocusFieldId] = useState<string | null>(null);
   const borrowerResumeRef = useRef<HTMLDivElement | null>(null);
 
   const projectId = params?.id as string;
@@ -418,23 +420,31 @@ export default function AdvisorProjectDetailPage() {
   const renderProjectDetails = useCallback(() => {
     if (!project) return null;
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <>
         {isEditingProject ? (
-          <div className="p-4">
-            <EnhancedProjectForm
-              existingProject={project}
-              onComplete={() => setIsEditingProject(false)}
-              onFormDataChange={() => {}}
-            />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-4">
+              <EnhancedProjectForm
+                existingProject={project}
+                onComplete={() => setIsEditingProject(false)}
+                onFormDataChange={() => {}}
+                initialFocusFieldId={focusFieldId || undefined}
+              />
+            </div>
           </div>
         ) : (
-          <div className="p-4">
-            <ProjectResumeView project={project} onEdit={() => setIsEditingProject(true)} />
-          </div>
+          <ProjectResumeView
+            project={project}
+            onEdit={() => setIsEditingProject(true)}
+            onJumpToField={(fieldId) => {
+              setIsEditingProject(true);
+              setFocusFieldId(fieldId);
+            }}
+          />
         )}
-      </div>
+      </>
     );
-  }, [project, isEditingProject]);
+  }, [project, isEditingProject, focusFieldId]);
 
   // Document requirements removed
 
@@ -683,11 +693,11 @@ export default function AdvisorProjectDetailPage() {
 
   return (
     <RoleBasedRoute roles={["advisor"]}>
-      <div className="flex flex-col h-screen bg-gray-50">
+      <div className="flex flex-col min-h-screen bg-gray-50">
         <LoadingOverlay isLoading={isLoadingData} />
 
         {/* Header */}
-        <header className="bg-white shadow-sm py-4 px-6 flex items-center flex-shrink-0">
+        <header className="bg-white shadow-sm py-4 px-6 flex items-center flex-shrink-0 relative z-10">
           <Button
             variant="outline"
             leftIcon={<ChevronLeft size={16} />}
@@ -717,10 +727,30 @@ export default function AdvisorProjectDetailPage() {
               {selectedStatus}
             </div>
           </div>
+          {/* Advisor status control in header (top-right) */}
+          <div className="ml-auto hidden md:block whitespace-nowrap">
+            <SingleSelectChips
+              options={[
+                "Info Gathering",
+                "Advisor Review",
+                "Matches Curated",
+                "Introductions Sent",
+                "Term Sheet Received",
+                "Closed",
+                "Withdrawn",
+                "Stalled",
+              ]}
+              value={selectedStatus}
+              onChange={(value) => handleStatusChange(value as ProjectStatus)}
+              size="sm"
+              layout="row"
+              className="w-auto"
+            />
+          </div>
         </header>
 
         {/* Main content with flex layout (mirrors borrower workspace visuals) */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1">
           {/* Left Column: Scrollable content */}
           <div className="flex-1 relative z-[1] flex flex-col min-h-0">
             {/* Background visuals */}
@@ -741,7 +771,7 @@ export default function AdvisorProjectDetailPage() {
             </div>
 
             {/* Content with padding */}
-            <div className="relative p-6 flex-1 overflow-y-auto">
+            <div className="relative p-6 flex-1">
               <div className="space-y-6">
                 {/* Top summaries */}
                 <div className="relative">
@@ -757,40 +787,6 @@ export default function AdvisorProjectDetailPage() {
 
                 {activeTab === "project" ? (
                   <>
-                    {/* Project Status control */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                      <div className="p-6 sm:p-8">
-                        <label className="block text-sm font-medium text-gray-700 mb-3">Project Status</label>
-                        <SingleSelectChips
-                          options={[
-                            "Info Gathering",
-                            "Advisor Review",
-                            "Matches Curated",
-                            "Introductions Sent",
-                            "Term Sheet Received",
-                            "Closed",
-                            "Withdrawn",
-                            "Stalled",
-                          ]}
-                          value={selectedStatus}
-                          onChange={(value) => handleStatusChange(value as ProjectStatus)}
-                          size="sm"
-                          layout="row"
-                          className="w-full"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Project completion banner */}
-                    <ProjectCompletionCard
-                      project={project}
-                      isLoading={isLoadingData}
-                      onEdit={() => setIsEditingProject(true)}
-                    />
-
-                    {/* Project Resume View/Edit */}
-                    {renderProjectDetails()}
-
                     {/* Project Documents */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                       {project && (
@@ -801,6 +797,16 @@ export default function AdvisorProjectDetailPage() {
                         />
                       )}
                     </div>
+
+                    {/* Project completion banner BETWEEN documents and resume */}
+                    <ProjectCompletionCard
+                      project={project}
+                      isLoading={isLoadingData}
+                      onEdit={() => setIsEditingProject(true)}
+                    />
+
+                    {/* Project Resume View/Edit */}
+                    {renderProjectDetails()}
                   </>
                 ) : (
                   <>
@@ -834,18 +840,12 @@ export default function AdvisorProjectDetailPage() {
             </div>
           </div>
 
-          {/* Right Column: Fixed Chat (keep existing advisor message board) */}
-          <div className="w-1/3 bg-white flex flex-col h-full rounded-l-2xl shadow-xl overflow-hidden relative z-10 -ml-4">
-            <div className="flex-shrink-0 border-b border-gray-100 bg-gray-50 px-4 py-3">
-              <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
-                Project Message Board
-              </h2>
-            </div>
-            <div className="flex-1 overflow-hidden min-h-0">
-              {renderMessageBoard()}
-            </div>
-          </div>
+          {/* Right Column: Sticky collapsible chat card (match borrower workspace) */}
+          <StickyChatCard
+            projectId={projectId}
+            topOffsetClassName="top-6"
+            widthClassName="w-[340px] md:w-[360px] xl:w-[420px]"
+          />
         </div>
       </div>
     </RoleBasedRoute>
