@@ -2,7 +2,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 // Removed Card wrappers to avoid extra white container around progress bars
-import { Loader2 } from 'lucide-react';
+import { Loader2, Edit } from 'lucide-react';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { useBorrowerResumeStore } from '@/stores/useBorrowerResumeStore';
 
@@ -46,7 +46,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
         <>
           {/* Borrower resume completion (full-width; no white card wrapper) */}
           <div
-            className={`rounded-lg p-3 border ${
+            className={`rounded-2xl p-3 border ${
               isBorrowerHealthy
                 ? 'border-emerald-200'
                 : 'border-red-200'
@@ -63,7 +63,21 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
                 <span className={`w-1.5 h-1.5 ${isBorrowerHealthy ? 'bg-emerald-400' : 'bg-red-400'} rounded-full mr-2 animate-pulse`}></span>
                 Complete your borrower resume
               </span>
-              <span className={`font-semibold ${isBorrowerHealthy ? 'text-emerald-700' : 'text-red-700'}`}>{borrowerCompleteness}%</span>
+              <div className="flex items-center gap-3">
+                <span className={`font-semibold ${isBorrowerHealthy ? 'text-emerald-700' : 'text-red-700'}`}>{borrowerCompleteness}%</span>
+                <button
+                  type="button"
+                  aria-label="Edit Borrower Resume"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push('/dashboard/borrower-resume');
+                  }}
+                  className="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition w-28 inline-flex items-center justify-center whitespace-nowrap gap-1.5 text-sm font-medium"
+                >
+                  <Edit className="h-4 w-4 mr-1.5" />
+                  Edit
+                </button>
+              </div>
             </div>
             <div className="relative w-full bg-gray-200 rounded-md h-4 overflow-hidden shadow-inner">
               <div

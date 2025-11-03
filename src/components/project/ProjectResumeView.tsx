@@ -28,7 +28,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
         <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             
-            <div className="sticky top-0 border-b border-gray-100 bg-gray-50/50 flex flex-row items-center justify-between relative z-10 px-6 py-4">
+            <div className="sticky top-0 border-b border-gray-100 bg-gray-50/50 flex flex-row items-center justify-between relative z-10 px-3 py-4">
                 <div>
                     <h2 className="text-lg font-semibold text-gray-800 flex items-center">
                         <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
@@ -36,7 +36,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                     </h2>
                     <p className="text-sm text-gray-500">{project.projectName}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={onEdit}>
+                <Button variant="outline" size="sm" onClick={onEdit} className="w-28 justify-center text-sm px-3 py-1.5">
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
                 </Button>
