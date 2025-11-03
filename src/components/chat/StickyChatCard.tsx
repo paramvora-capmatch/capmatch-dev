@@ -48,7 +48,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   return (
     <aside
       className={cn(
-        "pl-3 sm:pl-4 mr-3 sm:mr-4 lg:mr-6 transition-[width] duration-200 ease-out",
+        "pl-3 sm:pl-4 mr-3 sm:mr-4 lg:mr-6 transition-[width] duration-200 ease-out pt-4",
         isChatCollapsed ? "w-14" : widthClassName
       )}
     >

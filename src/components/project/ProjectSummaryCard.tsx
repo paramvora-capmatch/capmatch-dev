@@ -2,20 +2,23 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 // Removed Card wrappers to avoid extra white container around progress bars
-import { Loader2, Edit } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { useBorrowerResumeStore } from '@/stores/useBorrowerResumeStore';
+import { Button } from '@/components/ui/Button';
 
 interface ProjectSummaryCardProps {
   project: ProjectProfile | null;
   isLoading: boolean;
   onEdit?: () => void;
+  onBorrowerClick?: () => void; // Optional override for borrower resume click behavior
 }
 
 export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
   project,
   isLoading,
-  onEdit
+  onEdit,
+  onBorrowerClick
 }) => {
   const router = useRouter();
   const completeness = project?.completenessPercent || 0;
@@ -53,7 +56,11 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
             } bg-white cursor-pointer hover:opacity-95 transition`}
             onClick={(e) => {
               e.stopPropagation();
-              router.push('/dashboard/borrower-resume');
+              if (onBorrowerClick) {
+                onBorrowerClick();
+              } else {
+                router.push('/dashboard/borrower-resume');
+              }
             }}
             role="button"
             aria-label="Open borrower resume"
@@ -63,20 +70,22 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
                 <span className={`w-1.5 h-1.5 ${isBorrowerHealthy ? 'bg-emerald-400' : 'bg-red-400'} rounded-full mr-2 animate-pulse`}></span>
                 Complete your borrower resume
               </span>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <span className={`font-semibold ${isBorrowerHealthy ? 'text-emerald-700' : 'text-red-700'}`}>{borrowerCompleteness}%</span>
-                <button
-                  type="button"
-                  aria-label="Edit Borrower Resume"
+                <Button
+                  size="sm"
+                  variant={borrowerCompleteness < 80 ? 'primary' : 'secondary'}
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push('/dashboard/borrower-resume');
+                    if (onBorrowerClick) {
+                      onBorrowerClick();
+                    } else {
+                      router.push('/dashboard/borrower-resume');
+                    }
                   }}
-                  className="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition w-28 inline-flex items-center justify-center whitespace-nowrap gap-1.5 text-sm font-medium"
                 >
-                  <Edit className="h-4 w-4 mr-1.5" />
-                  Edit
-                </button>
+                  {borrowerCompleteness < 80 ? 'Complete Borrower Profile' : 'View Profile'}
+                </Button>
               </div>
             </div>
             <div className="relative w-full bg-gray-200 rounded-md h-4 overflow-hidden shadow-inner">

@@ -11,14 +11,7 @@ import { Card, CardContent } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/Button";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
-import {
-  Users,
-  FileText,
-  Clock,
-  Zap,
-  CheckCircle,
-  AlertTriangle,
-} from "lucide-react";
+import { Users } from "lucide-react";
 import { getAdvisorById } from "../../../../lib/enhancedMockApiService";
 import {
   Advisor,
@@ -29,6 +22,7 @@ import {
 import { storageService } from "@/lib/storage";
 import { supabase } from "../../../../lib/supabaseClient";
 import { getProjectsWithResumes } from "@/lib/project-queries";
+import { ProjectCard } from "@/components/dashboard/ProjectCard";
 
 const dbMessageToProjectMessage = (
   dbMessage: Record<string, any>
@@ -54,17 +48,7 @@ export default function AdvisorDashboardPage() {
     Record<string, { name: string; email: string }>
   >({});
 
-  // Status counts for dashboard metrics
-  const [statusCounts, setStatusCounts] = useState({
-    infoGathering: 0,
-    advisorReview: 0,
-    matchesCurated: 0,
-    introductionsSent: 0,
-    termSheetReceived: 0,
-    closed: 0,
-    withdrawn: 0,
-    stalled: 0,
-  });
+  const [unreadByProject, setUnreadByProject] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const loadAdvisorData = async () => {
@@ -175,57 +159,9 @@ export default function AdvisorDashboardPage() {
 
         setActiveProjects(assignedProjects);
 
-        if (assignedProjects.length > 0) {
-          // Calculate status counts
-          const counts = {
-            infoGathering: 0,
-            advisorReview: 0,
-            matchesCurated: 0,
-            introductionsSent: 0,
-            termSheetReceived: 0,
-            closed: 0,
-            withdrawn: 0,
-            stalled: 0,
-          };
-
-          assignedProjects.forEach((project) => {
-            switch (project.projectStatus) {
-              case "Info Gathering":
-                counts.infoGathering++;
-                break;
-              case "Advisor Review":
-                counts.advisorReview++;
-                break;
-              case "Matches Curated":
-                counts.matchesCurated++;
-                break;
-              case "Introductions Sent":
-                counts.introductionsSent++;
-                break;
-              case "Term Sheet Received":
-                counts.termSheetReceived++;
-                break;
-              case "Closed":
-                counts.closed++;
-                break;
-              case "Withdrawn":
-                counts.withdrawn++;
-                break;
-              case "Stalled":
-                counts.stalled++;
-                break;
-              default:
-                break;
-            }
-          });
-
-          setStatusCounts(counts);
-        }
-
-        // Get recent messages from Supabase
-        if (assignedProjects.length > 0) {
+        // Compute unread indicators per project (latest message authored by non-advisor)
+        if (assignedProjects.length > 0 && user?.id) {
           const projectIds = assignedProjects.map((p) => p.id);
-          // Fetch threads first
           const { data: threads, error: threadsError } = await supabase
             .from("chat_threads")
             .select("id, project_id")
@@ -235,22 +171,39 @@ export default function AdvisorDashboardPage() {
 
           if (threads && threads.length > 0) {
             const threadIds = threads.map((t) => t.id);
-            const { data: messagesData, error: messagesError } = await supabase
+            const { data: msgs, error: msgsError } = await supabase
               .from("project_messages")
-              .select(`*, chat_threads!inner(project_id)`)
+              .select("thread_id, user_id, created_at")
               .in("thread_id", threadIds)
               .order("created_at", { ascending: false })
-              .limit(5);
+              .limit(200);
 
-            if (messagesError) throw messagesError;
+            if (msgsError) throw msgsError;
 
-            if (messagesData) {
-              const mappedMessages = messagesData.map(
-                dbMessageToProjectMessage
-              );
-              setRecentMessages(mappedMessages);
-            }
+            const threadToProject: Record<string, string> = {};
+            threads.forEach((t) => {
+              threadToProject[t.id as string] = t.project_id as string;
+            });
+
+            const latestByProject = new Map<string, { user_id: string }>();
+            (msgs || []).forEach((m: any) => {
+              const pid = threadToProject[m.thread_id as string];
+              if (pid && !latestByProject.has(pid)) {
+                latestByProject.set(pid, { user_id: m.user_id as string });
+              }
+            });
+
+            const unreadMap: Record<string, boolean> = {};
+            assignedProjects.forEach((p) => {
+              const latest = latestByProject.get(p.id);
+              unreadMap[p.id] = latest ? latest.user_id !== user.id : false;
+            });
+            setUnreadByProject(unreadMap);
+          } else {
+            setUnreadByProject({});
           }
+        } else {
+          setUnreadByProject({});
         }
       } catch (error) {
         console.error("Error loading advisor data:", error);
@@ -269,46 +222,11 @@ export default function AdvisorDashboardPage() {
     });
   };
 
-  const getStatusColor = (status: ProjectStatus) => {
-    switch (status) {
-      case "Draft":
-        return "text-gray-600 bg-gray-100";
-      case "Info Gathering":
-        return "text-blue-600 bg-blue-50";
-      case "Advisor Review":
-        return "text-amber-600 bg-amber-50";
-      case "Matches Curated":
-        return "text-purple-600 bg-purple-50";
-      case "Introductions Sent":
-        return "text-indigo-600 bg-indigo-50";
-      case "Term Sheet Received":
-        return "text-teal-600 bg-teal-50";
-      case "Closed":
-        return "text-green-600 bg-green-50";
-      case "Withdrawn":
-        return "text-red-600 bg-red-50";
-      case "Stalled":
-        return "text-orange-600 bg-orange-50";
-      default:
-        return "text-gray-600 bg-gray-100";
-    }
-  };
-
-  const getStatusIcon = (status: ProjectStatus) => {
-    switch (status) {
-      case "Closed":
-        return <CheckCircle className="h-5 w-5" />;
-      case "Withdrawn":
-      case "Stalled":
-        return <AlertTriangle className="h-5 w-5" />;
-      default:
-        return <Zap className="h-5 w-5" />;
-    }
-  };
+  // removed status color/icon helpers
 
   return (
     <RoleBasedRoute roles={["advisor"]}>
-      <DashboardLayout title="Advisor Dashboard" scrollableContent={false} hideTeamButton={true}>
+      <DashboardLayout title="Advisor Dashboard" scrollableContent={true} hideTeamButton={true}>
         <LoadingOverlay isLoading={false} />
 
         {/* Decorative Background Layer */}
@@ -349,90 +267,16 @@ export default function AdvisorDashboardPage() {
               <div className="relative p-6 sm:p-8 lg:p-10">
                 <div className="space-y-6">
                   {/* Dashboard greeting */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h2 className="text-xl font-semibold mb-2">
+                  <div className="p-6">
+                    <h2 className="text-2xl sm:text-3xl font-semibold mb-2">
                       Welcome back, {advisor?.name || "Advisor"}
                     </h2>
                     <p className="text-gray-600">
-                      You have {activeProjects.length} active projects and{" "}
-                      {statusCounts.advisorReview} projects pending your review.
+                      You have {activeProjects.length} active projects.
                     </p>
                   </div>
 
-                  {/* Stats grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm border-blue-100">
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-sm font-medium text-blue-600">
-                              Info Gathering
-                            </p>
-                            <h3 className="text-3xl font-bold text-gray-900 mt-1">
-                              {statusCounts.infoGathering}
-                            </h3>
-                          </div>
-                          <div className="bg-blue-200 p-3 rounded-lg">
-                            <Clock className="h-6 w-6 text-blue-600" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-amber-50 to-amber-100 shadow-sm border-amber-100">
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-sm font-medium text-amber-600">
-                              Pending Review
-                            </p>
-                            <h3 className="text-3xl font-bold text-gray-900 mt-1">
-                              {statusCounts.advisorReview}
-                            </h3>
-                          </div>
-                          <div className="bg-amber-200 p-3 rounded-lg">
-                            <Zap className="h-6 w-6 text-amber-600" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-purple-50 to-purple-100 shadow-sm border-purple-100">
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-sm font-medium text-purple-600">
-                              Matches Curated
-                            </p>
-                            <h3 className="text-3xl font-bold text-gray-900 mt-1">
-                              {statusCounts.matchesCurated}
-                            </h3>
-                          </div>
-                          <div className="bg-purple-200 p-3 rounded-lg">
-                            <Users className="h-6 w-6 text-purple-600" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-green-50 to-green-100 shadow-sm border-green-100">
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-sm font-medium text-green-600">
-                              Term Sheets
-                            </p>
-                            <h3 className="text-3xl font-bold text-gray-900 mt-1">
-                              {statusCounts.termSheetReceived}
-                            </h3>
-                          </div>
-                          <div className="bg-green-200 p-3 rounded-lg">
-                            <CheckCircle className="h-6 w-6 text-green-600" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                  {/* removed status metrics grid */}
 
                   {/* Projects */}
                   <div>
@@ -440,118 +284,26 @@ export default function AdvisorDashboardPage() {
                       <h2 className="text-xl font-semibold text-gray-800">
                         Your Active Projects
                       </h2>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push("/advisor/projects")}
-                      >
-                        View All Projects
-                      </Button>
                     </div>
 
                     {activeProjects.length > 0 ? (
-                      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Project
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Borrower
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Asset Type
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Loan Amount
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Status
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Last Updated
-                                </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Action
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {activeProjects.map((project) => (
-                                <tr key={project.id} className="hover:bg-gray-50">
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div
-                                      className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer"
-                                      onClick={() =>
-                                        router.push(`/advisor/project/${project.id}`)
-                                      }
-                                    >
-                                      {project.projectName}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm text-gray-900">
-                                      {user?.isDemo
-                                        ? project.owner_org_id
-                                          ? (project.owner_org_id as string).split(
-                                              "_"
-                                            )[0]
-                                          : "..."
-                                        : (project.owner_org_id
-                                            ? borrowerData[
-                                                project.owner_org_id as string
-                                              ]
-                                            : undefined
-                                          )?.name || "..."}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm text-gray-700">
-                                      {project.assetType}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm text-gray-700">
-                                      $
-                                      {(
-                                        project.loanAmountRequested || 0
-                                      ).toLocaleString()}
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div
-                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                                        project.projectStatus as ProjectStatus
-                                      )}`}
-                                    >
-                                      {getStatusIcon(
-                                        project.projectStatus as ProjectStatus
-                                      )}
-                                      <span className="ml-1">
-                                        {project.projectStatus}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {formatDate(project.updatedAt)}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button
-                                      onClick={() =>
-                                        router.push(`/advisor/project/${project.id}`)
-                                      }
-                                      className="text-blue-600 hover:text-blue-900"
-                                    >
-                                      View
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {activeProjects.map((project, index) => (
+                          <div
+                            key={project.id}
+                            className="animate-fade-up"
+                            style={{ animationDelay: `${index * 80}ms` }}
+                          >
+                            <ProjectCard
+                              project={project}
+                              primaryCtaHref={`/advisor/project/${project.id}`}
+                              primaryCtaLabel="View Project"
+                              showDeleteButton={false}
+                              unread={!!unreadByProject[project.id]}
+                              disableOrgLoading={true}
+                            />
+                          </div>
+                        ))}
                       </div>
                     ) : (
                       <div className="bg-white p-6 rounded-lg shadow-sm text-center">
@@ -559,88 +311,7 @@ export default function AdvisorDashboardPage() {
                       </div>
                     )}
                   </div>
-
-                  {/* Recent Messages */}
-                  <div>
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-semibold text-gray-800">
-                        Recent Messages
-                      </h2>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push("/advisor/messages")}
-                      >
-                        View All Messages
-                      </Button>
-                    </div>
-
-                    {recentMessages.length > 0 ? (
-                      <div className="space-y-4">
-                        {recentMessages.map((message) => {
-                          // Find project by thread_id - we'll need to get project info from thread
-                          const isAdvisorMessage = message.user_id === user?.id;
-                          return (
-                            <Card key={message.id} className="shadow-sm">
-                              <CardContent className="p-4">
-                                <div className="flex items-start">
-                                  <div
-                                    className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                                      isAdvisorMessage
-                                        ? "bg-blue-100 text-blue-600"
-                                        : "bg-gray-100 text-gray-600"
-                                    }`}
-                                  >
-                                    {isAdvisorMessage ? "A" : "B"}
-                                  </div>
-                                  <div className="ml-3 flex-1">
-                                    <div className="flex items-center justify-between">
-                                      <p className="text-sm font-medium text-gray-900">
-                                        {isAdvisorMessage ? "Advisor" : "Borrower"}
-                                      </p>
-                                      <p className="text-xs text-gray-500">
-                                        {new Date(
-                                          message.created_at
-                                        ).toLocaleString()}
-                                      </p>
-                                    </div>
-                                    <p className="mt-1 text-sm text-gray-700">
-                                      {message.content && message.content.length > 120
-                                        ? `${message.content.substring(0, 120)}... `
-                                        : `${message.content || "No content"} `}
-                                    </p>
-                                    <div className="mt-2 flex justify-between items-center">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                          router.push(
-                                            `/advisor/project/${message.project_id!}`
-                                          )
-                                        }
-                                      >
-                                        Go to Thread
-                                      </Button>
-                                      <p className="text-xs text-gray-400">
-                                        Project:{" "}
-                                        {activeProjects.find(
-                                          (p) => p.id === message.project_id
-                                        )?.projectName || message.project_id}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="bg-white p-6 rounded-lg shadow-sm text-center">
-                        <p className="text-gray-500">No recent messages</p>
-                      </div>
-                    )}
-                  </div>
+                  {/* removed Recent Messages section */}
                 </div>
               </div>
             </div>
