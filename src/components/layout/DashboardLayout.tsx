@@ -51,7 +51,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-sm sticky top-0 z-10 flex-shrink-0">
-          <div className="py-4 px-3 sm:px-5 lg:px-32 flex items-center justify-between">
+          <div className="py-4 px-1 sm:px-2 lg:px-2 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Link href="/dashboard">
                 <Image

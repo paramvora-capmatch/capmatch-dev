@@ -39,6 +39,7 @@ interface EnhancedProjectFormProps {
   compact?: boolean; // Add compact prop
   onAskAI?: (fieldId: string) => void; // Add onAskAI prop
   onFormDataChange?: (formData: ProjectProfile) => void; // Add onFormDataChange prop
+  initialFocusFieldId?: string; // NEW: scroll/focus this field on mount/update
 }
 
 const assetTypeOptions = [
@@ -151,6 +152,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
   onComplete,
   onAskAI,
   onFormDataChange,
+  initialFocusFieldId, // NEW
 }) => {
   const router = useRouter();
   const { updateProject } = useProjects();
@@ -167,6 +169,26 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
     // Notify parent component of initial form data for AskAI
     onFormDataChange?.(existingProject);
   }, [existingProject, onFormDataChange]);
+
+  // NEW: Focus/scroll to a specific field if requested
+  useEffect(() => {
+    if (!initialFocusFieldId) return;
+    const selector = `[data-field-id="${initialFocusFieldId}"] , #${initialFocusFieldId}`;
+    const element = document.querySelector<HTMLElement>(selector);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      const focusable = (element.matches("input,select,textarea,button")
+        ? element
+        : element.querySelector("input,select,textarea")) as
+        | HTMLInputElement
+        | HTMLSelectElement
+        | HTMLTextAreaElement
+        | null;
+      requestAnimationFrame(() => {
+        (focusable || element).focus?.();
+      });
+    }
+  }, [initialFocusFieldId]);
 
   // Debounced auto-save effect
   useEffect(() => {
@@ -1148,6 +1170,28 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
   );
   return (
     <FormProvider initialFormData={formData as Record<string, any>}>
+      {/* Top header: Project Resume + Save & Exit */}
+      <div className="sticky top-0 z-[5] bg-gray-50/60 backdrop-blur-sm border-b border-gray-200/70 px-3 py-3 flex items-center justify-between rounded-t-2xl">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2" />
+            Project Resume
+          </h2>
+          <p className="text-sm text-gray-500">{formData.projectName}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleFormSubmit}
+            isLoading={formSaved}
+            disabled={formSaved}
+            className="px-4 py-2"
+          >
+            {formSaved ? "Saving..." : "Save & Exit"}
+          </Button>
+        </div>
+      </div>
       <FormWizard
         steps={steps}
         onComplete={handleFormSubmit} // Trigger save on final step if needed

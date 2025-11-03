@@ -49,6 +49,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [currentFormData, setCurrentFormData] = useState<ProjectProfile | null>(
     null
   );
+  const [focusFieldId, setFocusFieldId] = useState<string | null>(null);
 
   // Right column chat is handled by StickyChatCard
 
@@ -229,6 +230,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onComplete={() => setIsEditing(false)} // Close form on complete
                     onAskAI={(fieldId) => setDroppedFieldId(fieldId)}
                     onFormDataChange={setCurrentFormData}
+                    initialFocusFieldId={focusFieldId || undefined}
                   />
                 </div>
               </div>
@@ -236,6 +238,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               <ProjectResumeView
                 project={activeProject}
                 onEdit={() => setIsEditing(true)}
+                onJumpToField={(fieldId) => {
+                  setIsEditing(true);
+                  setFocusFieldId(fieldId);
+                }}
               />
             )}
             </div>
