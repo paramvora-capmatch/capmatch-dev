@@ -186,13 +186,13 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
     <div ref={dropdownRef} className="relative">
       <Button
         ref={triggerRef}
-        size="sm"
+        size="icon"
         variant="outline"
         onClick={() => setIsOpen(!isOpen)}
-        title="View Version History"
+        title="Versions"
+        aria-label="Versions"
       >
-        <History className="h-4 w-4 mr-1" />
-        Versions
+        <History className="h-4 w-4" />
       </Button>
 
       <AnimatePresence>

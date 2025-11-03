@@ -49,7 +49,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
         <>
           {/* Borrower resume completion (full-width; no white card wrapper) */}
           <div
-            className={`rounded-lg p-3 border ${
+            className={`rounded-2xl p-3 border ${
               isBorrowerHealthy
                 ? 'border-emerald-200'
                 : 'border-red-200'
@@ -74,7 +74,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
                 <span className={`font-semibold ${isBorrowerHealthy ? 'text-emerald-700' : 'text-red-700'}`}>{borrowerCompleteness}%</span>
                 <Button
                   size="sm"
-                  variant={borrowerCompleteness < 80 ? 'default' : 'secondary'}
+                  variant={borrowerCompleteness < 80 ? 'primary' : 'secondary'}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (onBorrowerClick) {

@@ -83,7 +83,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
             <div className="flex items-center justify-center">
               <Image
                 ref={logoRef}
-                src="/CapMatchLogo.svg"
+                src="/CapMatchLogo.png"
                 alt="CapMatch"
                 width={56}
                 height={56}

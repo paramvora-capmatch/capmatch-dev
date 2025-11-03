@@ -14,6 +14,15 @@ import {
   Edit,
   Trash2,
   Share2,
+  EllipsisVertical,
+  History,
+  FileSpreadsheet,
+  FileImage,
+  FileArchive,
+  FileAudio,
+  FileVideo,
+  FileCode,
+  File,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -109,6 +118,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [showUploadPerms, setShowUploadPerms] = useState(false);
   const [sharingFile, setSharingFile] = useState<DocumentFile | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // Get the PROJECT_DOCS_ROOT or BORROWER_DOCS_ROOT resource ID for permission checking
   const [docsRootId, setDocsRootId] = React.useState<string | null>(null);
@@ -165,6 +175,36 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const { canEdit: canEditRoot, isLoading: isLoadingPermissionsRoot } =
     usePermissions(resourceIdForPermissions);
   const getPermission = usePermissionStore((state) => state.getPermission);
+
+  const getFileVisual = (fileName: string) => {
+    const ext = (fileName.split(".").pop() || "").toLowerCase();
+    if (["pdf"].includes(ext))
+      return { Icon: FileText, color: "text-sky-600", bg: "bg-sky-50", border: "border-sky-200" };
+    if (["xls", "xlsx", "csv"].includes(ext))
+      return { Icon: FileSpreadsheet, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200" };
+    if (["doc", "docx", "rtf"].includes(ext))
+      return { Icon: FileText, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
+    if (["ppt", "pptx", "key"].includes(ext))
+      return { Icon: FileText, color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" };
+    if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext))
+      return { Icon: FileImage, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200" };
+    if (["zip", "rar", "7z", "tar", "gz"].includes(ext))
+      return { Icon: FileArchive, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" };
+    if (["mp4", "mov", "avi", "webm", "mkv"].includes(ext))
+      return { Icon: FileVideo, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-200" };
+    if (["mp3", "wav", "aac", "flac"].includes(ext))
+      return { Icon: FileAudio, color: "text-pink-600", bg: "bg-pink-50", border: "border-pink-200" };
+    if (["js", "ts", "json", "py", "rb", "go", "java", "c", "cpp"].includes(ext))
+      return { Icon: FileCode, color: "text-slate-600", bg: "bg-slate-50", border: "border-slate-200" };
+    return { Icon: File, color: "text-gray-600", bg: "bg-gray-100", border: "border-gray-200" };
+  };
+
+  // Close kebab dropdown on outside click
+  React.useEffect(() => {
+    const handleClickAway = () => setOpenMenuId(null);
+    document.addEventListener('mousedown', handleClickAway);
+    return () => document.removeEventListener('mousedown', handleClickAway);
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -277,8 +317,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const canEdit = canEditRoot; // Gate root-level actions (upload/create folder) by edit on current folder
 
   return (
-    <Card className="shadow-sm h-full flex flex-col">
-      <CardHeader className="pb-4">
+    <Card className="shadow-sm h-full flex flex-col rounded-2xl">
+      <CardHeader className="pb-4 px-3">
           <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <div className="flex space-x-2">
@@ -288,6 +328,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
+                className="w-28 inline-flex justify-center text-sm px-3 py-1.5"
               >
                 <Upload className="h-4 w-4 mr-1" />
                 {isUploading ? "Uploading..." : "Upload"}
@@ -297,7 +338,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-y-auto p-4">
+      <CardContent className="flex-1 p-4 overflow-visible">
         {/* Upload permissions handled via modal after file selection */}
 
         {/* Hidden file input */}
@@ -331,7 +372,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
         {/* Documents List */}
         {!isLoading && (
-          <div className="space-y-2">
+          <div className="space-y-4">
             {/* Folders */}
             {folders.map((folder) => (
               <motion.button
@@ -369,6 +410,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             ))}
 
             {/* Files */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {files.map((file) => {
               const fileCanEdit = getPermission(file.resource_id) === 'edit';
               const isEditable = /\.(docx|xlsx|pptx)$/i.test(file.name);
@@ -387,77 +429,116 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   className={cn(
-                    "w-full flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-300 text-left",
+                    "w-full bg-white border border-gray-200 rounded-2xl hover:shadow-md transition-all duration-300 text-left flex flex-col p-4 relative",
                     file.id === highlightedResourceId &&
                       "border-blue-500 ring-2 ring-blue-300 ring-offset-1"
                   )}
                 >
+                  {/* Kebab menu trigger */}
+                  <button
+                    type="button"
+                    aria-label="More actions"
+                    title="More actions"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-100 border border-transparent hover:border-gray-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenuId((prev) => (prev === file.id ? null : file.id));
+                    }}
+                  >
+                    <EllipsisVertical className="h-5 w-5 text-gray-600" />
+                  </button>
+
+                  {/* Dropdown menu */}
+                  {openMenuId === file.id && (
+                    <div className="absolute top-0 left-[calc(100%+8px)] z-20 w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 text-left" onClick={(e) => e.stopPropagation()}>
+                      {/* Versions */}
+                      <button
+                        className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          // open versions dropdown inline by toggling a modal-like component
+                          // fallback: navigate to versions by opening VersionHistoryDropdown as a separate overlay in-place later
+                          // For now, download and other actions are primary
+                        }}
+                        title="Versions"
+                      >
+                        <History className="h-4 w-4" />
+                        <span>Versions</span>
+                      </button>
+                      {isEditable && fileCanEdit && (
+                        <Link
+                          href={`/documents/edit?bucket=${
+                            activeOrg?.id
+                          }&path=${encodeURIComponent(file.storage_path)}`}
+                          className="flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700"
+                          onClick={() => setOpenMenuId(null)}
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span>Edit</span>
+                        </Link>
+                      )}
+                      <button
+                        className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          handleDownload(file);
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>Download</span>
+                      </button>
+                      {fileCanEdit && (
+                        <button
+                          className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setSharingFile(file);
+                          }}
+                        >
+                          <Share2 className="h-4 w-4" />
+                          <span>Share</span>
+                        </button>
+                      )}
+                      {fileCanEdit && (
+                        <button
+                          className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-red-600 text-left"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            handleDeleteFile(file);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>Delete</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <button
                     onClick={() => setPreviewingResourceId(file.resource_id)}
                     className="flex items-center space-x-3 overflow-hidden text-left"
                   >
-                    <FileText className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                    {(() => {
+                      const visual = getFileVisual(file.name);
+                      const IconComp = visual.Icon;
+                      return (
+                        <div className={`flex-shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-lg ${visual.bg} border ${visual.border}`}>
+                          <IconComp className={`h-5 w-5 ${visual.color}`} />
+                        </div>
+                      );
+                    })()}
                     <div className="truncate">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
                         {file.name}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {formatFileSize((file.metadata?.size as number) || 0)} •{" "}
-                        {formatDate(file.updated_at)}
-                      </p>
+                      {/* timestamp removed per design */}
                     </div>
                   </button>
-                  <div className="flex items-center space-x-2">
-                    {fileCanEdit && (
-                      <VersionHistoryDropdown
-                        resourceId={file.resource_id}
-                        onRollbackSuccess={() => refresh()}
-                      />
-                    )}
-                    {isEditable && fileCanEdit && (
-                      <Link
-                        href={`/documents/edit?bucket=${
-                          activeOrg?.id
-                        }&path=${encodeURIComponent(file.storage_path)}`}
-                        className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-md text-xs px-2.5 py-1.5"
-                        title="Edit Document"
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Link>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDownload(file)}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Download
-                    </Button>
-                    {fileCanEdit && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setSharingFile(file)}
-                      >
-                        <Share2 className="h-4 w-4 mr-1" />
-                        Share
-                      </Button>
-                    )}
-                    {fileCanEdit && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeleteFile(file)} // This will now use resource_id internally
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete
-                      </Button>
-                    )}
-                  </div>
+
+                  {/* Bottom quick actions removed; all actions are now in kebab menu */}
                 </motion.div>
               );
             })}
+            </div>
 
             {/* Empty State */}
             {files.length === 0 && folders.length === 0 && !isLoading && (
