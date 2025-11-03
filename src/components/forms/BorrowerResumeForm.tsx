@@ -262,7 +262,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [formData, borrowerResume, saveForOrg, computeCompletionPercent, onProgressChange]);
+  }, [formData, borrowerResume, saveForOrg, computeCompletionPercent, onProgressChange, orgId]);
 
   // Report progress on any local change immediately (for live banner updates)
   useEffect(() => {
