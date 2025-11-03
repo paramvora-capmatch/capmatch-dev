@@ -7,15 +7,14 @@ import { useProjects } from "@/hooks/useProjects";
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { ProjectSummaryCard } from "./ProjectSummaryCard"; // New component for project progress
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
-import { Loader2, FileSpreadsheet, MessageSquare, Brain } from "lucide-react";
+import { Loader2, FileSpreadsheet } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { Button } from "../ui/Button"; // Import Button
 import { useAuthStore } from "@/stores/useAuthStore";
 import { AskAIProvider } from "../ui/AskAIProvider";
-import { ChatInterface } from "@/components/chat/ChatInterface";
+import { StickyChatCard } from "@/components/chat/StickyChatCard";
 import { DocumentManager } from "../documents/DocumentManager";
-import { cn } from "@/utils/cn";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 interface ProjectWorkspaceProps {
@@ -50,8 +49,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     null
   );
 
-  // Documents are now displayed above the workspace; right column has its own tabs
-  const [rightTab, setRightTab] = useState<"team" | "ai">("team");
+  // Right column chat is handled by StickyChatCard
 
   // Calculate if we're still in initial loading phase
   const isInitialLoading =
@@ -138,16 +136,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   };
 
   return (
-    <div className="h-full w-full flex flex-row animate-fadeIn">
+    <div className="relative min-h-screen w-full flex flex-row animate-fadeIn">
       <AskAIProvider
         onFieldAskAI={(fieldId: string) => {
           setDroppedFieldId(fieldId); // This will be passed to the chat widget
         }}
       >
-        {/* Left Column: Scrollable content */}
-        <div className="flex-1 overflow-y-auto relative">
-          {/* Grid Background */}
-          <div className="pointer-events-none absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
+        {/* Global page background (grid + blue tint) behind both columns */}
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <div className="absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
             <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
               <defs>
                 <pattern id="borrower-grid-pattern" width="24" height="24" patternUnits="userSpaceOnUse">
@@ -157,14 +154,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               <rect width="100%" height="100%" fill="url(#borrower-grid-pattern)" />
             </svg>
           </div>
-
-          {/* Blue Blob */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+          <div className="absolute inset-x-0 top-0 flex justify-center">
             <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
           </div>
-
+        </div>
+        {/* Left Column: Scrollable content */}
+        <div className="flex-1 relative z-[1]">
           {/* Content with padding */}
-          <div className="relative z-[1] p-6">
+          <div className="relative p-6">
             <div className="space-y-6">
             {/* Project Progress Card */}
             <div className="relative">
@@ -241,48 +238,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Fixed Chat with tabs */}
-        <div className="w-1/3 bg-white flex flex-col h-full rounded-r-2xl shadow-xl overflow-hidden relative z-10 -mr-4">
-          <div className="flex-shrink-0 border-b border-gray-100">
-            <div className="flex">
-              <button
-                onClick={() => setRightTab("team")}
-                className={cn(
-                  "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
-                  rightTab === "team" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:bg-gray-50"
-                )}
-              >
-                <MessageSquare size={16} />
-                <span>Team Chat</span>
-              </button>
-              <button
-                onClick={() => setRightTab("ai")}
-                className={cn(
-                  "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
-                  rightTab === "ai" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:bg-gray-50"
-                )}
-              >
-                <Brain size={16} />
-                <span>AI Chat</span>
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 p-0 overflow-hidden min-h-0">
-            {rightTab === "team" ? (
-              <ChatInterface
-                embedded
-                projectId={projectId}
-                onMentionClick={handleMentionClick}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center bg-white">
-                <div className="text-center text-gray-500 text-sm">
-                  AI Chat will appear here.
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Right Column: Sticky collapsible chat card */}
+        <StickyChatCard
+          projectId={projectId}
+          onMentionClick={handleMentionClick}
+          topOffsetClassName="top-4 sm:top-6"
+          widthClassName="w-[340px] md:w-[360px] xl:w-[420px]"
+        />
       </AskAIProvider>
       {previewingResourceId && (
         <DocumentPreviewModal

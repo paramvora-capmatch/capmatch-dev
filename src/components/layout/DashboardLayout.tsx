@@ -14,16 +14,16 @@ interface DashboardLayoutProps {
   children: ReactNode;
   title?: string; // Made optional since we can use breadcrumb instead
   breadcrumb?: ReactNode; // Optional breadcrumb to replace title
-  scrollableContent?: boolean; // If true, makes main scrollable (default true for backwards compat)
   hideTeamButton?: boolean; // If true, hides the Team button
+  mainClassName?: string; // Allows per-page control of main area padding/overflow
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   title,
   breadcrumb,
-  scrollableContent = true,
   hideTeamButton = false,
+  mainClassName,
 }) => {
   const router = useRouter();
   const { user, logout, isAuthenticated, currentOrgRole, activeOrg } = useAuth();
@@ -104,7 +104,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </header>
 
-        <main className={scrollableContent ? "flex-1 overflow-auto px-6 pt-2 pb-6" : "flex-1 overflow-hidden"}>{children}</main>
+        <main className={mainClassName || "flex-1 overflow-auto px-6 pt-2 pb-6"}>{children}</main>
       </div>
     </div>
   );
