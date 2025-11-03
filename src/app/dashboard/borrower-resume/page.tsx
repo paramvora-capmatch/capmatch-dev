@@ -84,7 +84,7 @@ export default function BorrowerResumePage() {
                                 {(() => {
                                     const completionValue = localCompletion ?? (borrowerContent?.completenessPercent ?? 0);
                                     return (
-                                        <div className={`rounded-lg p-4 border ${(completionValue >= 90) ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40'}`}>
+                                        <div className={`rounded-lg p-4 border ${(completionValue >= 90) ? 'border-emerald-200' : 'border-red-200'} bg-white`}>
                                             <div className="flex justify-between items-center mb-2 text-sm">
                                                 <span className={`font-medium ${(completionValue >= 90) ? 'text-emerald-800' : 'text-red-800'}`}>Borrower Resume Completion</span>
                                                 <span className={`font-semibold ${(completionValue >= 90) ? 'text-emerald-700' : 'text-red-700'}`}>{Math.round(completionValue)}%</span>
@@ -104,13 +104,11 @@ export default function BorrowerResumePage() {
                                         Manage documents related to you as a borrower, such as Personal Financial Statements (PFS), Schedule of Real Estate Owned (SREO), and entity documents. These documents can be used across multiple projects.
                                     </p>
                                 </div>
-                                <div className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
-                                    <DocumentManager
-                                        projectId={null}
-                                        resourceId="BORROWER_ROOT"
-                                        title="General Borrower Documents"
-                                    />
-                                </div>
+                                <DocumentManager
+                                    projectId={null}
+                                    resourceId="BORROWER_ROOT"
+                                    title="General Borrower Documents"
+                                />
                                 <div className="p-4 bg-white rounded shadow-sm border">
                                     <p className="text-gray-600">
                                         Your borrower resume is used across all your

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
-import { ProjectSummaryCard } from "./ProjectSummaryCard"; // New component for project progress
+import { ProjectSummaryCard } from "./ProjectSummaryCard"; // Borrower progress
+import { ProjectCompletionCard } from "./ProjectCompletionCard"; // Project progress moved below docs
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
 import { Loader2, FileSpreadsheet } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -202,19 +203,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               </div>
             )}
 
-            {/* Document Manager */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-3">
-                <DocumentManager
-                  projectId={projectId}
-                  resourceId="PROJECT_ROOT"
-                  title="Project Documents"
-                  canUpload={true}
-                  canDelete={true}
-                  highlightedResourceId={highlightedResourceId}
-                />
-              </div>
-            </div>
+            {/* Document Manager (single card; remove outer wrapper) */}
+            <DocumentManager
+              projectId={projectId}
+              resourceId="PROJECT_ROOT"
+              title="Project Documents"
+              canUpload={true}
+              canDelete={true}
+              highlightedResourceId={highlightedResourceId}
+            />
+
+            {/* Project completion progress (same width as documents/resume card) */}
+            <ProjectCompletionCard
+              project={activeProject}
+              isLoading={projectsLoading}
+              onEdit={() => setIsEditing(true)}
+            />
 
             {/* Project Resume (View or Edit) */}
             {isEditing ? (
