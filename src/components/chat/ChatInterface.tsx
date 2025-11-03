@@ -645,7 +645,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeThreadId ? (
           <>
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-3">
               {messages.map((message) => (
                 <div
                   key={message.id}

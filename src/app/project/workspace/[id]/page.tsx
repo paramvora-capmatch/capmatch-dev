@@ -60,7 +60,11 @@ export default function ProjectWorkspacePage() {
   return (
     <RoleBasedRoute roles={["borrower"]}>
       {/* Ensure only borrowers access */}
-      <DashboardLayout title={pageTitle} breadcrumb={breadcrumb} scrollableContent={false}>
+      <DashboardLayout
+        title={pageTitle}
+        breadcrumb={breadcrumb}
+        mainClassName="flex-1 overflow-auto pl-6 pr-3 sm:pr-4 lg:pr-6 pt-2 pb-6"
+      >
         <ProjectWorkspace projectId={projectId} />
       </DashboardLayout>
     </RoleBasedRoute>
