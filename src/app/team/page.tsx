@@ -403,8 +403,8 @@ export default function TeamPage() {
                       {/* Owners Column */}
                       <div>
                         <div className="mb-4">
-                          <h4 className="text-lg font-semibold text-gray-900 flex items-center">
-                            <Crown className="h-4 w-4 mr-2 text-purple-600" />
+                          <h4 className="text-xl font-semibold text-gray-900 flex items-center">
+                            <Crown className="h-6 w-6 mr-2 text-blue-600" />
                             Owners ({owners.length})
                           </h4>
                         </div>
@@ -454,8 +454,8 @@ export default function TeamPage() {
                       {/* Members Column */}
                       <div>
                         <div className="mb-4">
-                          <h4 className="text-lg font-semibold text-gray-900 flex items-center">
-                            <User className="h-4 w-4 mr-2 text-gray-600" />
+                          <h4 className="text-xl font-semibold text-gray-900 flex items-center">
+                            <User className="h-6 w-6 mr-2 text-blue-600" />
                             Members ({regularMembers.length})
                           </h4>
                         </div>
