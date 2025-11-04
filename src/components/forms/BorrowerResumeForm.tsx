@@ -41,11 +41,14 @@ import { BorrowerResumeContent } from "../../lib/project-queries";
 import { MultiSelect } from "../ui/MultiSelect";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { useBorrowerResumeStore } from "../../stores/useBorrowerResumeStore";
+import { AskAIButton } from "../ui/AskAIProvider";
 
 interface BorrowerResumeFormProps {
   onComplete?: (profile: BorrowerResumeContent | null) => void; // Allow null in callback
   onProgressChange?: (percent: number) => void;
   orgId?: string; // Optional override to edit a specific org's resume (e.g., advisor editing borrower)
+  onFormDataChange?: (formData: Partial<BorrowerResumeContent>) => void; // Emit form data for AskAI
+  onAskAI?: (fieldId: string) => void; // Trigger AskAI for a field
 }
 
 // Options definitions (no changes)
@@ -143,6 +146,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   onComplete,
   onProgressChange,
   orgId,
+  onFormDataChange,
+  onAskAI,
 }) => {
   const { user } = useAuth();
   const { content: borrowerResume, saveForOrg, isSaving, loadForOrg } = useBorrowerResumeStore();
@@ -235,6 +240,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     // Mark initialized after first set (when either default or resume is applied)
     initializedRef.current = true;
   }, [borrowerResume, user?.email]);
+
+  // Emit form data for AskAI consumers when it changes
+  useEffect(() => {
+    onFormDataChange?.(formData);
+  }, [formData, onFormDataChange]);
 
   // Debounced auto-save effect for profile form
   useEffect(() => {
@@ -378,43 +388,71 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
             <CardContent className="p-4 space-y-6">
               {" "}
               <FormGroup>
-                {" "}
-                <Input
-                  id="fullLegalName"
-                  label="Full Legal Name"
-                  value={formData.fullLegalName || ""}
-                  onChange={(e) =>
-                    handleInputChange("fullLegalName", e.target.value)
-                  }
-                  required
-                />{" "}
+                <AskAIButton id="fullLegalName" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="fullLegalName"
+                    data-field-type="input"
+                    data-field-section="entity-info"
+                    data-field-required="true"
+                    data-field-label="Full Legal Name"
+                  >
+                    <Input
+                      id="fullLegalName"
+                      label="Full Legal Name"
+                      value={formData.fullLegalName || ""}
+                      onChange={(e) =>
+                        handleInputChange("fullLegalName", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <Input
-                  id="primaryEntityName"
-                  label="Primary Entity Name"
-                  value={formData.primaryEntityName || ""}
-                  onChange={(e) =>
-                    handleInputChange("primaryEntityName", e.target.value)
-                  }
-                  required
-                />{" "}
+                <AskAIButton id="primaryEntityName" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="primaryEntityName"
+                    data-field-type="input"
+                    data-field-section="entity-info"
+                    data-field-required="true"
+                    data-field-label="Primary Entity Name"
+                  >
+                    <Input
+                      id="primaryEntityName"
+                      label="Primary Entity Name"
+                      value={formData.primaryEntityName || ""}
+                      onChange={(e) =>
+                        handleInputChange("primaryEntityName", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <ButtonSelect
-                  label="Entity Structure"
-                  options={entityStructureOptions}
-                  selectedValue={formData.primaryEntityStructure || "LLC"}
-                  onSelect={(v) =>
-                    handleInputChange(
-                      "primaryEntityStructure",
-                      v as EntityStructure
-                    )
-                  }
-                  required
-                />{" "}
+                <AskAIButton id="primaryEntityStructure" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="primaryEntityStructure"
+                    data-field-type="button-select"
+                    data-field-section="entity-info"
+                    data-field-required="true"
+                    data-field-label="Entity Structure"
+                    data-field-options='["LLC","LP","S-Corp","C-Corp","Sole Proprietorship","Trust","Other"]'
+                  >
+                    <ButtonSelect
+                      label="Entity Structure"
+                      options={entityStructureOptions}
+                      selectedValue={formData.primaryEntityStructure || "LLC"}
+                      onSelect={(v) =>
+                        handleInputChange(
+                          "primaryEntityStructure",
+                          v as EntityStructure
+                        )
+                      }
+                      required
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
                 {" "}
@@ -431,28 +469,46 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                 />{" "}
               </FormGroup>
               <FormGroup>
-                {" "}
-                <Input
-                  id="contactPhone"
-                  label="Contact Phone"
-                  value={formData.contactPhone || ""}
-                  onChange={(e) =>
-                    handleInputChange("contactPhone", e.target.value)
-                  }
-                  required
-                />{" "}
+                <AskAIButton id="contactPhone" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="contactPhone"
+                    data-field-type="input"
+                    data-field-section="entity-info"
+                    data-field-required="true"
+                    data-field-label="Contact Phone"
+                  >
+                    <Input
+                      id="contactPhone"
+                      label="Contact Phone"
+                      value={formData.contactPhone || ""}
+                      onChange={(e) =>
+                        handleInputChange("contactPhone", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <Input
-                  id="contactAddress"
-                  label="Mailing Address"
-                  value={formData.contactAddress || ""}
-                  onChange={(e) =>
-                    handleInputChange("contactAddress", e.target.value)
-                  }
-                  required
-                />{" "}
+                <AskAIButton id="contactAddress" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="contactAddress"
+                    data-field-type="input"
+                    data-field-section="entity-info"
+                    data-field-required="true"
+                    data-field-label="Mailing Address"
+                  >
+                    <Input
+                      id="contactAddress"
+                      label="Mailing Address"
+                      value={formData.contactAddress || ""}
+                      onChange={(e) =>
+                        handleInputChange("contactAddress", e.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
             </CardContent>{" "}
           </Card>
@@ -489,83 +545,139 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
             </CardHeader>{" "}
             <CardContent className="p-4 space-y-6">
               <FormGroup>
-                {" "}
-                <ButtonSelect
-                  label="Years of CRE Experience"
-                  options={experienceRangeOptions}
-                  selectedValue={formData.yearsCREExperienceRange || "0-2"}
-                  onSelect={(v) =>
-                    handleInputChange(
-                      "yearsCREExperienceRange",
-                      v as ExperienceRange
-                    )
-                  }
-                  required
-                />{" "}
+                <AskAIButton id="yearsCREExperienceRange" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="yearsCREExperienceRange"
+                    data-field-type="button-select"
+                    data-field-section="experience"
+                    data-field-required="true"
+                    data-field-label="Years of CRE Experience"
+                    data-field-options='["0-2","3-5","6-10","11-15","16+"]'
+                  >
+                    <ButtonSelect
+                      label="Years of CRE Experience"
+                      options={experienceRangeOptions}
+                      selectedValue={formData.yearsCREExperienceRange || "0-2"}
+                      onSelect={(v) =>
+                        handleInputChange(
+                          "yearsCREExperienceRange",
+                          v as ExperienceRange
+                        )
+                      }
+                      required
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <MultiSelectPills
-                  label="Asset Classes Experience"
-                  options={assetClassOptions}
-                  selectedValues={formData.assetClassesExperience || []}
-                  onSelect={(v) =>
-                    handleInputChange("assetClassesExperience", v)
-                  }
-                />{" "}
+                <AskAIButton id="assetClassesExperience" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="assetClassesExperience"
+                    data-field-type="select"
+                    data-field-section="experience"
+                    data-field-required="false"
+                    data-field-label="Asset Classes Experience"
+                    data-field-options='["Multifamily","Office","Retail","Industrial","Hospitality","Land","Mixed-Use","Self-Storage","Data Center","Medical Office","Senior Housing","Student Housing","Other"]'
+                  >
+                    <MultiSelectPills
+                      label="Asset Classes Experience"
+                      options={assetClassOptions}
+                      selectedValues={formData.assetClassesExperience || []}
+                      onSelect={(v) =>
+                        handleInputChange("assetClassesExperience", v)
+                      }
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <MultiSelectPills
-                  label="Geographic Markets Experience"
-                  options={geographicMarketsOptions}
-                  selectedValues={formData.geographicMarketsExperience || []}
-                  onSelect={(v) =>
-                    handleInputChange("geographicMarketsExperience", v)
-                  }
-                />{" "}
+                <AskAIButton id="geographicMarketsExperience" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="geographicMarketsExperience"
+                    data-field-type="select"
+                    data-field-section="experience"
+                    data-field-required="false"
+                    data-field-label="Geographic Markets Experience"
+                  >
+                    <MultiSelectPills
+                      label="Geographic Markets Experience"
+                      options={geographicMarketsOptions}
+                      selectedValues={formData.geographicMarketsExperience || []}
+                      onSelect={(v) =>
+                        handleInputChange("geographicMarketsExperience", v)
+                      }
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <ButtonSelect
-                  label="Total Value Deals Closed"
-                  options={dealValueRangeOptions}
-                  selectedValue={formData.totalDealValueClosedRange || "N/A"}
-                  onSelect={(v) =>
-                    handleInputChange(
-                      "totalDealValueClosedRange",
-                      v as DealValueRange
-                    )
-                  }
-                />{" "}
+                <AskAIButton id="totalDealValueClosedRange" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="totalDealValueClosedRange"
+                    data-field-type="button-select"
+                    data-field-section="experience"
+                    data-field-required="false"
+                    data-field-label="Total Value Deals Closed"
+                  >
+                    <ButtonSelect
+                      label="Total Value Deals Closed"
+                      options={dealValueRangeOptions}
+                      selectedValue={formData.totalDealValueClosedRange || "N/A"}
+                      onSelect={(v) =>
+                        handleInputChange(
+                          "totalDealValueClosedRange",
+                          v as DealValueRange
+                        )
+                      }
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <Input
-                  id="existingLenderRelationships"
-                  label="Existing Lenders (Opt)"
-                  value={formData.existingLenderRelationships || ""}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "existingLenderRelationships",
-                      e.target.value
-                    )
-                  }
-                />{" "}
+                <AskAIButton id="existingLenderRelationships" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="existingLenderRelationships"
+                    data-field-type="input"
+                    data-field-section="experience"
+                    data-field-required="false"
+                    data-field-label="Existing Lenders (Opt)"
+                  >
+                    <Input
+                      id="existingLenderRelationships"
+                      label="Existing Lenders (Opt)"
+                      value={formData.existingLenderRelationships || ""}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "existingLenderRelationships",
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <label className="block text-sm font-medium mb-1">
-                  Bio (Opt)
-                </label>{" "}
-                <textarea
-                  id="bioNarrative"
-                  value={formData.bioNarrative || ""}
-                  onChange={(e) =>
-                    handleInputChange("bioNarrative", e.target.value)
-                  }
-                  className="w-full h-24 border rounded p-2"
-                />{" "}
+                <AskAIButton id="bioNarrative" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="bioNarrative"
+                    data-field-type="textarea"
+                    data-field-section="experience"
+                    data-field-required="false"
+                    data-field-label="Bio (Opt)"
+                  >
+                    <label className="block text-sm font-medium mb-1">
+                      Bio (Opt)
+                    </label>
+                    <textarea
+                      id="bioNarrative"
+                      value={formData.bioNarrative || ""}
+                      onChange={(e) =>
+                        handleInputChange("bioNarrative", e.target.value)
+                      }
+                      className="w-full h-24 border rounded p-2"
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
             </CardContent>{" "}
           </Card>
@@ -602,37 +714,65 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
             </CardHeader>{" "}
             <CardContent className="p-4 space-y-6">
               <FormGroup>
-                {" "}
-                <ButtonSelect
-                  label="Credit Score Range"
-                  options={creditScoreRangeOptions}
-                  selectedValue={formData.creditScoreRange || "N/A"}
-                  onSelect={(v) =>
-                    handleInputChange("creditScoreRange", v as CreditScoreRange)
-                  }
-                />{" "}
+                <AskAIButton id="creditScoreRange" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="creditScoreRange"
+                    data-field-type="button-select"
+                    data-field-section="borrower-financials"
+                    data-field-required="false"
+                    data-field-label="Credit Score Range"
+                    data-field-options='["N/A","<600","600-649","650-699","700-749","750-799","800+"]'
+                  >
+                    <ButtonSelect
+                      label="Credit Score Range"
+                      options={creditScoreRangeOptions}
+                      selectedValue={formData.creditScoreRange || "N/A"}
+                      onSelect={(v) =>
+                        handleInputChange("creditScoreRange", v as CreditScoreRange)
+                      }
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <ButtonSelect
-                  label="Net Worth Range"
-                  options={netWorthRangeOptions}
-                  selectedValue={formData.netWorthRange || "<$1M"}
-                  onSelect={(v) =>
-                    handleInputChange("netWorthRange", v as NetWorthRange)
-                  }
-                />{" "}
+                <AskAIButton id="netWorthRange" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="netWorthRange"
+                    data-field-type="button-select"
+                    data-field-section="borrower-financials"
+                    data-field-required="false"
+                    data-field-label="Net Worth Range"
+                  >
+                    <ButtonSelect
+                      label="Net Worth Range"
+                      options={netWorthRangeOptions}
+                      selectedValue={formData.netWorthRange || "<$1M"}
+                      onSelect={(v) =>
+                        handleInputChange("netWorthRange", v as NetWorthRange)
+                      }
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <ButtonSelect
-                  label="Liquidity Range"
-                  options={liquidityRangeOptions}
-                  selectedValue={formData.liquidityRange || "<$100k"}
-                  onSelect={(v) =>
-                    handleInputChange("liquidityRange", v as LiquidityRange)
-                  }
-                />{" "}
+                <AskAIButton id="liquidityRange" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="liquidityRange"
+                    data-field-type="button-select"
+                    data-field-section="borrower-financials"
+                    data-field-required="false"
+                    data-field-label="Liquidity Range"
+                  >
+                    <ButtonSelect
+                      label="Liquidity Range"
+                      options={liquidityRangeOptions}
+                      selectedValue={formData.liquidityRange || "<$100k"}
+                      onSelect={(v) =>
+                        handleInputChange("liquidityRange", v as LiquidityRange)
+                      }
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <div className="p-4 bg-amber-50 rounded border border-amber-200">
                 <h3 className="text-sm font-semibold mb-3 flex items-center">
@@ -640,6 +780,14 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   Background
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <AskAIButton id="bankruptcyHistory" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="bankruptcyHistory"
+                    data-field-type="button"
+                    data-field-section="borrower-financials"
+                    data-field-required="false"
+                    data-field-label="Bankruptcy (7yr)"
+                  >
                   <Button
                     type="button"
                     variant={(formData.bankruptcyHistory || false) ? 'primary' : 'outline'}
@@ -655,6 +803,16 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   >
                     Bankruptcy (7yr)
                   </Button>
+                  </div>
+                  </AskAIButton>
+                  <AskAIButton id="foreclosureHistory" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="foreclosureHistory"
+                    data-field-type="button"
+                    data-field-section="borrower-financials"
+                    data-field-required="false"
+                    data-field-label="Foreclosure (7yr)"
+                  >
                   <Button
                     type="button"
                     variant={(formData.foreclosureHistory || false) ? 'primary' : 'outline'}
@@ -670,6 +828,16 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   >
                     Foreclosure (7yr)
                   </Button>
+                  </div>
+                  </AskAIButton>
+                  <AskAIButton id="litigationHistory" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="litigationHistory"
+                    data-field-type="button"
+                    data-field-section="borrower-financials"
+                    data-field-required="false"
+                    data-field-label="Litigation"
+                  >
                   <Button
                     type="button"
                     variant={(formData.litigationHistory || false) ? 'primary' : 'outline'}
@@ -685,6 +853,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   >
                     Litigation
                   </Button>
+                  </div>
+                  </AskAIButton>
                 </div>
               </div>
             </CardContent>{" "}
@@ -723,26 +893,44 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
             </CardHeader>{" "}
             <CardContent className="p-4 space-y-6">
               <FormGroup>
-                {" "}
-                <Input
-                  id="linkedinUrl"
-                  label="LinkedIn URL"
-                  value={formData.linkedinUrl || ""}
-                  onChange={(e) =>
-                    handleInputChange("linkedinUrl", e.target.value)
-                  }
-                />{" "}
+                <AskAIButton id="linkedinUrl" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="linkedinUrl"
+                    data-field-type="input"
+                    data-field-section="online-presence"
+                    data-field-required="false"
+                    data-field-label="LinkedIn URL"
+                  >
+                    <Input
+                      id="linkedinUrl"
+                      label="LinkedIn URL"
+                      value={formData.linkedinUrl || ""}
+                      onChange={(e) =>
+                        handleInputChange("linkedinUrl", e.target.value)
+                      }
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <Input
-                  id="websiteUrl"
-                  label="Company Website"
-                  value={formData.websiteUrl || ""}
-                  onChange={(e) =>
-                    handleInputChange("websiteUrl", e.target.value)
-                  }
-                />{" "}
+                <AskAIButton id="websiteUrl" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="websiteUrl"
+                    data-field-type="input"
+                    data-field-section="online-presence"
+                    data-field-required="false"
+                    data-field-label="Company Website"
+                  >
+                    <Input
+                      id="websiteUrl"
+                      label="Company Website"
+                      value={formData.websiteUrl || ""}
+                      onChange={(e) =>
+                        handleInputChange("websiteUrl", e.target.value)
+                      }
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
             </CardContent>{" "}
           </Card>

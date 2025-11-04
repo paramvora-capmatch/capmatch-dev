@@ -5,12 +5,22 @@ import { MessageSquare, Brain } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { useChatStore } from "@/stores/useChatStore";
+import { AIChatInterface } from "@/components/chat/AIChatInterface";
+import { Message, FieldContext } from "@/types/ask-ai-types";
 
 interface StickyChatCardProps {
-  projectId: string;
+  projectId?: string;
   onMentionClick?: (resourceId: string) => void;
   topOffsetClassName?: string; // e.g., "top-24"
   widthClassName?: string; // e.g., "w-[420px]"
+  // AskAI presentation-only inputs (logic centralized in parent)
+  messages?: Message[];
+  fieldContext?: FieldContext | null;
+  isLoading?: boolean;
+  isBuildingContext?: boolean;
+  contextError?: string | null;
+  hasActiveContext?: boolean;
+  externalActiveTab?: 'team' | 'ai';
 }
 
 export const StickyChatCard: React.FC<StickyChatCardProps> = ({
@@ -18,6 +28,13 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   onMentionClick,
   topOffsetClassName = "top-24",
   widthClassName = "w-[420px]",
+  messages = [],
+  fieldContext = null,
+  isLoading = false,
+  isBuildingContext = false,
+  contextError = null,
+  hasActiveContext = false,
+  externalActiveTab,
 }) => {
   const [rightTab, setRightTab] = useState<"team" | "ai">("team");
   const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(() => {
@@ -41,9 +58,18 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
     } catch {}
   }, [isChatCollapsed, projectId]);
 
+  // Allow parent to control visible tab (e.g., switch to AI on Ask AI click)
+  useEffect(() => {
+    if (externalActiveTab) {
+      setRightTab(externalActiveTab);
+    }
+  }, [externalActiveTab]); // Sync to external control whenever it changes
+
   // Placeholder counts
   const threadCount = useChatStore((s) => s.threads.length);
   const unreadCount = 3; // TODO: replace with real unread count when available
+
+  const askAiEnabled = true; // presentation only; parent governs availability
 
   return (
     <aside
@@ -118,14 +144,27 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
               {rightTab === "team" ? (
                 <ChatInterface
                   embedded
-                  projectId={projectId}
+                  projectId={projectId || ""}
                   onMentionClick={onMentionClick}
                 />
               ) : (
-                <div className="h-full flex items-center justify-center bg-transparent">
-                  <div className="text-center text-gray-500 text-sm">
-                    AI Chat will appear here.
-                  </div>
+                <div className="h-full bg-transparent">
+                  {askAiEnabled ? (
+                    <AIChatInterface
+                      messages={messages}
+                      fieldContext={fieldContext}
+                      isLoading={isLoading}
+                      isBuildingContext={isBuildingContext}
+                      contextError={contextError}
+                      hasActiveContext={hasActiveContext}
+                    />
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center text-gray-500 text-sm">
+                        Connect this chat to a form to enable Ask AI.
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

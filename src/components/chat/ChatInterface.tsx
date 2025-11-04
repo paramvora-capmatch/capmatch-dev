@@ -657,9 +657,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div className="space-y-1 p-2">
               {threads.map((thread) => (
                 <div key={thread.id} className="flex items-center">
-                  <button
+                  <div
                     onClick={() => setActiveThread(thread.id)}
-                    className={`relative flex-1 text-left p-2 pr-8 rounded-md text-sm transition-all border ${
+                    className={`relative flex-1 text-left p-2 pr-8 rounded-md text-sm transition-all border cursor-pointer ${
                       activeThreadId === thread.id
                         ? "bg-blue-100/80 text-blue-800 font-semibold border-blue-200 shadow-sm"
                         : "border-transparent hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
@@ -682,7 +682,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         </button>
                       </span>
                     )}
-                  </button>
+                  </div>
                 </div>
               ))}
             </div>
