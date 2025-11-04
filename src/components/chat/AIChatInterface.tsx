@@ -31,7 +31,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
       <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg transition-all duration-300 mx-3 border-gray-300 bg-gradient-to-br from-gray-50 to-blue-50/30 hover:border-blue-300 hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-purple-50/30">
         <MessageSquare className="h-12 w-12 text-gray-400 mb-3 animate-pulse" />
         <p className="text-sm text-gray-600 text-center">
-          Click "Ask AI" buttons on form fields
+          Click &quot;Ask AI&quot; buttons on form fields
           <br />
           to get AI assistance
         </p>
@@ -110,7 +110,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
       </div>
 
       <div className="text-center mx-3">
-        <p className="text-sm text-gray-500 animate-pulse">Click another field's Ask AI to switch topics</p>
+        <p className="text-sm text-gray-500 animate-pulse">Click another field&apos;s Ask AI to switch topics</p>
       </div>
     </div>
   );

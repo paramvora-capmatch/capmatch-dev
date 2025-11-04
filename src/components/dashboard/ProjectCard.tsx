@@ -12,6 +12,7 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Users,
+  MoreVertical,
 } from "lucide-react";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { useProjectStore as useProjects } from "@/stores/useProjectStore";
@@ -226,31 +227,36 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     }
   };
 
-  // Enhanced status color helper with gradients
+  // Status pill visuals: soft tints with clear contrast, institutional feel
   const getStatusColorClasses = (status: string) => {
     switch (status) {
       case "Draft":
-        return "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-200";
+        return "bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300";
       case "Info Gathering":
-        return "bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border border-blue-200";
+        return "bg-blue-50 text-blue-700 border border-blue-200 hover:border-blue-300";
       case "Advisor Review":
-        return "bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 border border-amber-200";
+        return "bg-amber-50 text-amber-700 border border-amber-200 hover:border-amber-300";
       case "Matches Curated":
-        return "bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border border-purple-200";
+        return "bg-purple-50 text-purple-700 border border-purple-200 hover:border-purple-300";
       case "Introductions Sent":
-        return "bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-800 border border-indigo-200";
+        return "bg-indigo-50 text-indigo-700 border border-indigo-200 hover:border-indigo-300";
       case "Term Sheet Received":
-        return "bg-gradient-to-r from-teal-100 to-teal-200 text-teal-800 border border-teal-200";
+        return "bg-teal-50 text-teal-700 border border-teal-200 hover:border-teal-300";
       case "Closed":
-        return "bg-gradient-to-r from-green-100 to-green-200 text-green-800 border border-green-200";
+        return "bg-green-50 text-green-700 border border-green-200 hover:border-green-300";
       default:
-        return "bg-gradient-to-r from-red-100 to-red-200 text-red-800 border border-red-200"; // For Stalled/Withdrawn
+        return "bg-red-50 text-red-700 border border-red-200 hover:border-red-300"; // For Stalled/Withdrawn
     }
   };
 
   return (
     <div className="group relative">
-      <Card className="h-full flex flex-col rounded-xl overflow-hidden">
+      {/* Subtle blue hover shadow under the card */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-x-3 bottom-3 h-8 rounded-2xl bg-blue-400/40 blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-70 -z-10"
+      />
+      <Card className="h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5">
         {/* Completion status indicator bar */}
         <div className="h-1 bg-gray-100">
           <div
@@ -266,7 +272,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         <CardContent className="p-6 flex flex-col flex-grow">
           <div className="flex justify-between items-start mb-4 gap-2">
             <h3
-              className="text-lg font-bold text-gray-800 truncate mr-3 group-hover:text-blue-800 transition-colors duration-200"
+              className="text-2xl font-bold text-gray-800 truncate mr-3 group-hover:text-blue-800 transition-colors duration-200"
               title={project.projectName || "Unnamed Project"}
             >
               {project.projectName || "Unnamed Project"}
@@ -278,26 +284,34 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             </h3>
             <div className="flex items-center space-x-2 flex-shrink-0">
               <span
-                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm ${getStatusColorClasses(
+                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm transition-colors ${getStatusColorClasses(
                   project.projectStatus
                 )}`}
               >
                 {project.projectStatus === "Closed" ? (
-                  <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+                  <CheckCircle className="h-3.5 w-3.5 mr-1.5 transition-transform group-hover:scale-105" />
                 ) : (
-                  <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+                  <TrendingUp className="h-3.5 w-3.5 mr-1.5 transition-transform group-hover:scale-105" />
                 )}
                 {project.projectStatus}
               </span>
               {showDeleteButton && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleDelete}
-                  className="h-6 w-6 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-full"
-                >
-                  <Trash2 size={14} />
-                </Button>
+                <div className="relative">
+                  <details className="group">
+                    <summary className="list-none cursor-pointer inline-flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100">
+                      <MoreVertical className="h-4 w-4" />
+                    </summary>
+                    <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                      <button
+                        onClick={handleDelete}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Project
+                      </button>
+                    </div>
+                  </details>
+                </div>
               )}
             </div>
           </div>
@@ -311,7 +325,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             </div>
 
             <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="h-4 w-4 mr-2 text-green-600 flex-shrink-0" />
+              <Calendar className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0" />
               <span>
                 Updated:{" "}
                 <span className="font-medium">
@@ -323,7 +337,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             {/* Project Members - Only visible to owners */}
             {isProjectOwner && (
               <div className="flex items-start text-sm text-gray-600">
-                <Users className="h-4 w-4 mr-2 text-purple-600 flex-shrink-0 mt-0.5" />
+                <Users className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   {isLoadingMembers ? (
                     <span className="text-gray-400">Loading members...</span>

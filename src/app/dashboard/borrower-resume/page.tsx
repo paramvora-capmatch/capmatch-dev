@@ -134,8 +134,7 @@ export default function BorrowerResumePage() {
                                         onFormDataChange={setCurrentFormData}
                                         onAskAI={(fieldId) => {
                                           setActiveFieldId(fieldId);
-                                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                                          askAi.activateField(fieldId, { autoSend: true });
+                                          void askAi.activateField(fieldId, { autoSend: true });
                                           setChatTab("ai");
                                         }}
                                     />

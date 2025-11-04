@@ -60,10 +60,10 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
 
   // Allow parent to control visible tab (e.g., switch to AI on Ask AI click)
   useEffect(() => {
-    if (externalActiveTab && externalActiveTab !== rightTab) {
+    if (externalActiveTab) {
       setRightTab(externalActiveTab);
     }
-  }, [externalActiveTab, rightTab]);
+  }, [externalActiveTab]); // Sync to external control whenever it changes
 
   // Placeholder counts
   const threadCount = useChatStore((s) => s.threads.length);

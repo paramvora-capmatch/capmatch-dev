@@ -126,7 +126,6 @@ export default function AdvisorProjectDetailPage() {
   const [activeTab, setActiveTab] = useState<"project" | "borrower">("project");
   const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
   const [isEditingProject, setIsEditingProject] = useState<boolean>(false);
-  const [focusFieldId, setFocusFieldId] = useState<string | null>(null);
   const borrowerResumeRef = useRef<HTMLDivElement | null>(null);
 
   const projectId = params?.id as string;
@@ -428,7 +427,6 @@ export default function AdvisorProjectDetailPage() {
                 existingProject={project}
                 onComplete={() => setIsEditingProject(false)}
                 onFormDataChange={() => {}}
-                initialFocusFieldId={focusFieldId || undefined}
               />
             </div>
           </div>
@@ -436,15 +434,11 @@ export default function AdvisorProjectDetailPage() {
           <ProjectResumeView
             project={project}
             onEdit={() => setIsEditingProject(true)}
-            onJumpToField={(fieldId) => {
-              setIsEditingProject(true);
-              setFocusFieldId(fieldId);
-            }}
           />
         )}
       </>
     );
-  }, [project, isEditingProject, focusFieldId]);
+  }, [project, isEditingProject]);
 
   // Document requirements removed
 
@@ -727,26 +721,6 @@ export default function AdvisorProjectDetailPage() {
               {selectedStatus}
             </div>
           </div>
-          {/* Advisor status control in header (top-right) */}
-          <div className="ml-auto hidden md:block whitespace-nowrap">
-            <SingleSelectChips
-              options={[
-                "Info Gathering",
-                "Advisor Review",
-                "Matches Curated",
-                "Introductions Sent",
-                "Term Sheet Received",
-                "Closed",
-                "Withdrawn",
-                "Stalled",
-              ]}
-              value={selectedStatus}
-              onChange={(value) => handleStatusChange(value as ProjectStatus)}
-              size="sm"
-              layout="row"
-              className="w-auto"
-            />
-          </div>
         </header>
 
         {/* Main content with flex layout (mirrors borrower workspace visuals) */}
@@ -844,7 +818,7 @@ export default function AdvisorProjectDetailPage() {
           <StickyChatCard
             projectId={projectId}
             topOffsetClassName="top-6"
-            widthClassName="w-[340px] md:w-[360px] xl:w-[420px]"
+            widthClassName="w-[35%] md:w-[40%] xl:w-[45%] max-w-[600px]"
           />
         </div>
       </div>

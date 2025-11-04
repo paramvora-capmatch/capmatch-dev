@@ -51,6 +51,71 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
     schema: ProjectQASchema,
   });
 
+  // Send message to AI - moved before activateField to resolve dependency issue
+  const sendMessage = useCallback(async (content: string, displayMessage?: string, contextOverride?: FieldContext) => {
+    const effectiveContext = contextOverride || fieldContext;
+    if (!effectiveContext || !content.trim() || isBuildingContext) return;
+    
+    // Abort any previous requests
+    stop();
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: displayMessage?.trim() || content.trim(), // Use displayMessage if provided, otherwise use content
+      timestamp: new Date(),
+      fieldContext: effectiveContext
+    };
+    
+    // Add user message immediately
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Add thinking message for streaming feedback
+    const thinkingMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: 'ai',
+      content: '',
+      timestamp: new Date(),
+      fieldContext,
+      isStreaming: true
+    };
+    setMessages(prev => [...prev, thinkingMessage]);
+    
+    try {
+      let requestBody: Record<string, unknown>;
+      if (contextType === 'borrower') {
+        const borrowerContext = AIContextBuilder.buildBorrowerContext(formData);
+        requestBody = {
+          fieldContext: effectiveContext,
+          borrowerContext,
+          fullFormData: formData,
+          question: content.trim(),
+        };
+      } else {
+        const projectContext = AIContextBuilder.buildProjectContext(formData);
+        requestBody = {
+          fieldContext: effectiveContext,
+          projectContext,
+          question: content.trim(),
+        } as unknown as Record<string, unknown>;
+      }
+      
+      // Submit to streaming API
+      submit(requestBody);
+      
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        // Request was cancelled, no need to show an error
+        return;
+      }
+      console.error('Error sending message:', error);
+      
+      // Remove thinking message and add error message
+      setMessages(prev => prev.filter(msg => !msg.isStreaming));
+      setMessages(prev => [...prev, createErrorMessage(fieldContext)]);
+    }
+  }, [fieldContext, formData, submit, isBuildingContext, stop, contextType]);
+
   // Handle field drop
   const activateField = useCallback(async (fieldId: string, options?: { autoSend?: boolean }) => {
     // Abort any ongoing streaming requests
@@ -138,72 +203,7 @@ Provide actionable advice that helps me make the best decision for my project.`;
       console.error('Error handling field drop:', error);
       setContextError(error instanceof Error ? error.message : 'Failed to process field drop');
     }
-  }, [formData, stop]);
-
-  // Send message to AI
-  const sendMessage = useCallback(async (content: string, displayMessage?: string, contextOverride?: FieldContext) => {
-    const effectiveContext = contextOverride || fieldContext;
-    if (!effectiveContext || !content.trim() || isBuildingContext) return;
-    
-    // Abort any previous requests
-    stop();
-    
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: displayMessage?.trim() || content.trim(), // Use displayMessage if provided, otherwise use content
-      timestamp: new Date(),
-      fieldContext: effectiveContext
-    };
-    
-    // Add user message immediately
-    setMessages(prev => [...prev, userMessage]);
-    
-    // Add thinking message for streaming feedback
-    const thinkingMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      type: 'ai',
-      content: '',
-      timestamp: new Date(),
-      fieldContext,
-      isStreaming: true
-    };
-    setMessages(prev => [...prev, thinkingMessage]);
-    
-    try {
-      let requestBody: Record<string, unknown>;
-      if (contextType === 'borrower') {
-        const borrowerContext = AIContextBuilder.buildBorrowerContext(formData);
-        requestBody = {
-          fieldContext: effectiveContext,
-          borrowerContext,
-          fullFormData: formData,
-          question: content.trim(),
-        };
-      } else {
-        const projectContext = AIContextBuilder.buildProjectContext(formData);
-        requestBody = {
-          fieldContext: effectiveContext,
-          projectContext,
-          question: content.trim(),
-        } as unknown as Record<string, unknown>;
-      }
-      
-      // Submit to streaming API
-      submit(requestBody);
-      
-    } catch (error) {
-      if ((error as Error).name === 'AbortError') {
-        // Request was cancelled, no need to show an error
-        return;
-      }
-      console.error('Error sending message:', error);
-      
-      // Remove thinking message and add error message
-      setMessages(prev => prev.filter(msg => !msg.isStreaming));
-      setMessages(prev => [...prev, createErrorMessage(fieldContext)]);
-    }
-  }, [fieldContext, formData, submit, isBuildingContext, stop, contextType]);
+  }, [formData, stop, contextType, sendMessage]);
 
   // Handle streaming response
   useEffect(() => {

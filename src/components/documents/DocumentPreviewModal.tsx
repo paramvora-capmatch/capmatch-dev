@@ -18,6 +18,7 @@ interface DocumentPreviewModalProps {
   resourceId: string;
   onClose: () => void;
   onDeleteSuccess?: () => void;
+  openVersionsDefault?: boolean;
 }
 
 interface ResourceDetails extends DocumentFile {
@@ -29,6 +30,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   resourceId,
   onClose,
   onDeleteSuccess,
+  openVersionsDefault = false,
 }) => {
   const [resource, setResource] = useState<ResourceDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -142,34 +144,61 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 
   return (
     <>
-      <Modal isOpen={true} onClose={onClose} title={resource?.name || "Loading..."} size="full">
+      <Modal 
+        isOpen={true} 
+        onClose={onClose} 
+        title={resource?.name || "Loading..."} 
+        size="full"
+        headerRight={
+          <div className="flex items-center space-x-2">
+            {canEdit && (
+              <VersionHistoryDropdown 
+                key={`versions-${resourceId}-${openVersionsDefault}`}
+                resourceId={resourceId} 
+                onRollbackSuccess={onClose} 
+                defaultOpen={openVersionsDefault} 
+              />
+            )}
+            {canEdit && isEditableInOffice && (
+              <Link
+                href={`/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(resource.storage_path)}`}
+                passHref
+                legacyBehavior
+              >
+                <Button as="a" variant="primary" leftIcon={<Edit size={16}/>}>Edit</Button>
+              </Link>
+            )}
+            <Button variant="outline" onClick={handleDownload} leftIcon={<Download size={16}/>}>Download</Button>
+            {canEdit && (
+              <>
+                <Button variant="outline" onClick={() => setIsSharing(true)} leftIcon={<Share2 size={16}/>}>Share</Button>
+                <Button variant="danger" onClick={handleDelete} leftIcon={<Trash2 size={16}/>}>Delete</Button>
+              </>
+            )}
+          </div>
+        }
+      >
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* Action buttons above preview */}
-            <div className="flex-shrink-0 pb-4 mb-4 border-b border-gray-200">
-                <div className="flex items-center justify-end space-x-2">
-                    {canEdit && (
-                        <VersionHistoryDropdown resourceId={resourceId} onRollbackSuccess={onClose} defaultOpen={false} />
-                    )}
-                    {canEdit && isEditableInOffice && (
-                        <Link
-                          href={`/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(resource.storage_path)}`}
-                          passHref
-                          legacyBehavior
-                        >
-                            <Button as="a" variant="primary" leftIcon={<Edit size={16}/>}>Edit</Button>
-                        </Link>
-                    )}
-                    <Button variant="outline" onClick={handleDownload} leftIcon={<Download size={16}/>}>Download</Button>
-                    {canEdit && (
-                        <>
-                            <Button variant="outline" onClick={() => setIsSharing(true)} leftIcon={<Share2 size={16}/>}>Share</Button>
-                            <Button variant="danger" onClick={handleDelete} leftIcon={<Trash2 size={16}/>}>Delete</Button>
-                        </>
-                    )}
-                </div>
-            </div>
             {/* Preview area - extends to bottom */}
             <div className="flex-1 bg-gray-200 rounded-md overflow-hidden relative min-h-0" style={{ minHeight: '500px' }}>
+                {/* Decorative Background Layer for preview */}
+                <div className="pointer-events-none absolute inset-0">
+                    {/* Subtle grid pattern */}
+                    <div className="absolute inset-0 opacity-[0.5]">
+                        <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
+                            <defs>
+                                <pattern id="preview-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#preview-grid)" />
+                        </svg>
+                    </div>
+                    {/* Blue blurred blob at top center */}
+                    <div className="absolute inset-x-0 top-0 flex justify-center">
+                        <div className="h-64 w-[84rem] -translate-y-32 rounded-full bg-blue-400/40 blur-[90px]" />
+                    </div>
+                </div>
                 {isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
                         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

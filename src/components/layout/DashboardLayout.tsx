@@ -3,7 +3,7 @@
 
 import React, { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { LogOut, Users, Settings } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import Image from "next/image";
@@ -30,7 +30,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   scrollableContent = true,
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, logout, isAuthenticated, currentOrgRole, activeOrg } = useAuth();
+
+  // Use narrower header padding inside project workspaces to match content width
+  const isProjectWorkspace = Boolean(
+    pathname && (pathname.startsWith("/project/") || pathname.startsWith("/advisor/project/"))
+  );
+  const headerPaddingClass = isProjectWorkspace ? "px-14" : "px-4 sm:px-6 lg:px-40";
 
   const handleLogout = async () => {
     try {
@@ -51,7 +58,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-sm sticky top-0 z-10 flex-shrink-0">
-          <div className="py-4 px-1 sm:px-2 lg:px-2 flex items-center justify-between">
+          <div className={`py-4 ${headerPaddingClass} flex items-center justify-between`}>
             <div className="flex items-center space-x-3">
               <Link href="/dashboard">
                 <Image
@@ -62,25 +69,32 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   width={32}
                 />
               </Link>
-              <div>
+              <div className="translate-y-1">
                 {breadcrumb ? (
                   breadcrumb
                 ) : (
-                  title && <h1 className="text-2xl font-semibold text-gray-800">{title}</h1>
+                  title && <h1 className="text-2xl font-semibold text-gray-800 -translate-y-1">{title}</h1>
                 )}
               </div>
             </div>
             {(isAuthenticated && user) && (
               <div className="flex items-center gap-3">
-                {/* User email */}
-                <span className="text-sm text-gray-700 hidden sm:inline">
-                  {user.email} {currentOrgRole && activeOrg ? `| ${activeOrg.name}` : ""}
-                </span>
+                {/* User email and org as pills */}
+                <div className="hidden md:flex items-center gap-2">
+                  <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-800 border border-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors">
+                    {user.email}
+                  </span>
+                  {currentOrgRole && activeOrg && (
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-800 border border-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors">
+                      {activeOrg.name}
+                    </span>
+                  )}
+                </div>
                 {/* Team button */}
                 {!hideTeamButton && (
                   <Link
                     href="/team"
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg border border-blue-600 hover:bg-blue-700 hover:border-blue-700 transition-colors duration-200 shadow-sm"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold bg-gray-100 text-gray-800 rounded-full border border-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors duration-200 shadow-sm"
                   >
                     <Users className="h-4 w-4" />
                     Team
@@ -89,7 +103,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 {/* Settings dropdown */}
                 <div className="relative">
                   <details className="group">
-                    <summary className="list-none cursor-pointer inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 hover:text-gray-900">
+                    <summary className="list-none cursor-pointer inline-flex items-center justify-center h-8 w-8 text-sm font-medium bg-gray-100 text-gray-700 rounded-full border border-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors">
                       <Settings className="h-4 w-4" />
                     </summary>
                     <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-20">

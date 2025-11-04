@@ -51,7 +51,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [currentFormData, setCurrentFormData] = useState<ProjectProfile | null>(
     null
   );
-  const [focusFieldId, setFocusFieldId] = useState<string | null>(null);
 
   // Right column chat is handled by StickyChatCard
   // Centralize AskAI logic here; StickyChatCard is presentation-only
@@ -173,6 +172,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           {/* Content with padding */}
           <div className="relative p-6">
             <div className="space-y-6">
+            {/* Project Title */}
+            <h1 className="text-3xl font-bold text-gray-900 mb-5">
+              {activeProject?.projectName || "Project"}
+            </h1>
+            
             {/* Project Progress Card */}
             <div className="relative">
               <ProjectSummaryCard
@@ -238,12 +242,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onComplete={() => setIsEditing(false)} // Close form on complete
                     onAskAI={(fieldId) => {
                       setActiveFieldId(fieldId);
-                      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      askAi.activateField(fieldId, { autoSend: true });
+                      void askAi.activateField(fieldId, { autoSend: true });
                       setChatTab("ai");
                     }}
                     onFormDataChange={setCurrentFormData}
-                    initialFocusFieldId={focusFieldId || undefined}
                   />
                 </div>
               </div>
@@ -251,10 +253,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               <ProjectResumeView
                 project={activeProject}
                 onEdit={() => setIsEditing(true)}
-                onJumpToField={(fieldId) => {
-                  setIsEditing(true);
-                  setFocusFieldId(fieldId);
-                }}
               />
             )}
             </div>
@@ -266,7 +264,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           projectId={projectId}
           onMentionClick={handleMentionClick}
           topOffsetClassName="top-4 sm:top-6"
-          widthClassName="w-[340px] md:w-[360px] xl:w-[420px]"
+          widthClassName="w-[35%] md:w-[40%] xl:w-[45%] max-w-[600px]"
           messages={askAi.messages}
           fieldContext={askAi.fieldContext}
           isLoading={askAi.isLoading}

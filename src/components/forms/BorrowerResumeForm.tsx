@@ -1081,6 +1081,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       handleAddPrincipal,
       handlePrincipalInputChange,
       borrowerResume?.fullLegalName,
+      onAskAI,
     ]
   );
 
