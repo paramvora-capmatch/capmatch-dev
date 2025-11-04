@@ -2,7 +2,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 // Removed Card wrappers to avoid extra white container around progress bars
-import { Loader2 } from 'lucide-react';
+import { Loader2, Edit } from 'lucide-react';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { useBorrowerResumeStore } from '@/stores/useBorrowerResumeStore';
 import { Button } from '@/components/ui/Button';
@@ -23,16 +23,18 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
   const router = useRouter();
   const completeness = project?.completenessPercent || 0;
   const isProjectHealthy = completeness >= 90;
-  const progressColor = isProjectHealthy ? 'bg-green-600' : 'bg-red-600';
-  const progressBgColor = isProjectHealthy ? 'bg-emerald-50' : 'bg-red-50';
+  // Use blue for complete/healthy state, red for incomplete
+  const progressColor = isProjectHealthy ? 'bg-blue-600' : 'bg-red-600';
+  const progressBgColor = isProjectHealthy ? 'bg-blue-50' : 'bg-red-50';
 
   const { content: borrowerContent } = useBorrowerResumeStore();
   // Source of truth: borrower resume's own completeness; if not available, treat as 0.
   // This avoids falling back to stale per-project snapshots that can diverge.
   const borrowerCompleteness = Math.round((borrowerContent?.completenessPercent as number | undefined) ?? 0);
   const isBorrowerHealthy = borrowerCompleteness >= 90;
-  const borrowerProgressColor = isBorrowerHealthy ? 'bg-green-600' : 'bg-red-600';
-  const borrowerProgressBgColor = isBorrowerHealthy ? 'bg-emerald-50' : 'bg-red-50';
+  // Progress colors standardized: blue when healthy, red when incomplete
+  const borrowerProgressColor = isBorrowerHealthy ? 'bg-blue-600' : 'bg-red-600';
+  const borrowerProgressBgColor = isBorrowerHealthy ? 'bg-blue-50' : 'bg-red-50';
 
   const handleCardClick = () => {
     onEdit?.();
@@ -49,11 +51,11 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
         <>
           {/* Borrower resume completion (full-width; no white card wrapper) */}
           <div
-            className={`rounded-2xl p-3 border ${
+            className={`rounded-2xl p-3 border-2 ${
               isBorrowerHealthy
-                ? 'border-emerald-200'
-                : 'border-red-200'
-            } bg-white cursor-pointer hover:opacity-95 transition`}
+                ? 'border-blue-400'
+                : 'border-red-400'
+            } bg-white cursor-pointer hover:opacity-95 transition p-4`}
             onClick={(e) => {
               e.stopPropagation();
               if (onBorrowerClick) {
@@ -65,16 +67,15 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
             role="button"
             aria-label="Open borrower resume"
           >
-            <div className="flex justify-between items-center mb-2 text-sm">
-              <span className={`font-medium flex items-center ${isBorrowerHealthy ? 'text-emerald-800' : 'text-red-800'}`}>
-                <span className={`w-1.5 h-1.5 ${isBorrowerHealthy ? 'bg-emerald-400' : 'bg-red-400'} rounded-full mr-2 animate-pulse`}></span>
+            <div className="flex justify-between items-center mb-2 text-base">
+              <span className={`font-semibold text-gray-900`}>
                 Complete your borrower resume
               </span>
               <div className="flex items-center gap-2">
-                <span className={`font-semibold ${isBorrowerHealthy ? 'text-emerald-700' : 'text-red-700'}`}>{borrowerCompleteness}%</span>
+                <span className={`font-semibold text-gray-900`}>{borrowerCompleteness}%</span>
                 <Button
                   size="sm"
-                  variant={borrowerCompleteness < 80 ? 'primary' : 'secondary'}
+                  variant={borrowerCompleteness < 80 ? 'outline' : 'secondary'}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (onBorrowerClick) {
@@ -83,8 +84,10 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
                       router.push('/dashboard/borrower-resume');
                     }
                   }}
+                  className="justify-center text-sm px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
                 >
-                  {borrowerCompleteness < 80 ? 'Complete Borrower Profile' : 'View Profile'}
+                  <Edit className="h-4 w-4 mr-1" />
+                  {borrowerCompleteness < 80 ? 'Edit' : 'View Profile'}
                 </Button>
               </div>
             </div>

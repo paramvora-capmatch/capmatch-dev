@@ -58,7 +58,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
             <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             
             <div className="sticky top-0 border-b border-gray-100 bg-gray-50/50 flex flex-row items-center justify-between relative z-10 px-3 py-4">
-                <div>
+                <div className="ml-3">
                     <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
                         <AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />
                         Project Resume
@@ -75,7 +75,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                         <ChevronDown className={cn("h-4 w-4 mr-2 transition-transform duration-200", collapsed ? '' : 'rotate-180')} />
                         {collapsed ? 'Show Project Details' : 'Hide Project Details'}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={onEdit} className="w-28 justify-center text-sm px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors">
+                    <Button variant="outline" size="sm" onClick={onEdit} className="justify-center text-sm px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors">
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
                     </Button>

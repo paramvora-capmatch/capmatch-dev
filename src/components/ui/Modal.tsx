@@ -1,5 +1,7 @@
+"use client";
 // src/components/ui/Modal.tsx
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -9,6 +11,7 @@ export interface ModalProps {
   title?: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl' | '7xl' | '8xl' | '9xl' | '10xl' | 'full';
+  headerRight?: React.ReactNode; // Optional right-aligned content before the close button
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -17,6 +20,7 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   children,
   size = 'md',
+  headerRight,
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -88,28 +92,31 @@ export const Modal: React.FC<ModalProps> = ({
 
   const isFullSize = size === 'full';
   
-  return (
+  return createPortal(
     <div className={cn(
-      "fixed inset-0 z-50 flex overflow-y-auto bg-black/20 backdrop-blur-sm",
+      "fixed inset-0 z-[99999] flex overflow-y-auto bg-black/20 backdrop-blur-sm",
       isFullSize ? "p-1" : "items-center justify-center p-4"
     )}>
-      <div 
+      <div
         ref={modalRef}
         className={cn(
           'bg-white rounded-lg shadow-xl transform transition-all flex flex-col',
-          isFullSize 
-            ? 'w-[98vw] h-[98vh] m-auto' 
+          isFullSize
+            ? 'w-[98vw] h-[98vh] m-auto'
             : `w-full ${sizeClasses[size]}`
         )}
         role="dialog"
         aria-modal="true"
       >
         {title && (
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <div className="px-6 py-4 border-b border-blue-200 flex items-center gap-3 flex-shrink-0">
+            <h3 className="text-lg font-semibold text-gray-900 mr-auto truncate">{title}</h3>
+            {headerRight && (
+              <div className="flex items-center gap-2">{headerRight}</div>
+            )}
             <button
               onClick={onClose}
-              className="text-gray-600 hover:text-gray-900 focus:outline-none p-1 rounded-md hover:bg-gray-100 transition-colors"
+              className="ml-2 text-gray-600 hover:text-gray-900 focus:outline-none p-1 rounded-md hover:bg-gray-100 transition-colors"
               aria-label="Close"
             >
               <X size={24} />
@@ -120,7 +127,8 @@ export const Modal: React.FC<ModalProps> = ({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

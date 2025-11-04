@@ -3,7 +3,7 @@
 
 import React, { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { LogOut, Users, Settings } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import Image from "next/image";
@@ -30,7 +30,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   scrollableContent = true,
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, logout, isAuthenticated, currentOrgRole, activeOrg } = useAuth();
+
+  // Use narrower header padding inside project workspaces to match content width
+  const isProjectWorkspace = Boolean(
+    pathname && (pathname.startsWith("/project/") || pathname.startsWith("/advisor/project/"))
+  );
+  const headerPaddingClass = isProjectWorkspace ? "px-14" : "px-4 sm:px-6 lg:px-40";
 
   const handleLogout = async () => {
     try {
@@ -51,7 +58,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-sm sticky top-0 z-10 flex-shrink-0">
-          <div className="py-4 px-4 sm:px-6 lg:px-40 flex items-center justify-between">
+          <div className={`py-4 ${headerPaddingClass} flex items-center justify-between`}>
             <div className="flex items-center space-x-3">
               <Link href="/dashboard">
                 <Image

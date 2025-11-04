@@ -26,6 +26,7 @@ interface VersionHistoryDropdownProps {
   resourceId: string;
   onRollbackSuccess?: () => void;
   defaultOpen?: boolean;
+  hideTrigger?: boolean; // when true, do not render the trigger button; render dropdown in-place
 }
 
 const formatDate = (dateString: string) => {
@@ -51,8 +52,9 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
   resourceId,
   onRollbackSuccess,
   defaultOpen = false,
+  hideTrigger = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [isOpen, setIsOpen] = useState(defaultOpen || hideTrigger);
   const [versions, setVersions] = useState<Version[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +69,13 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
     top: number;
     left: number;
   } | null>(null);
+
+  // Sync isOpen state when defaultOpen prop changes
+  useEffect(() => {
+    if (defaultOpen && !isOpen) {
+      setIsOpen(true);
+    }
+  }, [defaultOpen, isOpen]);
 
   const fetchVersions = useCallback(async () => {
     setIsLoading(true);
@@ -101,6 +110,10 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
 
   // Calculate dropdown position when it opens and update on scroll
   useEffect(() => {
+    if (hideTrigger) {
+      // Inline mode: do not compute fixed positioning
+      return;
+    }
     if (!isOpen) {
       setDropdownPosition(null);
       return;
@@ -110,15 +123,14 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
         setDropdownPosition({
-          top: rect.bottom + window.scrollY + 8, // 8px gap (mt-2 = 0.5rem = 8px)
-          left: rect.left + window.scrollX - 240, // -left-60 = -15rem = -240px
+          top: rect.bottom + window.scrollY + 8,
+          left: rect.left + window.scrollX - 240,
         });
       }
     };
 
     updatePosition();
 
-    // Update position on scroll
     window.addEventListener("scroll", updatePosition, true);
     window.addEventListener("resize", updatePosition);
 
@@ -126,19 +138,18 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [isOpen]);
+  }, [isOpen, hideTrigger]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-        setConfirmRollback(null); // Close confirmation when closing dropdown
+      const clickTarget = event.target as Node;
+      const clickedOutsideDropdown = dropdownRef.current && !dropdownRef.current.contains(clickTarget);
+      const clickedOutsideTrigger = triggerRef.current ? !triggerRef.current.contains(clickTarget) : true;
+      if (clickedOutsideDropdown && clickedOutsideTrigger) {
+        // In inline mode, allow closing; caller may unmount component
+        if (!hideTrigger) setIsOpen(false);
+        setConfirmRollback(null);
       }
     };
 
@@ -148,7 +159,7 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [isOpen]);
+  }, [isOpen, hideTrigger]);
 
   const handleRollback = async (versionId: string) => {
     setIsRollingBack(true);
@@ -184,27 +195,29 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
 
   return (
     <div ref={dropdownRef} className="relative">
-      <Button
-        ref={triggerRef}
-        size="icon"
-        variant="outline"
-        onClick={() => setIsOpen(!isOpen)}
-        title="Versions"
-        aria-label="Versions"
-      >
-        <History className="h-4 w-4" />
-      </Button>
+      {!hideTrigger && (
+        <Button
+          ref={triggerRef}
+          variant="outline"
+          onClick={() => setIsOpen(!isOpen)}
+          title="Versions"
+          aria-label="Versions"
+        >
+          <History className="h-4 w-4 mr-2" />
+          Versions
+        </Button>
+      )}
 
       <AnimatePresence>
-        {isOpen && dropdownPosition && (
+        {isOpen && (hideTrigger || dropdownPosition) && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed w-96 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999]"
-            style={{
-              top: `${dropdownPosition.top}px`,
-              left: `${dropdownPosition.left}px`,
+            className={`${hideTrigger ? "w-96" : "fixed w-96"} bg-white border border-gray-200 rounded-lg shadow-lg z-[9999]`}
+            style={hideTrigger ? undefined : {
+              top: `${dropdownPosition!.top}px`,
+              left: `${dropdownPosition!.left}px`,
             }}
           >
             <div className="p-4">

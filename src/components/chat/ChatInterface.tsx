@@ -568,6 +568,48 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     });
   };
 
+  // Group messages by day for rendering date dividers. Must be declared at top level
+  // to keep hook order stable regardless of conditional UI branches.
+  const groupedMessages = useMemo(() => {
+    const groups: { key: string; label: string; items: typeof messages }[] = [];
+    if (!messages || messages.length === 0) return groups;
+
+    const formatter = new Intl.DateTimeFormat(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const today = new Date();
+    const yday = new Date();
+    yday.setDate(today.getDate() - 1);
+    const toKey = (d: Date) => d.toISOString().slice(0, 10);
+
+    const labelFor = (d: Date) => {
+      const dk = toKey(d);
+      const tk = toKey(today);
+      const yk = toKey(yday);
+      if (dk === tk) return "Today";
+      if (dk === yk) return "Yesterday";
+      return formatter.format(d);
+    };
+
+    const map = new Map<string, { label: string; items: typeof messages }>();
+    messages.forEach((m) => {
+      const d = new Date(m.created_at);
+      const key = toKey(d);
+      if (!map.has(key)) {
+        map.set(key, { label: labelFor(d), items: [] as any });
+      }
+      map.get(key)!.items.push(m);
+    });
+    Array.from(map.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .forEach(([key, value]) => groups.push({ key, label: value.label, items: value.items }));
+
+    return groups;
+  }, [messages]);
+
   if (error) {
     return (
       <Card className="h-full">
@@ -585,10 +627,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }
 
   return (
-    <div className={embedded ? "h-full flex" : "h-full flex border rounded-lg overflow-hidden bg-white"}>
+    <div className={embedded ? "h-full flex" : "h-full flex rounded-2xl overflow-hidden bg-white/70 backdrop-blur-xl border border-gray-200 shadow-lg"}>
       {/* Threads Sidebar - Always Visible */}
-      <div className="flex-shrink-0 bg-gray-50 border-r w-48 flex flex-col">
-        <div className="p-3 border-b bg-white">
+      <div className="flex-shrink-0 bg-white/60 backdrop-blur border-r border-gray-100 w-48 flex flex-col">
+        <div className="p-3 border-b border-gray-100 bg-white/60">
           <div className="flex items-center justify-between mb-1">
             <h3 className="font-semibold text-gray-800 text-sm">Channels</h3>
             {hasOwnerPermissions && (
@@ -596,7 +638,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 size="sm"
                 variant="outline"
                 onClick={() => setShowCreateThreadModal(true)}
-                className="h-7 px-2 text-xs"
+                className="h-7 px-2 text-xs rounded-md border-gray-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-colors"
               >
                 <Plus className="h-3 w-3 mr-1" />
                 New
@@ -614,26 +656,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           ) : (
             <div className="space-y-1 p-2">
               {threads.map((thread) => (
-                <div key={thread.id} className="flex items-center group">
+                <div key={thread.id} className="flex items-center">
                   <button
                     onClick={() => setActiveThread(thread.id)}
-                    className={`flex-1 text-left p-2 rounded text-sm transition-colors ${
+                    className={`relative flex-1 text-left p-2 pr-8 rounded-md text-sm transition-all border ${
                       activeThreadId === thread.id
-                        ? "bg-blue-100 font-semibold text-blue-800"
-                        : "hover:bg-gray-100"
+                        ? "bg-blue-100/80 text-blue-800 font-semibold border-blue-200 shadow-sm"
+                        : "border-transparent hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                     }`}
                   >
                     <Hash size={14} className="inline mr-1" />
                     {thread.topic || "General"}
+                    {hasOwnerPermissions && (
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                        <button
+                          type="button"
+                          aria-label="Manage channel"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setManagingThread(thread);
+                          }}
+                          className="p-1 rounded-full hover:bg-gray-100"
+                        >
+                          <MoreVertical size={14} className="text-gray-500" />
+                        </button>
+                      </span>
+                    )}
                   </button>
-                  {hasOwnerPermissions && (
-                    <button
-                      onClick={() => setManagingThread(thread)}
-                      className="p-1 rounded-full hover:bg-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreVertical size={14} />
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
@@ -646,52 +695,74 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {activeThreadId ? (
           <>
             <div className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-3">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    message.sender?.id === user?.id
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg ${
-                      message.sender?.id === user?.id
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    <div className="text-xs opacity-75 mb-1 font-semibold">
-                      {message.sender?.full_name || "User"}
-                    </div>
-                    <div className="text-sm prose prose-sm max-w-none">
-                      {renderMessageContent(message.content)}
-                    </div>
-                    <div className="text-xs opacity-75 mt-1 text-right">
-                      {formatMessageTime(message.created_at)}
-                    </div>
+              {/* Loading shimmer when switching channels */}
+              {isLoading && messages.length === 0 && (
+                <div className="space-y-3">
+                  <div className="w-2/3 h-12 rounded-lg bg-gray-100 animate-pulse" />
+                  <div className="w-1/2 h-12 rounded-lg bg-gray-100 animate-pulse ml-auto" />
+                  <div className="w-3/4 h-12 rounded-lg bg-gray-100 animate-pulse" />
+                </div>
+              )}
+
+              {/* Group messages by day with date dividers */}
+              {groupedMessages.map((g) => (
+                <div key={g.key} className="space-y-3">
+                  <div className="flex items-center justify-center my-2">
+                    <div className="h-px bg-gray-200 flex-1" />
+                    <span className="mx-3 text-[11px] font-medium text-gray-500 px-2 py-1 rounded-full bg-white/80 border border-gray-200 shadow-sm">
+                      {g.label}
+                    </span>
+                    <div className="h-px bg-gray-200 flex-1" />
                   </div>
+                  {g.items.map((message) => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      className={`flex ${
+                        message.sender?.id === user?.id ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      <div
+                        className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl shadow-sm ${
+                          message.sender?.id === user?.id
+                            ? "bg-blue-600 text-white"
+                            : "bg-white border border-gray-200 text-gray-800"
+                        }`}
+                      >
+                        <div className="text-[11px] opacity-75 mb-1 font-semibold">
+                          {message.sender?.full_name || "User"}
+                        </div>
+                        <div className="text-sm prose prose-sm max-w-none">
+                          {renderMessageContent(message.content)}
+                        </div>
+                        <div className="text-[11px] opacity-75 mt-1 text-right">
+                          {formatMessageTime(message.created_at)}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               ))}
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-3 bg-white relative">
+            <div className="p-3 bg-white/60 backdrop-blur relative border-t border-gray-100">
               <AnimatePresence>
                 {mentionQuery !== null && (
                   <motion.div
                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute bottom-full left-3 right-3 mb-2 border rounded-lg bg-white shadow-lg max-h-48 overflow-y-auto z-10"
+                    className="absolute bottom-full left-3 right-3 mb-2 border border-gray-200 rounded-lg bg-white shadow-lg max-h-48 overflow-y-auto z-10"
                   >
                     {suggestions.length > 0 ? (
                       suggestions.map((doc) => (
                         <button
                           key={doc.resourceId}
                           onClick={() => handleSuggestionClick(doc)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center"
                         >
                           <FileText
                             size={16}
@@ -711,19 +782,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 )}
               </AnimatePresence>
               <div className="flex items-end gap-2">
-                <div className="relative flex-1 flex items-center border border-gray-300 rounded-md bg-white">
+                <div className="relative flex-1 flex items-center border border-gray-200 rounded-xl bg-white shadow-sm">
                   <button
                     type="button"
                     onClick={() => setShowDocPicker((prev) => !prev)}
                     disabled={!activeThreadId}
-                    className="h-11 w-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                    className="h-11 w-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-50 rounded-l-xl"
                     title="Attach document"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
                   {showDocPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border rounded-lg shadow-lg z-20">
-                      <div className="flex items-center justify-between px-3 py-2 border-b">
+                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
                         <span className="text-sm font-semibold text-gray-700">Shared documents</span>
                         <button
                           type="button"
@@ -747,7 +818,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                               key={doc.resourceId}
                               type="button"
                               onClick={() => handleSuggestionClick(doc)}
-                              className="w-full flex items-start px-3 py-2 text-left hover:bg-gray-100"
+                              className="w-full flex items-start px-3 py-2 text-left hover:bg-gray-50"
                             >
                               <FileText className="h-4 w-4 text-gray-500 mt-0.5 mr-2" />
                               <div>
@@ -771,13 +842,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         handleSendMessage();
                       }
                     }}
-                    className="flex-1 h-[44px] max-h-40 px-3 py-2 border-0 focus:outline-none focus:ring-0 disabled:bg-gray-100 resize-none overflow-y-auto"
+                    className="flex-1 h-[44px] max-h-40 px-3 py-2 border-0 focus:outline-none focus:ring-0 disabled:bg-gray-100 resize-none overflow-y-auto rounded-r-xl"
                   />
                 </div>
                 <Button
                   onClick={handleSendMessage}
                   disabled={!newMessage.trim() || isLoading}
-                  className="h-11 px-4"
+                  className="h-11 px-4 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <Send className="h-4 w-4" />
                 </Button>

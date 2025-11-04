@@ -119,6 +119,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const [showUploadPerms, setShowUploadPerms] = useState(false);
   const [sharingFile, setSharingFile] = useState<DocumentFile | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [openVersionsDefault, setOpenVersionsDefault] = useState(false);
+  const [inlineVersionsFor, setInlineVersionsFor] = useState<string | null>(null);
 
   // Get the PROJECT_DOCS_ROOT or BORROWER_DOCS_ROOT resource ID for permission checking
   const [docsRootId, setDocsRootId] = React.useState<string | null>(null);
@@ -178,32 +180,40 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
   const getFileVisual = (fileName: string) => {
     const ext = (fileName.split(".").pop() || "").toLowerCase();
+    // Keep icon per type, but standardize visuals to blue across all types
     if (["pdf"].includes(ext))
-      return { Icon: FileText, color: "text-sky-600", bg: "bg-sky-50", border: "border-sky-200" };
+      return { Icon: FileText, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
     if (["xls", "xlsx", "csv"].includes(ext))
-      return { Icon: FileSpreadsheet, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200" };
+      return { Icon: FileSpreadsheet, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
     if (["doc", "docx", "rtf"].includes(ext))
       return { Icon: FileText, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
     if (["ppt", "pptx", "key"].includes(ext))
-      return { Icon: FileText, color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" };
+      return { Icon: FileText, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
     if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext))
-      return { Icon: FileImage, color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200" };
+      return { Icon: FileImage, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
     if (["zip", "rar", "7z", "tar", "gz"].includes(ext))
-      return { Icon: FileArchive, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" };
+      return { Icon: FileArchive, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
     if (["mp4", "mov", "avi", "webm", "mkv"].includes(ext))
-      return { Icon: FileVideo, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-200" };
+      return { Icon: FileVideo, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
     if (["mp3", "wav", "aac", "flac"].includes(ext))
-      return { Icon: FileAudio, color: "text-pink-600", bg: "bg-pink-50", border: "border-pink-200" };
+      return { Icon: FileAudio, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
     if (["js", "ts", "json", "py", "rb", "go", "java", "c", "cpp"].includes(ext))
-      return { Icon: FileCode, color: "text-slate-600", bg: "bg-slate-50", border: "border-slate-200" };
-    return { Icon: File, color: "text-gray-600", bg: "bg-gray-100", border: "border-gray-200" };
+      return { Icon: FileCode, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
+    return { Icon: File, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
   };
 
-  // Close kebab dropdown on outside click
+  // Close kebab dropdown on outside click (native listener, but ignore clicks inside menu/trigger)
   React.useEffect(() => {
-    const handleClickAway = () => setOpenMenuId(null);
-    document.addEventListener('mousedown', handleClickAway);
-    return () => document.removeEventListener('mousedown', handleClickAway);
+    const handleClickAway = (event: MouseEvent | PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const withinMenuOrTrigger = target.closest('[data-dm-menu="true"], [data-dm-trigger="true"]');
+      if (withinMenuOrTrigger) return; // let button/menu handlers manage closing
+      setOpenMenuId(null);
+      setInlineVersionsFor(null);
+    };
+    document.addEventListener('pointerdown', handleClickAway as EventListener);
+    return () => document.removeEventListener('pointerdown', handleClickAway as EventListener);
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -308,7 +318,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         resourceId: file.resource_id,
         name: file.name,
       });
-      await downloadFile(file.id);
+      await downloadFile(file.resource_id);
     } catch (error) {
       console.error("[DocumentManager] Download error", error);
     }
@@ -317,10 +327,13 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const canEdit = canEditRoot; // Gate root-level actions (upload/create folder) by edit on current folder
 
   return (
-    <Card className="shadow-sm h-full flex flex-col rounded-2xl">
+    <Card className="shadow-sm h-full flex flex-col rounded-2xl p-2">
       <CardHeader className="pb-4 px-3">
           <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <div className="flex items-center gap-2 ml-3">
+            <FileText className="h-5 w-5 md:h-6 md:w-6 text-blue-600 animate-pulse" />
+            <h3 className="text-xl md:text-2xl font-semibold text-gray-900">{title}</h3>
+          </div>
           <div className="flex space-x-2">
             {canEdit && (
               <Button
@@ -328,7 +341,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="w-28 inline-flex justify-center text-sm px-3 py-1.5"
+                className="justify-center text-sm px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
               >
                 <Upload className="h-4 w-4 mr-1" />
                 {isUploading ? "Uploading..." : "Upload"}
@@ -444,21 +457,28 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                       e.stopPropagation();
                       setOpenMenuId((prev) => (prev === file.id ? null : file.id));
                     }}
+                    data-dm-trigger="true"
                   >
                     <EllipsisVertical className="h-5 w-5 text-gray-600" />
                   </button>
 
                   {/* Dropdown menu */}
                   {openMenuId === file.id && (
-                    <div className="absolute top-0 left-[calc(100%+8px)] z-20 w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 text-left" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="absolute top-0 left-[calc(100%+8px)] z-20 w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 text-left"
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      data-dm-menu="true"
+                    >
                       {/* Versions */}
                       <button
                         className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
-                        onClick={() => {
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           setOpenMenuId(null);
-                          // open versions dropdown inline by toggling a modal-like component
-                          // fallback: navigate to versions by opening VersionHistoryDropdown as a separate overlay in-place later
-                          // For now, download and other actions are primary
+                          // Show inline version history dropdown anchored to this card
+                          setInlineVersionsFor(file.resource_id);
                         }}
                         title="Versions"
                       >
@@ -466,20 +486,26 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         <span>Versions</span>
                       </button>
                       {isEditable && fileCanEdit && (
-                        <Link
-                          href={`/documents/edit?bucket=${
-                            activeOrg?.id
-                          }&path=${encodeURIComponent(file.storage_path)}`}
-                          className="flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700"
-                          onClick={() => setOpenMenuId(null)}
+                        <button
+                          className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const url = `/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(file.storage_path)}`;
+                            window.location.assign(url);
+                            setOpenMenuId(null);
+                          }}
+                          title="Edit"
                         >
                           <Edit className="h-4 w-4" />
                           <span>Edit</span>
-                        </Link>
+                        </button>
                       )}
                       <button
                         className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
-                        onClick={() => {
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           setOpenMenuId(null);
                           handleDownload(file);
                         }}
@@ -490,7 +516,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                       {fileCanEdit && (
                         <button
                           className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
-                          onClick={() => {
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setOpenMenuId(null);
                             setSharingFile(file);
                           }}
@@ -502,7 +530,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                       {fileCanEdit && (
                         <button
                           className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-red-600 text-left"
-                          onClick={() => {
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setOpenMenuId(null);
                             handleDeleteFile(file);
                           }}
@@ -533,6 +563,22 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                       {/* timestamp removed per design */}
                     </div>
                   </button>
+
+                {/* Inline Version History Dropdown (anchored to card) */}
+                {inlineVersionsFor === file.resource_id && (
+                  <div className="absolute right-10 top-2 z-[10000]">
+                    <VersionHistoryDropdown
+                      key={`inline-versions-${file.resource_id}`}
+                      resourceId={file.resource_id}
+                      defaultOpen={true}
+                      hideTrigger={true}
+                      onRollbackSuccess={() => {
+                        // Optional: refresh after rollback if desired
+                        refresh();
+                      }}
+                    />
+                  </div>
+                )}
 
                   {/* Bottom quick actions removed; all actions are now in kebab menu */}
                 </motion.div>
@@ -571,7 +617,11 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
       {previewingResourceId && (
         <DocumentPreviewModal
           resourceId={previewingResourceId}
-          onClose={() => setPreviewingResourceId(null)}
+          onClose={() => {
+            setPreviewingResourceId(null);
+            setOpenVersionsDefault(false); // Reset state when modal closes
+          }}
+          openVersionsDefault={openVersionsDefault}
           onDeleteSuccess={() => {
             // Optionally refresh the list after delete
           }}

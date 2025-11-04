@@ -230,9 +230,30 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
         onLoad={handleScriptLoad}
         onError={handleScriptError}
       />
-      <div className={`flex flex-col bg-gray-100 ${hideHeader ? 'h-full w-full absolute inset-0' : 'h-screen w-screen'}`}>
+      <div className={`relative flex flex-col bg-gray-100 ${hideHeader ? 'h-full w-full absolute inset-0' : 'h-screen w-screen'}`}>
+        {/* Decorative Background Layer (only on full edit page) */}
         {!hideHeader && (
-          <header className="bg-white shadow-sm p-3 flex justify-between items-center z-10 flex-shrink-0">
+          <div className="pointer-events-none absolute inset-0">
+            {/* Subtle grid pattern */}
+            <div className="absolute inset-0 opacity-[0.5]">
+              <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
+                <defs>
+                  <pattern id="oo-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#oo-grid)" />
+              </svg>
+            </div>
+            {/* Blue blurred blob at top center */}
+            <div className="absolute inset-x-0 top-0 flex justify-center">
+              <div className="h-64 w-[84rem] -translate-y-32 rounded-full bg-blue-400/40 blur-[90px]" />
+            </div>
+          </div>
+        )}
+
+        {!hideHeader && (
+          <header className="relative bg-white shadow-sm p-3 flex justify-between items-center z-10 flex-shrink-0 border-b border-blue-200">
             <Button
               variant="outline"
               onClick={() => router.back()}
@@ -249,7 +270,7 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
           </header>
         )}
 
-        <main className="relative flex-1 min-h-0">
+        <main className="relative flex-1 min-h-0 z-[1]">
           {(isLoading || error || !isScriptReady) && (
             <div className="absolute inset-0 flex items-center justify-center bg-white z-20">
               {error ? (
