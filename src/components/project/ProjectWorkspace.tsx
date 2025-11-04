@@ -242,8 +242,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     onComplete={() => setIsEditing(false)} // Close form on complete
                     onAskAI={(fieldId) => {
                       setActiveFieldId(fieldId);
-                      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      askAi.activateField(fieldId, { autoSend: true });
+                      void askAi.activateField(fieldId, { autoSend: true });
                       setChatTab("ai");
                     }}
                     onFormDataChange={setCurrentFormData}
