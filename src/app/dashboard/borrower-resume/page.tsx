@@ -14,6 +14,9 @@ import { BorrowerResumeContent } from "../../../lib/project-queries";
 import { Loader2 } from "lucide-react";
 import { LoadingOverlay } from "../../../components/ui/LoadingOverlay"; // Import LoadingOverlay
 import { ArrowLeft } from "lucide-react";
+import { AskAIProvider } from "@/components/ui/AskAIProvider";
+import { StickyChatCard } from "@/components/chat/StickyChatCard";
+import { useAskAI } from "@/hooks/useAskAI";
 
 export default function BorrowerResumePage() {
 	const router = useRouter();
@@ -24,9 +27,14 @@ export default function BorrowerResumePage() {
 	// Treat loading as blocking UI only when there is no content yet (initial load)
 	const isInitialLoading = profileLoading && !borrowerContent;
 
-	const [localCompletion, setLocalCompletion] = React.useState<number | null>(
+    const [localCompletion, setLocalCompletion] = React.useState<number | null>(
 		borrowerContent?.completenessPercent ?? null
 	);
+
+    const [activeFieldId, setActiveFieldId] = React.useState<string | null>(null);
+    const [currentFormData, setCurrentFormData] = React.useState<Record<string, unknown>>({});
+    const [chatTab, setChatTab] = React.useState<"team" | "ai">("team");
+    const askAi = useAskAI({ formData: currentFormData, apiPath: '/api/borrower-qa', contextType: 'borrower' });
 
 	// Handle borrower resume completion from the form's onComplete callback
 	const handleBorrowerResumeComplete = async (borrowerResume: BorrowerResumeContent | null) => {
@@ -76,6 +84,7 @@ export default function BorrowerResumePage() {
 						</span>
 					</div>
 				) : (
+                    <AskAIProvider onFieldAskAI={(fieldId: string) => setActiveFieldId(fieldId)}>
                     <div className="h-full w-full flex flex-row animate-fadeIn">
                         {/* Left Column: Scrollable content */}
                         <div className="flex-1 overflow-y-auto p-6">
@@ -122,25 +131,32 @@ export default function BorrowerResumePage() {
                                     <BorrowerResumeForm
                                         onComplete={handleBorrowerResumeComplete}
                                         onProgressChange={(p) => setLocalCompletion(p)}
+                                        onFormDataChange={setCurrentFormData}
+                                        onAskAI={(fieldId) => {
+                                          setActiveFieldId(fieldId);
+                                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                                          askAi.activateField(fieldId, { autoSend: true });
+                                          setChatTab("ai");
+                                        }}
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Right Column: Fixed Ask AI Chat */}
-                        <div className="w-1/3 border-l bg-white flex flex-col h-full">
-                            <div className="flex-shrink-0 border-b p-4">
-                                <h3 className="text-lg font-semibold text-gray-800">Ask AI</h3>
-                            </div>
-                            <div className="flex-1 p-0 overflow-hidden min-h-0">
-                                <div className="h-full flex items-center justify-center bg-white">
-                                    <div className="text-center text-gray-500 text-sm">
-                                        Ask AI will appear here.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        {/* Right Column: Sticky Ask AI Chat */}
+                        <StickyChatCard
+                          topOffsetClassName="top-4 sm:top-6"
+                          widthClassName="w-[340px] md:w-[360px] xl:w-[420px]"
+                          messages={askAi.messages}
+                          fieldContext={askAi.fieldContext}
+                          isLoading={askAi.isLoading}
+                          isBuildingContext={askAi.isBuildingContext}
+                          contextError={askAi.contextError}
+                          hasActiveContext={askAi.hasActiveContext}
+                          externalActiveTab={chatTab}
+                        />
                     </div>
+                    </AskAIProvider>
 				)}
 			</DashboardLayout>
 		</RoleBasedRoute>

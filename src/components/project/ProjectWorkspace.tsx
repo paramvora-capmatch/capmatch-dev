@@ -16,6 +16,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { AskAIProvider } from "../ui/AskAIProvider";
 import { StickyChatCard } from "@/components/chat/StickyChatCard";
 import { DocumentManager } from "../documents/DocumentManager";
+import { useAskAI } from "@/hooks/useAskAI";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 interface ProjectWorkspaceProps {
@@ -37,7 +38,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const authLoading = useAuthStore((state) => state.isLoading);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [droppedFieldId, setDroppedFieldId] = useState<string | null>(null);
+  const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
+  const [chatTab, setChatTab] = useState<"team" | "ai">("team");
 
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
@@ -52,6 +54,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [focusFieldId, setFocusFieldId] = useState<string | null>(null);
 
   // Right column chat is handled by StickyChatCard
+  // Centralize AskAI logic here; StickyChatCard is presentation-only
+  const askAi = useAskAI({
+    formData: (currentFormData as unknown as Record<string, unknown>) || {},
+    apiPath: '/api/project-qa',
+    contextType: 'project',
+  });
 
   // Calculate if we're still in initial loading phase
   const isInitialLoading =
@@ -141,7 +149,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     <div className="relative min-h-screen w-full flex flex-row animate-fadeIn">
       <AskAIProvider
         onFieldAskAI={(fieldId: string) => {
-          setDroppedFieldId(fieldId); // This will be passed to the chat widget
+          setActiveFieldId(fieldId); // This will be passed to the chat widget
         }}
       >
         {/* Global page background (grid + blue tint) behind both columns */}
@@ -228,7 +236,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   <EnhancedProjectForm
                     existingProject={activeProject}
                     onComplete={() => setIsEditing(false)} // Close form on complete
-                    onAskAI={(fieldId) => setDroppedFieldId(fieldId)}
+                    onAskAI={(fieldId) => {
+                      setActiveFieldId(fieldId);
+                      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                      askAi.activateField(fieldId, { autoSend: true });
+                      setChatTab("ai");
+                    }}
                     onFormDataChange={setCurrentFormData}
                     initialFocusFieldId={focusFieldId || undefined}
                   />
@@ -254,6 +267,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           onMentionClick={handleMentionClick}
           topOffsetClassName="top-4 sm:top-6"
           widthClassName="w-[340px] md:w-[360px] xl:w-[420px]"
+          messages={askAi.messages}
+          fieldContext={askAi.fieldContext}
+          isLoading={askAi.isLoading}
+          isBuildingContext={askAi.isBuildingContext}
+          contextError={askAi.contextError}
+          hasActiveContext={askAi.hasActiveContext}
+          externalActiveTab={chatTab}
         />
       </AskAIProvider>
       {previewingResourceId && (

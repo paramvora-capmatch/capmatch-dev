@@ -1,5 +1,5 @@
 // src/services/aiContextBuilder.ts
-import { FieldContext, ProjectContext, PresetQuestion } from '../types/ask-ai-types';
+import { FieldContext, ProjectContext, PresetQuestion, BorrowerContext } from '../types/ask-ai-types';
 
 export class AIContextBuilder {
     static async buildFieldContext(fieldId: string, formData: Record<string, unknown>): Promise<FieldContext> {
@@ -145,6 +145,66 @@ export class AIContextBuilder {
         );
         break;
       
+      // Borrower resume fields
+      case 'primaryEntityStructure':
+        questions.push(
+          { id: 'bes1', text: 'Which entity structure do lenders generally prefer for my situation?', category: 'field-specific', priority: 'high' },
+          { id: 'bes2', text: 'How does entity structure impact recourse, tax, and underwriting?', category: 'field-specific', priority: 'high' }
+        );
+        break;
+      case 'creditScoreRange':
+        questions.push(
+          { id: 'bcs1', text: 'How does my credit score range affect lender eligibility and pricing?', category: 'field-specific', priority: 'high' },
+          { id: 'bcs2', text: 'What minimum credit scores do common lender types require?', category: 'field-specific', priority: 'medium' }
+        );
+        break;
+      case 'yearsCREExperienceRange':
+        questions.push(
+          { id: 'bexp1', text: 'How does my CRE experience level impact lender appetite and terms?', category: 'field-specific', priority: 'high' },
+          { id: 'bexp2', text: 'What mitigants can offset limited experience?', category: 'field-specific', priority: 'medium' }
+        );
+        break;
+      case 'netWorthRange':
+        questions.push(
+          { id: 'bnw1', text: 'Is my net worth range sufficient for typical guarantor requirements?', category: 'field-specific', priority: 'high' },
+          { id: 'bnw2', text: 'How does net worth influence recourse and proceeds?', category: 'field-specific', priority: 'medium' }
+        );
+        break;
+      case 'liquidityRange':
+        questions.push(
+          { id: 'bliq1', text: 'Is my liquidity adequate for closing and post-close reserves?', category: 'field-specific', priority: 'high' },
+          { id: 'bliq2', text: 'How much liquidity do lenders typically expect by deal type?', category: 'field-specific', priority: 'medium' }
+        );
+        break;
+      case 'existingLenderRelationships':
+        questions.push(
+          { id: 'bel1', text: 'How do existing lender relationships influence approval speed and pricing?', category: 'field-specific', priority: 'medium' },
+          { id: 'bel2', text: 'Should I list all lenders or only recent/relevant ones?', category: 'field-specific', priority: 'low' }
+        );
+        break;
+      case 'bioNarrative':
+        questions.push(
+          { id: 'bbio1', text: 'What should I emphasize in my bio to strengthen credibility?', category: 'field-specific', priority: 'medium' },
+          { id: 'bbio2', text: 'Any red flags I should avoid mentioning or reframe?', category: 'field-specific', priority: 'low' }
+        );
+        break;
+      case 'contactPhone':
+      case 'contactAddress':
+      case 'primaryEntityName':
+      case 'linkedinUrl':
+      case 'websiteUrl':
+        questions.push(
+          { id: 'bmeta1', text: 'Any formatting or completeness guidelines lenders expect for this field?', category: 'general', priority: 'low' }
+        );
+        break;
+      case 'bankruptcyHistory':
+      case 'foreclosureHistory':
+      case 'litigationHistory':
+        questions.push(
+          { id: 'bhist1', text: 'How should I disclose and contextualize this history to minimize impact?', category: 'field-specific', priority: 'high' },
+          { id: 'bhist2', text: 'What documentation will lenders expect for this item?', category: 'field-specific', priority: 'medium' }
+        );
+        break;
       default:
         // General questions for any field
         questions.push(
@@ -167,6 +227,32 @@ export class AIContextBuilder {
     );
 
     return questions.slice(0, 6); // Limit to 6 questions
+  }
+
+  // Build a borrower-level context from borrower resume form data
+  static buildBorrowerContext(formData: Record<string, unknown>): BorrowerContext {
+    return {
+      fullLegalName: (formData.fullLegalName as string) || undefined,
+      primaryEntityName: (formData.primaryEntityName as string) || undefined,
+      primaryEntityStructure: (formData.primaryEntityStructure as string) || undefined,
+      contactEmail: (formData.contactEmail as string) || undefined,
+      contactPhone: (formData.contactPhone as string) || undefined,
+      contactAddress: (formData.contactAddress as string) || undefined,
+      bioNarrative: (formData.bioNarrative as string) || undefined,
+      linkedinUrl: (formData.linkedinUrl as string) || undefined,
+      websiteUrl: (formData.websiteUrl as string) || undefined,
+      yearsCREExperienceRange: (formData.yearsCREExperienceRange as string) || undefined,
+      assetClassesExperience: (formData.assetClassesExperience as string[]) || undefined,
+      geographicMarketsExperience: (formData.geographicMarketsExperience as string[]) || undefined,
+      totalDealValueClosedRange: (formData.totalDealValueClosedRange as string) || undefined,
+      existingLenderRelationships: (formData.existingLenderRelationships as string) || undefined,
+      creditScoreRange: (formData.creditScoreRange as string) || undefined,
+      netWorthRange: (formData.netWorthRange as string) || undefined,
+      liquidityRange: (formData.liquidityRange as string) || undefined,
+      bankruptcyHistory: (formData.bankruptcyHistory as boolean) ?? undefined,
+      foreclosureHistory: (formData.foreclosureHistory as boolean) ?? undefined,
+      litigationHistory: (formData.litigationHistory as boolean) ?? undefined,
+    };
   }
 
   static getSystemPrompt(fieldContext: FieldContext, projectContext: ProjectContext): string {

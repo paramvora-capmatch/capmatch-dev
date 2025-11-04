@@ -62,6 +62,7 @@ RESPONSE FORMAT:
 - **MANDATORY SPACING: Use single line breaks (\\n) between related points**
 - **MANDATORY SPACING: Add spacing before and after lists (\\n before, \\n after)**
 - Use bullet points for actionable items with proper spacing
+- When referencing other fields from the project resume (e.g., Asset Type, Target LTV, Loan Amount), **bold the field names** to highlight context awareness
 - Specific examples relevant to their project
 - References to related form sections
 - Industry benchmarks when applicable
