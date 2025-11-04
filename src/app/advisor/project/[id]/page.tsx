@@ -126,7 +126,6 @@ export default function AdvisorProjectDetailPage() {
   const [activeTab, setActiveTab] = useState<"project" | "borrower">("project");
   const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
   const [isEditingProject, setIsEditingProject] = useState<boolean>(false);
-  const [focusFieldId, setFocusFieldId] = useState<string | null>(null);
   const borrowerResumeRef = useRef<HTMLDivElement | null>(null);
 
   const projectId = params?.id as string;
@@ -428,7 +427,6 @@ export default function AdvisorProjectDetailPage() {
                 existingProject={project}
                 onComplete={() => setIsEditingProject(false)}
                 onFormDataChange={() => {}}
-                initialFocusFieldId={focusFieldId || undefined}
               />
             </div>
           </div>
@@ -436,15 +434,11 @@ export default function AdvisorProjectDetailPage() {
           <ProjectResumeView
             project={project}
             onEdit={() => setIsEditingProject(true)}
-            onJumpToField={(fieldId) => {
-              setIsEditingProject(true);
-              setFocusFieldId(fieldId);
-            }}
           />
         )}
       </>
     );
-  }, [project, isEditingProject, focusFieldId]);
+  }, [project, isEditingProject]);
 
   // Document requirements removed
 
