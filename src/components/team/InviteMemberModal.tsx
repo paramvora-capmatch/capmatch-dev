@@ -45,11 +45,40 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     // When the modal opens, reset the project grants
     if (isOpen) {
       setProjectGrants([]);
-      setOrgGrants(null);
       setOrgDocs([]);
       setOpenProjectPermissionsModal(null);
+      // Default org-level permissions to 'view' for members so org_grants is populated
+      if (role === 'member') {
+        setOrgGrants({
+          permissions: [
+            { resource_type: 'BORROWER_RESUME', permission: 'view' },
+            { resource_type: 'BORROWER_DOCS_ROOT', permission: 'view' },
+          ],
+          exclusions: [],
+          fileOverrides: [],
+        });
+      } else {
+        setOrgGrants(null);
+      }
     }
   }, [isOpen]);
+
+  // If role changes while modal is open, ensure defaults are applied for members and cleared for owners
+  useEffect(() => {
+    if (!isOpen) return;
+    if (role === 'member' && !orgGrants) {
+      setOrgGrants({
+        permissions: [
+          { resource_type: 'BORROWER_RESUME', permission: 'view' },
+          { resource_type: 'BORROWER_DOCS_ROOT', permission: 'view' },
+        ],
+        exclusions: [],
+        fileOverrides: [],
+      });
+    } else if (role === 'owner' && orgGrants) {
+      setOrgGrants(null);
+    }
+  }, [role, isOpen]);
 
   // Close project permissions modal if role changes to owner
   useEffect(() => {
@@ -118,7 +147,14 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const link = await onInvite(email, role, projectGrants, orgGrants);
+      // Validate org-level permissions for members: must be explicitly set
+      if (role === 'member' && (!orgGrants || !orgGrants.permissions || orgGrants.permissions.length === 0)) {
+        setIsLoading(false);
+        setError('Please choose org-level access for Borrower Resume/Docs.');
+        return;
+      }
+
+      const link = await onInvite(email, role, projectGrants, role === 'member' ? orgGrants : null);
       setInviteLink(link);
     } catch (error) {
       console.error('Failed to invite member:', error);
