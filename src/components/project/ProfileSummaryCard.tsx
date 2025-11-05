@@ -3,7 +3,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/Button';
-import { Loader2, User } from 'lucide-react';
+import { Loader2, User, Users, Edit } from 'lucide-react';
 import { BorrowerResumeContent } from '@/lib/project-queries';
 
 interface ProfileSummaryCardProps {
@@ -91,10 +91,53 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
             <>
                 <div className="w-full">
                     <div className="flex justify-between items-center mb-2 text-sm">
-                        <span className="font-medium text-gray-700">Completion Progress</span>
-                        <span className={`font-semibold transition-colors duration-300 ${getPercentageColor()}`}>
-                            {completeness}%
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-700">Completion Progress</span>
+                            <div className="group relative">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        router.push('/dashboard/borrower-resume');
+                                    }}
+                                    className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden"
+                                    aria-label="Complete Profile"
+                                >
+                                    <Edit className="h-3.5 w-3.5 text-gray-600 flex-shrink-0" />
+                                    <span className="text-xs font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+                                        Complete Profile
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className={`font-semibold transition-colors duration-300 ${getPercentageColor()}`}>
+                                {completeness}%
+                            </span>
+                            <button
+                                type="button"
+                                aria-label="See Lenders"
+                                disabled={completeness < 100}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (completeness >= 100) {
+                                        router.push('/');
+                                        // Scroll to lenderline section after navigation
+                                        setTimeout(() => {
+                                            document.getElementById('lenderline-section')?.scrollIntoView({ behavior: 'smooth' });
+                                        }, 100);
+                                    }
+                                }}
+                                className={[
+                                    "px-3 py-1.5 rounded-md border transition w-28 inline-flex items-center justify-center whitespace-nowrap gap-1.5 text-sm font-medium",
+                                    completeness >= 100
+                                        ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-700 text-white shadow"
+                                        : "bg-emerald-100 text-emerald-700 border-emerald-200 cursor-not-allowed opacity-70",
+                                ].join(" ")}
+                            >
+                                <Users className="h-4 w-4" />
+                                <span>See Lenders</span>
+                            </button>
+                        </div>
                     </div>
                     <div className="relative w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
                         {/* Progress bar with solid color and animation */}
@@ -121,7 +164,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
                       <div className="mt-2 text-xs text-gray-600">
                         <p className="flex items-center animate-pulse">
                           <span className={`w-1.5 h-1.5 ${getBulletColor()} rounded-full mr-2 animate-pulse`}></span>
-                          Complete your profile to improve lender matching and project success.
+                          Complete your borrower resume to unlock lender matching.
                         </p>
                       </div>
                     )}

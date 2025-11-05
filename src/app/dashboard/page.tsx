@@ -10,10 +10,8 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LoadingOverlay } from "../../components/ui/LoadingOverlay";
 import { ProfileSummaryCard } from "../../components/project/ProfileSummaryCard"; // Import Profile Summary
 import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import Project Card
-import { Button } from "../../components/ui/Button"; // Import Button
 import {
   PlusCircle,
-  User,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -25,26 +23,6 @@ export default function DashboardPage() {
     isLoading: projectsLoading,
   } = useProjects();
   const { content: borrowerResume, isLoading: profileLoading } = useBorrowerResume();
-
-  // Calculate completion percentage and determine button state
-  const completionPercent = borrowerResume?.completenessPercent || 0;
-  // Get button variant, color classes, and text based on completion percentage
-  const getButtonConfig = () => {
-    if (completionPercent >= 70) {
-      return { 
-        variant: "primary" as const, 
-        customClasses: "", 
-        buttonText: "View Profile" 
-      }; // Blue filled (default primary)
-    } else {
-      return { 
-        variant: "outline" as const, 
-        customClasses: "border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400", 
-        buttonText: "Complete Profile" 
-      }; // Blue outline style matching Create New Project
-    }
-  };
-  const buttonConfig = getButtonConfig();
 
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
@@ -135,19 +113,11 @@ export default function DashboardPage() {
               <div className="space-y-10">
             {/* Borrower Resume Section */}
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                 <div className="space-y-1">
                   <h2 className="text-2xl font-bold text-gray-800">Borrower Resume</h2>
                   <p className="text-gray-600">Your professional profile used across all projects.</p>
                 </div>
-                <Button
-                  variant={buttonConfig.variant}
-                  leftIcon={<User size={18} />}
-                  onClick={() => router.push("/dashboard/borrower-resume")}
-                  className={`shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center ${buttonConfig.customClasses}`}
-                >
-                  {buttonConfig.buttonText}
-                </Button>
               </div>
 
               <div className="relative">
