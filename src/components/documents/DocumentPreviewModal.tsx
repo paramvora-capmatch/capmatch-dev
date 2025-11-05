@@ -194,10 +194,6 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                             <rect width="100%" height="100%" fill="url(#preview-grid)" />
                         </svg>
                     </div>
-                    {/* Blue blurred blob at top center */}
-                    <div className="absolute inset-x-0 top-0 flex justify-center">
-                        <div className="h-64 w-[84rem] -translate-y-32 rounded-full bg-blue-400/40 blur-[90px]" />
-                    </div>
                 </div>
                 {isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-white z-10">

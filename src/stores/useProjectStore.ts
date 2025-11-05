@@ -61,10 +61,8 @@ const projectProfileToResumeContent = (
 		businessPlanSummary: "businessPlanSummary",
 		marketOverviewSummary: "marketOverviewSummary",
 		equityCommittedPercent: "equityCommittedPercent",
-		completenessPercent: "completenessPercent",
+		// Note: completenessPercent, borrowerProgress, and projectProgress are calculated on-the-fly, not stored
 		internalAdvisorNotes: "internalAdvisorNotes",
-		borrowerProgress: "borrowerProgress",
-		projectProgress: "projectProgress",
 	};
 	for (const key in profileData) {
 		const mappedKey = keyMap[key as keyof ProjectProfile];

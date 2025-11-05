@@ -739,9 +739,6 @@ export default function AdvisorProjectDetailPage() {
                   <rect width="100%" height="100%" fill="url(#advisor-grid-pattern)" />
                 </svg>
               </div>
-              <div className="absolute inset-x-0 top-0 flex justify-center">
-                <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
-              </div>
             </div>
 
             {/* Content with padding */}

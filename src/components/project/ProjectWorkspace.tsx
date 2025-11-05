@@ -40,6 +40,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   const [chatTab, setChatTab] = useState<"team" | "ai">("team");
+  const [shouldExpandChat, setShouldExpandChat] = useState(false);
 
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
@@ -163,9 +164,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               <rect width="100%" height="100%" fill="url(#borrower-grid-pattern)" />
             </svg>
           </div>
-          <div className="absolute inset-x-0 top-0 flex justify-center">
-            <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
-          </div>
         </div>
         {/* Left Column: Scrollable content */}
         <div className="flex-1 relative z-[1]">
@@ -244,6 +242,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       setActiveFieldId(fieldId);
                       void askAi.activateField(fieldId, { autoSend: true });
                       setChatTab("ai");
+                      setShouldExpandChat(true); // Expand chat if minimized
+                      // Reset after a brief moment to allow the effect to trigger
+                      setTimeout(() => setShouldExpandChat(false), 100);
                     }}
                     onFormDataChange={setCurrentFormData}
                   />
@@ -272,6 +273,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           contextError={askAi.contextError}
           hasActiveContext={askAi.hasActiveContext}
           externalActiveTab={chatTab}
+          externalShouldExpand={shouldExpandChat}
         />
       </AskAIProvider>
       {previewingResourceId && (

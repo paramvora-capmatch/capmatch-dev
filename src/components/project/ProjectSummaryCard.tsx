@@ -35,6 +35,13 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
   // Progress colors standardized: blue when healthy, red when incomplete
   const borrowerProgressColor = isBorrowerHealthy ? 'bg-blue-600' : 'bg-red-600';
   const borrowerProgressBgColor = isBorrowerHealthy ? 'bg-blue-50' : 'bg-red-50';
+  
+  // Determine bullet color based on progress
+  const getBorrowerBulletColor = () => {
+    if (borrowerCompleteness >= 90) return "bg-green-500";
+    if (borrowerCompleteness >= 50) return "bg-yellow-500";
+    return "bg-red-500";
+  };
 
   const handleCardClick = () => {
     onEdit?.();
@@ -51,11 +58,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
         <>
           {/* Borrower resume completion (full-width; no white card wrapper) */}
           <div
-            className={`rounded-2xl p-3 border-2 ${
-              isBorrowerHealthy
-                ? 'border-blue-400'
-                : 'border-red-400'
-            } bg-white cursor-pointer hover:opacity-95 transition p-4`}
+            className="rounded-2xl p-3 bg-white cursor-pointer hover:opacity-95 transition p-4 shadow-sm"
             onClick={(e) => {
               e.stopPropagation();
               if (onBorrowerClick) {
@@ -68,7 +71,8 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
             aria-label="Open borrower resume"
           >
             <div className="flex justify-between items-center mb-2 text-base">
-              <span className={`font-semibold text-gray-900`}>
+              <span className={`font-semibold text-gray-900 flex items-center animate-pulse`}>
+                <span className={`w-1.5 h-1.5 ${getBorrowerBulletColor()} rounded-full mr-2`}></span>
                 Complete your borrower resume
               </span>
               <div className="flex items-center gap-2">

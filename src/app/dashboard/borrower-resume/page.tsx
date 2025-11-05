@@ -50,7 +50,7 @@ export default function BorrowerResumePage() {
 
 	// Render the breadcrumb element for DashboardLayout
 	const breadcrumb = (
-		<nav className="flex items-center space-x-2 text-2xl mb-2">
+		<nav className="flex items-center space-x-2 text-base mb-2">
 			<button
 				onClick={() => router.push("/dashboard")}
 				className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md mr-2 transition-colors"
@@ -73,7 +73,11 @@ export default function BorrowerResumePage() {
 
 	return (
 		<RoleBasedRoute roles={["borrower"]}>
-            <DashboardLayout breadcrumb={breadcrumb} scrollableContent={false}>
+            <DashboardLayout 
+				breadcrumb={breadcrumb} 
+				scrollableContent={false}
+				mainClassName="flex-1 overflow-hidden"
+			>
 				<LoadingOverlay isLoading={false} />{" "}
 				{/* Display loading overlay based on UI context */}
 				{isInitialLoading ? ( // Only block UI on initial load when there's no content
@@ -87,7 +91,7 @@ export default function BorrowerResumePage() {
                     <AskAIProvider onFieldAskAI={(fieldId: string) => setActiveFieldId(fieldId)}>
                     <div className="h-full w-full flex flex-row animate-fadeIn">
                         {/* Left Column: Scrollable content */}
-                        <div className="flex-1 overflow-y-auto p-6">
+                        <div className="flex-1 overflow-y-auto pl-6 pr-3 sm:pr-4 lg:pr-6 pt-2 pb-6">
                             <div className="space-y-6">
                                 {/* Borrower Resume Completion Summary */}
                                 {(() => {

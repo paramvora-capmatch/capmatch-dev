@@ -209,10 +209,6 @@ export default function TeamPage() {
             </svg>
           </div>
 
-          {/* Blue blurred blob at top */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
-            <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
-          </div>
 
           {/* Main content with X padding and top gap */}
           <div className="relative z-[1] mx-auto px-3 sm:px-5 lg:px-32 pt-20 pb-6">

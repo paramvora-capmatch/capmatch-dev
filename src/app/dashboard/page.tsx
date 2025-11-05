@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
 import { useBorrowerResume } from "../../hooks/useBorrowerResume";
@@ -13,10 +13,8 @@ import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import 
 import { Button } from "../../components/ui/Button"; // Import Button
 import {
   PlusCircle,
-  FileText,
-  Sparkles,
   User,
-} from "lucide-react"; // Added Sparkles
+} from "lucide-react";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -32,24 +30,18 @@ export default function DashboardPage() {
   const completionPercent = borrowerResume?.completenessPercent || 0;
   // Get button variant, color classes, and text based on completion percentage
   const getButtonConfig = () => {
-    if (completionPercent < 30) {
-      return { 
-        variant: "outline" as const, 
-        customClasses: "border-red-500 text-red-600 hover:bg-red-50 hover:border-red-600", 
-        buttonText: "Complete Profile" 
-      }; // White background, red text
-    } else if (completionPercent < 70) {
-      return { 
-        variant: "outline" as const, 
-        customClasses: "border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:border-yellow-600", 
-        buttonText: "Complete Profile" 
-      }; // White background, yellow text
-    } else {
+    if (completionPercent >= 70) {
       return { 
         variant: "primary" as const, 
         customClasses: "", 
         buttonText: "View Profile" 
       }; // Blue filled (default primary)
+    } else {
+      return { 
+        variant: "outline" as const, 
+        customClasses: "border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400", 
+        buttonText: "Complete Profile" 
+      }; // Blue outline style matching Create New Project
     }
   };
   const buttonConfig = getButtonConfig();
@@ -102,11 +94,14 @@ export default function DashboardPage() {
 
   return (
     <RoleBasedRoute roles={["borrower"]}>
-      <DashboardLayout title="Dashboard">
+      <DashboardLayout 
+        title="Dashboard"
+        mainClassName="flex-1 overflow-auto pl-6 pr-3 sm:pr-4 lg:pr-6 pt-2 pb-6"
+      >
         <LoadingOverlay isLoading={combinedLoading} />
 
         {/* Decorative Background Layer */}
-        <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
+        <div className="relative -mx-6 sm:-mx-6 lg:-mx-6">
 
           {/* Subtle grid pattern */}
           <div className="pointer-events-none absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
@@ -120,13 +115,9 @@ export default function DashboardPage() {
             </svg>
           </div>
 
-          {/* Blue blurred blob at top center */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
-            <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
-        </div>
 
-        {/* Main Content - centered with slightly reduced horizontal padding; translated down to make room for blob */}
-        <div className="relative z-[1] mx-auto px-3 sm:px-5 lg:px-32 pt-20 pb-6">
+        {/* Main Content - aligned with header spacing */}
+        <div className="relative z-[1] pt-6 pb-6">
           {/* Darker background container with its own subtle grid */}
           <div className="relative overflow-hidden">
             <div className="pointer-events-none absolute inset-0 opacity-[0.25]">
@@ -147,7 +138,7 @@ export default function DashboardPage() {
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div className="space-y-1">
                   <h2 className="text-2xl font-bold text-gray-800">Borrower Resume</h2>
-                  <p className="text-gray-600">Complete your profile to improve lender matching and project success.</p>
+                  <p className="text-gray-600">Your professional profile used across all projects.</p>
                 </div>
                 <Button
                   variant={buttonConfig.variant}
@@ -174,54 +165,42 @@ export default function DashboardPage() {
                   <h2 className="text-2xl font-bold text-gray-800">My Projects</h2>
                   <p className="text-gray-600">Manage and track your commercial real estate deals</p>
                 </div>
-
-                {currentOrgRole !== "member" && (
-                  <Button
-                    variant="primary"
-                    leftIcon={<PlusCircle size={18} />}
-                    onClick={handleCreateNewProject}
-                    className="shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center"
-                  >
-                    Create New Project
-                  </Button>
-                )}
               </div>
 
-              {projects.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {projects.map((project, index) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Wireframe Create New Project Card - Always First */}
+                {currentOrgRole !== "member" && (
+                  <div className="animate-fade-up">
                     <div
-                      key={project.id}
-                      className="animate-fade-up"
-                      style={{ animationDelay: `${index * 80}ms` }}
+                      onClick={handleCreateNewProject}
+                      className="h-full bg-white rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300 cursor-pointer group flex flex-col items-center justify-center text-center p-8 min-h-[300px]"
                     >
-                      <ProjectCard project={project} />
+                      <div className="mb-6">
+                        <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-400 group-hover:border-blue-500 flex items-center justify-center transition-colors duration-300 mx-auto">
+                          <PlusCircle className="h-8 w-8 text-gray-600 group-hover:text-blue-600 transition-colors duration-300" />
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-blue-800 transition-colors duration-300">
+                        Create New Project
+                      </h3>
+                      <p className="text-gray-600 text-sm max-w-xs mx-auto leading-relaxed">
+                        Start a new commercial real estate project and get matched with qualified lenders.
+                      </p>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="relative">
-                  <div className="relative text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
-                    <div className="relative inline-block mb-6">
-                      <FileText className="mx-auto h-16 w-16 text-gray-300" />
-                    </div>
-
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">No Projects Yet</h3>
-                    <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                      Ready to find the perfect lenders for your commercial real estate deal? Start by exploring our curated lender marketplace.
-                    </p>
-
-                    <Button
-                      variant="primary"
-                      leftIcon={<Sparkles size={18} />}
-                      onClick={() => router.push("/")}
-                      className="shadow-lg hover:shadow-xl transition-all duration-200 px-8 py-3"
-                    >
-                      Explore LenderLine™
-                    </Button>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Existing Projects */}
+                {projects.map((project, index) => (
+                  <div
+                    key={project.id}
+                    className="animate-fade-up"
+                    style={{ animationDelay: `${(index + 1) * 80}ms` }}
+                  >
+                    <ProjectCard project={project} />
+                  </div>
+                ))}
+              </div>
             </div>
               </div>
             </div>

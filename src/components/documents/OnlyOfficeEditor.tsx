@@ -245,10 +245,6 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
                 <rect width="100%" height="100%" fill="url(#oo-grid)" />
               </svg>
             </div>
-            {/* Blue blurred blob at top center */}
-            <div className="absolute inset-x-0 top-0 flex justify-center">
-              <div className="h-64 w-[84rem] -translate-y-32 rounded-full bg-blue-400/40 blur-[90px]" />
-            </div>
           </div>
         )}
 

@@ -55,6 +55,19 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
 
   const colorScheme = getColorScheme();
 
+  // Determine bullet and percentage color based on completion percentage
+  // Uses same logic: green >= 90%, yellow >= 50%, red < 50%
+  const getBulletColor = () => {
+    if (completeness >= 90) return "bg-green-500";
+    if (completeness >= 50) return "bg-yellow-500";
+    return "bg-red-500";
+  };
+
+  const getPercentageColor = () => {
+    if (completeness >= 90) return "text-green-600";
+    if (completeness >= 50) return "text-yellow-600";
+    return "text-red-600";
+  };
 
   const handleCardClick = () => {
     router.push('/dashboard/borrower-resume');
@@ -62,7 +75,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
 
   return (
     <Card
-      className={`shadow-sm ${colorScheme.borderWidth} ${colorScheme.border} relative overflow-hidden group cursor-pointer hover:shadow-md transition-all duration-200`}
+      className="relative overflow-hidden group cursor-pointer transition-all duration-200"
       onClick={handleCardClick}
     >
       {/* Animated background gradient */}
@@ -79,7 +92,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
                 <div className="w-full">
                     <div className="flex justify-between items-center mb-2 text-sm">
                         <span className="font-medium text-gray-700">Completion Progress</span>
-                        <span className={`font-semibold transition-colors duration-300 ${colorScheme.textColor}`}>
+                        <span className={`font-semibold transition-colors duration-300 ${getPercentageColor()}`}>
                             {completeness}%
                         </span>
                     </div>
@@ -107,7 +120,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
                     {completeness < 100 && (
                       <div className="mt-2 text-xs text-gray-600">
                         <p className="flex items-center animate-pulse">
-                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2 animate-pulse"></span>
+                          <span className={`w-1.5 h-1.5 ${getBulletColor()} rounded-full mr-2 animate-pulse`}></span>
                           Complete your profile to improve lender matching and project success.
                         </p>
                       </div>
