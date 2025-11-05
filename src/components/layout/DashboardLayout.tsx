@@ -84,16 +84,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
             {(isAuthenticated && user) && (
               <div className="flex items-center gap-3">
-                {/* User email and org as pills */}
+                {/* User email pill */}
                 <div className="hidden md:flex items-center gap-2">
                   <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-800 border border-gray-300 transition-colors">
                     {user.email}
                   </span>
-                  {currentOrgRole && activeOrg && (
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-800 border border-gray-300 transition-colors">
-                      {activeOrg.name}
-                    </span>
-                  )}
                 </div>
                 {/* Team button */}
                 {!hideTeamButton && (
