@@ -33,9 +33,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const pathname = usePathname();
   const { user, logout, isAuthenticated, currentOrgRole, activeOrg } = useAuth();
 
-  // Use narrower header padding inside project workspaces to match content width
+  // Use wider header padding for project workspaces, dashboard, and borrower resume to match content width
   const isProjectWorkspace = Boolean(
-    pathname && (pathname.startsWith("/project/") || pathname.startsWith("/advisor/project/"))
+    pathname && (
+      pathname.startsWith("/project/") || 
+      pathname.startsWith("/advisor/project/") ||
+      pathname.startsWith("/dashboard/borrower-resume") ||
+      pathname === "/dashboard"
+    )
   );
   const headerPaddingClass = isProjectWorkspace ? "px-14" : "px-4 sm:px-6 lg:px-40";
 
