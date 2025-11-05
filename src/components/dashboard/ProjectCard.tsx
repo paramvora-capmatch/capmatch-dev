@@ -9,7 +9,6 @@ import {
   Trash2,
   Calendar,
   Building,
-  TrendingUp,
   FileSpreadsheet,
   Users,
   MoreVertical,
@@ -227,28 +226,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     }
   };
 
-  // Status pill visuals: soft tints with clear contrast, institutional feel
-  const getStatusColorClasses = (status: string) => {
-    switch (status) {
-      case "Draft":
-        return "bg-gray-50 text-gray-700 border border-gray-200 hover:border-gray-300";
-      case "Info Gathering":
-        return "bg-blue-50 text-blue-700 border border-blue-200 hover:border-blue-300";
-      case "Advisor Review":
-        return "bg-amber-50 text-amber-700 border border-amber-200 hover:border-amber-300";
-      case "Matches Curated":
-        return "bg-purple-50 text-purple-700 border border-purple-200 hover:border-purple-300";
-      case "Introductions Sent":
-        return "bg-indigo-50 text-indigo-700 border border-indigo-200 hover:border-indigo-300";
-      case "Term Sheet Received":
-        return "bg-teal-50 text-teal-700 border border-teal-200 hover:border-teal-300";
-      case "Closed":
-        return "bg-green-50 text-green-700 border border-green-200 hover:border-green-300";
-      default:
-        return "bg-red-50 text-red-700 border border-red-200 hover:border-red-300"; // For Stalled/Withdrawn
-    }
-  };
-
   return (
     <div className="group relative">
       {/* Subtle blue hover shadow under the card */}
@@ -283,18 +260,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               )}
             </h3>
             <div className="flex items-center space-x-2 flex-shrink-0">
-              <span
-                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm transition-colors ${getStatusColorClasses(
-                  project.projectStatus
-                )}`}
-              >
-                {project.projectStatus === "Closed" ? (
-                  <CheckCircle className="h-3.5 w-3.5 mr-1.5 transition-transform group-hover:scale-105" />
-                ) : (
-                  <TrendingUp className="h-3.5 w-3.5 mr-1.5 transition-transform group-hover:scale-105" />
-                )}
-                {project.projectStatus}
-              </span>
               {showDeleteButton && (
                 <div className="relative">
                   <details className="group">
