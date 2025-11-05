@@ -1080,7 +1080,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
       },
       // Documents and Review steps removed (DocumentManager exists above; autosave in place)
     ],
-    [formData, formSaved, handleInputChange, handleFormSubmit, router, onAskAI]
+    [formData, handleInputChange, onAskAI]
   );
   return (
     <FormProvider initialFormData={formData as Record<string, any>}>

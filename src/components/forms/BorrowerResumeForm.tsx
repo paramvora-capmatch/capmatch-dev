@@ -340,9 +340,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     },
     []
   );
-  const resetPrincipalForm = () => {
+  const resetPrincipalForm = useCallback(() => {
     setPrincipalFormData({ principalRoleDefault: "Key Principal" });
-  }; // Reset with default role
+  }, []); // Reset with default role
 
   // --- Submit Profile - Safest Context Access ---
   const handleProfileSubmit = useCallback(async () => {
@@ -1072,12 +1072,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       formData,
       principalFormData,
       isAddingPrincipal,
-      isSaving,
-      justSaved,
       handleInputChange,
       handleAddPrincipal,
       handlePrincipalInputChange,
-      borrowerResume?.fullLegalName,
       onAskAI,
       isEditing,
     ]
