@@ -25,20 +25,26 @@ export const ProjectCompletionCard: React.FC<ProjectCompletionCardProps> = ({
   const progressBgColor = isProjectHealthy ? "bg-blue-50" : "bg-red-50";
   const router = useRouter();
   const isOmReady = completeness >= 100;
+  
+  // Determine bullet color based on progress
+  const getBulletColor = () => {
+    if (completeness >= 90) return "bg-green-500";
+    if (completeness >= 50) return "bg-yellow-500";
+    return "bg-red-500";
+  };
 
   return (
     <div className="p-0">
       {/* Project resume completion (full-width; no white card wrapper) */}
       <div
-        className={`rounded-2xl p-3 border-2 ${
-          isProjectHealthy ? "border-blue-400" : "border-red-400"
-        } bg-white cursor-pointer hover:opacity-95 transition p-4`}
+        className="rounded-2xl p-3 bg-white cursor-pointer hover:opacity-95 transition p-4 shadow-sm"
         onClick={() => onEdit?.()}
         role="button"
         aria-label="Edit project resume"
       >
         <div className="flex justify-between items-center mb-2 text-base">
-          <span className={`font-semibold text-gray-900`}>
+          <span className={`font-semibold text-gray-900 flex items-center animate-pulse`}>
+            <span className={`w-1.5 h-1.5 ${getBulletColor()} rounded-full mr-2`}></span>
             Complete your project details to unlock the Offering Memorandum
           </span>
           <div className="flex items-center gap-3">

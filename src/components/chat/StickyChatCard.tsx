@@ -101,28 +101,32 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
           </button>
         ) : (
           <div className="flex flex-col h-[calc(100vh-8rem)] rounded-2xl shadow-lg overflow-hidden border border-gray-200 bg-white/70 backdrop-blur-xl">
-            <div className="flex items-center justify-between border-b border-gray-200/70 bg-white/60 px-2">
-              <div className="flex flex-1">
+            <div className="flex items-center justify-between border-b border-gray-200/70 bg-white/60 px-2 py-1">
+              <div className="flex flex-1 bg-gradient-to-r from-gray-100 to-gray-50 p-1 rounded-lg shadow-inner">
                 <button
                   onClick={() => setRightTab("team")}
                   className={cn(
-                    "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
-                    rightTab === "team" ? "text-blue-600" : "text-gray-600 hover:text-blue-600"
+                    "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
+                    rightTab === "team"
+                      ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm transform scale-105 border border-blue-200/50"
+                      : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
                   )}
                   aria-pressed={rightTab === "team"}
                 >
-                  <MessageSquare size={16} />
+                  <MessageSquare size={16} className={cn("transition-transform duration-300", rightTab === "team" ? "scale-110" : "")} />
                   <span>Team Chat</span>
                 </button>
                 <button
                   onClick={() => setRightTab("ai")}
                   className={cn(
-                    "flex-1 flex items-center justify-center space-x-2 py-3 text-sm font-medium transition-colors",
-                    rightTab === "ai" ? "text-blue-600" : "text-gray-600 hover:text-blue-600"
+                    "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
+                    rightTab === "ai"
+                      ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm transform scale-105 border border-blue-200/50"
+                      : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
                   )}
                   aria-pressed={rightTab === "ai"}
                 >
-                  <Brain size={16} />
+                  <Brain size={16} className={cn("transition-transform duration-300", rightTab === "ai" ? "scale-110" : "")} />
                   <span>AI Chat</span>
                 </button>
               </div>

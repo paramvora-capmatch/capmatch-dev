@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Card, CardContent } from "../ui/card";
 import { cn } from "@/utils/cn";
-import { Loader2, Bot, AlertCircle, MessageSquare } from "lucide-react";
+import { Loader2, AlertCircle, MessageSquare } from "lucide-react";
 import { Message, FieldContext } from "@/types/ask-ai-types";
 
 interface AIChatInterfaceProps {
@@ -41,15 +41,6 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      {fieldContext && (
-        <div className="flex items-center space-x-2 p-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-md mb-3 mx-3 shadow-sm">
-          <Bot className="h-4 w-4 text-blue-600" />
-          <span className="text-sm text-blue-700 font-medium">
-            Assisting with: <strong>{fieldContext.label}</strong>
-          </span>
-        </div>
-      )}
-
       {contextError && (
         <div className="flex items-center space-x-2 p-2 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-md mb-3 mx-3 shadow-sm">
           <AlertCircle className="h-4 w-4 text-red-600" />
