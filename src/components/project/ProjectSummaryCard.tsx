@@ -58,7 +58,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
         <>
           {/* Borrower resume completion (full-width; no white card wrapper) */}
           <div
-            className="rounded-2xl p-3 bg-white cursor-pointer hover:opacity-95 transition p-4 shadow-sm"
+            className="group rounded-2xl p-3 bg-white cursor-pointer hover:opacity-95 transition p-4 shadow-sm"
             onClick={(e) => {
               e.stopPropagation();
               if (onBorrowerClick) {
@@ -71,12 +71,11 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
             aria-label="Open borrower resume"
           >
             <div className="flex justify-between items-center mb-2 text-base">
-              <span className={`font-semibold text-gray-900 flex items-center animate-pulse`}>
-                <span className={`w-1.5 h-1.5 ${getBorrowerBulletColor()} rounded-full mr-2`}></span>
-                Complete your borrower resume
-              </span>
-              <div className="flex items-center gap-2">
-                <span className={`font-semibold text-gray-900`}>{borrowerCompleteness}%</span>
+              <div className="flex items-center gap-3">
+                <span className={`font-semibold text-gray-900 flex items-center animate-pulse`}>
+                  <span className={`w-1.5 h-1.5 ${getBorrowerBulletColor()} rounded-full mr-2`}></span>
+                  Complete your borrower resume
+                </span>
                 <Button
                   size="sm"
                   variant={borrowerCompleteness < 80 ? 'outline' : 'secondary'}
@@ -88,12 +87,15 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
                       router.push('/dashboard/borrower-resume');
                     }
                   }}
-                  className="justify-center text-sm px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                  className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
                 >
-                  <Edit className="h-4 w-4 mr-1" />
-                  {borrowerCompleteness < 80 ? 'Edit' : 'View Profile'}
+                  <Edit className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+                    {borrowerCompleteness < 80 ? 'Edit' : 'View Profile'}
+                  </span>
                 </Button>
               </div>
+              <span className={`font-semibold text-gray-900`}>{borrowerCompleteness}%</span>
             </div>
             <div className="relative w-full bg-gray-200 rounded-md h-4 overflow-hidden shadow-inner">
               <div
