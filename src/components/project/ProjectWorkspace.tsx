@@ -164,9 +164,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               <rect width="100%" height="100%" fill="url(#borrower-grid-pattern)" />
             </svg>
           </div>
-          <div className="absolute inset-x-0 top-0 flex justify-center">
-            <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
-          </div>
         </div>
         {/* Left Column: Scrollable content */}
         <div className="flex-1 relative z-[1]">

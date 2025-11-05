@@ -244,10 +244,6 @@ export default function AdvisorDashboardPage() {
             </svg>
           </div>
 
-          {/* Blue blurred blob at top center */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
-            <div className="h-64 w-[84rem] -translate-y-48 rounded-full bg-blue-400/40 blur-[90px]" />
-          </div>
 
           {/* Main Content - centered with slightly reduced horizontal padding; translated down to make room for blob */}
           <div className="relative z-[1] mx-auto px-3 sm:px-5 lg:px-32 pt-20 pb-6">
