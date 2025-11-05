@@ -141,6 +141,7 @@ export default function BorrowerResumePage() {
                                         projectId={null}
                                         resourceId="BORROWER_ROOT"
                                         title="General Borrower Documents"
+                                        context="borrower"
                                     />
                                     {/* Pass the completion handler */}
                                     <BorrowerResumeForm

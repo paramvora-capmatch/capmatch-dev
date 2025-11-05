@@ -51,35 +51,53 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
     const containerExpandedClasses = 'overflow-visible';
 
     return (
-        <div className={[
-            'h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30',
-            collapsed ? containerCollapsedClasses : containerExpandedClasses
-        ].join(' ')} aria-expanded={!collapsed}>
+        <div
+            className={[
+                'h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30 cursor-pointer',
+                collapsed ? containerCollapsedClasses : containerExpandedClasses
+            ].join(' ')}
+            aria-expanded={!collapsed}
+            role="button"
+            tabIndex={0}
+            onClick={() => setCollapsed((v) => !v)}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setCollapsed((v) => !v);
+                }
+            }}
+        >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
             
             <div className="sticky top-[-8px] z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl flex flex-row items-center justify-between relative px-3 py-4">
-                <div className="ml-3">
+                <div className="ml-3 flex items-center gap-3">
                     <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
                         <AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />
                         Project Resume
                     </h2>
-                </div>
-                <div className="flex items-center gap-2">
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setCollapsed((v) => !v)}
-                        aria-label={collapsed ? 'Expand resume' : 'Collapse resume'}
-                        className="text-sm px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                        className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
                     >
-                        <ChevronDown className={cn("h-4 w-4 mr-2 transition-transform duration-200", collapsed ? '' : 'rotate-180')} />
-                        {collapsed ? 'Show Project Details' : 'Hide Project Details'}
+                        <Edit className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Edit</span>
                     </Button>
-                    <Button variant="outline" size="sm" onClick={onEdit} className="justify-center text-sm px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors">
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); setCollapsed((v) => !v); }}
+                        aria-label={collapsed ? 'Expand resume' : 'Collapse resume'}
+                        className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
+                    >
+                        <ChevronDown className={cn("h-5 w-5 text-gray-600 flex-shrink-0 transition-transform duration-200", collapsed ? '' : 'rotate-180')} />
+                        <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[160px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+                          {collapsed ? 'Show Project Details' : 'Hide Project Details'}
+                        </span>
                     </Button>
                 </div>
+                <div />
             </div>
 
             {!collapsed && (

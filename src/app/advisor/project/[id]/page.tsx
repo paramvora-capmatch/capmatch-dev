@@ -756,6 +756,7 @@ export default function AdvisorProjectDetailPage() {
                           resourceId="PROJECT_ROOT"
                           title="Project-Specific Documents"
                           projectId={project.id}
+                          context="project"
                         />
                       )}
                     </div>

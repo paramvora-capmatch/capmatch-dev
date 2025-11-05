@@ -51,6 +51,8 @@ interface DocumentManagerProps {
   highlightedResourceId?: string | null;
   // Optional: allows querying a different org's documents (e.g., for advisors viewing borrower docs)
   orgId?: string | null;
+  // Explicit context: project vs borrower
+  context?: "project" | "borrower";
   // folderPath and bucketId removed as they are managed internally by the hook
 }
 
@@ -81,6 +83,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   canDelete = true,
   highlightedResourceId,
   orgId,
+  context,
 }) => {
   // Convert special string values to null before passing to the hook
   const actualResourceId = React.useMemo(() => {
@@ -95,6 +98,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     resourceId,
     actualResourceId,
     title,
+    context,
   });
 
   const {
@@ -324,30 +328,39 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const canEdit = canEditRoot; // Gate root-level actions (upload/create folder) by edit on current folder
+  // Gate root-level actions (upload/create folder)
+  // Borrower docs (context === 'borrower'): Owners always edit; Members depend on BORROWER_DOCS_ROOT permission
+  // Project docs: rely on resource permission as before
+  const inferredContext: "project" | "borrower" = context || (projectId ? "project" : "borrower");
+  const isBorrowerDocs = inferredContext === 'borrower';
+  const isOwner = currentOrgRole === 'owner';
+  const canEdit = isBorrowerDocs ? (isOwner || canEditRoot) : canEditRoot;
 
   return (
-    <Card className="shadow-sm h-full flex flex-col rounded-2xl p-2">
+    <Card className="group shadow-sm h-full flex flex-col rounded-2xl p-2">
       <CardHeader className="pb-4 px-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-start gap-3">
           <div className="flex items-center gap-2 ml-3">
             <FileText className="h-5 w-5 md:h-6 md:w-6 text-blue-600 animate-pulse" />
             <h3 className="text-xl md:text-2xl font-semibold text-gray-900">{title}</h3>
           </div>
-          <div className="flex space-x-2">
-            {canEdit && (
+          {canEdit && (
+            <div className="relative">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="justify-center text-sm px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
+                aria-label="Upload"
               >
-                <Upload className="h-4 w-4 mr-1" />
-                {isUploading ? "Uploading..." : "Upload"}
+                <Upload className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+                  {isUploading ? "Uploading..." : "Upload"}
+                </span>
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </CardHeader>
 

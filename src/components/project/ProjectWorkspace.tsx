@@ -222,6 +222,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
               canUpload={true}
               canDelete={true}
               highlightedResourceId={highlightedResourceId}
+              context="project"
             />
 
             {/* Project completion progress (same width as documents/resume card) */}
