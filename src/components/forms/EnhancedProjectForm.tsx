@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { FormWizard, Step } from "../ui/FormWizard";
-import { Card, CardContent, CardHeader } from "../ui/card";
+// Removed Card wrappers to match Borrower styling (single container only)
 import { FormGroup } from "../ui/Form";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select"; // Keep Select for States
@@ -263,14 +263,13 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         id: "basic-info",
         title: "Basic Info",
         component: (
-          <Card>
-            <CardHeader className="pb-3 border-b">
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <FileText className="h-5 w-5 mr-2 text-blue-600" /> Project
-                Information
+                <FileText className="h-5 w-5 mr-2 text-blue-600" /> Project Information
               </h2>
-            </CardHeader>
-            <CardContent className="p-4 space-y-6">
+            </div>
               <FormGroup>
                 <AskAIButton id="projectName" onAskAI={onAskAI || (() => {})}>
                   <Input
@@ -292,7 +291,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </AskAIButton>
               </FormGroup>
               {/* Property Address Section */}
-              <div className="border-t pt-4">
+              <div className="pt-4">
                 <h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
                   <MapPin className="h-4 w-4 mr-2 text-blue-600" /> Property
                   Address
@@ -431,7 +430,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
               </div>
               {/* Property Info Section */}
-              <div className="border-t pt-4">
+              <div className="pt-4">
                 <h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
                   <Building className="h-4 w-4 mr-2 text-blue-600" /> Property
                   Information
@@ -523,8 +522,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                   </AskAIButton>
                 </FormGroup>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </>
         ),
       },
       // --- Step 2: Loan Information ---
@@ -532,15 +531,13 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         id: "loan-info",
         title: "Loan Info",
         component: (
-          <Card>
-            <CardHeader className="pb-3 border-b">
-              {" "}
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <DollarSign className="h-5 w-5 mr-2 text-blue-600" /> Loan
-                Request Details
-              </h2>{" "}
-            </CardHeader>
-            <CardContent className="p-4 space-y-6">
+                <DollarSign className="h-5 w-5 mr-2 text-blue-600" /> Loan Request Details
+              </h2>
+            </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton
@@ -818,8 +815,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                   </div>
                 </AskAIButton>
               </FormGroup>
-            </CardContent>
-          </Card>
+            </div>
+          </>
         ),
       },
       // --- Step 3: Financial Information ---
@@ -827,15 +824,13 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         id: "financials",
         title: "Financials",
         component: (
-          <Card>
-            <CardHeader className="pb-3 border-b">
-              {" "}
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <BarChart className="h-5 w-5 mr-2 text-blue-600" /> Financial
-                Information
-              </h2>{" "}
-            </CardHeader>
-            <CardContent className="p-4 space-y-6">
+                <BarChart className="h-5 w-5 mr-2 text-blue-600" /> Financial Information
+              </h2>
+            </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton
@@ -1079,101 +1074,20 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                   </div>
                 </AskAIButton>
               </FormGroup>
-            </CardContent>
-          </Card>
+            </div>
+          </>
         ),
       },
-      // --- Step 4: Documents --- (Simplified view, actual upload logic TBD)
-      {
-        id: "documents",
-        title: "Documents",
-        component: (
-          <Card>
-            <CardHeader className="pb-3 border-b">
-              {" "}
-              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <FileQuestion className="h-5 w-5 mr-2 text-blue-600" /> Required
-                Documents
-              </h2>{" "}
-            </CardHeader>
-            <CardContent className="p-4 space-y-4">
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-md text-sm text-blue-800 flex items-start space-x-2">
-                <Info size={18} className="flex-shrink-0 mt-0.5" />
-                <span>
-                  Upload relevant documents here or later via the document
-                  manager. Providing key documents now (like PFS, Rent Roll,
-                  Operating Statements) can expedite the matching process.
-                </span>
-              </div>
-              {/* Simplified list - Replace with actual DocumentUpload components if needed */}
-              <p className="text-gray-600">
-                Document upload section placeholder. Common requirements:
-              </p>
-              <ul className="list-disc list-inside text-sm text-gray-500 pl-4 space-y-1">
-                <li>Personal Financial Statement (PFS)</li>
-                <li>Schedule of Real Estate Owned (SREO)</li>
-                <li>Rent Roll (if applicable)</li>
-                <li>Operating Statements (T-12 / T-3)</li>
-                <li>Pro Forma / Budget</li>
-                <li>Purchase Agreement (if Acquisition)</li>
-              </ul>
-              <Button
-                onClick={() => router.push(`/project/documents/${formData.id}`)}
-                variant="outline"
-              >
-                Manage Documents
-              </Button>
-            </CardContent>
-          </Card>
-        ),
-      },
-      // --- Step 5: Review & Submit ---
-      {
-        id: "review",
-        title: "Review",
-        component: (
-          <Card>
-            <CardHeader className="pb-3 border-b">
-              {" "}
-              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <CheckCircle className="h-5 w-5 mr-2 text-blue-600" /> Review &
-                Save
-              </h2>{" "}
-            </CardHeader>
-            <CardContent className="p-4 space-y-6">
-              <p className="text-gray-700">
-                Review the information entered. Your project auto-saves, but you
-                can manually save changes below.
-              </p>
-              {/* Add a summary display of formData if needed */}
-              {/* ... Summary ... */}
-              <div className="flex justify-center mt-6">
-                <Button
-                  variant="primary"
-                  onClick={handleFormSubmit}
-                  isLoading={formSaved}
-                  disabled={formSaved}
-                  className="min-w-[120px]"
-                >
-                  {formSaved ? "Saved!" : "Save Changes"}
-                </Button>
-              </div>
-              <p className="text-center text-xs text-gray-500 mt-2">
-                Your advisor will be notified of significant updates.
-              </p>
-            </CardContent>
-          </Card>
-        ),
-      },
+      // Documents and Review steps removed (DocumentManager exists above; autosave in place)
     ],
-    [formData, formSaved, handleInputChange, handleFormSubmit, router, onAskAI]
+    [formData, handleInputChange, onAskAI]
   );
   return (
     <FormProvider initialFormData={formData as Record<string, any>}>
-      {/* Top header: Project Resume + Save & Exit */}
-      <div className="sticky top-0 z-[5] bg-gray-50/60 backdrop-blur-sm border-b border-gray-200/70 px-3 py-3 flex items-center justify-between rounded-t-2xl">
+      {/* Sticky header matching Borrower styling */}
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl flex items-center justify-between px-3 py-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+          <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
             <span className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-2" />
             Project Resume
           </h2>
@@ -1181,24 +1095,28 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="primary"
+            variant="outline"
             size="sm"
             onClick={handleFormSubmit}
             isLoading={formSaved}
             disabled={formSaved}
-            className="px-4 py-2"
+            className="px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
           >
             {formSaved ? "Saving..." : "Save & Exit"}
           </Button>
         </div>
       </div>
-      <FormWizard
-        steps={steps}
-        onComplete={handleFormSubmit} // Trigger save on final step if needed
-        showProgressBar={false}
-        showStepIndicators={true}
-        allowSkip={true} // Allow skipping optional steps
-      />
+      <div className="p-6">
+        <FormWizard
+          steps={steps}
+          onComplete={handleFormSubmit}
+          showProgressBar={false}
+          showStepIndicators={false}
+          allowSkip={true}
+          variant="tabs"
+          showBottomNav={true}
+        />
+      </div>
     </FormProvider>
   );
 };

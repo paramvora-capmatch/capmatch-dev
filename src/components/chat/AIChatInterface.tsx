@@ -28,7 +28,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
 }) => {
   if (!hasActiveContext) {
     return (
-      <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg transition-all duration-300 mx-3 border-gray-300 bg-gradient-to-br from-gray-50 to-blue-50/30 hover:border-blue-300 hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-purple-50/30">
+      <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg transition-all duration-300 mx-3 mb-10 border-gray-300 bg-gradient-to-br from-gray-50 to-blue-50/30 hover:border-blue-300 hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-purple-50/30">
         <MessageSquare className="h-12 w-12 text-gray-400 mb-3 animate-pulse" />
         <p className="text-sm text-gray-600 text-center">
           Click &quot;Ask AI&quot; buttons on form fields
@@ -100,7 +100,7 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
         </Card>
       </div>
 
-      <div className="text-center mx-3">
+      <div className="text-center mx-3 pb-4">
         <p className="text-sm text-gray-500 animate-pulse">Click another field&apos;s Ask AI to switch topics</p>
       </div>
     </div>

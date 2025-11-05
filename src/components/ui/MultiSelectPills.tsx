@@ -12,6 +12,7 @@ interface MultiSelectPillsProps {
   className?: string;
   buttonClassName?: string;
   gridCols?: string;
+  disabled?: boolean;
 }
 
 export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
@@ -23,8 +24,10 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
   className,
   buttonClassName = "text-xs md:text-sm",
   gridCols = "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
+  disabled = false,
 }) => {
   const handleClick = (option: string) => {
+    if (disabled) return;
     const isSelected = selectedValues.includes(option);
     if (isSelected) {
       // Remove from selection
@@ -49,6 +52,7 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
               type="button"
               variant={isSelected ? 'primary' : 'outline'}
               onClick={() => handleClick(option)}
+              disabled={disabled}
               className={cn(
                 "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500",
                 isSelected

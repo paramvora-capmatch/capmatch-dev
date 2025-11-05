@@ -52,12 +52,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
 
     return (
         <div className={[
-            'h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30',
+            'h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30',
             collapsed ? containerCollapsedClasses : containerExpandedClasses
         ].join(' ')} aria-expanded={!collapsed}>
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
             
-            <div className="sticky top-0 border-b border-gray-100 bg-gray-50/50 flex flex-row items-center justify-between relative z-10 px-3 py-4">
+            <div className="sticky top-[-8px] z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl flex flex-row items-center justify-between relative px-3 py-4">
                 <div className="ml-3">
                     <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
                         <AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />

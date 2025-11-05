@@ -21,6 +21,7 @@ interface FormWizardProps {
   showStepIndicators?: boolean;
   initialStep?: number;
   variant?: 'wizard' | 'tabs';
+  showBottomNav?: boolean; // When true, show navigation buttons even in tabs variant
 }
 
 export const FormWizard: React.FC<FormWizardProps> = ({
@@ -32,6 +33,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   showStepIndicators = true,
   initialStep = 0,
   variant = 'wizard',
+  showBottomNav = false,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(initialStep);
   // Internal completion tracking for visual state
@@ -97,16 +99,19 @@ export const FormWizard: React.FC<FormWizardProps> = ({
     <div className={cn("w-full", className)}>
       {/* Tabs header when in tabs variant */}
       {variant === 'tabs' && (
-        <div className="mb-6 border-b">
-          <div className="flex gap-2 overflow-x-auto">
+        <div className="mb-6 border-b border-gray-200/70 bg-white/60 px-2 py-1">
+          <div className="flex flex-1 bg-gradient-to-r from-gray-100 to-gray-50 p-1 rounded-lg shadow-inner gap-1">
             {steps.map((step, index) => (
               <button
                 key={step.id}
                 className={cn(
-                  "px-3 py-2 text-sm font-medium rounded-t-md border-b-2",
-                  index === currentStepIndex ? "border-blue-600 text-blue-600" : "border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+                  "flex-1 flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
+                  index === currentStepIndex
+                    ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm transform scale-105 border border-blue-200/50"
+                    : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
                 )}
                 onClick={() => goToStep(index)}
+                aria-pressed={index === currentStepIndex}
               >
                 {step.title}
               </button>
@@ -182,15 +187,16 @@ export const FormWizard: React.FC<FormWizardProps> = ({
         {currentStep?.component} {/* Added optional chaining */}
       </div>
 
-      {/* Navigation buttons (wizard variant only) */}
-      {variant === 'wizard' && (
+      {/* Navigation buttons */}
+      {(variant === 'wizard' || showBottomNav) && (
         <div className={cn(
-          "flex items-center pt-4 border-t", // Added border-t for separation
+          "flex items-center pt-4",
           isFirstStep ? "justify-end" : "justify-between"
         )}>
           {!isFirstStep && (
             <Button
               variant="outline"
+              className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
               leftIcon={<ChevronLeft size={16} />}
               onClick={goPrevious}
             >
@@ -204,7 +210,8 @@ export const FormWizard: React.FC<FormWizardProps> = ({
                </Button>
           )}
           <Button
-            variant="primary"
+            variant="outline"
+            className="hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
             rightIcon={!isLastStep ? <ChevronRight size={16} /> : <CheckCircle size={16} />}
             onClick={goNext}
             // Add validation logic if needed: disabled={!isStepValid}

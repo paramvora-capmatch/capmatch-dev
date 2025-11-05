@@ -1,6 +1,6 @@
 // src/lib/project-queries.ts
 import { supabase } from "../../lib/supabaseClient";
-import { ProjectProfile, ProjectMessage } from "@/types/enhanced-types";
+import { ProjectProfile, ProjectMessage, Principal } from "@/types/enhanced-types";
 
 // =============================================================================
 // JSONB Content Type Definitions
@@ -86,6 +86,9 @@ export interface BorrowerResumeContent {
   bankruptcyHistory?: boolean;
   foreclosureHistory?: boolean;
   litigationHistory?: boolean;
+  
+  // Principals
+  principals?: Principal[];
   
   // Progress tracking
   completenessPercent?: number;

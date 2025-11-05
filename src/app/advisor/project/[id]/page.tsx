@@ -6,27 +6,19 @@ import { RoleBasedRoute } from "../../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../../hooks/useAuth";
 
 import { LoadingOverlay } from "../../../../components/ui/LoadingOverlay";
-import { Card, CardContent, CardHeader } from "../../../../components/ui/card";
 import { Button } from "../../../../components/ui/Button";
-import { SingleSelectChips } from "../../../../components/ui/SingleSelectChips";
 import {
   ChevronLeft,
-  FileText,
   User,
   MessageSquare,
-  Calendar,
   Building,
-  MapPin,
-  DollarSign,
   Send,
 } from "lucide-react";
 import {
   BorrowerProfile, // Used for demo mode mapping
   ProjectProfile,
   ProjectStatus,
-  Project, // Base Project type, useful for some contexts
   BorrowerResume,
-  ProjectResume,
 } from "../../../../types/enhanced-types";
 import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
 import { DocumentManager } from "@/components/documents/DocumentManager";
@@ -34,7 +26,6 @@ import { storageService } from "@/lib/storage";
 import { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 import { getProjectWithResume } from "@/lib/project-queries";
-import { cn } from "@/utils/cn";
 import { ProjectResumeView } from "@/components/project/ProjectResumeView";
 import { EnhancedProjectForm } from "@/components/forms/EnhancedProjectForm";
 import { ProjectCompletionCard } from "@/components/project/ProjectCompletionCard";
@@ -815,7 +806,7 @@ export default function AdvisorProjectDetailPage() {
           <StickyChatCard
             projectId={projectId}
             topOffsetClassName="top-6"
-            widthClassName="w-[35%] md:w-[40%] xl:w-[45%] max-w-[600px]"
+            widthClassName="w-[35%] md:w-[40%] xl:w-[45%] max-w-[700px]"
           />
         </div>
       </div>
