@@ -32,24 +32,18 @@ export default function DashboardPage() {
   const completionPercent = borrowerResume?.completenessPercent || 0;
   // Get button variant, color classes, and text based on completion percentage
   const getButtonConfig = () => {
-    if (completionPercent < 30) {
-      return { 
-        variant: "outline" as const, 
-        customClasses: "border-red-500 text-red-600 hover:bg-red-50 hover:border-red-600", 
-        buttonText: "Complete Profile" 
-      }; // White background, red text
-    } else if (completionPercent < 70) {
-      return { 
-        variant: "outline" as const, 
-        customClasses: "border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:border-yellow-600", 
-        buttonText: "Complete Profile" 
-      }; // White background, yellow text
-    } else {
+    if (completionPercent >= 70) {
       return { 
         variant: "primary" as const, 
         customClasses: "", 
         buttonText: "View Profile" 
       }; // Blue filled (default primary)
+    } else {
+      return { 
+        variant: "outline" as const, 
+        customClasses: "border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400", 
+        buttonText: "Complete Profile" 
+      }; // Blue outline style matching Create New Project
     }
   };
   const buttonConfig = getButtonConfig();
@@ -122,7 +116,7 @@ export default function DashboardPage() {
 
 
         {/* Main Content - centered with slightly reduced horizontal padding; translated down to make room for blob */}
-        <div className="relative z-[1] mx-auto px-3 sm:px-5 lg:px-32 pt-20 pb-6">
+        <div className="relative z-[1] mx-auto px-3 sm:px-5 lg:px-32 pt-6 pb-6">
           {/* Darker background container with its own subtle grid */}
           <div className="relative overflow-hidden">
             <div className="pointer-events-none absolute inset-0 opacity-[0.25]">
@@ -143,7 +137,7 @@ export default function DashboardPage() {
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div className="space-y-1">
                   <h2 className="text-2xl font-bold text-gray-800">Borrower Resume</h2>
-                  <p className="text-gray-600">Complete your profile to improve lender matching and project success.</p>
+                  <p className="text-gray-600">Your professional profile used across all projects.</p>
                 </div>
                 <Button
                   variant={buttonConfig.variant}
@@ -173,10 +167,10 @@ export default function DashboardPage() {
 
                 {currentOrgRole !== "member" && (
                   <Button
-                    variant="primary"
+                    variant="outline"
                     leftIcon={<PlusCircle size={18} />}
                     onClick={handleCreateNewProject}
-                    className="shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 shadow-sm hover:shadow-md transition-all duration-200 px-6 min-w-[200px] justify-center"
                   >
                     Create New Project
                   </Button>
