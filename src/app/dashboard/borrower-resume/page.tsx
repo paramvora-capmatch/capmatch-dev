@@ -137,38 +137,22 @@ export default function BorrowerResumePage() {
                                             </div>
                                         );
                                     })()}
-                                    {/* Borrower Documents moved from /documents */}
-                                    <div className="p-4 bg-white rounded shadow-sm">
-                                        <p className="text-gray-600">
-                                            Manage documents related to you as a borrower, such as Personal Financial Statements (PFS), Schedule of Real Estate Owned (SREO), and entity documents. These documents can be used across multiple projects.
-                                        </p>
-                                    </div>
                                     <DocumentManager
                                         projectId={null}
                                         resourceId="BORROWER_ROOT"
                                         title="General Borrower Documents"
                                     />
-                                    <div className="p-4 bg-white rounded shadow-sm">
-                                        <p className="text-gray-600">
-                                            Your borrower resume is used across all your
-                                            projects. Complete it thoroughly to help match
-                                            you with appropriate lenders. Changes are
-                                            auto-saved.
-                                        </p>
-                                    </div>
                                     {/* Pass the completion handler */}
-                                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                                        <BorrowerResumeForm
-                                            onComplete={handleBorrowerResumeComplete}
-                                            onProgressChange={(p) => setLocalCompletion(p)}
-                                            onFormDataChange={setCurrentFormData}
-                                            onAskAI={(fieldId) => {
-                                              setActiveFieldId(fieldId);
-                                              void askAi.activateField(fieldId, { autoSend: true });
-                                              setChatTab("ai");
-                                            }}
-                                        />
-                                    </div>
+                                    <BorrowerResumeForm
+                                        onComplete={handleBorrowerResumeComplete}
+                                        onProgressChange={(p) => setLocalCompletion(p)}
+                                        onFormDataChange={setCurrentFormData}
+                                        onAskAI={(fieldId) => {
+                                          setActiveFieldId(fieldId);
+                                          void askAi.activateField(fieldId, { autoSend: true });
+                                          setChatTab("ai");
+                                        }}
+                                    />
                                 </div>
                             </div>
                         </div>

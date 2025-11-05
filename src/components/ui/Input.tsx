@@ -4,7 +4,7 @@ import { cn } from '../../utils/cn';
 import { Eye, EyeOff } from 'lucide-react';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
+  label?: React.ReactNode;
   helperText?: string;
   error?: string;
   leftIcon?: React.ReactNode;

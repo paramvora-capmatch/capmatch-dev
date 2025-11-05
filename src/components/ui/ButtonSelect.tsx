@@ -12,6 +12,7 @@ interface ButtonSelectProps {
   className?: string;
   buttonClassName?: string;
   gridCols?: string;
+  disabled?: boolean;
 }
 
 export const ButtonSelect: React.FC<ButtonSelectProps> = ({
@@ -23,9 +24,11 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   className,
   buttonClassName = "text-xs md:text-sm",
   gridCols = "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
+  disabled = false,
 }) => {
   // Handler that checks if onSelect exists before calling it
   const handleClick = (option: string) => {
+    if (disabled) return;
     if (onSelect) {
       onSelect(option);
     } else {
@@ -46,6 +49,7 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
             variant={selectedValue === option ? 'primary' : 'outline'}
             // Use the safe handler
             onClick={() => handleClick(option)}
+            disabled={disabled}
             className={cn(
               "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500",
                selectedValue === option

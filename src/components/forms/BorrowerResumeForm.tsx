@@ -12,7 +12,6 @@ import { useAuth } from "../../hooks/useAuth";
 import { cn } from "../../utils/cn";
 
 import { FormWizard, Step } from "../ui/FormWizard";
-import { Card, CardContent, CardHeader } from "../ui/card";
 import { FormGroup } from "../ui/Form";
 import { Input } from "../ui/Input";
 import { ButtonSelect } from "../ui/ButtonSelect";
@@ -25,6 +24,9 @@ import {
   Briefcase,
   AlertTriangle,
   Check,
+  Edit,
+  AlertCircle,
+  ChevronDown,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import {
@@ -38,10 +40,10 @@ import {
   PrincipalRole,
 } from "../../types/enhanced-types";
 import { BorrowerResumeContent } from "../../lib/project-queries";
-import { MultiSelect } from "../ui/MultiSelect";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { useBorrowerResumeStore } from "../../stores/useBorrowerResumeStore";
 import { AskAIButton } from "../ui/AskAIProvider";
+import { BorrowerResumeView } from "./BorrowerResumeView";
 
 interface BorrowerResumeFormProps {
   onComplete?: (profile: BorrowerResumeContent | null) => void; // Allow null in callback
@@ -157,10 +159,23 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   // State variables
   const [formSaved, setFormSaved] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // Default to view mode
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      return JSON.parse(
+        typeof window !== "undefined"
+          ? localStorage.getItem("borrowerResumeCollapsed") || "true"
+          : "true"
+      );
+    } catch {
+      return true;
+    }
+  });
   const [formData, setFormData] = useState<Partial<BorrowerResumeContent>>({});
   const [principalFormData, setPrincipalFormData] = useState<
     Partial<Principal>
   >({ principalRoleDefault: "Key Principal" });
+  // Persist principals inside JSONB content via formData.principals
   const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -253,17 +268,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     }
 
     debounceTimeout.current = setTimeout(async () => {
-      if (
-        borrowerResume &&
-        JSON.stringify(formData) !== JSON.stringify(borrowerResume)
-      ) {
-        try {
-          const completenessPercent = computeCompletionPercent(formData);
-          onProgressChange?.(completenessPercent);
-          await saveForOrg({ ...formData, completenessPercent }, orgId);
-        } catch (error) {
-          console.error("[ProfileForm] Auto-save failed:", error);
-        }
+      // Only auto-save if we have existing resume content loaded
+      // and the current form data is actually different
+      if (!borrowerResume) return;
+      const hasChanged = JSON.stringify(formData) !== JSON.stringify(borrowerResume);
+      if (!hasChanged) return;
+      try {
+        const completenessPercent = computeCompletionPercent(formData);
+        onProgressChange?.(completenessPercent);
+        await saveForOrg({ ...formData, completenessPercent }, orgId);
+      } catch (error) {
+        console.error("[ProfileForm] Auto-save failed:", error);
       }
     }, 2000); // 2-second debounce
 
@@ -280,6 +295,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     onProgressChange?.(completenessPercent);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
+
+  // Persist collapsed state
+  useEffect(() => {
+    try {
+      localStorage.setItem("borrowerResumeCollapsed", JSON.stringify(collapsed));
+    } catch {}
+  }, [collapsed]);
 
   // Track when saving completes to show "All Changes Saved"
   useEffect(() => {
@@ -345,8 +367,31 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
   // Principals removed from new schema - these functions are no-ops
   const handleAddPrincipal = useCallback(async () => {
-    console.warn("Principals are no longer supported in the new schema");
-  }, []);
+    if (!isEditing) return;
+    const name = (principalFormData.principalLegalName || "").trim();
+    const role = (principalFormData.principalRoleDefault || "").trim();
+    if (!name || !role) return; // require name and role
+
+    setIsAddingPrincipal(true);
+    try {
+      const newPrincipal: Principal = {
+        id: Math.random().toString(36).slice(2),
+        principalLegalName: name,
+        principalRoleDefault: (role as PrincipalRole),
+        principalEmail: principalFormData.principalEmail || "",
+        ownershipPercentage: principalFormData.ownershipPercentage || 0,
+        principalBio: principalFormData.principalBio || "",
+      } as Principal;
+
+      setFormData((prev) => ({
+        ...prev,
+        principals: [ ...(prev.principals as Principal[] | undefined) || [], newPrincipal ],
+      }));
+      resetPrincipalForm();
+    } finally {
+      setIsAddingPrincipal(false);
+    }
+  }, [isEditing, principalFormData, resetPrincipalForm]);
 
   // handleRemovePrincipal removed as it's not used
   const handleRemovePrincipal = useCallback(async (id: string) => {
@@ -361,31 +406,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         id: "basic-info",
         title: "Basic Info",
         component: (
-          <Card>
-            {" "}
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center">
-                  <User className="mr-2" /> Basic Info
-                </h2>
-                {(isSaving || justSaved) && (
-                  <div className="flex items-center text-xs text-gray-500">
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                        <span className="ml-2">Saving…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="ml-2 text-green-600">All Changes Saved</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardHeader>{" "}
-            <CardContent className="p-4 space-y-6">
+          <div className="space-y-6">
+            <div className="flex items-center mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <User className="mr-2" /> Basic Info
+              </h2>
+            </div>
+            <div className="space-y-6">
               {" "}
               <FormGroup>
                 <AskAIButton id="fullLegalName" onAskAI={onAskAI || (() => {})}>
@@ -404,6 +431,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("fullLegalName", e.target.value)
                       }
                       required
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -425,6 +453,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("primaryEntityName", e.target.value)
                       }
                       required
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -450,6 +479,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         )
                       }
                       required
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -466,7 +496,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   }
                   required
                   disabled
-                />{" "}
+                />
               </FormGroup>
               <FormGroup>
                 <AskAIButton id="contactPhone" onAskAI={onAskAI || (() => {})}>
@@ -485,6 +515,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("contactPhone", e.target.value)
                       }
                       required
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -506,12 +537,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("contactAddress", e.target.value)
                       }
                       required
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
               </FormGroup>
-            </CardContent>{" "}
-          </Card>
+            </div>
+          </div>
         ),
       },
       // Step 2: Experience (JSX using ButtonSelect & MultiSelect)
@@ -519,31 +551,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         id: "experience",
         title: "Experience",
         component: (
-          <Card>
-            {" "}
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center">
-                  <Briefcase className="mr-2" /> Experience
-                </h2>
-                {(isSaving || justSaved) && (
-                  <div className="flex items-center text-xs text-gray-500">
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                        <span className="ml-2">Saving…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="ml-2 text-green-600">All Changes Saved</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardHeader>{" "}
-            <CardContent className="p-4 space-y-6">
+          <div className="space-y-6">
+            <div className="flex items-center mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <Briefcase className="mr-2" /> Experience
+              </h2>
+            </div>
+            <div className="space-y-6">
               <FormGroup>
                 <AskAIButton id="yearsCREExperienceRange" onAskAI={onAskAI || (() => {})}>
                   <div
@@ -565,6 +579,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         )
                       }
                       required
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -586,6 +601,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       onSelect={(v) =>
                         handleInputChange("assetClassesExperience", v)
                       }
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -606,6 +622,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       onSelect={(v) =>
                         handleInputChange("geographicMarketsExperience", v)
                       }
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -629,6 +646,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                           v as DealValueRange
                         )
                       }
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -652,6 +670,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                           e.target.value
                         )
                       }
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -674,13 +693,14 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       onChange={(e) =>
                         handleInputChange("bioNarrative", e.target.value)
                       }
-                      className="w-full h-24 border rounded p-2"
+                      disabled={!isEditing}
+                      className="w-full h-24 border border-gray-300 rounded-md p-2 disabled:bg-gray-50 disabled:cursor-not-allowed focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 </AskAIButton>
               </FormGroup>
-            </CardContent>{" "}
-          </Card>
+            </div>
+          </div>
         ),
       },
       // Step 3: Financial Info (JSX using ButtonSelect & Checkboxes)
@@ -688,31 +708,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         id: "financial",
         title: "Financial Info",
         component: (
-          <Card>
-            {" "}
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center">
-                  <DollarSign className="mr-2" /> Financial Info
-                </h2>
-                {(isSaving || justSaved) && (
-                  <div className="flex items-center text-xs text-gray-500">
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                        <span className="ml-2">Saving…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="ml-2 text-green-600">All Changes Saved</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardHeader>{" "}
-            <CardContent className="p-4 space-y-6">
+          <div className="space-y-6">
+            <div className="flex items-center mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <DollarSign className="mr-2" /> Financial Info
+              </h2>
+            </div>
+            <div className="space-y-6">
               <FormGroup>
                 <AskAIButton id="creditScoreRange" onAskAI={onAskAI || (() => {})}>
                   <div
@@ -730,6 +732,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       onSelect={(v) =>
                         handleInputChange("creditScoreRange", v as CreditScoreRange)
                       }
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -750,6 +753,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       onSelect={(v) =>
                         handleInputChange("netWorthRange", v as NetWorthRange)
                       }
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -770,6 +774,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       onSelect={(v) =>
                         handleInputChange("liquidityRange", v as LiquidityRange)
                       }
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -794,6 +799,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     onClick={() =>
                       handleInputChange("bankruptcyHistory", !(formData.bankruptcyHistory || false))
                     }
+                    disabled={!isEditing}
                     className={cn(
                       "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
                       (formData.bankruptcyHistory || false)
@@ -819,6 +825,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     onClick={() =>
                       handleInputChange("foreclosureHistory", !(formData.foreclosureHistory || false))
                     }
+                    disabled={!isEditing}
                     className={cn(
                       "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
                       (formData.foreclosureHistory || false)
@@ -844,6 +851,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     onClick={() =>
                       handleInputChange("litigationHistory", !(formData.litigationHistory || false))
                     }
+                    disabled={!isEditing}
                     className={cn(
                       "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
                       (formData.litigationHistory || false)
@@ -857,8 +865,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   </AskAIButton>
                 </div>
               </div>
-            </CardContent>{" "}
-          </Card>
+            </div>
+          </div>
         ),
       },
       // Step 4: Online Presence (JSX - Optional)
@@ -867,31 +875,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         title: "Online Presence",
         isOptional: true,
         component: (
-          <Card>
-            {" "}
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center">
-                  <Globe className="mr-2" /> Online Presence (Opt)
-                </h2>
-                {(isSaving || justSaved) && (
-                  <div className="flex items-center text-xs text-gray-500">
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                        <span className="ml-2">Saving…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="ml-2 text-green-600">All Changes Saved</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardHeader>{" "}
-            <CardContent className="p-4 space-y-6">
+          <div className="space-y-6">
+            <div className="flex items-center mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <Globe className="mr-2" /> Online Presence (Opt)
+              </h2>
+            </div>
+            <div className="space-y-6">
               <FormGroup>
                 <AskAIButton id="linkedinUrl" onAskAI={onAskAI || (() => {})}>
                   <div
@@ -908,6 +898,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       onChange={(e) =>
                         handleInputChange("linkedinUrl", e.target.value)
                       }
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
@@ -928,12 +919,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       onChange={(e) =>
                         handleInputChange("websiteUrl", e.target.value)
                       }
+                      disabled={!isEditing}
                     />
                   </div>
                 </AskAIButton>
               </FormGroup>
-            </CardContent>{" "}
-          </Card>
+            </div>
+          </div>
         ),
       },
       // Step 5: Key Principals (JSX - Optional, uses ButtonSelect for Role)
@@ -942,131 +934,136 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         title: "Key Principals",
         isOptional: true,
         component: (
-          <Card>
-            {" "}
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center">
-                  <Award className="mr-2" /> Key Principals (Opt)
-                </h2>
-                {(isSaving || justSaved) && (
-                  <div className="flex items-center text-xs text-gray-500">
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                        <span className="ml-2">Saving…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 text-green-600" />
-                        <span className="ml-2 text-green-600">All Changes Saved</span>
-                      </>
-                    )}
-                  </div>
-                )}
+          <div className="space-y-6">
+            <div className="flex items-center mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <Award className="mr-2" /> Key Principals (Opt)
+              </h2>
+            </div>
+            <div className="space-y-6">
+              {/* Add Principal (unstyled container to match page theme) */}
+              <h3 className="text-base md:text-lg font-semibold text-gray-800">Add Principal</h3>
+              {/* Name full width */}
+              <FormGroup>
+                <Input
+                  id="pName"
+                  label={<span>Name <span className="text-red-500">*</span></span>}
+                  value={principalFormData.principalLegalName || ""}
+                  onChange={(e) =>
+                    handlePrincipalInputChange(
+                      "principalLegalName",
+                      e.target.value
+                    )
+                  }
+                  required
+                  disabled={!isEditing}
+                />
+              </FormGroup>
+              {/* Role on next line, full width */}
+              <FormGroup>
+                <ButtonSelect
+                  label="Role"
+                  options={principalRoleOptions}
+                  selectedValue={
+                    principalFormData.principalRoleDefault || "Key Principal"
+                  }
+                  onSelect={(v) =>
+                    handlePrincipalInputChange(
+                      "principalRoleDefault",
+                      v as PrincipalRole
+                    )
+                  }
+                  required
+                  disabled={!isEditing}
+                  buttonClassName="text-sm"
+                  gridCols="grid-cols-8"
+                />
+              </FormGroup>
+              {/* Email & Ownership side by side */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormGroup>
+                  <Input
+                    id="pEmail"
+                    type="email"
+                    label="Email"
+                    value={principalFormData.principalEmail || ""}
+                    onChange={(e) =>
+                      handlePrincipalInputChange("principalEmail", e.target.value)
+                    }
+                    disabled={!isEditing}
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Input
+                    id="pOwn"
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    step="0.01"
+                    label="Ownership (%)"
+                    value={
+                      principalFormData.ownershipPercentage?.toString() || ""
+                    }
+                    onChange={(e) => {
+                      const raw = e.target.value || "";
+                      const cleaned = raw.replace(/[^\d.]/g, "");
+                      const bounded = Math.max(0, Math.min(100, Number(cleaned || 0)));
+                      handlePrincipalInputChange("ownershipPercentage", bounded);
+                    }}
+                    min="0"
+                    max="100"
+                    disabled={!isEditing}
+                  />
+                </FormGroup>
               </div>
-            </CardHeader>{" "}
-            <CardContent className="p-4 space-y-6">
-              <div className="border rounded p-4 bg-gray-50">
-                <h3 className="text-lg font-semibold mb-4">Add Principal</h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <FormGroup>
-                    {" "}
-                    <Input
-                      id="pName"
-                      label="Name"
-                      value={principalFormData.principalLegalName || ""}
-                      onChange={(e) =>
-                        handlePrincipalInputChange(
-                          "principalLegalName",
-                          e.target.value
-                        )
-                      }
-                      required
-                    />{" "}
-                  </FormGroup>
-                  <FormGroup>
-                    {" "}
-                    <ButtonSelect
-                      label="Role"
-                      options={principalRoleOptions}
-                      selectedValue={
-                        principalFormData.principalRoleDefault ||
-                        "Key Principal"
-                      }
-                      onSelect={(v) =>
-                        handlePrincipalInputChange(
-                          "principalRoleDefault",
-                          v as PrincipalRole
-                        )
-                      }
-                      required
-                    />{" "}
-                  </FormGroup>
-                  <FormGroup>
-                    {" "}
-                    <Input
-                      id="pEmail"
-                      type="email"
-                      label="Email"
-                      value={principalFormData.principalEmail || ""}
-                      onChange={(e) =>
-                        handlePrincipalInputChange(
-                          "principalEmail",
-                          e.target.value
-                        )
-                      }
-                    />{" "}
-                  </FormGroup>
-                  <FormGroup>
-                    {" "}
-                    <Input
-                      id="pOwn"
-                      type="number"
-                      label="Ownership (%)"
-                      value={
-                        principalFormData.ownershipPercentage?.toString() || ""
-                      }
-                      onChange={(e) =>
-                        handlePrincipalInputChange(
-                          "ownershipPercentage",
-                          Number(e.target.value || 0)
-                        )
-                      }
-                      min="0"
-                      max="100"
-                    />{" "}
-                  </FormGroup>
-                  <div className="md:col-span-2">
-                    <FormGroup>
-                      <label className="block text-sm mb-1">Bio (Opt)</label>
-                      <textarea
-                        id="pBio"
-                        value={principalFormData.principalBio || ""}
-                        onChange={(e) =>
-                          handlePrincipalInputChange(
-                            "principalBio",
-                            e.target.value
-                          )
-                        }
-                        rows={2}
-                        className="w-full border rounded p-2"
-                      />{" "}
-                    </FormGroup>
-                  </div>
+              {/* Bio full width */}
+              <FormGroup>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bio (Opt)</label>
+                <textarea
+                  id="pBio"
+                  value={principalFormData.principalBio || ""}
+                  onChange={(e) =>
+                    handlePrincipalInputChange("principalBio", e.target.value)
+                  }
+                  rows={2}
+                  disabled={!isEditing}
+                  className="w-full border border-gray-300 rounded-md p-2 disabled:bg-gray-50 disabled:cursor-not-allowed focus:ring-blue-500 focus:border-blue-500"
+                />
+              </FormGroup>
+              <Button
+                onClick={handleAddPrincipal}
+                variant="secondary"
+                isLoading={isAddingPrincipal}
+                disabled={
+                  !isEditing ||
+                  isAddingPrincipal ||
+                  !(principalFormData.principalLegalName || '').trim() ||
+                  !(principalFormData.principalRoleDefault || '').trim()
+                }
+                className="mt-1"
+              >
+                Add
+              </Button>
+
+              {Array.isArray((formData as any).principals) && (formData as any).principals.length > 0 && (
+                <div className="mt-4">
+                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Principals</h4>
+                  <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200">
+                    {(formData as any).principals.map((p: Principal) => (
+                      <li key={p.id} className="p-3 text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
+                        <span className="font-medium">{p.principalLegalName}</span>
+                        <span className="text-gray-500">• {p.principalRoleDefault}</span>
+                        {p.principalEmail && <span className="text-gray-500">• {p.principalEmail}</span>}
+                        {typeof p.ownershipPercentage === 'number' && (
+                          <span className="text-gray-500">• {p.ownershipPercentage}%</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <Button
-                  onClick={handleAddPrincipal}
-                  variant="secondary"
-                  isLoading={isAddingPrincipal}
-                  disabled={isAddingPrincipal || !borrowerResume?.fullLegalName}
-                  className="mt-3"
-                >
-                  Add
-                </Button>
-              </div>{" "}
-            </CardContent>{" "}
-          </Card>
+              )}
+            </div>
+          </div>
         ),
       },
       // Review & Save step removed; autosave covers all updates
@@ -1082,17 +1079,102 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       handlePrincipalInputChange,
       borrowerResume?.fullLegalName,
       onAskAI,
+      isEditing,
     ]
   );
 
+  // Collapsed: no custom sizing; simple overflow control
+  const containerCollapsedClasses = 'overflow-hidden';
+  const containerExpandedClasses = 'overflow-visible';
+
   return (
-    <FormWizard
-      steps={steps}
-      onComplete={handleProfileSubmit}
-      showProgressBar={false}
-      showStepIndicators={false}
-      allowSkip={true}
-      variant="tabs"
-    />
+    <div className={cn(
+      'h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30',
+      collapsed ? containerCollapsedClasses : containerExpandedClasses
+    )} aria-expanded={!collapsed}>
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      {/* Header with Edit button */}
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl flex flex-row items-center justify-between relative px-3 py-4">
+        <div className="ml-3">
+          <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
+            <AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />
+            Borrower Resume
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isEditing && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCollapsed((v) => !v)}
+              aria-label={collapsed ? 'Expand resume' : 'Collapse resume'}
+              className="text-sm px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+            >
+              <ChevronDown className={cn("h-4 w-4 mr-2 transition-transform duration-200", collapsed ? '' : 'rotate-180')} />
+              {collapsed ? 'Show Borrower Details' : 'Hide Borrower Details'}
+            </Button>
+          )}
+          {isEditing && (isSaving || justSaved) && (
+            <div className="flex items-center text-xs text-gray-500 mr-2">
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  <span className="ml-2">Saving…</span>
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 text-green-600" />
+                  <span className="ml-2 text-green-600">All Changes Saved</span>
+                </>
+              )}
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (isEditing) {
+                // Cancel: revert to saved resume data
+                if (borrowerResume) {
+                  setFormData({ ...borrowerResume });
+                }
+              }
+              setIsEditing(!isEditing);
+            }}
+            className={cn(
+              "justify-center text-sm px-3 py-1.5 transition-colors",
+              isEditing ? "" : "hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300"
+            )}
+          >
+            {isEditing ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Done
+              </>
+            ) : (
+              <>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+      {isEditing ? (
+        <div className="p-6 relative z-10">
+          <FormWizard
+            steps={steps}
+            onComplete={handleProfileSubmit}
+            showProgressBar={false}
+            showStepIndicators={false}
+            allowSkip={true}
+            variant="tabs"
+            showBottomNav={true}
+          />
+        </div>
+      ) : (
+        !collapsed && <BorrowerResumeView resume={formData} />
+      )}
+    </div>
   );
 };
