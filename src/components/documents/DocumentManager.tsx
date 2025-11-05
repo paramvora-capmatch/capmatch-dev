@@ -51,6 +51,8 @@ interface DocumentManagerProps {
   highlightedResourceId?: string | null;
   // Optional: allows querying a different org's documents (e.g., for advisors viewing borrower docs)
   orgId?: string | null;
+  // Explicit context: project vs borrower
+  context?: "project" | "borrower";
   // folderPath and bucketId removed as they are managed internally by the hook
 }
 
@@ -81,6 +83,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   canDelete = true,
   highlightedResourceId,
   orgId,
+  context,
 }) => {
   // Convert special string values to null before passing to the hook
   const actualResourceId = React.useMemo(() => {
@@ -95,6 +98,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     resourceId,
     actualResourceId,
     title,
+    context,
   });
 
   const {
@@ -324,7 +328,13 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     }
   };
 
-  const canEdit = canEditRoot; // Gate root-level actions (upload/create folder) by edit on current folder
+  // Gate root-level actions (upload/create folder)
+  // Borrower docs (context === 'borrower'): Owners always edit; Members depend on BORROWER_DOCS_ROOT permission
+  // Project docs: rely on resource permission as before
+  const inferredContext: "project" | "borrower" = context || (projectId ? "project" : "borrower");
+  const isBorrowerDocs = inferredContext === 'borrower';
+  const isOwner = currentOrgRole === 'owner';
+  const canEdit = isBorrowerDocs ? (isOwner || canEditRoot) : canEditRoot;
 
   return (
     <Card className="group shadow-sm h-full flex flex-col rounded-2xl p-2">
