@@ -40,6 +40,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   const [chatTab, setChatTab] = useState<"team" | "ai">("team");
+  const [shouldExpandChat, setShouldExpandChat] = useState(false);
 
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
@@ -244,6 +245,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       setActiveFieldId(fieldId);
                       void askAi.activateField(fieldId, { autoSend: true });
                       setChatTab("ai");
+                      setShouldExpandChat(true); // Expand chat if minimized
+                      // Reset after a brief moment to allow the effect to trigger
+                      setTimeout(() => setShouldExpandChat(false), 100);
                     }}
                     onFormDataChange={setCurrentFormData}
                   />
@@ -272,6 +276,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           contextError={askAi.contextError}
           hasActiveContext={askAi.hasActiveContext}
           externalActiveTab={chatTab}
+          externalShouldExpand={shouldExpandChat}
         />
       </AskAIProvider>
       {previewingResourceId && (

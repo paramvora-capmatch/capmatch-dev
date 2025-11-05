@@ -21,6 +21,7 @@ interface StickyChatCardProps {
   contextError?: string | null;
   hasActiveContext?: boolean;
   externalActiveTab?: 'team' | 'ai';
+  externalShouldExpand?: boolean; // When true, expands the chat if collapsed
 }
 
 export const StickyChatCard: React.FC<StickyChatCardProps> = ({
@@ -35,6 +36,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   contextError = null,
   hasActiveContext = false,
   externalActiveTab,
+  externalShouldExpand,
 }) => {
   const [rightTab, setRightTab] = useState<"team" | "ai">("team");
   const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(() => {
@@ -64,6 +66,13 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
       setRightTab(externalActiveTab);
     }
   }, [externalActiveTab]); // Sync to external control whenever it changes
+
+  // Allow parent to expand chat (e.g., when Ask AI is clicked)
+  useEffect(() => {
+    if (externalShouldExpand && isChatCollapsed) {
+      setIsChatCollapsed(false);
+    }
+  }, [externalShouldExpand, isChatCollapsed]);
 
   // Placeholder counts
   const threadCount = useChatStore((s) => s.threads.length);
