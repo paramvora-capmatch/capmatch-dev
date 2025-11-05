@@ -48,11 +48,8 @@ export interface ProjectResumeContent {
   marketOverviewSummary?: string;
   equityCommittedPercent?: number;
   
-  // Progress tracking
-  completenessPercent?: number;
+  // Note: completenessPercent, borrowerProgress, and projectProgress are calculated on-the-fly, not stored
   internalAdvisorNotes?: string;
-  borrowerProgress?: number;
-  projectProgress?: number;
   
   // Legacy fields for compatibility
   projectSections?: any;
@@ -177,10 +174,11 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
     businessPlanSummary: resumeContent.businessPlanSummary || "",
     marketOverviewSummary: resumeContent.marketOverviewSummary || "",
     equityCommittedPercent: resumeContent.equityCommittedPercent,
-    completenessPercent: resumeContent.completenessPercent || 0,
+    // completenessPercent, borrowerProgress, and projectProgress are calculated by calculateProgress()
+    completenessPercent: 0,
     internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
-    borrowerProgress: resumeContent.borrowerProgress || 0,
-    projectProgress: resumeContent.projectProgress || 0,
+    borrowerProgress: 0,
+    projectProgress: 0,
     projectSections: resumeContent.projectSections || {},
     borrowerSections: resumeContent.borrowerSections || {},
   };
@@ -261,10 +259,11 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       businessPlanSummary: resumeContent.businessPlanSummary || "",
       marketOverviewSummary: resumeContent.marketOverviewSummary || "",
       equityCommittedPercent: resumeContent.equityCommittedPercent,
-      completenessPercent: resumeContent.completenessPercent || 0,
+      // completenessPercent, borrowerProgress, and projectProgress are calculated by calculateProgress()
+      completenessPercent: 0,
       internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
-      borrowerProgress: resumeContent.borrowerProgress || 0,
-      projectProgress: resumeContent.projectProgress || 0,
+      borrowerProgress: 0,
+      projectProgress: 0,
       projectSections: resumeContent.projectSections || {},
       borrowerSections: resumeContent.borrowerSections || {},
       
