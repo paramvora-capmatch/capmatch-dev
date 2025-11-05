@@ -815,7 +815,7 @@ export default function AdvisorProjectDetailPage() {
           <StickyChatCard
             projectId={projectId}
             topOffsetClassName="top-6"
-            widthClassName="w-[35%] md:w-[40%] xl:w-[45%] max-w-[600px]"
+            widthClassName="w-[35%] md:w-[40%] xl:w-[45%] max-w-[700px]"
           />
         </div>
       </div>

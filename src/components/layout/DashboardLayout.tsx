@@ -99,7 +99,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 {!hideTeamButton && (
                   <Link
                     href="/team"
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-full border border-blue-600 hover:bg-blue-700 transition-colors duration-200 shadow-sm"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold bg-white text-gray-700 rounded-full border border-gray-300 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-600 transition-colors duration-200 shadow-sm"
                   >
                     <Users className="h-4 w-4" />
                     Team
