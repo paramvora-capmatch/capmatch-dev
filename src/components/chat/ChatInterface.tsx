@@ -203,7 +203,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [blockedState, setBlockedState] = useState<BlockedState | null>(null);
   const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
   const [accessRequested, setAccessRequested] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const canCreateThreads = useMemo(() => {
@@ -275,7 +275,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [threads, activeThreadId, setActiveThread]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messageListRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
@@ -720,7 +722,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeThreadId ? (
           <>
-            <div className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-3">
+            <div
+              ref={messageListRef}
+              className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-3"
+            >
               {/* Loading shimmer when switching channels */}
               {isLoading && messages.length === 0 && (
                 <div className="space-y-3">
@@ -771,7 +776,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   ))}
                 </div>
               ))}
-              <div ref={messagesEndRef} />
             </div>
 
             <div className="p-3 bg-white/60 backdrop-blur relative border-t border-gray-100">
