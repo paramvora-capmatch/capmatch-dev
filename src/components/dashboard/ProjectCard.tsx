@@ -439,7 +439,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             )}
 
             <Button
-              variant={isComplete ? "outline" : "primary"}
+              variant="outline"
               fullWidth
               size="sm"
               rightIcon={<ChevronRight size={16} />}
@@ -455,7 +455,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 }
                 router.push(`/project/workspace/${project.id}`);
               }}
-              className="font-medium"
+              className={[
+                "font-medium",
+                !isComplete
+                  ? "border-blue-500 text-blue-600 hover:bg-blue-50 shadow-[0_0_0_2px_rgba(59,130,246,0.15)] hover:border-blue-500"
+                  : "",
+              ].join(" ")}
             >
               {primaryCtaLabel || (isComplete ? "Review Project" : "Continue Setup")}
             </Button>
