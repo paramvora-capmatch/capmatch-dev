@@ -808,7 +808,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 )}
               </AnimatePresence>
               <div className="flex items-center gap-2">
-                <div className="relative flex-1 flex items-stretch border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden" style={{ minHeight: `${textareaHeight}px` }}>
+                <div className="relative flex-1 flex items-stretch border border-gray-200 rounded-xl bg-white shadow-sm" style={{ minHeight: `${textareaHeight}px` }}>
                   <button
                     type="button"
                     onClick={() => setShowDocPicker((prev) => !prev)}
@@ -819,7 +819,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     <Plus className="h-4 w-4" />
                   </button>
                   {showDocPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                    <div className="absolute bottom-[calc(100%+0.5rem)] left-0 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
                       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
                         <span className="text-sm font-semibold text-gray-700">Shared documents</span>
                         <button
