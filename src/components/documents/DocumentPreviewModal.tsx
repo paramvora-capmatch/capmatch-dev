@@ -24,6 +24,7 @@ interface DocumentPreviewModalProps {
 interface ResourceDetails extends DocumentFile {
   org_id: string;
   project_id: string | null;
+  storage_path: string;
 }
 
 export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
@@ -38,7 +39,13 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const [isSharing, setIsSharing] = useState(false);
 
   const { activeOrg } = useAuthStore();
-  const { deleteFile, downloadFile } = useDocumentManagement(resource?.project_id || null, null);
+  const docContext = resource?.storage_path?.includes('/borrower-docs/')
+    ? 'borrower'
+    : 'project';
+  const { deleteFile, downloadFile } = useDocumentManagement({
+    projectId: resource?.project_id || null,
+    context: docContext,
+  });
   const { canEdit } = usePermissions(resourceId);
   
   const isEditableInOffice = resource && /\.(docx|xlsx|pptx)$/i.test(resource.name);

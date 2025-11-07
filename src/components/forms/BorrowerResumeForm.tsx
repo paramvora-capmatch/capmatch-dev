@@ -41,16 +41,21 @@ import {
 } from "../../types/enhanced-types";
 import { BorrowerResumeContent } from "../../lib/project-queries";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
-import { useBorrowerResumeStore } from "../../stores/useBorrowerResumeStore";
+import { useProjectBorrowerResume } from "@/hooks/useProjectBorrowerResume";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { BorrowerResumeView } from "./BorrowerResumeView";
 
 interface BorrowerResumeFormProps {
+  projectId: string;
   onComplete?: (profile: BorrowerResumeContent | null) => void; // Allow null in callback
   onProgressChange?: (percent: number) => void;
-  orgId?: string; // Optional override to edit a specific org's resume (e.g., advisor editing borrower)
   onFormDataChange?: (formData: Partial<BorrowerResumeContent>) => void; // Emit form data for AskAI
   onAskAI?: (fieldId: string) => void; // Trigger AskAI for a field
+  progressPercent?: number;
+  onCopyBorrowerResume?: () => void;
+  copyDisabled?: boolean;
+  copyLoading?: boolean;
+  unstyled?: boolean;
 }
 
 // Options definitions (no changes)
@@ -145,14 +150,24 @@ const geographicMarketsOptions = [
 ];
 
 export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
+  projectId,
   onComplete,
   onProgressChange,
-  orgId,
   onFormDataChange,
   onAskAI,
+  progressPercent,
+  onCopyBorrowerResume,
+  copyDisabled,
+  copyLoading,
+  unstyled = false,
 }) => {
   const { user } = useAuth();
-  const { content: borrowerResume, saveForOrg, isSaving, loadForOrg } = useBorrowerResumeStore();
+  const {
+    content: borrowerResume,
+    isLoading: resumeLoading,
+    isSaving,
+    save,
+  } = useProjectBorrowerResume(projectId);
   // Principals removed from new schema - kept as empty array for form compatibility
   const principals: Principal[] = [];
 
@@ -180,7 +195,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevIsSavingRef = useRef<boolean>(false);
-  const initializedRef = useRef(false);
 
   const computeCompletionPercent = useCallback((data: Partial<BorrowerResumeContent>): number => {
     // Fields to consider for completion
@@ -227,16 +241,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     return Math.min(100, Math.round((answered / Math.max(1, total)) * 100));
   }, []);
 
-  // If an orgId override is provided (advisor editing a borrower's resume), ensure the store is loaded for that org.
-  useEffect(() => {
-    if (orgId) {
-      loadForOrg(orgId);
-    }
-  }, [orgId, loadForOrg]);
-
   // Initialize form once on first load (avoid resetting on each store update)
   useEffect(() => {
-    if (initializedRef.current) return;
     const defaultData: Partial<BorrowerResumeContent> = {
       primaryEntityStructure: "LLC",
       contactEmail: user?.email || "",
@@ -251,15 +257,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       assetClassesExperience: [],
       geographicMarketsExperience: [],
     };
-    setFormData(borrowerResume ? { ...borrowerResume } : { ...defaultData });
-    // Mark initialized after first set (when either default or resume is applied)
-    initializedRef.current = true;
-  }, [borrowerResume, user?.email]);
+    setFormData(
+      borrowerResume ? { ...defaultData, ...borrowerResume } : { ...defaultData }
+    );
+  }, [borrowerResume, user?.email, projectId]);
 
   // Emit form data for AskAI consumers when it changes
   useEffect(() => {
     onFormDataChange?.(formData);
   }, [formData, onFormDataChange]);
+
+  const showLoadingState = resumeLoading && !borrowerResume;
 
   // Debounced auto-save effect for profile form
   useEffect(() => {
@@ -276,7 +284,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       try {
         const completenessPercent = computeCompletionPercent(formData);
         onProgressChange?.(completenessPercent);
-        await saveForOrg({ ...formData, completenessPercent }, orgId);
+        await save({ ...formData, completenessPercent });
       } catch (error) {
         console.error("[ProfileForm] Auto-save failed:", error);
       }
@@ -287,7 +295,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [formData, borrowerResume, saveForOrg, computeCompletionPercent, onProgressChange, orgId]);
+  }, [formData, borrowerResume, save, computeCompletionPercent, onProgressChange, projectId]);
 
   // Report progress on any local change immediately (for live banner updates)
   useEffect(() => {
@@ -351,7 +359,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       setFormSaved(true);
       const completenessPercent = computeCompletionPercent(formData);
       onProgressChange?.(completenessPercent);
-      await saveForOrg({ ...formData, completenessPercent }, orgId);
+      await save({ ...formData, completenessPercent });
 
       if (onComplete) {
         // Pass the updated formData as the profile
@@ -363,7 +371,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     } finally {
       setTimeout(() => setFormSaved(false), 2000);
     }
-  }, [formData, onComplete, saveForOrg, computeCompletionPercent, onProgressChange, orgId]);
+  }, [formData, onComplete, save, computeCompletionPercent, onProgressChange]);
 
   // Principals removed from new schema - these functions are no-ops
   const handleAddPrincipal = useCallback(async () => {
@@ -1109,6 +1117,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
             <AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />
             Borrower Resume
           </h2>
+          {typeof progressPercent === "number" && (
+            <span className="text-sm font-semibold text-gray-500">
+              {progressPercent}% complete
+            </span>
+          )}
           {/* Edit button first */}
           <Button
             variant="outline"
@@ -1140,6 +1153,21 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               </>
             )}
           </Button>
+          {onCopyBorrowerResume && !isEditing && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopyBorrowerResume();
+              }}
+              disabled={copyDisabled}
+              isLoading={copyLoading}
+              className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
+            >
+              {copyLoading ? "Copying..." : "Copy From Another Project"}
+            </Button>
+          )}
           {/* Collapse/expand button (only when not editing) */}
           {!isEditing && (
             <Button
@@ -1173,7 +1201,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           </div>
         )}
       </div>
-      {isEditing ? (
+      {showLoadingState ? (
+        <div className="flex justify-center items-center h-32 text-gray-500">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading borrower resume...
+        </div>
+      ) : isEditing ? (
         <div className="p-6 relative z-10">
           <FormWizard
             steps={steps}

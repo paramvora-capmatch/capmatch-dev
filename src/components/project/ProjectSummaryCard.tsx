@@ -1,10 +1,8 @@
 // src/components/project/ProjectSummaryCard.tsx
 import React from 'react';
-import { useRouter } from 'next/navigation';
 // Removed Card wrappers to avoid extra white container around progress bars
 import { Loader2, Edit } from 'lucide-react';
 import { ProjectProfile } from '@/types/enhanced-types';
-import { useBorrowerResumeStore } from '@/stores/useBorrowerResumeStore';
 import { Button } from '@/components/ui/Button';
 
 interface ProjectSummaryCardProps {
@@ -12,15 +10,16 @@ interface ProjectSummaryCardProps {
   isLoading: boolean;
   onEdit?: () => void;
   onBorrowerClick?: () => void; // Optional override for borrower resume click behavior
+  borrowerProgress?: number;
 }
 
 export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
   project,
   isLoading,
   onEdit,
-  onBorrowerClick
+  onBorrowerClick,
+  borrowerProgress = 0,
 }) => {
-  const router = useRouter();
   const completeness = project?.completenessPercent || 0;
   const isProjectComplete = completeness >= 100;
   const isProjectHealthy = completeness >= 90;
@@ -28,10 +27,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
   const progressColor = isProjectComplete ? 'bg-green-600' : (isProjectHealthy ? 'bg-blue-600' : 'bg-red-600');
   const progressBgColor = isProjectComplete ? 'bg-green-50' : (isProjectHealthy ? 'bg-blue-50' : 'bg-red-50');
 
-  const { content: borrowerContent } = useBorrowerResumeStore();
-  // Source of truth: borrower resume's own completeness; if not available, treat as 0.
-  // This avoids falling back to stale per-project snapshots that can diverge.
-  const borrowerCompleteness = Math.round((borrowerContent?.completenessPercent as number | undefined) ?? 0);
+  const borrowerCompleteness = Math.round(borrowerProgress ?? 0);
   const isBorrowerComplete = borrowerCompleteness >= 100;
   const isBorrowerHealthy = borrowerCompleteness >= 90;
   // Green when complete (100%), blue when healthy (>=90% but <100%), red when incomplete
@@ -63,11 +59,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
             className="group rounded-2xl p-3 bg-white cursor-pointer hover:opacity-95 transition p-4 shadow-sm"
             onClick={(e) => {
               e.stopPropagation();
-              if (onBorrowerClick) {
-                onBorrowerClick();
-              } else {
-                router.push('/dashboard/borrower-resume');
-              }
+              onBorrowerClick?.();
             }}
             role="button"
             aria-label="Open borrower resume"
@@ -83,11 +75,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
                   variant={borrowerCompleteness < 80 ? 'outline' : 'secondary'}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onBorrowerClick) {
-                      onBorrowerClick();
-                    } else {
-                      router.push('/dashboard/borrower-resume');
-                    }
+                    onBorrowerClick?.();
                   }}
                   className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
                 >

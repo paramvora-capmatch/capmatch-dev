@@ -84,19 +84,19 @@ export const ProjectStatusPathway: React.FC<ProjectStatusPathwayProps> = ({
   const handleStepClick = (stepId: string) => {
     switch (stepId) {
       case 'profile':
-        router.push('/dashboard/borrower-resume');
+        router.push(`/project/workspace/${projectId}?step=borrower`);
         break;
       case 'project':
-        router.push(`/project/edit/${projectId}`);
+        router.push(`/project/workspace/${projectId}?step=project`);
         break;
       case 'documents':
-        router.push(`/project/documents/${projectId}`);
+        router.push(`/project/workspace/${projectId}?step=documents`);
         break;
       case 'advisor':
       case 'lenders':
       case 'closing':
       default:
-        router.push(`/project/${projectId}`);
+        router.push(`/project/workspace/${projectId}`);
         break;
     }
   };
@@ -107,7 +107,7 @@ export const ProjectStatusPathway: React.FC<ProjectStatusPathwayProps> = ({
       return {
         label: 'Complete Borrower Resume',
         icon: <UserCheck size={16} />,
-        action: () => router.push('/dashboard/borrower-resume'),
+        action: () => router.push(`/project/workspace/${projectId}?step=borrower`),
       };
     }
     
@@ -115,7 +115,7 @@ export const ProjectStatusPathway: React.FC<ProjectStatusPathwayProps> = ({
       return {
         label: 'Complete Project Details',
         icon: <FileText size={16} />,
-        action: () => router.push(`/project/edit/${projectId}`),
+        action: () => router.push(`/project/workspace/${projectId}?step=project`),
       };
     }
     
@@ -123,14 +123,14 @@ export const ProjectStatusPathway: React.FC<ProjectStatusPathwayProps> = ({
       return {
         label: 'Upload Documents',
         icon: <FileCheck size={16} />,
-        action: () => router.push(`/project/documents/${projectId}`),
+        action: () => router.push(`/project/workspace/${projectId}?step=documents`),
       };
     }
     
     return {
       label: 'View Project Messages',
       icon: <MessageSquare size={16} />,
-      action: () => router.push(`/project/${projectId}`),
+      action: () => router.push(`/project/workspace/${projectId}`),
     };
   };
 

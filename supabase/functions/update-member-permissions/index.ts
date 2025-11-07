@@ -8,7 +8,7 @@ serve(async (req) => {
   }
 
   try {
-    const { org_id, user_id, project_grants, org_grants } = await req.json();
+    const { org_id, user_id, project_grants } = await req.json();
     if (!org_id || !user_id) {
       throw new Error("org_id and user_id are required");
     }
@@ -16,12 +16,6 @@ serve(async (req) => {
     // Validate project_grants structure
     if (project_grants && !Array.isArray(project_grants)) {
       throw new Error("project_grants must be an array.");
-    }
-    // Validate org_grants structure
-    if (org_grants) {
-      if (!org_grants.permissions || !Array.isArray(org_grants.permissions)) {
-        throw new Error("org_grants.permissions must be an array");
-      }
     }
     if (project_grants) {
       for (const grant of project_grants) {
@@ -203,62 +197,6 @@ serve(async (req) => {
               console.error(`[update-member-permissions] Failed to add user to chat threads for project ${grant.projectId}: ${addPartErr.message}`);
             }
           }
-        }
-      }
-    }
-
-    // Step 4: Apply org-level grants if provided
-    const orgGrantsObj = (org_grants as any) || null;
-    if (orgGrantsObj && Array.isArray(orgGrantsObj.permissions)) {
-      // Grant BORROWER_RESUME / BORROWER_DOCS_ROOT as requested
-      for (const g of orgGrantsObj.permissions) {
-        if (!g || !g.resource_type || !g.permission) continue;
-        let resourceId: string | null = null;
-        if (g.resource_type === 'BORROWER_RESUME' || g.resource_type === 'BORROWER_DOCS_ROOT') {
-          const { data: resource } = await supabaseAdmin
-            .from('resources')
-            .select('id')
-            .eq('org_id', org_id)
-            .eq('resource_type', g.resource_type)
-            .maybeSingle();
-          resourceId = resource?.id || null;
-        }
-        if (resourceId) {
-          const { error: permErr } = await supabaseAdmin
-            .from('permissions')
-            .upsert({
-              resource_id: resourceId,
-              user_id: user_id,
-              permission: g.permission,
-              granted_by: user.id
-            }, { onConflict: 'resource_id,user_id' });
-          if (permErr) {
-            console.error(`[update-member-permissions] Failed to set org grant ${g.resource_type}: ${JSON.stringify(permErr)}`);
-          }
-        }
-      }
-      // Apply org-level per-file overrides or exclusions
-      if (Array.isArray(orgGrantsObj.fileOverrides) && orgGrantsObj.fileOverrides.length > 0) {
-        const rows = orgGrantsObj.fileOverrides.map((o: any) => ({
-          resource_id: o.resource_id,
-          user_id: user_id,
-          permission: o.permission,
-          granted_by: user.id
-        }));
-        const { error: orgOvErr } = await supabaseAdmin.from('permissions').upsert(rows, { onConflict: 'resource_id,user_id' });
-        if (orgOvErr) {
-          console.error(`[update-member-permissions] Failed to apply org file overrides: ${JSON.stringify(orgOvErr)}`);
-        }
-      } else if (Array.isArray(orgGrantsObj.exclusions) && orgGrantsObj.exclusions.length > 0) {
-        const rows = orgGrantsObj.exclusions.map((resource_id: string) => ({
-          resource_id,
-          user_id: user_id,
-          permission: 'none',
-          granted_by: user.id
-        }));
-        const { error: orgExclErr } = await supabaseAdmin.from('permissions').upsert(rows, { onConflict: 'resource_id,user_id' });
-        if (orgExclErr) {
-          console.error(`[update-member-permissions] Failed to apply org exclusions: ${JSON.stringify(orgExclErr)}`);
         }
       }
     }

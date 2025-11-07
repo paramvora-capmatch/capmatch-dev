@@ -1,7 +1,6 @@
 // src/hooks/useAppHydration.ts
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useBorrowerResumeStore } from "@/stores/useBorrowerResumeStore";
 import { useProjectStore } from "@/stores/useProjectStore";
 
 /**
@@ -12,7 +11,6 @@ import { useProjectStore } from "@/stores/useProjectStore";
 export const useAppHydration = () => {
   // Get loading states from all relevant stores
   const isAuthLoading = useAuthStore((state) => state.isLoading);
-  const isProfileLoading = useBorrowerResumeStore((state) => state.isLoading);
   const isProjectsLoading = useProjectStore((state) => state.isLoading);
   const user = useAuthStore((state) => state.user);
 
@@ -27,8 +25,8 @@ export const useAppHydration = () => {
 
     // 2. Once auth is done, check the user's role.
     if (user?.role === "borrower") {
-      // For borrowers, we are hydrated only when their specific data is also loaded.
-      if (!isProfileLoading && !isProjectsLoading) {
+      // For borrowers, hydration completes after core project data loads.
+      if (!isProjectsLoading) {
         setIsHydrated(true);
       } else {
         setIsHydrated(false);
@@ -38,7 +36,7 @@ export const useAppHydration = () => {
       // hydration is complete as soon as auth is resolved.
       setIsHydrated(true);
     }
-  }, [isAuthLoading, isProfileLoading, isProjectsLoading, user, isHydrated]);
+  }, [isAuthLoading, isProjectsLoading, user, isHydrated]);
 
   return isHydrated;
 };

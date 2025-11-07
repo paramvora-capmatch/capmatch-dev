@@ -245,47 +245,6 @@ serve(async (req: any) => {
       }
     }
 
-    // Apply org-level grants if provided
-    const orgGrants = (invite.org_grants as any) || null;
-    if (orgGrants && Array.isArray(orgGrants.permissions)) {
-      // Grant BORROWER_RESUME / BORROWER_DOCS_ROOT as requested
-      for (const g of orgGrants.permissions) {
-        if (!g || !g.resource_type || !g.permission) continue;
-        let resourceId: string | null = null;
-        if (g.resource_type === 'BORROWER_RESUME' || g.resource_type === 'BORROWER_DOCS_ROOT') {
-          const { data: resource } = await supabase
-            .from('resources')
-            .select('id')
-            .eq('org_id', invite.org_id)
-            .eq('resource_type', g.resource_type)
-            .maybeSingle();
-          resourceId = resource?.id || null;
-        }
-        if (resourceId) {
-          const { error: permErr } = await supabase
-            .from('permissions')
-            .upsert({ resource_id: resourceId, user_id: userId, permission: g.permission, granted_by: invite.invited_by }, { onConflict: 'resource_id,user_id' });
-          if (permErr) {
-            console.error(`[accept-invite] Failed to set org grant ${g.resource_type}: ${JSON.stringify(permErr)}`);
-          }
-        }
-      }
-      // Apply org-level per-file overrides or exclusions
-      if (Array.isArray(orgGrants.fileOverrides) && orgGrants.fileOverrides.length > 0) {
-        const rows = orgGrants.fileOverrides.map((o: any) => ({ resource_id: o.resource_id, user_id: userId, permission: o.permission, granted_by: invite.invited_by }));
-        const { error: orgOvErr } = await supabase.from('permissions').upsert(rows, { onConflict: 'resource_id,user_id' });
-        if (orgOvErr) {
-          console.error(`[accept-invite] Failed to apply org file overrides: ${JSON.stringify(orgOvErr)}`);
-        }
-      } else if (Array.isArray(orgGrants.exclusions) && orgGrants.exclusions.length > 0) {
-        const rows = orgGrants.exclusions.map((resource_id: string) => ({ resource_id, user_id: userId, permission: 'none', granted_by: invite.invited_by }));
-        const { error: orgExclErr } = await supabase.from('permissions').upsert(rows, { onConflict: 'resource_id,user_id' });
-        if (orgExclErr) {
-          console.error(`[accept-invite] Failed to apply org exclusions: ${JSON.stringify(orgExclErr)}`);
-        }
-      }
-    }
-
     // Step 5: Grant project access if specified in the invite
     if (invite.project_grants && Array.isArray(invite.project_grants) && invite.project_grants.length > 0) {
       console.log(`[accept-invite] Found ${invite.project_grants.length} project grants to process.`);
