@@ -58,8 +58,6 @@ export const useDocumentManagement = ({
     setError(null);
 
     try {
-      let parentId;
-
       if (!projectId) {
         throw new Error(
           "Project context is required for document management operations."
@@ -91,7 +89,7 @@ export const useDocumentManagement = ({
         );
       }
 
-      parentId = folderId || root.id;
+      const parentId = folderId || root.id;
 
       console.log('[DocumentManagement] Using parent ID:', parentId);
 

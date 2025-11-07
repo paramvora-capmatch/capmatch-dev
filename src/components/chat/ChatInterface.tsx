@@ -67,6 +67,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   embedded = false,
 }) => {
   const BASE_INPUT_HEIGHT = 44; // px, matches Button h-11
+  const [textareaHeight, setTextareaHeight] = useState(BASE_INPUT_HEIGHT);
   const {
     threads,
     activeThreadId,
@@ -202,7 +203,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [blockedState, setBlockedState] = useState<BlockedState | null>(null);
   const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
   const [accessRequested, setAccessRequested] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const canCreateThreads = useMemo(() => {
@@ -251,7 +252,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [projectId, loadThreadsForProject]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!newMessage.trim()) {
+      setTextareaHeight(BASE_INPUT_HEIGHT);
+      if (textAreaRef.current) {
+        textAreaRef.current.style.height = `${BASE_INPUT_HEIGHT}px`;
+      }
+    }
+  }, [newMessage]);
+
+  useEffect(() => {
+    if (threads.length === 0) return;
+
+    const hasActiveThread =
+      !!activeThreadId && threads.some((thread) => thread.id === activeThreadId);
+    if (hasActiveThread) return;
+
+    const generalThread = threads.find(
+      (thread) => thread.topic?.trim().toLowerCase() === "general"
+    );
+
+    setActiveThread(generalThread ? generalThread.id : threads[0].id);
+  }, [threads, activeThreadId, setActiveThread]);
+
+  useEffect(() => {
+    const container = messageListRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
   }, [messages]);
 
   useEffect(() => {
@@ -272,6 +298,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       textAreaRef.current.style.height = 'auto';
       const raw = textAreaRef.current.scrollHeight;
       const next = Math.min(Math.max(raw, BASE_INPUT_HEIGHT), 160);
+      setTextareaHeight(next);
       textAreaRef.current.style.height = `${next}px`;
     }
   }, [newMessage]);
@@ -332,8 +359,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // Auto-size the textarea height on input with baseline equal to send button height
     if (textAreaRef.current) {
       textAreaRef.current.style.height = 'auto';
-      const raw = textAreaRef.current.scrollHeight;
+      const raw = text.trim() ? textAreaRef.current.scrollHeight : BASE_INPUT_HEIGHT;
       const next = Math.min(Math.max(raw, BASE_INPUT_HEIGHT), 160);
+      setTextareaHeight(next);
       textAreaRef.current.style.height = `${next}px`;
     }
   };
@@ -694,7 +722,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeThreadId ? (
           <>
-            <div className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-3">
+            <div
+              ref={messageListRef}
+              className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-3"
+            >
               {/* Loading shimmer when switching channels */}
               {isLoading && messages.length === 0 && (
                 <div className="space-y-3">
@@ -745,7 +776,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   ))}
                 </div>
               ))}
-              <div ref={messagesEndRef} />
             </div>
 
             <div className="p-3 bg-white/60 backdrop-blur relative border-t border-gray-100">
@@ -781,8 +811,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </motion.div>
                 )}
               </AnimatePresence>
-              <div className="flex items-end gap-2">
-                <div className="relative flex-1 flex items-center border border-gray-200 rounded-xl bg-white shadow-sm">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1 flex items-stretch border border-gray-200 rounded-xl bg-white shadow-sm" style={{ minHeight: `${textareaHeight}px` }}>
                   <button
                     type="button"
                     onClick={() => setShowDocPicker((prev) => !prev)}
@@ -793,7 +823,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     <Plus className="h-4 w-4" />
                   </button>
                   {showDocPicker && (
-                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                    <div className="absolute bottom-[calc(100%+0.5rem)] left-0 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
                       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
                         <span className="text-sm font-semibold text-gray-700">Shared documents</span>
                         <button
@@ -842,7 +872,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         handleSendMessage();
                       }
                     }}
-                    className="flex-1 h-[44px] max-h-40 px-3 py-2 border-0 focus:outline-none focus:ring-0 disabled:bg-gray-100 resize-none overflow-y-auto rounded-r-xl"
+                    className="flex-1 px-3 py-2 border-0 focus:outline-none focus:ring-0 disabled:bg-gray-100 resize-none overflow-y-auto"
+                    rows={1}
+                    style={{ minHeight: `${BASE_INPUT_HEIGHT}px`, height: `${textareaHeight}px`, maxHeight: "160px", whiteSpace: "pre-wrap" }}
                   />
                 </div>
                 <Button

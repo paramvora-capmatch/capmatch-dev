@@ -120,7 +120,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                     className={cn(
                       "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
                       rightTab === "team"
-                        ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm transform scale-105 border border-blue-200/50"
+                        ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm border border-blue-200/50"
                         : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
                     )}
                     aria-pressed={rightTab === "team"}
@@ -133,7 +133,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                     className={cn(
                       "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
                       rightTab === "ai"
-                        ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm transform scale-105 border border-blue-200/50"
+                        ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm border border-blue-200/50"
                         : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
                     )}
                     aria-pressed={rightTab === "ai"}

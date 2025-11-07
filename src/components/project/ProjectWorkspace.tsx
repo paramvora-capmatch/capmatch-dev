@@ -341,11 +341,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         <div className="flex-1 relative z-[1]">
           {/* Content with padding */}
           <div className="relative p-6">
-      {borrowerEditing ? (
-        <div className="space-y-6">
-          {renderBorrowerDocumentsSection()}
-          {renderBorrowerResumeSection()}
-        </div>
+            {borrowerEditing ? (
+              <div className="space-y-6">
+                {renderBorrowerDocumentsSection()}
+                {renderBorrowerResumeSection()}
+              </div>
             ) : (
               <div className="space-y-6">
                 {/* Project Title */}
@@ -364,7 +364,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       setActiveFieldId(null);
                       setChatTab("team");
                       setShouldExpandChat(false);
-                    setBorrowerEditing(true);
+                      setBorrowerEditing(true);
                     }}
                     borrowerProgress={borrowerProgress}
                   />
@@ -392,7 +392,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     <Button
                       variant="outline"
                       onClick={() => router.push(`/project/om/${projectId}`)}
-                      className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10"
+                      className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10 whitespace-nowrap flex-shrink-0"
                     >
                       <FileSpreadsheet className="mr-2 h-5 w-5" />
                       View OM

@@ -371,7 +371,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     } finally {
       setTimeout(() => setFormSaved(false), 2000);
     }
-  }, [formData, onComplete, save, computeCompletionPercent, onProgressChange, projectId]);
+  }, [formData, onComplete, save, computeCompletionPercent, onProgressChange]);
 
   // Principals removed from new schema - these functions are no-ops
   const handleAddPrincipal = useCallback(async () => {

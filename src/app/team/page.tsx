@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
@@ -10,14 +11,15 @@ import { Button } from "@/components/ui/Button";
 import { InviteMemberModal } from "@/components/team/InviteMemberModal";
 import { EditMemberPermissionsModal } from "@/components/team/EditMemberPermissionsModal";
 import { SplashScreen } from "@/components/ui/SplashScreen";
-import { TeamBreadcrumb } from "@/components/team/TeamBreadcrumb";
 import { MemberView } from "@/components/team/MemberView";
 import { OwnerView } from "@/components/team/OwnerView";
 import { OrgMemberRole } from "@/types/enhanced-types";
 import { ProjectGrant, OrgGrant, OrgMember } from "@/types/enhanced-types";
 import { supabase } from "../../../lib/supabaseClient";
+import { ArrowLeft } from "lucide-react";
 
 export default function TeamPage() {
+  const router = useRouter();
   const { user, activeOrg, currentOrgRole } = useAuth();
   const {
     members,
@@ -43,6 +45,26 @@ export default function TeamPage() {
   // Get current user's member information
   const currentUserMember = members.find((m) => m.user_id === user?.id);
   const isMember = currentOrgRole === "member";
+
+  const breadcrumb = (
+    <nav className="flex items-center space-x-2 text-base mb-2">
+      <button
+        onClick={() => router.push("/dashboard")}
+        className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md mr-2 transition-colors"
+        aria-label="Go back to Dashboard"
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </button>
+      <button
+        onClick={() => router.push("/dashboard")}
+        className="text-gray-500 hover:text-gray-700 font-medium"
+      >
+        Dashboard
+      </button>
+      <span className="text-gray-400">/</span>
+      <span className="text-gray-800 font-semibold">Team Management</span>
+    </nav>
+  );
 
   useEffect(() => {
     if (activeOrg) {
@@ -156,115 +178,119 @@ export default function TeamPage() {
     }
   };
 
-  if (!activeOrg) {
-    return (
-      <RoleBasedRoute roles={["borrower"]}>
-        <DashboardLayout breadcrumb={<TeamBreadcrumb />}>
+  return (
+    <RoleBasedRoute roles={["borrower"]}>
+      <DashboardLayout breadcrumb={breadcrumb} mainClassName="flex-1 overflow-auto">
+        {isLoading && <SplashScreen />}
+
+        {!activeOrg ? (
           <div className="text-center py-8">
             <p className="text-gray-500">
               No active org found. Please contact support.
             </p>
           </div>
-        </DashboardLayout>
-      </RoleBasedRoute>
-    );
-  }
-
-  return (
-    <RoleBasedRoute roles={["borrower"]}>
-      <DashboardLayout breadcrumb={<TeamBreadcrumb />}>
-        {isLoading && <SplashScreen />}
-
-        {/* Decorative Background Layer (mirrors dashboard) */}
-        <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
-          {/* Subtle grid pattern */}
-          <div className="pointer-events-none absolute inset-0 opacity-[0.5]">
-            <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
-              <defs>
-                <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                  <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-            </svg>
-          </div>
-
-          {/* Main content with X padding and top gap */}
-          <div className="relative z-[1] mx-auto px-3 sm:px-5 lg:px-32 pt-20 pb-6">
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-                <div className="flex justify-between items-center">
-                  <p className="text-red-800">{error}</p>
-                  <Button variant="outline" size="sm" onClick={clearError}>
-                    Dismiss
-                  </Button>
-                </div>
+        ) : (
+          <>
+            {/* Decorative Background Layer (mirrors dashboard) */}
+            <div className="relative min-h-full">
+              {/* Subtle grid pattern */}
+              <div className="pointer-events-none absolute inset-0 opacity-[0.5]">
+                <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
+                  <defs>
+                    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#grid)" />
+                </svg>
               </div>
-            )}
 
-            {isMember ? (
-              <MemberView
-                currentUserMember={currentUserMember}
-                userName={user?.name}
-                userEmail={user?.email}
-                currentOrgRole={currentOrgRole}
-                orgName={activeOrg.name}
-              />
-            ) : (
-              <OwnerView
-                orgName={activeOrg.name}
-                members={members}
-                pendingInvites={pendingInvites}
-                isOwner={isOwner}
-                currentUserId={user?.id}
-                onInviteClick={() => setShowInviteModal(true)}
-                onCancelInvite={handleCancelInvite}
-                onRemoveMember={handleRemoveMember}
-                onEditPermissions={handleEditPermissions}
-                editingMemberId={editingMemberId}
-                editedName={editedName}
-                isSavingName={isSavingName}
-                onStartEditName={handleStartEditName}
-                onCancelEditName={handleCancelEditName}
-                onSaveName={handleSaveName}
-                onNameChange={setEditedName}
-              />
-            )}
+              {/* Main content with X padding and top gap */}
+              <div className="relative z-[1] px-4 sm:px-6 lg:px-14 pt-20 pb-6">
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                    <div className="flex justify-between items-center">
+                      <p className="text-red-800">{error}</p>
+                      <Button variant="outline" size="sm" onClick={clearError}>
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-            {/* Modals */}
-            {showInviteModal && (
-              <InviteMemberModal
-                isOpen={showInviteModal}
-                onClose={() => setShowInviteModal(false)}
-                onInvite={handleInviteMember}
-              />
-            )}
+                {isMember ? (
+                  <MemberView
+                    currentUserMember={currentUserMember}
+                    userName={user?.name}
+                    userEmail={user?.email}
+                    currentOrgRole={currentOrgRole}
+                    orgName={activeOrg.name}
+                    editingMemberId={editingMemberId}
+                    editedName={editedName}
+                    isSavingName={isSavingName}
+                    onStartEditName={handleStartEditName}
+                    onCancelEditName={handleCancelEditName}
+                    onSaveName={handleSaveName}
+                    onNameChange={setEditedName}
+                  />
+                ) : (
+                  <OwnerView
+                    orgName={activeOrg.name}
+                    members={members}
+                    pendingInvites={pendingInvites}
+                    isOwner={isOwner}
+                    currentUserId={user?.id}
+                    onInviteClick={() => setShowInviteModal(true)}
+                    onCancelInvite={handleCancelInvite}
+                    onRemoveMember={handleRemoveMember}
+                    onEditPermissions={handleEditPermissions}
+                    editingMemberId={editingMemberId}
+                    editedName={editedName}
+                    isSavingName={isSavingName}
+                    onStartEditName={handleStartEditName}
+                    onCancelEditName={handleCancelEditName}
+                    onSaveName={handleSaveName}
+                    onNameChange={setEditedName}
+                  />
+                )}
 
-            {showEditPermissionsModal && selectedMember && activeOrg && (
-              <EditMemberPermissionsModal
-                isOpen={showEditPermissionsModal}
-                onClose={() => {
-                  setShowEditPermissionsModal(false);
-                  setSelectedMember(null);
-                }}
-                member={selectedMember}
-                orgId={activeOrg.id}
-                onUpdate={handleUpdatePermissions}
-              />
-            )}
-          </div>
-        </div>
+                {/* Modals */}
+                {showInviteModal && (
+                  <InviteMemberModal
+                    isOpen={showInviteModal}
+                    onClose={() => setShowInviteModal(false)}
+                    onInvite={handleInviteMember}
+                  />
+                )}
 
-        {/* Local styles for subtle animations */}
-        <style jsx>{`
-          @keyframes fadeUp {
-            0% { opacity: 0; transform: translateY(16px); }
-            100% { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fade-up {
-            animation: fadeUp 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
-          }
-        `}</style>
+                {showEditPermissionsModal && selectedMember && (
+                  <EditMemberPermissionsModal
+                    isOpen={showEditPermissionsModal}
+                    onClose={() => {
+                      setShowEditPermissionsModal(false);
+                      setSelectedMember(null);
+                    }}
+                    member={selectedMember}
+                    orgId={activeOrg.id}
+                    onUpdate={handleUpdatePermissions}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Local styles for subtle animations */}
+            <style jsx>{`
+              @keyframes fadeUp {
+                0% { opacity: 0; transform: translateY(16px); }
+                100% { opacity: 1; transform: translateY(0); }
+              }
+              .animate-fade-up {
+                animation: fadeUp 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+              }
+            `}</style>
+          </>
+        )}
+
       </DashboardLayout>
     </RoleBasedRoute>
   );
