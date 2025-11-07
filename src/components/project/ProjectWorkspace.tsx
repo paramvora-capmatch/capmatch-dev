@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
@@ -16,23 +16,50 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { AskAIProvider } from "../ui/AskAIProvider";
 import { StickyChatCard } from "@/components/chat/StickyChatCard";
 import { DocumentManager } from "../documents/DocumentManager";
+import { BorrowerResumeForm } from "../forms/BorrowerResumeForm";
+import { BorrowerResumeView } from "../forms/BorrowerResumeView";
 import { useAskAI } from "@/hooks/useAskAI";
+import { useProjectBorrowerResume } from "@/hooks/useProjectBorrowerResume";
+import { Modal } from "../ui/Modal";
+import { Select } from "../ui/Select";
+import { supabase } from "../../../lib/supabaseClient";
+import { BorrowerResumeContent } from "@/lib/project-queries";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 interface ProjectWorkspaceProps {
   projectId: string;
+  isBorrowerEditing?: boolean;
+  onBorrowerEditingChange?: (value: boolean) => void;
 }
 
 export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   projectId,
+  isBorrowerEditing,
+  onBorrowerEditingChange,
 }) => {
   const router = useRouter();
   const {
+    projects,
     activeProject,
     setActiveProject,
     isLoading: projectsLoading,
     getProject,
   } = useProjects();
+  const templateOptions = useMemo(
+    () =>
+      projects
+        .filter(
+          (proj) =>
+            proj.id !== projectId &&
+            proj.owner_org_id === activeProject?.owner_org_id
+        )
+        .map((proj) => ({
+          value: proj.id,
+          label: proj.projectName || "Untitled Project",
+        })),
+    [projects, projectId, activeProject?.owner_org_id]
+  );
+  const searchParams = useSearchParams();
   const { loadOrg, isOwner } = useOrgStore();
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.isLoading);
@@ -41,6 +68,26 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   const [chatTab, setChatTab] = useState<"team" | "ai">("team");
   const [shouldExpandChat, setShouldExpandChat] = useState(false);
+  const [internalBorrowerEditing, setInternalBorrowerEditing] = useState(false);
+  const borrowerEditing = isBorrowerEditing ?? internalBorrowerEditing;
+  const setBorrowerEditing = useCallback(
+    (value: boolean) => {
+      onBorrowerEditingChange?.(value);
+      if (isBorrowerEditing === undefined) {
+        setInternalBorrowerEditing(value);
+      }
+    },
+    [isBorrowerEditing, onBorrowerEditingChange]
+  );
+  const [borrowerProgress, setBorrowerProgress] = useState(0);
+  const [borrowerResumeSnapshot, setBorrowerResumeSnapshot] = useState<
+    Partial<BorrowerResumeContent> | null
+  >(null);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [copySourceProjectId, setCopySourceProjectId] = useState<string>("");
+  const [isCopyingBorrower, setIsCopyingBorrower] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [borrowerDocsRefreshKey, setBorrowerDocsRefreshKey] = useState(0);
 
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
@@ -61,10 +108,44 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     contextType: 'project',
   });
 
+  const {
+    content: borrowerResumeData,
+    isLoading: borrowerResumeLoading,
+    reload: reloadBorrowerResume,
+  } = useProjectBorrowerResume(projectId);
+
   // Calculate if we're still in initial loading phase
   const isInitialLoading =
     authLoading ||
     projectsLoading;
+
+  useEffect(() => {
+    const percent = Math.round(
+      (borrowerResumeData?.completenessPercent as number | undefined) ?? 0
+    );
+    setBorrowerProgress(percent);
+    setBorrowerResumeSnapshot(borrowerResumeData || null);
+  }, [borrowerResumeData]);
+
+  useEffect(() => {
+    const step = searchParams?.get("step");
+    if (!step) return;
+
+    if (step === "borrower") {
+      setBorrowerEditing(true);
+      setIsEditing(false);
+    } else if (step === "project") {
+      setIsEditing(true);
+      setBorrowerEditing(false);
+    } else if (step === "documents") {
+      setIsEditing(false);
+      setBorrowerEditing(false);
+      const documentsSection = document.getElementById("project-documents-section");
+      if (documentsSection) {
+        documentsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  }, [searchParams, setBorrowerEditing]);
 
   // Load org data when we have a project
   useEffect(() => {
@@ -133,7 +214,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }
 
   const projectCompleteness = activeProject?.completenessPercent || 0;
-  const isProjectComplete = projectCompleteness === 100; // Check if project is complete
+  const combinedCompletion = Math.round(
+    (projectCompleteness + borrowerProgress) / 2
+  );
+  const isProjectComplete = combinedCompletion === 100; // Check if project is complete
+
+  const projectForProgress = activeProject
+    ? {
+        ...activeProject,
+        completenessPercent: combinedCompletion,
+        borrowerProgress,
+      }
+    : null;
 
   const handleMentionClick = (resourceId: string) => {
     setPreviewingResourceId(resourceId); // Open the preview modal
@@ -144,6 +236,86 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       setHighlightedResourceId(null);
     }, 3000);
   };
+
+  const handleCopyBorrowerProfile = async () => {
+    if (!copySourceProjectId) {
+      setCopyError("Select a project to copy from");
+      return;
+    }
+
+    setIsCopyingBorrower(true);
+    setCopyError(null);
+    try {
+      const { error } = await supabase.functions.invoke(
+        "copy-borrower-profile",
+        {
+          body: {
+            source_project_id: copySourceProjectId,
+            target_project_id: projectId,
+          },
+        }
+      );
+
+      if (error) {
+        throw new Error(error.message || "Failed to copy borrower profile");
+      }
+
+      await reloadBorrowerResume();
+      setBorrowerDocsRefreshKey((prev) => prev + 1);
+        setCopyModalOpen(false);
+        setCopySourceProjectId("");
+        setBorrowerEditing(false);
+    } catch (err) {
+      setCopyError(
+        err instanceof Error
+          ? err.message
+          : "Failed to copy borrower resume"
+      );
+    } finally {
+      setIsCopyingBorrower(false);
+    }
+  };
+
+  const renderBorrowerDocumentsSection = () => (
+    <DocumentManager
+      key={`borrower-docs-${borrowerDocsRefreshKey}`}
+      projectId={projectId}
+      resourceId="BORROWER_ROOT"
+      title="Borrower Documents"
+      canUpload={true}
+      canDelete={true}
+      context="borrower"
+    />
+  );
+
+  const renderBorrowerResumeSection = () => (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <BorrowerResumeForm
+          projectId={projectId}
+          progressPercent={borrowerProgress}
+          onProgressChange={(percent) => setBorrowerProgress(percent)}
+          onFormDataChange={(data) => setBorrowerResumeSnapshot(data)}
+          onComplete={(profile) => {
+            setBorrowerResumeSnapshot(profile || null);
+            void reloadBorrowerResume();
+            setBorrowerEditing(false);
+          }}
+          onAskAI={(fieldId) => {
+            setActiveFieldId(fieldId);
+            void askAi.activateField(fieldId, { autoSend: true });
+            setChatTab("ai");
+            setShouldExpandChat(true);
+            setTimeout(() => setShouldExpandChat(false), 100);
+          }}
+          onCopyBorrowerResume={() => {
+            setCopyError(null);
+            setCopyModalOpen(true);
+          }}
+          copyDisabled={templateOptions.length === 0 || isCopyingBorrower}
+          copyLoading={isCopyingBorrower}
+        />
+    </div>
+  );
 
   return (
     <div className="relative min-h-screen w-full flex flex-row animate-fadeIn">
@@ -169,95 +341,111 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         <div className="flex-1 relative z-[1]">
           {/* Content with padding */}
           <div className="relative p-6">
-            <div className="space-y-6">
-            {/* Project Title */}
-            <h1 className="text-3xl font-bold text-gray-900 mb-5">
-              {activeProject?.projectName || "Project"}
-            </h1>
-            
-            {/* Project Progress Card */}
-            <div className="relative">
-              <ProjectSummaryCard
-                project={activeProject}
-                isLoading={projectsLoading}
-                onEdit={() => setIsEditing(true)}
-              />
-            </div>
+      {borrowerEditing ? (
+        <div className="space-y-6">
+          {renderBorrowerDocumentsSection()}
+          {renderBorrowerResumeSection()}
+        </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Project Title */}
+                <h1 className="text-3xl font-bold text-gray-900 mb-5">
+                  {activeProject?.projectName || "Project"}
+                </h1>
 
-            {/* Section for OM Link - Only show if project is complete */}
-            {isProjectComplete && (
-              <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border border-emerald-200 rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group animate-fadeInUp">
-                {/* Animated background pattern */}
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-green-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                {/* Success pulse effect */}
-                <div className="absolute -inset-1 bg-gradient-to-r from-emerald-200 to-green-200 rounded-lg blur-sm opacity-30 group-hover:opacity-50 transition-opacity duration-300 animate-pulse" />
-
-                <div className="relative z-10">
-                  <h3 className="text-base font-semibold text-emerald-800 flex items-center">
-                    <span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse"></span>
-                    Project Ready!
-                  </h3>
-                  <p className="text-sm text-emerald-700">
-                    This project profile is complete. You can view the generated
-                    Offering Memorandum.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push(`/project/om/${projectId}`)}
-                  className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10"
-                >
-                  <FileSpreadsheet className="mr-2 h-5 w-5" />
-                  View OM
-                </Button>
-              </div>
-            )}
-
-            {/* Document Manager (single card; remove outer wrapper) */}
-            <DocumentManager
-              projectId={projectId}
-              resourceId="PROJECT_ROOT"
-              title="Project Documents"
-              canUpload={true}
-              canDelete={true}
-              highlightedResourceId={highlightedResourceId}
-              context="project"
-            />
-
-            {/* Project completion progress (same width as documents/resume card) */}
-            <ProjectCompletionCard
-              project={activeProject}
-              isLoading={projectsLoading}
-              onEdit={() => setIsEditing(true)}
-            />
-
-            {/* Project Resume (View or Edit) */}
-            {isEditing ? (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-4">
-                  <EnhancedProjectForm
-                    existingProject={activeProject}
-                    onComplete={() => setIsEditing(false)} // Close form on complete
-                    onAskAI={(fieldId) => {
-                      setActiveFieldId(fieldId);
-                      void askAi.activateField(fieldId, { autoSend: true });
-                      setChatTab("ai");
-                      setShouldExpandChat(true); // Expand chat if minimized
-                      // Reset after a brief moment to allow the effect to trigger
-                      setTimeout(() => setShouldExpandChat(false), 100);
+                {/* Project Progress Card */}
+                <div className="relative">
+                  <ProjectSummaryCard
+                    project={projectForProgress}
+                    isLoading={projectsLoading}
+                    onEdit={() => setIsEditing(true)}
+                    onBorrowerClick={() => {
+                      setIsEditing(false);
+                      setActiveFieldId(null);
+                      setChatTab("team");
+                      setShouldExpandChat(false);
+                    setBorrowerEditing(true);
                     }}
-                    onFormDataChange={setCurrentFormData}
+                    borrowerProgress={borrowerProgress}
                   />
                 </div>
+
+                {/* Section for OM Link - Only show if project is complete */}
+                {isProjectComplete && (
+                  <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border border-emerald-200 rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group animate-fadeInUp">
+                    {/* Animated background pattern */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-green-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                    {/* Success pulse effect */}
+                    <div className="absolute -inset-1 bg-gradient-to-r from-emerald-200 to-green-200 rounded-lg blur-sm opacity-30 group-hover:opacity-50 transition-opacity duration-300 animate-pulse" />
+
+                    <div className="relative z-10">
+                      <h3 className="text-base font-semibold text-emerald-800 flex items-center">
+                        <span className="w-2 h-2 bg-emerald-400 rounded-full mr-2 animate-pulse"></span>
+                        Project Ready!
+                      </h3>
+                      <p className="text-sm text-emerald-700">
+                        This project profile is complete. You can view the generated
+                        Offering Memorandum.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(`/project/om/${projectId}`)}
+                      className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10"
+                    >
+                      <FileSpreadsheet className="mr-2 h-5 w-5" />
+                      View OM
+                    </Button>
+                  </div>
+                )}
+
+                {/* Project Documents */}
+                <div id="project-documents-section">
+                  <DocumentManager
+                    projectId={projectId}
+                    resourceId="PROJECT_ROOT"
+                    title="Project Documents"
+                    canUpload={true}
+                    canDelete={true}
+                    highlightedResourceId={highlightedResourceId}
+                    context="project"
+                  />
+                </div>
+
+                {/* Project completion progress */}
+                <ProjectCompletionCard
+                  project={projectForProgress}
+                  isLoading={projectsLoading}
+                  onEdit={() => setIsEditing(true)}
+                />
+
+                {/* Project Resume (View or Edit) */}
+                {isEditing ? (
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="p-4">
+                      <EnhancedProjectForm
+                        existingProject={activeProject}
+                        onComplete={() => setIsEditing(false)}
+                        onAskAI={(fieldId) => {
+                          setActiveFieldId(fieldId);
+                          void askAi.activateField(fieldId, { autoSend: true });
+                          setChatTab("ai");
+                          setShouldExpandChat(true);
+                          setTimeout(() => setShouldExpandChat(false), 100);
+                        }}
+                        onFormDataChange={setCurrentFormData}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <ProjectResumeView
+                    project={activeProject}
+                    onEdit={() => setIsEditing(true)}
+                  />
+                )}
               </div>
-            ) : (
-              <ProjectResumeView
-                project={activeProject}
-                onEdit={() => setIsEditing(true)}
-              />
             )}
-            </div>
           </div>
         </div>
 
@@ -286,6 +474,52 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           }}
         />
       )}
+      <Modal
+        isOpen={copyModalOpen}
+        onClose={() => {
+          if (!isCopyingBorrower) {
+            setCopyModalOpen(false);
+            setCopyError(null);
+          }
+        }}
+        title="Copy Borrower Profile"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Copy borrower resume details and documents from an existing project. This will replace the current borrower resume and documents.
+          </p>
+          <Select
+            options={templateOptions}
+            value={copySourceProjectId}
+            onChange={(event) => setCopySourceProjectId(event.target.value)}
+            placeholder={templateOptions.length ? "Select a project" : "No other projects available"}
+            disabled={templateOptions.length === 0 || isCopyingBorrower}
+          />
+          {copyError && (
+            <p className="text-sm text-red-600">{copyError}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!isCopyingBorrower) {
+                  setCopyModalOpen(false);
+                  setCopyError(null);
+                }
+              }}
+              disabled={isCopyingBorrower}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCopyBorrowerProfile}
+              disabled={!copySourceProjectId || isCopyingBorrower}
+            >
+              {isCopyingBorrower ? "Copying..." : "Copy Profile"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -211,13 +211,19 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					// If completenessPercent is already loaded from DB, use it
 					// Otherwise calculate it (for backwards compatibility with old data)
 					const calculated = get().calculateProgress(p);
+					const projectProgressValue =
+						p.completenessPercent ?? calculated.totalProgress;
+					const borrowerProgressValue =
+						p.borrowerProgress ?? calculated.borrowerProgress;
 					return {
 						...p,
 						// Use stored value if available, otherwise use calculated
-						completenessPercent: p.completenessPercent ?? calculated.totalProgress,
-						borrowerProgress: calculated.borrowerProgress,
-						projectProgress: calculated.projectProgress,
-						totalProgress: calculated.totalProgress,
+						completenessPercent: projectProgressValue,
+						borrowerProgress: borrowerProgressValue,
+						projectProgress: projectProgressValue,
+						totalProgress: Math.round(
+							(projectProgressValue + borrowerProgressValue) / 2
+						),
 					};
 				});
 

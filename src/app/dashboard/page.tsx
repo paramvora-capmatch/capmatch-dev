@@ -4,15 +4,76 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
-import { useBorrowerResume } from "../../hooks/useBorrowerResume";
 import { useAuth } from "../../hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { LoadingOverlay } from "../../components/ui/LoadingOverlay";
-import { ProfileSummaryCard } from "../../components/project/ProfileSummaryCard"; // Import Profile Summary
 import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import Project Card
 import {
   PlusCircle,
 } from "lucide-react";
+import { Button } from "../../components/ui/Button";
+import { ProjectProfile } from "@/types/enhanced-types";
+
+interface OnboardingProgressCardProps {
+  project: ProjectProfile | null;
+  progress: number;
+  onOpenProject: () => void;
+  onCreateProject: () => Promise<void> | void;
+}
+
+const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
+  project,
+  progress,
+  onOpenProject,
+  onCreateProject,
+}) => {
+  const hasProject = Boolean(project);
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="p-6 space-y-4">
+        {hasProject ? (
+          <>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Overall completion</p>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {project?.projectName || "Project"}
+                </h3>
+              </div>
+              <span className="text-lg font-semibold text-gray-800">
+                {progress}%
+              </span>
+            </div>
+            <div className="h-3 w-full bg-gray-200 rounded-md overflow-hidden">
+              <div
+                className="h-full bg-blue-600 transition-all duration-700 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-sm text-gray-600">
+              Finish both the project details and borrower resume to reach 100% and unlock your offering memorandum.
+            </p>
+            <div className="flex justify-end">
+              <Button onClick={onOpenProject}>Continue Project</Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Create your first project
+            </h3>
+            <p className="text-sm text-gray-600">
+              Start a new project to begin sharing borrower and deal details with your advisor.
+            </p>
+            <div className="flex justify-end">
+              <Button onClick={onCreateProject}>Create Project</Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -22,13 +83,21 @@ export default function DashboardPage() {
     createProject,
     isLoading: projectsLoading,
   } = useProjects();
-  const { content: borrowerResume, isLoading: profileLoading } = useBorrowerResume();
 
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
-  const combinedLoading = authLoading || projectsLoading || profileLoading;
+  const combinedLoading = authLoading || projectsLoading;
+
+  const primaryProject = projects[0] || null;
+  const primaryCombined = primaryProject
+    ? Math.round(
+        ((primaryProject.completenessPercent ?? 0) +
+          (primaryProject.borrowerProgress ?? 0)) /
+          2
+      )
+    : 0;
 
   // Control Flow Logic & Loading
   useEffect(() => {
@@ -51,7 +120,6 @@ export default function DashboardPage() {
     projects,
     loginSource,
     router,
-    borrowerResume,
     initialLoadComplete,
     combinedLoading,
   ]);
@@ -111,19 +179,25 @@ export default function DashboardPage() {
 
             <div className="relative p-6 sm:p-8 lg:p-10">
               <div className="space-y-10">
-            {/* Borrower Resume Section */}
+            {/* Onboarding Guidance */}
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                 <div className="space-y-1">
-                  <h2 className="text-2xl font-bold text-gray-800">Borrower Resume</h2>
-                  <p className="text-gray-600">Your professional profile used across all projects.</p>
+                  <h2 className="text-2xl font-bold text-gray-800">Getting Started</h2>
+                  <p className="text-gray-600">Complete your first project to unlock lender-ready materials.</p>
                 </div>
               </div>
 
               <div className="relative">
-                <ProfileSummaryCard
-                  profile={borrowerResume}
-                  isLoading={profileLoading}
+                <OnboardingProgressCard
+                  project={primaryProject}
+                  progress={primaryCombined}
+                  onOpenProject={() => {
+                    if (primaryProject) {
+                      router.push(`/project/workspace/${primaryProject.id}`);
+                    }
+                  }}
+                  onCreateProject={handleCreateNewProject}
                 />
               </div>
             </div>

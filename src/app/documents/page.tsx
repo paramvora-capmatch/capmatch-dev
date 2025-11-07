@@ -5,34 +5,51 @@ import React from "react";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import { useAuth } from '@/hooks/useAuth';
-import { DocumentManager } from "@/components/documents/DocumentManager";
+import { useProjects } from '@/hooks/useProjects';
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Button } from "../../components/ui/Button";
 
 export default function DocumentsPage() {
-	const { user, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
+  const { projects } = useProjects();
+  const primaryProject = projects[0] || null;
 
-	return (
-		<RoleBasedRoute roles={["borrower"]}>
-			<DashboardLayout title="My Documents">
-				{isLoading || !user ? (
-					<div className="flex justify-center items-center h-64">
-						<Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-					</div>
-				) : (
-					<>
-						<div className="mb-6 p-4 bg-white rounded shadow-sm border">
-							<p className="text-gray-600">
-								Manage documents related to you as a borrower, such as Personal Financial Statements (PFS), Schedule of Real Estate Owned (SREO), and entity documents. These documents can be used across multiple projects.
-							</p>
-						</div>
-						<DocumentManager
-							projectId={null}
-							resourceId="BORROWER_ROOT"
-							title="General Borrower Documents"
-						/>
-					</>
-				)}
-			</DashboardLayout>
-		</RoleBasedRoute>
-	);
+  return (
+    <RoleBasedRoute roles={["borrower"]}>
+      <DashboardLayout title="My Documents">
+        {isLoading || !user ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          </div>
+        ) : (
+          <div className="max-w-3xl space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-6 space-y-4">
+                <h2 className="text-xl font-semibold text-gray-800">Borrower Documents Are Now Project-Specific</h2>
+                <p className="text-sm text-gray-600">
+                  Each project contains its own borrower documents and resume. Manage your files from the project workspace to keep everything organized for lender reviews.
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  {primaryProject ? (
+                    <Button
+                      onClick={() => {
+                        window.location.href = `/project/workspace/${primaryProject.id}?step=documents`;
+                      }}
+                    >
+                      Go to Current Project
+                    </Button>
+                  ) : (
+                    <Link href="/dashboard" className="text-sm font-medium text-blue-600 hover:underline">
+                      Create a project to start uploading documents
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </DashboardLayout>
+    </RoleBasedRoute>
+  );
 }

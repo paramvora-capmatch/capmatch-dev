@@ -38,7 +38,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     pathname && (
       pathname.startsWith("/project/") || 
       pathname.startsWith("/advisor/project/") ||
-      pathname.startsWith("/dashboard/borrower-resume") ||
       pathname === "/dashboard"
     )
   );

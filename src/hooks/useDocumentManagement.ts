@@ -25,11 +25,24 @@ export interface DocumentFolder {
   children?: (DocumentFile | DocumentFolder)[];
 }
 
-export const useDocumentManagement = (
-  projectId: string | null,
-  folderId?: string | null,
-  orgId?: string | null // Optional: allows querying a different org's documents (e.g., for advisors viewing borrower docs)
-) => {
+const STORAGE_SUBDIR: Record<'project' | 'borrower', string> = {
+  project: 'project-docs',
+  borrower: 'borrower-docs',
+};
+
+interface UseDocumentManagementOptions {
+  projectId: string | null;
+  folderId?: string | null;
+  orgId?: string | null;
+  context?: 'project' | 'borrower';
+}
+
+export const useDocumentManagement = ({
+  projectId,
+  folderId = null,
+  orgId,
+  context = 'project',
+}: UseDocumentManagementOptions) => {
   const [files, setFiles] = useState<DocumentFile[]>([]);
   const [folders, setFolders] = useState<DocumentFolder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,65 +60,52 @@ export const useDocumentManagement = (
     try {
       let parentId;
 
-      if (projectId) {
-        // Get the project docs root resource
-        const { data: root, error } = await supabase
-          .from("resources")
-          .select("id")
-          .eq("project_id", projectId)
-          .eq("resource_type", "PROJECT_DOCS_ROOT")
-          .maybeSingle();
-        if (error) {
-          throw new Error(`Failed to find PROJECT_DOCS_ROOT: ${error.message || JSON.stringify(error)}`);
-        }
-        if (!root || !root.id) {
-          // This could be either a missing resource OR an RLS permissions issue
-          // Provide a helpful error message
-          throw new Error(
-            `PROJECT_DOCS_ROOT not found for project ${projectId}. ` +
-            `This could mean: (1) The resource was not created during project creation, or ` +
-            `(2) You don't have permissions to view it. ` +
-            `Please ensure you have 'view' or 'edit' permissions on the PROJECT_DOCS_ROOT resource.`
-          );
-        }
-        parentId = folderId || root.id;
-      } else {
-        // For org-level documents, use BORROWER_DOCS_ROOT
-        console.log('[DocumentManagement] Looking for BORROWER_DOCS_ROOT for org:', targetOrgId);
-        const { data: root, error } = await supabase
-          .from("resources")
-          .select("id")
-          .eq("org_id", targetOrgId)
-          .eq("resource_type", "BORROWER_DOCS_ROOT")
-          .maybeSingle();
-        
-        console.log('[DocumentManagement] BORROWER_DOCS_ROOT query result:', { root, error });
-        
-        if (error) {
-          throw new Error(`Failed to query BORROWER_DOCS_ROOT: ${error.message || JSON.stringify(error)}`);
-        }
-        if (!root) {
-          throw new Error(`BORROWER_DOCS_ROOT not found for org ${targetOrgId}. This should have been created during onboarding.`);
-        }
-        if (!root.id) {
-          throw new Error(`BORROWER_DOCS_ROOT exists but has no ID for org ${targetOrgId}`);
-        }
-        parentId = folderId || root.id;
+      if (!projectId) {
+        throw new Error(
+          "Project context is required for document management operations."
+        );
       }
+
+      const rootResourceType =
+        context === "borrower" ? "BORROWER_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
+
+      const { data: root, error } = await supabase
+        .from("resources")
+        .select("id")
+        .eq("project_id", projectId)
+        .eq("resource_type", rootResourceType)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(
+          `Failed to find ${rootResourceType}: ${
+            error.message || JSON.stringify(error)
+          }`
+        );
+      }
+
+      if (!root || !root.id) {
+        throw new Error(
+          `${rootResourceType} not found for project ${projectId}. ` +
+            `This could indicate a provisioning issue or missing permissions.`
+        );
+      }
+
+      parentId = folderId || root.id;
 
       console.log('[DocumentManagement] Using parent ID:', parentId);
 
       // First, get all resources (files and folders)
-      const { data: resources, error } = await supabase
+      const { data: resources, error: resourcesError } = await supabase
         .from("resources")
         .select("*")
         .eq("parent_id", parentId)
         .in("resource_type", ["FOLDER", "FILE"])
         .order("name");
 
-      if (error) {
-        console.error('[DocumentManagement] Resources query error:', error);
-        throw new Error(`Failed to fetch resources: ${error.message || JSON.stringify(error)}`);
+      if (resourcesError) {
+        console.error('[DocumentManagement] Resources query error:', resourcesError);
+        throw new Error(`Failed to fetch resources: ${resourcesError.message || JSON.stringify(resourcesError)}`);
       }
       
       console.log('[DocumentManagement] Resources fetched:', resources?.length || 0);
@@ -194,7 +194,7 @@ export const useDocumentManagement = (
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, folderId, targetOrgId, activeOrg?.id]);
+  }, [projectId, folderId, targetOrgId, activeOrg?.id, context]);
 
   const uploadFile = useCallback(
     async (file: File, folderId?: string) => {
@@ -205,29 +205,26 @@ export const useDocumentManagement = (
       let finalStoragePath: string | null = null;
 
       try {
-        let parentId;
-        if (projectId) {
-          const { data: root, error } = await supabase
-            .from("resources")
-            .select("id")
-            .eq("project_id", projectId)
-            .eq("resource_type", "PROJECT_DOCS_ROOT")
-            .maybeSingle();
-          if (error) throw error;
-          if (!root || !root.id) {
-            throw new Error(`PROJECT_DOCS_ROOT not found for project ${projectId}`);
-          }
-          parentId = folderId || root.id;
-        } else {
-          const { data: root, error } = await supabase
-            .from("resources")
-            .select("id")
-            .eq("org_id", targetOrgId)
-            .eq("resource_type", "BORROWER_DOCS_ROOT")
-            .single();
-          if (error) throw error;
-          parentId = folderId || root.id;
+        if (!projectId) {
+          throw new Error("Project context required for file uploads");
         }
+
+        const rootResourceType =
+          context === "borrower" ? "BORROWER_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
+
+        const { data: root, error: rootError } = await supabase
+          .from("resources")
+          .select("id")
+          .eq("project_id", projectId)
+          .eq("resource_type", rootResourceType)
+          .maybeSingle();
+
+        if (rootError) throw rootError;
+        if (!root?.id) {
+          throw new Error(`${rootResourceType} not found for project ${projectId}`);
+        }
+
+        const parentId = folderId || root.id;
 
         const { data: resource, error: resourceError } = await supabase
           .from("resources")
@@ -270,9 +267,7 @@ export const useDocumentManagement = (
           throw statusError;
         }
 
-        const fileFolder = projectId
-          ? `${projectId}/${resourceId}`
-          : `borrower_docs/${resourceId}`;
+        const fileFolder = `${projectId}/${STORAGE_SUBDIR[context]}/${resourceId}`;
         finalStoragePath = `${fileFolder}/v${version.version_number}_${file.name}`;
 
         const { error: uploadError } = await supabase.storage
@@ -326,7 +321,7 @@ export const useDocumentManagement = (
         setIsLoading(false);
       }
     },
-    [projectId, targetOrgId, user, listDocuments, activeOrg?.id]
+    [projectId, targetOrgId, user, listDocuments, activeOrg?.id, context]
   );
 
   const createFolder = useCallback(
@@ -336,29 +331,24 @@ export const useDocumentManagement = (
       setIsLoading(true);
       setError(null);
       try {
-        let parentId;
-        if (projectId) {
-          const { data: root, error } = await supabase
-            .from("resources")
-            .select("id")
-            .eq("project_id", projectId)
-            .eq("resource_type", "PROJECT_DOCS_ROOT")
-            .maybeSingle();
-          if (error) throw error;
-          if (!root || !root.id) {
-            throw new Error(`PROJECT_DOCS_ROOT not found for project ${projectId}`);
-          }
-          parentId = parentFolderId || root.id;
-        } else {
-          const { data: root, error } = await supabase
-            .from("resources")
-            .select("id")
-            .eq("org_id", targetOrgId)
-            .eq("resource_type", "BORROWER_DOCS_ROOT")
-            .single();
-          if (error) throw error;
-          parentId = parentFolderId || root.id;
+        if (!projectId) {
+          throw new Error("Project context required for folder creation");
         }
+
+        const rootResourceType =
+          context === "borrower" ? "BORROWER_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
+
+        const { data: root, error: rootError } = await supabase
+          .from("resources")
+          .select("id")
+          .eq("project_id", projectId)
+          .eq("resource_type", rootResourceType)
+          .maybeSingle();
+        if (rootError) throw rootError;
+        if (!root?.id) {
+          throw new Error(`${rootResourceType} not found for project ${projectId}`);
+        }
+        const parentId = parentFolderId || root.id;
 
         const { data, error } = await supabase
           .from("resources")
@@ -385,31 +375,23 @@ export const useDocumentManagement = (
         setIsLoading(false);
       }
     },
-    [projectId, targetOrgId, listDocuments]
+    [projectId, targetOrgId, listDocuments, context]
   );
 
   const deleteFile = useCallback(
     async (fileId: string) => {
       if (!targetOrgId) return;
       try {
-        const { data: resource } = await supabase
-          .from("resources")
-          .select("project_id")
-          .eq("id", fileId)
-          .single();
-        if (!resource) throw new Error("Resource not found");
+        const { data: versions, error: versionsError } = await supabase
+          .from("document_versions")
+          .select("storage_path")
+          .eq("resource_id", fileId);
+        if (versionsError) throw versionsError;
 
-        const folderToDelete = resource.project_id
-          ? `${resource.project_id}/${fileId}`
-          : `borrower_docs/${fileId}`;
-        const { data: filesInFolder, error: listError } = await supabase.storage
-          .from(targetOrgId)
-          .list(folderToDelete);
-        if (listError) throw listError;
+        const filePaths = (versions || [])
+          .map((v) => v.storage_path)
+          .filter((path): path is string => Boolean(path));
 
-        const filePaths = filesInFolder.map(
-          (f) => `${folderToDelete}/${f.name}`
-        );
         if (filePaths.length > 0) {
           const { error: removeError } = await supabase.storage
             .from(targetOrgId)

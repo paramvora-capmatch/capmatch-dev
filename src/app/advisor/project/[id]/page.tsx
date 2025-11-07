@@ -779,8 +779,8 @@ export default function AdvisorProjectDetailPage() {
                         <DocumentManager
                           resourceId="BORROWER_ROOT"
                           title="General Borrower Documents"
-                          projectId={null}
-                          orgId={project.owner_org_id as string | null}
+                          projectId={project.id}
+                          context="borrower"
                         />
                       )}
                     </div>
@@ -793,7 +793,7 @@ export default function AdvisorProjectDetailPage() {
                           Borrower Resume
                         </h2>
                         {project && (
-                          <BorrowerResumeForm orgId={project.owner_org_id as string} />
+                          <BorrowerResumeForm projectId={project.id} />
                         )}
                       </div>
                     </div>

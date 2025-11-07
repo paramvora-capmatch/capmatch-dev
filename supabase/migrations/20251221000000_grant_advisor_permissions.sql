@@ -121,64 +121,35 @@ BEGIN
         END IF;
     END IF;
     
-    -- Find or create BORROWER_RESUME resource for the project's owner org
-    SELECT id INTO v_borrower_resume_resource_id
-    FROM public.resources
-    WHERE org_id = v_project.owner_org_id
-      AND resource_type = 'BORROWER_RESUME'
-      AND project_id IS NULL
-    LIMIT 1;
-    
-    IF v_borrower_resume_resource_id IS NULL THEN
-        -- Create BORROWER_RESUME resource if it doesn't exist
-        INSERT INTO public.resources (org_id, resource_type, name)
-        VALUES (v_project.owner_org_id, 'BORROWER_RESUME', 'Borrower Resume')
-        RETURNING id INTO v_borrower_resume_resource_id;
-        RAISE NOTICE 'Created BORROWER_RESUME resource for org %', v_project.owner_org_id;
-    END IF;
-    
-    -- Grant permission on BORROWER_RESUME
-    SELECT * INTO v_existing_permission
-    FROM public.permissions
-    WHERE resource_id = v_borrower_resume_resource_id
-      AND user_id = p_advisor_id;
-    
-    IF v_existing_permission IS NULL THEN
-        -- Grant 'edit' permission on BORROWER_RESUME (advisors have owner-level permissions)
-        INSERT INTO public.permissions (resource_id, user_id, permission, granted_by)
-        VALUES (
-            v_borrower_resume_resource_id,
-            p_advisor_id,
-            'edit',
-            COALESCE(p_granted_by_id, p_advisor_id)
-        );
-        RAISE NOTICE 'Granted edit permission on BORROWER_RESUME to advisor %', p_advisor_id;
-    END IF;
-    
-    -- Find or create BORROWER_DOCS_ROOT resource for the project's owner org
-    SELECT id INTO v_borrower_docs_root_resource_id
-    FROM public.resources
-    WHERE org_id = v_project.owner_org_id
-      AND resource_type = 'BORROWER_DOCS_ROOT'
-      AND project_id IS NULL
-    LIMIT 1;
-    
-    IF v_borrower_docs_root_resource_id IS NULL THEN
-        -- Create BORROWER_DOCS_ROOT resource if it doesn't exist
-        INSERT INTO public.resources (org_id, resource_type, name)
-        VALUES (v_project.owner_org_id, 'BORROWER_DOCS_ROOT', 'Borrower Documents')
-        RETURNING id INTO v_borrower_docs_root_resource_id;
-        RAISE NOTICE 'Created BORROWER_DOCS_ROOT resource for org %', v_project.owner_org_id;
-    END IF;
-    
-    -- Grant permission on BORROWER_DOCS_ROOT
-    SELECT * INTO v_existing_permission
-    FROM public.permissions
-    WHERE resource_id = v_borrower_docs_root_resource_id
-      AND user_id = p_advisor_id;
-    
+    SELECT borrower_resume_resource_id, borrower_docs_root_resource_id
+    INTO v_borrower_resume_resource_id, v_borrower_docs_root_resource_id
+    FROM public.ensure_project_borrower_roots(p_project_id);
+
+    IF v_borrower_resume_resource_id IS NOT NULL THEN
+        SELECT * INTO v_existing_permission
+        FROM public.permissions
+        WHERE resource_id = v_borrower_resume_resource_id
+          AND user_id = p_advisor_id;
+
         IF v_existing_permission IS NULL THEN
-            -- Grant 'edit' permission on BORROWER_DOCS_ROOT (advisors have owner-level permissions)
+            INSERT INTO public.permissions (resource_id, user_id, permission, granted_by)
+            VALUES (
+                v_borrower_resume_resource_id,
+                p_advisor_id,
+                'edit',
+                COALESCE(p_granted_by_id, p_advisor_id)
+            );
+            RAISE NOTICE 'Granted edit permission on BORROWER_RESUME to advisor %', p_advisor_id;
+        END IF;
+    END IF;
+
+    IF v_borrower_docs_root_resource_id IS NOT NULL THEN
+        SELECT * INTO v_existing_permission
+        FROM public.permissions
+        WHERE resource_id = v_borrower_docs_root_resource_id
+          AND user_id = p_advisor_id;
+
+        IF v_existing_permission IS NULL THEN
             INSERT INTO public.permissions (resource_id, user_id, permission, granted_by)
             VALUES (
                 v_borrower_docs_root_resource_id,
@@ -188,7 +159,8 @@ BEGIN
             );
             RAISE NOTICE 'Granted edit permission on BORROWER_DOCS_ROOT to advisor %', p_advisor_id;
         END IF;
-    
+    END IF;
+
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

@@ -140,6 +140,21 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
 
   const resumeContent: ProjectResumeContent = resume?.content || {};
 
+  const { data: borrowerResume, error: borrowerResumeError } = await supabase
+    .from('borrower_resumes')
+    .select('content')
+    .eq('project_id', projectId)
+    .maybeSingle();
+
+  if (borrowerResumeError && borrowerResumeError.code !== 'PGRST116') {
+    throw new Error(`Failed to fetch borrower resume: ${borrowerResumeError.message}`);
+  }
+
+  const borrowerResumeContent: BorrowerResumeContent = borrowerResume?.content || {};
+  const borrowerProgress = Math.round(
+    (borrowerResumeContent.completenessPercent as number | undefined) ?? 0
+  );
+
   // Combine core project fields with resume content
   return {
     // Core project fields (from projects table)
@@ -182,10 +197,10 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
     // completenessPercent, borrowerProgress, and projectProgress are calculated by calculateProgress()
     completenessPercent: 0,
     internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
-    borrowerProgress: 0,
+    borrowerProgress,
     projectProgress: 0,
     projectSections: resumeContent.projectSections || {},
-    borrowerSections: resumeContent.borrowerSections || {},
+    borrowerSections: borrowerResumeContent || {},
   };
 };
 
@@ -216,15 +231,33 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
     throw new Error(`Failed to fetch project resumes: ${resumesError.message}`);
   }
 
+  const { data: borrowerResumes, error: borrowerResumesError } = await supabase
+    .from('borrower_resumes')
+    .select('project_id, content')
+    .in('project_id', projectIds);
+
+  if (borrowerResumesError) {
+    throw new Error(`Failed to fetch borrower resumes: ${borrowerResumesError.message}`);
+  }
+
   // Create a map of resume content by project ID
   const resumeMap = new Map<string, ProjectResumeContent>();
   resumes?.forEach((resume: any) => {
     resumeMap.set(resume.project_id, resume.content || {});
   });
 
+  const borrowerResumeMap = new Map<string, BorrowerResumeContent>();
+  borrowerResumes?.forEach((resume: any) => {
+    borrowerResumeMap.set(resume.project_id, resume.content || {});
+  });
+
   // Combine projects with their resume content
   return projects?.map((project: any) => {
     const resumeContent = resumeMap.get(project.id) || {} as ProjectResumeContent;
+    const borrowerResumeContent = borrowerResumeMap.get(project.id) || {} as BorrowerResumeContent;
+    const borrowerProgress = Math.round(
+      (borrowerResumeContent.completenessPercent as number | undefined) ?? 0
+    );
     
     return {
       // Core project fields
@@ -267,10 +300,10 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       // Load completenessPercent from DB, fallback to 0 if not stored
       completenessPercent: resumeContent.completenessPercent ?? 0,
       internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
-      borrowerProgress: 0,
+      borrowerProgress,
       projectProgress: 0,
       projectSections: resumeContent.projectSections || {},
-      borrowerSections: resumeContent.borrowerSections || {},
+      borrowerSections: borrowerResumeContent || {},
       
       // Legacy field
       borrowerProfileId: undefined,
@@ -336,46 +369,37 @@ export const saveProjectResume = async (
  * Loads borrower resume content from the JSONB column.
  * This provides a type-safe way to fetch borrower details.
  */
-export const getBorrowerResume = async (
-  orgId: string
+export const getProjectBorrowerResume = async (
+  projectId: string
 ): Promise<BorrowerResumeContent | null> => {
   const { data, error } = await supabase
     .from('borrower_resumes')
     .select('content')
-    .eq('org_id', orgId)
-    .single();
+    .eq('project_id', projectId)
+    .maybeSingle();
 
-  if (error) {
-    if (error.code === 'PGRST116') {
-      // No row found
-      return null;
-    }
+  if (error && error.code !== 'PGRST116') {
     throw new Error(`Failed to load borrower resume: ${error.message}`);
   }
 
   return data?.content || null;
 };
 
-/**
- * Saves borrower resume content to the JSONB column.
- * This provides a type-safe way to update borrower details.
- */
-export const saveBorrowerResume = async (
-  orgId: string, 
+export const saveProjectBorrowerResume = async (
+  projectId: string,
   content: Partial<BorrowerResumeContent>
 ): Promise<void> => {
-  // Fetch existing content to avoid overwriting fields that were not provided
-  const existing = await getBorrowerResume(orgId);
+  const existing = await getProjectBorrowerResume(projectId);
   const mergedContent = { ...(existing || {}), ...content } as any;
 
   const { error } = await supabase
     .from('borrower_resumes')
     .upsert(
-      { 
-        org_id: orgId, 
-        content: mergedContent // Merge to preserve existing JSONB fields
-      }, 
-      { onConflict: 'org_id' }
+      {
+        project_id: projectId,
+        content: mergedContent,
+      },
+      { onConflict: 'project_id' }
     );
 
   if (error) {

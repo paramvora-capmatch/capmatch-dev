@@ -101,6 +101,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     context,
   });
 
+  const inferredContext: "project" | "borrower" =
+    context || (projectId ? "project" : "borrower");
+
   const {
     files,
     folders,
@@ -111,9 +114,14 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     deleteFolder,
     downloadFile,
     refresh,
-  } = useDocumentManagement(projectId, actualResourceId, orgId);
+  } = useDocumentManagement({
+    projectId,
+    folderId: actualResourceId,
+    orgId,
+    context: inferredContext,
+  });
 
-  const { user, activeOrg, currentOrgRole } = useAuthStore();
+  const { activeOrg, currentOrgRole } = useAuthStore();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [previewingResourceId, setPreviewingResourceId] = useState<
@@ -131,50 +139,42 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   
   React.useEffect(() => {
     const fetchDocsRoot = async () => {
-      if (projectId) {
-        // For projects, fetch PROJECT_DOCS_ROOT
-        try {
-          const { data: root, error } = await supabase
-            .from("resources")
-            .select("id")
-            .eq("project_id", projectId)
-            .eq("resource_type", "PROJECT_DOCS_ROOT")
-            .maybeSingle();
-          if (error) {
-            console.error("[DocumentManager] Error fetching PROJECT_DOCS_ROOT:", error);
-            return;
-          }
-          setDocsRootId(root?.id || null);
-        } catch (err) {
-          console.error("[DocumentManager] Error in fetchDocsRoot:", err);
-        }
-      } else {
-        // For borrower docs, fetch BORROWER_DOCS_ROOT
-        // Use provided orgId if available, otherwise fall back to activeOrg
-        const targetOrgId = orgId || activeOrg?.id;
-        if (targetOrgId) {
-          try {
-            const { data: root, error } = await supabase
-              .from("resources")
-              .select("id")
-              .eq("org_id", targetOrgId)
-              .eq("resource_type", "BORROWER_DOCS_ROOT")
-              .maybeSingle();
-            if (error) {
-              console.error("[DocumentManager] Error fetching BORROWER_DOCS_ROOT:", error);
-              return;
-            }
-            setDocsRootId(root?.id || null);
-          } catch (err) {
-            console.error("[DocumentManager] Error in fetchDocsRoot:", err);
-          }
-        } else {
+      if (!projectId) {
+        setDocsRootId(null);
+        return;
+      }
+
+      const rootResourceType =
+        inferredContext === "borrower"
+          ? "BORROWER_DOCS_ROOT"
+          : "PROJECT_DOCS_ROOT";
+
+      try {
+        const { data: root, error } = await supabase
+          .from("resources")
+          .select("id")
+          .eq("project_id", projectId)
+          .eq("resource_type", rootResourceType)
+          .maybeSingle();
+
+        if (error) {
+          console.error(
+            `[DocumentManager] Error fetching ${rootResourceType}:`,
+            error
+          );
           setDocsRootId(null);
+          return;
         }
+
+        setDocsRootId(root?.id || null);
+      } catch (err) {
+        console.error("[DocumentManager] Error in fetchDocsRoot:", err);
+        setDocsRootId(null);
       }
     };
+
     fetchDocsRoot();
-  }, [projectId, activeOrg, orgId]);
+  }, [projectId, inferredContext]);
 
   // Use docsRootId for permissions check when viewing project root or borrower root
   const resourceIdForPermissions = actualResourceId || docsRootId;
@@ -331,7 +331,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   // Gate root-level actions (upload/create folder)
   // Borrower docs (context === 'borrower'): Owners always edit; Members depend on BORROWER_DOCS_ROOT permission
   // Project docs: rely on resource permission as before
-  const inferredContext: "project" | "borrower" = context || (projectId ? "project" : "borrower");
   const isBorrowerDocs = inferredContext === 'borrower';
   const isOwner = currentOrgRole === 'owner';
   const canEdit = isBorrowerDocs ? (isOwner || canEditRoot) : canEditRoot;
