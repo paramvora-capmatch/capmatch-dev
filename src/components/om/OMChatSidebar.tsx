@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/Button';
-import { MessageSquare, Send, ChevronDown, PanelRightClose } from 'lucide-react';
+import { MessageSquare, Send, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { OmQaSchema } from '@/types/om-types';
 import { z } from 'zod';
+import { cn } from '@/utils/cn';
 
 interface OMChatSidebarProps {
   setIsChatOpen: (isOpen: boolean) => void;
@@ -95,31 +96,32 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen }) =
   const assumptionsId = React.useId();
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm h-full flex flex-col">
+    <div className="flex flex-col h-full rounded-2xl shadow-lg overflow-hidden border border-gray-200 bg-white/70 backdrop-blur-xl">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-            <div className='flex items-center'>
-                <div className="p-2 bg-blue-50 rounded-lg">
-                    <MessageSquare className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="ml-3">
-                    <h3 className="font-semibold text-gray-800">Talk to the OM</h3>
-                </div>
-            </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsChatOpen(false)}
-            className="text-gray-500 hover:text-gray-800"
-          >
-            <PanelRightClose className="h-5 w-5" />
-          </Button>
+      <div className="flex items-center justify-between border-b border-gray-200/70 bg-white/60 px-2 py-1">
+        <div className="flex-1 flex items-center justify-center px-3 py-2">
+          <div className="flex items-center space-x-2">
+            <MessageSquare size={16} className="text-blue-600" />
+            <span className="text-sm font-medium text-gray-900">Talk to the OM</span>
+          </div>
         </div>
+        <button
+          type="button"
+          aria-label="Close chat"
+          aria-expanded={true}
+          onClick={() => setIsChatOpen(false)}
+          className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          title="Close chat"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" className="rotate-180">
+            <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" />
+          </svg>
+        </button>
       </div>
 
       {/* Chat Content Area */}
-      <div className="flex-grow overflow-y-auto p-4">
+      <div className="flex-1 p-0 min-h-0 overflow-hidden bg-transparent">
+        <div className="h-full bg-transparent py-4 overflow-y-auto px-4">
         {/* Welcome Message */}
         {messages.length === 0 && !isLoading && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
@@ -242,10 +244,11 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen }) =
             <p className="text-sm text-red-600">{error.message}</p>
           </div>
         )}
+        </div>
       </div>
 
       {/* Input Field at Bottom */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200/70 bg-white/60">
         <form onSubmit={askQuestion} className="space-y-3">
           <div className="relative">
             <textarea

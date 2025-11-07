@@ -1,5 +1,5 @@
 // src/components/dashboard/ProjectCard.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/Button";
@@ -48,6 +48,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const { isOwner, currentOrg, members: orgMembers, loadOrg, isLoading: orgLoading } = useOrgStore();
   const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const completeness = project.completenessPercent || 0;
   const isComplete = completeness === 100;
@@ -194,6 +196,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     fetchProjectMembers();
   }, [isOwner, currentOrg, project.id, project.owner_org_id, project.assignedAdvisorUserId, orgMembers, orgLoading, disableOrgLoading]);
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
   // Format date helper (could be moved to utils)
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
@@ -258,7 +277,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         <CardContent className="p-6 flex flex-col flex-grow">
           <div className="flex justify-between items-start mb-4 gap-2">
             <h3
-              className="text-2xl font-bold text-gray-800 truncate mr-3 group-hover:text-blue-800 transition-colors duration-200"
+              className="text-2xl font-bold text-gray-800 truncate mr-3"
               title={project.projectName || "Unnamed Project"}
             >
               {project.projectName || "Unnamed Project"}
@@ -270,18 +289,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             </h3>
             <div className="flex items-center space-x-2 flex-shrink-0">
               {showDeleteButton && (
-                <div className="relative">
-                  <details className="group">
-                    <summary 
-                      className="list-none cursor-pointer inline-flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </summary>
+                <div className="relative" ref={menuRef}>
+                  <button
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMenuOpen(!isMenuOpen);
+                    }}
+                    aria-label="More options"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                  {isMenuOpen && (
                     <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-md shadow-lg z-20">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          setIsMenuOpen(false);
                           handleDelete();
                         }}
                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center transition-colors"
@@ -290,7 +314,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                         Delete Project
                       </button>
                     </div>
-                  </details>
+                  )}
                 </div>
               )}
             </div>
