@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "seed:demo": "tsx scripts/seed-demo-data.ts",
-    "seed:cleanup": "tsx scripts/seed-demo-data.ts cleanup"
+    "seed:cleanup": "tsx scripts/seed-demo-data.ts cleanup",
+    "seed:prod": "tsx scripts/seed-production.ts",
+    "seed:prod:cleanup": "tsx scripts/seed-production.ts cleanup"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.4",

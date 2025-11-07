@@ -65,14 +65,14 @@ export const ProjectCompletionCard: React.FC<ProjectCompletionCardProps> = ({
                 }
               }}
               className={[
-                "px-3 py-1.5 rounded-md border transition w-28 inline-flex items-center justify-center whitespace-nowrap gap-1.5 text-sm font-medium",
-                isOmReady
-                  ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-700 text-white shadow"
+                "inline-flex items-center justify-center whitespace-nowrap gap-2 rounded-lg border px-6 py-3 text-base font-medium transition-all duration-300 relative z-10 shadow-sm",
+                isProjectComplete
+                  ? "bg-white border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 hover:shadow-md hover:scale-105"
                   : "bg-emerald-100 text-emerald-700 border-emerald-200 cursor-not-allowed opacity-70",
               ].join(" ")}
             >
-              <FileText className="h-4 w-4 mr-1.5" />
-              View OM
+              <FileText className="mr-2 h-5 w-5" />
+              <span className="whitespace-nowrap">View OM</span>
             </button>
           </div>
         </div>
