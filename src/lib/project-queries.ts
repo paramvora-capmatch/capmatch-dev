@@ -48,7 +48,9 @@ export interface ProjectResumeContent {
   marketOverviewSummary?: string;
   equityCommittedPercent?: number;
   
-  // Note: completenessPercent, borrowerProgress, and projectProgress are calculated on-the-fly, not stored
+  // Progress tracking (stored in JSONB, similar to borrower resume)
+  completenessPercent?: number;
+  
   internalAdvisorNotes?: string;
   
   // Legacy fields for compatibility
@@ -262,8 +264,8 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       businessPlanSummary: resumeContent.businessPlanSummary || "",
       marketOverviewSummary: resumeContent.marketOverviewSummary || "",
       equityCommittedPercent: resumeContent.equityCommittedPercent,
-      // completenessPercent, borrowerProgress, and projectProgress are calculated by calculateProgress()
-      completenessPercent: 0,
+      // Load completenessPercent from DB, fallback to 0 if not stored
+      completenessPercent: resumeContent.completenessPercent ?? 0,
       internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
       borrowerProgress: 0,
       projectProgress: 0,

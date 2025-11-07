@@ -233,7 +233,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         aria-hidden
         className="pointer-events-none absolute -inset-x-3 bottom-3 h-8 rounded-2xl bg-blue-400/40 blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-70 -z-10"
       />
-      <Card className="h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5">
+      <Card 
+        className="h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5 cursor-pointer"
+        onClick={() => {
+          if (primaryCtaHref) {
+            router.push(primaryCtaHref);
+          } else {
+            router.push(`/project/workspace/${project.id}`);
+          }
+        }}
+      >
         {/* Completion status indicator bar */}
         <div className="h-1 bg-gray-100">
           <div
@@ -263,12 +272,18 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               {showDeleteButton && (
                 <div className="relative">
                   <details className="group">
-                    <summary className="list-none cursor-pointer inline-flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100">
+                    <summary 
+                      className="list-none cursor-pointer inline-flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <MoreVertical className="h-4 w-4" />
                     </summary>
                     <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-md shadow-lg z-20">
                       <button
-                        onClick={handleDelete}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete();
+                        }}
                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center transition-colors"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
@@ -361,14 +376,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           <div className="space-y-3 flex-shrink-0">
             {isComplete && (
               <Button
-                variant="outline"
+                variant="primary"
                 fullWidth
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   router.push(`/project/om/${project.id}`);
                 }}
-                className="border-gray-200 hover:border-green-300 hover:bg-green-50/70 hover:text-green-700 font-medium"
+                className="bg-green-600 hover:bg-green-700 text-white font-medium"
               >
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 View OM
@@ -381,6 +396,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               size="sm"
               rightIcon={<ChevronRight size={16} />}
               onClick={(e) => {
+                e.stopPropagation();
                 if (onPrimaryCtaClick) {
                   onPrimaryCtaClick(e);
                   return;

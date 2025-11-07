@@ -61,7 +61,8 @@ const projectProfileToResumeContent = (
 		businessPlanSummary: "businessPlanSummary",
 		marketOverviewSummary: "marketOverviewSummary",
 		equityCommittedPercent: "equityCommittedPercent",
-		// Note: completenessPercent, borrowerProgress, and projectProgress are calculated on-the-fly, not stored
+		// Store completenessPercent in JSONB (similar to borrower resume)
+		completenessPercent: "completenessPercent",
 		internalAdvisorNotes: "internalAdvisorNotes",
 	};
 	for (const key in profileData) {
@@ -205,10 +206,20 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					};
 				});
 
-				const projectsWithProgress = projectsWithResources.map((p) => ({
-					...p,
-					...get().calculateProgress(p),
-				}));
+				// Use stored completenessPercent from DB, with calculateProgress as fallback/validation
+				const projectsWithProgress = projectsWithResources.map((p) => {
+					// If completenessPercent is already loaded from DB, use it
+					// Otherwise calculate it (for backwards compatibility with old data)
+					const calculated = get().calculateProgress(p);
+					return {
+						...p,
+						// Use stored value if available, otherwise use calculated
+						completenessPercent: p.completenessPercent ?? calculated.totalProgress,
+						borrowerProgress: calculated.borrowerProgress,
+						projectProgress: calculated.projectProgress,
+						totalProgress: calculated.totalProgress,
+					};
+				});
 
 				set({ projects: projectsWithProgress, isLoading: false });
 			} catch (error) {
@@ -327,10 +338,29 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				...projectData,
 			};
 
+			const progressResult = get().calculateProgress(newProjectData);
 			const finalProject = {
 				...newProjectData,
-				...get().calculateProgress(newProjectData),
+				...progressResult,
 			};
+
+			// Save initial completenessPercent (0) to project_resumes.content JSONB
+			try {
+				const resumeContent = {
+					...projectProfileToResumeContent(newProjectData),
+					completenessPercent: progressResult.totalProgress,
+				};
+				await supabase.functions.invoke('update-project', {
+					body: {
+						project_id: data.project.id,
+						core_updates: {},
+						resume_updates: resumeContent,
+					},
+				});
+			} catch (error) {
+				console.warn('[ProjectStore] Failed to save initial completenessPercent:', error);
+				// Non-fatal - project is created, just progress not saved
+			}
 
 			set((state) => ({ projects: [...state.projects, finalProject] }));
 			return finalProject;
@@ -346,9 +376,14 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				...updates,
 				updatedAt: now,
 			};
+			
+			// Calculate progress (similar to borrower resume form)
+			const progressResult = get().calculateProgress(updatedData);
+			const completenessPercent = progressResult.totalProgress;
+			
 			const finalUpdatedProject = {
 				...updatedData,
-				...get().calculateProgress(updatedData),
+				...progressResult,
 			};
 
 			// Optimistic UI update
@@ -365,7 +400,11 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			try {
 				// Delegate update to edge function so RLS and permissions are enforced server-side
 				const coreUpdates = projectProfileToDbProject(updates);
-				const resumeContent = projectProfileToResumeContent(updates);
+				// Include completenessPercent in resume content to save to DB
+				const resumeContent = {
+					...projectProfileToResumeContent(updates),
+					completenessPercent,
+				};
 
 				const { error } = await supabase.functions.invoke('update-project', {
 					body: {

@@ -7,6 +7,45 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve } from 'path';
 import { demoBorrowerResume, completeProjectResume, partialProjectResume } from '../lib/mockData';
+import { ProjectResumeContent } from '../src/lib/project-queries';
+
+/**
+ * Calculate project completion percentage based on required fields.
+ * This matches the logic in useProjectStore.calculateProgress()
+ */
+function calculateProjectProgress(resume: ProjectResumeContent): number {
+  const requiredFields: (keyof ProjectResumeContent)[] = [
+    'projectName',
+    'propertyAddressStreet',
+    'propertyAddressCity',
+    'propertyAddressState',
+    'propertyAddressZip',
+    'assetType',
+    'projectDescription',
+    'projectPhase',
+    'loanAmountRequested',
+    'loanType',
+    'targetLtvPercent',
+    'targetCloseDate',
+    'useOfProceeds',
+    'recoursePreference',
+    'exitStrategy',
+    'businessPlanSummary',
+  ];
+
+  let filledCount = 0;
+  requiredFields.forEach((field) => {
+    const value = resume[field];
+    if (value !== null && value !== undefined && String(value).trim() !== '') {
+      if (typeof value === 'number' && value === 0) return; // Don't count default 0
+      filledCount++;
+    }
+  });
+
+  return requiredFields.length > 0
+    ? Math.round((filledCount / requiredFields.length) * 100)
+    : 0;
+}
 
 // Load environment variables from .env.local (for local development)
 config({ path: resolve(process.cwd(), '.env.local') });
@@ -52,18 +91,82 @@ async function callOnboardBorrower(
   fullName: string
 ): Promise<OnboardResponse> {
   try {
+    console.log(`[onboard-borrower] Calling edge function for ${email}...`);
     const { data, error } = await supabaseAdmin.functions.invoke('onboard-borrower', {
       body: { email, password, full_name: fullName },
     });
 
+    // Log the full response for debugging
+    console.log(`[onboard-borrower] Response for ${email}:`, { data, error });
+
     if (error) {
-      console.error(`[onboard-borrower] Error for ${email}:`, error);
-      return { error: error.message || String(error) };
+      console.error(`[onboard-borrower] Error object for ${email}:`, JSON.stringify(error, null, 2));
+      
+      // Try to read the response body from the error context
+      let actualErrorMessage = error.message || String(error);
+      
+      // Check if error has a context with a Response object
+      if (error && typeof error === 'object' && 'context' in error) {
+        const context = (error as any).context;
+        if (context && context instanceof Response) {
+          try {
+            const responseBody = await context.text();
+            console.log(`[onboard-borrower] Response body:`, responseBody);
+            try {
+              const parsedBody = JSON.parse(responseBody);
+              if (parsedBody && typeof parsedBody === 'object' && 'error' in parsedBody) {
+                actualErrorMessage = parsedBody.error;
+                console.error(`[onboard-borrower] Extracted error from response body:`, actualErrorMessage);
+              }
+            } catch (parseError) {
+              // If JSON parsing fails, use the raw body
+              actualErrorMessage = responseBody || actualErrorMessage;
+            }
+          } catch (readError) {
+            console.warn(`[onboard-borrower] Could not read response body:`, readError);
+          }
+        }
+      }
+      
+      // Check if data contains error details (sometimes error is in data even when error object exists)
+      if (data) {
+        console.log(`[onboard-borrower] Response data (may contain error):`, data);
+        if (typeof data === 'object' && 'error' in data) {
+          const dataError = (data as any).error;
+          console.error(`[onboard-borrower] Response error details:`, dataError);
+          return { error: typeof dataError === 'string' ? dataError : JSON.stringify(dataError) };
+        }
+      }
+      
+      return { error: actualErrorMessage };
     }
 
+    // Check if the response data itself contains an error
+    if (data && typeof data === 'object') {
+      if ('error' in data) {
+        const responseError = (data as any).error;
+        console.error(`[onboard-borrower] Response contains error for ${email}:`, responseError);
+        return { 
+          error: typeof responseError === 'string' 
+            ? responseError 
+            : JSON.stringify(responseError) 
+        };
+      }
+      
+      // Check if we have a user object (success case)
+      if ('user' in data) {
+        return data as OnboardResponse;
+      }
+    }
+
+    // If we get here, the response is unexpected
+    console.warn(`[onboard-borrower] Unexpected response format for ${email}:`, data);
     return data as OnboardResponse;
   } catch (err) {
     console.error(`[onboard-borrower] Exception for ${email}:`, err);
+    if (err instanceof Error) {
+      console.error(`[onboard-borrower] Exception stack:`, err.stack);
+    }
     return { error: err instanceof Error ? err.message : String(err) };
   }
 }
@@ -283,16 +386,23 @@ async function createProject(
 
 async function updateProjectResume(
   projectId: string,
-  resumeContent: typeof completeProjectResume
+  resumeContent: ProjectResumeContent
 ): Promise<boolean> {
   console.log(`[seed] Updating project resume for project: ${projectId}...`);
+
+  // Calculate and include completenessPercent
+  const completenessPercent = calculateProjectProgress(resumeContent);
+  const resumeWithProgress: ProjectResumeContent = {
+    ...resumeContent,
+    completenessPercent,
+  };
 
   const { error } = await supabaseAdmin
     .from('project_resumes')
     .upsert(
       {
         project_id: projectId,
-        content: resumeContent as any,
+        content: resumeWithProgress as any,
       },
       { onConflict: 'project_id' }
     );
@@ -302,7 +412,7 @@ async function updateProjectResume(
     return false;
   }
 
-  console.log(`[seed] ✅ Updated project resume`);
+  console.log(`[seed] ✅ Updated project resume (completeness: ${completenessPercent}%)`);
   return true;
 }
 
@@ -389,6 +499,211 @@ async function deleteDefaultProject(orgId: string): Promise<boolean> {
 
   console.log(`[seed] No default project found (may have been deleted already)`);
   return true;
+}
+
+/**
+ * Cleanup function to delete all demo data created by the seed script.
+ * This allows you to rollback and re-run the seed script cleanly.
+ */
+async function cleanupDemoData() {
+  console.log('🧹 Starting demo data cleanup...\n');
+
+  try {
+    const advisorEmail = 'cody.field@capmatch.com';
+    const borrowerEmail = 'borrower@org.com';
+
+    // Step 1: Find and delete demo projects
+    console.log('📋 Step 1: Deleting demo projects...');
+    const { data: projects } = await supabaseAdmin
+      .from('projects')
+      .select('id, name, owner_org_id')
+      .in('name', ['Downtown Highrise Acquisition', 'Warehouse Development']);
+
+    if (projects && projects.length > 0) {
+      const projectIds = projects.map(p => p.id);
+      
+      // Delete related data first (due to foreign key constraints)
+      await supabaseAdmin.from('project_access_grants').delete().in('project_id', projectIds);
+      await supabaseAdmin.from('permissions').delete().in('resource_id', projectIds);
+      await supabaseAdmin.from('project_resumes').delete().in('project_id', projectIds);
+      await supabaseAdmin.from('chat_threads').delete().in('project_id', projectIds);
+      
+      // Delete resources associated with projects
+      const { data: resources } = await supabaseAdmin
+        .from('resources')
+        .select('id')
+        .in('project_id', projectIds);
+      
+      if (resources && resources.length > 0) {
+        const resourceIds = resources.map(r => r.id);
+        await supabaseAdmin.from('permissions').delete().in('resource_id', resourceIds);
+        await supabaseAdmin.from('resources').delete().in('id', resourceIds);
+      }
+      
+      // Finally delete projects
+      await supabaseAdmin.from('projects').delete().in('id', projectIds);
+      console.log(`[cleanup] ✅ Deleted ${projects.length} demo project(s)`);
+    } else {
+      console.log('[cleanup] No demo projects found');
+    }
+
+    // Step 2: Delete borrower org and user
+    console.log('\n📋 Step 2: Deleting borrower data...');
+    
+    // First, try to find user in auth.users by email
+    let borrowerUserId: string | null = null;
+    let borrowerOrgId: string | null = null;
+    
+    try {
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+      const authUser = authUsers?.users?.find(u => u.email === borrowerEmail);
+      if (authUser) {
+        borrowerUserId = authUser.id;
+        console.log(`[cleanup] Found borrower in auth.users: ${borrowerUserId}`);
+      }
+    } catch (err) {
+      console.warn(`[cleanup] Could not list auth users:`, err);
+    }
+    
+    // Also check profiles table
+    const { data: borrowerProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, active_org_id')
+      .eq('email', borrowerEmail)
+      .maybeSingle();
+
+    if (borrowerProfile) {
+      borrowerUserId = borrowerProfile.id;
+      borrowerOrgId = borrowerProfile.active_org_id;
+      console.log(`[cleanup] Found borrower in profiles: ${borrowerUserId}`);
+    }
+
+    if (borrowerUserId) {
+      // Delete org data if org exists
+      if (borrowerOrgId) {
+        // Delete borrower resume
+        await supabaseAdmin.from('borrower_resumes').delete().eq('org_id', borrowerOrgId);
+        
+        // Delete org members
+        await supabaseAdmin.from('org_members').delete().eq('org_id', borrowerOrgId);
+        
+        // Delete resources associated with org
+        const { data: orgResources } = await supabaseAdmin
+          .from('resources')
+          .select('id')
+          .eq('org_id', borrowerOrgId);
+        
+        if (orgResources && orgResources.length > 0) {
+          const resourceIds = orgResources.map(r => r.id);
+          await supabaseAdmin.from('permissions').delete().in('resource_id', resourceIds);
+          await supabaseAdmin.from('resources').delete().in('id', resourceIds);
+        }
+        
+        // Delete org
+        await supabaseAdmin.from('orgs').delete().eq('id', borrowerOrgId);
+        console.log(`[cleanup] ✅ Deleted borrower org: ${borrowerOrgId}`);
+      }
+      
+      // Delete user from auth.users (this will cascade delete the profile due to FK constraint)
+      const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(borrowerUserId);
+      if (deleteAuthError) {
+        console.error(`[cleanup] Failed to delete borrower from auth.users:`, deleteAuthError);
+        // Fallback: try deleting from profiles if auth delete fails
+        await supabaseAdmin.from('profiles').delete().eq('id', borrowerUserId);
+      } else {
+        console.log(`[cleanup] ✅ Deleted borrower user from auth.users: ${borrowerEmail}`);
+      }
+    } else {
+      console.log('[cleanup] Borrower user not found in auth.users or profiles');
+    }
+
+    // Step 3: Delete advisor org and user
+    console.log('\n📋 Step 3: Deleting advisor data...');
+    
+    // First, try to find user in auth.users by email
+    let advisorUserId: string | null = null;
+    let advisorOrgId: string | null = null;
+    
+    try {
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+      const authUser = authUsers?.users?.find(u => u.email === advisorEmail);
+      if (authUser) {
+        advisorUserId = authUser.id;
+        console.log(`[cleanup] Found advisor in auth.users: ${advisorUserId}`);
+      }
+    } catch (err) {
+      console.warn(`[cleanup] Could not list auth users:`, err);
+    }
+    
+    // Also check profiles table
+    const { data: advisorProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, active_org_id')
+      .eq('email', advisorEmail)
+      .maybeSingle();
+
+    if (advisorProfile) {
+      advisorUserId = advisorProfile.id;
+      advisorOrgId = advisorProfile.active_org_id;
+      console.log(`[cleanup] Found advisor in profiles: ${advisorUserId}`);
+    }
+
+    if (advisorUserId) {
+      // Delete org data if org exists
+      if (advisorOrgId) {
+        // Delete org members
+        await supabaseAdmin.from('org_members').delete().eq('org_id', advisorOrgId);
+        
+        // Delete resources associated with org
+        const { data: orgResources } = await supabaseAdmin
+          .from('resources')
+          .select('id')
+          .eq('org_id', advisorOrgId);
+        
+        if (orgResources && orgResources.length > 0) {
+          const resourceIds = orgResources.map(r => r.id);
+          await supabaseAdmin.from('permissions').delete().in('resource_id', resourceIds);
+          await supabaseAdmin.from('resources').delete().in('id', resourceIds);
+        }
+        
+        // Delete org
+        await supabaseAdmin.from('orgs').delete().eq('id', advisorOrgId);
+        console.log(`[cleanup] ✅ Deleted advisor org: ${advisorOrgId}`);
+      }
+      
+      // Delete user from auth.users (this will cascade delete the profile due to FK constraint)
+      const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(advisorUserId);
+      if (deleteAuthError) {
+        console.error(`[cleanup] Failed to delete advisor from auth.users:`, deleteAuthError);
+        // Fallback: try deleting from profiles if auth delete fails
+        await supabaseAdmin.from('profiles').delete().eq('id', advisorUserId);
+      } else {
+        console.log(`[cleanup] ✅ Deleted advisor user from auth.users: ${advisorEmail}`);
+      }
+    } else {
+      console.log('[cleanup] Advisor user not found in auth.users or profiles');
+    }
+
+    // Step 4: Clean up storage buckets (if they exist)
+    console.log('\n📋 Step 4: Cleaning up storage...');
+    try {
+      // Note: Storage cleanup is optional and may require additional permissions
+      // The buckets will be recreated on next seed run
+      console.log('[cleanup] Storage buckets will be recreated on next seed run');
+    } catch (error) {
+      console.warn('[cleanup] Could not clean up storage (non-fatal):', error);
+    }
+
+    console.log('\n✅ Demo data cleanup completed successfully!');
+    console.log('🌱 You can now run the seed script again for a fresh start.\n');
+  } catch (error) {
+    console.error('\n❌ Cleanup failed:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Stack:', error.stack);
+    }
+    throw error;
+  }
 }
 
 async function seedDemoData() {
@@ -554,16 +869,33 @@ async function seedDemoData() {
 
 // Run the seed script
 if (require.main === module) {
-  seedDemoData()
-    .then(() => {
-      console.log('\n✨ Done!');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Fatal error:', error);
-      process.exit(1);
-    });
+  const args = process.argv.slice(2);
+  const command = args[0];
+
+  if (command === 'cleanup' || command === '--cleanup' || command === '-c') {
+    // Run cleanup
+    cleanupDemoData()
+      .then(() => {
+        console.log('\n✨ Cleanup done!');
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error('Fatal error:', error);
+        process.exit(1);
+      });
+  } else {
+    // Run seed (default)
+    seedDemoData()
+      .then(() => {
+        console.log('\n✨ Done!');
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error('Fatal error:', error);
+        process.exit(1);
+      });
+  }
 }
 
-export { seedDemoData };
+export { seedDemoData, cleanupDemoData };
 
