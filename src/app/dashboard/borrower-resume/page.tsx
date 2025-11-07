@@ -110,9 +110,10 @@ export default function BorrowerResumePage() {
                                     {/* Borrower Resume Completion Summary */}
                                     {(() => {
                                         const completionValue = localCompletion ?? (borrowerContent?.completenessPercent ?? 0);
+                                        const isBorrowerComplete = completionValue >= 100;
                                         const isBorrowerHealthy = completionValue >= 90;
-                                        const progressColor = isBorrowerHealthy ? 'bg-blue-600' : 'bg-red-600';
-                                        const progressBgColor = isBorrowerHealthy ? 'bg-blue-50' : 'bg-red-50';
+                                        const progressColor = isBorrowerComplete ? 'bg-green-600' : (isBorrowerHealthy ? 'bg-blue-600' : 'bg-red-600');
+                                        const progressBgColor = isBorrowerComplete ? 'bg-green-50' : (isBorrowerHealthy ? 'bg-blue-50' : 'bg-red-50');
                                         
                                         return (
                                             <div className="rounded-2xl p-4 bg-white shadow-sm">

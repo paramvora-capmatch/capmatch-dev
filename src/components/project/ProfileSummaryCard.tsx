@@ -33,7 +33,7 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
         progressBgColor: 'bg-yellow-50',
         textColor: 'text-yellow-600',
       };
-    } else if (completeness === 100) {
+    } else if (completeness >= 100) {
       return {
         border: 'border-emerald-300',
         borderWidth: 'border',
