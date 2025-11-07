@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Users, Clock, User } from "lucide-react";
+import { Users, Clock, User, Edit, Check, X } from "lucide-react";
 import { OrgMember } from "@/types/enhanced-types";
 import { formatDate } from "@/utils/dateUtils";
 
@@ -10,6 +10,13 @@ interface MemberViewProps {
   userEmail?: string | null;
   currentOrgRole?: string | null;
   orgName: string;
+  editingMemberId: string | null;
+  editedName: string;
+  isSavingName: boolean;
+  onStartEditName: (member: OrgMember) => void;
+  onCancelEditName: () => void;
+  onSaveName: (memberId: string) => void;
+  onNameChange: (name: string) => void;
 }
 
 export const MemberView: React.FC<MemberViewProps> = ({
@@ -18,7 +25,19 @@ export const MemberView: React.FC<MemberViewProps> = ({
   userEmail,
   currentOrgRole,
   orgName,
+  editingMemberId,
+  editedName,
+  isSavingName,
+  onStartEditName,
+  onCancelEditName,
+  onSaveName,
+  onNameChange,
 }) => {
+  const displayName = currentUserMember?.userName || userName || "Unknown User";
+  const isEditingName = Boolean(
+    currentUserMember && editingMemberId === currentUserMember.user_id
+  );
+
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <Card className="w-full max-w-2xl">
@@ -35,9 +54,61 @@ export const MemberView: React.FC<MemberViewProps> = ({
                 <User className="h-8 w-8 text-blue-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  {currentUserMember?.userName || userName || "Unknown User"}
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <input
+                        type="text"
+                        value={editedName}
+                        onChange={(e) => onNameChange(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && currentUserMember) {
+                            onSaveName(currentUserMember.user_id);
+                          } else if (e.key === "Escape") {
+                            onCancelEditName();
+                          }
+                        }}
+                        className="flex-1 sm:flex-none min-w-[180px] px-3 py-2 text-sm font-medium text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        autoFocus
+                        disabled={isSavingName}
+                      />
+                      <button
+                        onClick={() => currentUserMember && onSaveName(currentUserMember.user_id)}
+                        disabled={isSavingName}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors disabled:opacity-50"
+                        aria-label="Save name"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={onCancelEditName}
+                        disabled={isSavingName}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
+                        aria-label="Cancel editing"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {displayName}
+                      </h3>
+                      {currentUserMember && (
+                        <button
+                          onClick={() => onStartEditName(currentUserMember)}
+                          className="group flex items-center gap-0 px-2 group-hover:px-3 py-1 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden"
+                          aria-label="Edit name"
+                        >
+                          <Edit className="h-3.5 w-3.5 text-gray-600 flex-shrink-0" />
+                          <span className="text-xs font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[80px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+                            Edit Name
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <p className="text-sm text-gray-600 mb-2">
                   {currentUserMember?.userEmail || userEmail}
                 </p>

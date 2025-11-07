@@ -3,7 +3,7 @@
 
 import React, { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { LogOut, Users, Settings } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import Image from "next/image";
@@ -30,19 +30,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   scrollableContent = true,
 }) => {
   const router = useRouter();
-  const pathname = usePathname();
   const { user, logout, isAuthenticated, currentOrgRole, activeOrg } = useAuth();
 
-  // Use wider header padding for project workspaces, dashboard, and borrower resume to match content width
-  const isProjectWorkspace = Boolean(
-    pathname && (
-      pathname.startsWith("/project/") || 
-      pathname.startsWith("/advisor/project/") ||
-      pathname.startsWith("/dashboard/borrower-resume") ||
-      pathname === "/dashboard"
-    )
-  );
-  const headerPaddingClass = isProjectWorkspace ? "px-14" : "px-4 sm:px-6 lg:px-40";
+  // Use wider header padding for all pages to match content width consistently
+  const headerPaddingClass = "px-14";
 
   const handleLogout = async () => {
     try {
