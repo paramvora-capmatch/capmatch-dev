@@ -9,7 +9,8 @@ import {
   OrgMemberRole,
   OrgMember,
 } from "@/types/enhanced-types";
-import { mockProfiles, mockProjects } from "../../lib/mockData";
+// Note: Mock data is now used by seed scripts, not localStorage seeding
+// import { demoBorrowerResume, completeProjectResume, partialProjectResume } from "../../lib/mockData";
 import { Session } from "@supabase/supabase-js"; // Import Session type
 
 interface AuthState {
@@ -464,34 +465,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       if (demoAccounts.includes(email) && password === "password123") {
         console.log(`[Auth] 🎭 Using demo account: ${email}`);
 
-        if (email.startsWith("borrower")) {
-          const profiles =
-            (await storageService.getItem<Record<string, unknown>[]>("borrowerProfiles")) || [];
-          if (!profiles.some((p) => p.userId === email)) {
-            console.log(`[Auth] 🌱 Seeding data for ${email}`);
-            const profileToSeed =
-              mockProfiles[email as keyof typeof mockProfiles];
-            const projectsToSeed =
-              mockProjects[email as keyof typeof mockProjects] || [];
-
-            if (profileToSeed)
-              await storageService.setItem("borrowerProfiles", [
-                ...profiles,
-                profileToSeed,
-              ]);
-
-            const existingProjects =
-              (await storageService.getItem<Record<string, unknown>[]>("projects")) || [];
-            const newProjects = projectsToSeed.filter(
-              (sp) => !existingProjects.some((ep) => ep.id === sp.id)
-            );
-            if (newProjects.length > 0)
-              await storageService.setItem("projects", [
-                ...existingProjects,
-                ...newProjects,
-              ]);
-          }
-        }
+        // Note: Demo data seeding is now handled by Supabase seed scripts, not localStorage
+        // The mockData structure has been updated to match JSONB content types
+        // if (email.startsWith("borrower")) {
+        //   // Legacy localStorage seeding code - no longer used
+        // }
 
         const demoUserIds: { [key: string]: string } = {
           "borrower1@example.com": "00000000-0000-0000-0000-000000000001",

@@ -1,5 +1,5 @@
 // src/components/dashboard/ProjectCard.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/Button";
@@ -48,6 +48,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const { isOwner, currentOrg, members: orgMembers, loadOrg, isLoading: orgLoading } = useOrgStore();
   const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const completeness = project.completenessPercent || 0;
   const isComplete = completeness === 100;
@@ -194,6 +196,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     fetchProjectMembers();
   }, [isOwner, currentOrg, project.id, project.owner_org_id, project.assignedAdvisorUserId, orgMembers, orgLoading, disableOrgLoading]);
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
   // Format date helper (could be moved to utils)
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
@@ -227,15 +246,24 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   };
 
   return (
-    <div className="group relative">
+    <div className="group relative h-full">
       {/* Subtle blue hover shadow under the card */}
       <div
         aria-hidden
         className="pointer-events-none absolute -inset-x-3 bottom-3 h-8 rounded-2xl bg-blue-400/40 blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-70 -z-10"
       />
-      <Card className="h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5">
+      <Card 
+        className="h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5 cursor-pointer min-h-[210px] md:min-h-[250px] lg:min-h-[280px]"
+        onClick={() => {
+          if (primaryCtaHref) {
+            router.push(primaryCtaHref);
+          } else {
+            router.push(`/project/workspace/${project.id}`);
+          }
+        }}
+      >
         {/* Completion status indicator bar */}
-        <div className="h-1 bg-gray-100">
+        <div className="h-2 bg-gray-100">
           <div
             className={`h-full transition-all duration-500 ${
               isComplete
@@ -249,7 +277,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         <CardContent className="p-6 flex flex-col flex-grow">
           <div className="flex justify-between items-start mb-4 gap-2">
             <h3
-              className="text-2xl font-bold text-gray-800 truncate mr-3 group-hover:text-blue-800 transition-colors duration-200"
+              className="text-2xl font-bold text-gray-800 truncate mr-3"
               title={project.projectName || "Unnamed Project"}
             >
               {project.projectName || "Unnamed Project"}
@@ -261,21 +289,32 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             </h3>
             <div className="flex items-center space-x-2 flex-shrink-0">
               {showDeleteButton && (
-                <div className="relative">
-                  <details className="group">
-                    <summary className="list-none cursor-pointer inline-flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100">
-                      <MoreVertical className="h-4 w-4" />
-                    </summary>
+                <div className="relative" ref={menuRef}>
+                  <button
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMenuOpen(!isMenuOpen);
+                    }}
+                    aria-label="More options"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                  {isMenuOpen && (
                     <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-md shadow-lg z-20">
                       <button
-                        onClick={handleDelete}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsMenuOpen(false);
+                          handleDelete();
+                        }}
                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center transition-colors"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete Project
                       </button>
                     </div>
-                  </details>
+                  )}
                 </div>
               )}
             </div>
@@ -283,14 +322,18 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
           <div className="space-y-3 mb-5">
             <div className="flex items-center text-sm text-gray-600">
-              <Building className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0" />
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${isComplete ? 'bg-green-100' : 'bg-blue-100'}`}>
+                <Building className={`h-4 w-4 ${isComplete ? 'text-green-600' : 'text-blue-600'}`} />
+              </div>
               <span className="font-medium">
                 {project.assetType || "Asset Type TBD"}
               </span>
             </div>
 
             <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0" />
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${isComplete ? 'bg-green-100' : 'bg-blue-100'}`}>
+                <Calendar className={`h-4 w-4 ${isComplete ? 'text-green-600' : 'text-blue-600'}`} />
+              </div>
               <span>
                 Updated:{" "}
                 <span className="font-medium">
@@ -302,7 +345,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             {/* Project Members - Only visible to owners */}
             {isProjectOwner && (
               <div className="flex items-start text-sm text-gray-600">
-                <Users className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5 ${isComplete ? 'bg-green-100' : 'bg-blue-100'}`}>
+                  <Users className={`h-4 w-4 ${isComplete ? 'text-green-600' : 'text-blue-600'}`} />
+                </div>
                 <div className="flex-1 min-w-0">
                   {isLoadingMembers ? (
                     <span className="text-gray-400">Loading members...</span>
@@ -350,16 +395,34 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               />
             </div>
 
-            {isComplete && (
+            {isComplete ? (
               <div className="flex items-center justify-center mt-2 text-xs text-green-700 bg-green-50 rounded-md py-1">
                 <CheckCircle className="h-3.5 w-3.5 mr-1" />
                 OM Ready
               </div>
+            ) : (
+              <div className="mt-2 h-6" aria-hidden="true" />
             )}
           </div>
 
           <div className="space-y-3 flex-shrink-0">
-            {isComplete && (
+            {!isComplete ? (
+              <span 
+                className="block w-full" 
+                title="Complete the project to unlock the OM"
+              >
+                <Button
+                  variant="outline"
+                  fullWidth
+                  size="sm"
+                  disabled={true}
+                  className="border-gray-300 text-gray-700 bg-transparent cursor-not-allowed opacity-60 font-medium"
+                >
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  View OM
+                </Button>
+              </span>
+            ) : (
               <Button
                 variant="outline"
                 fullWidth
@@ -368,7 +431,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                   e.stopPropagation();
                   router.push(`/project/om/${project.id}`);
                 }}
-                className="border-gray-200 hover:border-green-300 hover:bg-green-50/70 hover:text-green-700 font-medium"
+                className="bg-green-600 hover:bg-green-700 text-white font-medium border-green-600"
               >
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 View OM
@@ -376,11 +439,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             )}
 
             <Button
-              variant="primary"
+              variant={isComplete ? "outline" : "primary"}
               fullWidth
               size="sm"
               rightIcon={<ChevronRight size={16} />}
               onClick={(e) => {
+                e.stopPropagation();
                 if (onPrimaryCtaClick) {
                   onPrimaryCtaClick(e);
                   return;
@@ -393,7 +457,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               }}
               className="font-medium"
             >
-              {primaryCtaLabel || (isComplete ? "Open Workspace" : "Continue Setup")}
+              {primaryCtaLabel || (isComplete ? "Review Project" : "Continue Setup")}
             </Button>
           </div>
         </CardContent>

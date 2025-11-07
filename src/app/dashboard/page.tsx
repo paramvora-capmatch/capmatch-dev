@@ -82,7 +82,7 @@ export default function DashboardPage() {
         <div className="relative -mx-6 sm:-mx-6 lg:-mx-6">
 
           {/* Subtle grid pattern */}
-          <div className="pointer-events-none absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
+          <div className="pointer-events-none absolute inset-0 opacity-[0.5]">
             <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
               <defs>
                 <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
@@ -140,10 +140,10 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Wireframe Create New Project Card - Always First */}
                 {currentOrgRole !== "member" && (
-                  <div className="animate-fade-up">
+                  <div className="animate-fade-up h-full">
                     <div
                       onClick={handleCreateNewProject}
-                      className="h-full bg-white rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300 cursor-pointer group flex flex-col items-center justify-center text-center p-8 min-h-[300px]"
+                      className="h-full bg-white rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300 cursor-pointer group flex flex-col items-center justify-center text-center p-8 min-h-[210px] md:min-h-[250px] lg:min-h-[280px]"
                     >
                       <div className="mb-6">
                         <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-400 group-hover:border-blue-500 flex items-center justify-center transition-colors duration-300 mx-auto">
@@ -164,7 +164,7 @@ export default function DashboardPage() {
                 {projects.map((project, index) => (
                   <div
                     key={project.id}
-                    className="animate-fade-up"
+                    className="animate-fade-up h-full"
                     style={{ animationDelay: `${(index + 1) * 80}ms` }}
                   >
                     <ProjectCard project={project} />

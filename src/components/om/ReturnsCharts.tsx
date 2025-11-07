@@ -208,7 +208,7 @@ export default function ReturnsCharts({
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card className="rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 hover:border-blue-200 hover:shadow-lg hover:-translate-y-0.5">
           <CardHeader className="pb-2">
             <div className="flex items-center">
               <TrendingUp
@@ -233,7 +233,7 @@ export default function ReturnsCharts({
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card className="rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 hover:border-blue-200 hover:shadow-lg hover:-translate-y-0.5">
           <CardHeader className="pb-2">
             <div className="flex items-center">
               <BarChart3
@@ -256,7 +256,7 @@ export default function ReturnsCharts({
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card className="rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 hover:border-blue-200 hover:shadow-lg hover:-translate-y-0.5">
           <CardHeader className="pb-2">
             <div className="flex items-center">
               <PieChartIcon
@@ -349,7 +349,7 @@ export default function ReturnsCharts({
 
       {/* Returns Breakdown and Quarterly Delivery */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card className="rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 hover:border-blue-200 hover:shadow-lg hover:-translate-y-0.5">
           <CardHeader>
             <h3 className="text-xl font-semibold text-gray-800">
               Returns Breakdown
@@ -386,7 +386,7 @@ export default function ReturnsCharts({
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card className="rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 hover:border-blue-200 hover:shadow-lg hover:-translate-y-0.5">
           <CardHeader>
             <h3 className="text-xl font-semibold text-gray-800">
               Quarterly Delivery Schedule

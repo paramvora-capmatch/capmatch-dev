@@ -19,10 +19,11 @@ export const ProjectCompletionCard: React.FC<ProjectCompletionCardProps> = ({
   onEdit,
 }) => {
   const completeness = project?.completenessPercent || 0;
+  const isProjectComplete = completeness >= 100;
   const isProjectHealthy = completeness >= 90;
-  // Standardize: blue when healthy/complete, red when incomplete
-  const progressColor = isProjectHealthy ? "bg-blue-600" : "bg-red-600";
-  const progressBgColor = isProjectHealthy ? "bg-blue-50" : "bg-red-50";
+  // Green when complete (100%), blue when healthy (>=90% but <100%), red when incomplete
+  const progressColor = isProjectComplete ? "bg-green-600" : (isProjectHealthy ? "bg-blue-600" : "bg-red-600");
+  const progressBgColor = isProjectComplete ? "bg-green-50" : (isProjectHealthy ? "bg-blue-50" : "bg-red-50");
   const router = useRouter();
   const isOmReady = completeness >= 100;
   

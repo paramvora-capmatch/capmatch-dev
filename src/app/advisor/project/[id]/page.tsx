@@ -720,7 +720,7 @@ export default function AdvisorProjectDetailPage() {
           <div className="flex-1 relative z-[1] flex flex-col min-h-0">
             {/* Background visuals */}
             <div className="pointer-events-none absolute inset-0 z-0">
-              <div className="absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
+              <div className="absolute inset-0 opacity-[0.5]">
                 <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
                   <defs>
                     <pattern id="advisor-grid-pattern" width="24" height="24" patternUnits="userSpaceOnUse">

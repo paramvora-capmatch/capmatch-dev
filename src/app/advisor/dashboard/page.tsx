@@ -233,7 +233,7 @@ export default function AdvisorDashboardPage() {
         <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
 
           {/* Subtle grid pattern */}
-          <div className="pointer-events-none absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
+          <div className="pointer-events-none absolute inset-0 opacity-[0.5]">
             <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
               <defs>
                 <pattern id="advisor-grid" width="24" height="24" patternUnits="userSpaceOnUse">

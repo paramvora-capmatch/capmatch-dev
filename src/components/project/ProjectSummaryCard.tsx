@@ -22,19 +22,21 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
 }) => {
   const router = useRouter();
   const completeness = project?.completenessPercent || 0;
+  const isProjectComplete = completeness >= 100;
   const isProjectHealthy = completeness >= 90;
-  // Use blue for complete/healthy state, red for incomplete
-  const progressColor = isProjectHealthy ? 'bg-blue-600' : 'bg-red-600';
-  const progressBgColor = isProjectHealthy ? 'bg-blue-50' : 'bg-red-50';
+  // Green when complete (100%), blue when healthy (>=90% but <100%), red when incomplete
+  const progressColor = isProjectComplete ? 'bg-green-600' : (isProjectHealthy ? 'bg-blue-600' : 'bg-red-600');
+  const progressBgColor = isProjectComplete ? 'bg-green-50' : (isProjectHealthy ? 'bg-blue-50' : 'bg-red-50');
 
   const { content: borrowerContent } = useBorrowerResumeStore();
   // Source of truth: borrower resume's own completeness; if not available, treat as 0.
   // This avoids falling back to stale per-project snapshots that can diverge.
   const borrowerCompleteness = Math.round((borrowerContent?.completenessPercent as number | undefined) ?? 0);
+  const isBorrowerComplete = borrowerCompleteness >= 100;
   const isBorrowerHealthy = borrowerCompleteness >= 90;
-  // Progress colors standardized: blue when healthy, red when incomplete
-  const borrowerProgressColor = isBorrowerHealthy ? 'bg-blue-600' : 'bg-red-600';
-  const borrowerProgressBgColor = isBorrowerHealthy ? 'bg-blue-50' : 'bg-red-50';
+  // Green when complete (100%), blue when healthy (>=90% but <100%), red when incomplete
+  const borrowerProgressColor = isBorrowerComplete ? 'bg-green-600' : (isBorrowerHealthy ? 'bg-blue-600' : 'bg-red-600');
+  const borrowerProgressBgColor = isBorrowerComplete ? 'bg-green-50' : (isBorrowerHealthy ? 'bg-blue-50' : 'bg-red-50');
   
   // Determine bullet color based on progress
   const getBorrowerBulletColor = () => {

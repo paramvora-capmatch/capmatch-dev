@@ -27,10 +27,6 @@ export default function BorrowerResumePage() {
 	// Treat loading as blocking UI only when there is no content yet (initial load)
 	const isInitialLoading = profileLoading && !borrowerContent;
 
-    const [localCompletion, setLocalCompletion] = React.useState<number | null>(
-		borrowerContent?.completenessPercent ?? null
-	);
-
     const [activeFieldId, setActiveFieldId] = React.useState<string | null>(null);
     const [currentFormData, setCurrentFormData] = React.useState<Record<string, unknown>>({});
     const [chatTab, setChatTab] = React.useState<"team" | "ai">("ai");
@@ -92,7 +88,7 @@ export default function BorrowerResumePage() {
                     <div className="relative min-h-screen w-full flex flex-row animate-fadeIn">
                         {/* Global page background (grid + blue tint) behind both columns */}
                         <div className="pointer-events-none absolute inset-0 z-0">
-                            <div className="absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_100%_80%_at_50%_30%,black,transparent_70%)]">
+                            <div className="absolute inset-0 opacity-[0.5]">
                                 <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
                                     <defs>
                                         <pattern id="borrower-resume-grid-pattern" width="24" height="24" patternUnits="userSpaceOnUse">
@@ -109,10 +105,12 @@ export default function BorrowerResumePage() {
                                 <div className="space-y-6">
                                     {/* Borrower Resume Completion Summary */}
                                     {(() => {
-                                        const completionValue = localCompletion ?? (borrowerContent?.completenessPercent ?? 0);
+                                        // Use database value directly, just like all other components
+                                        const completionValue = borrowerContent?.completenessPercent ?? 0;
+                                        const isBorrowerComplete = completionValue >= 100;
                                         const isBorrowerHealthy = completionValue >= 90;
-                                        const progressColor = isBorrowerHealthy ? 'bg-blue-600' : 'bg-red-600';
-                                        const progressBgColor = isBorrowerHealthy ? 'bg-blue-50' : 'bg-red-50';
+                                        const progressColor = isBorrowerComplete ? 'bg-green-600' : (isBorrowerHealthy ? 'bg-blue-600' : 'bg-red-600');
+                                        const progressBgColor = isBorrowerComplete ? 'bg-green-50' : (isBorrowerHealthy ? 'bg-blue-50' : 'bg-red-50');
                                         
                                         return (
                                             <div className="rounded-2xl p-4 bg-white shadow-sm">
@@ -146,7 +144,6 @@ export default function BorrowerResumePage() {
                                     {/* Pass the completion handler */}
                                     <BorrowerResumeForm
                                         onComplete={handleBorrowerResumeComplete}
-                                        onProgressChange={(p) => setLocalCompletion(p)}
                                         onFormDataChange={setCurrentFormData}
                                         onAskAI={(fieldId) => {
                                           setActiveFieldId(fieldId);
