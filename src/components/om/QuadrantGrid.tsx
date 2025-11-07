@@ -35,16 +35,19 @@ export const QuadrantGrid: React.FC<QuadrantGridProps> = ({ quadrants, className
                 const Icon = quadrant.icon;
                 
                 return (
-                    <div
-                        key={quadrant.id}
-                        onClick={() => quadrant.href && router.push(quadrant.href)}
-                        className={cn(
-                            "bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group",
-                            quadrant.href && "cursor-pointer hover:scale-[1.02] transform",
-                            quadrant.color.includes('blue') && "hover:ring-2 hover:ring-blue-400",
-                            quadrant.color.includes('green') && "hover:ring-2 hover:ring-green-400",
-                        )}
-                    >
+                    <div key={quadrant.id} className="group relative h-full">
+                        {/* Subtle blue hover shadow under the card */}
+                        <div
+                            aria-hidden
+                            className="pointer-events-none absolute -inset-x-3 bottom-3 h-8 rounded-2xl bg-blue-400/40 blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-70 -z-10"
+                        />
+                        <div
+                            onClick={() => quadrant.href && router.push(quadrant.href)}
+                            className={cn(
+                                "h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5",
+                                quadrant.href && "cursor-pointer"
+                            )}
+                        >
                         <div className={cn(
                             "h-2 bg-gradient-to-r",
                             quadrant.color
@@ -95,6 +98,7 @@ export const QuadrantGrid: React.FC<QuadrantGridProps> = ({ quadrants, className
                                     })}
                                 </div>
                             )}
+                        </div>
                         </div>
                     </div>
                 );

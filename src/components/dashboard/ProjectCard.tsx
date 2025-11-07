@@ -263,7 +263,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         }}
       >
         {/* Completion status indicator bar */}
-        <div className="h-1 bg-gray-100">
+        <div className="h-2 bg-gray-100">
           <div
             className={`h-full transition-all duration-500 ${
               isComplete

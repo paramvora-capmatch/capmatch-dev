@@ -126,7 +126,7 @@ export const AIInsightsBar: React.FC<AIInsightsBarProps> = ({ scenario }) => {
                     {currentInsights.points.map((insight, idx) => {
                         const Icon = insight.icon;
                         return (
-                            <div key={idx} className="bg-white rounded-lg p-4 shadow-sm">
+                            <div key={idx} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all duration-300">
                                 <div className="flex items-start space-x-3">
                                     <div className={cn(
                                         "p-2 rounded-lg flex-shrink-0",
