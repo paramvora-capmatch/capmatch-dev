@@ -2,8 +2,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '../ui/card';
-import { Button } from '../ui/Button';
-import { Loader2, User, Users, Edit } from 'lucide-react';
+import { Loader2, Edit } from 'lucide-react';
 import { BorrowerResumeContent } from '@/lib/project-queries';
 
 interface ProfileSummaryCardProps {
@@ -113,30 +112,6 @@ export const ProfileSummaryCard: React.FC<ProfileSummaryCardProps> = ({ profile,
                             <span className={`font-semibold transition-colors duration-300 ${getPercentageColor()}`}>
                                 {completeness}%
                             </span>
-                            <button
-                                type="button"
-                                aria-label="See Lenders"
-                                disabled={completeness < 100}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (completeness >= 100) {
-                                        router.push('/');
-                                        // Scroll to lenderline section after navigation
-                                        setTimeout(() => {
-                                            document.getElementById('lenderline-section')?.scrollIntoView({ behavior: 'smooth' });
-                                        }, 100);
-                                    }
-                                }}
-                                className={[
-                                    "px-3 py-1.5 rounded-md border transition w-28 inline-flex items-center justify-center whitespace-nowrap gap-1.5 text-sm font-medium",
-                                    completeness >= 100
-                                        ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-700 text-white shadow"
-                                        : "bg-emerald-100 text-emerald-700 border-emerald-200 cursor-not-allowed opacity-70",
-                                ].join(" ")}
-                            >
-                                <Users className="h-4 w-4" />
-                                <span>See Lenders</span>
-                            </button>
                         </div>
                     </div>
                     <div className="relative w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
