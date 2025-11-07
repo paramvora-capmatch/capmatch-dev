@@ -227,14 +227,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   };
 
   return (
-    <div className="group relative">
+    <div className="group relative h-full">
       {/* Subtle blue hover shadow under the card */}
       <div
         aria-hidden
         className="pointer-events-none absolute -inset-x-3 bottom-3 h-8 rounded-2xl bg-blue-400/40 blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-70 -z-10"
       />
       <Card 
-        className="h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5 cursor-pointer"
+        className="h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5 cursor-pointer min-h-[210px] md:min-h-[250px] lg:min-h-[280px]"
         onClick={() => {
           if (primaryCtaHref) {
             router.push(primaryCtaHref);
@@ -298,14 +298,18 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
           <div className="space-y-3 mb-5">
             <div className="flex items-center text-sm text-gray-600">
-              <Building className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0" />
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${isComplete ? 'bg-green-100' : 'bg-blue-100'}`}>
+                <Building className={`h-4 w-4 ${isComplete ? 'text-green-600' : 'text-blue-600'}`} />
+              </div>
               <span className="font-medium">
                 {project.assetType || "Asset Type TBD"}
               </span>
             </div>
 
             <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0" />
+              <div className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 ${isComplete ? 'bg-green-100' : 'bg-blue-100'}`}>
+                <Calendar className={`h-4 w-4 ${isComplete ? 'text-green-600' : 'text-blue-600'}`} />
+              </div>
               <span>
                 Updated:{" "}
                 <span className="font-medium">
@@ -317,7 +321,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             {/* Project Members - Only visible to owners */}
             {isProjectOwner && (
               <div className="flex items-start text-sm text-gray-600">
-                <Users className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5 ${isComplete ? 'bg-green-100' : 'bg-blue-100'}`}>
+                  <Users className={`h-4 w-4 ${isComplete ? 'text-green-600' : 'text-blue-600'}`} />
+                </div>
                 <div className="flex-1 min-w-0">
                   {isLoadingMembers ? (
                     <span className="text-gray-400">Loading members...</span>
@@ -365,25 +371,43 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               />
             </div>
 
-            {isComplete && (
+            {isComplete ? (
               <div className="flex items-center justify-center mt-2 text-xs text-green-700 bg-green-50 rounded-md py-1">
                 <CheckCircle className="h-3.5 w-3.5 mr-1" />
                 OM Ready
               </div>
+            ) : (
+              <div className="mt-2 h-6" aria-hidden="true" />
             )}
           </div>
 
           <div className="space-y-3 flex-shrink-0">
-            {isComplete && (
+            {!isComplete ? (
+              <span 
+                className="block w-full" 
+                title="Complete the project to unlock the OM"
+              >
+                <Button
+                  variant="outline"
+                  fullWidth
+                  size="sm"
+                  disabled={true}
+                  className="border-gray-300 text-gray-700 bg-transparent cursor-not-allowed opacity-60 font-medium"
+                >
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  View OM
+                </Button>
+              </span>
+            ) : (
               <Button
-                variant="primary"
+                variant="outline"
                 fullWidth
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   router.push(`/project/om/${project.id}`);
                 }}
-                className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                className="bg-green-600 hover:bg-green-700 text-white font-medium border-green-600"
               >
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 View OM
@@ -391,7 +415,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             )}
 
             <Button
-              variant="primary"
+              variant={isComplete ? "outline" : "primary"}
               fullWidth
               size="sm"
               rightIcon={<ChevronRight size={16} />}
@@ -409,7 +433,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               }}
               className="font-medium"
             >
-              {primaryCtaLabel || (isComplete ? "Open Workspace" : "Continue Setup")}
+              {primaryCtaLabel || (isComplete ? "Review Project" : "Continue Setup")}
             </Button>
           </div>
         </CardContent>
