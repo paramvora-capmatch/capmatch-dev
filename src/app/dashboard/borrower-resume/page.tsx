@@ -27,10 +27,6 @@ export default function BorrowerResumePage() {
 	// Treat loading as blocking UI only when there is no content yet (initial load)
 	const isInitialLoading = profileLoading && !borrowerContent;
 
-    const [localCompletion, setLocalCompletion] = React.useState<number | null>(
-		borrowerContent?.completenessPercent ?? null
-	);
-
     const [activeFieldId, setActiveFieldId] = React.useState<string | null>(null);
     const [currentFormData, setCurrentFormData] = React.useState<Record<string, unknown>>({});
     const [chatTab, setChatTab] = React.useState<"team" | "ai">("ai");
@@ -109,7 +105,8 @@ export default function BorrowerResumePage() {
                                 <div className="space-y-6">
                                     {/* Borrower Resume Completion Summary */}
                                     {(() => {
-                                        const completionValue = localCompletion ?? (borrowerContent?.completenessPercent ?? 0);
+                                        // Use database value directly, just like all other components
+                                        const completionValue = borrowerContent?.completenessPercent ?? 0;
                                         const isBorrowerComplete = completionValue >= 100;
                                         const isBorrowerHealthy = completionValue >= 90;
                                         const progressColor = isBorrowerComplete ? 'bg-green-600' : (isBorrowerHealthy ? 'bg-blue-600' : 'bg-red-600');
@@ -147,7 +144,6 @@ export default function BorrowerResumePage() {
                                     {/* Pass the completion handler */}
                                     <BorrowerResumeForm
                                         onComplete={handleBorrowerResumeComplete}
-                                        onProgressChange={(p) => setLocalCompletion(p)}
                                         onFormDataChange={setCurrentFormData}
                                         onAskAI={(fieldId) => {
                                           setActiveFieldId(fieldId);
