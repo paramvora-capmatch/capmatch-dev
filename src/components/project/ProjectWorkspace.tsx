@@ -206,7 +206,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 <Button
                   variant="outline"
                   onClick={() => router.push(`/project/om/${projectId}`)}
-                  className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10"
+                  className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10 whitespace-nowrap flex-shrink-0"
                 >
                   <FileSpreadsheet className="mr-2 h-5 w-5" />
                   View OM
