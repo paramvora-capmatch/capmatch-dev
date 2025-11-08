@@ -6,6 +6,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import { demoBorrowerResume, completeProjectResume, partialProjectResume } from '../lib/mockData';
 import { ProjectResumeContent } from '../src/lib/project-queries';
 
@@ -36,9 +38,19 @@ function calculateProjectProgress(resume: ProjectResumeContent): number {
   let filledCount = 0;
   requiredFields.forEach((field) => {
     const value = resume[field];
-    if (value !== null && value !== undefined && String(value).trim() !== '') {
-      if (typeof value === 'number' && value === 0) return; // Don't count default 0
-      filledCount++;
+    if (value !== null && value !== undefined) {
+      // For numbers, check if it's not 0 (0 is considered empty/default)
+      if (typeof value === 'number') {
+        if (value !== 0) filledCount++;
+      } 
+      // For strings, check if it's not empty after trimming
+      else if (typeof value === 'string') {
+        if (value.trim() !== '') filledCount++;
+      }
+      // For other types, count as filled
+      else {
+        filledCount++;
+      }
     }
   });
 
@@ -324,6 +336,15 @@ async function createProject(
       // Continue anyway
     }
 
+    // 5.5. Ensure borrower root resources (BORROWER_RESUME and BORROWER_DOCS_ROOT)
+    const { error: borrowerRootError } = await supabaseAdmin.rpc('ensure_project_borrower_roots', {
+      p_project_id: projectId,
+    });
+
+    if (borrowerRootError) {
+      console.warn(`[seed] Warning: Failed to ensure borrower root resources:`, borrowerRootError.message);
+    }
+
     // 6. Grant creator access
     const { error: grantError } = await supabaseAdmin
       .from('project_access_grants')
@@ -390,8 +411,10 @@ async function updateProjectResume(
 ): Promise<boolean> {
   console.log(`[seed] Updating project resume for project: ${projectId}...`);
 
-  // Calculate and include completenessPercent
-  const completenessPercent = calculateProjectProgress(resumeContent);
+  // For complete project, set to 100% explicitly
+  // For partial project, calculate it
+  const isCompleteProject = resumeContent.projectName === 'Downtown Highrise Acquisition';
+  const completenessPercent = isCompleteProject ? 100 : calculateProjectProgress(resumeContent);
   const resumeWithProgress: ProjectResumeContent = {
     ...resumeContent,
     completenessPercent,
@@ -416,17 +439,24 @@ async function updateProjectResume(
   return true;
 }
 
-async function updateBorrowerResume(orgId: string, resumeContent: typeof demoBorrowerResume): Promise<boolean> {
-  console.log(`[seed] Updating borrower resume for org: ${orgId}...`);
+async function updateBorrowerResume(projectId: string, resumeContent: typeof demoBorrowerResume): Promise<boolean> {
+  console.log(`[seed] Updating borrower resume for project: ${projectId}...`);
+
+  // Ensure completenessPercent is set to 100 for complete projects
+  // The calculation logic only counts booleans when true, but we want to show 100% for complete data
+  const borrowerResumeWithProgress = {
+    ...resumeContent,
+    completenessPercent: 100, // Explicitly set to 100% since all fields are filled
+  };
 
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
     .upsert(
       {
-        org_id: orgId,
-        content: resumeContent as any,
+        project_id: projectId,
+        content: borrowerResumeWithProgress as any,
       },
-      { onConflict: 'org_id' }
+      { onConflict: 'project_id' }
     );
 
   if (error) {
@@ -464,6 +494,296 @@ async function assignAdvisorToProject(projectId: string, advisorId: string): Pro
 
   console.log(`[seed] ✅ Assigned advisor to project`);
   return true;
+}
+
+async function createMemberUser(
+  email: string,
+  password: string,
+  fullName: string,
+  orgId: string
+): Promise<string | null> {
+  console.log(`[seed] Creating member user: ${email}...`);
+
+  try {
+    // Check if user already exists
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    let userId: string;
+
+    if (existingProfile) {
+      console.log(`[seed] Member already exists: ${email} (${existingProfile.id})`);
+      userId = existingProfile.id;
+    } else {
+      // Create user via auth
+      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      });
+
+      if (authError || !authUser.user) {
+        console.error(`[seed] Failed to create member user:`, authError);
+        return null;
+      }
+
+      userId = authUser.user.id;
+
+      // Create profile
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          id: userId,
+          email,
+          full_name: fullName,
+          app_role: 'borrower',
+          active_org_id: orgId,
+        });
+
+      if (profileError) {
+        console.error(`[seed] Failed to create member profile:`, profileError);
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+        return null;
+      }
+
+      console.log(`[seed] ✅ Created member user: ${email} (${userId})`);
+    }
+
+    // Add to org_members
+    const { error: memberError } = await supabaseAdmin
+      .from('org_members')
+      .upsert(
+        {
+          org_id: orgId,
+          user_id: userId,
+          role: 'member',
+        },
+        { onConflict: 'org_id,user_id' }
+      );
+
+    if (memberError) {
+      console.error(`[seed] Failed to add member to org:`, memberError);
+      return null;
+    }
+
+    // Ensure active_org_id is set
+    await supabaseAdmin
+      .from('profiles')
+      .update({ active_org_id: orgId })
+      .eq('id', userId);
+
+    console.log(`[seed] ✅ Member user setup complete: ${email}`);
+    return userId;
+  } catch (err) {
+    console.error(`[seed] Exception creating member user ${email}:`, err);
+    return null;
+  }
+}
+
+async function grantMemberProjectAccess(
+  projectId: string,
+  memberId: string,
+  grantedById: string
+): Promise<boolean> {
+  console.log(`[seed] Granting project access to member: ${memberId} for project: ${projectId}...`);
+
+  try {
+    // Use grant_project_access RPC function (same as edge functions use)
+    const { error: grantError } = await supabaseAdmin.rpc('grant_project_access', {
+      p_project_id: projectId,
+      p_user_id: memberId,
+      p_granted_by_id: grantedById,
+      p_permissions: [
+        { resource_type: 'PROJECT_RESUME', permission: 'edit' },
+        { resource_type: 'PROJECT_DOCS_ROOT', permission: 'edit' },
+        { resource_type: 'BORROWER_RESUME', permission: 'edit' },
+        { resource_type: 'BORROWER_DOCS_ROOT', permission: 'edit' },
+      ],
+    });
+
+    if (grantError) {
+      console.error(`[seed] Failed to grant project access:`, grantError);
+      return false;
+    }
+
+    // Add member to General chat thread
+    const { data: generalThread } = await supabaseAdmin
+      .from('chat_threads')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('topic', 'General')
+      .maybeSingle();
+
+    if (generalThread) {
+      await supabaseAdmin
+        .from('chat_thread_participants')
+        .upsert(
+          { thread_id: generalThread.id, user_id: memberId },
+          { onConflict: 'thread_id,user_id' }
+        );
+    }
+
+    console.log(`[seed] ✅ Granted project access to member`);
+    return true;
+  } catch (err) {
+    console.error(`[seed] Exception granting project access:`, err);
+    return false;
+  }
+}
+
+async function uploadDocumentToProject(
+  projectId: string,
+  orgId: string,
+  filePath: string,
+  fileName: string,
+  rootResourceType: 'PROJECT_DOCS_ROOT' | 'BORROWER_DOCS_ROOT',
+  uploadedById: string
+): Promise<string | null> {
+  console.log(`[seed] Uploading document: ${fileName} to ${rootResourceType}...`);
+
+  try {
+    // Get the root resource
+    const { data: rootResource, error: rootError } = await supabaseAdmin
+      .from('resources')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('resource_type', rootResourceType)
+      .maybeSingle();
+
+    if (rootError || !rootResource) {
+      console.error(`[seed] Failed to find ${rootResourceType} resource:`, rootError);
+      return null;
+    }
+
+    // Create FILE resource entry
+    const { data: fileResource, error: resourceError } = await supabaseAdmin
+      .from('resources')
+      .insert({
+        org_id: orgId,
+        project_id: projectId,
+        parent_id: rootResource.id,
+        resource_type: 'FILE',
+        name: fileName,
+      })
+      .select()
+      .single();
+
+    if (resourceError) {
+      console.error(`[seed] Failed to create file resource:`, resourceError);
+      return null;
+    }
+
+    const resourceId = fileResource.id;
+
+    // Create document version
+    const { data: version, error: versionError } = await supabaseAdmin
+      .from('document_versions')
+      .insert({
+        resource_id: resourceId,
+        created_by: uploadedById,
+        storage_path: 'placeholder',
+      })
+      .select()
+      .single();
+
+    if (versionError) {
+      console.error(`[seed] Failed to create document version:`, versionError);
+      await supabaseAdmin.from('resources').delete().eq('id', resourceId);
+      return null;
+    }
+
+    // Mark version as active
+    await supabaseAdmin
+      .from('document_versions')
+      .update({ status: 'active' })
+      .eq('id', version.id);
+
+    // Build storage path
+    const storageSubdir = rootResourceType === 'BORROWER_DOCS_ROOT' ? 'borrower-docs' : 'project-docs';
+    const finalStoragePath = `${projectId}/${storageSubdir}/${resourceId}/v${version.version_number}_${fileName}`;
+
+    // Read file from filesystem
+    if (!existsSync(filePath)) {
+      console.error(`[seed] File not found: ${filePath}`);
+      await supabaseAdmin.from('resources').delete().eq('id', resourceId);
+      return null;
+    }
+
+    const fileBuffer = readFileSync(filePath);
+
+    // Upload to storage
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(orgId)
+      .upload(finalStoragePath, fileBuffer, {
+        contentType: 'application/pdf',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error(`[seed] Failed to upload file to storage:`, uploadError);
+      await supabaseAdmin.from('resources').delete().eq('id', resourceId);
+      return null;
+    }
+
+    // Update version with storage path
+    const { error: updateVersionError } = await supabaseAdmin
+      .from('document_versions')
+      .update({ storage_path: finalStoragePath })
+      .eq('id', version.id);
+
+    if (updateVersionError) {
+      console.error(`[seed] Failed to update version storage path:`, updateVersionError);
+      await supabaseAdmin.storage.from(orgId).remove([finalStoragePath]);
+      await supabaseAdmin.from('resources').delete().eq('id', resourceId);
+      return null;
+    }
+
+    // Update resource with current version
+    const { error: updateResourceError } = await supabaseAdmin
+      .from('resources')
+      .update({ current_version_id: version.id })
+      .eq('id', resourceId);
+
+    if (updateResourceError) {
+      console.error(`[seed] Failed to update resource current version:`, updateResourceError);
+    }
+
+    console.log(`[seed] ✅ Uploaded document: ${fileName}`);
+    return resourceId;
+  } catch (err) {
+    console.error(`[seed] Exception uploading document ${fileName}:`, err);
+    return null;
+  }
+}
+
+async function createChatMessage(
+  threadId: string,
+  userId: string,
+  content: string,
+  resourceIds?: string[]
+): Promise<boolean> {
+  try {
+    const { error } = await supabaseAdmin.rpc('insert_thread_message', {
+      p_thread_id: threadId,
+      p_user_id: userId,
+      p_content: content,
+      p_resource_ids: resourceIds || [],
+    });
+
+    if (error) {
+      console.error(`[seed] Failed to create chat message:`, error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error(`[seed] Exception creating chat message:`, err);
+    return false;
+  }
 }
 
 async function deleteDefaultProject(orgId: string): Promise<boolean> {
@@ -581,8 +901,15 @@ async function cleanupDemoData() {
     if (borrowerUserId) {
       // Delete org data if org exists
       if (borrowerOrgId) {
-        // Delete borrower resume
-        await supabaseAdmin.from('borrower_resumes').delete().eq('org_id', borrowerOrgId);
+        // Delete borrower resumes (project-scoped now)
+        const { data: borrowerProjects } = await supabaseAdmin
+          .from('projects')
+          .select('id')
+          .eq('owner_org_id', borrowerOrgId);
+        if (borrowerProjects && borrowerProjects.length > 0) {
+          const projectIds = borrowerProjects.map(p => p.id);
+          await supabaseAdmin.from('borrower_resumes').delete().in('project_id', projectIds);
+        }
         
         // Delete org members
         await supabaseAdmin.from('org_members').delete().eq('org_id', borrowerOrgId);
@@ -684,8 +1011,57 @@ async function cleanupDemoData() {
       console.log('[cleanup] Advisor user not found in auth.users or profiles');
     }
 
-    // Step 4: Clean up storage buckets (if they exist)
-    console.log('\n📋 Step 4: Cleaning up storage...');
+    // Step 4: Delete member users
+    console.log('\n📋 Step 4: Deleting member users...');
+    const memberEmails = ['sarah.johnson@org.com', 'mike.chen@org.com'];
+    
+    for (const email of memberEmails) {
+      try {
+        const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+        const authUser = authUsers?.users?.find(u => u.email === email);
+        if (authUser) {
+          // Delete project access grants
+          await supabaseAdmin
+            .from('project_access_grants')
+            .delete()
+            .eq('user_id', authUser.id);
+          
+          // Delete permissions
+          const { data: memberPermissions } = await supabaseAdmin
+            .from('permissions')
+            .select('resource_id')
+            .eq('user_id', authUser.id);
+          
+          if (memberPermissions && memberPermissions.length > 0) {
+            await supabaseAdmin
+              .from('permissions')
+              .delete()
+              .eq('user_id', authUser.id);
+          }
+          
+          // Delete org memberships
+          await supabaseAdmin
+            .from('org_members')
+            .delete()
+            .eq('user_id', authUser.id);
+          
+          // Delete chat thread participants
+          await supabaseAdmin
+            .from('chat_thread_participants')
+            .delete()
+            .eq('user_id', authUser.id);
+          
+          // Delete user
+          await supabaseAdmin.auth.admin.deleteUser(authUser.id);
+          console.log(`[cleanup] ✅ Deleted member user: ${email}`);
+        }
+      } catch (err) {
+        console.warn(`[cleanup] Could not delete member user ${email}:`, err);
+      }
+    }
+
+    // Step 5: Clean up storage buckets (if they exist)
+    console.log('\n📋 Step 5: Cleaning up storage...');
     try {
       // Note: Storage cleanup is optional and may require additional permissions
       // The buckets will be recreated on next seed run
@@ -749,7 +1125,7 @@ async function seedDemoData() {
     console.log('\n📋 Step 2: Creating borrower...');
     const borrowerEmail = 'borrower@org.com';
     const borrowerPassword = 'password';
-    const borrowerName = 'Demo Borrower';
+    const borrowerName = 'John Smith';
 
     // Check if borrower already exists
     const { data: existingBorrower } = await supabaseAdmin
@@ -808,9 +1184,7 @@ async function seedDemoData() {
     console.log('\n📋 Step 3: Cleaning up default project...');
     await deleteDefaultProject(borrowerOrgId);
 
-    // Step 4: Update borrower resume with demo data
-    console.log('\n📋 Step 4: Updating borrower resume...');
-    await updateBorrowerResume(borrowerOrgId, demoBorrowerResume);
+    // Step 4: Skip borrower resume update (will be done per project)
 
     // Step 5: Create complete project (Downtown Highrise)
     console.log('\n📋 Step 5: Creating complete project...');
@@ -830,6 +1204,9 @@ async function seedDemoData() {
     await updateProjectResume(completeProjectId, completeProjectResume);
     await assignAdvisorToProject(completeProjectId, advisorUserId);
 
+    // Update borrower resume for complete project
+    await updateBorrowerResume(completeProjectId, demoBorrowerResume);
+
     // Step 6: Create partial project (Warehouse Development)
     console.log('\n📋 Step 6: Creating partial project...');
     const partialProjectId = await createProject(
@@ -848,11 +1225,374 @@ async function seedDemoData() {
     await updateProjectResume(partialProjectId, partialProjectResume);
     await assignAdvisorToProject(partialProjectId, advisorUserId);
 
+    // Update borrower resume for partial project
+    await updateBorrowerResume(partialProjectId, demoBorrowerResume);
+
+    // Step 7: Upload documents to complete project
+    console.log('\n📋 Step 7: Uploading documents to complete project...');
+    const sampleLoanPackagePath = resolve(process.cwd(), '../SampleLoanPackage/Deal1');
+    const completeProjectDocs: Record<string, string> = {};
+
+    // Borrower documents
+    const borrowerDocs1 = [
+      { file: 'Schedule E - Form 1040.pdf', name: 'Schedule E - Form 1040.pdf' },
+      { file: 'Universal Credit Application Form .pdf', name: 'Universal Credit Application Form.pdf' },
+    ];
+
+    for (const doc of borrowerDocs1) {
+      const filePath = join(sampleLoanPackagePath, doc.file);
+      const resourceId = await uploadDocumentToProject(
+        completeProjectId,
+        borrowerOrgId,
+        filePath,
+        doc.name,
+        'BORROWER_DOCS_ROOT',
+        borrowerUserId
+      );
+      if (resourceId) {
+        completeProjectDocs[doc.name] = resourceId;
+      }
+    }
+
+    // Project documents
+    const projectDocs1 = [
+      { file: 'Appraisal Summary Report.pdf', name: 'Appraisal Summary Report.pdf' },
+      { file: 'Architectural-Drawings.pdf', name: 'Architectural-Drawings.pdf' },
+      { file: 'Environments Site Assessment.pdf', name: 'Environmental Site Assessment.pdf' },
+      { file: 'Operating Statement 2024.pdf', name: 'Operating Statement 2024.pdf' },
+      { file: 'Rent Roll Detail.pdf', name: 'Rent Roll Detail.pdf' },
+    ];
+
+    for (const doc of projectDocs1) {
+      const filePath = join(sampleLoanPackagePath, doc.file);
+      const resourceId = await uploadDocumentToProject(
+        completeProjectId,
+        borrowerOrgId,
+        filePath,
+        doc.name,
+        'PROJECT_DOCS_ROOT',
+        borrowerUserId
+      );
+      if (resourceId) {
+        completeProjectDocs[doc.name] = resourceId;
+      }
+    }
+
+    // Step 8: Upload documents to partial project
+    console.log('\n📋 Step 8: Uploading documents to partial project...');
+    const deal2Path = resolve(process.cwd(), '../SampleLoanPackage/Deal2');
+    const partialProjectDocs: Record<string, string> = {};
+
+    // Borrower documents
+    const borrowerDocs2 = [
+      { file: 'Schedule-E-Form-1040.pdf', name: 'Schedule E - Form 1040.pdf' },
+    ];
+
+    for (const doc of borrowerDocs2) {
+      const filePath = join(deal2Path, doc.file);
+      const resourceId = await uploadDocumentToProject(
+        partialProjectId,
+        borrowerOrgId,
+        filePath,
+        doc.name,
+        'BORROWER_DOCS_ROOT',
+        borrowerUserId
+      );
+      if (resourceId) {
+        partialProjectDocs[doc.name] = resourceId;
+      }
+    }
+
+    // Project documents
+    const projectDocs2 = [
+      { file: 'Appraisal-Report.pdf', name: 'Appraisal Report.pdf' },
+      { file: 'Architectural Drawings.pdf', name: 'Architectural Drawings.pdf' },
+      { file: 'Environmental Site Assessment I March 2024 Final.pdf', name: 'Environmental Site Assessment.pdf' },
+      { file: 'Operating Statement 2024.pdf', name: 'Operating Statement 2024.pdf' },
+      { file: 'RentRoll.pdf', name: 'Rent Roll.pdf' },
+      { file: 'Commercial Loan Application Packet.pdf', name: 'Commercial Loan Application Packet.pdf' },
+    ];
+
+    for (const doc of projectDocs2) {
+      const filePath = join(deal2Path, doc.file);
+      const resourceId = await uploadDocumentToProject(
+        partialProjectId,
+        borrowerOrgId,
+        filePath,
+        doc.name,
+        'PROJECT_DOCS_ROOT',
+        borrowerUserId
+      );
+      if (resourceId) {
+        partialProjectDocs[doc.name] = resourceId;
+      }
+    }
+
+    // Step 9: Create member users
+    console.log('\n📋 Step 9: Creating member users...');
+    const member1Email = 'sarah.johnson@org.com';
+    const member1Password = 'password';
+    const member1Name = 'Sarah Johnson';
+    const member1Id = await createMemberUser(member1Email, member1Password, member1Name, borrowerOrgId);
+
+    if (!member1Id) {
+      console.error('[seed] ❌ Failed to create member 1');
+      return;
+    }
+
+    const member2Email = 'mike.chen@org.com';
+    const member2Password = 'password';
+    const member2Name = 'Mike Chen';
+    const member2Id = await createMemberUser(member2Email, member2Password, member2Name, borrowerOrgId);
+
+    if (!member2Id) {
+      console.error('[seed] ❌ Failed to create member 2');
+      return;
+    }
+
+    // Step 10: Grant project access to members
+    console.log('\n📋 Step 10: Granting project access to members...');
+    await grantMemberProjectAccess(completeProjectId, member1Id, borrowerUserId);
+    await grantMemberProjectAccess(partialProjectId, member2Id, borrowerUserId);
+
+    // Step 11: Create chat messages
+    console.log('\n📋 Step 11: Creating chat messages...');
+
+    // Get General thread IDs
+    const { data: completeThread } = await supabaseAdmin
+      .from('chat_threads')
+      .select('id')
+      .eq('project_id', completeProjectId)
+      .eq('topic', 'General')
+      .maybeSingle();
+
+    const { data: partialThread } = await supabaseAdmin
+      .from('chat_threads')
+      .select('id')
+      .eq('project_id', partialProjectId)
+      .eq('topic', 'General')
+      .maybeSingle();
+
+    // Complete project chat messages
+    if (completeThread) {
+      const appraisalId = completeProjectDocs['Appraisal Summary Report.pdf'];
+      const rentRollId = completeProjectDocs['Rent Roll Detail.pdf'];
+      const operatingStmtId = completeProjectDocs['Operating Statement 2024.pdf'];
+      const envAssessmentId = completeProjectDocs['Environmental Site Assessment.pdf'];
+
+      // Initial welcome and document upload
+      await createChatMessage(
+        completeThread.id,
+        borrowerUserId,
+        `Welcome to the project, @[Sarah Johnson](user:${member1Id})! I've uploaded the key documents we have so far. Please review the @[Appraisal Summary Report.pdf](doc:${appraisalId}) when you have a chance.`,
+        appraisalId ? [appraisalId] : []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        member1Id,
+        `Thanks @[John Smith](user:${borrowerUserId})! I'll review everything this afternoon. What's our timeline looking like for lender submissions?`,
+        []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        advisorUserId,
+        `Hi team! @[John Smith](user:${borrowerUserId}), thanks for getting the documents uploaded. @[Sarah Johnson](user:${member1Id}), we're targeting initial lender outreach in about 2 weeks. The @[Appraisal Summary Report.pdf](doc:${appraisalId}) shows strong fundamentals - $75M purchase price with stabilized NOI around $4M.`,
+        appraisalId ? [appraisalId] : []
+      );
+
+      // Discussion about rent roll
+      await createChatMessage(
+        completeThread.id,
+        member1Id,
+        `I've reviewed the @[Rent Roll Detail.pdf](doc:${rentRollId}). Occupancy looks good at 96%, but I noticed a few units coming up for renewal in Q2. Should we factor that into our projections?`,
+        rentRollId ? [rentRollId] : []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        borrowerUserId,
+        `Good catch, @[Sarah Johnson](user:${member1Id}). We're planning to renew those at market rates, which should actually improve NOI. The current rents are slightly below market.`,
+        []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        advisorUserId,
+        `That's a great point. @[Sarah Johnson](user:${member1Id}), can you update the pro forma to reflect the renewal assumptions? Also, let's make sure the @[Operating Statement 2024.pdf](doc:${operatingStmtId}) aligns with what we're seeing in the rent roll.`,
+        operatingStmtId ? [operatingStmtId] : []
+      );
+
+      // Environmental assessment discussion
+      await createChatMessage(
+        completeThread.id,
+        member1Id,
+        `I've also reviewed the @[Environmental Site Assessment.pdf](doc:${envAssessmentId}). No red flags - just some minor recommendations for ongoing monitoring. Should we include this in the lender package?`,
+        envAssessmentId ? [envAssessmentId] : []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        advisorUserId,
+        `Yes, definitely include it. Most lenders will want to see it, and having a clean report is a positive. @[John Smith](user:${borrowerUserId}), do we have the architectural drawings ready? Those are typically requested early in the process.`,
+        []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        borrowerUserId,
+        `Yes, they're uploaded. I can share the link if needed. @[Cody Field](user:${advisorUserId}), what's our next step - should we start reaching out to lenders now or wait until we have everything polished?`,
+        []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        advisorUserId,
+        `Let's get the pro forma updated first, then we can start soft outreach. I have a few lenders in mind who would be a good fit for this deal size and asset type. @[Sarah Johnson](user:${member1Id}), can you have the updated pro forma ready by Friday?`,
+        []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        member1Id,
+        `Absolutely, I'll have it ready by end of day Thursday. I'll flag any assumptions that need your review, @[Cody Field](user:${advisorUserId}).`,
+        []
+      );
+    }
+
+    // Partial project chat messages
+    if (partialThread) {
+      const appraisalId = partialProjectDocs['Appraisal Report.pdf'];
+      const operatingStmtId = partialProjectDocs['Operating Statement 2024.pdf'];
+      const rentRollId = partialProjectDocs['Rent Roll.pdf'];
+      const envAssessmentId = partialProjectDocs['Environmental Site Assessment.pdf'];
+      const loanAppId = partialProjectDocs['Commercial Loan Application Packet.pdf'];
+
+      // Initial project setup
+      await createChatMessage(
+        partialThread.id,
+        borrowerUserId,
+        `Hi @[Mike Chen](user:${member2Id}), welcome to the Warehouse Development project. This is a ground-up development in Dallas. I've started uploading the initial documents - the @[Appraisal Report.pdf](doc:${appraisalId}) is ready for review.`,
+        appraisalId ? [appraisalId] : []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `Thanks @[John Smith](user:${borrowerUserId})! I'll dive into the appraisal today. This is a pre-development deal, right? Do we have stabilized NOI projections or is this all pro forma?`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `Hi team! Yes @[Mike Chen](user:${member2Id}), this is pre-development. We're projecting stabilized NOI around $800K once fully leased. The @[Appraisal Report.pdf](doc:${appraisalId}) should have the market analysis and comparable properties.`,
+        appraisalId ? [appraisalId] : []
+      );
+
+      // Operating statement discussion
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `Got it. I see the @[Operating Statement 2024.pdf](doc:${operatingStmtId}) is uploaded. Since this is pre-development, are these numbers from a similar property or projected?`,
+        operatingStmtId ? [operatingStmtId] : []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        borrowerUserId,
+        `Those are projected based on similar properties in the area. We're using a 100,000 sqft warehouse with market rents around $8/sqft. @[Cody Field](user:${advisorUserId}), does that sound reasonable for the Dallas market?`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `Yes, $8/sqft is in line with the market. @[Mike Chen](user:${member2Id}), can you verify the expense assumptions? We want to make sure we're being conservative on operating expenses.`,
+        []
+      );
+
+      // Rent roll discussion (even though it's pre-development)
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `I've reviewed the @[Rent Roll.pdf](doc:${rentRollId}). Since this is pre-development, I assume this is a template or from a comparable property?`,
+        rentRollId ? [rentRollId] : []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        borrowerUserId,
+        `Exactly - it's a template based on similar properties. We're planning to start pre-leasing about 6 months before completion.`,
+        []
+      );
+
+      // Environmental assessment
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `I've also looked at the @[Environmental Site Assessment.pdf](doc:${envAssessmentId}). Everything looks clean. For a ground-up development, lenders will definitely want this.`,
+        envAssessmentId ? [envAssessmentId] : []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `Good. @[John Smith](user:${borrowerUserId}), do we have the construction budget finalized? That's going to be critical for the loan application.`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        borrowerUserId,
+        `We're still finalizing a few items with the contractor, but we should have it locked in by next week. @[Mike Chen](user:${member2Id}), I've uploaded the @[Commercial Loan Application Packet.pdf](doc:${loanAppId}) - can you review and let me know if we're missing anything?`,
+        loanAppId ? [loanAppId] : []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `I'll review it today. From what I can see, we'll need the construction budget, equity commitment letter, and maybe some contractor references. @[Cody Field](user:${advisorUserId}), what's typical for construction loans in this market?`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `For construction loans, lenders typically want 25-30% equity, contractor financials, and a detailed construction budget. @[John Smith](user:${borrowerUserId}), what's our target LTC?`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        borrowerUserId,
+        `We're targeting 75% LTC. Total project cost is around $10M, so we're looking for about $7.5M in financing.`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `That's reasonable. @[Mike Chen](user:${member2Id}), once you've reviewed the application packet, let's schedule a call to discuss the lender strategy. I have a few construction lenders who specialize in industrial properties.`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `Sounds good. I'll have my review notes ready by tomorrow. Thanks for the context, @[Cody Field](user:${advisorUserId})!`,
+        []
+      );
+    }
+
     // Summary
     console.log('\n✅ Demo data seed completed successfully!');
     console.log('\n📊 Summary:');
     console.log(`   Advisor: ${advisorEmail} (password: ${advisorPassword})`);
     console.log(`   Borrower: ${borrowerEmail} (password: ${borrowerPassword})`);
+    console.log(`   Member 1: ${member1Email} (password: ${member1Password}) - ${completeProjectResume.projectName}`);
+    console.log(`   Member 2: ${member2Email} (password: ${member2Password}) - ${partialProjectResume.projectName}`);
     console.log(`   Projects:`);
     console.log(`     - ${completeProjectResume.projectName} (Complete)`);
     console.log(`     - ${partialProjectResume.projectName} (Partial)`);
@@ -898,4 +1638,6 @@ if (require.main === module) {
 }
 
 export { seedDemoData, cleanupDemoData };
+
+
 

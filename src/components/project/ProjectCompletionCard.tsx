@@ -34,6 +34,11 @@ export const ProjectCompletionCard: React.FC<ProjectCompletionCardProps> = ({
     return "bg-red-500";
   };
 
+  // Hide the progress bar when project is 100% complete
+  if (isProjectComplete) {
+    return null;
+  }
+
   return (
     <div className="p-0">
       {/* Project resume completion (full-width; no white card wrapper) */}
