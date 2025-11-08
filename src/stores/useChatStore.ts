@@ -215,14 +215,44 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
   loadMessages: async (threadId: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { data, error } = await supabase
+      const { data: messages, error } = await supabase
         .from('project_messages')
-        .select(`*, sender:profiles(id, full_name, email)`)
+        .select('*')
         .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      set({ messages: data || [], isLoading: false });
+
+      // Fetch sender profiles using edge function (bypasses RLS)
+      const userIds = [...new Set((messages || []).map((msg: any) => msg.user_id).filter(Boolean))];
+      
+      let profilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
+      
+      if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
+          body: { userIds: userIds as string[] },
+        });
+
+        if (!profilesError && Array.isArray(profilesData)) {
+          profilesData.forEach((user: any) => {
+            profilesMap.set(user.id, {
+              id: user.id,
+              full_name: user.full_name,
+              email: user.email,
+            });
+          });
+        } else if (profilesError) {
+          console.error('[ChatStore] Error fetching user profiles:', profilesError);
+        }
+      }
+
+      // Map messages with sender information
+      const messagesWithSenders = (messages || []).map((msg: any) => ({
+        ...msg,
+        sender: profilesMap.get(msg.user_id) || { id: msg.user_id },
+      }));
+
+      set({ messages: messagesWithSenders, isLoading: false });
     } catch (err) {
       set({ 
         error: err instanceof Error ? err.message : 'Failed to load messages',
@@ -278,22 +308,25 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
         async (payload) => {
           const newMessage = payload.new as ProjectMessage;
 
-          // We need to fetch the sender's profile for the new message
-          const { data: senderProfile, error } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .eq('id', newMessage.user_id)
-            .single();
+          // Fetch sender profile using edge function (bypasses RLS)
+          const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
+            body: { userIds: [newMessage.user_id] },
+          });
 
-          if (error) {
-            console.error("Error fetching profile for new message:", error);
+          if (profilesError || !Array.isArray(profilesData) || profilesData.length === 0) {
+            console.error("Error fetching profile for new message:", profilesError);
             // Fallback to refetching all messages if profile fetch fails
             await get().loadMessages(threadId);
             return;
           }
 
           // Append the new message with sender info to the existing messages array
-          newMessage.sender = senderProfile;
+          const senderProfile = profilesData[0];
+          newMessage.sender = {
+            id: senderProfile.id,
+            full_name: senderProfile.full_name,
+            email: senderProfile.email,
+          };
           set((state) => ({
             messages: [...state.messages, newMessage],
           }));
