@@ -226,7 +226,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
       // Fetch sender profiles using edge function (bypasses RLS)
       const userIds = [...new Set((messages || []).map((msg: any) => msg.user_id).filter(Boolean))];
       
-      let profilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
+      const profilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
       
       if (userIds.length > 0) {
         const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {

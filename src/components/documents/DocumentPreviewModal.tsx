@@ -45,6 +45,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const { deleteFile, downloadFile } = useDocumentManagement({
     projectId: resource?.project_id || null,
     context: docContext,
+    skipInitialFetch: true,
   });
   const { canEdit } = usePermissions(resourceId);
   

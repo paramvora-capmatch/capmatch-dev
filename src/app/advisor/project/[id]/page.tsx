@@ -23,15 +23,18 @@ import {
 import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
 import { DocumentManager } from "@/components/documents/DocumentManager";
 import { storageService } from "@/lib/storage";
-import { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
+import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 import { getProjectWithResume } from "@/lib/project-queries";
+import { Modal } from "@/components/ui/Modal";
+import { Select } from "@/components/ui/Select";
 import { ProjectResumeView } from "@/components/project/ProjectResumeView";
 import { EnhancedProjectForm } from "@/components/forms/EnhancedProjectForm";
 import { ProjectCompletionCard } from "@/components/project/ProjectCompletionCard";
 import { ProjectSummaryCard } from "@/components/project/ProjectSummaryCard";
 import { BorrowerResumeForm } from "@/components/forms/BorrowerResumeForm";
 import { StickyChatCard } from "@/components/chat/StickyChatCard";
+import { usePermissionStore } from "@/stores/usePermissionStore";
 
 // Utility functions
 const formatDate = (dateString: string) => {
@@ -118,8 +121,227 @@ export default function AdvisorProjectDetailPage() {
   const messageSubscriptionRef = useRef<RealtimeChannel | null>(null);
   const [isEditingProject, setIsEditingProject] = useState<boolean>(false);
   const borrowerResumeRef = useRef<HTMLDivElement | null>(null);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [copyOptions, setCopyOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [copySourceProjectId, setCopySourceProjectId] = useState<string>("");
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [isCopyingBorrower, setIsCopyingBorrower] = useState(false);
+  const [isCopyOptionsLoading, setIsCopyOptionsLoading] = useState(false);
+  const [borrowerResumeRefreshKey, setBorrowerResumeRefreshKey] = useState(0);
+  const loadPermissionsForProject = usePermissionStore(
+    (state) => state.loadPermissionsForProject
+  );
 
   const projectId = params?.id as string;
+
+  const loadCopyOptions = useCallback(
+    async (ownerOrgId?: string, currentProjectId?: string) => {
+      if (!user || !ownerOrgId || !currentProjectId) {
+        setCopyOptions([]);
+        setCopySourceProjectId("");
+        return;
+      }
+
+      if (user.isDemo) {
+        setCopyOptions([]);
+        setCopySourceProjectId("");
+        return;
+      }
+
+      setIsCopyOptionsLoading(true);
+      try {
+        const { data: projectRows, error: projectError } = await supabase
+          .from("projects")
+          .select("id, name")
+          .eq("owner_org_id", ownerOrgId)
+          .neq("id", currentProjectId)
+          .order("created_at", { ascending: false });
+
+        if (projectError) {
+          throw projectError;
+        }
+
+        const projectIds = projectRows?.map((proj: any) => proj.id) ?? [];
+        const resumeMap = new Map<string, string>();
+
+        if (projectIds.length > 0) {
+          const { data: resumeRows, error: resumeError } = await supabase
+            .from("project_resumes")
+            .select("project_id, content")
+            .in("project_id", projectIds);
+
+          if (resumeError && resumeError.code !== "PGRST116") {
+            throw resumeError;
+          }
+
+          resumeRows?.forEach((row: any) => {
+            const projectName =
+              row?.content?.projectName ??
+              row?.content?.project_name ??
+              row?.content?.name ??
+              "";
+            if (projectName) {
+              resumeMap.set(row.project_id, projectName);
+            }
+          });
+        }
+
+        const options =
+          projectRows?.map((proj: any) => {
+            const fallbackName = proj.name || "Untitled Project";
+            const normalizedName =
+              (resumeMap.get(proj.id) || fallbackName || "Untitled Project").trim() ||
+              "Untitled Project";
+            return {
+              value: proj.id as string,
+              label: normalizedName,
+            };
+          }) ?? [];
+
+        setCopyOptions(options);
+        setCopySourceProjectId("");
+      } catch (error) {
+        console.error("Error loading copyable borrower resumes:", error);
+        setCopyOptions([]);
+        setCopySourceProjectId("");
+      } finally {
+        setIsCopyOptionsLoading(false);
+      }
+    },
+    [user]
+  );
+
+  const refreshBorrowerResume = useCallback(
+    async (targetProjectId: string, ownerOrgIdOverride?: string) => {
+      if (!targetProjectId || !user) {
+        setBorrowerResume(null);
+        return;
+      }
+
+      if (user.isDemo) {
+        try {
+          const allProfiles = await storageService.getItem<BorrowerProfile[]>(
+            "borrowerProfiles"
+          );
+          const searchOrgId =
+            ownerOrgIdOverride ?? project?.owner_org_id ?? null;
+
+          if (!searchOrgId) {
+            setBorrowerResume(null);
+            return;
+          }
+
+          const profile = allProfiles?.find(
+            (p) => p.entityId === searchOrgId
+          );
+
+          if (!profile) {
+            setBorrowerResume(null);
+            return;
+          }
+
+          setBorrowerResume({
+            id: `resume-${profile.id}`,
+            org_id: searchOrgId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            content: {
+              fullLegalName: profile.fullLegalName,
+              primaryEntityName: profile.primaryEntityName,
+              contactEmail: profile.contactEmail,
+              contactPhone: profile.contactPhone,
+              yearsCREExperienceRange: profile.yearsCREExperienceRange,
+              assetClassesExperience: profile.assetClassesExperience,
+              geographicMarketsExperience: profile.geographicMarketsExperience,
+              creditScoreRange: profile.creditScoreRange,
+              netWorthRange: profile.netWorthRange,
+              liquidityRange: profile.liquidityRange,
+              bankruptcyHistory: profile.bankruptcyHistory,
+              foreclosureHistory: profile.foreclosureHistory,
+              litigationHistory: profile.litigationHistory,
+            },
+          });
+        } catch (error) {
+          console.warn("Error loading demo borrower resume:", error);
+          setBorrowerResume(null);
+        }
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("borrower_resumes")
+          .select("*")
+          .eq("project_id", targetProjectId)
+          .maybeSingle();
+
+        if (error && error.code !== "PGRST116") {
+          throw error;
+        }
+
+        setBorrowerResume((data as BorrowerResume) || null);
+      } catch (error) {
+        console.warn("Error loading borrower resume:", error);
+        setBorrowerResume(null);
+      }
+    },
+    [user, project?.owner_org_id]
+  );
+
+  const handleCopyBorrowerProfile = useCallback(async () => {
+    if (!project || !copySourceProjectId || !user) return;
+
+    if (!copyOptions.some((option) => option.value === copySourceProjectId)) {
+      setCopyError("Selected project is no longer available.");
+      return;
+    }
+
+    if (user.isDemo) {
+      setCopyError("Copying borrower resumes is not supported in demo mode.");
+      return;
+    }
+
+    try {
+      setIsCopyingBorrower(true);
+      const { error } = await supabase.functions.invoke(
+        "copy-borrower-profile",
+        {
+          body: {
+            source_project_id: copySourceProjectId,
+            target_project_id: project.id,
+          },
+        }
+      );
+
+      if (error) {
+        throw new Error(error.message || "Failed to copy borrower resume");
+      }
+
+      await refreshBorrowerResume(project.id, project.owner_org_id);
+      await loadCopyOptions(project.owner_org_id, project.id);
+      setBorrowerResumeRefreshKey((prev) => prev + 1);
+      setCopyError(null);
+      setCopyModalOpen(false);
+      setCopySourceProjectId("");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to copy borrower resume";
+      setCopyError(message);
+    } finally {
+      setIsCopyingBorrower(false);
+    }
+  }, [
+    project,
+    copySourceProjectId,
+    user,
+    refreshBorrowerResume,
+    loadCopyOptions,
+    copyOptions,
+  ]);
 
   // Effect for initial data loading
   useEffect(() => {
@@ -144,6 +366,10 @@ export default function AdvisorProjectDetailPage() {
           (foundProject.projectStatus as ProjectStatus) || "Info Gathering"
         );
 
+        if (!user?.isDemo) {
+          void loadPermissionsForProject(foundProject.id);
+        }
+
         // 2. Load owner org name
         if (foundProject.owner_org_id) {
           const { data: orgData, error: orgError } = await supabase
@@ -159,52 +385,11 @@ export default function AdvisorProjectDetailPage() {
           }
         }
 
-        // 3. Load borrower resume for the owning org
-        if (user.isDemo) {
-          const allProfiles = await storageService.getItem<BorrowerProfile[]>(
-            "borrowerProfiles"
-          );
-          const profile = allProfiles?.find(
-            (p) => p.entityId === foundProject.owner_org_id
-          );
-          if (profile) {
-            setBorrowerResume({
-              id: `resume-${profile.id}`,
-              org_id: foundProject.owner_org_id,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              content: {
-                fullLegalName: profile.fullLegalName,
-                primaryEntityName: profile.primaryEntityName,
-                contactEmail: profile.contactEmail,
-                contactPhone: profile.contactPhone,
-                yearsCREExperienceRange: profile.yearsCREExperienceRange,
-                assetClassesExperience: profile.assetClassesExperience,
-                geographicMarketsExperience:
-                  profile.geographicMarketsExperience,
-                creditScoreRange: profile.creditScoreRange,
-                netWorthRange: profile.netWorthRange,
-                liquidityRange: profile.liquidityRange,
-                bankruptcyHistory: profile.bankruptcyHistory,
-                foreclosureHistory: profile.foreclosureHistory,
-                litigationHistory: profile.litigationHistory,
-              },
-            });
-          }
-        } else {
-          const { data: borrowerResumeData, error: borrowerResumeError } =
-            await supabase
-              .from("borrower_resumes")
-              .select("*")
-              .eq("org_id", foundProject.owner_org_id)
-              .single();
-
-          if (borrowerResumeError && borrowerResumeError.code !== "PGRST116") {
-            console.warn("Error loading borrower resume:", borrowerResumeError);
-          } else if (borrowerResumeData) {
-            setBorrowerResume(borrowerResumeData);
-          }
-        }
+        await refreshBorrowerResume(
+          foundProject.id,
+          foundProject.owner_org_id
+        );
+        await loadCopyOptions(foundProject.owner_org_id, foundProject.id);
 
         // 4. Fetch chat threads
         try {
@@ -235,7 +420,14 @@ export default function AdvisorProjectDetailPage() {
     };
 
     loadProjectData();
-  }, [user, projectId, router]);
+  }, [
+    user,
+    projectId,
+    router,
+    loadCopyOptions,
+    refreshBorrowerResume,
+    loadPermissionsForProject,
+  ]);
 
   const loadMessages = useCallback(
     async (threadId: string) => {
@@ -750,12 +942,13 @@ export default function AdvisorProjectDetailPage() {
                 {activeTab === "project" ? (
                   <>
                     {/* Project Documents */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
                       {project && (
                         <DocumentManager
                           resourceId="PROJECT_ROOT"
                           title="Project-Specific Documents"
                           projectId={project.id}
+                          orgId={project.owner_org_id}
                           context="project"
                         />
                       )}
@@ -774,12 +967,13 @@ export default function AdvisorProjectDetailPage() {
                 ) : (
                   <>
                     {/* Borrower Documents */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
                       {project && (
                         <DocumentManager
                           resourceId="BORROWER_ROOT"
                           title="General Borrower Documents"
                           projectId={project.id}
+                          orgId={project.owner_org_id}
                           context="borrower"
                         />
                       )}
@@ -787,15 +981,27 @@ export default function AdvisorProjectDetailPage() {
 
                     {/* Borrower Resume (Advisor editable) */}
                     <div ref={borrowerResumeRef} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                      <div className="p-6 sm:p-8">
-                        <h2 className="text-xl font-bold text-gray-800 flex items-center mb-6">
-                          <User className="h-5 w-5 mr-2 text-blue-600" />
-                          Borrower Resume
-                        </h2>
                         {project && (
-                          <BorrowerResumeForm projectId={project.id} />
+                          <BorrowerResumeForm
+                            key={borrowerResumeRefreshKey}
+                            projectId={project.id}
+                            onCopyBorrowerResume={() => {
+                              if (project.owner_org_id) {
+                                void loadCopyOptions(
+                                  project.owner_org_id,
+                                  project.id
+                                );
+                              }
+                              setCopySourceProjectId("");
+                              setCopyError(null);
+                              setCopyModalOpen(true);
+                            }}
+                            copyDisabled={isCopyOptionsLoading}
+                            copyLoading={
+                              isCopyOptionsLoading || isCopyingBorrower
+                            }
+                          />
                         )}
-                      </div>
                     </div>
                   </>
                 )}
@@ -811,6 +1017,74 @@ export default function AdvisorProjectDetailPage() {
           />
         </div>
       </div>
+      <Modal
+        isOpen={copyModalOpen}
+        onClose={() => {
+          if (!isCopyingBorrower) {
+            setCopyModalOpen(false);
+            setCopyError(null);
+          }
+        }}
+        title="Copy Borrower Resume"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Copy borrower resume details and documents from another project in
+            this organization. This will replace the current borrower resume
+            and borrower documents.
+          </p>
+          <Select
+            options={copyOptions}
+            value={copySourceProjectId}
+            onChange={(event) => setCopySourceProjectId(event.target.value)}
+            placeholder={
+              isCopyOptionsLoading
+                ? "Loading projects..."
+                : copyOptions.length
+                ? "Select a project"
+                : "No eligible projects found"
+            }
+            disabled={
+              isCopyOptionsLoading ||
+              copyOptions.length === 0 ||
+              isCopyingBorrower
+            }
+          />
+          {!isCopyOptionsLoading && copyOptions.length === 0 && (
+            <p className="text-sm text-gray-500">
+              No other borrower resumes in this organization are currently
+              available.
+            </p>
+          )}
+          {copyError && (
+            <p className="text-sm text-red-600">{copyError}</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!isCopyingBorrower) {
+                  setCopyModalOpen(false);
+                  setCopyError(null);
+                }
+              }}
+              disabled={isCopyingBorrower}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCopyBorrowerProfile}
+              disabled={
+                !copySourceProjectId ||
+                isCopyingBorrower ||
+                isCopyOptionsLoading
+              }
+            >
+              {isCopyingBorrower ? "Copying..." : "Copy Resume"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </RoleBasedRoute>
   );
 }

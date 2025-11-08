@@ -27,6 +27,7 @@ import {
   Edit,
   AlertCircle,
   ChevronDown,
+  Copy,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import {
@@ -1166,7 +1167,18 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               isLoading={copyLoading}
               className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
             >
-              {copyLoading ? "Copying..." : "Copy From Another Project"}
+              {copyLoading ? (
+                <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  Copying...
+                </span>
+              ) : (
+                <>
+                  <Copy className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[190px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+                    Copy From Another Project
+                  </span>
+                </>
+              )}
             </Button>
           )}
           {/* Collapse/expand button (only when not editing) */}
