@@ -35,6 +35,7 @@ interface UseDocumentManagementOptions {
   folderId?: string | null;
   orgId?: string | null;
   context?: 'project' | 'borrower';
+  skipInitialFetch?: boolean;
 }
 
 export const useDocumentManagement = ({
@@ -42,6 +43,7 @@ export const useDocumentManagement = ({
   folderId = null,
   orgId,
   context = 'project',
+  skipInitialFetch = false,
 }: UseDocumentManagementOptions) => {
   const [files, setFiles] = useState<DocumentFile[]>([]);
   const [folders, setFolders] = useState<DocumentFolder[]>([]);
@@ -54,15 +56,18 @@ export const useDocumentManagement = ({
 
   const listDocuments = useCallback(async () => {
     if (!targetOrgId) return;
+    if (!projectId) {
+      setFiles([]);
+      setFolders([]);
+      setIsLoading(false);
+      setError("Project context is required for document management operations.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      if (!projectId) {
-        throw new Error(
-          "Project context is required for document management operations."
-        );
-      }
 
       const rootResourceType =
         context === "borrower" ? "BORROWER_DOCS_ROOT" : "PROJECT_DOCS_ROOT";
@@ -493,8 +498,10 @@ export const useDocumentManagement = ({
   );
 
   useEffect(() => {
-    listDocuments();
-  }, [listDocuments]);
+    if (!skipInitialFetch) {
+      listDocuments();
+    }
+  }, [listDocuments, skipInitialFetch]);
 
   return {
     files,

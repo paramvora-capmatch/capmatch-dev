@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
@@ -30,19 +30,30 @@ const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
   const hasProject = Boolean(project);
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="p-6 space-y-4">
+      <div className="px-6 pt-6 pb-4 space-y-4">
         {hasProject ? (
           <>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-600">Overall completion</p>
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {project?.projectName || "Project"}
+                  {project?.projectName || "Project"} - Borrower Resume
                 </h3>
               </div>
-              <span className="text-lg font-semibold text-gray-800">
-                {progress}%
-              </span>
+              <div className="flex items-center gap-3 self-end sm:self-auto">
+                <span className="text-lg font-semibold text-gray-800">
+                  {progress}%
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  rightIcon={<PlusCircle size={18} />}
+                  onClick={onOpenProject}
+                  className="!w-auto px-4 py-2 !h-auto text-blue-700 hover:bg-blue-50 transition-colors text-sm font-semibold"
+                >
+                  Continue Project
+                </Button>
+              </div>
             </div>
             <div className="h-3 w-full bg-gray-200 rounded-md overflow-hidden">
               <div
@@ -51,11 +62,8 @@ const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
               />
             </div>
             <p className="text-sm text-gray-600">
-              Finish both the project details and borrower resume to reach 100% and unlock your offering memorandum.
+              Finish the borrower resume to reach 100%.
             </p>
-            <div className="flex justify-end">
-              <Button onClick={onOpenProject}>Continue Project</Button>
-            </div>
           </>
         ) : (
           <>
@@ -90,13 +98,37 @@ export default function DashboardPage() {
 
   const combinedLoading = authLoading || projectsLoading;
 
-  const primaryProject = projects[0] || null;
-  const primaryCombined = primaryProject
-    ? Math.round(
-        ((primaryProject.completenessPercent ?? 0) +
-          (primaryProject.borrowerProgress ?? 0)) /
-          2
-      )
+  const mostCompleteBorrowerProject = useMemo(() => {
+    if (projects.length === 0) return null;
+
+    return projects.reduce((bestProject, currentProject) => {
+      const bestProgress = bestProject.borrowerProgress ?? 0;
+      const currentProgress = currentProject.borrowerProgress ?? 0;
+
+      if (currentProgress > bestProgress) {
+        return currentProject;
+      }
+
+      if (currentProgress === bestProgress) {
+        const bestUpdatedAt = bestProject.updatedAt
+          ? new Date(bestProject.updatedAt).getTime()
+          : 0;
+        const currentUpdatedAt = currentProject.updatedAt
+          ? new Date(currentProject.updatedAt).getTime()
+          : 0;
+
+        if (currentUpdatedAt > bestUpdatedAt) {
+          return currentProject;
+        }
+      }
+
+      return bestProject;
+    }, projects[0]);
+  }, [projects]);
+
+  const primaryProject = mostCompleteBorrowerProject;
+  const borrowerResumeProgress = primaryProject
+    ? Math.round(primaryProject.borrowerProgress ?? 0)
     : 0;
 
   // Control Flow Logic & Loading
@@ -191,7 +223,7 @@ export default function DashboardPage() {
               <div className="relative">
                 <OnboardingProgressCard
                   project={primaryProject}
-                  progress={primaryCombined}
+                  progress={borrowerResumeProgress}
                   onOpenProject={() => {
                     if (primaryProject) {
                       router.push(`/project/workspace/${primaryProject.id}`);

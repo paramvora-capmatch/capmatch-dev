@@ -336,7 +336,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const canEdit = isBorrowerDocs ? (isOwner || canEditRoot) : canEditRoot;
 
   return (
-    <Card className="group shadow-sm h-full flex flex-col rounded-2xl p-2">
+    <Card className="group shadow-sm h-full flex flex-col rounded-2xl p-2 relative overflow-visible">
       <CardHeader className="pb-4 px-3">
           <div className="flex items-center justify-start gap-3">
           <div className="flex items-center gap-2 ml-3">
@@ -477,7 +477,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   {/* Dropdown menu */}
                   {openMenuId === file.id && (
                     <div
-                      className="absolute top-0 left-[calc(100%+8px)] z-20 w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 text-left"
+                      className="absolute top-0 left-[calc(100%+8px)] z-[9999] w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 text-left"
                       onClick={(e) => e.stopPropagation()}
                       onMouseDown={(e) => e.stopPropagation()}
                       data-dm-menu="true"

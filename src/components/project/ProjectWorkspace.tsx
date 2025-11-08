@@ -277,15 +277,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   };
 
   const renderBorrowerDocumentsSection = () => (
-    <DocumentManager
-      key={`borrower-docs-${borrowerDocsRefreshKey}`}
-      projectId={projectId}
-      resourceId="BORROWER_ROOT"
-      title="Borrower Documents"
-      canUpload={true}
-      canDelete={true}
-      context="borrower"
-    />
+    <div className="overflow-visible">
+      <DocumentManager
+        key={`borrower-docs-${borrowerDocsRefreshKey}`}
+        projectId={projectId}
+        resourceId="BORROWER_ROOT"
+        title="Borrower Documents"
+        orgId={activeProject?.owner_org_id ?? null}
+        canUpload={true}
+        canDelete={true}
+        context="borrower"
+      />
+    </div>
   );
 
   const renderBorrowerResumeSection = () => (
@@ -401,11 +404,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                 )}
 
                 {/* Project Documents */}
-                <div id="project-documents-section">
+                <div id="project-documents-section" className="overflow-visible">
                   <DocumentManager
                     projectId={projectId}
                     resourceId="PROJECT_ROOT"
                     title="Project Documents"
+                    orgId={activeProject?.owner_org_id ?? null}
                     canUpload={true}
                     canDelete={true}
                     highlightedResourceId={highlightedResourceId}
