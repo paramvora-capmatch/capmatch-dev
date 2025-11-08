@@ -232,7 +232,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       } else if (typeof value === 'string') {
         if (value && value.trim().length > 0) answered += 1;
       } else if (typeof value === 'boolean') {
-        if (value === true) answered += 1;
+        // Count booleans as answered whether true or false (explicit answer)
+        if (value === true || value === false) answered += 1;
       } else if (value != null) {
         answered += 1;
       }

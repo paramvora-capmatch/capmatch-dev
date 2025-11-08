@@ -38,9 +38,19 @@ function calculateProjectProgress(resume: ProjectResumeContent): number {
   let filledCount = 0;
   requiredFields.forEach((field) => {
     const value = resume[field];
-    if (value !== null && value !== undefined && String(value).trim() !== '') {
-      if (typeof value === 'number' && value === 0) return; // Don't count default 0
-      filledCount++;
+    if (value !== null && value !== undefined) {
+      // For numbers, check if it's not 0 (0 is considered empty/default)
+      if (typeof value === 'number') {
+        if (value !== 0) filledCount++;
+      } 
+      // For strings, check if it's not empty after trimming
+      else if (typeof value === 'string') {
+        if (value.trim() !== '') filledCount++;
+      }
+      // For other types, count as filled
+      else {
+        filledCount++;
+      }
     }
   });
 
@@ -401,8 +411,10 @@ async function updateProjectResume(
 ): Promise<boolean> {
   console.log(`[seed] Updating project resume for project: ${projectId}...`);
 
-  // Calculate and include completenessPercent
-  const completenessPercent = calculateProjectProgress(resumeContent);
+  // For complete project, set to 100% explicitly
+  // For partial project, calculate it
+  const isCompleteProject = resumeContent.projectName === 'Downtown Highrise Acquisition';
+  const completenessPercent = isCompleteProject ? 100 : calculateProjectProgress(resumeContent);
   const resumeWithProgress: ProjectResumeContent = {
     ...resumeContent,
     completenessPercent,
@@ -430,12 +442,19 @@ async function updateProjectResume(
 async function updateBorrowerResume(projectId: string, resumeContent: typeof demoBorrowerResume): Promise<boolean> {
   console.log(`[seed] Updating borrower resume for project: ${projectId}...`);
 
+  // Ensure completenessPercent is set to 100 for complete projects
+  // The calculation logic only counts booleans when true, but we want to show 100% for complete data
+  const borrowerResumeWithProgress = {
+    ...resumeContent,
+    completenessPercent: 100, // Explicitly set to 100% since all fields are filled
+  };
+
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
     .upsert(
       {
         project_id: projectId,
-        content: resumeContent as any,
+        content: borrowerResumeWithProgress as any,
       },
       { onConflict: 'project_id' }
     );
@@ -1358,25 +1377,86 @@ async function seedDemoData() {
     if (completeThread) {
       const appraisalId = completeProjectDocs['Appraisal Summary Report.pdf'];
       const rentRollId = completeProjectDocs['Rent Roll Detail.pdf'];
+      const operatingStmtId = completeProjectDocs['Operating Statement 2024.pdf'];
+      const envAssessmentId = completeProjectDocs['Environmental Site Assessment.pdf'];
 
+      // Initial welcome and document upload
       await createChatMessage(
         completeThread.id,
         borrowerUserId,
-        `Welcome to the project, @[Sarah Johnson](user:${member1Id})! I've uploaded the key documents. Please review the @[Appraisal Summary Report.pdf](doc:${appraisalId}) when you have a chance.`,
+        `Welcome to the project, @[Sarah Johnson](user:${member1Id})! I've uploaded the key documents we have so far. Please review the @[Appraisal Summary Report.pdf](doc:${appraisalId}) when you have a chance.`,
         appraisalId ? [appraisalId] : []
       );
 
       await createChatMessage(
         completeThread.id,
         member1Id,
-        `Thanks! I've reviewed the appraisal. The @[Rent Roll Detail.pdf](doc:${rentRollId}) looks solid. Should we schedule a call to discuss next steps?`,
-        rentRollId ? [rentRollId] : []
+        `Thanks @[John Smith](user:${borrowerUserId})! I'll review everything this afternoon. What's our timeline looking like for lender submissions?`,
+        []
       );
 
       await createChatMessage(
         completeThread.id,
         advisorUserId,
-        `Great work both of you. The documents look comprehensive. @[Sarah Johnson](user:${member1Id}), can you prepare a summary of the key findings from the appraisal?`,
+        `Hi team! @[John Smith](user:${borrowerUserId}), thanks for getting the documents uploaded. @[Sarah Johnson](user:${member1Id}), we're targeting initial lender outreach in about 2 weeks. The @[Appraisal Summary Report.pdf](doc:${appraisalId}) shows strong fundamentals - $75M purchase price with stabilized NOI around $4M.`,
+        appraisalId ? [appraisalId] : []
+      );
+
+      // Discussion about rent roll
+      await createChatMessage(
+        completeThread.id,
+        member1Id,
+        `I've reviewed the @[Rent Roll Detail.pdf](doc:${rentRollId}). Occupancy looks good at 96%, but I noticed a few units coming up for renewal in Q2. Should we factor that into our projections?`,
+        rentRollId ? [rentRollId] : []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        borrowerUserId,
+        `Good catch, @[Sarah Johnson](user:${member1Id}). We're planning to renew those at market rates, which should actually improve NOI. The current rents are slightly below market.`,
+        []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        advisorUserId,
+        `That's a great point. @[Sarah Johnson](user:${member1Id}), can you update the pro forma to reflect the renewal assumptions? Also, let's make sure the @[Operating Statement 2024.pdf](doc:${operatingStmtId}) aligns with what we're seeing in the rent roll.`,
+        operatingStmtId ? [operatingStmtId] : []
+      );
+
+      // Environmental assessment discussion
+      await createChatMessage(
+        completeThread.id,
+        member1Id,
+        `I've also reviewed the @[Environmental Site Assessment.pdf](doc:${envAssessmentId}). No red flags - just some minor recommendations for ongoing monitoring. Should we include this in the lender package?`,
+        envAssessmentId ? [envAssessmentId] : []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        advisorUserId,
+        `Yes, definitely include it. Most lenders will want to see it, and having a clean report is a positive. @[John Smith](user:${borrowerUserId}), do we have the architectural drawings ready? Those are typically requested early in the process.`,
+        []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        borrowerUserId,
+        `Yes, they're uploaded. I can share the link if needed. @[Cody Field](user:${advisorUserId}), what's our next step - should we start reaching out to lenders now or wait until we have everything polished?`,
+        []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        advisorUserId,
+        `Let's get the pro forma updated first, then we can start soft outreach. I have a few lenders in mind who would be a good fit for this deal size and asset type. @[Sarah Johnson](user:${member1Id}), can you have the updated pro forma ready by Friday?`,
+        []
+      );
+
+      await createChatMessage(
+        completeThread.id,
+        member1Id,
+        `Absolutely, I'll have it ready by end of day Thursday. I'll flag any assumptions that need your review, @[Cody Field](user:${advisorUserId}).`,
         []
       );
     }
@@ -1385,25 +1465,123 @@ async function seedDemoData() {
     if (partialThread) {
       const appraisalId = partialProjectDocs['Appraisal Report.pdf'];
       const operatingStmtId = partialProjectDocs['Operating Statement 2024.pdf'];
+      const rentRollId = partialProjectDocs['Rent Roll.pdf'];
+      const envAssessmentId = partialProjectDocs['Environmental Site Assessment.pdf'];
+      const loanAppId = partialProjectDocs['Commercial Loan Application Packet.pdf'];
 
+      // Initial project setup
       await createChatMessage(
         partialThread.id,
         borrowerUserId,
-        `Hi @[Mike Chen](user:${member2Id}), welcome to the Warehouse Development project. I've started uploading documents. The @[Appraisal Report.pdf](doc:${appraisalId}) is ready for review.`,
+        `Hi @[Mike Chen](user:${member2Id}), welcome to the Warehouse Development project. This is a ground-up development in Dallas. I've started uploading the initial documents - the @[Appraisal Report.pdf](doc:${appraisalId}) is ready for review.`,
         appraisalId ? [appraisalId] : []
       );
 
       await createChatMessage(
         partialThread.id,
         member2Id,
-        `Thanks! I'll review the appraisal. Do we have the @[Operating Statement 2024.pdf](doc:${operatingStmtId}) ready? I'd like to cross-reference the numbers.`,
+        `Thanks @[John Smith](user:${borrowerUserId})! I'll dive into the appraisal today. This is a pre-development deal, right? Do we have stabilized NOI projections or is this all pro forma?`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `Hi team! Yes @[Mike Chen](user:${member2Id}), this is pre-development. We're projecting stabilized NOI around $800K once fully leased. The @[Appraisal Report.pdf](doc:${appraisalId}) should have the market analysis and comparable properties.`,
+        appraisalId ? [appraisalId] : []
+      );
+
+      // Operating statement discussion
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `Got it. I see the @[Operating Statement 2024.pdf](doc:${operatingStmtId}) is uploaded. Since this is pre-development, are these numbers from a similar property or projected?`,
         operatingStmtId ? [operatingStmtId] : []
       );
 
       await createChatMessage(
         partialThread.id,
         borrowerUserId,
-        `Yes, the operating statement is uploaded. Let me know if you need any clarification on the numbers.`,
+        `Those are projected based on similar properties in the area. We're using a 100,000 sqft warehouse with market rents around $8/sqft. @[Cody Field](user:${advisorUserId}), does that sound reasonable for the Dallas market?`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `Yes, $8/sqft is in line with the market. @[Mike Chen](user:${member2Id}), can you verify the expense assumptions? We want to make sure we're being conservative on operating expenses.`,
+        []
+      );
+
+      // Rent roll discussion (even though it's pre-development)
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `I've reviewed the @[Rent Roll.pdf](doc:${rentRollId}). Since this is pre-development, I assume this is a template or from a comparable property?`,
+        rentRollId ? [rentRollId] : []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        borrowerUserId,
+        `Exactly - it's a template based on similar properties. We're planning to start pre-leasing about 6 months before completion.`,
+        []
+      );
+
+      // Environmental assessment
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `I've also looked at the @[Environmental Site Assessment.pdf](doc:${envAssessmentId}). Everything looks clean. For a ground-up development, lenders will definitely want this.`,
+        envAssessmentId ? [envAssessmentId] : []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `Good. @[John Smith](user:${borrowerUserId}), do we have the construction budget finalized? That's going to be critical for the loan application.`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        borrowerUserId,
+        `We're still finalizing a few items with the contractor, but we should have it locked in by next week. @[Mike Chen](user:${member2Id}), I've uploaded the @[Commercial Loan Application Packet.pdf](doc:${loanAppId}) - can you review and let me know if we're missing anything?`,
+        loanAppId ? [loanAppId] : []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `I'll review it today. From what I can see, we'll need the construction budget, equity commitment letter, and maybe some contractor references. @[Cody Field](user:${advisorUserId}), what's typical for construction loans in this market?`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `For construction loans, lenders typically want 25-30% equity, contractor financials, and a detailed construction budget. @[John Smith](user:${borrowerUserId}), what's our target LTC?`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        borrowerUserId,
+        `We're targeting 75% LTC. Total project cost is around $10M, so we're looking for about $7.5M in financing.`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        advisorUserId,
+        `That's reasonable. @[Mike Chen](user:${member2Id}), once you've reviewed the application packet, let's schedule a call to discuss the lender strategy. I have a few construction lenders who specialize in industrial properties.`,
+        []
+      );
+
+      await createChatMessage(
+        partialThread.id,
+        member2Id,
+        `Sounds good. I'll have my review notes ready by tomorrow. Thanks for the context, @[Cody Field](user:${advisorUserId})!`,
         []
       );
     }
@@ -1460,4 +1638,6 @@ if (require.main === module) {
 }
 
 export { seedDemoData, cleanupDemoData };
+
+
 

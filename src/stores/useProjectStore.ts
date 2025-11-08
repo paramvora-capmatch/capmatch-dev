@@ -139,13 +139,19 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			let filledCount = 0;
 			requiredFields.forEach((field) => {
 				const value = project[field];
-				if (
-					value !== null &&
-					value !== undefined &&
-					String(value).trim() !== ""
-				) {
-					if (typeof value === "number" && value === 0) return; // Don't count default 0
-					filledCount++;
+				if (value !== null && value !== undefined) {
+					// For numbers, check if it's not 0 (0 is considered empty/default)
+					if (typeof value === "number") {
+						if (value !== 0) filledCount++;
+					}
+					// For strings, check if it's not empty after trimming
+					else if (typeof value === "string") {
+						if (value.trim() !== "") filledCount++;
+					}
+					// For other types, count as filled
+					else {
+						filledCount++;
+					}
 				}
 			});
 			const totalProgress =
