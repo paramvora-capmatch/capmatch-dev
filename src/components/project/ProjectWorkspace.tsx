@@ -26,6 +26,19 @@ import { supabase } from "../../../lib/supabaseClient";
 import { BorrowerResumeContent } from "@/lib/project-queries";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
+
+const clampPercentage = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.min(100, Math.round(parsed)));
+    }
+  }
+  return 0;
+};
 interface ProjectWorkspaceProps {
   projectId: string;
   isBorrowerEditing?: boolean;
@@ -44,6 +57,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     setActiveProject,
     isLoading: projectsLoading,
     getProject,
+    loadUserProjects,
   } = useProjects();
   const templateOptions = useMemo(
     () =>
@@ -112,6 +126,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     content: borrowerResumeData,
     isLoading: borrowerResumeLoading,
     reload: reloadBorrowerResume,
+    setLocalContent: setBorrowerResumeLocalContent,
   } = useProjectBorrowerResume(projectId);
 
   // Calculate if we're still in initial loading phase
@@ -246,7 +261,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     setIsCopyingBorrower(true);
     setCopyError(null);
     try {
-      const { error } = await supabase.functions.invoke(
+      const { data, error } = await supabase.functions.invoke(
         "copy-borrower-profile",
         {
           body: {
@@ -260,11 +275,31 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         throw new Error(error.message || "Failed to copy borrower profile");
       }
 
+      const copiedResume = (data?.borrowerResumeContent ??
+        {}) as BorrowerResumeContent;
+      const nextProgress = clampPercentage(
+        copiedResume?.completenessPercent
+      );
+
+      setBorrowerProgress(nextProgress);
+      setBorrowerResumeSnapshot(copiedResume || null);
+      setBorrowerResumeLocalContent(copiedResume || null);
+
+      if (activeProject) {
+        const updatedProject = {
+          ...activeProject,
+          borrowerProgress: nextProgress,
+          borrowerSections: copiedResume,
+        };
+        void setActiveProject(updatedProject);
+      }
+
       await reloadBorrowerResume();
+      void loadUserProjects();
       setBorrowerDocsRefreshKey((prev) => prev + 1);
-        setCopyModalOpen(false);
-        setCopySourceProjectId("");
-        setBorrowerEditing(false);
+      setCopyModalOpen(false);
+      setCopySourceProjectId("");
+      setBorrowerEditing(false);
     } catch (err) {
       setCopyError(
         err instanceof Error

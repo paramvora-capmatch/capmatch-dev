@@ -226,15 +226,14 @@ serve(async (req) => {
 
       // Step 5: Create a default project for the org using the shared utility
       console.log("[onboard-borrower] Step 5: Creating default project");
-      const projectData = await createProjectWithResumeAndStorage(
-        supabaseAdmin,
-        {
-          name: "My First Project",
-          owner_org_id: orgData.id,
-          creator_id: newUser.id, // Pass the new user's ID as the creator
-          assigned_advisor_id: advisorId,
-        }
-      );
+      const {
+        project: projectData,
+      } = await createProjectWithResumeAndStorage(supabaseAdmin, {
+        name: "My First Project",
+        owner_org_id: orgData.id,
+        creator_id: newUser.id, // Pass the new user's ID as the creator
+        assigned_advisor_id: advisorId,
+      });
       console.log(
         `[onboard-borrower] Default project created successfully: ${projectData.id}`
       );

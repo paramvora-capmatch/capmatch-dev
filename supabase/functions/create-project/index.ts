@@ -46,7 +46,11 @@ serve(async (req) => {
     // --- Atomic Operation Start ---
 
     // Create the project using the shared utility function
-    const project = await createProjectWithResumeAndStorage(supabaseAdmin, {
+    const {
+      project,
+      borrowerResumeContent,
+      borrowerResumeSourceProjectId,
+    } = await createProjectWithResumeAndStorage(supabaseAdmin, {
       name,
       owner_org_id,
       assigned_advisor_id: assigned_advisor_id || null,
@@ -55,10 +59,17 @@ serve(async (req) => {
 
     // --- Atomic Operation End ---
 
-    return new Response(JSON.stringify({ project }), {
+    return new Response(
+      JSON.stringify({
+        project,
+        borrowerResumeContent,
+        borrowerResumeSourceProjectId,
+      }),
+      {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 201, // 201 Created
-    });
+      }
+    );
   } catch (error) {
     console.error("[create-project] Error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {

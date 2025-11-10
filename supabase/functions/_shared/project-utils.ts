@@ -83,49 +83,129 @@ async function ensureStorageFolders(
   }
 }
 
-async function fetchLatestBorrowerResume(
+function parseCompletenessPercent(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+function hasMeaningfulBorrowerContent(
+  content: Record<string, unknown> | null | undefined
+): boolean {
+  if (!content) return false;
+
+  const ignoredKeys = new Set([
+    "completenessPercent",
+    "createdAt",
+    "updatedAt",
+    "masterProfileId",
+    "lastSyncedAt",
+    "customFields",
+  ]);
+
+  return Object.entries(content).some(([key, value]) => {
+    if (ignoredKeys.has(key)) return false;
+    if (Array.isArray(value)) {
+      return value.length > 0;
+    }
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") {
+      return value.trim().length > 0;
+    }
+    if (typeof value === "number") {
+      return true;
+    }
+    if (typeof value === "boolean") {
+      return true;
+    }
+    if (typeof value === "object") {
+      return Object.keys(value as Record<string, unknown>).length > 0;
+    }
+    return false;
+  });
+}
+
+async function fetchMostCompleteBorrowerResume(
   supabaseAdmin: any,
   ownerOrgId: string,
   excludeProjectId: string
 ): Promise<{ content: Record<string, unknown>; projectId: string | null }> {
-  const { data: latestProject, error: latestProjectError } = await supabaseAdmin
-    .from("projects")
-    .select("id")
-    .eq("owner_org_id", ownerOrgId)
-    .neq("id", excludeProjectId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (latestProjectError && latestProjectError.code !== "PGRST116") {
-    console.error(
-      "[project-utils] Error fetching latest project for borrower resume copy",
-      latestProjectError
-    );
-    return { content: {}, projectId: null };
-  }
-
-  if (!latestProject) {
-    return { content: {}, projectId: null };
-  }
-
-  const { data: prevResume, error: prevResumeError } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("borrower_resumes")
-    .select("content")
-    .eq("project_id", latestProject.id)
-    .maybeSingle();
+    .select(
+      `project_id, content, updated_at,
+       projects!inner(id, owner_org_id, updated_at)`
+    )
+    .eq("projects.owner_org_id", ownerOrgId)
+    .neq("project_id", excludeProjectId);
 
-  if (prevResumeError && prevResumeError.code !== "PGRST116") {
+  if (error && error.code !== "PGRST116") {
     console.error(
-      "[project-utils] Error loading borrower resume content for duplication",
-      prevResumeError
+      "[project-utils] Error fetching borrower resumes for duplication",
+      error
     );
-    return { content: {}, projectId: latestProject.id };
+    return { content: {}, projectId: null };
+  }
+
+  const candidates = (data as Array<Record<string, any>> | null | undefined)
+    ?.map((row) => {
+      const content =
+        (row?.content as Record<string, unknown> | null | undefined) ?? {};
+      const completeness = parseCompletenessPercent(
+        (content as Record<string, unknown>)?.completenessPercent
+      );
+      const updatedAt =
+        row?.updated_at ?? row?.projects?.updated_at ?? null;
+
+      return {
+        projectId: row?.project_id as string | undefined,
+        content,
+        completeness,
+        updatedAt: updatedAt ? new Date(updatedAt).getTime() : 0,
+        hasMeaningfulContent: hasMeaningfulBorrowerContent(content),
+      };
+    })
+    .filter(
+      (row): row is {
+        projectId: string;
+        content: Record<string, unknown>;
+        completeness: number;
+        updatedAt: number;
+        hasMeaningfulContent: boolean;
+      } => Boolean(row?.projectId)
+    ) ?? [];
+
+  if (!candidates.length) {
+    return { content: {}, projectId: null };
+  }
+
+  candidates.sort((a, b) => {
+    if (b.completeness !== a.completeness) {
+      return b.completeness - a.completeness;
+    }
+    return b.updatedAt - a.updatedAt;
+  });
+
+  const filledCandidate =
+    candidates.find(
+      (candidate) =>
+        candidate.completeness > 0 && candidate.hasMeaningfulContent
+    ) ?? candidates.find((candidate) => candidate.hasMeaningfulContent);
+
+  const selected = filledCandidate ?? candidates[0];
+
+  if (!selected || !selected.projectId) {
+    return { content: {}, projectId: null };
   }
 
   return {
-    content: (prevResume?.content as Record<string, unknown>) ?? {},
-    projectId: latestProject.id,
+    content: selected.content,
+    projectId: selected.projectId,
   };
 }
 
@@ -554,7 +634,11 @@ export async function createProjectWithResumeAndStorage(
   const borrowerRootRow = (borrowerRoots as BorrowerRootsRow[] | null)?.[0];
 
   const { content: borrowerResumeContent, projectId: sourceResumeProjectId } =
-    await fetchLatestBorrowerResume(supabaseAdmin, owner_org_id, project.id);
+    await fetchMostCompleteBorrowerResume(
+      supabaseAdmin,
+      owner_org_id,
+      project.id
+    );
 
   console.log("[project-utils] Step 6: Creating borrower resume record");
   const { error: borrowerResumeInsertError } = await supabaseAdmin
@@ -588,21 +672,6 @@ export async function createProjectWithResumeAndStorage(
     }
   }
 
-  console.log("[project-utils] Step 7: Granting creator project access");
-  const { error: grantError } = await supabaseAdmin
-    .from("project_access_grants")
-    .insert({
-      project_id: project.id,
-      org_id: owner_org_id,
-      user_id: options.creator_id,
-      granted_by: options.creator_id,
-    });
-
-  if (grantError) {
-    await supabaseAdmin.from("projects").delete().eq("id", project.id);
-    throw new Error(`Failed to grant project access: ${grantError.message}`);
-  }
-
   const permissionTargets: string[] = [
     (projectDocsRootResource as ResourceRecord).id,
     (projectResumeResource as ResourceRecord).id,
@@ -615,24 +684,77 @@ export async function createProjectWithResumeAndStorage(
     permissionTargets.push(borrowerRootRow.borrower_resume_resource_id);
   }
 
-  console.log(
-    "[project-utils] Step 8: Granting edit permissions on root resources"
-  );
-  for (const resourceId of permissionTargets) {
-    const { error: permError } = await supabaseAdmin
-      .from("permissions")
-      .insert({
-        resource_id: resourceId,
-        user_id: options.creator_id,
-        permission: "edit",
-        granted_by: options.creator_id,
-      });
+  const ownerIds = new Set<string>([options.creator_id]);
+  try {
+    const { data: ownerMembers, error: ownerMembersError } = await supabaseAdmin
+      .from("org_members")
+      .select("user_id")
+      .eq("org_id", owner_org_id)
+      .eq("role", "owner");
 
-    if (permError && !permError.message?.includes("duplicate")) {
+    if (ownerMembersError) {
+      console.error(
+        "[project-utils] Failed to load org owners for project grants",
+        ownerMembersError
+      );
+    } else {
+      for (const member of ownerMembers as Array<{ user_id: string }> | null | undefined) {
+        if (member?.user_id) {
+          ownerIds.add(member.user_id);
+        }
+      }
+    }
+  } catch (ownerFetchError) {
+    console.error(
+      "[project-utils] Unexpected error loading org owners",
+      ownerFetchError
+    );
+  }
+
+  console.log("[project-utils] Step 7: Granting org owners project access");
+  for (const ownerId of ownerIds) {
+    const { error: grantError } = await supabaseAdmin
+      .from("project_access_grants")
+      .upsert(
+        {
+          project_id: project.id,
+          org_id: owner_org_id,
+          user_id: ownerId,
+          granted_by: options.creator_id,
+        },
+        { onConflict: "project_id,user_id" }
+      );
+
+    if (grantError) {
       await supabaseAdmin.from("projects").delete().eq("id", project.id);
       throw new Error(
-        `Failed to grant permissions on resource ${resourceId}: ${permError.message}`
+        `Failed to grant project access to owner ${ownerId}: ${grantError.message}`
       );
+    }
+
+    console.log(
+      `[project-utils] Granted project access to owner ${ownerId} (project ${project.id})`
+    );
+
+    for (const resourceId of permissionTargets) {
+      const { error: permError } = await supabaseAdmin
+        .from("permissions")
+        .upsert(
+          {
+            resource_id: resourceId,
+            user_id: ownerId,
+            permission: "edit",
+            granted_by: options.creator_id,
+          },
+          { onConflict: "resource_id,user_id" }
+        );
+
+      if (permError) {
+        await supabaseAdmin.from("projects").delete().eq("id", project.id);
+        throw new Error(
+          `Failed to grant permissions on resource ${resourceId} for owner ${ownerId}: ${permError.message}`
+        );
+      }
     }
   }
 
@@ -649,15 +771,15 @@ export async function createProjectWithResumeAndStorage(
       chatThreadError
     );
   } else {
-    const participants = [
-      { thread_id: chatThread.id, user_id: options.creator_id },
-    ];
+    const participantIds = new Set<string>(ownerIds);
     if (options.assigned_advisor_id) {
-      participants.push({
-        thread_id: chatThread.id,
-        user_id: options.assigned_advisor_id,
-      });
+      participantIds.add(options.assigned_advisor_id);
     }
+
+    const participants = Array.from(participantIds).map((userId) => ({
+      thread_id: chatThread.id,
+      user_id: userId,
+    }));
 
     const { error: participantsError } = await supabaseAdmin
       .from("chat_thread_participants")
@@ -693,5 +815,9 @@ export async function createProjectWithResumeAndStorage(
   console.log(
     `[project-utils] Project creation completed successfully: ${project.id}`
   );
-  return project;
+  return {
+    project,
+    borrowerResumeContent,
+    borrowerResumeSourceProjectId: sourceResumeProjectId,
+  };
 }

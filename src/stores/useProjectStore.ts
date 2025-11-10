@@ -1,6 +1,10 @@
 // src/stores/useProjectStore.ts
 import { create } from "zustand";
-import { getProjectsWithResumes, ProjectResumeContent } from "@/lib/project-queries";
+import {
+	getProjectsWithResumes,
+	ProjectResumeContent,
+	BorrowerResumeContent,
+} from "@/lib/project-queries";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuthStore } from "./useAuthStore";
 import { usePermissionStore } from "./usePermissionStore"; // Import the new store
@@ -80,6 +84,17 @@ const projectProfileToResumeContent = (
 		}
 	}
 	return resumeContent;
+};
+
+const parsePercentage = (value: unknown): number => {
+	if (typeof value === "number" && Number.isFinite(value)) {
+		return value;
+	}
+	if (typeof value === "string") {
+		const parsed = parseFloat(value);
+		return Number.isFinite(parsed) ? parsed : 0;
+	}
+	return 0;
 };
 
 interface ProjectState {
@@ -307,6 +322,21 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			if (error) throw error;
 			if (!data?.project) throw new Error('Failed to create project');
 
+			const borrowerResumeContent =
+				(data.borrowerResumeContent ?? {}) as BorrowerResumeContent;
+			const normalizedBorrowerProgress = Math.max(
+				0,
+				Math.min(
+					100,
+					Math.round(
+						parsePercentage(
+							(borrowerResumeContent as BorrowerResumeContent)
+								?.completenessPercent
+						)
+					)
+				)
+			);
+
 			// Convert the database project to ProjectProfile format
 			const newProjectData: ProjectProfile = {
 				id: data.project.id,
@@ -344,8 +374,9 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				equityCommittedPercent: null,
 				completenessPercent: 0,
 				internalAdvisorNotes: "",
-				borrowerProgress: 0,
+				borrowerProgress: normalizedBorrowerProgress,
 				projectProgress: 0,
+				borrowerSections: borrowerResumeContent,
 				// Spread the provided data to override defaults
 				...projectData,
 			};
@@ -354,6 +385,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			const finalProject = {
 				...newProjectData,
 				...progressResult,
+				borrowerProgress: normalizedBorrowerProgress,
+				borrowerSections: borrowerResumeContent,
 			};
 
 			// Save initial completenessPercent (0) to project_resumes.content JSONB
@@ -375,6 +408,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			}
 
 			set((state) => ({ projects: [...state.projects, finalProject] }));
+
+			// Refresh projects in background to pick up server-calculated fields/resources
+			void get().loadUserProjects();
+
 			return finalProject;
 		},
 
