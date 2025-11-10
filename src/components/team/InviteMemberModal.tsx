@@ -9,6 +9,7 @@ import { OrgMemberRole, Permission, ProjectGrant } from '@/types/enhanced-types'
 import { useProjects } from '@/hooks/useProjects';
 import { X, Copy, Check, Mail, Briefcase, Settings } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { cn } from '@/utils/cn';
 
 interface InviteMemberModalProps {
   isOpen: boolean;
@@ -83,6 +84,12 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     setProjectGrants([]);
     setOpenProjectPermissionsModal(null);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (role !== 'member') {
+      setOpenProjectPermissionsModal(null);
+    }
+  }, [role]);
 
   const projectMap = useMemo(() => {
     return new Map(projectGrants.map((grant) => [grant.projectId, grant]));
@@ -195,7 +202,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="flex items-center justify-center gap-4 max-w-[95vw]">
         {/* Wider modal for Invite Team Member */}
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto flex-shrink-0">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto flex-shrink-0">
           <Card className="border-0 shadow-none">
             <CardHeader className="flex flex-row items-center justify-between">
               <h3 className="flex items-center text-xl font-semibold">
@@ -235,30 +242,42 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                     <label className="block text-base font-medium text-gray-700 mb-1">
                       Role
                     </label>
-                    <div className="inline-flex items-center gap-2">
+                    <div className="flex flex-1 bg-gradient-to-r from-gray-100 to-gray-50 p-1 rounded-lg shadow-inner">
                       <button
                         type="button"
                         onClick={() => setRole('member')}
-                        className={`px-4 py-2 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                        className={cn(
+                          "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 border-2 border-transparent",
                           role === 'member'
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        }`}
+                            ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-md border-blue-400"
+                            : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02] hover:border-blue-200/70 focus-visible:border-blue-300"
+                        )}
+                        aria-pressed={role === 'member'}
                       >
-                        Member (Limited Access)
+                        <span>Member (Limited Access)</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setRole('owner')}
-                        className={`px-4 py-2 rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                        className={cn(
+                          "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 border-2 border-transparent",
                           role === 'owner'
-                            ? 'bg-purple-600 text-white border-purple-600'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                        }`}
+                            ? "bg-gradient-to-r from-white to-gray-50 text-green-600 shadow-md border-green-400"
+                            : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02] hover:border-green-200/70 focus-visible:border-green-300"
+                        )}
+                        aria-pressed={role === 'owner'}
                       >
-                        Owner (Full Access)
+                        <span>Owner (Full Access)</span>
                       </button>
                     </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <p className="text-sm text-blue-800">
+                      <strong>Role-based permissions:</strong><br />
+                      • <strong>Owner:</strong> Full access to all projects and documents.<br />
+                      • <strong>Member:</strong> Access is determined by the project selections below.
+                    </p>
                   </div>
 
                   {role === 'member' && (
@@ -310,14 +329,6 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                       </div>
                     </div>
                   )}
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <p className="text-sm text-blue-800">
-                      <strong>Role-based permissions:</strong><br />
-                      • <strong>Owner:</strong> Full access to all projects and documents.<br />
-                      • <strong>Member:</strong> Access is determined by the project selections above.
-                    </p>
-                  </div>
 
                   <div className="flex justify-end space-x-3 pt-4">
                     <Button type="button" variant="outline" onClick={onClose}>
@@ -382,7 +393,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
         </div>
 
         {openProjectPermissionsModal && currentProjectForModal && currentGrantForModal && (
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-right duration-200 flex-shrink-0">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-right duration-200 flex-shrink-0">
             <Card className="border-0 shadow-none">
               <CardHeader className="flex flex-row items-center justify-between">
                 <h3 className="flex items-center text-xl font-semibold">
