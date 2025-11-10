@@ -16,6 +16,7 @@ interface OrgState {
   pendingInvites: Invite[];
   isOwner: boolean;
   isLoading: boolean;
+  isInviting: boolean;
   error: string | null;
 }
 
@@ -67,6 +68,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
   pendingInvites: [],
   isOwner: false,
   isLoading: false,
+  isInviting: false,
   error: null,
 
   // Actions
@@ -209,7 +211,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
     projectGrants: ProjectGrant[],
     orgGrants: OrgGrant | null
   ) => {
-    set({ isLoading: true, error: null });
+    set({ isInviting: true, error: null });
 
     try {
       const { currentOrg } = get();
@@ -235,14 +237,14 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       // Generate invite link using the token from the response
       const inviteLink = `${window.location.origin}/accept-invite?token=${data.invite.token}`;
 
-      set({ isLoading: false });
+      set({ isInviting: false });
       return inviteLink;
     } catch (error) {
       console.error("Error inviting member:", error);
       set({
         error:
           error instanceof Error ? error.message : "Failed to invite member",
-        isLoading: false,
+        isInviting: false,
       });
       throw error;
     }
