@@ -281,51 +281,59 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                   </div>
 
                   {role === 'member' && (
-                    <div className="space-y-2">
-                      <label className="block text-base font-medium text-gray-700 mb-1">
+                    <div className="space-y-3">
+                      <label className="block text-base font-medium text-gray-700">
                         Project Access
                       </label>
-                      <div className="border border-gray-200 rounded-md max-h-48 overflow-y-auto">
-                        {isLoadingProjects ? (
-                          <div className="p-4 text-center">
-                            <LoadingSpinner />
-                          </div>
-                        ) : projects.length > 0 ? (
-                          projects.map((project) => {
-                            const grant = projectMap.get(project.id);
-                            const level = computeProjectLevel(grant);
-                            return (
-                              <div key={project.id} className="border-b last:border-b-0">
-                                <div className="flex items-center justify-between p-3">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-base text-gray-800">{project.projectName}</span>
-                                    <PillToggle
-                                      value={level}
-                                      onChange={(val) => handleProjectLevelChange(project.id, val)}
-                                      size="sm"
-                                    />
+                      <div className="max-h-60 overflow-y-auto pr-1">
+                        <div className="flex flex-col gap-3">
+                          {isLoadingProjects ? (
+                            <div className="p-4 text-center">
+                              <LoadingSpinner />
+                            </div>
+                          ) : projects.length > 0 ? (
+                            projects.map((project) => {
+                              const grant = projectMap.get(project.id);
+                              const level = computeProjectLevel(grant);
+                              return (
+                                <div
+                                  key={project.id}
+                                  className="rounded-xl border border-gray-200 bg-white/90 px-4 py-3 shadow-sm transition-all duration-200 hover:border-blue-200 hover:shadow-md"
+                                >
+                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 flex-1">
+                                      <span className="text-base font-medium text-gray-800">
+                                        {project.projectName}
+                                      </span>
+                                      <PillToggle
+                                        value={level}
+                                        onChange={(val) => handleProjectLevelChange(project.id, val)}
+                                        size="sm"
+                                        className="sm:max-w-[260px]"
+                                      />
+                                    </div>
+                                    {level !== 'none' && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setOpenProjectPermissionsModal(project.id)}
+                                        className="self-start sm:self-auto text-blue-600 border-blue-200 hover:bg-blue-50"
+                                      >
+                                        <Settings size={16} className="mr-1" />
+                                        Edit
+                                      </Button>
+                                    )}
                                   </div>
-                                  {level !== 'none' && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => setOpenProjectPermissionsModal(project.id)}
-                                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                    >
-                                      <Settings size={16} className="mr-1" />
-                                      Edit
-                                    </Button>
-                                  )}
                                 </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="p-4 text-center text-sm text-gray-500">
-                            <Briefcase className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                            No projects found in this organization.
-                          </div>
-                        )}
+                              );
+                            })
+                          ) : (
+                            <div className="p-4 text-center text-sm text-gray-500 border border-dashed border-gray-200 rounded-xl">
+                              <Briefcase className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                              No projects found in this organization.
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
