@@ -417,7 +417,7 @@ export interface EnhancedUser {
   isDemo?: boolean; // Flag for demo users
   // RBAC additions
   activeOrgId?: string | null; // for context switching
-  orgMemberships?: OrgMember[]; // loaded on login
+  orgMembership?: OrgMember | null; // loaded on login
 }
 
 export type PermissionType = "file" | "folder";

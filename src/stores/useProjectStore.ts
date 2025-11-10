@@ -500,20 +500,20 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 
 // Profile-based triggers removed in new schema
 
-// Subscribe to org memberships changes to reload projects
+// Subscribe to org membership changes to reload projects
 useAuthStore.subscribe((authState, prevAuthState) => {
 	const { user, activeOrg, currentOrgRole } = authState;
-	const prevOrgMemberships = prevAuthState.orgMemberships;
-	const currentOrgMemberships = authState.orgMemberships;
+	const prevOrgMembership = prevAuthState.orgMembership;
+	const currentOrgMembership = authState.orgMembership;
 
 
 	// Trigger project loading when:
 	// 1. User is a borrower
-	// 2. Org memberships changed (loaded or updated)
+	// 2. Org membership changed (loaded or updated)
 	// 3. User is authenticated
 	if (user?.role === "borrower" && user?.id && 
-		prevOrgMemberships !== currentOrgMemberships && 
-		currentOrgMemberships && currentOrgMemberships.length > 0) {
+		prevOrgMembership !== currentOrgMembership && 
+		currentOrgMembership) {
 		useProjectStore.getState().loadUserProjects();
 	}
 });

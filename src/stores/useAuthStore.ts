@@ -18,7 +18,7 @@ interface AuthState {
   justLoggedIn: boolean;
   // RBAC additions - updated for new schema
   activeOrg: Org | null;
-  orgMemberships: OrgMember[];
+  orgMembership: OrgMember | null;
   currentOrgRole: "owner" | "project_manager" | "member" | null;
 }
 
@@ -37,7 +37,7 @@ interface AuthActions {
   updateUser: (userData: Partial<EnhancedUser>) => void;
   clearJustLoggedIn: () => void;
   // RBAC additions
-  loadOrgMemberships: () => Promise<void>;
+  loadOrgMembership: () => Promise<void>;
   acceptInvite: (token: string, accept?: boolean) => Promise<void>;
 }
 
@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   justLoggedIn: false,
   // RBAC additions - updated for new schema
   activeOrg: null,
-  orgMemberships: [],
+  orgMembership: null,
   currentOrgRole: null,
   clearJustLoggedIn: () => set({ justLoggedIn: false }),
 
@@ -116,13 +116,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
               isLoading: false,
             });
 
-            // Load org memberships for borrower/lender users
+            // Load org membership for borrower/lender users
             if (
               enhancedUser.role === "borrower" ||
               enhancedUser.role === "lender" ||
               enhancedUser.role === "advisor"
             ) {
-              get().loadOrgMemberships();
+              get().loadOrgMembership();
             }
 
             console.log(
@@ -193,7 +193,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   enhancedUser.role === "lender" ||
                   enhancedUser.role === "advisor"
                 ) {
-                  get().loadOrgMemberships();
+                  get().loadOrgMembership();
                 }
               } else {
                 console.error(
@@ -294,13 +294,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   isDemo: false,
                 });
 
-                // Load org memberships for borrower/lender users
+                // Load org membership for borrower/lender users
                 if (
                   enhancedUser.role === "borrower" ||
                   enhancedUser.role === "lender" ||
                   enhancedUser.role === "advisor"
                 ) {
-                  get().loadOrgMemberships();
+                  get().loadOrgMembership();
                 }
 
                 console.log(
@@ -360,7 +360,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                       enhancedUser.role === "lender" ||
                       enhancedUser.role === "advisor"
                     ) {
-                      get().loadOrgMemberships();
+                      get().loadOrgMembership();
                     }
                   } else {
                     console.error("[AuthStore] Profile still missing after onboarding:", profileAfterErr);
@@ -379,7 +379,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 justLoggedIn: false,
                 // Clear RBAC data
                 activeOrg: null,
-                orgMemberships: [],
+                orgMembership: null,
                 currentOrgRole: null,
               });
               console.log("[AuthStore] 👋 User signed out");
@@ -565,9 +565,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   },
 
   // RBAC methods
-  loadOrgMemberships: async () => {
+  loadOrgMembership: async () => {
     const { user } = get();
-    console.log("[AuthStore] 🔍 DEBUG - Starting loadOrgMemberships");
+    console.log("[AuthStore] 🔍 DEBUG - Starting loadOrgMembership");
     console.log(
       "[AuthStore] 🔍 DEBUG - User:",
       user ? { id: user.id, email: user.email, role: user.role } : "null"
@@ -579,9 +579,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     }
 
     try {
-      // Load org memberships for all roles
+      // Load single org membership (we only support one org per user)
       console.log("[AuthStore] 🔍 DEBUG - Querying org_members table...");
-      const { data: memberships, error } = await supabase
+      const { data: membership, error } = await supabase
         .from("org_members")
         .select(
           `
@@ -589,36 +589,24 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           orgs(*)
         `
         )
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
 
       if (error) {
         console.error("[AuthStore] ❌ Error querying org_members:", error);
         throw error;
       }
 
-      const orgMemberships = memberships || [];
-      console.log(
-        "[AuthStore] 🔍 DEBUG - Raw memberships from DB:",
-        orgMemberships.length
-      );
-      if (orgMemberships.length > 0) {
-        console.log(
-          "[AuthStore] 🔍 DEBUG - Sample membership:",
-          orgMemberships[0]
-        );
-      }
-
-      // If no memberships found, leave state empty (user may need to accept an invite)
-      if (orgMemberships.length === 0) {
-        console.log("[AuthStore] ❌ No memberships found for user");
-        set({ orgMemberships: [], activeOrg: null, currentOrgRole: null });
+      // If no membership found, leave state empty (user may need to accept an invite)
+      if (!membership) {
+        console.log("[AuthStore] ❌ No membership found for user");
+        set({ orgMembership: null, activeOrg: null, currentOrgRole: null });
         return;
       }
 
-      // Single-org assumption: pick the first membership
-      const firstMembership = orgMemberships[0];
-      const activeOrg = (firstMembership.orgs as Org) || null; // Added type assertion
-      const currentOrgRole = (firstMembership.role as OrgMemberRole) || null;
+      const activeOrg = (membership.orgs as Org) || null;
+      const currentOrgRole = (membership.role as OrgMemberRole) || null;
 
       console.log(
         "[AuthStore] 🔍 DEBUG - Setting active org:",
@@ -630,14 +618,14 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       );
 
       set({
-        orgMemberships,
+        orgMembership: membership,
         activeOrg,
         currentOrgRole,
       });
 
-      console.log("[AuthStore] ✅ Org memberships loaded successfully");
+      console.log("[AuthStore] ✅ Org membership loaded successfully");
     } catch (error) {
-      console.error("[AuthStore] ❌ Error loading org memberships:", error);
+      console.error("[AuthStore] ❌ Error loading org membership:", error);
     }
   },
 
@@ -648,8 +636,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         body: { token, accept },
       });
       if (error) throw error;
-      // Refresh memberships after accepting/cancelling
-      await get().loadOrgMemberships();
+      // Refresh membership after accepting/cancelling
+      await get().loadOrgMembership();
     } catch (e) {
       console.error("[AuthStore] acceptInvite failed:", e);
       throw e;
