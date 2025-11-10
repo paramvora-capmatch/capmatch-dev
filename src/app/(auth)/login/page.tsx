@@ -1,8 +1,7 @@
 // src/app/(auth)/login/page.tsx
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useState, Suspense } from "react";
 import { useAuth } from "../../../hooks/useAuth";
 
 import AuthLayout from "../../../components/layout/AuthLayout";
@@ -18,26 +17,12 @@ const LoginForm = () => {
   const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const searchParams = useSearchParams();
   const {
     signInWithPassword,
     signUp,
     signInWithGoogle,
     isLoading: authLoading,
   } = useAuth();
-  const [loginSource, setLoginSource] = useState<"direct" | "lenderline">(
-    "direct"
-  );
-
-  // Determine login source from query parameter on mount
-  useEffect(() => {
-    const sourceParam = searchParams.get("from");
-    if (sourceParam === "lenderline") {
-      setLoginSource("lenderline");
-    } else {
-      setLoginSource("direct");
-    }
-  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +42,7 @@ const LoginForm = () => {
 
     try {
       // Single call: store handles sign-in or onboarding fallback
-      await signInWithPassword(email, password, loginSource);
+      await signInWithPassword(email, password);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setValidationError(msg || "Could not sign you in. Please try again.");
@@ -134,7 +119,7 @@ const LoginForm = () => {
             variant="outline"
             fullWidth
             size="lg"
-            onClick={() => signInWithGoogle(loginSource)}
+            onClick={() => signInWithGoogle()}
             leftIcon={<Chrome className="h-5 w-5" />}
             isLoading={authLoading}
           >

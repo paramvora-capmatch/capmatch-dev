@@ -77,7 +77,7 @@ const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loginSource, currentOrgRole, isLoading: authLoading } = useAuth();
+  const { user, currentOrgRole, isLoading: authLoading } = useAuth();
   const {
     projects,
     createProject,
@@ -118,7 +118,6 @@ export default function DashboardPage() {
   }, [
     user,
     projects,
-    loginSource,
     router,
     initialLoadComplete,
     combinedLoading,

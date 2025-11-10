@@ -414,7 +414,6 @@ export interface EnhancedUser {
   profileId?: string; // Optional: ID of the associated Profile
   lastLogin: Date;
   role: AppRole; // Now uses AppRole type
-  loginSource?: "direct" | "lenderline"; // Added login source tracking
   isDemo?: boolean; // Flag for demo users
   // RBAC additions
   activeOrgId?: string | null; // for context switching

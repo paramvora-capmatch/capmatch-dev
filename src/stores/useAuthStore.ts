@@ -14,7 +14,6 @@ interface AuthState {
   user: EnhancedUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  loginSource: "direct" | "lenderline";
   isDemo: boolean;
   justLoggedIn: boolean;
   // RBAC additions - updated for new schema
@@ -27,14 +26,12 @@ interface AuthActions {
   init: () => () => void;
   signInWithPassword: (
     email: string,
-    password: string,
-    source?: "direct" | "lenderline"
+    password: string
   ) => Promise<void>;
-  signInWithGoogle: (source?: "direct" | "lenderline") => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (
     email: string,
-    password: string,
-    source?: "direct" | "lenderline"
+    password: string
   ) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<EnhancedUser>) => void;
@@ -52,7 +49,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  loginSource: "direct",
   isDemo: false,
   justLoggedIn: false,
   // RBAC additions - updated for new schema
@@ -104,12 +100,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
           if (profile && !profileError) {
             const role = profile.app_role as EnhancedUser["role"]; // Removed 'as any'
-            const loginSource = authUser.user_metadata.loginSource || "direct";
             const enhancedUser: EnhancedUser = {
               id: authUser.id,
               email: authUser.email!,
               role,
-              loginSource,
               lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
               name: profile.full_name || authUser.user_metadata.name,
               isDemo: false,
@@ -118,7 +112,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             set({
               user: enhancedUser,
               isAuthenticated: true,
-              loginSource,
               isDemo: false,
               isLoading: false,
             });
@@ -179,12 +172,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
               if (profileAfter && !profileAfterErr) {
                 const role = profileAfter.app_role as EnhancedUser["role"]; // Removed 'as any'
-                const loginSource = authUser.user_metadata.loginSource || "direct";
                 const enhancedUser: EnhancedUser = {
                   id: authUser.id,
                   email: authUser.email!,
                   role,
-                  loginSource,
                   lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
                   name: profileAfter.full_name || authUser.user_metadata.name,
                   isDemo: false,
@@ -193,7 +184,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 set({
                   user: enhancedUser,
                   isAuthenticated: true,
-                  loginSource,
                   isDemo: false,
                   isLoading: false,
                 });
@@ -280,25 +270,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
           try {
             if (session?.user) {
-              // Retrieve and clear login source for OAuth flows on first sign in
-              let oauthLoginSource = // Renamed loginSource to oauthLoginSource
-                session.user.user_metadata.loginSource || "direct";
-              if (
-                event === "SIGNED_IN" &&
-                !session.user.user_metadata.loginSource
-              ) {
-                const storedSource =
-                  sessionStorage.getItem("oauth_login_source");
-                if (storedSource) {
-                  oauthLoginSource = storedSource; // Used oauthLoginSource
-                  sessionStorage.removeItem("oauth_login_source"); // Clean up
-                  // Persist to user_metadata
-                  supabase.auth.updateUser({
-                    data: { loginSource: oauthLoginSource }, // Used oauthLoginSource
-                  });
-                }
-              }
-
               const authUser = session.user;
               const { data: profile, error } = await supabase
                 .from("profiles")
@@ -312,7 +283,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   id: authUser.id,
                   email: authUser.email!,
                   role,
-                  loginSource: oauthLoginSource, // Used oauthLoginSource
                   lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
                   name: profile.full_name || authUser.user_metadata.name,
                   isDemo: false,
@@ -321,7 +291,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 set({
                   user: enhancedUser,
                   isAuthenticated: true,
-                  loginSource: oauthLoginSource, // Used oauthLoginSource
                   isDemo: false,
                 });
 
@@ -375,7 +344,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                       id: authUser.id,
                       email: authUser.email!,
                       role,
-                      loginSource: oauthLoginSource, // Used oauthLoginSource
                       lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
                       name: profileAfter.full_name || authUser.user_metadata.name,
                       isDemo: false,
@@ -384,7 +352,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                     set({
                       user: enhancedUser,
                       isAuthenticated: true,
-                      loginSource: oauthLoginSource, // Used oauthLoginSource
                       isDemo: false,
                     });
 
@@ -408,7 +375,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
               set({
                 user: null,
                 isAuthenticated: false,
-                loginSource: "direct",
                 isDemo: false,
                 justLoggedIn: false,
                 // Clear RBAC data
@@ -443,7 +409,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     };
   },
 
-  signInWithPassword: async (email, password, source = "direct") => {
+  signInWithPassword: async (email, password) => {
     set({ isLoading: true });
 
     try {
@@ -507,12 +473,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     }
   },
 
-  signInWithGoogle: async (source = "direct") => {
+  signInWithGoogle: async () => {
     // This action will cause a page redirect. The loading state will be handled
     // by the onAuthStateChange listener when the user is redirected back.
     // Setting isLoading: true here is not necessary as the page will unload.
     try {
-      sessionStorage.setItem("oauth_login_source", source);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -594,7 +559,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       const updatedUser = { ...state.user, ...userData };
       return {
         user: updatedUser,
-        loginSource: updatedUser.loginSource || state.loginSource,
         isDemo: state.isDemo,
       };
     });
