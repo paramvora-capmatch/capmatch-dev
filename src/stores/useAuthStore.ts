@@ -1,7 +1,6 @@
 // src/stores/useAuthStore.ts
 import { create } from "zustand";
 import { supabase } from "../../lib/supabaseClient";
-import { storageService } from "@/lib/storage";
 import {
   EnhancedUser,
   // New schema types
@@ -9,8 +8,6 @@ import {
   OrgMemberRole,
   OrgMember,
 } from "@/types/enhanced-types";
-// Note: Mock data is now used by seed scripts, not localStorage seeding
-// import { demoBorrowerResume, completeProjectResume, partialProjectResume } from "../../lib/mockData";
 import { Session } from "@supabase/supabase-js"; // Import Session type
 
 interface AuthState {
@@ -41,8 +38,6 @@ interface AuthActions {
   ) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<EnhancedUser>) => void;
-  _setUser: (user: EnhancedUser | null) => void;
-  _setLoading: (loading: boolean) => void;
   clearJustLoggedIn: () => void;
   // RBAC additions
   loadOrgMemberships: () => Promise<void>;
@@ -65,8 +60,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   orgMemberships: [],
   currentOrgRole: null,
   clearJustLoggedIn: () => set({ justLoggedIn: false }),
-  _setUser: (user) => set({ user, isAuthenticated: !!user }),
-  _setLoading: (isLoading) => set({ isLoading }),
 
   init: () => {
     if (authListenerInitialized) {
@@ -454,110 +447,59 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     set({ isLoading: true });
 
     try {
-      const demoAccounts = [
-        "borrower1@example.com",
-        "borrower2@example.com",
-        "advisor1@capmatch.com",
-        "admin@capmatch.com",
-        "lender1@example.com",
-      ];
+      console.log(`[Auth] 🔐 Signing in with Supabase: ${email}`);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (demoAccounts.includes(email) && password === "password123") {
-        console.log(`[Auth] 🎭 Using demo account: ${email}`);
-
-        // Note: Demo data seeding is now handled by Supabase seed scripts, not localStorage
-        // The mockData structure has been updated to match JSONB content types
-        // if (email.startsWith("borrower")) {
-        //   // Legacy localStorage seeding code - no longer used
-        // }
-
-        const demoUserIds: { [key: string]: string } = {
-          "borrower1@example.com": "00000000-0000-0000-0000-000000000001",
-          "borrower2@example.com": "00000000-0000-0000-0000-000000000002",
-          "advisor1@capmatch.com": "00000000-0000-0000-0000-000000000003",
-          "admin@capmatch.com": "00000000-0000-0000-0000-000000000004",
-          "lender1@example.com": "00000000-0000-0000-0000-000000000005",
-        };
-
-        let role: EnhancedUser["role"] = "borrower";
-        if (email.includes("admin@capmatch.com")) role = "advisor";
-        else if (email.includes("advisor")) role = "advisor";
-        else if (email.includes("lender")) role = "lender";
-
-        const newUser: EnhancedUser = {
-          id: demoUserIds[email] || `demo-user-${email}`,
-          email,
-          lastLogin: new Date(),
-          role,
-          loginSource: source,
-          isDemo: true,
-        };
-
-        set({
-          user: newUser,
-          isAuthenticated: true,
-          loginSource: source,
-          isDemo: true,
-          isLoading: false,
-          justLoggedIn: true,
-        });
-      } else if (demoAccounts.includes(email) && password !== "password123") {
-        throw new Error("Invalid password for demo account.");
-      } else {
-        console.log(`[Auth] 🔐 Signing in with Supabase: ${email}`);
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) {
-          // If credentials are invalid, attempt onboarding as a new user.
-          // If the email already exists (e.g., different auth method), onboarding will fail and we surface invalid credentials.
-          const message = (error as any)?.message || String(error);
-          console.warn("[Auth] Sign-in failed, attempting onboarding fallback:", message);
-          try {
-            const { data: onboardData, error: onboardError } = await supabase.functions.invoke(
-              "onboard-borrower",
-              {
-                body: {
-                  email,
-                  password,
-                  full_name: "New User",
-                },
-              }
-            );
-
-            if (onboardError) {
-              const oeMsg = typeof onboardError === "object" && onboardError !== null && "message" in onboardError
-                ? (onboardError as any).message
-                : String(onboardError);
-              // If user already exists, treat as invalid credentials for this flow
-              if (/already\s*(registered|exists)/i.test(oeMsg)) {
-                throw new Error("Invalid email or password.");
-              }
-              throw new Error(oeMsg);
+      if (error) {
+        // If credentials are invalid, attempt onboarding as a new user.
+        // If the email already exists (e.g., different auth method), onboarding will fail and we surface invalid credentials.
+        const message = (error as any)?.message || String(error);
+        console.warn("[Auth] Sign-in failed, attempting onboarding fallback:", message);
+        try {
+          const { data: onboardData, error: onboardError } = await supabase.functions.invoke(
+            "onboard-borrower",
+            {
+              body: {
+                email,
+                password,
+                full_name: "New User",
+              },
             }
+          );
 
-            if (!onboardData?.user) {
-              throw new Error("Onboarding did not return user data");
+          if (onboardError) {
+            const oeMsg = typeof onboardError === "object" && onboardError !== null && "message" in onboardError
+              ? (onboardError as any).message
+              : String(onboardError);
+            // If user already exists, treat as invalid credentials for this flow
+            if (/already\s*(registered|exists)/i.test(oeMsg)) {
+              throw new Error("Invalid email or password.");
             }
-
-            // After onboarding, sign the user in
-            const { error: postOnboardSignInError } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
-            if (postOnboardSignInError) {
-              throw postOnboardSignInError;
-            }
-            // Auth listener will handle state update
-          } catch (fallbackErr) {
-            console.error("[Auth] Fallback onboarding flow failed:", fallbackErr);
-            throw fallbackErr;
+            throw new Error(oeMsg);
           }
+
+          if (!onboardData?.user) {
+            throw new Error("Onboarding did not return user data");
+          }
+
+          // After onboarding, sign the user in
+          const { error: postOnboardSignInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (postOnboardSignInError) {
+            throw postOnboardSignInError;
+          }
+          // Auth listener will handle state update
+        } catch (fallbackErr) {
+          console.error("[Auth] Fallback onboarding flow failed:", fallbackErr);
+          throw fallbackErr;
         }
-        // If no error, auth listener will handle state update
       }
+      // If no error, auth listener will handle state update
     } catch (error) {
       console.error("[Auth] ❌ Sign in failed:", error);
       set({ isLoading: false });
