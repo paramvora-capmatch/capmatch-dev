@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrgStore } from '@/stores/useOrgStore';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/card';
-import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { SplashScreen } from '@/components/ui/SplashScreen';
 import { 
   Mail, 
   CheckCircle, 
@@ -142,11 +142,7 @@ export default function AcceptInvitePage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingOverlay isLoading={true} />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   return (

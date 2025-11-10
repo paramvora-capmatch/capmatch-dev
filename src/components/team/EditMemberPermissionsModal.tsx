@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { PillToggle, TriPermission } from '@/components/ui/PillToggle';
 import { Permission, OrgGrant, ProjectGrant, OrgMember } from '@/types/enhanced-types';
 import { useProjects } from '@/hooks/useProjects';
-import { X, ChevronDown, ChevronUp, Briefcase, Save } from 'lucide-react';
+import { X, Briefcase, Save, Settings } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { supabase } from '../../../lib/supabaseClient';
 
@@ -37,10 +37,10 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
 
   const { projects, isLoading: isLoadingProjects } = useProjects();
   const [projectGrants, setProjectGrants] = useState<ProjectGrant[]>([]);
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [orgGrants, setOrgGrants] = useState<OrgGrant | null>(null);
   const [orgDocs, setOrgDocs] = useState<{ id: string; name: string }[]>([]);
   const [projectDocsMap, setProjectDocsMap] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [openProjectPermissionsModal, setOpenProjectPermissionsModal] = useState<string | null>(null);
 
   // Load current permissions when modal opens
   useEffect(() => {
@@ -123,7 +123,13 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
     };
     load();
     return () => { isCancelled = true; };
-  }, [isOpen, member, member?.user_id, orgId, orgDocs.length, projectDocsMap]);
+  }, [isOpen, member?.user_id, orgId]);
+
+  useEffect(() => {
+    if (openProjectPermissionsModal) {
+      ensureProjectDocsLoaded(openProjectPermissionsModal);
+    }
+  }, [openProjectPermissionsModal]);
 
   const toggleProjectAccess = (projectId: string) => {
     setProjectGrants(prevGrants => {
@@ -163,19 +169,6 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
         return grant;
       })
     );
-  };
-
-  const toggleExpandProject = (projectId: string) => {
-    setExpandedProjects(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(projectId)) {
-        newSet.delete(projectId);
-      } else {
-        newSet.add(projectId);
-        ensureProjectDocsLoaded(projectId);
-      }
-      return newSet;
-    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -299,6 +292,9 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
   const setProjectLevel = (projectId: string, level: TriPermission) => {
     if (level === 'none') {
       setProjectGrants(prev => prev.filter(g => g.projectId !== projectId));
+      if (openProjectPermissionsModal === projectId) {
+        setOpenProjectPermissionsModal(null);
+      }
       return;
     }
     setProjectGrants(prev => {
@@ -323,18 +319,26 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
   const handleClose = () => {
     setError(null);
     setProjectGrants([]);
-    setExpandedProjects(new Set());
     setOrgGrants(null);
     setOrgDocs([]);
     setProjectDocsMap({});
+    setOpenProjectPermissionsModal(null);
     onClose();
   };
 
   if (!isOpen) return null;
 
+  const currentProjectForModal = openProjectPermissionsModal
+    ? projects.find((p) => p.id === openProjectPermissionsModal)
+    : undefined;
+  const currentGrantForModal = openProjectPermissionsModal
+    ? projectGrants.find((g) => g.projectId === openProjectPermissionsModal)
+    : undefined;
+
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="flex items-center justify-center gap-4 max-w-[95vw]">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto flex-shrink-0">
         <Card className="border-0 shadow-none">
           <CardHeader className="flex flex-row items-center justify-between">
             <h3 className="flex items-center text-xl font-semibold">
@@ -441,80 +445,31 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
                           <LoadingSpinner />
                         </div>
                       ) : projects.length > 0 ? (
-                        projects.map(project => {
-                          const hasAccess = projectGrants.some(g => g.projectId === project.id);
-                          const grant = projectGrants.find(g => g.projectId === project.id);
-                          const isExpanded = expandedProjects.has(project.id);
-
+                        projects.map((project) => {
+                          const level = getProjectLevel(project.id);
                           return (
                             <div key={project.id} className="border-b last:border-b-0">
                               <div className="flex items-center justify-between p-3">
                                 <div className="flex items-center gap-3">
                                   <span className="text-base text-gray-800">{project.projectName}</span>
                                   <PillToggle
-                                    value={getProjectLevel(project.id)}
+                                    value={level}
                                     onChange={(val) => setProjectLevel(project.id, val)}
                                     size="sm"
                                   />
                                 </div>
-                                {getProjectLevel(project.id) !== 'none' && (
-                                  <Button variant="outline" size="sm" onClick={() => toggleExpandProject(project.id)}>
-                                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                {level !== 'none' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setOpenProjectPermissionsModal(project.id)}
+                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                  >
+                                    <Settings size={16} className="mr-1" />
+                                    Edit
                                   </Button>
                                 )}
                               </div>
-                              {getProjectLevel(project.id) !== 'none' && isExpanded && grant && (
-                                <div className="bg-gray-50 p-3 pl-10 space-y-3">
-                                  <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-base text-gray-600">Project Resume</span>
-                                      <PillToggle
-                                        value={(grant.permissions.find(p=>p.resource_type==='PROJECT_RESUME')?.permission as TriPermission) || 'view'}
-                                        onChange={(val) => setProjectResumePermission(project.id, val === 'none' ? null : (val as Permission))}
-                                        size="sm"
-                                      />
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-base text-gray-600">Project Documents</span>
-                                      <PillToggle
-                                        value={(grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT')?.permission as TriPermission) || 'view'}
-                                        onChange={(val) => {
-                                          const perm = val === 'none' ? null : (val as Permission);
-                                          setProjectDocsPermission(project.id, perm);
-                                          if (perm) ensureProjectDocsLoaded(project.id);
-                                        }}
-                                        size="sm"
-                                      />
-                                    </div>
-                                  </div>
-                                  {grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT') && (projectDocsMap[project.id]?.length || 0) > 0 && (
-                                    <div className="border-t pt-2 space-y-1">
-                                      <div className="text-sm text-gray-500">Set per-document permissions</div>
-                                      {(projectDocsMap[project.id] || []).map(doc => {
-                                        const rootPerm = grant.permissions.find(p=>p.resource_type==='PROJECT_DOCS_ROOT')?.permission;
-                                        const current = grant.fileOverrides?.find(o=>o.resource_id===doc.id)?.permission || rootPerm || 'view';
-                                        const Pill = ({label, val, color}:{label:string; val:'none'|'view'|'edit'; color:string}) => (
-                                          <button
-                                            type="button"
-                                            onClick={() => setProjectDocPermission(project.id, doc.id, val)}
-                                            className={`px-2 py-1 rounded text-xs border ${current===val ? color+" text-white" : 'bg-white text-gray-700'}`}
-                                          >{label}</button>
-                                        );
-                                        return (
-                                          <div key={doc.id} className="flex items-center justify-between text-base py-1">
-                                            <span className="text-gray-700 truncate pr-2">{doc.name}</span>
-                                            <div className="flex items-center gap-2">
-                                              <Pill label="None" val="none" color="bg-red-600" />
-                                              <Pill label="View" val="view" color="bg-blue-600" />
-                                              <Pill label="Edit" val="edit" color="bg-green-600" />
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
                             </div>
                           );
                         })
@@ -554,6 +509,101 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
           </CardContent>
         </Card>
       </div>
+
+      {openProjectPermissionsModal && currentProjectForModal && currentGrantForModal && (
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-right duration-200 flex-shrink-0">
+          <Card className="border-0 shadow-none">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <h3 className="flex items-center text-xl font-semibold">
+                <Briefcase className="h-5 w-5 mr-2" />
+                {currentProjectForModal.projectName} - Permissions
+              </h3>
+              <Button variant="outline" size="sm" onClick={() => setOpenProjectPermissionsModal(null)}>
+                <X size={16} />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-base text-gray-800">Project Resume</span>
+                <PillToggle
+                  value={(currentGrantForModal.permissions.find((p) => p.resource_type === 'PROJECT_RESUME')?.permission as TriPermission) || 'view'}
+                  onChange={(val) =>
+                    setProjectResumePermission(
+                      currentProjectForModal.id,
+                      val === 'none' ? null : (val as Permission)
+                    )
+                  }
+                  size="sm"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-base text-gray-800">Project Documents</span>
+                <PillToggle
+                  value={(currentGrantForModal.permissions.find((p) => p.resource_type === 'PROJECT_DOCS_ROOT')?.permission as TriPermission) || 'view'}
+                  onChange={(val) => {
+                    const perm = val === 'none' ? null : (val as Permission);
+                    setProjectDocsPermission(currentProjectForModal.id, perm);
+                    if (perm) ensureProjectDocsLoaded(currentProjectForModal.id);
+                  }}
+                  size="sm"
+                />
+              </div>
+
+              {currentGrantForModal.permissions.find((p) => p.resource_type === 'PROJECT_DOCS_ROOT') &&
+                (projectDocsMap[currentProjectForModal.id]?.length || 0) > 0 && (
+                  <div className="border-t pt-2 space-y-1">
+                    <div className="text-sm text-gray-500">Set per-document permissions</div>
+                    {(projectDocsMap[currentProjectForModal.id] || []).map((doc) => {
+                      const rootPerm = currentGrantForModal.permissions.find(
+                        (p) => p.resource_type === 'PROJECT_DOCS_ROOT'
+                      )?.permission;
+                      const current =
+                        currentGrantForModal.fileOverrides?.find((o) => o.resource_id === doc.id)?.permission ||
+                        rootPerm ||
+                        'view';
+                      const Pill = ({
+                        label,
+                        val,
+                        color,
+                      }: {
+                        label: string;
+                        val: 'none' | 'view' | 'edit';
+                        color: string;
+                      }) => (
+                        <button
+                          type="button"
+                          onClick={() => setProjectDocPermission(currentProjectForModal.id, doc.id, val)}
+                          className={`px-2 py-1 rounded text-xs border ${
+                            current === val ? color + ' text-white' : 'bg-white text-gray-700'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                      return (
+                        <div key={doc.id} className="flex items-center justify-between text-base py-1">
+                          <span className="text-gray-700 truncate pr-2">{doc.name}</span>
+                          <div className="flex items-center gap-2">
+                            <Pill label="None" val="none" color="bg-red-600" />
+                            <Pill label="View" val="view" color="bg-blue-600" />
+                            <Pill label="Edit" val="edit" color="bg-green-600" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+              <div className="flex justify-end pt-4 border-t">
+                <Button variant="primary" onClick={() => setOpenProjectPermissionsModal(null)}>
+                  Done
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
-  );
+  </div>
+);
 };

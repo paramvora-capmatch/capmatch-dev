@@ -26,6 +26,7 @@ export default function TeamPage() {
     pendingInvites,
     isOwner,
     isLoading,
+    isInviting,
     error,
     loadOrg,
     inviteMember,
@@ -82,7 +83,9 @@ export default function TeamPage() {
       const inviteLink = await inviteMember(email, role, projectGrants, orgGrants);
       // Reload org data to show the new pending invite
       if (activeOrg) {
-        loadOrg(activeOrg.id);
+        loadOrg(activeOrg.id).catch((error) => {
+          console.error("Failed to reload org after inviting member:", error);
+        });
       }
       return inviteLink as string;
     } catch (error) {
@@ -181,7 +184,7 @@ export default function TeamPage() {
   return (
     <RoleBasedRoute roles={["borrower"]}>
       <DashboardLayout breadcrumb={breadcrumb} mainClassName="flex-1 overflow-auto">
-        {isLoading && <SplashScreen />}
+        {isLoading && !isInviting && !showInviteModal && !showEditPermissionsModal && <SplashScreen />}
 
         {!activeOrg ? (
           <div className="text-center py-8">
