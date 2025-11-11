@@ -14,19 +14,12 @@ interface ProjectSummaryCardProps {
 }
 
 export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
-  project,
+  project: _project,
   isLoading,
   onEdit,
   onBorrowerClick,
   borrowerProgress = 0,
 }) => {
-  const completeness = project?.completenessPercent || 0;
-  const isProjectComplete = completeness >= 100;
-  const isProjectHealthy = completeness >= 90;
-  // Green when complete (100%), blue when healthy (>=90% but <100%), red when incomplete
-  const progressColor = isProjectComplete ? 'bg-green-600' : (isProjectHealthy ? 'bg-blue-600' : 'bg-red-600');
-  const progressBgColor = isProjectComplete ? 'bg-green-50' : (isProjectHealthy ? 'bg-blue-50' : 'bg-red-50');
-
   const borrowerCompleteness = Math.round(borrowerProgress ?? 0);
   const isBorrowerComplete = borrowerCompleteness >= 100;
   const isBorrowerHealthy = borrowerCompleteness >= 90;
@@ -52,7 +45,7 @@ export const ProjectSummaryCard: React.FC<ProjectSummaryCardProps> = ({
           <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
           <span className="ml-3">Loading project...</span>
         </div>
-      ) : project ? (
+      ) : _project ? (
         <>
           {/* Borrower resume completion (full-width; no white card wrapper) */}
           <div

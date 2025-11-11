@@ -11,6 +11,10 @@ import { usePermissionStore } from "./usePermissionStore"; // Import the new sto
 import {
 	ProjectProfile,
 } from "@/types/enhanced-types";
+import {
+	computeBorrowerCompletion,
+	computeProjectCompletion,
+} from "@/utils/resumeCompletion";
 
 // Maps ProjectProfile fields to core projects table columns
 const projectProfileToDbProject = (
@@ -68,6 +72,7 @@ const projectProfileToResumeContent = (
 		// Store completenessPercent in JSONB (similar to borrower resume)
 		completenessPercent: "completenessPercent",
 		internalAdvisorNotes: "internalAdvisorNotes",
+		projectFieldConfirmations: "fieldConfirmations",
 	};
 	for (const key in profileData) {
 		const mappedKey = keyMap[key as keyof ProjectProfile];
@@ -133,50 +138,45 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		calculateProgress: (project) => {
-			const requiredFields: (keyof ProjectProfile)[] = [
-				"projectName",
-				"propertyAddressStreet",
-				"propertyAddressCity",
-				"propertyAddressState",
-				"propertyAddressZip",
-				"assetType",
-				"projectDescription",
-				"projectPhase",
-				"loanAmountRequested",
-				"loanType",
-				"targetLtvPercent",
-				"targetCloseDate",
-				"useOfProceeds",
-				"recoursePreference",
-				"exitStrategy",
-				"businessPlanSummary",
-			];
-			let filledCount = 0;
-			requiredFields.forEach((field) => {
-				const value = project[field];
-				if (value !== null && value !== undefined) {
-					// For numbers, check if it's not 0 (0 is considered empty/default)
-					if (typeof value === "number") {
-						if (value !== 0) filledCount++;
-					}
-					// For strings, check if it's not empty after trimming
-					else if (typeof value === "string") {
-						if (value.trim() !== "") filledCount++;
-					}
-					// For other types, count as filled
-					else {
-						filledCount++;
-					}
-				}
-			});
-			const totalProgress =
-				requiredFields.length > 0
-					? Math.round((filledCount / requiredFields.length) * 100)
-					: 0;
+			const projectResumeContent =
+				(project.projectSections as ProjectResumeContent | undefined) || null;
+			const borrowerContent =
+				(project.borrowerSections as BorrowerResumeContent | undefined) || null;
+
+			const projectConfirmations =
+				project.projectFieldConfirmations ??
+				projectResumeContent?.fieldConfirmations ??
+				null;
+			const borrowerConfirmations =
+				project.borrowerFieldConfirmations ??
+				borrowerContent?.fieldConfirmations ??
+				null;
+
+			const normalizedProjectConfirmations =
+				projectConfirmations && typeof projectConfirmations === "object"
+					? projectConfirmations
+					: {};
+			const normalizedBorrowerConfirmations =
+				borrowerConfirmations && typeof borrowerConfirmations === "object"
+					? borrowerConfirmations
+					: {};
+
+			const projectProgress = computeProjectCompletion(
+				project,
+				normalizedProjectConfirmations
+			);
+			const borrowerProgress = computeBorrowerCompletion(
+				borrowerContent,
+				normalizedBorrowerConfirmations
+			);
+			const totalProgress = Math.round(
+				(projectProgress + borrowerProgress) / 2
+			);
+
 			return {
-				borrowerProgress: totalProgress,
-				projectProgress: totalProgress,
-				totalProgress: totalProgress,
+				borrowerProgress,
+				projectProgress,
+				totalProgress,
 			};
 		},
 
@@ -229,16 +229,15 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 				// Use stored completenessPercent from DB, with calculateProgress as fallback/validation
 				const projectsWithProgress = projectsWithResources.map((p) => {
-					// If completenessPercent is already loaded from DB, use it
-					// Otherwise calculate it (for backwards compatibility with old data)
 					const calculated = get().calculateProgress(p);
 					const projectProgressValue =
-						p.completenessPercent ?? calculated.totalProgress;
+						p.projectProgress ??
+						p.completenessPercent ??
+						calculated.projectProgress;
 					const borrowerProgressValue =
 						p.borrowerProgress ?? calculated.borrowerProgress;
 					return {
 						...p,
-						// Use stored value if available, otherwise use calculated
 						completenessPercent: projectProgressValue,
 						borrowerProgress: borrowerProgressValue,
 						projectProgress: projectProgressValue,
@@ -377,6 +376,12 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				borrowerProgress: normalizedBorrowerProgress,
 				projectProgress: 0,
 				borrowerSections: borrowerResumeContent,
+				projectSections:
+					(projectData.projectSections as ProjectResumeContent | undefined) ||
+					{},
+				projectFieldConfirmations: {},
+				borrowerFieldConfirmations:
+					borrowerResumeContent.fieldConfirmations || {},
 				// Spread the provided data to override defaults
 				...projectData,
 			};
@@ -385,15 +390,20 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			const finalProject = {
 				...newProjectData,
 				...progressResult,
+				completenessPercent: progressResult.projectProgress,
 				borrowerProgress: normalizedBorrowerProgress,
 				borrowerSections: borrowerResumeContent,
+				projectFieldConfirmations:
+					newProjectData.projectFieldConfirmations || {},
+				borrowerFieldConfirmations:
+					newProjectData.borrowerFieldConfirmations || {},
 			};
 
 			// Save initial completenessPercent (0) to project_resumes.content JSONB
 			try {
 				const resumeContent = {
 					...projectProfileToResumeContent(newProjectData),
-					completenessPercent: progressResult.totalProgress,
+					completenessPercent: progressResult.projectProgress,
 				};
 				await supabase.functions.invoke('update-project', {
 					body: {
@@ -428,11 +438,12 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			
 			// Calculate progress (similar to borrower resume form)
 			const progressResult = get().calculateProgress(updatedData);
-			const completenessPercent = progressResult.totalProgress;
+			const completenessPercent = progressResult.projectProgress;
 			
 			const finalUpdatedProject = {
 				...updatedData,
 				...progressResult,
+				completenessPercent: progressResult.projectProgress,
 			};
 
 			// Optimistic UI update

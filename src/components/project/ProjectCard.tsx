@@ -40,6 +40,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
       year: 'numeric' 
     });
   };
+  
+  const projectProgress = Math.round(
+    project.projectProgress ?? project.completenessPercent ?? 0
+  );
+  const borrowerProgress = Math.round(project.borrowerProgress ?? 0);
+  const isProjectComplete = projectProgress === 100;
 
   // Get status color
   const getStatusColor = (status: string) => {
@@ -101,24 +107,41 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           </div>
         </div>
         
-        <div className="mb-4">
-          <div className="flex justify-between text-xs text-gray-600 mb-1">
-            <span>Completion</span>
-            <span>{project.completenessPercent}%</span>
+        <div className="mb-4 space-y-3">
+          <div>
+            <div className="flex justify-between text-xs text-gray-600 mb-1">
+              <span>Project Resume</span>
+              <span>{projectProgress}%</span>
+            </div>
+            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full rounded-full",
+                  isProjectComplete ? "bg-green-600" : "bg-blue-600"
+                )}
+                style={{ width: `${projectProgress}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div 
-              className={cn(
-                "h-full rounded-full",
-                project.completenessPercent === 100 ? "bg-green-600" : "bg-blue-600"
-              )}
-              style={{ width: `${project.completenessPercent}%` }}
-            />
+          <div>
+            <div className="flex justify-between text-xs text-gray-600 mb-1">
+              <span>Borrower Resume</span>
+              <span>{borrowerProgress}%</span>
+            </div>
+            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full rounded-full",
+                  borrowerProgress === 100 ? "bg-green-600" : "bg-indigo-600"
+                )}
+                style={{ width: `${borrowerProgress}%` }}
+              />
+            </div>
           </div>
         </div>
         
         {/* See OM Button - Only show for 100% complete projects */}
-        {project.completenessPercent === 100 && (
+        {isProjectComplete && (
           <Button
             variant="primary"
             size="sm"

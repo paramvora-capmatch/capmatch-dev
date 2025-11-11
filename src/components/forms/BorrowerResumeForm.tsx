@@ -45,6 +45,11 @@ import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { useProjectBorrowerResume } from "@/hooks/useProjectBorrowerResume";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { BorrowerResumeView } from "./BorrowerResumeView";
+import {
+  BORROWER_REQUIRED_FIELDS,
+  computeBorrowerCompletion,
+  isBorrowerPlaceholderValue,
+} from "@/utils/resumeCompletion";
 
 interface BorrowerResumeFormProps {
   projectId: string;
@@ -188,6 +193,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     }
   });
   const [formData, setFormData] = useState<Partial<BorrowerResumeContent>>({});
+  const [fieldConfirmations, setFieldConfirmations] = useState<
+    Record<string, boolean>
+  >({});
   const [principalFormData, setPrincipalFormData] = useState<
     Partial<Principal>
   >({ principalRoleDefault: "Key Principal" });
@@ -196,52 +204,50 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevIsSavingRef = useRef<boolean>(false);
+  const lastInitializedSnapshot = useRef<string | null>(null);
 
-  const computeCompletionPercent = useCallback((data: Partial<BorrowerResumeContent>): number => {
-    // Fields to consider for completion
-    const fields: (keyof BorrowerResumeContent)[] = [
-      'fullLegalName',
-      'primaryEntityName',
-      'primaryEntityStructure', // default counts as completed
-      'contactEmail', // default from user email counts as completed
-      'contactPhone',
-      'contactAddress',
-      'bioNarrative',
-      'linkedinUrl',
-      'websiteUrl',
-      'yearsCREExperienceRange', // default counts as completed
-      'assetClassesExperience',
-      'geographicMarketsExperience',
-      'totalDealValueClosedRange', // default counts as completed
-      'existingLenderRelationships',
-      'creditScoreRange', // default counts as completed
-      'netWorthRange', // default counts as completed
-      'liquidityRange', // default counts as completed
-      // booleans considered answered only when true (explicit signal)
-      'bankruptcyHistory',
-      'foreclosureHistory',
-      'litigationHistory',
-    ];
-
-    let answered = 0;
-    const total = fields.length;
-
-    fields.forEach((key) => {
-      const value = (data as any)[key];
-      if (Array.isArray(value)) {
-        if (value.length > 0) answered += 1;
-      } else if (typeof value === 'string') {
-        if (value && value.trim().length > 0) answered += 1;
-      } else if (typeof value === 'boolean') {
-        // Count booleans as answered whether true or false (explicit answer)
-        if (value === true || value === false) answered += 1;
-      } else if (value != null) {
-        answered += 1;
-      }
-    });
-
-    return Math.min(100, Math.round((answered / Math.max(1, total)) * 100));
+  const isValueProvided = useCallback((value: unknown): boolean => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "number") return !Number.isNaN(value);
+    if (typeof value === "boolean") return true;
+    return false;
   }, []);
+
+  const buildInitialConfirmations = useCallback(
+    (data: Partial<BorrowerResumeContent>): Record<string, boolean> => {
+      const existing = (data as BorrowerResumeContent | null)?.fieldConfirmations;
+      if (existing && typeof existing === "object") {
+        return { ...existing };
+      }
+
+      const derived: Record<string, boolean> = {};
+      BORROWER_REQUIRED_FIELDS.forEach((field) => {
+        const value = data[field];
+        if (!isValueProvided(value)) {
+          return;
+        }
+        if (isBorrowerPlaceholderValue(field, value)) {
+          derived[field as string] = false;
+          return;
+        }
+        derived[field as string] = true;
+      });
+      return derived;
+    },
+    [isValueProvided]
+  );
+
+  const confirmField = useCallback(
+    (field: keyof BorrowerResumeContent) => {
+      setFieldConfirmations((prev) => {
+        if (prev[field as string]) return prev;
+        return { ...prev, [field as string]: true };
+      });
+    },
+    []
+  );
 
   // Initialize form once on first load (avoid resetting on each store update)
   useEffect(() => {
@@ -259,15 +265,30 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       assetClassesExperience: [],
       geographicMarketsExperience: [],
     };
-    setFormData(
-      borrowerResume ? { ...defaultData, ...borrowerResume } : { ...defaultData }
-    );
-  }, [borrowerResume, user?.email, projectId]);
+    const initialData = borrowerResume
+      ? { ...defaultData, ...borrowerResume }
+      : { ...defaultData };
+    const snapshotKey = JSON.stringify(initialData);
+    if (snapshotKey === lastInitializedSnapshot.current) {
+      return;
+    }
+    lastInitializedSnapshot.current = snapshotKey;
+    setFormData(initialData);
+    setFieldConfirmations(buildInitialConfirmations(initialData));
+  }, [borrowerResume, user?.email, projectId, buildInitialConfirmations]);
+
+  const lastEmittedSnapshot = useRef<string | null>(null);
 
   // Emit form data for AskAI consumers when it changes
   useEffect(() => {
-    onFormDataChange?.(formData);
-  }, [formData, onFormDataChange]);
+    const snapshotPayload = { ...formData, fieldConfirmations };
+    const snapshotKey = JSON.stringify(snapshotPayload);
+    if (snapshotKey === lastEmittedSnapshot.current) {
+      return;
+    }
+    lastEmittedSnapshot.current = snapshotKey;
+    onFormDataChange?.(snapshotPayload);
+  }, [formData, fieldConfirmations, onFormDataChange]);
 
   const showLoadingState = resumeLoading && !borrowerResume;
 
@@ -284,9 +305,16 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       const hasChanged = JSON.stringify(formData) !== JSON.stringify(borrowerResume);
       if (!hasChanged) return;
       try {
-        const completenessPercent = computeCompletionPercent(formData);
+        const completenessPercent = computeBorrowerCompletion(
+          formData,
+          fieldConfirmations
+        );
         onProgressChange?.(completenessPercent);
-        await save({ ...formData, completenessPercent });
+        await save({
+          ...formData,
+          completenessPercent,
+          fieldConfirmations,
+        });
       } catch (error) {
         console.error("[ProfileForm] Auto-save failed:", error);
       }
@@ -297,14 +325,23 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [formData, borrowerResume, save, computeCompletionPercent, onProgressChange, projectId]);
+  }, [
+    formData,
+    borrowerResume,
+    save,
+    fieldConfirmations,
+    onProgressChange,
+    projectId,
+  ]);
 
   // Report progress on any local change immediately (for live banner updates)
   useEffect(() => {
-    const completenessPercent = computeCompletionPercent(formData);
+    const completenessPercent = computeBorrowerCompletion(
+      formData,
+      fieldConfirmations
+    );
     onProgressChange?.(completenessPercent);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formData]);
+  }, [formData, fieldConfirmations, onProgressChange]);
 
   // Persist collapsed state
   useEffect(() => {
@@ -341,8 +378,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   const handleInputChange = useCallback(
     (field: keyof BorrowerResumeContent, value: any) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
+      confirmField(field);
     },
-    []
+    [confirmField]
   );
   const handlePrincipalInputChange = useCallback(
     (field: keyof Principal, value: any) => {
@@ -359,13 +397,23 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     try {
       setFormSaved(true);
-      const completenessPercent = computeCompletionPercent(formData);
+      const completenessPercent = computeBorrowerCompletion(
+        formData,
+        fieldConfirmations
+      );
       onProgressChange?.(completenessPercent);
-      await save({ ...formData, completenessPercent });
+      await save({
+        ...formData,
+        completenessPercent,
+        fieldConfirmations,
+      });
 
       if (onComplete) {
         // Pass the updated formData as the profile
-        onComplete(formData as BorrowerResumeContent);
+        onComplete({
+          ...(formData as BorrowerResumeContent),
+          fieldConfirmations,
+        });
       }
     } catch (error) {
       console.error("Error saving borrower profile:", error);
@@ -373,7 +421,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     } finally {
       setTimeout(() => setFormSaved(false), 2000);
     }
-  }, [formData, onComplete, save, computeCompletionPercent, onProgressChange]);
+  }, [
+    formData,
+    onComplete,
+    save,
+    fieldConfirmations,
+    onProgressChange,
+  ]);
 
   // Principals removed from new schema - these functions are no-ops
   const handleAddPrincipal = useCallback(async () => {
@@ -1133,7 +1187,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               if (isEditing) {
                 // Cancel: revert to saved resume data
                 if (borrowerResume) {
-                  setFormData({ ...borrowerResume });
+                  const nextData = { ...borrowerResume };
+                  setFormData(nextData);
+                  setFieldConfirmations(
+                    buildInitialConfirmations(nextData)
+                  );
                 }
               }
               setIsEditing(!isEditing);

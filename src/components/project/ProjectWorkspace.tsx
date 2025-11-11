@@ -24,6 +24,7 @@ import { Modal } from "../ui/Modal";
 import { Select } from "../ui/Select";
 import { supabase } from "../../../lib/supabaseClient";
 import { BorrowerResumeContent } from "@/lib/project-queries";
+import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 
@@ -136,12 +137,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     projectsLoading;
 
   useEffect(() => {
-    const percent = Math.round(
-      (borrowerResumeData?.completenessPercent as number | undefined) ?? 0
-    );
-    setBorrowerProgress(percent);
-    setBorrowerResumeSnapshot(borrowerResumeData || null);
-  }, [borrowerResumeData]);
+    if (borrowerResumeData) {
+      const percent = computeBorrowerCompletion(
+        borrowerResumeData,
+        borrowerResumeData?.fieldConfirmations
+      );
+      setBorrowerProgress(percent);
+      setBorrowerResumeSnapshot(borrowerResumeData || null);
+    } else {
+      setBorrowerProgress(
+        clampPercentage(activeProject?.borrowerProgress ?? 0)
+      );
+      setBorrowerResumeSnapshot(null);
+    }
+  }, [borrowerResumeData, activeProject?.borrowerProgress]);
 
   useEffect(() => {
     const step = searchParams?.get("step");
@@ -234,17 +243,26 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     );
   }
 
-  const projectCompleteness = activeProject?.completenessPercent || 0;
-  const combinedCompletion = Math.round(
-    (projectCompleteness + borrowerProgress) / 2
+  const projectResumeProgress = clampPercentage(
+    activeProject?.projectProgress ?? activeProject?.completenessPercent ?? 0
   );
-  const isProjectComplete = combinedCompletion === 100; // Check if project is complete
+  const borrowerResumeProgress = borrowerResumeData
+    ? borrowerProgress
+    : clampPercentage(
+        activeProject?.borrowerProgress ?? borrowerProgress ?? 0
+      );
+  const isProjectComplete = projectResumeProgress === 100;
 
   const projectForProgress = activeProject
     ? {
         ...activeProject,
-        completenessPercent: combinedCompletion,
-        borrowerProgress,
+        projectProgress: projectResumeProgress,
+        completenessPercent: projectResumeProgress,
+        borrowerProgress: borrowerResumeProgress,
+        projectFieldConfirmations:
+          activeProject.projectFieldConfirmations || {},
+        borrowerFieldConfirmations:
+          activeProject.borrowerFieldConfirmations || {},
       }
     : null;
 
@@ -283,8 +301,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
       const copiedResume = (data?.borrowerResumeContent ??
         {}) as BorrowerResumeContent;
-      const nextProgress = clampPercentage(
-        copiedResume?.completenessPercent
+      const nextProgress = computeBorrowerCompletion(
+        copiedResume,
+        copiedResume?.fieldConfirmations
       );
 
       setBorrowerProgress(nextProgress);
@@ -296,6 +315,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           ...activeProject,
           borrowerProgress: nextProgress,
           borrowerSections: copiedResume,
+          borrowerFieldConfirmations:
+            copiedResume.fieldConfirmations || {},
         };
         void setActiveProject(updatedProject);
       }
@@ -410,7 +431,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       setShouldExpandChat(false);
                       setBorrowerEditing(true);
                     }}
-                    borrowerProgress={borrowerProgress}
+                    borrowerProgress={borrowerResumeProgress}
                   />
                 </div>
 
