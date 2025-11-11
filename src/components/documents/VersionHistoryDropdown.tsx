@@ -65,6 +65,7 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
     [string, string] | null
   >(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownContentRef = useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{
     top: number;
     left: number;
@@ -122,9 +123,44 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
     const updatePosition = () => {
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth;
+        const viewportHeight = document.documentElement.clientHeight;
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
+        const dropdownWidth =
+          dropdownContentRef.current?.offsetWidth ?? 384; // w-96 ≈ 384px
+        const dropdownHeight =
+          dropdownContentRef.current?.offsetHeight ?? 0;
+        const margin = 8;
+
+        let left = rect.right + scrollX - dropdownWidth;
+        const minLeft = scrollX + margin;
+        const maxLeft = scrollX + viewportWidth - dropdownWidth - margin;
+
+        if (maxLeft < minLeft) {
+          left = minLeft;
+        } else {
+          left = Math.min(Math.max(left, minLeft), maxLeft);
+        }
+
+        let top = rect.bottom + scrollY + margin;
+        const bottomEdge = top + dropdownHeight;
+        const maxBottom = scrollY + viewportHeight - margin;
+        const alternateTop = rect.top + scrollY - dropdownHeight - margin;
+
+        if (
+          dropdownHeight &&
+          bottomEdge > maxBottom &&
+          alternateTop >= scrollY + margin
+        ) {
+          top = alternateTop;
+        } else if (top < scrollY + margin) {
+          top = scrollY + margin;
+        }
+
         setDropdownPosition({
-          top: rect.bottom + window.scrollY + 8,
-          left: rect.left + window.scrollX - 240,
+          top,
+          left,
         });
       }
     };
@@ -138,7 +174,7 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [isOpen, hideTrigger]);
+  }, [isOpen, hideTrigger, versions.length, confirmRollback, isLoading]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -211,6 +247,7 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
       <AnimatePresence>
         {isOpen && (hideTrigger || dropdownPosition) && (
           <motion.div
+            ref={dropdownContentRef}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -332,9 +369,11 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
                                         currentVersion.id,
                                       ])
                                     }
-                                    title="Compare with current version"
+                                    title={`Compare with current version (v${currentVersion.version_number})`}
+                                    aria-label={`Compare version ${version.version_number} with current version v${currentVersion.version_number}`}
                                   >
-                                    <GitCompare className="h-4 w-4" />
+                                    <GitCompare className="h-4 w-4 mr-1" />
+                                    Compare to v{currentVersion.version_number}
                                   </Button>
                                 )}
                             </div>
