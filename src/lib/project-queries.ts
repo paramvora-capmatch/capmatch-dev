@@ -50,6 +50,7 @@ export interface ProjectResumeContent {
   
   // Progress tracking (stored in JSONB, similar to borrower resume)
   completenessPercent?: number;
+  fieldConfirmations?: Record<string, boolean>;
   
   internalAdvisorNotes?: string;
   
@@ -94,6 +95,7 @@ export interface BorrowerResumeContent {
   
   // Progress tracking
   completenessPercent?: number;
+  fieldConfirmations?: Record<string, boolean>;
   
   // Metadata
   createdAt?: string;
@@ -201,6 +203,8 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
     projectProgress: 0,
     projectSections: resumeContent.projectSections || {},
     borrowerSections: borrowerResumeContent || {},
+    projectFieldConfirmations: resumeContent.fieldConfirmations || null,
+    borrowerFieldConfirmations: borrowerResumeContent.fieldConfirmations || null,
   };
 };
 
@@ -304,6 +308,8 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       projectProgress: 0,
       projectSections: resumeContent.projectSections || {},
       borrowerSections: borrowerResumeContent || {},
+      projectFieldConfirmations: resumeContent.fieldConfirmations || null,
+      borrowerFieldConfirmations: borrowerResumeContent.fieldConfirmations || null,
       
       // Legacy field
       borrowerProfileId: undefined,

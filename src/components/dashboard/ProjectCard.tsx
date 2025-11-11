@@ -51,8 +51,13 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const completeness = project.completenessPercent || 0;
-  const isComplete = completeness === 100;
+  const rawProjectProgress =
+    project.projectProgress ?? project.completenessPercent ?? 0;
+  const rawBorrowerProgress = project.borrowerProgress ?? 0;
+  const overallProgress = Math.round(
+    (rawProjectProgress + rawBorrowerProgress) / 2
+  );
+  const isComplete = overallProgress === 100;
 
   // Check if current user is owner of the project's owner org
   const isProjectOwner = isOwner && currentOrg?.id === project.owner_org_id;
@@ -270,7 +275,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 ? "bg-gradient-to-r from-emerald-500 to-green-500"
                 : "bg-blue-600"
             }`}
-            style={{ width: `${completeness}%` }}
+            style={{ width: `${overallProgress}%` }}
           />
         </div>
 
@@ -372,36 +377,38 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             )}
           </div>
 
-          <div className="mb-5 mt-auto">
-            <div className="flex justify-between items-center text-xs mb-1">
-              <span className="text-gray-500">Progress</span>
-              <span
-                className={`font-semibold ${
-                  isComplete ? "text-green-600" : "text-blue-600"
-                }`}
-              >
-                {completeness}%
-              </span>
-            </div>
+          <div className="mb-5 mt-auto space-y-4">
+            <div>
+              <div className="flex justify-between items-center text-xs mb-1">
+                <span className="text-gray-500">Overall Progress</span>
+                <span
+                  className={`font-semibold ${
+                    isComplete ? "text-green-600" : "text-blue-600"
+                  }`}
+                >
+                  {overallProgress}%
+                </span>
+              </div>
 
-            <div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
-              <div
-                className={`absolute top-0 left-0 h-full rounded-full transition-all duration-700 shadow-sm ${
-                  isComplete
-                    ? "bg-gradient-to-r from-emerald-500 to-green-500"
-                    : "bg-blue-600"
-                }`}
-                style={{ width: `${completeness}%` }}
-              />
+              <div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                <div
+                  className={`absolute top-0 left-0 h-full rounded-full transition-all duration-700 shadow-sm ${
+                    isComplete
+                      ? "bg-gradient-to-r from-emerald-500 to-green-500"
+                      : "bg-blue-600"
+                  }`}
+                  style={{ width: `${overallProgress}%` }}
+                />
+              </div>
             </div>
 
             {isComplete ? (
-              <div className="flex items-center justify-center mt-2 text-xs text-green-700 bg-green-50 rounded-md py-1">
+              <div className="flex items-center justify-center text-xs text-green-700 bg-green-50 rounded-md py-1">
                 <CheckCircle className="h-3.5 w-3.5 mr-1" />
                 OM Ready
               </div>
             ) : (
-              <div className="mt-2 h-6" aria-hidden="true" />
+              <div className="h-0.5" aria-hidden="true" />
             )}
           </div>
 

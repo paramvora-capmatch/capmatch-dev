@@ -322,6 +322,8 @@ export interface ProjectProfile {
   projectProgress?: number | null;
   projectSections?: any; // Add for consistency with mock data
   borrowerSections?: any; // Add for consistency with mock data
+  projectFieldConfirmations?: Record<string, boolean> | null;
+  borrowerFieldConfirmations?: Record<string, boolean> | null;
   // RBAC additions
 }
 

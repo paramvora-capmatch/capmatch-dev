@@ -362,7 +362,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
     focus: () => {
       editorRef.current?.focus();
     },
-  }), [handleInput, htmlToValue, onChange]);
+  }), [htmlToValue, onChange]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();

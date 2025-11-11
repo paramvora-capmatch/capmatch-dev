@@ -4,13 +4,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Select } from '@/components/ui/Select';
 import { PillToggle, TriPermission } from '@/components/ui/PillToggle';
 import { Permission, OrgGrant, ProjectGrant, OrgMember } from '@/types/enhanced-types';
 import { useProjects } from '@/hooks/useProjects';
 import { X, Briefcase, Save, Settings } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { supabase } from '../../../lib/supabaseClient';
+
+const RESOURCE_TYPES = [
+  'PROJECT_RESUME',
+  'PROJECT_DOCS_ROOT',
+  'BORROWER_RESUME',
+  'BORROWER_DOCS_ROOT',
+] as const;
+
+type ResourceType = typeof RESOURCE_TYPES[number];
+
+const resourceLabels: Record<ResourceType, string> = {
+  PROJECT_RESUME: 'Project Resume',
+  PROJECT_DOCS_ROOT: 'Project Documents',
+  BORROWER_RESUME: 'Borrower Resume',
+  BORROWER_DOCS_ROOT: 'Borrower Documents',
+};
 
 interface EditMemberPermissionsModalProps {
   isOpen: boolean;
@@ -38,21 +53,53 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
   const { projects, isLoading: isLoadingProjects } = useProjects();
   const [projectGrants, setProjectGrants] = useState<ProjectGrant[]>([]);
   const [orgGrants, setOrgGrants] = useState<OrgGrant | null>(null);
-  const [orgDocs, setOrgDocs] = useState<{ id: string; name: string }[]>([]);
-  const [projectDocsMap, setProjectDocsMap] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [projectDocsMap, setProjectDocsMap] = useState<Record<string, { id: string; name: string; parent_id: string | null }[]>>({});
+  const [projectResourcesMap, setProjectResourcesMap] = useState<Record<string, Map<string, { id: string; parent_id: string | null; resource_type: string }>>>({});
+  const [projectRootsMap, setProjectRootsMap] = useState<Record<string, { projectDocsRootId: string | null; borrowerDocsRootId: string | null }>>({});
   const [openProjectPermissionsModal, setOpenProjectPermissionsModal] = useState<string | null>(null);
 
   const ensureProjectDocsLoaded = useCallback(
     async (projectId: string) => {
-      if (projectDocsMap[projectId]) return;
-      const { data } = await supabase
+      if (projectDocsMap[projectId] && projectRootsMap[projectId] && projectResourcesMap[projectId]) return;
+      
+      // Load root resources first
+      const { data: roots } = await supabase
         .from('resources')
-        .select('id,name')
+        .select('id,resource_type')
+        .eq('project_id', projectId)
+        .in('resource_type', ['PROJECT_DOCS_ROOT', 'BORROWER_DOCS_ROOT']);
+      
+      const projectDocsRootId = roots?.find(r => r.resource_type === 'PROJECT_DOCS_ROOT')?.id || null;
+      const borrowerDocsRootId = roots?.find(r => r.resource_type === 'BORROWER_DOCS_ROOT')?.id || null;
+      
+      setProjectRootsMap((prev) => ({ 
+        ...prev, 
+        [projectId]: { projectDocsRootId, borrowerDocsRootId } 
+      }));
+      
+      // Load all resources (files and folders) to trace parent chains
+      const { data: allResources } = await supabase
+        .from('resources')
+        .select('id,parent_id,resource_type')
+        .eq('project_id', projectId)
+        .in('resource_type', ['FILE', 'FOLDER', 'PROJECT_DOCS_ROOT', 'BORROWER_DOCS_ROOT']);
+      
+      const resourcesMap = new Map<string, { id: string; parent_id: string | null; resource_type: string }>();
+      allResources?.forEach(r => {
+        resourcesMap.set(r.id, { id: r.id, parent_id: r.parent_id, resource_type: r.resource_type });
+      });
+      
+      setProjectResourcesMap((prev) => ({ ...prev, [projectId]: resourcesMap }));
+      
+      // Load documents with parent_id for display
+      const { data: files } = await supabase
+        .from('resources')
+        .select('id,name,parent_id')
         .eq('resource_type', 'FILE')
         .eq('project_id', projectId);
-      setProjectDocsMap((prev) => ({ ...prev, [projectId]: data || [] }));
+      setProjectDocsMap((prev) => ({ ...prev, [projectId]: files || [] }));
     },
-    [projectDocsMap]
+    [projectDocsMap, projectRootsMap, projectResourcesMap]
   );
 
   // Load current permissions when modal opens
@@ -80,21 +127,21 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
           const resource = perm.resources;
           if (!resource) return;
 
+          // Organization-level resources (only FILE resources without project_id)
           if (resource.org_id === orgId && !resource.project_id) {
-            if (resource.resource_type === 'BORROWER_RESUME' || resource.resource_type === 'BORROWER_DOCS_ROOT') {
-              orgPermissions.permissions.push({ resource_type: resource.resource_type, permission: perm.permission });
-            } else if (resource.resource_type === 'FILE') {
+            if (resource.resource_type === 'FILE') {
               orgPermissions.fileOverrides = orgPermissions.fileOverrides || [];
               orgPermissions.fileOverrides.push({ resource_id: resource.id, permission: perm.permission });
             }
           }
 
+          // Project-level resources (including borrower resume/docs which are now project-scoped)
           if (resource.project_id) {
             if (!projectPermsMap.has(resource.project_id)) {
               projectPermsMap.set(resource.project_id, { projectId: resource.project_id, permissions: [], fileOverrides: [] });
             }
             const projectGrant = projectPermsMap.get(resource.project_id)!;
-            if (resource.resource_type === 'PROJECT_RESUME' || resource.resource_type === 'PROJECT_DOCS_ROOT') {
+            if (RESOURCE_TYPES.includes(resource.resource_type as ResourceType)) {
               projectGrant.permissions.push({ resource_type: resource.resource_type, permission: perm.permission });
             } else if (resource.resource_type === 'FILE') {
               projectGrant.fileOverrides = projectGrant.fileOverrides || [];
@@ -104,7 +151,8 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
         });
 
         if (!isCancelled) {
-          setOrgGrants(orgPermissions.permissions.length > 0 ? orgPermissions : null);
+          // Set orgGrants if there are any file overrides (org-level permissions are now project-scoped)
+          setOrgGrants(orgPermissions.fileOverrides && orgPermissions.fileOverrides.length > 0 ? orgPermissions : null);
           setProjectGrants(Array.from(projectPermsMap.values()));
         }
       } catch (err) {
@@ -117,41 +165,12 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
     return () => { isCancelled = true; };
   }, [isOpen, member, orgId]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    if (!orgGrants?.permissions.some((p) => p.resource_type === 'BORROWER_DOCS_ROOT')) return;
-    if (orgDocs.length > 0) return;
-
-    let isCancelled = false;
-
-    const loadOrgDocs = async () => {
-      try {
-        const { data } = await supabase
-          .from('resources')
-          .select('id,name')
-          .eq('resource_type', 'FILE')
-          .is('project_id', null)
-          .eq('org_id', orgId);
-        if (!isCancelled) {
-          setOrgDocs(data || []);
-        }
-      } catch (err) {
-        console.error('Error loading organization documents:', err);
-      }
-    };
-
-    loadOrgDocs();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen, orgGrants, orgDocs.length, orgId]);
 
   useEffect(() => {
     if (!isOpen) return;
     const projectIdsNeedingDocs = projectGrants
       .filter((grant) =>
-        grant.permissions.some((p) => p.resource_type === 'PROJECT_DOCS_ROOT')
+        grant.permissions.some((p) => p.resource_type === 'PROJECT_DOCS_ROOT' || p.resource_type === 'BORROWER_DOCS_ROOT')
       )
       .map((grant) => grant.projectId)
       .filter((projectId) => !projectDocsMap[projectId]);
@@ -164,12 +183,41 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
       try {
         const results = await Promise.all(
           projectIdsNeedingDocs.map(async (projectId) => {
-            const { data } = await supabase
+            // Load root resources first
+            const { data: roots } = await supabase
               .from('resources')
-              .select('id,name')
+              .select('id,resource_type')
+              .eq('project_id', projectId)
+              .in('resource_type', ['PROJECT_DOCS_ROOT', 'BORROWER_DOCS_ROOT']);
+            
+            const projectDocsRootId = roots?.find(r => r.resource_type === 'PROJECT_DOCS_ROOT')?.id || null;
+            const borrowerDocsRootId = roots?.find(r => r.resource_type === 'BORROWER_DOCS_ROOT')?.id || null;
+            
+            // Load all resources (files and folders) to trace parent chains
+            const { data: allResources } = await supabase
+              .from('resources')
+              .select('id,parent_id,resource_type')
+              .eq('project_id', projectId)
+              .in('resource_type', ['FILE', 'FOLDER', 'PROJECT_DOCS_ROOT', 'BORROWER_DOCS_ROOT']);
+            
+            const resourcesMap = new Map<string, { id: string; parent_id: string | null; resource_type: string }>();
+            allResources?.forEach(r => {
+              resourcesMap.set(r.id, { id: r.id, parent_id: r.parent_id, resource_type: r.resource_type });
+            });
+            
+            // Load documents with parent_id for display
+            const { data: docs } = await supabase
+              .from('resources')
+              .select('id,name,parent_id')
               .eq('resource_type', 'FILE')
               .eq('project_id', projectId);
-            return { projectId, docs: data || [] };
+            
+            return { 
+              projectId, 
+              docs: docs || [],
+              roots: { projectDocsRootId, borrowerDocsRootId },
+              resourcesMap
+            };
           })
         );
 
@@ -179,6 +227,22 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
           const next = { ...prev };
           results.forEach(({ projectId, docs }) => {
             next[projectId] = docs;
+          });
+          return next;
+        });
+        
+        setProjectRootsMap((prev) => {
+          const next = { ...prev };
+          results.forEach(({ projectId, roots }) => {
+            next[projectId] = roots;
+          });
+          return next;
+        });
+        
+        setProjectResourcesMap((prev) => {
+          const next = { ...prev };
+          results.forEach(({ projectId, resourcesMap }) => {
+            next[projectId] = resourcesMap;
           });
           return next;
         });
@@ -256,63 +320,53 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
     }
   };
 
-  const toggleOrgPermission = (resourceType: 'BORROWER_RESUME' | 'BORROWER_DOCS_ROOT', permission: Permission | null) => {
-    setOrgGrants(prev => {
-      if (!permission) {
-        if (!prev) return null;
-        return {
-          permissions: prev.permissions.filter(p => p.resource_type !== resourceType),
-          exclusions: prev.exclusions || []
-        };
-      }
-      const base: OrgGrant = prev || { permissions: [], exclusions: [] };
-      const others = base.permissions.filter(p => p.resource_type !== resourceType);
-      return {
-        permissions: [...others, { resource_type: resourceType, permission }],
-        exclusions: base.exclusions
-      };
-    });
-  };
-
-  const loadOrgDocsIfNeeded = async () => {
-    if (orgDocs.length > 0) return;
-    try {
-      const { data } = await supabase
-        .from('resources')
-        .select('id,name')
-        .eq('resource_type', 'FILE')
-        .is('project_id', null)
-        .eq('org_id', orgId);
-      setOrgDocs(data || []);
-    } catch (e) {}
-  };
-
-  const setOrgDocPermission = (resourceId: string, permission: Permission | 'none') => {
-    setOrgGrants(prev => {
-      const base: OrgGrant = prev || { permissions: [], fileOverrides: [] } as OrgGrant;
-      const overrides = [...(base.fileOverrides || [])];
-      const idx = overrides.findIndex(o => o.resource_id === resourceId);
-      const rootPerm = base.permissions.find(p => p.resource_type==='BORROWER_DOCS_ROOT')?.permission;
-      if (permission === (rootPerm || 'view')) {
-        if (idx >= 0) overrides.splice(idx,1);
-      } else {
-        if (idx >= 0) overrides[idx] = { resource_id: resourceId, permission } as any;
-        else overrides.push({ resource_id: resourceId, permission } as any);
-      }
-      return { ...base, fileOverrides: overrides } as OrgGrant;
-    });
-  };
 
   
+
+  // Helper function to determine which root a document belongs to by tracing up the parent chain
+  const getDocumentRootType = (projectId: string, docParentId: string | null): 'PROJECT_DOCS_ROOT' | 'BORROWER_DOCS_ROOT' | null => {
+    const roots = projectRootsMap[projectId];
+    const resourcesMap = projectResourcesMap[projectId];
+    if (!roots || !resourcesMap) return null;
+    
+    // Trace up the parent chain to find the root
+    let currentParentId = docParentId;
+    const visited = new Set<string>(); // Prevent infinite loops
+    
+    while (currentParentId) {
+      if (visited.has(currentParentId)) break; // Safety check
+      visited.add(currentParentId);
+      
+      // Check if current parent is one of the roots
+      if (currentParentId === roots.projectDocsRootId) return 'PROJECT_DOCS_ROOT';
+      if (currentParentId === roots.borrowerDocsRootId) return 'BORROWER_DOCS_ROOT';
+      
+      // Move up to the next parent
+      const parent = resourcesMap.get(currentParentId);
+      if (!parent) break;
+      currentParentId = parent.parent_id;
+    }
+    
+    return null;
+  };
 
   const setProjectDocPermission = (projectId: string, resourceId: string, permission: Permission | 'none') => {
     setProjectGrants(prev => prev.map(g => {
       if (g.projectId !== projectId) return g;
       const overrides = [...(g.fileOverrides || [])];
       const idx = overrides.findIndex(o => o.resource_id === resourceId);
-      const rootPerm = g.permissions.find(p => p.resource_type==='PROJECT_DOCS_ROOT')?.permission;
+      
+      // Find the document to determine its root type
+      const doc = projectDocsMap[projectId]?.find(d => d.id === resourceId);
+      const rootType = doc ? getDocumentRootType(projectId, doc.parent_id) : null;
+      
+      // Get the appropriate root permission
+      const rootPerm = rootType 
+        ? g.permissions.find(p => p.resource_type === rootType)?.permission 
+        : g.permissions.find(p => p.resource_type === 'PROJECT_DOCS_ROOT' || p.resource_type === 'BORROWER_DOCS_ROOT')?.permission;
+      
       if (permission === (rootPerm || 'view')) {
-        if (idx >= 0) overrides.splice(idx,1);
+        if (idx >= 0) overrides.splice(idx, 1);
       } else {
         if (idx >= 0) overrides[idx] = { resource_id: resourceId, permission } as any;
         else overrides.push({ resource_id: resourceId, permission } as any);
@@ -339,13 +393,54 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
     }));
   };
 
+  const setResourcePermission = (projectId: string, resourceType: ResourceType, permission: Permission | null) => {
+    setProjectGrants(prev => {
+      const existing = prev.find(g => g.projectId === projectId);
+      if (!existing) {
+        if (!permission) return prev;
+        return [
+          ...prev,
+          {
+            projectId,
+            permissions: [{ resource_type: resourceType, permission }],
+            fileOverrides: []
+          }
+        ];
+      }
+      const others = existing.permissions.filter(p => p.resource_type !== resourceType);
+      if (!permission) {
+        return prev.map(g => 
+          g.projectId === projectId 
+            ? { ...g, permissions: others }
+            : g
+        );
+      }
+      return prev.map(g =>
+        g.projectId === projectId
+          ? { ...g, permissions: [...others, { resource_type: resourceType, permission }] }
+          : g
+      );
+    });
+    // Load docs if needed when setting BORROWER_DOCS_ROOT permission
+    if (resourceType === 'BORROWER_DOCS_ROOT' && permission) {
+      ensureProjectDocsLoaded(projectId);
+    }
+  };
+
   const getProjectLevel = (projectId: string): TriPermission => {
     const grant = projectGrants.find(g => g.projectId === projectId);
     if (!grant) return 'none';
-    const resume = grant.permissions.find(p => p.resource_type === 'PROJECT_RESUME')?.permission;
-    const docs = grant.permissions.find(p => p.resource_type === 'PROJECT_DOCS_ROOT')?.permission;
-    if (resume === 'edit' && docs === 'edit') return 'edit';
-    return 'view';
+    // Check all 4 resource types - must have all 4 permissions set
+    const permissions = RESOURCE_TYPES.map((resourceType) =>
+      grant.permissions.find((p) => p.resource_type === resourceType)?.permission ?? null
+    );
+    // If all 4 are set to 'edit', return 'edit'
+    if (permissions.every((perm) => perm === 'edit')) return 'edit';
+    // If all 4 are set to 'view', return 'view'
+    if (permissions.every((perm) => perm === 'view')) return 'view';
+    // If any are set (but not all the same), return 'view' as a mixed state
+    if (permissions.some((perm) => perm === 'view' || perm === 'edit')) return 'view';
+    return 'none';
   };
 
   const setProjectLevel = (projectId: string, level: TriPermission) => {
@@ -359,15 +454,10 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
     setProjectGrants(prev => {
       const existing = prev.find(g => g.projectId === projectId);
       const nextPerm: Permission = level === 'edit' ? 'edit' : 'view';
-      const base: ProjectGrant = existing || { projectId, permissions: [], fileOverrides: [] } as ProjectGrant;
-      const others = base.permissions.filter(p => p.resource_type !== 'PROJECT_RESUME' && p.resource_type !== 'PROJECT_DOCS_ROOT');
+      // Set all 4 resource types to the same level (like InviteMemberModal)
       const updated: ProjectGrant = {
-        ...base,
-        permissions: [
-          ...others,
-          { resource_type: 'PROJECT_RESUME', permission: nextPerm },
-          { resource_type: 'PROJECT_DOCS_ROOT', permission: nextPerm },
-        ],
+        projectId,
+        permissions: RESOURCE_TYPES.map((resource_type) => ({ resource_type, permission: nextPerm })),
         fileOverrides: [],
       };
       ensureProjectDocsLoaded(projectId);
@@ -379,8 +469,9 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
     setError(null);
     setProjectGrants([]);
     setOrgGrants(null);
-    setOrgDocs([]);
     setProjectDocsMap({});
+    setProjectResourcesMap({});
+    setProjectRootsMap({});
     setOpenProjectPermissionsModal(null);
     onClose();
   };
@@ -434,56 +525,6 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
                     <strong>Role:</strong> {member.role}
                   </p>
                 </div>
-
-                {/* Org-level Access */}
-                {member.role === 'member' && (
-                  <div className="space-y-2">
-                    <label className="block text-base font-medium text-gray-700 mb-1">
-                      Organization Access
-                    </label>
-                    <div className="space-y-2 border border-gray-200 rounded-md p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-base text-gray-800">Borrower Resume</span>
-                        <PillToggle
-                          value={(orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_RESUME')?.permission as TriPermission) || 'view'}
-                          onChange={(val) => toggleOrgPermission('BORROWER_RESUME', val === 'none' ? null : (val as Permission))}
-                          size="sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-base text-gray-800">Borrower Documents</span>
-                        <PillToggle
-                          value={(orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT')?.permission as TriPermission) || 'view'}
-                          onChange={(val) => {
-                            const perm = val === 'none' ? null : (val as Permission);
-                            toggleOrgPermission('BORROWER_DOCS_ROOT', perm);
-                            if (perm) loadOrgDocsIfNeeded();
-                          }}
-                          size="sm"
-                        />
-                      </div>
-                      {orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT') && orgDocs.length>0 && (
-                        <div className="mt-2 border-t pt-2 space-y-1">
-                          <div className="text-sm text-gray-500">Set per-document permissions</div>
-                          {orgDocs.map(doc => {
-                            const rootPerm = orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT')?.permission;
-                            const current = orgGrants?.fileOverrides?.find(o=>o.resource_id===doc.id)?.permission || rootPerm || 'view';
-                            return (
-                              <div key={doc.id} className="flex items-center justify-between text-base py-1">
-                                <span className="text-gray-700 truncate pr-2">{doc.name}</span>
-                                <PillToggle
-                                  value={current as TriPermission}
-                                  onChange={(val) => setOrgDocPermission(doc.id, val as Permission | 'none')}
-                                  size="xs"
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {/* Project Access Selection */}
                 {member.role === 'member' && (
@@ -575,47 +616,57 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-base text-gray-800">Project Resume</span>
-                <PillToggle
-                  value={(currentGrantForModal.permissions.find((p) => p.resource_type === 'PROJECT_RESUME')?.permission as TriPermission) || 'view'}
-                  onChange={(val) =>
-                    setProjectResumePermission(
-                      currentProjectForModal.id,
-                      val === 'none' ? null : (val as Permission)
-                    )
-                  }
-                  size="sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-base text-gray-800">Project Documents</span>
-                <PillToggle
-                  value={(currentGrantForModal.permissions.find((p) => p.resource_type === 'PROJECT_DOCS_ROOT')?.permission as TriPermission) || 'view'}
-                  onChange={(val) => {
-                    const perm = val === 'none' ? null : (val as Permission);
-                    setProjectDocsPermission(currentProjectForModal.id, perm);
-                    if (perm) ensureProjectDocsLoaded(currentProjectForModal.id);
-                  }}
-                  size="sm"
-                />
-              </div>
+              {RESOURCE_TYPES.map((resourceType) => (
+                <div key={resourceType} className="flex items-center justify-between">
+                  <span className="text-base text-gray-800">{resourceLabels[resourceType]}</span>
+                  <PillToggle
+                    value={
+                      (currentGrantForModal.permissions.find(
+                        (perm) => perm.resource_type === resourceType
+                      )?.permission as TriPermission) || 'none'
+                    }
+                    onChange={(val) =>
+                      setResourcePermission(
+                        currentProjectForModal.id,
+                        resourceType,
+                        val === 'none' ? null : (val as Permission)
+                      )
+                    }
+                    size="sm"
+                  />
+                </div>
+              ))}
 
-              {currentGrantForModal.permissions.find((p) => p.resource_type === 'PROJECT_DOCS_ROOT') &&
+              {(currentGrantForModal.permissions.find((p) => p.resource_type === 'PROJECT_DOCS_ROOT') ||
+                currentGrantForModal.permissions.find((p) => p.resource_type === 'BORROWER_DOCS_ROOT')) &&
                 (projectDocsMap[currentProjectForModal.id]?.length || 0) > 0 && (
                   <div className="border-t pt-2 space-y-1">
                     <div className="text-sm text-gray-500">Set per-document permissions</div>
                     {(projectDocsMap[currentProjectForModal.id] || []).map((doc) => {
-                      const rootPerm = currentGrantForModal.permissions.find(
-                        (p) => p.resource_type === 'PROJECT_DOCS_ROOT'
-                      )?.permission;
+                      // Determine which root this document belongs to
+                      const rootType = getDocumentRootType(currentProjectForModal.id, doc.parent_id);
+                      
+                      // Get the appropriate root permission based on document type
+                      const rootPerm = rootType
+                        ? currentGrantForModal.permissions.find((p) => p.resource_type === rootType)?.permission
+                        : currentGrantForModal.permissions.find(
+                            (p) => p.resource_type === 'PROJECT_DOCS_ROOT' || p.resource_type === 'BORROWER_DOCS_ROOT'
+                          )?.permission;
+                      
                       const current =
                         currentGrantForModal.fileOverrides?.find((o) => o.resource_id === doc.id)?.permission ||
                         rootPerm ||
                         'view';
+                      
+                      // Determine document category label
+                      const docCategory = rootType === 'BORROWER_DOCS_ROOT' ? ' (Borrower)' : rootType === 'PROJECT_DOCS_ROOT' ? ' (Project)' : '';
+                      
                       return (
                         <div key={doc.id} className="flex items-center justify-between text-base py-1">
-                          <span className="text-gray-700 truncate pr-2">{doc.name}</span>
+                          <span className="text-gray-700 truncate pr-2">
+                            {doc.name}
+                            {docCategory && <span className="text-xs text-gray-500">{docCategory}</span>}
+                          </span>
                           <PillToggle
                             value={current as TriPermission}
                             onChange={(val) =>

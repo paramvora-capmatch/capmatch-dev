@@ -32,6 +32,10 @@ import {
   RecoursePreference,
   ExitStrategy,
 } from "../../types/enhanced-types";
+import {
+  PROJECT_REQUIRED_FIELDS,
+  isProjectPlaceholderValue,
+} from "@/utils/resumeCompletion";
 
 interface EnhancedProjectFormProps {
   existingProject: ProjectProfile;
@@ -91,6 +95,43 @@ const exitStrategyOptions: ExitStrategy[] = [
   "Refinance",
   "Long-Term Hold",
 ];
+
+const isProjectValueProvided = (value: unknown): boolean => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "number") return !Number.isNaN(value);
+  if (typeof value === "boolean") return true;
+  return false;
+};
+
+const deriveProjectConfirmations = (
+  project: ProjectProfile
+): Record<string, boolean> => {
+  const existing =
+    project.projectFieldConfirmations ??
+    ((project.projectSections?.fieldConfirmations as
+      | Record<string, boolean>
+      | undefined) ??
+      null);
+  if (existing && typeof existing === "object") {
+    return { ...existing };
+  }
+
+  const derived: Record<string, boolean> = {};
+  PROJECT_REQUIRED_FIELDS.forEach((field) => {
+    const value = project[field];
+    if (!isProjectValueProvided(value)) {
+      return;
+    }
+    if (isProjectPlaceholderValue(field, value)) {
+      derived[field as string] = false;
+      return;
+    }
+    derived[field as string] = true;
+  });
+  return derived;
+};
 const stateOptions = [
   // Keep states for Select component
   { value: "", label: "Select a state..." },
@@ -158,16 +199,23 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
   const { updateProject } = useProjects();
 
   // Form state initialized from existingProject prop
-  // Form state initialized from existingProject prop
-  const [formData, setFormData] = useState<ProjectProfile>(existingProject);
+  const [formData, setFormData] = useState<ProjectProfile>(() => ({
+    ...existingProject,
+    projectFieldConfirmations: deriveProjectConfirmations(existingProject),
+  }));
   const [formSaved, setFormSaved] = useState(false); // State for save button feedback
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Update local form state if the existingProject prop changes externally
   useEffect(() => {
-    setFormData(existingProject);
+    const confirmations = deriveProjectConfirmations(existingProject);
+    const nextProject = {
+      ...existingProject,
+      projectFieldConfirmations: confirmations,
+    };
+    setFormData(nextProject);
     // Notify parent component of initial form data for AskAI
-    onFormDataChange?.(existingProject);
+    onFormDataChange?.(nextProject);
   }, [existingProject, onFormDataChange]);
 
   // NEW: Focus/scroll to a specific field if requested
@@ -228,12 +276,26 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
   }, [formData, existingProject, updateProject]);
 
   // Handle form field changes
-  const handleInputChange = useCallback((field: keyof ProjectProfile, value: string | number | boolean | null) => {
-    const newFormData = { ...formData, [field]: value };
-    setFormData(newFormData);
-    // Notify parent component of form data changes for AskAI
-    onFormDataChange?.(newFormData);
-  }, [formData, onFormDataChange]);
+  const handleInputChange = useCallback(
+    (field: keyof ProjectProfile, value: string | number | boolean | null) => {
+      setFormData((prev) => {
+        const currentConfirmations =
+          prev.projectFieldConfirmations ?? {};
+        const updatedConfirmations = currentConfirmations[field as string]
+          ? currentConfirmations
+          : { ...currentConfirmations, [field as string]: true };
+        const nextFormData = {
+          ...prev,
+          [field]: value,
+          projectFieldConfirmations: updatedConfirmations,
+        };
+        // Notify parent component of form data changes for AskAI
+        onFormDataChange?.(nextFormData);
+        return nextFormData;
+      });
+    },
+    [onFormDataChange]
+  );
 
   // Handle form submission (manual save via button)
   const handleFormSubmit = useCallback(async () => {

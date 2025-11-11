@@ -1,0 +1,174 @@
+// src/utils/resumeCompletion.ts
+import { BorrowerResumeContent, ProjectResumeContent } from "@/lib/project-queries";
+import { ProjectProfile } from "@/types/enhanced-types";
+
+export type ConfirmationMap = Record<string, boolean>;
+
+const clampPercent = (value: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+};
+
+const isStringFilled = (value: unknown): boolean =>
+  typeof value === "string" && value.trim().length > 0;
+
+const isArrayFilled = (value: unknown): boolean =>
+  Array.isArray(value) && value.length > 0;
+
+const isNumberFilled = (value: unknown): boolean =>
+  typeof value === "number" && !Number.isNaN(value);
+
+const isBooleanAnswered = (value: unknown): value is boolean =>
+  value === true || value === false;
+
+const isSameValue = (left: unknown, right: unknown): boolean => {
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false;
+    return left.every((item, index) => item === right[index]);
+  }
+  return left === right;
+};
+
+const valueProvided = (value: unknown): boolean => {
+  if (value === null || value === undefined) return false;
+  if (isStringFilled(value)) return true;
+  if (isArrayFilled(value)) return true;
+  if (isNumberFilled(value)) return true;
+  if (isBooleanAnswered(value)) return true;
+  return false;
+};
+
+export const BORROWER_REQUIRED_FIELDS: (keyof BorrowerResumeContent)[] = [
+  "fullLegalName",
+  "primaryEntityName",
+  "primaryEntityStructure",
+  "contactEmail",
+  "contactPhone",
+  "contactAddress",
+  "bioNarrative",
+  "linkedinUrl",
+  "websiteUrl",
+  "yearsCREExperienceRange",
+  "assetClassesExperience",
+  "geographicMarketsExperience",
+  "totalDealValueClosedRange",
+  "existingLenderRelationships",
+  "creditScoreRange",
+  "netWorthRange",
+  "liquidityRange",
+  "bankruptcyHistory",
+  "foreclosureHistory",
+  "litigationHistory",
+];
+
+export const BORROWER_PLACEHOLDER_VALUES: Partial<
+  Record<keyof BorrowerResumeContent, unknown>
+> = {
+  primaryEntityStructure: "LLC",
+  yearsCREExperienceRange: "0-2",
+  totalDealValueClosedRange: "N/A",
+  creditScoreRange: "N/A",
+  netWorthRange: "<$1M",
+  liquidityRange: "<$100k",
+  bankruptcyHistory: false,
+  foreclosureHistory: false,
+  litigationHistory: false,
+};
+
+export const isBorrowerPlaceholderValue = (
+  field: keyof BorrowerResumeContent,
+  value: unknown
+): boolean => {
+  if (!BORROWER_PLACEHOLDER_VALUES.hasOwnProperty(field)) return false;
+  return isSameValue(value, BORROWER_PLACEHOLDER_VALUES[field]);
+};
+
+export const computeBorrowerCompletion = (
+  data: Partial<BorrowerResumeContent> | null | undefined,
+  confirmations?: ConfirmationMap
+): number => {
+  const source = data || {};
+  const total = BORROWER_REQUIRED_FIELDS.length;
+  if (total === 0) return 0;
+
+  let answered = 0;
+  BORROWER_REQUIRED_FIELDS.forEach((field) => {
+    const value = source[field];
+    if (!valueProvided(value)) return;
+
+    if (isBorrowerPlaceholderValue(field, value)) {
+      if (confirmations?.[field]) {
+        answered += 1;
+      }
+      return;
+    }
+
+    answered += 1;
+  });
+
+  return clampPercent((answered / total) * 100);
+};
+
+export const PROJECT_REQUIRED_FIELDS: (keyof ProjectProfile)[] = [
+  "projectName",
+  "propertyAddressStreet",
+  "propertyAddressCity",
+  "propertyAddressState",
+  "propertyAddressZip",
+  "assetType",
+  "projectDescription",
+  "projectPhase",
+  "loanAmountRequested",
+  "loanType",
+  "targetLtvPercent",
+  "targetCloseDate",
+  "useOfProceeds",
+  "recoursePreference",
+  "exitStrategy",
+  "businessPlanSummary",
+];
+
+export const PROJECT_PLACEHOLDER_VALUES: Partial<
+  Record<keyof ProjectProfile, unknown>
+> = {
+  assetType: "Multifamily",
+  interestRateType: "Not Specified",
+  recoursePreference: "Flexible",
+  exitStrategy: "Undecided",
+};
+
+export const isProjectPlaceholderValue = (
+  field: keyof ProjectProfile,
+  value: unknown
+): boolean => {
+  if (!PROJECT_PLACEHOLDER_VALUES.hasOwnProperty(field)) return false;
+  return isSameValue(value, PROJECT_PLACEHOLDER_VALUES[field]);
+};
+
+export const computeProjectCompletion = (
+  project: Partial<ProjectProfile> | null | undefined,
+  confirmations?: ConfirmationMap
+): number => {
+  const source = project || {};
+  const total = PROJECT_REQUIRED_FIELDS.length;
+  if (total === 0) return 0;
+
+  let answered = 0;
+  PROJECT_REQUIRED_FIELDS.forEach((field) => {
+    const value = source[field];
+    if (!valueProvided(value)) return;
+
+    if (isProjectPlaceholderValue(field, value)) {
+      if (confirmations?.[field]) {
+        answered += 1;
+      }
+      return;
+    }
+
+    answered += 1;
+  });
+
+  return clampPercent((answered / total) * 100);
+};
+
+
