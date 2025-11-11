@@ -1,7 +1,7 @@
 // src/components/team/EditMemberPermissionsModal.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select } from '@/components/ui/Select';
@@ -41,6 +41,19 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
   const [orgDocs, setOrgDocs] = useState<{ id: string; name: string }[]>([]);
   const [projectDocsMap, setProjectDocsMap] = useState<Record<string, { id: string; name: string }[]>>({});
   const [openProjectPermissionsModal, setOpenProjectPermissionsModal] = useState<string | null>(null);
+
+  const ensureProjectDocsLoaded = useCallback(
+    async (projectId: string) => {
+      if (projectDocsMap[projectId]) return;
+      const { data } = await supabase
+        .from('resources')
+        .select('id,name')
+        .eq('resource_type', 'FILE')
+        .eq('project_id', projectId);
+      setProjectDocsMap((prev) => ({ ...prev, [projectId]: data || [] }));
+    },
+    [projectDocsMap]
+  );
 
   // Load current permissions when modal opens
   useEffect(() => {
@@ -94,27 +107,6 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
           setOrgGrants(orgPermissions.permissions.length > 0 ? orgPermissions : null);
           setProjectGrants(Array.from(projectPermsMap.values()));
         }
-
-        if (orgPermissions.permissions.some(p => p.resource_type === 'BORROWER_DOCS_ROOT') && orgDocs.length === 0) {
-          const { data } = await supabase
-            .from('resources')
-            .select('id,name')
-            .eq('resource_type', 'FILE')
-            .is('project_id', null)
-            .eq('org_id', orgId);
-          if (!isCancelled) setOrgDocs(data || []);
-        }
-
-        for (const projectId of projectPermsMap.keys()) {
-          if (!projectDocsMap[projectId]) {
-            const { data } = await supabase
-              .from('resources')
-              .select('id,name')
-              .eq('resource_type', 'FILE')
-              .eq('project_id', projectId);
-            if (!isCancelled) setProjectDocsMap(prev => ({ ...prev, [projectId]: data || [] }));
-          }
-        }
       } catch (err) {
         console.error('Error loading current permissions:', err);
       } finally {
@@ -123,13 +115,90 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
     };
     load();
     return () => { isCancelled = true; };
-  }, [isOpen, member?.user_id, orgId]);
+  }, [isOpen, member, orgId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!orgGrants?.permissions.some((p) => p.resource_type === 'BORROWER_DOCS_ROOT')) return;
+    if (orgDocs.length > 0) return;
+
+    let isCancelled = false;
+
+    const loadOrgDocs = async () => {
+      try {
+        const { data } = await supabase
+          .from('resources')
+          .select('id,name')
+          .eq('resource_type', 'FILE')
+          .is('project_id', null)
+          .eq('org_id', orgId);
+        if (!isCancelled) {
+          setOrgDocs(data || []);
+        }
+      } catch (err) {
+        console.error('Error loading organization documents:', err);
+      }
+    };
+
+    loadOrgDocs();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, orgGrants, orgDocs.length, orgId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const projectIdsNeedingDocs = projectGrants
+      .filter((grant) =>
+        grant.permissions.some((p) => p.resource_type === 'PROJECT_DOCS_ROOT')
+      )
+      .map((grant) => grant.projectId)
+      .filter((projectId) => !projectDocsMap[projectId]);
+
+    if (projectIdsNeedingDocs.length === 0) return;
+
+    let isCancelled = false;
+
+    const loadProjectDocs = async () => {
+      try {
+        const results = await Promise.all(
+          projectIdsNeedingDocs.map(async (projectId) => {
+            const { data } = await supabase
+              .from('resources')
+              .select('id,name')
+              .eq('resource_type', 'FILE')
+              .eq('project_id', projectId);
+            return { projectId, docs: data || [] };
+          })
+        );
+
+        if (isCancelled) return;
+
+        setProjectDocsMap((prev) => {
+          const next = { ...prev };
+          results.forEach(({ projectId, docs }) => {
+            next[projectId] = docs;
+          });
+          return next;
+        });
+      } catch (err) {
+        console.error('Error loading project documents:', err);
+      }
+    };
+
+    loadProjectDocs();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, projectGrants, projectDocsMap]);
 
   useEffect(() => {
     if (openProjectPermissionsModal) {
       ensureProjectDocsLoaded(openProjectPermissionsModal);
     }
-  }, [openProjectPermissionsModal]);
+  }, [openProjectPermissionsModal, ensureProjectDocsLoaded]);
 
   const toggleProjectAccess = (projectId: string) => {
     setProjectGrants(prevGrants => {
@@ -235,16 +304,6 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
   };
 
   
-
-  const ensureProjectDocsLoaded = async (projectId: string) => {
-    if (projectDocsMap[projectId]) return;
-    const { data } = await supabase
-      .from('resources')
-      .select('id,name')
-      .eq('resource_type','FILE')
-      .eq('project_id', projectId);
-    setProjectDocsMap(prev => ({ ...prev, [projectId]: data || [] }));
-  };
 
   const setProjectDocPermission = (projectId: string, resourceId: string, permission: Permission | 'none') => {
     setProjectGrants(prev => prev.map(g => {

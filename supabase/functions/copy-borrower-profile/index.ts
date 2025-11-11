@@ -160,10 +160,17 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        borrowerResumeContent: sourceResumeContent,
+        sourceProjectId: source_project_id,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      }
+    );
   } catch (error) {
     console.error("[copy-borrower-profile] Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
