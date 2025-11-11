@@ -409,21 +409,14 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
                           {orgDocs.map(doc => {
                             const rootPerm = orgGrants?.permissions.find(p=>p.resource_type==='BORROWER_DOCS_ROOT')?.permission;
                             const current = orgGrants?.fileOverrides?.find(o=>o.resource_id===doc.id)?.permission || rootPerm || 'view';
-                            const Pill = ({label, val, color}:{label:string; val:'none'|'view'|'edit'; color:string}) => (
-                              <button
-                                type="button"
-                                onClick={() => setOrgDocPermission(doc.id, val)}
-                                className={`px-2 py-1 rounded text-xs border ${current===val ? color+" text-white" : 'bg-white text-gray-700'}`}
-                              >{label}</button>
-                            );
                             return (
                               <div key={doc.id} className="flex items-center justify-between text-base py-1">
                                 <span className="text-gray-700 truncate pr-2">{doc.name}</span>
-                                <div className="flex items-center gap-2">
-                                  <Pill label="None" val="none" color="bg-red-600" />
-                                  <Pill label="View" val="view" color="bg-blue-600" />
-                                  <Pill label="Edit" val="edit" color="bg-green-600" />
-                                </div>
+                                <PillToggle
+                                  value={current as TriPermission}
+                                  onChange={(val) => setOrgDocPermission(doc.id, val as Permission | 'none')}
+                                  size="xs"
+                                />
                               </div>
                             );
                           })}
@@ -561,33 +554,16 @@ export const EditMemberPermissionsModal: React.FC<EditMemberPermissionsModalProp
                         currentGrantForModal.fileOverrides?.find((o) => o.resource_id === doc.id)?.permission ||
                         rootPerm ||
                         'view';
-                      const Pill = ({
-                        label,
-                        val,
-                        color,
-                      }: {
-                        label: string;
-                        val: 'none' | 'view' | 'edit';
-                        color: string;
-                      }) => (
-                        <button
-                          type="button"
-                          onClick={() => setProjectDocPermission(currentProjectForModal.id, doc.id, val)}
-                          className={`px-2 py-1 rounded text-xs border ${
-                            current === val ? color + ' text-white' : 'bg-white text-gray-700'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
                       return (
                         <div key={doc.id} className="flex items-center justify-between text-base py-1">
                           <span className="text-gray-700 truncate pr-2">{doc.name}</span>
-                          <div className="flex items-center gap-2">
-                            <Pill label="None" val="none" color="bg-red-600" />
-                            <Pill label="View" val="view" color="bg-blue-600" />
-                            <Pill label="Edit" val="edit" color="bg-green-600" />
-                          </div>
+                          <PillToggle
+                            value={current as TriPermission}
+                            onChange={(val) =>
+                              setProjectDocPermission(currentProjectForModal.id, doc.id, val as Permission | 'none')
+                            }
+                            size="xs"
+                          />
                         </div>
                       );
                     })}
