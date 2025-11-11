@@ -17,14 +17,14 @@ import { ProjectProfile } from "@/types/enhanced-types";
 interface OnboardingProgressCardProps {
   project: ProjectProfile | null;
   progress: number;
-  onOpenProject: () => void;
+  onOpenBorrowerResume: () => void;
   onCreateProject: () => Promise<void> | void;
 }
 
 const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
   project,
   progress,
-  onOpenProject,
+  onOpenBorrowerResume,
   onCreateProject,
 }) => {
   const hasProject = Boolean(project);
@@ -37,7 +37,7 @@ const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
               <div>
                 <p className="text-sm text-gray-600">Overall completion</p>
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {project?.projectName || "Project"} - Borrower Resume
+                  Borrower Resume
                 </h3>
               </div>
               <div className="flex items-center gap-3 self-end sm:self-auto">
@@ -47,11 +47,10 @@ const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  rightIcon={<PlusCircle size={18} />}
-                  onClick={onOpenProject}
+                  onClick={onOpenBorrowerResume}
                   className="!w-auto px-4 py-2 !h-auto text-blue-700 hover:bg-blue-50 transition-colors text-sm font-semibold"
                 >
-                  Continue Project
+                  Complete borrower resume
                 </Button>
               </div>
             </div>
@@ -224,9 +223,11 @@ export default function DashboardPage() {
                 <OnboardingProgressCard
                   project={primaryProject}
                   progress={borrowerResumeProgress}
-                  onOpenProject={() => {
+                  onOpenBorrowerResume={() => {
                     if (primaryProject) {
-                      router.push(`/project/workspace/${primaryProject.id}`);
+                      router.push(
+                        `/project/workspace/${primaryProject.id}?step=borrower`
+                      );
                     }
                   }}
                   onCreateProject={handleCreateNewProject}

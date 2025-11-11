@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
@@ -51,6 +51,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   onBorrowerEditingChange,
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const {
     projects,
     activeProject,
@@ -160,7 +161,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         documentsSection.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
-  }, [searchParams, setBorrowerEditing]);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("step");
+    const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
+    router.replace(nextPath);
+  }, [pathname, router, searchParams, setBorrowerEditing]);
 
   // Load org data when we have a project
   useEffect(() => {
