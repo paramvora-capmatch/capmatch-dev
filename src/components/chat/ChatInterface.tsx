@@ -33,6 +33,7 @@ interface ChatInterfaceProps {
 
 import { ManageChannelMembersModal } from "./ManageChannelMembersModal";
 import { ChatThread } from "@/types/enhanced-types";
+import { RichTextInput, RichTextInputRef } from "./RichTextInput";
 
 
 interface BlockedDocInfo {
@@ -67,7 +68,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   embedded = false,
 }) => {
   const BASE_INPUT_HEIGHT = 44; // px, matches Button h-11
-  const [textareaHeight, setTextareaHeight] = useState(BASE_INPUT_HEIGHT);
   const {
     threads,
     activeThreadId,
@@ -204,7 +204,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
   const [accessRequested, setAccessRequested] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const richTextInputRef = useRef<RichTextInputRef>(null);
 
   const canCreateThreads = useMemo(() => {
     if (!user) return false;
@@ -251,14 +251,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [projectId, loadThreadsForProject]);
 
-  useEffect(() => {
-    if (!newMessage.trim()) {
-      setTextareaHeight(BASE_INPUT_HEIGHT);
-      if (textAreaRef.current) {
-        textAreaRef.current.style.height = `${BASE_INPUT_HEIGHT}px`;
-      }
-    }
-  }, [newMessage]);
 
   useEffect(() => {
     if (threads.length === 0) return;
@@ -280,11 +272,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     container.scrollTop = container.scrollHeight;
   }, [messages]);
 
-  useEffect(() => {
-    if (mentionQuery === null) {
-      textAreaRef.current?.focus();
-    }
-  }, [mentionQuery]);
 
   useEffect(() => {
     setShowDocPicker(false);
@@ -292,16 +279,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setAccessRequested(false);
   }, [activeThreadId]);
 
-  // Initialize textarea height on mount and when message changes from programmatic updates
-  useEffect(() => {
-    if (textAreaRef.current) {
-      textAreaRef.current.style.height = 'auto';
-      const raw = textAreaRef.current.scrollHeight;
-      const next = Math.min(Math.max(raw, BASE_INPUT_HEIGHT), 160);
-      setTextareaHeight(next);
-      textAreaRef.current.style.height = `${next}px`;
-    }
-  }, [newMessage]);
 
   const processSend = async (threadId: string, message: string) => {
     try {
@@ -331,18 +308,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  const canSendMessage = useMemo(() => {
+    // Check if message has content (either text or document mentions)
+    if (!newMessage) return false;
+    const trimmed = newMessage.trim();
+    return trimmed.length > 0;
+  }, [newMessage]);
+
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !activeThreadId) return;
+    if (!canSendMessage || !activeThreadId) return;
     await processSend(activeThreadId, newMessage);
   };
 
-  const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = e.target.value;
+  const handleTextChange = (text: string) => {
     setNewMessage(text);
 
-    const cursorPos = e.target.selectionStart;
-    const textBeforeCursor = text.substring(0, cursorPos);
-    const atMatch = textBeforeCursor.match(/@([\w\s.-]*)$/);
+    // Check if user is typing an @ mention
+    const lines = text.split('\n');
+    const lastLine = lines[lines.length - 1];
+    const atMatch = lastLine.match(/@([\w\s.-]*)$/);
 
     if (atMatch) {
       const query = atMatch[1].toLowerCase();
@@ -355,38 +339,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMentionQuery(null);
       setSuggestions([]);
     }
-
-    // Auto-size the textarea height on input with baseline equal to send button height
-    if (textAreaRef.current) {
-      textAreaRef.current.style.height = 'auto';
-      const raw = text.trim() ? textAreaRef.current.scrollHeight : BASE_INPUT_HEIGHT;
-      const next = Math.min(Math.max(raw, BASE_INPUT_HEIGHT), 160);
-      setTextareaHeight(next);
-      textAreaRef.current.style.height = `${next}px`;
-    }
   };
 
   const handleSuggestionClick = (doc: AttachableDocument) => {
-    const currentText = newMessage;
-    const cursorPos = textAreaRef.current?.selectionStart || currentText.length;
-    const textBeforeCursor = currentText.substring(0, cursorPos);
-
-    const atIndex = textBeforeCursor.lastIndexOf("@");
-    const textBeforeAt = currentText.substring(0, atIndex);
-    const textAfterCursor = currentText.substring(cursorPos);
-
-    const mentionText = `@[${doc.name}](doc:${doc.resourceId}) `;
-    setNewMessage(textBeforeAt + mentionText + textAfterCursor);
+    // Use the RichTextInput's insertAtCursor method to insert at current position
+    if (richTextInputRef.current) {
+      const mentionText = `@[${doc.name}](doc:${doc.resourceId}) `;
+      
+      // If we're completing an @ mention, tell insertAtCursor to replace the query
+      if (mentionQuery !== null) {
+        const queryToReplace = `@${mentionQuery}`;
+        richTextInputRef.current.insertAtCursor(mentionText, queryToReplace);
+      } else {
+        // Just insert at current cursor position (+ button case)
+        richTextInputRef.current.insertAtCursor(mentionText);
+      }
+    }
 
     setMentionQuery(null);
     setSuggestions([]);
     setShowDocPicker(false);
-
-    setTimeout(() => {
-      textAreaRef.current?.focus();
-      const newCursorPos = (textBeforeAt + mentionText).length;
-      textAreaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
-    }, 10);
   };
 
   const handleMentionClick = (resourceId: string) => {
@@ -812,16 +784,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 )}
               </AnimatePresence>
               <div className="flex items-center gap-2">
-                <div className="relative flex-1 flex items-stretch border border-gray-200 rounded-xl bg-white shadow-sm" style={{ minHeight: `${textareaHeight}px` }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowDocPicker((prev) => !prev)}
-                    disabled={!activeThreadId}
-                    className="h-11 w-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-50 rounded-l-xl"
-                    title="Attach document"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
+                <div className="relative flex-1">
                   {showDocPicker && (
                     <div className="absolute bottom-[calc(100%+0.5rem)] left-0 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
                       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
@@ -861,25 +824,37 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       </div>
                     </div>
                   )}
-                  <textarea
-                    ref={textAreaRef}
+                  <div className="flex items-stretch border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setShowDocPicker((prev) => !prev)}
+                      disabled={!activeThreadId}
+                      className="h-11 w-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-50 rounded-l-xl flex-shrink-0"
+                      title="Attach document"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                    <RichTextInput
+                    ref={richTextInputRef}
                     value={newMessage}
-                    onChange={handleTextAreaChange}
-                    placeholder="Type a message..."
+                    onChange={handleTextChange}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         handleSendMessage();
                       }
                     }}
-                    className="flex-1 px-3 py-2 border-0 focus:outline-none focus:ring-0 disabled:bg-gray-100 resize-none overflow-y-auto"
-                    rows={1}
-                    style={{ minHeight: `${BASE_INPUT_HEIGHT}px`, height: `${textareaHeight}px`, maxHeight: "160px", whiteSpace: "pre-wrap" }}
+                    placeholder="Type a message..."
+                    disabled={!activeThreadId}
+                    minHeight={BASE_INPUT_HEIGHT}
+                    maxHeight={160}
                   />
+                  </div>
                 </div>
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!newMessage.trim() || isLoading}
+                  disabled={!canSendMessage || isLoading}
+                  
                   className="h-11 px-4 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <Send className="h-4 w-4" />

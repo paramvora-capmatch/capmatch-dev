@@ -268,7 +268,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             className={`h-full transition-all duration-500 ${
               isComplete
                 ? "bg-gradient-to-r from-emerald-500 to-green-500"
-                : "bg-gradient-to-r from-blue-500 to-cyan-500"
+                : "bg-blue-600"
             }`}
             style={{ width: `${completeness}%` }}
           />
@@ -389,7 +389,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 className={`absolute top-0 left-0 h-full rounded-full transition-all duration-700 shadow-sm ${
                   isComplete
                     ? "bg-gradient-to-r from-emerald-500 to-green-500"
-                    : "bg-gradient-to-r from-blue-500 to-cyan-500"
+                    : "bg-blue-600"
                 }`}
                 style={{ width: `${completeness}%` }}
               />

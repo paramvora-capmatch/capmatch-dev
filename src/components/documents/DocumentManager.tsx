@@ -454,7 +454,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   className={cn(
-                    "w-full bg-white border border-gray-200 rounded-2xl hover:shadow-md transition-all duration-300 text-left flex flex-col p-4 relative",
+                    "group/file w-full bg-white border border-gray-200 rounded-2xl hover:shadow-md transition-all duration-300 text-left flex flex-col p-4 relative",
                     file.id === highlightedResourceId &&
                       "border-blue-500 ring-2 ring-blue-300 ring-offset-1"
                   )}
@@ -464,7 +464,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                     type="button"
                     aria-label="More actions"
                     title="More actions"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-100 border border-transparent hover:border-gray-200"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-100 border border-transparent hover:border-gray-200 opacity-0 pointer-events-none group-hover/file:opacity-100 group-hover/file:pointer-events-auto transition-opacity"
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenMenuId((prev) => (prev === file.id ? null : file.id));
@@ -557,7 +557,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   )}
                   <button
                     onClick={() => setPreviewingResourceId(file.resource_id)}
-                    className="flex items-center space-x-3 overflow-hidden text-left"
+                    className="flex items-center space-x-3 overflow-hidden text-left pr-0 group-hover/file:pr-10 transition-[padding] duration-200"
                   >
                     {(() => {
                       const visual = getFileVisual(file.name);
