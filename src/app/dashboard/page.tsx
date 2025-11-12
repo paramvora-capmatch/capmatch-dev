@@ -6,7 +6,7 @@ import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
 import { useAuth } from "../../hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { LoadingOverlay } from "../../components/ui/LoadingOverlay";
+import { SplashScreen } from "../../components/ui/SplashScreen";
 import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import Project Card
 import {
   PlusCircle,
@@ -94,8 +94,11 @@ export default function DashboardPage() {
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  
+  // State to track when a project is being created
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
-  const combinedLoading = authLoading || projectsLoading;
+  const combinedLoading = authLoading || projectsLoading || isCreatingProject;
 
   const mostCompleteBorrowerProject = useMemo(() => {
     if (projects.length === 0) return null;
@@ -157,6 +160,7 @@ export default function DashboardPage() {
 
   // Handle creating a new project
   const handleCreateNewProject = async () => {
+    setIsCreatingProject(true);
     try {
       const newProject = await createProject({
         projectName: `My Project #${projects.length + 1}`,
@@ -164,6 +168,7 @@ export default function DashboardPage() {
       router.push(`/project/workspace/${newProject.id}`);
     } catch (error) {
       console.error("Failed to create new project:", error);
+      setIsCreatingProject(false);
     }
   };
 
@@ -175,7 +180,7 @@ export default function DashboardPage() {
         title="Dashboard"
         mainClassName="flex-1 overflow-auto pl-6 pr-3 sm:pr-4 lg:pr-6 pt-2 pb-6"
       >
-        <LoadingOverlay isLoading={combinedLoading} />
+        {combinedLoading && <SplashScreen />}
 
         {/* Decorative Background Layer */}
         <div className="relative -mx-6 sm:-mx-6 lg:-mx-6">
