@@ -467,6 +467,178 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		},
 
 		deleteProject: async (id) => {
+			// First, get the project to find owner_org_id (bucket ID)
+			const project = get().getProject(id);
+			if (!project) {
+				console.error(`[ProjectStore] Project ${id} not found`);
+				return false;
+			}
+
+			const bucketId = project.owner_org_id;
+			if (!bucketId) {
+				console.error(`[ProjectStore] Project ${id} has no owner_org_id`);
+				return false;
+			}
+
+			// Helper function to recursively list all files under a prefix
+			const listAllFilesRecursively = async (
+				bucket: string,
+				prefix: string
+			): Promise<string[]> => {
+				const allFiles: string[] = [];
+				const stack: string[] = [prefix];
+
+				while (stack.length > 0) {
+					const currentPrefix = stack.pop()!;
+					
+					// Handle pagination - list all items in the current prefix
+					let offset = 0;
+					const limit = 1000;
+					let hasMore = true;
+
+					while (hasMore) {
+						const { data, error } = await supabase.storage
+							.from(bucket)
+							.list(currentPrefix, {
+								limit,
+								offset,
+								sortBy: { column: "name", order: "asc" },
+							});
+
+						if (error) {
+							// If error is "not found", the prefix doesn't exist - skip it
+							if (error.message?.includes("not found") || error.statusCode === "404") {
+								hasMore = false;
+								continue;
+							}
+							console.warn(
+								`[ProjectStore] Error listing files in ${currentPrefix}:`,
+								error
+							);
+							hasMore = false;
+							continue;
+						}
+
+						if (!data || data.length === 0) {
+							hasMore = false;
+							continue;
+						}
+
+						for (const item of data) {
+							const fullPath = currentPrefix
+								? `${currentPrefix}/${item.name}`
+								: item.name;
+							
+							// In Supabase storage:
+							// - Files have an `id` property (string)
+							// - Folders/prefixes don't have an `id` (it's null/undefined)
+							// We check for id first as it's the most reliable indicator
+							if (item.id && typeof item.id === 'string') {
+								// It's a file, add to list (include all files including .keep placeholders)
+								allFiles.push(fullPath);
+							} else {
+								// It's a folder/prefix, add to stack for recursive listing
+								stack.push(fullPath);
+							}
+						}
+
+						// Check if there are more items to fetch
+						if (data.length < limit) {
+							hasMore = false;
+						} else {
+							offset += limit;
+						}
+					}
+				}
+
+				return allFiles;
+			};
+
+			// Delete all storage files for this project
+			try {
+				const projectPrefix = `${id}/`;
+				console.log(
+					`[ProjectStore] Starting storage cleanup for project ${id} in bucket ${bucketId} with prefix ${projectPrefix}`
+				);
+				
+				const filesToDelete = await listAllFilesRecursively(
+					bucketId,
+					projectPrefix
+				);
+
+				console.log(
+					`[ProjectStore] Found ${filesToDelete.length} storage files to delete for project ${id}`,
+					filesToDelete.length > 0 ? `(sample: ${filesToDelete.slice(0, 3).join(', ')})` : ''
+				);
+
+				if (filesToDelete.length > 0) {
+					// Delete files in chunks of 1000 (Supabase limit)
+					const chunkSize = 1000;
+					let deletedCount = 0;
+					
+					for (let i = 0; i < filesToDelete.length; i += chunkSize) {
+						const chunk = filesToDelete.slice(i, i + chunkSize);
+						const chunkNum = Math.floor(i / chunkSize) + 1;
+						
+						console.log(
+							`[ProjectStore] Deleting chunk ${chunkNum} (${chunk.length} files)...`
+						);
+						
+						const { error: storageError } = await supabase.storage
+							.from(bucketId)
+							.remove(chunk);
+
+						if (storageError) {
+							console.error(
+								`[ProjectStore] Error deleting storage files chunk ${chunkNum}:`,
+								storageError
+							);
+							// Continue with next chunk even if one fails
+						} else {
+							deletedCount += chunk.length;
+							console.log(
+								`[ProjectStore] Successfully deleted chunk ${chunkNum} (${chunk.length} files)`
+							);
+						}
+					}
+					
+					console.log(
+						`[ProjectStore] Completed deletion: ${deletedCount} of ${filesToDelete.length} files deleted for project ${id}`
+					);
+					
+					// Verify deletion by listing the folder again
+					const { data: remainingFiles, error: verifyError } = await supabase.storage
+						.from(bucketId)
+						.list(projectPrefix, { limit: 10 });
+					
+					if (verifyError) {
+						console.log(
+							`[ProjectStore] Verification: Could not list folder (likely deleted): ${verifyError.message}`
+						);
+					} else if (remainingFiles && remainingFiles.length > 0) {
+						console.warn(
+							`[ProjectStore] WARNING: ${remainingFiles.length} items still remain in folder after deletion`,
+							remainingFiles.map(f => f.name)
+						);
+					} else {
+						console.log(
+							`[ProjectStore] Verification: Folder is now empty (all files deleted successfully)`
+						);
+					}
+				} else {
+					console.log(
+						`[ProjectStore] No storage files found for project ${id} - folder may already be empty or not exist`
+					);
+				}
+			} catch (storageErr) {
+				console.error(
+					`[ProjectStore] Error during storage cleanup:`,
+					storageErr
+				);
+				// Continue with project deletion even if storage cleanup fails
+			}
+
+			// Now delete the project from the database
 			const { error } = await supabase
 				.from("projects")
 				.delete()
