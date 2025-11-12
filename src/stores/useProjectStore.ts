@@ -507,7 +507,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 						if (error) {
 							// If error is "not found", the prefix doesn't exist - skip it
-							if (error.message?.includes("not found") || error.statusCode === "404") {
+							if (error.message?.includes("not found")) {
 								hasMore = false;
 								continue;
 							}
