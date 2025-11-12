@@ -121,7 +121,7 @@ interface ProjectActions {
 	resetProjectState: () => void;
 	calculateProgress: (project: ProjectProfile) => {
 		borrowerProgress: number;
-		projectProgress: number;
+		completenessPercent: number;
 		totalProgress: number;
 	};
 }
@@ -161,7 +161,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					? borrowerConfirmations
 					: {};
 
-			const projectProgress = computeProjectCompletion(
+			const completenessPercent = computeProjectCompletion(
 				project,
 				normalizedProjectConfirmations
 			);
@@ -170,12 +170,12 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				normalizedBorrowerConfirmations
 			);
 			const totalProgress = Math.round(
-				(projectProgress + borrowerProgress) / 2
+				(completenessPercent + borrowerProgress) / 2
 			);
 
 			return {
 				borrowerProgress,
-				projectProgress,
+				completenessPercent,
 				totalProgress,
 			};
 		},
@@ -230,19 +230,17 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// Use stored completenessPercent from DB, with calculateProgress as fallback/validation
 				const projectsWithProgress = projectsWithResources.map((p) => {
 					const calculated = get().calculateProgress(p);
-					const projectProgressValue =
-						p.projectProgress ??
+					const completenessPercentValue =
 						p.completenessPercent ??
-						calculated.projectProgress;
+						calculated.completenessPercent;
 					const borrowerProgressValue =
 						p.borrowerProgress ?? calculated.borrowerProgress;
 					return {
 						...p,
-						completenessPercent: projectProgressValue,
+						completenessPercent: completenessPercentValue,
 						borrowerProgress: borrowerProgressValue,
-						projectProgress: projectProgressValue,
 						totalProgress: Math.round(
-							(projectProgressValue + borrowerProgressValue) / 2
+							(completenessPercentValue + borrowerProgressValue) / 2
 						),
 					};
 				});
@@ -344,7 +342,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				completenessPercent: 0,
 				internalAdvisorNotes: "",
 				borrowerProgress: normalizedBorrowerProgress,
-				projectProgress: 0,
 				borrowerSections: borrowerResumeContent,
 				projectSections:
 					(projectData.projectSections as ProjectResumeContent | undefined) ||
@@ -360,7 +357,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			const finalProject = {
 				...newProjectData,
 				...progressResult,
-				completenessPercent: progressResult.projectProgress,
+				completenessPercent: progressResult.completenessPercent,
 				borrowerProgress: normalizedBorrowerProgress,
 				borrowerSections: borrowerResumeContent,
 				projectFieldConfirmations:
@@ -373,7 +370,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			try {
 				const resumeContent = {
 					...projectProfileToResumeContent(newProjectData),
-					completenessPercent: progressResult.projectProgress,
+					completenessPercent: progressResult.completenessPercent,
 				};
 				await supabase.functions.invoke('update-project', {
 					body: {
@@ -408,12 +405,11 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			
 			// Calculate progress (similar to borrower resume form)
 			const progressResult = get().calculateProgress(updatedData);
-			const completenessPercent = progressResult.projectProgress;
 			
 			const finalUpdatedProject = {
 				...updatedData,
 				...progressResult,
-				completenessPercent: progressResult.projectProgress,
+				completenessPercent: progressResult.completenessPercent,
 			};
 
 			// Optimistic UI update
@@ -433,7 +429,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// Include completenessPercent in resume content to save to DB
 				const resumeContent = {
 					...projectProfileToResumeContent(updates),
-					completenessPercent,
+					completenessPercent: progressResult.completenessPercent,
 				};
 
 				const { error } = await supabase.functions.invoke('update-project', {

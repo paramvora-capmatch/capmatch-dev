@@ -54,8 +54,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const rawProjectProgress =
-    project.projectProgress ?? project.completenessPercent ?? 0;
+  const rawProjectProgress = project.completenessPercent ?? 0;
   const rawBorrowerProgress = project.borrowerProgress ?? 0;
   const overallProgress = Math.round(
     (rawProjectProgress + rawBorrowerProgress) / 2

@@ -23,8 +23,7 @@ const formatDate = (dateString: string | null | undefined): string => {
 };
 
 export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, onEdit }) => {
-    const completeness =
-      project.projectProgress ?? project.completenessPercent ?? 0;
+    const completeness = project.completenessPercent ?? 0;
     const progressColor = completeness >= 100 ? 'bg-green-600' : 'bg-blue-600';
     const router = useRouter();
 

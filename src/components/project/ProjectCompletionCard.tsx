@@ -18,8 +18,7 @@ export const ProjectCompletionCard: React.FC<ProjectCompletionCardProps> = ({
   isLoading,
   onEdit,
 }) => {
-  const completeness =
-    project?.projectProgress ?? project?.completenessPercent ?? 0;
+  const completeness = project?.completenessPercent ?? 0;
   const isProjectComplete = completeness >= 100;
   const isProjectHealthy = completeness >= 90;
   // Green when complete (100%), blue when healthy (>=90% but <100%), red when incomplete
