@@ -1,5 +1,5 @@
 // src/utils/resumeCompletion.ts
-import { BorrowerResumeContent, ProjectResumeContent } from "@/lib/project-queries";
+import { AdvisorResumeContent, BorrowerResumeContent, ProjectResumeContent } from "@/lib/project-queries";
 import { ProjectProfile } from "@/types/enhanced-types";
 
 export type ConfirmationMap = Record<string, boolean>;
@@ -171,4 +171,57 @@ export const computeProjectCompletion = (
   return clampPercent((answered / total) * 100);
 };
 
+export const ADVISOR_REQUIRED_FIELDS: (keyof AdvisorResumeContent)[] = [
+  "name",
+  "title",
+  "email",
+  "phone",
+  "bio",
+  "specialties",
+  "yearsExperience",
+  "linkedinUrl",
+  "websiteUrl",
+  "company",
+  "location",
+];
 
+export const ADVISOR_PLACEHOLDER_VALUES: Partial<
+  Record<keyof AdvisorResumeContent, unknown>
+> = {
+  yearsExperience: 0,
+  specialties: [],
+};
+
+export const isAdvisorPlaceholderValue = (
+  field: keyof AdvisorResumeContent,
+  value: unknown
+): boolean => {
+  if (!ADVISOR_PLACEHOLDER_VALUES.hasOwnProperty(field)) return false;
+  return isSameValue(value, ADVISOR_PLACEHOLDER_VALUES[field]);
+};
+
+export const computeAdvisorCompletion = (
+  data: Partial<AdvisorResumeContent> | null | undefined,
+  confirmations?: ConfirmationMap
+): number => {
+  const source = data || {};
+  const total = ADVISOR_REQUIRED_FIELDS.length;
+  if (total === 0) return 0;
+
+  let answered = 0;
+  ADVISOR_REQUIRED_FIELDS.forEach((field) => {
+    const value = source[field];
+    if (!valueProvided(value)) return;
+
+    if (isAdvisorPlaceholderValue(field, value)) {
+      if (confirmations?.[field]) {
+        answered += 1;
+      }
+      return;
+    }
+
+    answered += 1;
+  });
+
+  return clampPercent((answered / total) * 100);
+};

@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/Button";
+import { DeleteConfirmModal } from "../ui/DeleteConfirmModal";
 import {
   ChevronRight,
   CheckCircle,
@@ -49,6 +50,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const rawProjectProgress =
@@ -235,18 +238,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   };
 
   const handleDelete = async () => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete "${project.projectName}"? This action cannot be undone.`
-      )
-    ) {
-      try {
-        await deleteProject(project.id);
-        console.log("Project deleted successfully");
-      } catch {
-        console.error("Failed to delete project");
-        // Optionally show an error toast message here
-      }
+    setIsDeleting(true);
+    try {
+      await deleteProject(project.id);
+      console.log("Project deleted successfully");
+      setIsDeleteModalOpen(false);
+    } catch (error) {
+      console.error("Failed to delete project", error);
+      // Optionally show an error toast message here
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -311,7 +312,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           setIsMenuOpen(false);
-                          handleDelete();
+                          setIsDeleteModalOpen(true);
                         }}
                         className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-700 flex items-center transition-colors"
                       >
@@ -474,6 +475,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           </div>
         </CardContent>
       </Card>
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Project"
+        message={`Are you sure you want to delete "${project.projectName}"? This action cannot be undone and will also delete all associated files and documents.`}
+        confirmLabel="Delete Project"
+        cancelLabel="Cancel"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

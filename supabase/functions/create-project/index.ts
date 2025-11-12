@@ -43,6 +43,41 @@ serve(async (req) => {
       throw new Error("User must be an owner of the org to create a project.");
     }
 
+    // Find an advisor to auto-assign if not provided (same logic as onboard-borrower)
+    let finalAdvisorId: string | null = assigned_advisor_id || null;
+    if (!finalAdvisorId) {
+      console.log("[create-project] Looking for advisor to auto-assign...");
+      try {
+        const { data: advisorOrg } = await supabaseAdmin
+          .from("orgs")
+          .select("id")
+          .eq("entity_type", "advisor")
+          .limit(1)
+          .single();
+
+        if (advisorOrg) {
+          const { data: advisorMember } = await supabaseAdmin
+            .from("org_members")
+            .select("user_id")
+            .eq("org_id", advisorOrg.id)
+            .limit(1)
+            .single();
+
+          if (advisorMember) {
+            finalAdvisorId = advisorMember.user_id;
+            console.log(
+              `[create-project] Found advisor for auto-assignment: ${finalAdvisorId}`
+            );
+          }
+        }
+      } catch (error) {
+        console.warn(
+          "[create-project] Could not find advisor for auto-assignment:",
+          error.message
+        );
+      }
+    }
+
     // --- Atomic Operation Start ---
 
     // Create the project using the shared utility function
@@ -53,7 +88,7 @@ serve(async (req) => {
     } = await createProjectWithResumeAndStorage(supabaseAdmin, {
       name,
       owner_org_id,
-      assigned_advisor_id: assigned_advisor_id || null,
+      assigned_advisor_id: finalAdvisorId,
       creator_id: user.id,
     });
 
