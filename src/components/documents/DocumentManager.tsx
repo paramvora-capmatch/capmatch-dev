@@ -180,6 +180,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const resourceIdForPermissions = actualResourceId || docsRootId;
   const { canEdit: canEditRoot, isLoading: isLoadingPermissionsRoot } =
     usePermissions(resourceIdForPermissions);
+  // Subscribe to permissions object so component re-renders when permissions load
+  const permissions = usePermissionStore((state) => state.permissions);
   const getPermission = usePermissionStore((state) => state.getPermission);
 
   const getFileVisual = (fileName: string) => {
