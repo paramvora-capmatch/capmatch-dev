@@ -5,7 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import { RoleBasedRoute } from "../../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../../hooks/useAuth";
 
-import { LoadingOverlay } from "../../../../components/ui/LoadingOverlay";
+import { SplashScreen } from "../../../../components/ui/SplashScreen";
+import { AnimatePresence } from "framer-motion";
 import { Button } from "../../../../components/ui/Button";
 import {
   ChevronLeft,
@@ -871,7 +872,9 @@ export default function AdvisorProjectDetailPage() {
   return (
     <RoleBasedRoute roles={["advisor"]}>
       <div className="flex flex-col min-h-screen bg-gray-50">
-        <LoadingOverlay isLoading={isLoadingData} />
+        <AnimatePresence>
+          {isLoadingData && <SplashScreen />}
+        </AnimatePresence>
 
         {/* Header */}
         <header className="bg-white shadow-sm py-4 px-6 flex items-center flex-shrink-0 relative z-10">

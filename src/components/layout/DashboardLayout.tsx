@@ -77,9 +77,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               <div className="flex items-center gap-3">
                 {/* User email pill */}
                 <div className="hidden md:flex items-center gap-2">
-                  <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-800 border border-gray-300 transition-colors">
-                    {user.email}
-                  </span>
+                  {user.role === "advisor" ? (
+                    <Link
+                      href="/advisor/resume"
+                      className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-800 border border-gray-300 transition-colors hover:bg-blue-50 hover:text-blue-600 hover:border-blue-600 cursor-pointer"
+                    >
+                      {user.email}
+                    </Link>
+                  ) : (
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-800 border border-gray-300 transition-colors">
+                      {user.email}
+                    </span>
+                  )}
                 </div>
                 {/* Team button */}
                 {!hideTeamButton && (

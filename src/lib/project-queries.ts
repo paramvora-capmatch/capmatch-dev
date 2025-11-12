@@ -105,6 +105,40 @@ export interface BorrowerResumeContent {
   customFields?: string[];
 }
 
+/**
+ * Defines the structure of advisor_resumes.content JSONB column
+ * This stores advisor profile information
+ */
+export interface AdvisorResumeContent {
+  // Basic advisor info
+  name?: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  bio?: string;
+  avatar?: string;
+  
+  // Experience fields
+  specialties?: string[];
+  yearsExperience?: number;
+  
+  // Additional fields
+  linkedinUrl?: string;
+  websiteUrl?: string;
+  company?: string;
+  location?: string;
+  certifications?: string[];
+  education?: string;
+  
+  // Progress tracking
+  completenessPercent?: number;
+  fieldConfirmations?: Record<string, boolean>;
+  
+  // Metadata
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // =============================================================================
 // Database Query Functions
 // =============================================================================
@@ -410,5 +444,53 @@ export const saveProjectBorrowerResume = async (
 
   if (error) {
     throw new Error(`Failed to save borrower resume: ${error.message}`);
+  }
+};
+
+/**
+ * Loads advisor resume content from the JSONB column.
+ * This provides a type-safe way to fetch advisor details.
+ * Now org-scoped: any advisor in the org can access it.
+ */
+export const getAdvisorResume = async (
+  orgId: string
+): Promise<AdvisorResumeContent | null> => {
+  const { data, error } = await supabase
+    .from('advisor_resumes')
+    .select('content')
+    .eq('org_id', orgId)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`Failed to load advisor resume: ${error.message}`);
+  }
+
+  return data?.content || null;
+};
+
+/**
+ * Saves advisor resume content to the JSONB column.
+ * This provides a type-safe way to update advisor details.
+ * Now org-scoped: any advisor in the org can update it.
+ */
+export const saveAdvisorResume = async (
+  orgId: string,
+  content: Partial<AdvisorResumeContent>
+): Promise<void> => {
+  const existing = await getAdvisorResume(orgId);
+  const mergedContent = { ...(existing || {}), ...content } as any;
+
+  const { error } = await supabase
+    .from('advisor_resumes')
+    .upsert(
+      {
+        org_id: orgId,
+        content: mergedContent,
+      },
+      { onConflict: 'org_id' }
+    );
+
+  if (error) {
+    throw new Error(`Failed to save advisor resume: ${error.message}`);
   }
 };
