@@ -10,6 +10,7 @@ import { SplashScreen } from "../../components/ui/SplashScreen";
 import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import Project Card
 import {
   PlusCircle,
+  Edit,
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { ProjectProfile } from "@/types/enhanced-types";
@@ -28,40 +29,60 @@ const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
   onCreateProject,
 }) => {
   const hasProject = Boolean(project);
+  const isBorrowerComplete = progress >= 100;
+  const progressColor = isBorrowerComplete ? 'bg-green-600' : 'bg-blue-600';
+  
+  // Determine bullet color based on progress
+  const getBorrowerBulletColor = () => {
+    if (progress >= 90) return "bg-green-500";
+    if (progress >= 50) return "bg-yellow-500";
+    return "bg-red-500";
+  };
+  
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group">
       <div className="px-6 pt-6 pb-4 space-y-4">
         {hasProject ? (
           <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Overall completion</p>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Borrower Resume
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Overall Completion
                 </h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenBorrowerResume();
+                  }}
+                  className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
+                >
+                  <Edit className="h-5 w-5 text-gray-600 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+                    Edit Profile
+                  </span>
+                </Button>
               </div>
               <div className="flex items-center gap-3 self-end sm:self-auto">
                 <span className="text-lg font-semibold text-gray-800">
                   {progress}%
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onOpenBorrowerResume}
-                  className="!w-auto px-4 py-2 !h-auto text-blue-700 hover:bg-blue-50 transition-colors text-sm font-semibold"
-                >
-                  Complete borrower resume
-                </Button>
               </div>
             </div>
-            <div className="h-3 w-full bg-gray-200 rounded-md overflow-hidden">
+            <div className="h-3 w-full bg-gray-200 rounded-md overflow-hidden relative">
               <div
-                className="h-full bg-blue-600 transition-all duration-700 ease-out"
+                className={`h-full ${progressColor} transition-all duration-700 ease-out relative`}
                 style={{ width: `${progress}%` }}
-              />
+              >
+                {isBorrowerComplete && (
+                  <div className="absolute inset-0 bg-green-50 rounded-md animate-slow-pulse opacity-20" />
+                )}
+              </div>
             </div>
-            <p className="text-sm text-gray-600">
-              Finish the borrower resume to reach 100%.
+            <p className="text-sm text-gray-600 flex items-center">
+              <span className={`w-1.5 h-1.5 ${getBorrowerBulletColor()} rounded-full mr-2 animate-pulse`}></span>
+              Complete your borrower resume to unlock lender matching.
             </p>
           </>
         ) : (
@@ -219,8 +240,8 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                 <div className="space-y-1">
-                  <h2 className="text-2xl font-bold text-gray-800">Getting Started</h2>
-                  <p className="text-gray-600">Complete your first project to unlock lender-ready materials.</p>
+                  <h2 className="text-2xl font-bold text-gray-800">Borrower Resume</h2>
+                  <p className="text-gray-600">Your professional profile and financial background for lenders.</p>
                 </div>
               </div>
 
@@ -298,6 +319,13 @@ export default function DashboardPage() {
           }
           .animate-fade-up {
             animation: fadeUp 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          }
+          @keyframes slowPulse {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.4; }
+          }
+          .animate-slow-pulse {
+            animation: slowPulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
           }
         `}</style>
       </DashboardLayout>
