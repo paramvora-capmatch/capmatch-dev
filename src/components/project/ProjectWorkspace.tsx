@@ -351,6 +351,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             setBorrowerResumeSnapshot(profile || null);
             void reloadBorrowerResume();
             setBorrowerEditing(false);
+            // Refresh project store to update progress in dashboard and project cards
+            void loadUserProjects();
           }}
           onAskAI={(fieldId) => {
             setActiveFieldId(fieldId);
