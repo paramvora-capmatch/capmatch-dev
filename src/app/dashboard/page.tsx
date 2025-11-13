@@ -8,6 +8,7 @@ import { useAuth } from "../../hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { SplashScreen } from "../../components/ui/SplashScreen";
 import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import Project Card
+import { ProjectCardSkeleton } from "../../components/dashboard/ProjectCardSkeleton";
 import {
   PlusCircle,
   Edit,
@@ -140,6 +141,10 @@ export default function DashboardPage() {
   const [createdProject, setCreatedProject] = useState<ProjectProfile | null>(null);
 
   const combinedLoading = authLoading || projectsLoading || isCreatingProject;
+  
+  // Only show splash screen during auth loading, not during project loading
+  const showSplashScreen = authLoading;
+  const showProjectSkeletons = !authLoading && projectsLoading;
 
   const mostCompleteBorrowerProject = useMemo(() => {
     if (projects.length === 0) return null;
@@ -352,7 +357,7 @@ export default function DashboardPage() {
         title="Dashboard"
         mainClassName="flex-1 overflow-auto pl-6 pr-3 sm:pr-4 lg:pr-6 pt-2 pb-6"
       >
-        {combinedLoading && <SplashScreen />}
+        {showSplashScreen && <SplashScreen />}
 
         {/* Decorative Background Layer */}
         <div className="relative -mx-6 sm:-mx-6 lg:-mx-6">
@@ -444,16 +449,27 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {/* Existing Projects */}
-                {projects.map((project, index) => (
-                  <div
-                    key={project.id}
-                    className="animate-fade-up h-full"
-                    style={{ animationDelay: `${(index + 1) * 80}ms` }}
-                  >
-                    <ProjectCard project={project} />
-                  </div>
-                ))}
+                 {/* Project Skeletons (shown while loading) */}
+                 {showProjectSkeletons && (
+                   <>
+                     {[1, 2].map((i) => (
+                       <div key={`skeleton-${i}`} className="h-full">
+                         <ProjectCardSkeleton />
+                       </div>
+                     ))}
+                   </>
+                 )}
+
+                 {/* Existing Projects */}
+                 {!showProjectSkeletons && projects.map((project, index) => (
+                   <div
+                     key={project.id}
+                     className="animate-fade-up h-full"
+                     style={{ animationDelay: `${(index + 1) * 80}ms` }}
+                   >
+                     <ProjectCard project={project} />
+                   </div>
+                 ))}
               </div>
             </div>
               </div>

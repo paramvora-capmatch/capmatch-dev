@@ -103,7 +103,7 @@ serve(async (req) => {
           if (advisorMember?.user_id) {
             console.log(
               `[onboard-borrower] Found advisor for auto-assignment: ${advisorMember.user_id}`
-            );
+      );
             return advisorMember.user_id;
           }
         }
@@ -143,22 +143,22 @@ serve(async (req) => {
             console.log("[onboard-borrower] Profile created successfully");
             return { success: true };
           }),
-        // Step 3: Create the borrower org
+      // Step 3: Create the borrower org
         supabaseAdmin
-          .from("orgs")
-          .insert({
-            name: `${full_name}'s Organization`,
-            entity_type: "borrower",
-          })
-          .select()
+        .from("orgs")
+        .insert({
+          name: `${full_name}'s Organization`,
+          entity_type: "borrower",
+        })
+        .select()
           .single()
           .then(({ data, error }) => {
             if (error) {
-              console.error(
+        console.error(
                 `[onboard-borrower] Org Error: ${JSON.stringify(error)}`
-              );
+        );
               throw new Error(`Org Error: ${error.message}`);
-            }
+      }
             if (!data) {
               throw new Error("Org not created.");
             }
@@ -177,7 +177,7 @@ serve(async (req) => {
       // Phase 2: Parallelize storage bucket and org member creation
       console.log("[onboard-borrower] Phase 2: Creating storage bucket and org member in parallel");
       const [bucketResult, memberResult] = await Promise.all([
-        // Create a private storage bucket for this org (id = org id)
+      // Create a private storage bucket for this org (id = org id)
         supabaseAdmin.storage.createBucket(
           orgData.id,
           {
@@ -198,38 +198,38 @@ serve(async (req) => {
             ],
           }
         ).then(({ error }) => {
-          // If bucket exists already, ignore; otherwise fail fast
-          if (
+        // If bucket exists already, ignore; otherwise fail fast
+        if (
             error &&
             error.message &&
             !error.message.toLowerCase().includes("already exists")
-          ) {
-            console.error(
+        ) {
+          console.error(
               `[onboard-borrower] Bucket creation failed: ${JSON.stringify(error)}`
-            );
+          );
             throw new Error(`Bucket creation failed: ${error.message}`);
-          }
-          console.log("[onboard-borrower] Storage bucket created successfully");
+        }
+        console.log("[onboard-borrower] Storage bucket created successfully");
           return { success: true };
         }),
-        // Step 4: Make the user the owner of the org
+      // Step 4: Make the user the owner of the org
         supabaseAdmin
-          .from("org_members")
-          .insert({
-            org_id: orgData.id,
-            user_id: newUser.id,
-            role: "owner",
-          })
-          .select()
+        .from("org_members")
+        .insert({
+          org_id: orgData.id,
+          user_id: newUser.id,
+          role: "owner",
+        })
+        .select()
           .single()
           .then(({ data, error }) => {
             if (error) {
-              console.error(
+        console.error(
                 `[onboard-borrower] Membership Error: ${JSON.stringify(error)}`
-              );
+        );
               throw new Error(`Membership Error: ${error.message}`);
-            }
-            console.log("[onboard-borrower] User made owner of org successfully");
+      }
+      console.log("[onboard-borrower] User made owner of org successfully");
             console.log(`[onboard-borrower] DEBUG - Membership created:`, data);
             return data;
           }),
@@ -264,11 +264,11 @@ serve(async (req) => {
           if (error) {
             console.warn(
               `[onboard-borrower] Profile Update Warning (non-blocking): ${JSON.stringify(error)}`
-            );
+        );
           } else {
-            console.log(
-              "[onboard-borrower] Profile updated with active org successfully"
-            );
+      console.log(
+        "[onboard-borrower] Profile updated with active org successfully"
+      );
           }
         })
         .catch((err) => {

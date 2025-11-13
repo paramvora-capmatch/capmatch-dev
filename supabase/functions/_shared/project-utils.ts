@@ -589,10 +589,10 @@ export async function createProjectWithResumeAndStorage(
     // Step 3: Prepare storage directories
     ensureStorageFolders(supabaseAdmin, owner_org_id, project.id).catch(
       (storageError) => {
-        throw new Error(
-          `Storage folder creation failed: ${(storageError as PostgrestError)?.message ?? storageError}`
-        );
-      }
+    throw new Error(
+      `Storage folder creation failed: ${(storageError as PostgrestError)?.message ?? storageError}`
+    );
+  }
     ),
     // Step 4: Create PROJECT_RESUME resource
     supabaseAdmin
@@ -607,10 +607,10 @@ export async function createProjectWithResumeAndStorage(
       .single()
       .then(({ data, error }) => {
         if (error) {
-          throw new Error(
+    throw new Error(
             `Project resume resource creation failed: ${error.message}`
-          );
-        }
+    );
+  }
         return data;
       }),
     // Step 5: Create PROJECT_DOCS_ROOT resource
@@ -626,10 +626,10 @@ export async function createProjectWithResumeAndStorage(
       .single()
       .then(({ data, error }) => {
         if (error) {
-          throw new Error(
+    throw new Error(
             `Project docs root resource creation failed: ${error.message}`
-          );
-        }
+    );
+  }
         return data;
       }),
     // Step 5.5: Ensure borrower root resources
@@ -637,10 +637,10 @@ export async function createProjectWithResumeAndStorage(
       p_project_id: project.id,
     }).then(({ data, error }) => {
       if (error) {
-        throw new Error(
+    throw new Error(
           `Failed to ensure borrower root resources: ${error.message}`
-        );
-      }
+    );
+  }
       return data;
     }),
     // Fetch most complete borrower resume (independent query)
@@ -699,25 +699,25 @@ export async function createProjectWithResumeAndStorage(
       .insert({ project_id: project.id, content: borrowerResumeContent })
       .then(({ error }) => {
         if (error) {
-          throw new Error(
+    throw new Error(
             `Failed to create borrower resume: ${error.message}`
-          );
-        }
+    );
+  }
         return { success: true };
       }),
     // Clone borrower documents if source exists (non-blocking)
     sourceResumeProjectId && borrowerRootRow?.borrower_docs_root_resource_id
       ? cloneBorrowerDocuments({
-          supabaseAdmin,
-          ownerOrgId: owner_org_id,
-          sourceProjectId: sourceResumeProjectId,
-          targetProjectId: project.id,
-          targetDocsRootId: borrowerRootRow.borrower_docs_root_resource_id,
+        supabaseAdmin,
+        ownerOrgId: owner_org_id,
+        sourceProjectId: sourceResumeProjectId,
+        targetProjectId: project.id,
+        targetDocsRootId: borrowerRootRow.borrower_docs_root_resource_id,
         }).catch((cloneError) => {
-          console.error(
-            "[project-utils] Failed to clone borrower documents",
-            cloneError
-          );
+      console.error(
+        "[project-utils] Failed to clone borrower documents",
+        cloneError
+      );
           return { success: false, error: cloneError };
         })
       : Promise.resolve({ success: true }),
@@ -743,10 +743,10 @@ export async function createProjectWithResumeAndStorage(
   // Phase 3: Batch grant project access and permissions
   console.log("[project-utils] Phase 3: Batch granting project access and permissions");
   const projectAccessGrants = Array.from(ownerIds).map((ownerId) => ({
-    project_id: project.id,
-    org_id: owner_org_id,
-    user_id: ownerId,
-    granted_by: options.creator_id,
+          project_id: project.id,
+          org_id: owner_org_id,
+          user_id: ownerId,
+          granted_by: options.creator_id,
   }));
 
   const permissionGrants: Array<{
@@ -758,10 +758,10 @@ export async function createProjectWithResumeAndStorage(
   for (const ownerId of ownerIds) {
     for (const resourceId of permissionTargets) {
       permissionGrants.push({
-        resource_id: resourceId,
-        user_id: ownerId,
-        permission: "edit",
-        granted_by: options.creator_id,
+            resource_id: resourceId,
+            user_id: ownerId,
+            permission: "edit",
+            granted_by: options.creator_id,
       });
     }
   }
@@ -776,7 +776,7 @@ export async function createProjectWithResumeAndStorage(
       .upsert(projectAccessGrants, { onConflict: "project_id,user_id" })
       .then(({ error }) => {
         if (error) {
-          throw new Error(
+        throw new Error(
             `Failed to grant project access: ${error.message}`
           );
         }
@@ -792,8 +792,8 @@ export async function createProjectWithResumeAndStorage(
         if (error) {
           throw new Error(
             `Failed to grant permissions: ${error.message}`
-          );
-        }
+        );
+      }
         console.log(
           `[project-utils] Granted permissions on ${permissionTargets.length} resources to ${ownerIds.size} owners`
         );
@@ -816,34 +816,34 @@ export async function createProjectWithResumeAndStorage(
     .select()
     .single()
     .then(({ data: chatThread, error: chatThreadError }) => {
-      if (chatThreadError) {
+  if (chatThreadError) {
         console.warn(
           "[project-utils] Default chat thread creation failed (non-critical)",
-          chatThreadError
-        );
+      chatThreadError
+    );
         return;
       }
 
-      const participantIds = new Set<string>(ownerIds);
-      if (options.assigned_advisor_id) {
-        participantIds.add(options.assigned_advisor_id);
-      }
+    const participantIds = new Set<string>(ownerIds);
+    if (options.assigned_advisor_id) {
+      participantIds.add(options.assigned_advisor_id);
+    }
 
-      const participants = Array.from(participantIds).map((userId) => ({
-        thread_id: chatThread.id,
-        user_id: userId,
-      }));
+    const participants = Array.from(participantIds).map((userId) => ({
+      thread_id: chatThread.id,
+      user_id: userId,
+    }));
 
       return supabaseAdmin
-        .from("chat_thread_participants")
+      .from("chat_thread_participants")
         .insert(participants)
         .then(({ error: participantsError }) => {
-          if (participantsError) {
+    if (participantsError) {
             console.warn(
               "[project-utils] Failed to add participants to default thread (non-critical)",
-              participantsError
-            );
-          }
+        participantsError
+      );
+    }
         });
     })
     .catch((err) => {
@@ -855,16 +855,16 @@ export async function createProjectWithResumeAndStorage(
   // Grant advisor permissions (fire and forget)
   if (assigned_advisor_id) {
     supabaseAdmin.rpc("grant_advisor_project_permissions", {
-      p_project_id: project.id,
-      p_advisor_id: assigned_advisor_id,
-      p_granted_by_id: options.creator_id,
+        p_project_id: project.id,
+        p_advisor_id: assigned_advisor_id,
+        p_granted_by_id: options.creator_id,
     }).then(({ error: advisorPermError }) => {
-      if (advisorPermError) {
+    if (advisorPermError) {
         console.warn(
           "[project-utils] Failed to grant advisor permissions (non-critical)",
-          advisorPermError
-        );
-      }
+        advisorPermError
+      );
+    }
     }).catch((err) => {
       console.warn(
         `[project-utils] Advisor permissions failed (non-critical): ${err.message}`
