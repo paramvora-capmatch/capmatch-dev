@@ -138,10 +138,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   useEffect(() => {
     if (borrowerResumeData) {
-      const percent = computeBorrowerCompletion(
-        borrowerResumeData,
-        borrowerResumeData?.fieldConfirmations
-      );
+      const percent = computeBorrowerCompletion(borrowerResumeData);
       setBorrowerProgress(percent);
       setBorrowerResumeSnapshot(borrowerResumeData || null);
     } else {
@@ -258,10 +255,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         ...activeProject,
         completenessPercent: projectResumeProgress,
         borrowerProgress: borrowerResumeProgress,
-        projectFieldConfirmations:
-          activeProject.projectFieldConfirmations || {},
-        borrowerFieldConfirmations:
-          activeProject.borrowerFieldConfirmations || {},
       }
     : null;
 
@@ -300,10 +293,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
       const copiedResume = (data?.borrowerResumeContent ??
         {}) as BorrowerResumeContent;
-      const nextProgress = computeBorrowerCompletion(
-        copiedResume,
-        copiedResume?.fieldConfirmations
-      );
+      const nextProgress = computeBorrowerCompletion(copiedResume);
 
       setBorrowerProgress(nextProgress);
       setBorrowerResumeSnapshot(copiedResume || null);
@@ -314,8 +304,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           ...activeProject,
           borrowerProgress: nextProgress,
           borrowerSections: copiedResume,
-          borrowerFieldConfirmations:
-            copiedResume.fieldConfirmations || {},
         };
         void setActiveProject(updatedProject);
       }
@@ -363,6 +351,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             setBorrowerResumeSnapshot(profile || null);
             void reloadBorrowerResume();
             setBorrowerEditing(false);
+            // Refresh project store to update progress in dashboard and project cards
+            void loadUserProjects();
           }}
           onAskAI={(fieldId) => {
             setActiveFieldId(fieldId);

@@ -32,7 +32,6 @@ import { AdvisorResumeView } from "./AdvisorResumeView";
 import {
   ADVISOR_REQUIRED_FIELDS,
   computeAdvisorCompletion,
-  isAdvisorPlaceholderValue,
 } from "@/utils/resumeCompletion";
 
 interface AdvisorResumeFormProps {
@@ -93,56 +92,11 @@ export const AdvisorResumeForm: React.FC<AdvisorResumeFormProps> = ({
     }
   });
   const [formData, setFormData] = useState<Partial<AdvisorResumeContent>>({});
-  const [fieldConfirmations, setFieldConfirmations] = useState<
-    Record<string, boolean>
-  >({});
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevIsSavingRef = useRef<boolean>(false);
   const lastInitializedSnapshot = useRef<string | null>(null);
 
-  const isValueProvided = useCallback((value: unknown): boolean => {
-    if (value === null || value === undefined) return false;
-    if (typeof value === "string") return value.trim().length > 0;
-    if (Array.isArray(value)) return value.length > 0;
-    if (typeof value === "number") return !Number.isNaN(value);
-    if (typeof value === "boolean") return true;
-    return false;
-  }, []);
-
-  const buildInitialConfirmations = useCallback(
-    (data: Partial<AdvisorResumeContent>): Record<string, boolean> => {
-      const existing = (data as AdvisorResumeContent | null)?.fieldConfirmations;
-      if (existing && typeof existing === "object") {
-        return { ...existing };
-      }
-
-      const derived: Record<string, boolean> = {};
-      ADVISOR_REQUIRED_FIELDS.forEach((field) => {
-        const value = data[field];
-        if (!isValueProvided(value)) {
-          return;
-        }
-        if (isAdvisorPlaceholderValue(field, value)) {
-          derived[field as string] = false;
-          return;
-        }
-        derived[field as string] = true;
-      });
-      return derived;
-    },
-    [isValueProvided]
-  );
-
-  const confirmField = useCallback(
-    (field: keyof AdvisorResumeContent) => {
-      setFieldConfirmations((prev) => {
-        if (prev[field as string]) return prev;
-        return { ...prev, [field as string]: true };
-      });
-    },
-    []
-  );
 
   // Initialize form once on first load
   useEffect(() => {
@@ -160,8 +114,7 @@ export const AdvisorResumeForm: React.FC<AdvisorResumeFormProps> = ({
     }
     lastInitializedSnapshot.current = snapshotKey;
     setFormData(initialData);
-    setFieldConfirmations(buildInitialConfirmations(initialData));
-  }, [advisorResume, user?.email, orgId, buildInitialConfirmations]);
+  }, [advisorResume, user?.email, orgId]);
 
   const showLoadingState = resumeLoading && !advisorResume;
 
@@ -176,15 +129,11 @@ export const AdvisorResumeForm: React.FC<AdvisorResumeFormProps> = ({
       const hasChanged = JSON.stringify(formData) !== JSON.stringify(advisorResume);
       if (!hasChanged) return;
       try {
-        const completenessPercent = computeAdvisorCompletion(
-          formData,
-          fieldConfirmations
-        );
+        const completenessPercent = computeAdvisorCompletion(formData);
         onProgressChange?.(completenessPercent);
         await save({
           ...formData,
           completenessPercent,
-          fieldConfirmations,
         });
       } catch (error) {
         console.error("[AdvisorResumeForm] Auto-save failed:", error);
@@ -200,19 +149,15 @@ export const AdvisorResumeForm: React.FC<AdvisorResumeFormProps> = ({
     formData,
     advisorResume,
     save,
-    fieldConfirmations,
     onProgressChange,
     orgId,
   ]);
 
   // Report progress on any local change immediately
   useEffect(() => {
-    const completenessPercent = computeAdvisorCompletion(
-      formData,
-      fieldConfirmations
-    );
+    const completenessPercent = computeAdvisorCompletion(formData);
     onProgressChange?.(completenessPercent);
-  }, [formData, fieldConfirmations, onProgressChange]);
+  }, [formData, onProgressChange]);
 
   // Persist collapsed state
   useEffect(() => {
@@ -245,9 +190,8 @@ export const AdvisorResumeForm: React.FC<AdvisorResumeFormProps> = ({
   const handleInputChange = useCallback(
     (field: keyof AdvisorResumeContent, value: any) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
-      confirmField(field);
     },
-    [confirmField]
+    []
   );
 
   // Submit handler
@@ -255,22 +199,15 @@ export const AdvisorResumeForm: React.FC<AdvisorResumeFormProps> = ({
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     try {
       setFormSaved(true);
-      const completenessPercent = computeAdvisorCompletion(
-        formData,
-        fieldConfirmations
-      );
+      const completenessPercent = computeAdvisorCompletion(formData);
       onProgressChange?.(completenessPercent);
       await save({
         ...formData,
         completenessPercent,
-        fieldConfirmations,
       });
 
       if (onComplete) {
-        onComplete({
-          ...(formData as AdvisorResumeContent),
-          fieldConfirmations,
-        });
+        onComplete(formData as AdvisorResumeContent);
       }
     } catch (error) {
       console.error("Error saving advisor profile:", error);
@@ -282,7 +219,6 @@ export const AdvisorResumeForm: React.FC<AdvisorResumeFormProps> = ({
     formData,
     onComplete,
     save,
-    fieldConfirmations,
     onProgressChange,
   ]);
 
@@ -526,9 +462,6 @@ export const AdvisorResumeForm: React.FC<AdvisorResumeFormProps> = ({
                 if (advisorResume) {
                   const nextData = { ...advisorResume };
                   setFormData(nextData);
-                  setFieldConfirmations(
-                    buildInitialConfirmations(nextData)
-                  );
                 }
               }
               setIsEditing(!isEditing);
