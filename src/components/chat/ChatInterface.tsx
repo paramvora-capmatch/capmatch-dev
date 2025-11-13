@@ -95,17 +95,59 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // State to track which members have access to this project
   const [projectMemberIds, setProjectMemberIds] = useState<Set<string>>(new Set());
 
+  // State to store user info for base participants (e.g., assigned advisor who might be from different org)
+  const [baseParticipantUserInfo, setBaseParticipantUserInfo] = useState<Map<string, { full_name: string | null; email: string | null }>>(new Map());
+  
+  // State to store owner IDs of the project's owner org (fetched directly from DB)
+  const [projectOwnerOrgOwnerIds, setProjectOwnerOrgOwnerIds] = useState<Set<string>>(new Set());
+
   const [newMessage, setNewMessage] = useState("");
   const { isOwner, members, currentOrg } = useOrgStore();
   const [managingThread, setManagingThread] = useState<ChatThread | null>(null);
   const [showCreateThreadModal, setShowCreateThreadModal] = useState(false);
 
+  // Fetch owners of the project's owner org directly from database
+  useEffect(() => {
+    const fetchProjectOwnerOrgOwners = async () => {
+      if (!activeProject?.owner_org_id) {
+        setProjectOwnerOrgOwnerIds(new Set());
+        return;
+      }
+
+      try {
+        const { data: owners, error } = await supabase
+          .from("org_members")
+          .select("user_id")
+          .eq("org_id", activeProject.owner_org_id)
+          .eq("role", "owner");
+
+        if (error) {
+          console.error("[ChatInterface] Failed to fetch project owner org owners:", error);
+          setProjectOwnerOrgOwnerIds(new Set());
+          return;
+        }
+
+        const ownerIds = new Set(owners?.map(o => o.user_id) || []);
+        setProjectOwnerOrgOwnerIds(ownerIds);
+      } catch (err) {
+        console.error("[ChatInterface] Error fetching project owner org owners:", err);
+        setProjectOwnerOrgOwnerIds(new Set());
+      }
+    };
+
+    fetchProjectOwnerOrgOwners();
+  }, [activeProject?.owner_org_id]);
+
   const baseParticipantIds = useMemo(() => {
     const ids = new Set<string>();
+    // Always include current user
     if (user?.id) ids.add(user.id);
+    // Always include assigned advisor
     if (activeProject?.assignedAdvisorUserId) ids.add(activeProject.assignedAdvisorUserId);
+    // Include all owners of the project's owner org (fetched directly from DB)
+    projectOwnerOrgOwnerIds.forEach(id => ids.add(id));
     return Array.from(ids);
-  }, [user?.id, activeProject?.assignedAdvisorUserId]);
+  }, [user?.id, activeProject?.assignedAdvisorUserId, projectOwnerOrgOwnerIds]);
 
   // Check if user is an owner of the org that owns this project
   const hasOwnerPermissions = useMemo(() => {
@@ -154,14 +196,58 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     fetchProjectMembers();
   }, [projectId, activeProject?.assignedAdvisorUserId]);
 
+  // Fetch user info for base participants who aren't in members or participants
+  useEffect(() => {
+    const fetchBaseParticipantInfo = async () => {
+      if (baseParticipantIds.length === 0) {
+        setBaseParticipantUserInfo(new Map());
+        return;
+      }
+
+      // Find IDs that aren't in members or participants
+      const memberIds = new Set(members.map(m => m.user_id));
+      const participantIds = new Set(participants.map(p => p.user_id));
+      const missingIds = baseParticipantIds.filter(
+        id => !memberIds.has(id) && !participantIds.has(id) && id !== user?.id
+      );
+
+      if (missingIds.length === 0) {
+        setBaseParticipantUserInfo(new Map());
+        return;
+      }
+
+      try {
+        // Use the same edge function that org store uses to fetch user data
+        const { data: userData, error } = await supabase.functions.invoke("get-user-data", {
+          body: { userIds: missingIds },
+        });
+
+        if (error) {
+          console.error("[ChatInterface] Failed to fetch base participant info:", error);
+          return;
+        }
+
+        const infoMap = new Map<string, { full_name: string | null; email: string | null }>();
+        (userData as { id: string; email: string | null; full_name: string | null }[] || []).forEach(
+          (u) => {
+            infoMap.set(u.id, { full_name: u.full_name, email: u.email });
+          }
+        );
+        setBaseParticipantUserInfo(infoMap);
+      } catch (err) {
+        console.error("[ChatInterface] Error fetching base participant info:", err);
+      }
+    };
+
+    fetchBaseParticipantInfo();
+  }, [baseParticipantIds, members, participants, user?.id]);
+
   const getDisplayLabel = useCallback((
     userId: string,
     name?: string | null,
     email?: string | null
   ) => {
-    const base = (name && name.trim()) || (email && email.trim()) || "Member";
-    const suffix = userId.slice(0, 6);
-    return `${base} (${suffix})`;
+    return (name && name.trim()) || (email && email.trim()) || "Member";
   }, []);
 
   const participantLabelLookup = useMemo(() => {
@@ -190,12 +276,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const baseParticipantLabels = useMemo(() => {
     return baseParticipantIds.map((id) => {
       if (id === user?.id) return "You";
-      return (
-        participantLabelLookup.get(id) ||
-        getDisplayLabel(id, undefined, undefined)
-      );
+      // First try to get from participantLabelLookup (includes members and participants)
+      const label = participantLabelLookup.get(id);
+      if (label) return label;
+      // Fallback: try to find in members directly (in case owner isn't in participants yet)
+      const member = members.find(m => m.user_id === id);
+      if (member) {
+        return getDisplayLabel(member.user_id, member.userName, member.userEmail);
+      }
+      // Final fallback: use fetched user info (for users from different orgs, like assigned advisor)
+      const userInfo = baseParticipantUserInfo.get(id);
+      if (userInfo) {
+        return getDisplayLabel(id, userInfo.full_name, userInfo.email);
+      }
+      return getDisplayLabel(id, undefined, undefined);
     });
-  }, [baseParticipantIds, participantLabelLookup, user?.id, getDisplayLabel]);
+  }, [baseParticipantIds, participantLabelLookup, user?.id, getDisplayLabel, members, baseParticipantUserInfo]);
 
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<AttachableDocument[]>([]);
@@ -216,8 +312,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const baseSet = new Set(baseParticipantIds);
     return members
       .filter((m) => {
+        // Exclude base participants (already included automatically)
         if (baseSet.has(m.user_id)) return false;
+        // Exclude current user
         if (m.user_id === user?.id) return false;
+        // Exclude owners - only show members in the dropdown
+        if (m.role === "owner") return false;
+        // Only include members who have access to this project
         return projectMemberIds.has(m.user_id);
       })
       .map((m) => ({
