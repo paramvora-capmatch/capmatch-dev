@@ -67,7 +67,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </Link>
               <div className="translate-y-1">
                 {breadcrumb ? (
-                  breadcrumb
+                  <div className="[&_button]:cursor-pointer [&_a]:cursor-pointer">
+                    {breadcrumb}
+                  </div>
                 ) : (
                   title && <h1 className="text-2xl font-semibold text-gray-800 -translate-y-1">{title}</h1>
                 )}
