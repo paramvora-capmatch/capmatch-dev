@@ -205,20 +205,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
   // Initialize form once on first load (avoid resetting on each store update)
   useEffect(() => {
-    const defaultData: Partial<BorrowerResumeContent> = {
-      primaryEntityStructure: "LLC",
-      contactEmail: user?.email || "",
-      yearsCREExperienceRange: "0-2",
-      totalDealValueClosedRange: "N/A",
-      creditScoreRange: "N/A",
-      netWorthRange: "<$1M",
-      liquidityRange: "<$100k",
-      bankruptcyHistory: false,
-      foreclosureHistory: false,
-      litigationHistory: false,
-      assetClassesExperience: [],
-      geographicMarketsExperience: [],
-    };
+    const defaultData: Partial<BorrowerResumeContent> = {};
     const initialData = borrowerResume
       ? { ...defaultData, ...borrowerResume }
       : { ...defaultData };
