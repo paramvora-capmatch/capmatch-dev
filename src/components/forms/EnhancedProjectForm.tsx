@@ -34,7 +34,6 @@ import {
 } from "../../types/enhanced-types";
 import {
   PROJECT_REQUIRED_FIELDS,
-  isProjectPlaceholderValue,
 } from "@/utils/resumeCompletion";
 
 interface EnhancedProjectFormProps {
@@ -105,33 +104,6 @@ const isProjectValueProvided = (value: unknown): boolean => {
   return false;
 };
 
-const deriveProjectConfirmations = (
-  project: ProjectProfile
-): Record<string, boolean> => {
-  const existing =
-    project.projectFieldConfirmations ??
-    ((project.projectSections?.fieldConfirmations as
-      | Record<string, boolean>
-      | undefined) ??
-      null);
-  if (existing && typeof existing === "object") {
-    return { ...existing };
-  }
-
-  const derived: Record<string, boolean> = {};
-  PROJECT_REQUIRED_FIELDS.forEach((field) => {
-    const value = project[field];
-    if (!isProjectValueProvided(value)) {
-      return;
-    }
-    if (isProjectPlaceholderValue(field, value)) {
-      derived[field as string] = false;
-      return;
-    }
-    derived[field as string] = true;
-  });
-  return derived;
-};
 const stateOptions = [
   // Keep states for Select component
   { value: "", label: "Select a state..." },
@@ -201,21 +173,15 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
   // Form state initialized from existingProject prop
   const [formData, setFormData] = useState<ProjectProfile>(() => ({
     ...existingProject,
-    projectFieldConfirmations: deriveProjectConfirmations(existingProject),
   }));
   const [formSaved, setFormSaved] = useState(false); // State for save button feedback
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Update local form state if the existingProject prop changes externally
   useEffect(() => {
-    const confirmations = deriveProjectConfirmations(existingProject);
-    const nextProject = {
-      ...existingProject,
-      projectFieldConfirmations: confirmations,
-    };
-    setFormData(nextProject);
+    setFormData(existingProject);
     // Notify parent component of initial form data for AskAI
-    onFormDataChange?.(nextProject);
+    onFormDataChange?.(existingProject);
   }, [existingProject, onFormDataChange]);
 
   // NEW: Focus/scroll to a specific field if requested
@@ -279,15 +245,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
   const handleInputChange = useCallback(
     (field: keyof ProjectProfile, value: string | number | boolean | null) => {
       setFormData((prev) => {
-        const currentConfirmations =
-          prev.projectFieldConfirmations ?? {};
-        const updatedConfirmations = currentConfirmations[field as string]
-          ? currentConfirmations
-          : { ...currentConfirmations, [field as string]: true };
         const nextFormData = {
           ...prev,
           [field]: value,
-          projectFieldConfirmations: updatedConfirmations,
         };
         // Notify parent component of form data changes for AskAI
         onFormDataChange?.(nextFormData);

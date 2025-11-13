@@ -2,8 +2,6 @@
 import { AdvisorResumeContent, BorrowerResumeContent, ProjectResumeContent } from "@/lib/project-queries";
 import { ProjectProfile } from "@/types/enhanced-types";
 
-export type ConfirmationMap = Record<string, boolean>;
-
 const clampPercent = (value: number): number => {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -84,8 +82,7 @@ export const isBorrowerPlaceholderValue = (
 };
 
 export const computeBorrowerCompletion = (
-  data: Partial<BorrowerResumeContent> | null | undefined,
-  confirmations?: ConfirmationMap
+  data: Partial<BorrowerResumeContent> | null | undefined
 ): number => {
   const source = data || {};
   const total = BORROWER_REQUIRED_FIELDS.length;
@@ -96,13 +93,7 @@ export const computeBorrowerCompletion = (
     const value = source[field];
     if (!valueProvided(value)) return;
 
-    if (isBorrowerPlaceholderValue(field, value)) {
-      if (confirmations?.[field]) {
-        answered += 1;
-      }
-      return;
-    }
-
+    // Count all provided values, including placeholders, without requiring confirmation
     answered += 1;
   });
 
@@ -146,8 +137,7 @@ export const isProjectPlaceholderValue = (
 };
 
 export const computeProjectCompletion = (
-  project: Partial<ProjectProfile> | null | undefined,
-  confirmations?: ConfirmationMap
+  project: Partial<ProjectProfile> | null | undefined
 ): number => {
   const source = project || {};
   const total = PROJECT_REQUIRED_FIELDS.length;
@@ -158,13 +148,7 @@ export const computeProjectCompletion = (
     const value = source[field];
     if (!valueProvided(value)) return;
 
-    if (isProjectPlaceholderValue(field, value)) {
-      if (confirmations?.[field]) {
-        answered += 1;
-      }
-      return;
-    }
-
+    // Count all provided values, including placeholders, without requiring confirmation
     answered += 1;
   });
 
@@ -201,8 +185,7 @@ export const isAdvisorPlaceholderValue = (
 };
 
 export const computeAdvisorCompletion = (
-  data: Partial<AdvisorResumeContent> | null | undefined,
-  confirmations?: ConfirmationMap
+  data: Partial<AdvisorResumeContent> | null | undefined
 ): number => {
   const source = data || {};
   const total = ADVISOR_REQUIRED_FIELDS.length;
@@ -213,13 +196,7 @@ export const computeAdvisorCompletion = (
     const value = source[field];
     if (!valueProvided(value)) return;
 
-    if (isAdvisorPlaceholderValue(field, value)) {
-      if (confirmations?.[field]) {
-        answered += 1;
-      }
-      return;
-    }
-
+    // Count all provided values, including placeholders, without requiring confirmation
     answered += 1;
   });
 

@@ -72,7 +72,6 @@ const projectProfileToResumeContent = (
 		// Store completenessPercent in JSONB (similar to borrower resume)
 		completenessPercent: "completenessPercent",
 		internalAdvisorNotes: "internalAdvisorNotes",
-		projectFieldConfirmations: "fieldConfirmations",
 	};
 	for (const key in profileData) {
 		const mappedKey = keyMap[key as keyof ProjectProfile];
@@ -143,32 +142,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			const borrowerContent =
 				(project.borrowerSections as BorrowerResumeContent | undefined) || null;
 
-			const projectConfirmations =
-				project.projectFieldConfirmations ??
-				projectResumeContent?.fieldConfirmations ??
-				null;
-			const borrowerConfirmations =
-				project.borrowerFieldConfirmations ??
-				borrowerContent?.fieldConfirmations ??
-				null;
-
-			const normalizedProjectConfirmations =
-				projectConfirmations && typeof projectConfirmations === "object"
-					? projectConfirmations
-					: {};
-			const normalizedBorrowerConfirmations =
-				borrowerConfirmations && typeof borrowerConfirmations === "object"
-					? borrowerConfirmations
-					: {};
-
-			const completenessPercent = computeProjectCompletion(
-				project,
-				normalizedProjectConfirmations
-			);
-			const borrowerProgress = computeBorrowerCompletion(
-				borrowerContent,
-				normalizedBorrowerConfirmations
-			);
+			const completenessPercent = computeProjectCompletion(project);
+			const borrowerProgress = computeBorrowerCompletion(borrowerContent);
 			const totalProgress = Math.round(
 				(completenessPercent + borrowerProgress) / 2
 			);
@@ -346,9 +321,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				projectSections:
 					(projectData.projectSections as ProjectResumeContent | undefined) ||
 					{},
-				projectFieldConfirmations: {},
-				borrowerFieldConfirmations:
-					borrowerResumeContent.fieldConfirmations || {},
 				// Spread the provided data to override defaults
 				...projectData,
 			};
@@ -360,10 +332,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				completenessPercent: progressResult.completenessPercent,
 				borrowerProgress: normalizedBorrowerProgress,
 				borrowerSections: borrowerResumeContent,
-				projectFieldConfirmations:
-					newProjectData.projectFieldConfirmations || {},
-				borrowerFieldConfirmations:
-					newProjectData.borrowerFieldConfirmations || {},
 			};
 
 			// Save initial completenessPercent (0) to project_resumes.content JSONB
