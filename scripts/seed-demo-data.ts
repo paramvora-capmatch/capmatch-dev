@@ -496,6 +496,94 @@ async function assignAdvisorToProject(projectId: string, advisorId: string): Pro
   return true;
 }
 
+async function createOwnerUser(
+  email: string,
+  password: string,
+  fullName: string,
+  orgId: string
+): Promise<string | null> {
+  console.log(`[seed] Creating owner user: ${email}...`);
+
+  try {
+    // Check if user already exists
+    const { data: existingProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    let userId: string;
+
+    if (existingProfile) {
+      console.log(`[seed] Owner already exists: ${email} (${existingProfile.id})`);
+      userId = existingProfile.id;
+    } else {
+      // Create user via auth
+      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      });
+
+      if (authError || !authUser.user) {
+        console.error(`[seed] Failed to create owner user:`, authError);
+        return null;
+      }
+
+      userId = authUser.user.id;
+
+      // Create profile
+      const { error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert({
+          id: userId,
+          email,
+          full_name: fullName,
+          app_role: 'borrower',
+          active_org_id: orgId,
+        });
+
+      if (profileError) {
+        console.error(`[seed] Failed to create owner profile:`, profileError);
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+        return null;
+      }
+
+      console.log(`[seed] ✅ Created owner user: ${email} (${userId})`);
+    }
+
+    // Add to org_members as owner
+    const { error: memberError } = await supabaseAdmin
+      .from('org_members')
+      .upsert(
+        {
+          org_id: orgId,
+          user_id: userId,
+          role: 'owner',
+        },
+        { onConflict: 'org_id,user_id' }
+      );
+
+    if (memberError) {
+      console.error(`[seed] Failed to add owner to org:`, memberError);
+      return null;
+    }
+
+    // Ensure active_org_id is set
+    await supabaseAdmin
+      .from('profiles')
+      .update({ active_org_id: orgId })
+      .eq('id', userId);
+
+    console.log(`[seed] ✅ Owner user setup complete: ${email}`);
+    return userId;
+  } catch (err) {
+    console.error(`[seed] Exception creating owner user ${email}:`, err);
+    return null;
+  }
+}
+
 async function createMemberUser(
   email: string,
   password: string,
@@ -1011,9 +1099,9 @@ async function cleanupDemoData() {
       console.log('[cleanup] Advisor user not found in auth.users or profiles');
     }
 
-    // Step 4: Delete member users
-    console.log('\n📋 Step 4: Deleting member users...');
-    const memberEmails = ['sarah.johnson@org.com', 'mike.chen@org.com'];
+    // Step 4: Delete member users and additional owner
+    console.log('\n📋 Step 4: Deleting member users and additional owner...');
+    const memberEmails = ['sarah.johnson@org.com', 'mike.chen@org.com', 'owner2@org.com'];
     
     for (const email of memberEmails) {
       try {
@@ -1178,6 +1266,18 @@ async function seedDemoData() {
 
       borrowerOrgId = borrowerProfile.active_org_id;
       console.log(`[seed] ✅ Borrower org: ${borrowerOrgId}`);
+    }
+
+    // Step 2.5: Create another owner
+    console.log('\n📋 Step 2.5: Creating additional owner...');
+    const owner2Email = 'owner2@org.com';
+    const owner2Password = 'password';
+    const owner2Name = 'Jane Doe';
+    const owner2Id = await createOwnerUser(owner2Email, owner2Password, owner2Name, borrowerOrgId);
+
+    if (!owner2Id) {
+      console.error('[seed] ❌ Failed to create additional owner');
+      return;
     }
 
     // Step 3: Delete default project if it exists
@@ -1591,6 +1691,7 @@ async function seedDemoData() {
     console.log('\n📊 Summary:');
     console.log(`   Advisor: ${advisorEmail} (password: ${advisorPassword})`);
     console.log(`   Borrower: ${borrowerEmail} (password: ${borrowerPassword})`);
+    console.log(`   Owner 2: ${owner2Email} (password: ${owner2Password})`);
     console.log(`   Member 1: ${member1Email} (password: ${member1Password}) - ${completeProjectResume.projectName}`);
     console.log(`   Member 2: ${member2Email} (password: ${member2Password}) - ${partialProjectResume.projectName}`);
     console.log(`   Projects:`);
