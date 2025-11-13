@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import { Button } from "../../components/ui/Button";
 import { ProjectProfile } from "@/types/enhanced-types";
+import { useOrgStore } from "@/stores/useOrgStore";
+import NewProjectAccessModal from "@/components/project/NewProjectAccessModal";
+import { ProjectGrant } from "@/types/enhanced-types";
+import { supabase } from "../../../lib/supabaseClient";
 
 interface OnboardingProgressCardProps {
   project: ProjectProfile | null;
@@ -105,12 +109,25 @@ const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loginSource, currentOrgRole, isLoading: authLoading } = useAuth();
+  const {
+    user,
+    loginSource,
+    currentOrgRole,
+    isLoading: authLoading,
+    activeOrg,
+  } = useAuth();
   const {
     projects,
     createProject,
+    deleteProject,
     isLoading: projectsLoading,
   } = useProjects();
+  const {
+    members: orgMembers,
+    isLoading: orgLoading,
+    loadOrg,
+    currentOrg,
+  } = useOrgStore();
 
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
@@ -118,6 +135,9 @@ export default function DashboardPage() {
   
   // State to track when a project is being created
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+  const [accessModalError, setAccessModalError] = useState<string | null>(null);
+  const [createdProject, setCreatedProject] = useState<ProjectProfile | null>(null);
 
   const combinedLoading = authLoading || projectsLoading || isCreatingProject;
 
@@ -180,18 +200,149 @@ export default function DashboardPage() {
   ]);
 
   // Handle creating a new project
-  const handleCreateNewProject = async () => {
-    setIsCreatingProject(true);
-    try {
-      const newProject = await createProject({
-        projectName: `My Project #${projects.length + 1}`,
-      });
-      router.push(`/project/workspace/${newProject.id}`);
-    } catch (error) {
-      console.error("Failed to create new project:", error);
-      setIsCreatingProject(false);
-    }
+  const applyMemberPermissions = useCallback(
+    async (projectId: string, selections: Record<string, ProjectGrant>) => {
+      if (!user?.id) {
+        throw new Error("User context missing while granting permissions.");
+      }
+
+      for (const [memberId, grant] of Object.entries(selections)) {
+        // Skip if no permissions are set
+        if (!grant.permissions || grant.permissions.length === 0) {
+          continue;
+        }
+
+        // Convert ProjectGrant permissions to the format expected by grant_project_access RPC
+        const permissionPayload = grant.permissions.map((perm) => ({
+          resource_type: perm.resource_type,
+          permission: perm.permission,
+        }));
+
+        const { error: grantError } = await supabase.rpc("grant_project_access", {
+          p_project_id: projectId,
+          p_user_id: memberId,
+          p_granted_by_id: user.id,
+          p_permissions: permissionPayload,
+        });
+
+        if (grantError) {
+          throw new Error(
+            grantError.message || `Failed to grant access to selected member.`
+          );
+        }
+      }
+    },
+    [user?.id]
+  );
+
+  const resetModalState = () => {
+    setIsAccessModalOpen(false);
+    setAccessModalError(null);
+    setCreatedProject(null);
   };
+
+  const handleAccessModalClose = () => {
+    if (isCreatingProject) return;
+    resetModalState();
+  };
+
+  const handleCreateNewProject = useCallback(async () => {
+    if (isCreatingProject) return;
+
+    if (!activeOrg?.id) {
+      console.error("Cannot load organization members: no active organization.");
+      return;
+    }
+
+    try {
+      if (!currentOrg || currentOrg.id !== activeOrg.id) {
+        await loadOrg(activeOrg.id);
+      }
+
+      setAccessModalError(null);
+      setCreatedProject(null);
+      setIsAccessModalOpen(true);
+    } catch (error) {
+      console.error("Failed to prepare organization data:", error);
+    }
+  }, [activeOrg?.id, currentOrg, isCreatingProject, loadOrg]);
+
+  const handleAccessModalSubmit = useCallback(
+    async (selections: Record<string, ProjectGrant>) => {
+      if (!activeOrg?.id) {
+        setAccessModalError(
+          "No active organization is set. Please reload and try again."
+        );
+        return;
+      }
+
+      setIsCreatingProject(true);
+      setAccessModalError(null);
+
+      let project: ProjectProfile | null = createdProject;
+      try {
+        if (!project) {
+          project = await createProject({
+            projectName: `My Project #${projects.length + 1}`,
+          });
+          setCreatedProject(project);
+        }
+
+        if (!project) {
+          throw new Error("Project was not created successfully.");
+        }
+
+        // At this point, project is guaranteed to be non-null
+        const finalProject = project;
+
+        // Set projectId in each grant before applying permissions
+        const grantsWithProjectId: Record<string, ProjectGrant> = {};
+        Object.entries(selections).forEach(([memberId, grant]) => {
+          grantsWithProjectId[memberId] = {
+            ...grant,
+            projectId: finalProject.id,
+          };
+        });
+
+        await applyMemberPermissions(finalProject.id, grantsWithProjectId);
+
+        resetModalState();
+        router.push(`/project/workspace/${finalProject.id}`);
+      } catch (error) {
+        console.error("Failed to create new project or grant access:", error);
+
+        if (project) {
+          try {
+            await deleteProject(project.id);
+          } catch (deleteError) {
+            console.error(
+              "Failed to roll back project after permission error:",
+              deleteError
+            );
+          } finally {
+            setCreatedProject(null);
+          }
+        }
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to create project. Please try again.";
+        setAccessModalError(message);
+      } finally {
+        setIsCreatingProject(false);
+      }
+    },
+    [
+      activeOrg?.id,
+      applyMemberPermissions,
+      createProject,
+      deleteProject,
+      projects.length,
+      router,
+      createdProject,
+    ]
+  );
 
   // --- Render Logic ---
 
@@ -329,6 +480,15 @@ export default function DashboardPage() {
           }
         `}</style>
       </DashboardLayout>
+      <NewProjectAccessModal
+        isOpen={isAccessModalOpen}
+        onClose={handleAccessModalClose}
+        onSubmit={handleAccessModalSubmit}
+        members={orgMembers}
+        isLoadingMembers={orgLoading}
+        isSubmitting={isCreatingProject}
+        errorMessage={accessModalError}
+      />
     </RoleBasedRoute>
   );
 }
