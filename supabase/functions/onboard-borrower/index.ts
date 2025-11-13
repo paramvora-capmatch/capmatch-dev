@@ -82,55 +82,103 @@ serve(async (req) => {
     const app_role = email.endsWith("@advisor.com") ? "advisor" : "borrower";
     console.log(`[onboard-borrower] Determined app_role: ${app_role}`);
 
-    // Step 2: Create the user's profile
-    console.log("[onboard-borrower] Step 2: Creating user profile");
-    // Upsert profile for idempotency (covers existing_user flows)
-    const { error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .upsert({
-        id: newUser.id,
-        full_name: full_name,
-        email: email,
-        app_role: app_role,
-      }, { onConflict: "id" });
-    if (profileError) {
-      console.error(
-        `[onboard-borrower] Profile Error: ${JSON.stringify(profileError)}`
+    // Helper function to find advisor (can run independently)
+    const findAdvisor = async (): Promise<string | null> => {
+      try {
+        const { data: advisorOrg } = await supabaseAdmin
+          .from("orgs")
+          .select("id")
+          .eq("entity_type", "advisor")
+          .limit(1)
+          .maybeSingle();
+
+        if (advisorOrg) {
+          const { data: advisorMember } = await supabaseAdmin
+            .from("org_members")
+            .select("user_id")
+            .eq("org_id", advisorOrg.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (advisorMember?.user_id) {
+            console.log(
+              `[onboard-borrower] Found advisor for auto-assignment: ${advisorMember.user_id}`
       );
-      throw new Error(`Profile Error: ${profileError.message}`);
-    }
-    console.log("[onboard-borrower] Profile created successfully");
+            return advisorMember.user_id;
+          }
+        }
+        return null;
+      } catch (error) {
+        console.warn(
+          "[onboard-borrower] Could not find advisor for auto-assignment:",
+          error instanceof Error ? error.message : String(error)
+        );
+        return null;
+      }
+    };
 
     // Only perform borrower-specific onboarding if the user is a borrower
     if (app_role === "borrower") {
       console.log("[onboard-borrower] Starting borrower-specific onboarding");
 
+      // Phase 1: Parallelize profile creation, org creation, and advisor lookup
+      console.log("[onboard-borrower] Phase 1: Creating profile, org, and finding advisor in parallel");
+      const [profileResult, orgResult, advisorId] = await Promise.all([
+        // Step 2: Create the user's profile
+        supabaseAdmin
+          .from("profiles")
+          .upsert({
+            id: newUser.id,
+            full_name: full_name,
+            email: email,
+            app_role: app_role,
+          }, { onConflict: "id" })
+          .then(({ error }) => {
+            if (error) {
+              console.error(
+                `[onboard-borrower] Profile Error: ${JSON.stringify(error)}`
+              );
+              throw new Error(`Profile Error: ${error.message}`);
+            }
+            console.log("[onboard-borrower] Profile created successfully");
+            return { success: true };
+          }),
       // Step 3: Create the borrower org
-      console.log("[onboard-borrower] Step 3: Creating borrower org");
-      const { data: orgData, error: orgError } = await supabaseAdmin
+        supabaseAdmin
         .from("orgs")
         .insert({
           name: `${full_name}'s Organization`,
           entity_type: "borrower",
         })
         .select()
-        .single();
-      if (orgError) {
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
         console.error(
-          `[onboard-borrower] Org Error: ${JSON.stringify(orgError)}`
+                `[onboard-borrower] Org Error: ${JSON.stringify(error)}`
         );
-        throw new Error(`Org Error: ${orgError.message}`);
+              throw new Error(`Org Error: ${error.message}`);
       }
-      if (!orgData) {
-        console.error("[onboard-borrower] Org not created");
-        throw new Error("Org not created.");
-      }
-      console.log(`[onboard-borrower] Org created successfully: ${orgData.id}`);
+            if (!data) {
+              throw new Error("Org not created.");
+            }
+            console.log(`[onboard-borrower] Org created successfully: ${data.id}`);
+            return data;
+          }),
+        // Find advisor (optional, can fail silently)
+        findAdvisor(),
+      ]);
 
+      const orgData = orgResult;
+      if (!orgData) {
+        throw new Error("Org creation failed");
+      }
+
+      // Phase 2: Parallelize storage bucket and org member creation
+      console.log("[onboard-borrower] Phase 2: Creating storage bucket and org member in parallel");
+      const [bucketResult, memberResult] = await Promise.all([
       // Create a private storage bucket for this org (id = org id)
-      console.log("[onboard-borrower] Creating storage bucket for org");
-      {
-        const { error: bucketError } = await supabaseAdmin.storage.createBucket(
+        supabaseAdmin.storage.createBucket(
           orgData.id,
           {
             public: false,
@@ -149,31 +197,23 @@ serve(async (req) => {
               "text/plain;charset=UTF-8", // Add this for the placeholder file
             ],
           }
-        );
+        ).then(({ error }) => {
         // If bucket exists already, ignore; otherwise fail fast
         if (
-          bucketError &&
-          bucketError.message &&
-          !bucketError.message.toLowerCase().includes("already exists")
+            error &&
+            error.message &&
+            !error.message.toLowerCase().includes("already exists")
         ) {
           console.error(
-            `[onboard-borrower] Bucket creation failed: ${JSON.stringify(
-              bucketError
-            )}`
+              `[onboard-borrower] Bucket creation failed: ${JSON.stringify(error)}`
           );
-          throw new Error(`Bucket creation failed: ${bucketError.message}`);
+            throw new Error(`Bucket creation failed: ${error.message}`);
         }
         console.log("[onboard-borrower] Storage bucket created successfully");
-      }
-
-      // Step 3.5: Project-scoped storage directories are provisioned during project creation.
-
+          return { success: true };
+        }),
       // Step 4: Make the user the owner of the org
-      console.log("[onboard-borrower] Step 4: Making user owner of org");
-      console.log(
-        `[onboard-borrower] DEBUG - User ID: ${newUser.id}, Org ID: ${orgData.id}`
-      );
-      const { data: memberData, error: memberError } = await supabaseAdmin
+        supabaseAdmin
         .from("org_members")
         .insert({
           org_id: orgData.id,
@@ -181,50 +221,22 @@ serve(async (req) => {
           role: "owner",
         })
         .select()
-        .single();
-      if (memberError) {
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
         console.error(
-          `[onboard-borrower] Membership Error: ${JSON.stringify(memberError)}`
+                `[onboard-borrower] Membership Error: ${JSON.stringify(error)}`
         );
-        throw new Error(`Membership Error: ${memberError.message}`);
+              throw new Error(`Membership Error: ${error.message}`);
       }
       console.log("[onboard-borrower] User made owner of org successfully");
-      console.log(`[onboard-borrower] DEBUG - Membership created:`, memberData);
-
-      // Find an advisor to auto-assign
-      console.log("[onboard-borrower] Looking for advisor to auto-assign...");
-      let advisorId: string | null = null;
-      try {
-        const { data: advisorOrg } = await supabaseAdmin
-          .from("orgs")
-          .select("id")
-          .eq("entity_type", "advisor")
-          .limit(1)
-          .single();
-
-        if (advisorOrg) {
-          const { data: advisorMember } = await supabaseAdmin
-            .from("org_members")
-            .select("user_id")
-            .eq("org_id", advisorOrg.id)
-            .limit(1)
-            .single();
-
-          if (advisorMember) {
-            advisorId = advisorMember.user_id;
-            console.log(
-              `[onboard-borrower] Found advisor for auto-assignment: ${advisorId}`
-            );
-          }
-        }
-      } catch (error) {
-        console.warn(
-          "[onboard-borrower] Could not find advisor for auto-assignment:",
-          error.message
-        );
-      }
+            console.log(`[onboard-borrower] DEBUG - Membership created:`, data);
+            return data;
+          }),
+      ]);
 
       // Step 5: Create a default project for the org using the shared utility
+      // Note: createProjectWithResumeAndStorage already handles borrower resume creation
       console.log("[onboard-borrower] Step 5: Creating default project");
       const {
         project: projectData,
@@ -238,68 +250,32 @@ serve(async (req) => {
         `[onboard-borrower] Default project created successfully: ${projectData.id}`
       );
 
-      // Step 6: Verify borrower resume and project-scoped resources exist
-      console.log("[onboard-borrower] Step 6: Verifying project borrower resources");
-      const { error: borrowerRootsError } = await supabaseAdmin.rpc(
-        "ensure_project_borrower_roots",
-        {
-          p_project_id: projectData.id,
-        }
-      );
-
-      if (borrowerRootsError) {
-        throw new Error(
-          `Failed to ensure project borrower resources: ${borrowerRootsError.message}`
-        );
-      }
-
-      const { data: borrowerResumeRecord, error: borrowerResumeCheckError } =
-        await supabaseAdmin
-          .from("borrower_resumes")
-          .select("id")
-          .eq("project_id", projectData.id)
-          .maybeSingle();
-
-      if (borrowerResumeCheckError) {
-        throw new Error(
-          `Borrower Resume existence check failed: ${borrowerResumeCheckError.message}`
-        );
-      }
-
-      if (!borrowerResumeRecord) {
-        console.warn(
-          "[onboard-borrower] Borrower resume record missing after project creation; creating fallback"
-        );
-        const { error: borrowerResumeInsertError } = await supabaseAdmin
-          .from("borrower_resumes")
-          .insert({ project_id: projectData.id, content: {} });
-
-        if (borrowerResumeInsertError) {
-          throw new Error(
-            `Fallback borrower resume creation failed: ${borrowerResumeInsertError.message}`
-          );
-        }
-      }
-
-      // Step 7: Update profile with the active org
+      // Step 6: Update profile with the active org (deferred - not critical for login)
+      // This can be done in parallel with other operations or even after response
       console.log(
-        "[onboard-borrower] Step 7: Updating profile with active org"
+        "[onboard-borrower] Step 6: Updating profile with active org (deferred)"
       );
-      const { error: updateProfileError } = await supabaseAdmin
+      // Fire and forget - don't block response if this fails
+      supabaseAdmin
         .from("profiles")
         .update({ active_org_id: orgData.id })
-        .eq("id", newUser.id);
-      if (updateProfileError) {
-        console.error(
-          `[onboard-borrower] Profile Update Error: ${JSON.stringify(
-            updateProfileError
-          )}`
+        .eq("id", newUser.id)
+        .then(({ error }) => {
+          if (error) {
+            console.warn(
+              `[onboard-borrower] Profile Update Warning (non-blocking): ${JSON.stringify(error)}`
         );
-        throw new Error(`Profile Update Error: ${updateProfileError.message}`);
-      }
+          } else {
       console.log(
         "[onboard-borrower] Profile updated with active org successfully"
       );
+          }
+        })
+        .catch((err) => {
+          console.warn(
+            `[onboard-borrower] Profile update failed (non-critical): ${err.message}`
+          );
+        });
     }
 
     console.log("[onboard-borrower] Onboarding completed successfully");

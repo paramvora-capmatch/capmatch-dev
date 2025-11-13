@@ -118,11 +118,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   // Right column chat is handled by StickyChatCard
   // Centralize AskAI logic here; StickyChatCard is presentation-only
-  const askAi = useAskAI({
+  // Separate hooks for project and borrower contexts to ensure correct API endpoints and isolated chat history
+  const projectAskAi = useAskAI({
     formData: (currentFormData as unknown as Record<string, unknown>) || {},
     apiPath: '/api/project-qa',
     contextType: 'project',
   });
+
+  const borrowerAskAi = useAskAI({
+    formData: (borrowerResumeSnapshot as unknown as Record<string, unknown>) || {},
+    apiPath: '/api/borrower-qa',
+    contextType: 'borrower',
+  });
+
+  // Use the appropriate hook based on which form is being edited
+  const activeAskAi = borrowerEditing ? borrowerAskAi : projectAskAi;
 
   const {
     content: borrowerResumeData,
@@ -356,7 +366,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           }}
           onAskAI={(fieldId) => {
             setActiveFieldId(fieldId);
-            void askAi.activateField(fieldId, { autoSend: true });
+            void borrowerAskAi.activateField(fieldId, { autoSend: true });
             setChatTab("ai");
             setShouldExpandChat(true);
             setTimeout(() => setShouldExpandChat(false), 100);
@@ -484,7 +494,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                         onComplete={() => setIsEditing(false)}
                         onAskAI={(fieldId) => {
                           setActiveFieldId(fieldId);
-                          void askAi.activateField(fieldId, { autoSend: true });
+                          void projectAskAi.activateField(fieldId, { autoSend: true });
                           setChatTab("ai");
                           setShouldExpandChat(true);
                           setTimeout(() => setShouldExpandChat(false), 100);
@@ -510,12 +520,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           onMentionClick={handleMentionClick}
           topOffsetClassName="top-4 sm:top-6"
           widthClassName="w-[45%] md:w-[50%] xl:w-[55%] max-w-[700px]"
-          messages={askAi.messages}
-          fieldContext={askAi.fieldContext}
-          isLoading={askAi.isLoading}
-          isBuildingContext={askAi.isBuildingContext}
-          contextError={askAi.contextError}
-          hasActiveContext={askAi.hasActiveContext}
+          messages={activeAskAi.messages}
+          fieldContext={activeAskAi.fieldContext}
+          isLoading={activeAskAi.isLoading}
+          isBuildingContext={activeAskAi.isBuildingContext}
+          contextError={activeAskAi.contextError}
+          hasActiveContext={activeAskAi.hasActiveContext}
           externalActiveTab={chatTab}
           externalShouldExpand={shouldExpandChat}
         />

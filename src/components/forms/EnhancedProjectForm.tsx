@@ -70,12 +70,12 @@ const projectPhaseOptions: ProjectPhase[] = [
   "Other",
 ];
 const capitalTypeOptions = [
-  "Senior Debt",
-  "Mezzanine",
-  "Preferred Equity",
-  "Common Equity",
-  "JV Equity",
-  "Other",
+  { label: "Senior Debt", value: "Senior Debt" },
+  { label: "Mezz", value: "Mezzanine" },
+  { label: "Preferred Equity", value: "Preferred Equity" },
+  { label: "Common Equity", value: "Common Equity" },
+  { label: "JV Equity", value: "JV Equity" },
+  { label: "Other", value: "Other" },
 ];
 const interestRateTypeOptions: InterestRateType[] = [
   "Not Specified",
