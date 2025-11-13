@@ -230,11 +230,10 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
     businessPlanSummary: resumeContent.businessPlanSummary || "",
     marketOverviewSummary: resumeContent.marketOverviewSummary || "",
     equityCommittedPercent: resumeContent.equityCommittedPercent,
-    // completenessPercent, borrowerProgress, and projectProgress are calculated by calculateProgress()
-    completenessPercent: 0,
+    // Load completenessPercent from DB, fallback to 0 if not stored
+    completenessPercent: resumeContent.completenessPercent ?? 0,
     internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
     borrowerProgress,
-    projectProgress: 0,
     projectSections: resumeContent.projectSections || {},
     borrowerSections: borrowerResumeContent || {},
     projectFieldConfirmations: resumeContent.fieldConfirmations || null,
@@ -339,7 +338,6 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       completenessPercent: resumeContent.completenessPercent ?? 0,
       internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
       borrowerProgress,
-      projectProgress: 0,
       projectSections: resumeContent.projectSections || {},
       borrowerSections: borrowerResumeContent || {},
       projectFieldConfirmations: resumeContent.fieldConfirmations || null,

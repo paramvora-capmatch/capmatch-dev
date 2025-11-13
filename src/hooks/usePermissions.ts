@@ -11,12 +11,14 @@ interface UsePermissionsReturn {
 }
 
 export const usePermissions = (resourceId: string | null | undefined): UsePermissionsReturn => {
-  const getPermission = usePermissionStore((state) => state.getPermission);
+  // Subscribe to the permissions object so we re-render when it changes
+  const permissions = usePermissionStore((state) => state.permissions);
   const isLoading = usePermissionStore((state) => state.isLoading);
 
   const permission = useMemo(() => {
-    return getPermission(resourceId);
-  }, [resourceId, getPermission]);
+    if (!resourceId) return null;
+    return permissions[resourceId] || null;
+  }, [resourceId, permissions]); // Now depends on permissions object, not getPermission function
 
   const canView = permission === 'view' || permission === 'edit';
   const canEdit = permission === 'edit';

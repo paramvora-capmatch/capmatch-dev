@@ -244,7 +244,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }
 
   const projectResumeProgress = clampPercentage(
-    activeProject?.projectProgress ?? activeProject?.completenessPercent ?? 0
+    activeProject?.completenessPercent ?? 0
   );
   const borrowerResumeProgress = borrowerResumeData
     ? borrowerProgress
@@ -256,7 +256,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const projectForProgress = activeProject
     ? {
         ...activeProject,
-        projectProgress: projectResumeProgress,
         completenessPercent: projectResumeProgress,
         borrowerProgress: borrowerResumeProgress,
         projectFieldConfirmations:

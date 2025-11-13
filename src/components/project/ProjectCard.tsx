@@ -41,9 +41,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     });
   };
   
-  const projectProgress = Math.round(
-    project.projectProgress ?? project.completenessPercent ?? 0
-  );
+  const projectProgress = Math.round(project.completenessPercent ?? 0);
   const borrowerProgress = Math.round(project.borrowerProgress ?? 0);
   const isProjectComplete = projectProgress === 100;
 

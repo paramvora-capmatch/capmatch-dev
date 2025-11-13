@@ -319,7 +319,6 @@ export interface ProjectProfile {
   completenessPercent?: number | null;
   internalAdvisorNotes?: string | null;
   borrowerProgress?: number | null;
-  projectProgress?: number | null;
   projectSections?: any; // Add for consistency with mock data
   borrowerSections?: any; // Add for consistency with mock data
   projectFieldConfirmations?: Record<string, boolean> | null;
