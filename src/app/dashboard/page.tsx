@@ -19,6 +19,8 @@ import { useOrgStore } from "@/stores/useOrgStore";
 import NewProjectAccessModal from "@/components/project/NewProjectAccessModal";
 import { ProjectGrant } from "@/types/enhanced-types";
 import { supabase } from "../../../lib/supabaseClient";
+import { Modal } from "../../components/ui/Modal";
+import { cn } from "../../utils/cn";
 
 interface OnboardingProgressCardProps {
   project: ProjectProfile | null;
@@ -139,6 +141,10 @@ export default function DashboardPage() {
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [accessModalError, setAccessModalError] = useState<string | null>(null);
   const [createdProject, setCreatedProject] = useState<ProjectProfile | null>(null);
+  
+  // State for project selection modal (when multiple projects exist)
+  const [isProjectSelectModalOpen, setIsProjectSelectModalOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
   const combinedLoading = authLoading || projectsLoading || isCreatingProject;
   
@@ -178,6 +184,54 @@ export default function DashboardPage() {
   const borrowerResumeProgress = primaryProject
     ? Math.round(primaryProject.borrowerProgress ?? 0)
     : 0;
+
+  // Create options for project selection modal with completion percentages
+  const projectSelectOptions = useMemo(() => {
+    return projects.map((project) => ({
+      value: project.id,
+      label: project.projectName || "Untitled Project",
+      progress: Math.round(project.borrowerProgress ?? 0),
+    }));
+  }, [projects]);
+
+  // Count total projects (all projects have borrower resumes, even if at 0%)
+  const totalProjects = projects.length;
+  
+  // Use grid layout when there are 5 or more projects for better space utilization
+  const useGridLayout = totalProjects >= 5;
+
+  // Handle opening borrower resume - check if single or multiple projects
+  const handleOpenBorrowerResume = useCallback(() => {
+    if (projects.length === 0) {
+      return;
+    }
+
+    // If only one project, navigate directly
+    if (projects.length === 1) {
+      router.push(`/project/workspace/${projects[0].id}?step=borrower`);
+      return;
+    }
+
+    // If multiple projects, open selection modal
+    setIsProjectSelectModalOpen(true);
+    // Pre-select the most complete project if available
+    if (primaryProject) {
+      setSelectedProjectId(primaryProject.id);
+    } else {
+      setSelectedProjectId("");
+    }
+  }, [projects, primaryProject, router]);
+
+  // Handle project selection and navigation
+  const handleProjectSelectSubmit = useCallback(() => {
+    if (!selectedProjectId) {
+      return;
+    }
+
+    setIsProjectSelectModalOpen(false);
+    router.push(`/project/workspace/${selectedProjectId}?step=borrower`);
+    setSelectedProjectId("");
+  }, [selectedProjectId, router]);
 
   // Control Flow Logic & Loading
   useEffect(() => {
@@ -405,13 +459,7 @@ export default function DashboardPage() {
                 <OnboardingProgressCard
                   project={primaryProject}
                   progress={borrowerResumeProgress}
-                  onOpenBorrowerResume={() => {
-                    if (primaryProject) {
-                      router.push(
-                        `/project/workspace/${primaryProject.id}?step=borrower`
-                      );
-                    }
-                  }}
+                  onOpenBorrowerResume={handleOpenBorrowerResume}
                   onCreateProject={handleCreateNewProject}
                 />
               </div>
@@ -505,6 +553,123 @@ export default function DashboardPage() {
         isSubmitting={isCreatingProject}
         errorMessage={accessModalError}
       />
+      <Modal
+        isOpen={isProjectSelectModalOpen}
+        onClose={() => {
+          setIsProjectSelectModalOpen(false);
+          setSelectedProjectId("");
+        }}
+        title="Select Project"
+        size={useGridLayout ? "lg" : "md"}
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-900">
+              You have {totalProjects} {totalProjects === 1 ? 'project' : 'projects'} with borrower resumes.
+            </p>
+            <p className="text-sm text-gray-600">
+              Choose which project's borrower resume you want to edit.
+            </p>
+          </div>
+          
+          <div className={cn(
+            useGridLayout 
+              ? "grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto pr-1"
+              : "space-y-2"
+          )}>
+            {projectSelectOptions.map((project) => {
+              const isSelected = selectedProjectId === project.value;
+              
+              // Determine colors: red < 50%, blue 50-99%, green 100%
+              const getProgressBarColor = () => {
+                if (project.progress === 100) return "bg-green-500";
+                if (project.progress >= 50) return "bg-blue-500";
+                return "bg-red-500";
+              };
+              
+              const getBadgeColor = () => {
+                if (project.progress === 100) return "bg-green-100 text-green-800 border-green-300";
+                if (project.progress >= 50) return "bg-blue-100 text-blue-800 border-blue-300";
+                return "bg-red-100 text-red-800 border-red-300";
+              };
+              
+              return (
+                <button
+                  key={project.value}
+                  type="button"
+                  onClick={() => setSelectedProjectId(project.value)}
+                  className={cn(
+                    "rounded-lg border-2 transition-all duration-200 text-left",
+                    "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1",
+                    isSelected
+                      ? "bg-blue-50 border-blue-500 shadow-md ring-2 ring-blue-200"
+                      : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm",
+                    useGridLayout ? "p-3" : "w-full p-4"
+                  )}
+                >
+                  <div className={cn(
+                    "flex items-center justify-between gap-2",
+                    useGridLayout ? "flex-col items-stretch" : "flex-row"
+                  )}>
+                    <div className="flex-1 min-w-0 w-full">
+                      <h4 className={cn(
+                        "font-semibold mb-1.5 truncate",
+                        useGridLayout ? "text-sm" : "text-base",
+                        isSelected ? "text-blue-900" : "text-gray-900"
+                      )}>
+                        {project.label}
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full transition-all duration-300",
+                              getProgressBarColor()
+                            )}
+                            style={{ width: `${project.progress}%` }}
+                          />
+                        </div>
+                        <span className={cn(
+                          "font-medium whitespace-nowrap",
+                          useGridLayout ? "text-xs" : "text-sm",
+                          isSelected ? "text-blue-700" : "text-gray-600"
+                        )}>
+                          {project.progress}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className={cn(
+                      "px-2.5 py-1 rounded-md text-xs font-semibold border flex-shrink-0",
+                      getBadgeColor(),
+                      useGridLayout && "self-start"
+                    )}>
+                      {project.progress}% Complete
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsProjectSelectModalOpen(false);
+                setSelectedProjectId("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleProjectSelectSubmit}
+              disabled={!selectedProjectId}
+            >
+              Edit Resume
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </RoleBasedRoute>
   );
 }
