@@ -5,6 +5,10 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { AIContextRequest } from '@/types/ask-ai-types';
 import { z } from 'zod';
 
+// Increase timeout for streaming responses (60 seconds)
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
@@ -34,7 +38,15 @@ CURRENT CONTEXT:
 - Asset Type: ${projectContext.assetType}
 - Project Phase: ${projectContext.projectPhase}
 - Current Value: ${fieldContext.currentValue || 'Not filled'}
-- Available Options: ${fieldContext.options && fieldContext.options.length > 0 ? fieldContext.options.join(', ') : 'No predefined options'}
+${fieldContext.options && fieldContext.options.length > 0 
+  ? `- **Available Options (YOU MUST RECOMMEND ONE OF THESE):** ${fieldContext.options.map((opt: any) => {
+      // Handle both string options and object options with label/value
+      if (typeof opt === 'string') return opt;
+      if (opt && typeof opt === 'object' && 'label' in opt) return opt.label;
+      if (opt && typeof opt === 'object' && 'value' in opt) return opt.value;
+      return String(opt);
+    }).join(', ')}`
+  : '- Available Options: No predefined options'}
 - Loan Amount: $${projectContext.loanAmountRequested?.toLocaleString() || 'Not specified'}
 - Target LTV: ${projectContext.targetLtvPercent || 'Not specified'}%
 - Location: ${projectContext.propertyAddressCity}, ${projectContext.propertyAddressState}
@@ -46,11 +58,12 @@ RESPONSE PRIORITY:
 
 INSTRUCTIONS:
 1. Start with a direct, concise answer (1-2 sentences max)
-2. If field has predefined options, recommend from those options when appropriate
-3. Provide brief reasoning (1-2 sentences)
-4. Reference project details only when essential
-5. Be specific and actionable
-6. Keep total response under 150 words
+2. **CRITICAL: If this field has predefined options listed above, you MUST recommend one of those exact options. Do not suggest options that are not in the list.**
+3. **When recommending an option, use the exact label/value as shown in the Available Options list.**
+4. Provide brief reasoning (1-2 sentences) explaining why that specific option fits their project
+5. Reference project details only when essential
+6. Be specific and actionable
+7. Keep total response under 150 words
 
 RESPONSE FORMAT:
 - **Start with a direct answer** to their immediate question
@@ -99,6 +112,12 @@ Remember: Get straight to the point. Users want quick, actionable answers, not l
       ? `\n\nPrevious conversation:\n${chatHistory.slice(-3).map(msg => `${msg.type === 'user' ? 'User' : 'AI'}: ${msg.content}`).join('\n')}`
       : '';
 
+    // Check if request was already aborted
+    if (req.signal?.aborted) {
+      console.log('Request aborted before streaming');
+      return new NextResponse(null, { status: 499 }); // 499 = Client Closed Request
+    }
+
     const result = await streamObject({
       model: google(MODEL_NAME),
       system: systemPrompt,
@@ -108,8 +127,31 @@ Remember: Get straight to the point. Users want quick, actionable answers, not l
     });
 
     return result.toTextStreamResponse();
-  } catch (e) {
-    console.error('project-qa error:', e);
-    return NextResponse.json({ error: 'Failed to get answer' }, { status: 500 });
+  } catch (e: any) {
+    // Handle abort errors gracefully
+    if (e?.name === 'AbortError' || req.signal?.aborted) {
+      console.log('Stream aborted by client');
+      return new NextResponse(null, { status: 499 }); // 499 = Client Closed Request
+    }
+
+    // Log detailed error information
+    console.error('project-qa error:', {
+      message: e?.message,
+      name: e?.name,
+      stack: process.env.NODE_ENV === 'development' ? e?.stack : undefined,
+      cause: e?.cause,
+    });
+
+    // Return appropriate error response
+    const errorMessage = e?.message || 'Failed to get answer';
+    const statusCode = e?.status || e?.statusCode || 500;
+    
+    return NextResponse.json(
+      { 
+        error: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && { details: e?.stack })
+      }, 
+      { status: statusCode }
+    );
   }
 } 

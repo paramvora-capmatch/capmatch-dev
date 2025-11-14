@@ -5,6 +5,10 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { BorrowerAIContextRequest } from '@/types/ask-ai-types';
 import { z } from 'zod';
 
+// Increase timeout for streaming responses (60 seconds)
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY!,
 });
@@ -30,6 +34,15 @@ export async function POST(req: NextRequest) {
 CURRENT CONTEXT:
 - Field: ${fieldContext.label} (${fieldContext.type})
 - Section: ${fieldContext.section}
+${fieldContext.options && fieldContext.options.length > 0 
+  ? `- **Available Options (YOU MUST RECOMMEND ONE OF THESE):** ${fieldContext.options.map((opt: any) => {
+      // Handle both string options and object options with label/value
+      if (typeof opt === 'string') return opt;
+      if (opt && typeof opt === 'object' && 'label' in opt) return opt.label;
+      if (opt && typeof opt === 'object' && 'value' in opt) return opt.value;
+      return String(opt);
+    }).join(', ')}`
+  : '- Available Options: No predefined options'}
 - Entity Structure: ${borrowerContext.primaryEntityStructure || 'Not specified'}
 - Experience: ${borrowerContext.yearsCREExperienceRange || 'Not specified'}
 - Credit Score: ${borrowerContext.creditScoreRange || 'Not specified'}
@@ -46,9 +59,11 @@ RESPONSE PRIORITY:
 
 INSTRUCTIONS:
 1. Start with a direct, concise answer (1-2 sentences max)
-2. Reference borrower details only when essential and relevant
-3. Provide concrete examples or ranges when helpful
-4. Keep total response under 150 words
+2. **CRITICAL: If this field has predefined options listed above, you MUST recommend one of those exact options. Do not suggest options that are not in the list.**
+3. **When recommending an option, use the exact label/value as shown in the Available Options list.**
+4. Reference borrower details only when essential and relevant
+5. Provide concrete examples or ranges when helpful
+6. Keep total response under 150 words
 
 RESPONSE FORMAT (MANDATORY):
 - **Start with a direct answer** to their immediate question
@@ -82,6 +97,12 @@ EXAMPLE FORMAT:
       ? `\n\nPrevious conversation:\n${chatHistory.slice(-3).map(msg => `${msg.type === 'user' ? 'User' : 'AI'}: ${msg.content}`).join('\n')}`
       : '';
 
+    // Check if request was already aborted
+    if (req.signal?.aborted) {
+      console.log('Request aborted before streaming');
+      return new NextResponse(null, { status: 499 }); // 499 = Client Closed Request
+    }
+
     const result = await streamObject({
       model: google(MODEL_NAME),
       system: systemPrompt,
@@ -91,9 +112,32 @@ EXAMPLE FORMAT:
     });
 
     return result.toTextStreamResponse();
-  } catch (e) {
-    console.error('borrower-qa error:', e);
-    return NextResponse.json({ error: 'Failed to get answer' }, { status: 500 });
+  } catch (e: any) {
+    // Handle abort errors gracefully
+    if (e?.name === 'AbortError' || req.signal?.aborted) {
+      console.log('Stream aborted by client');
+      return new NextResponse(null, { status: 499 }); // 499 = Client Closed Request
+    }
+
+    // Log detailed error information
+    console.error('borrower-qa error:', {
+      message: e?.message,
+      name: e?.name,
+      stack: process.env.NODE_ENV === 'development' ? e?.stack : undefined,
+      cause: e?.cause,
+    });
+
+    // Return appropriate error response
+    const errorMessage = e?.message || 'Failed to get answer';
+    const statusCode = e?.status || e?.statusCode || 500;
+    
+    return NextResponse.json(
+      { 
+        error: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && { details: e?.stack })
+      }, 
+      { status: statusCode }
+    );
   }
 }
 
