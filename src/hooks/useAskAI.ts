@@ -229,8 +229,19 @@ Provide actionable advice that helps me make the best decision for my project.`;
   // Handle streaming errors
   useEffect(() => {
     if (streamError) {
+      console.error('Streaming error detected:', streamError);
       setMessages(prev => {
         const newMessages = prev.filter(m => !m.isStreaming);
+        // Only add error message if we don't already have content
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage?.type === 'ai' && lastMessage?.content && lastMessage.content.trim().length > 0) {
+          // If we have partial content, just mark it as complete
+          return newMessages.map((msg, index) =>
+            index === newMessages.length - 1 && msg.type === 'ai'
+              ? { ...msg, isStreaming: false }
+              : msg
+          );
+        }
         return [...newMessages, createErrorMessage(fieldContext)];
       });
     }
@@ -242,6 +253,10 @@ Provide actionable advice that helps me make the best decision for my project.`;
       setMessages(prev => {
         const lastMessage = prev[prev.length - 1];
         if (lastMessage?.isStreaming) {
+          // If streaming stopped but we have no content, it might have stopped abruptly
+          if (lastMessage?.type === 'ai' && (!lastMessage.content || lastMessage.content.trim().length === 0)) {
+            console.warn('Streaming stopped with no content - possible abrupt stop');
+          }
           return prev.map((msg, index) =>
             index === prev.length - 1 ? { ...msg, isStreaming: false } : msg
           );
