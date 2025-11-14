@@ -263,28 +263,66 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
 
   sendMessage: async (threadId: string, content: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('send-thread-message', {
-        body: {
-          thread_id: threadId,
-          content,
-        },
-      });
-
-      if (error) {
-        throw new Error(error.message || 'Failed to send message');
+      // Get current authenticated user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new Error('Not authenticated');
       }
 
-      if (data?.status === 'blocked') {
-        throw {
-          code: data.code,
-          message: data.message,
-          blocked: data.blocked || [],
-        };
+      // Extract resource IDs from mentions (same logic as edge function)
+      const mentionRegex = /@\[[^\]]+\]\(doc:([^)]+)\)/g;
+      const resourceIds = new Set<string>();
+      let match;
+      while ((match = mentionRegex.exec(content)) !== null) {
+        const resourceId = match[1];
+        if (resourceId) {
+          resourceIds.add(resourceId);
+        }
+      }
+      const resourceIdArray = Array.from(resourceIds);
+
+      // Call RPC directly - much faster than edge function!
+      const { data: messageId, error: insertError } = await supabase.rpc(
+        'insert_thread_message',
+        {
+          p_thread_id: threadId,
+          p_user_id: user.id,
+          p_content: content.trim(),
+          p_resource_ids: resourceIdArray,
+        }
+      );
+
+      if (insertError) {
+        // Handle DOC_ACCESS_DENIED error
+        if (insertError.message?.includes('DOC_ACCESS_DENIED')) {
+          // Fetch full validation details for UI
+          const { data: validation } = await supabase.rpc(
+            'validate_docs_for_thread',
+            {
+              p_thread_id: threadId,
+              p_resource_ids: resourceIdArray,
+            }
+          );
+
+          const blocked = (validation || []).filter(
+            (row: any) => row.missing_user_ids && row.missing_user_ids.length > 0
+          );
+
+          throw {
+            code: 'DOC_ACCESS_DENIED',
+            message: 'Some participants do not have access to the referenced documents',
+            blocked,
+          };
+        }
+
+        throw new Error(insertError.message || 'Failed to send message');
       }
 
-      if (!data?.message_id) {
+      if (!messageId) {
         throw new Error('Failed to send message');
       }
+
+      // Message will arrive via postgres_changes subscription automatically
     } catch (err) {
       if (typeof err === 'object' && err && 'code' in err) {
         throw err;
