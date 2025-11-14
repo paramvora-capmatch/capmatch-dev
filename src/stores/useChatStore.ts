@@ -22,11 +22,14 @@ interface ChatParticipant {
 }
 
 interface ProjectMessage {
-  id: number;
+  id: number | string; // Allow string for optimistic messages (temp IDs)
   thread_id: string;
   user_id: string;
   content?: string;
   created_at: string;
+  status?: 'sending' | 'delivered' | 'failed'; // iMessage-style status (no "sent" state)
+  isOptimistic?: boolean; // Flag for optimistic messages
+  isFadingOut?: boolean; // Flag for smooth fade-out animation
   sender?: {
     id: string;
     full_name?: string;
@@ -94,7 +97,57 @@ interface ChatActions {
   clearError: () => void;
 }
 
-export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
+// Track timeouts for clearing "Delivered" status (iMessage-style ephemeral status)
+const statusTimeouts = new Map<string | number, NodeJS.Timeout>();
+const fadeOutTimeouts = new Map<string | number, NodeJS.Timeout>();
+
+export const useChatStore = create<ChatState & ChatActions>((set, get) => {
+  // Helper function to clear "Delivered" status after timeout with smooth fade-out (iMessage-style)
+  const clearDeliveredStatusAfterTimeout = (messageId: string | number, delayMs: number = 5000) => {
+    // Clear any existing timeouts for this message
+    const existingTimeout = statusTimeouts.get(messageId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      statusTimeouts.delete(messageId);
+    }
+    const existingFadeTimeout = fadeOutTimeouts.get(messageId);
+    if (existingFadeTimeout) {
+      clearTimeout(existingFadeTimeout);
+      fadeOutTimeouts.delete(messageId);
+    }
+
+    // Start fade-out animation 400ms before clearing (smooth transition)
+    const fadeOutTimeout = setTimeout(() => {
+      const currentState = get();
+      set({
+        messages: currentState.messages.map((msg) =>
+          msg.id === messageId && msg.status === 'delivered'
+            ? { ...msg, isFadingOut: true }
+            : msg
+        ),
+      });
+      fadeOutTimeouts.delete(messageId);
+    }, delayMs - 400); // Start fade 400ms before clearing
+
+    fadeOutTimeouts.set(messageId, fadeOutTimeout);
+
+    // Clear status after full delay
+    const statusClearTimeout = setTimeout(() => {
+      const currentState = get();
+      set({
+        messages: currentState.messages.map((msg) =>
+          msg.id === messageId && msg.status === 'delivered'
+            ? { ...msg, status: undefined, isFadingOut: false }
+            : msg
+        ),
+      });
+      statusTimeouts.delete(messageId);
+    }, delayMs);
+
+    statusTimeouts.set(messageId, statusClearTimeout);
+  };
+
+  return {
   // State
   activeThreadId: null,
   threads: [],
@@ -247,9 +300,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
       }
 
       // Map messages with sender information
+      // Don't set status for loaded messages - status only shows for newly sent messages (iMessage-style)
       const messagesWithSenders = (messages || []).map((msg: any) => ({
         ...msg,
         sender: profilesMap.get(msg.user_id) || { id: msg.user_id },
+        isOptimistic: false,
+        // No status - historical messages don't show status in iMessage
       }));
 
       set({ messages: messagesWithSenders, isLoading: false });
@@ -262,25 +318,47 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
   },
 
   sendMessage: async (threadId: string, content: string) => {
+    // Get current authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('Not authenticated');
+    }
+
+    // Extract resource IDs from mentions (same logic as edge function)
+    const mentionRegex = /@\[[^\]]+\]\(doc:([^)]+)\)/g;
+    const resourceIds = new Set<string>();
+    let match;
+    while ((match = mentionRegex.exec(content)) !== null) {
+      const resourceId = match[1];
+      if (resourceId) {
+        resourceIds.add(resourceId);
+      }
+    }
+    const resourceIdArray = Array.from(resourceIds);
+
+    // Create optimistic message immediately (WhatsApp-style instant feedback)
+    const tempId = `opt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const optimisticMessage: ProjectMessage = {
+      id: tempId,
+      thread_id: threadId,
+      user_id: user.id,
+      content: content.trim(),
+      created_at: new Date().toISOString(),
+      status: 'sending',
+      isOptimistic: true,
+      sender: {
+        id: user.id,
+        full_name: user.user_metadata?.full_name || undefined,
+        email: user.email || undefined,
+        },
+    };
+
+    // Add optimistic message immediately (instant UI feedback)
+    set((state) => ({
+      messages: [...state.messages, optimisticMessage],
+    }));
+
     try {
-      // Get current authenticated user
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        throw new Error('Not authenticated');
-      }
-
-      // Extract resource IDs from mentions (same logic as edge function)
-      const mentionRegex = /@\[[^\]]+\]\(doc:([^)]+)\)/g;
-      const resourceIds = new Set<string>();
-      let match;
-      while ((match = mentionRegex.exec(content)) !== null) {
-        const resourceId = match[1];
-        if (resourceId) {
-          resourceIds.add(resourceId);
-        }
-      }
-      const resourceIdArray = Array.from(resourceIds);
-
       // Call RPC directly - much faster than edge function!
       const { data: messageId, error: insertError } = await supabase.rpc(
         'insert_thread_message',
@@ -293,6 +371,11 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
       );
 
       if (insertError) {
+        // Remove optimistic message on error
+        set((state) => ({
+          messages: state.messages.filter((msg) => msg.id !== tempId),
+        }));
+
         // Handle DOC_ACCESS_DENIED error
         if (insertError.message?.includes('DOC_ACCESS_DENIED')) {
           // Fetch full validation details for UI
@@ -308,22 +391,32 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
             (row: any) => row.missing_user_ids && row.missing_user_ids.length > 0
           );
 
-          throw {
+        throw {
             code: 'DOC_ACCESS_DENIED',
             message: 'Some participants do not have access to the referenced documents',
             blocked,
-          };
+        };
         }
 
         throw new Error(insertError.message || 'Failed to send message');
       }
 
       if (!messageId) {
+        // Remove optimistic message if no ID returned
+        set((state) => ({
+          messages: state.messages.filter((msg) => msg.id !== tempId),
+        }));
         throw new Error('Failed to send message');
       }
 
-      // Message will arrive via postgres_changes subscription automatically
+      // Keep message as "sending" - it will be updated to "delivered" when real message arrives
+      // Real message will arrive via postgres_changes and replace this with "delivered" status
     } catch (err) {
+      // Remove optimistic message on any error
+      set((state) => ({
+        messages: state.messages.filter((msg) => msg.id !== tempId),
+      }));
+
       if (typeof err === 'object' && err && 'code' in err) {
         throw err;
       }
@@ -345,6 +438,19 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
         },
         async (payload) => {
           const newMessage = payload.new as ProjectMessage;
+          const state = get();
+
+          // Deduplication: Check if this is replacing an optimistic message
+          // Match by content + user_id + approximate timestamp (within 5 seconds)
+          const messageTime = new Date(newMessage.created_at).getTime();
+          const optimisticMatch = state.messages.find((msg) => {
+            if (!msg.isOptimistic) return false;
+            if (msg.user_id !== newMessage.user_id) return false;
+            if (msg.content !== newMessage.content) return false;
+            
+            const optimisticTime = new Date(msg.created_at).getTime();
+            return Math.abs(messageTime - optimisticTime) < 5000; // 5 second window
+          });
 
           // Fetch sender profile using edge function (bypasses RLS)
           const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
@@ -358,16 +464,41 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
             return;
           }
 
-          // Append the new message with sender info to the existing messages array
+          // Append sender info to the real message
           const senderProfile = profilesData[0];
           newMessage.sender = {
             id: senderProfile.id,
             full_name: senderProfile.full_name,
             email: senderProfile.email,
           };
-          set((state) => ({
+          
+          // Only show "Delivered" status for messages sent by current user (iMessage-style)
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (currentUser && newMessage.user_id === currentUser.id) {
+            newMessage.status = 'delivered'; // Real message is delivered
+            
+            // Clear "Delivered" status after 5 seconds (iMessage-style ephemeral status)
+            clearDeliveredStatusAfterTimeout(newMessage.id, 5000);
+          }
+
+          // Replace optimistic message with real one, or append if no match
+          set((state) => {
+            if (optimisticMatch) {
+              // Replace optimistic message with real one
+              const optimisticIndex = state.messages.findIndex((msg) => msg.id === optimisticMatch.id);
+              const newMessages = [...state.messages];
+              newMessages[optimisticIndex] = newMessage;
+              
+              return {
+                messages: newMessages,
+              };
+            } else {
+              // Append new message (from another user or no optimistic match)
+              return {
             messages: [...state.messages, newMessage],
-          }));
+              };
+            }
+          });
         }
       )
       .subscribe();
@@ -381,6 +512,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
       supabase.removeChannel(messageChannel);
       set({ messageChannel: null });
     }
+    
+    // Clear all status timeouts when unsubscribing (cleanup)
+    statusTimeouts.forEach((timeout) => clearTimeout(timeout));
+    statusTimeouts.clear();
+    fadeOutTimeouts.forEach((timeout) => clearTimeout(timeout));
+    fadeOutTimeouts.clear();
   },
 
   loadAttachments: async (messageId: number) => { /* Implementation... */ },
@@ -415,6 +552,13 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
 
   reset: () => {
     get().unsubscribeFromMessages();
+    
+    // Clear all status timeouts when resetting (iMessage-style ephemeral status cleanup)
+    statusTimeouts.forEach((timeout) => clearTimeout(timeout));
+    statusTimeouts.clear();
+    fadeOutTimeouts.forEach((timeout) => clearTimeout(timeout));
+    fadeOutTimeouts.clear();
+    
     set({
       activeThreadId: null,
       threads: [],
@@ -429,4 +573,5 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
   },
 
   clearError: () => set({ error: null })
-}));
+  };
+});

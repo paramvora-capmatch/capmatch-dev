@@ -828,22 +828,50 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         message.sender?.id === user?.id ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl shadow-sm ${
-                          message.sender?.id === user?.id
-                            ? "bg-blue-600 text-white"
-                            : "bg-white border border-gray-200 text-gray-800"
-                        }`}
-                      >
-                        <div className="text-[11px] opacity-75 mb-1 font-semibold">
-                          {message.sender?.full_name || "User"}
+                      <div className="flex flex-col">
+                        <div
+                          className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl shadow-sm ${
+                            message.sender?.id === user?.id
+                              ? "bg-blue-600 text-white"
+                              : "bg-white border border-gray-200 text-gray-800"
+                          } ${
+                            message.isOptimistic ? "opacity-75" : ""
+                          }`}
+                        >
+                          <div className="text-[11px] opacity-75 mb-1 font-semibold">
+                            {message.sender?.full_name || "User"}
+                          </div>
+                          <div className="text-sm prose prose-sm max-w-none">
+                            {renderMessageContent(message.content)}
+                          </div>
+                          <div className="text-[11px] opacity-75 mt-1 text-right">
+                            {formatMessageTime(message.created_at)}
+                          </div>
                         </div>
-                        <div className="text-sm prose prose-sm max-w-none">
-                          {renderMessageContent(message.content)}
-                        </div>
-                        <div className="text-[11px] opacity-75 mt-1 text-right">
-                          {formatMessageTime(message.created_at)}
-                        </div>
+                        {/* iMessage-style status text below message with smooth fade-out */}
+                        {message.sender?.id === user?.id && message.status && (
+                          <motion.div
+                            initial={{ opacity: 1 }}
+                            animate={{ 
+                              opacity: message.isFadingOut ? 0 : 1 
+                            }}
+                            transition={{ 
+                              duration: 0.4, 
+                              ease: "easeOut" 
+                            }}
+                            className="text-[10px] text-gray-500 mt-0.5 text-right pr-1"
+                          >
+                            {message.status === 'sending' && (
+                              <span className="opacity-70">Sending...</span>
+                            )}
+                            {message.status === 'delivered' && (
+                              <span className="opacity-60">Delivered</span>
+                            )}
+                            {message.status === 'failed' && (
+                              <span className="text-red-500">Failed to send</span>
+                            )}
+                          </motion.div>
+                        )}
                       </div>
                     </motion.div>
                   ))}
