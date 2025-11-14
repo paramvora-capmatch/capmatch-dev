@@ -1,4 +1,21 @@
 // @ts-nocheck
+// =============================================================================
+// DEPRECATED: This edge function is no longer used.
+// =============================================================================
+// The chat message sending logic has been moved to direct RPC calls from the
+// frontend (see src/stores/useChatStore.ts sendMessage function).
+//
+// This provides better performance by:
+// - Eliminating edge function cold start latency (50-200ms)
+// - Reducing network hops (1 instead of 2-3)
+// - Simplifying the architecture
+//
+// The RPC function 'insert_thread_message' is called directly from the client,
+// which still maintains security through SECURITY DEFINER and internal validation.
+//
+// This file is kept for reference but can be removed in a future cleanup.
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -62,40 +79,8 @@ serve(async (req) => {
 
     const resourceIdArray = Array.from(resourceIds);
 
-    if (resourceIdArray.length > 0) {
-      const { data: validation, error: validationError } = await supabaseAdmin.rpc(
-        "validate_docs_for_thread",
-        {
-          p_thread_id: thread_id,
-          p_resource_ids: resourceIdArray,
-        }
-      );
-
-      if (validationError) {
-        throw new Error(`Validation failed: ${validationError.message}`);
-      }
-
-      const blocked = (validation || []).filter(
-        (row) => row.missing_user_ids && row.missing_user_ids.length > 0
-      );
-
-      if (blocked.length > 0) {
-        return new Response(
-          JSON.stringify({
-            status: "blocked",
-            code: "DOC_ACCESS_DENIED",
-            message:
-              "Some participants do not have access to the referenced documents",
-            blocked,
-          }),
-          {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          }
-        );
-      }
-    }
-
+    // Note: Validation is handled by insert_thread_message function
+    // which calls validate_docs_for_thread internally and returns DOC_ACCESS_DENIED if needed
     const { data: messageId, error: insertError } = await supabaseAdmin.rpc(
       "insert_thread_message",
       {
@@ -108,12 +93,27 @@ serve(async (req) => {
 
     if (insertError) {
       if (insertError.message?.includes("DOC_ACCESS_DENIED")) {
+        // When DOC_ACCESS_DENIED is detected, fetch full validation details
+        // to return complete blocked information to the frontend
+        const { data: validation } = await supabaseAdmin.rpc(
+          "validate_docs_for_thread",
+          {
+            p_thread_id: thread_id,
+            p_resource_ids: resourceIdArray,
+          }
+        );
+
+        const blocked = (validation || []).filter(
+          (row: any) => row.missing_user_ids && row.missing_user_ids.length > 0
+        );
+
         return new Response(
           JSON.stringify({
             status: "blocked",
             code: "DOC_ACCESS_DENIED",
             message:
               "Some participants do not have access to the referenced documents",
+            blocked,
           }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
