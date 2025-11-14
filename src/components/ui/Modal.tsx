@@ -44,9 +44,25 @@ export const Modal: React.FC<ModalProps> = ({
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        onClose();
+      const target = event.target as Node;
+      
+      // Don't close if click is inside this modal
+      if (modalRef.current && modalRef.current.contains(target)) {
+        return;
       }
+      
+      // Don't close if click is inside any other modal (to support modal-in-modal)
+      // Check if the click target or any of its parents is a modal dialog
+      let element = target as HTMLElement | null;
+      while (element) {
+        if (element.getAttribute('role') === 'dialog' && element !== modalRef.current) {
+          return; // Click is inside another modal, don't close this one
+        }
+        element = element.parentElement;
+      }
+      
+      // Click is outside all modals, close this modal
+      onClose();
     };
 
     if (isOpen) {

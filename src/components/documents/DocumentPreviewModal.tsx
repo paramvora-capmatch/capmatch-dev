@@ -49,7 +49,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   });
   const { canEdit } = usePermissions(resourceId);
   
-  const isEditableInOffice = resource && /\.(docx|xlsx|pptx)$/i.test(resource.name);
+  const isEditableInOffice = resource && /\.(docx|xlsx|pptx|pdf)$/i.test(resource.name);
 
   useEffect(() => {
     const fetchResourceDetails = async () => {
