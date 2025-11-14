@@ -2,8 +2,8 @@
 
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
+import { useParams, useSearchParams, usePathname } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout"; // Use the consolidated layout
 import { ProjectWorkspace } from "@/components/project/ProjectWorkspace"; // Import the workspace component
 import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute"; // Protect the route
@@ -15,7 +15,16 @@ export default function ProjectWorkspacePage() {
   const params = useParams();
   const projectId = params?.id as string; // Get project ID from URL
   const router = useRouter(); // Initialize useRouter
-  const [isBorrowerEditing, setIsBorrowerEditing] = useState(false);
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  // Initialize state from URL on mount
+  const [isBorrowerEditing, setIsBorrowerEditing] = useState(() => {
+    return searchParams?.get("view") === "borrower";
+  });
+  const isUpdatingFromStateRef = useRef(false);
+  const lastUrlViewRef = useRef<string | null>(searchParams?.get("view"));
+  const isUserInitiatedChangeRef = useRef(false);
+  const isInitialMountRef = useRef(true);
 
   // Get the activeProject from the store. The workspace component handles loading it.
   const { activeProject, isLoading } = useProjects();
@@ -26,13 +35,81 @@ export default function ProjectWorkspacePage() {
       ? "Loading Project..."
       : activeProject.projectName;
 
+  // Sync URL query parameter with isBorrowerEditing state (for browser back/forward)
+  useEffect(() => {
+    // Skip on initial mount
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    const currentView = searchParams?.get("view");
+    
+    // Only update state if URL actually changed (not from our own update)
+    if (currentView !== lastUrlViewRef.current && !isUpdatingFromStateRef.current) {
+      const shouldBeEditing = currentView === "borrower";
+      setIsBorrowerEditing(shouldBeEditing);
+      lastUrlViewRef.current = currentView;
+      isUserInitiatedChangeRef.current = false; // This is a URL-initiated change
+    }
+  }, [searchParams]);
+
+  // Update URL when isBorrowerEditing changes programmatically (user-initiated)
+  useEffect(() => {
+    // Skip on initial mount - don't manipulate URL on first load
+    if (isInitialMountRef.current) {
+      return;
+    }
+
+    const currentView = searchParams?.get("view");
+    const shouldHaveView = isBorrowerEditing;
+    const hasView = currentView === "borrower";
+    
+    // Only update URL if state and URL are out of sync AND it's a user-initiated change
+    if (shouldHaveView !== hasView && isUserInitiatedChangeRef.current) {
+      isUpdatingFromStateRef.current = true;
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      
+      if (shouldHaveView) {
+        params.set("view", "borrower");
+      } else {
+        params.delete("view");
+      }
+      
+      const newPath = params.toString() 
+        ? `${pathname}?${params.toString()}` 
+        : pathname;
+      
+      // Use push when entering borrower mode (to add history entry), replace when exiting
+      if (shouldHaveView) {
+        router.push(newPath);
+      } else {
+        router.replace(newPath);
+      }
+      lastUrlViewRef.current = shouldHaveView ? "borrower" : null;
+      
+      // Reset flags after URL update completes
+      setTimeout(() => {
+        isUpdatingFromStateRef.current = false;
+        isUserInitiatedChangeRef.current = false;
+      }, 100);
+    }
+  }, [isBorrowerEditing, pathname, router, searchParams]);
+
   const handleBack = useCallback(() => {
     if (isBorrowerEditing) {
+      isUserInitiatedChangeRef.current = true;
       setIsBorrowerEditing(false);
     } else {
       router.push("/dashboard");
     }
   }, [isBorrowerEditing, router]);
+
+  // Wrapper for setIsBorrowerEditing that marks it as user-initiated
+  const handleBorrowerEditingChange = useCallback((value: boolean) => {
+    isUserInitiatedChangeRef.current = true;
+    setIsBorrowerEditing(value);
+  }, []);
 
   const breadcrumb = useMemo(() => {
     const projectName = activeProject?.projectName || "Project";
@@ -56,7 +133,7 @@ export default function ProjectWorkspacePage() {
         {isBorrowerEditing ? (
           <>
             <button
-              onClick={() => setIsBorrowerEditing(false)}
+              onClick={() => handleBorrowerEditingChange(false)}
               className="text-gray-500 hover:text-gray-700 font-medium"
             >
               {projectName}
@@ -90,7 +167,7 @@ export default function ProjectWorkspacePage() {
         <ProjectWorkspace
           projectId={projectId}
           isBorrowerEditing={isBorrowerEditing}
-          onBorrowerEditingChange={setIsBorrowerEditing}
+          onBorrowerEditingChange={handleBorrowerEditingChange}
         />
       </DashboardLayout>
     </RoleBasedRoute>
