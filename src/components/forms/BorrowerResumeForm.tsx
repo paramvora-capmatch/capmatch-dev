@@ -197,6 +197,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   >({ principalRoleDefault: "Key Principal" });
   // Persist principals inside JSONB content via formData.principals
   const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
+  const [showCompletionPercent, setShowCompletionPercent] = useState(true);
+  const completionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevIsSavingRef = useRef<boolean>(false);
@@ -1070,6 +1072,33 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   const containerCollapsedClasses = 'overflow-hidden';
   const containerExpandedClasses = 'overflow-visible';
 
+  // Handle showing/hiding completion percentage with delay
+  const handleMouseEnter = () => {
+    setShowCompletionPercent(false);
+    if (completionTimeoutRef.current) {
+      clearTimeout(completionTimeoutRef.current);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    // Wait for buttons to collapse (300ms) plus a small buffer before showing
+    if (completionTimeoutRef.current) {
+      clearTimeout(completionTimeoutRef.current);
+    }
+    completionTimeoutRef.current = setTimeout(() => {
+      setShowCompletionPercent(true);
+    }, 350); // 300ms button collapse + 50ms buffer
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (completionTimeoutRef.current) {
+        clearTimeout(completionTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div
       className={cn(
@@ -1086,24 +1115,24 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           setCollapsed((v) => !v);
         }
       }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-in-out pointer-events-none will-change-opacity" />
       {/* Header with Edit button */}
-      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl flex flex-row flex-wrap items-center gap-3 relative px-3 py-4 min-w-0">
-        <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
-          <h2 className="text-2xl font-semibold text-gray-800 flex items-center flex-shrink-0">
-            <AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />
+      <div className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl flex flex-row items-center justify-between relative px-3 py-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
             Borrower Resume
           </h2>
-          {typeof progressPercent === "number" && (
-            <span className="text-sm font-semibold text-gray-500 flex-shrink-0">
+          {typeof progressPercent === "number" && showCompletionPercent && (
+            <span className="text-sm font-semibold text-gray-500">
               {progressPercent}% complete
             </span>
           )}
         </div>
-        {/* First row: Edit and Copy buttons - same line when not hovered, wrap to next line on hover */}
-        <div className="flex items-center gap-3 flex-wrap group-hover:w-full group-hover:ml-0 transition-all duration-700 ease-in-out will-change-[width,margin-left]">
-          {/* Edit button first */}
+        <div className="flex items-center gap-3">
+          {/* Edit button */}
           <Button
             variant="outline"
             size="sm"
@@ -1118,26 +1147,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               }
               setIsEditing(!isEditing);
             }}
-            className={cn(
-              "flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-700 ease-in-out overflow-hidden text-base flex-shrink-0 will-change-[gap,padding]",
-              !collapsed && !isEditing && "gap-2 px-3"
-            )}
+            className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
           >
             {isEditing ? (
               <>
                 <Check className="h-5 w-5 text-gray-600 flex-shrink-0" />
-                <span className={cn(
-                  "text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[90px] opacity-0 group-hover:opacity-100 transition-all duration-700 ease-in-out overflow-hidden will-change-[max-width,opacity]",
-                  !collapsed && "max-w-[90px] opacity-100"
-                )}>Done</span>
+                <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[90px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Done</span>
               </>
             ) : (
               <>
                 <Edit className="h-5 w-5 text-gray-600 flex-shrink-0" />
-                <span className={cn(
-                  "text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[80px] opacity-0 group-hover:opacity-100 transition-all duration-700 ease-in-out overflow-hidden will-change-[max-width,opacity]",
-                  !collapsed && "max-w-[80px] opacity-100"
-                )}>Edit</span>
+                <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[80px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Edit</span>
               </>
             )}
           </Button>
@@ -1151,10 +1171,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               }}
               disabled={copyDisabled}
               isLoading={copyLoading}
-              className={cn(
-                "flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-700 ease-in-out overflow-hidden text-base flex-shrink-0 will-change-[gap,padding]",
-                !collapsed && "gap-2 px-3"
-              )}
+              className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
             >
               {copyLoading ? (
                 <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
@@ -1163,65 +1180,44 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               ) : (
                 <>
                   <Copy className="h-5 w-5 text-gray-600 flex-shrink-0" />
-                  <span className={cn(
-                    "text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[190px] opacity-0 group-hover:opacity-100 transition-all duration-700 ease-in-out overflow-hidden will-change-[max-width,opacity]",
-                    !collapsed && "max-w-[190px] opacity-100"
-                  )}>
+                  <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[190px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
                     Copy From Another Project
                   </span>
                 </>
               )}
             </Button>
           )}
-          {/* Collapse/expand button - same line when collapsed, own line when expanded */}
-          {!isEditing && collapsed && (
+          {!isEditing && (
             <Button
               variant="outline"
               size="sm"
               onClick={(e) => { e.stopPropagation(); setCollapsed((v) => !v); }}
-              aria-label="Expand resume"
-              className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-700 ease-in-out overflow-hidden text-base flex-shrink-0 will-change-[gap,padding]"
+              aria-label={collapsed ? 'Expand resume' : 'Collapse resume'}
+              className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
             >
-              <ChevronDown className="h-5 w-5 text-gray-600 flex-shrink-0 transition-transform duration-700 ease-in-out will-change-transform" />
-              <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[170px] opacity-0 group-hover:opacity-100 transition-all duration-700 ease-in-out overflow-hidden will-change-[max-width,opacity]">
-                Show Borrower Details
+              <ChevronDown className={cn("h-5 w-5 text-gray-600 flex-shrink-0 transition-transform duration-200", collapsed ? '' : 'rotate-180')} />
+              <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[160px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+                {collapsed ? 'Show Borrower Details' : 'Hide Borrower Details'}
               </span>
             </Button>
           )}
+          {/* Save/changed indicator when editing */}
+          {isEditing && (isSaving || justSaved) && (
+            <div className="flex items-center text-xs text-gray-500 mr-2">
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  <span className="ml-2">Saving…</span>
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 text-green-600" />
+                  <span className="ml-2 text-green-600">All Changes Saved</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
-        {/* Second row: Collapse/expand button - only shown when expanded */}
-        {!isEditing && !collapsed && (
-          <div className="w-full mt-2 ml-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={(e) => { e.stopPropagation(); setCollapsed((v) => !v); }}
-              aria-label="Collapse resume"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-700 ease-in-out overflow-hidden text-base flex-shrink-0 will-change-[gap,padding]"
-            >
-              <ChevronDown className="h-5 w-5 text-gray-600 flex-shrink-0 transition-transform duration-700 ease-in-out will-change-transform rotate-180" />
-              <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-[170px] opacity-100 transition-all duration-700 ease-in-out overflow-hidden will-change-[max-width,opacity]">
-                Hide Borrower Details
-              </span>
-            </Button>
-          </div>
-        )}
-        {/* Save/changed indicator on the right when editing */}
-        {isEditing && (isSaving || justSaved) && (
-          <div className="flex items-center text-xs text-gray-500 mr-2 flex-shrink-0 ml-auto group-hover:w-full group-hover:ml-0">
-            {isSaving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                <span className="ml-2">Saving…</span>
-              </>
-            ) : (
-              <>
-                <Check className="h-4 w-4 text-green-600" />
-                <span className="ml-2 text-green-600">All Changes Saved</span>
-              </>
-            )}
-          </div>
-        )}
       </div>
       {showLoadingState ? (
         <div className="flex justify-center items-center h-32 text-gray-500">
