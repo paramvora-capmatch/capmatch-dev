@@ -351,7 +351,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   );
 
   const renderBorrowerResumeSection = () => (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-full">
         <BorrowerResumeForm
           projectId={projectId}
           progressPercent={borrowerProgress}
@@ -402,9 +402,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           </div>
         </div>
         {/* Left Column: Scrollable content */}
-        <div className="flex-1 relative z-[1]">
+        <div className="flex-1 relative z-[1] min-w-0">
           {/* Content with padding */}
-          <div className="relative p-6">
+          <div className="relative p-6 min-w-0">
             {borrowerEditing ? (
               <div className="space-y-6">
                 {renderBorrowerDocumentsSection()}
