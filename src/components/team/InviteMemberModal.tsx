@@ -1,7 +1,7 @@
 // src/components/team/InviteMemberModal.tsx
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PillToggle, TriPermission } from '@/components/ui/PillToggle';
@@ -10,6 +10,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { X, Copy, Check, Mail, Briefcase, Settings } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { cn } from '@/utils/cn';
+import { supabase } from '../../../lib/supabaseClient';
 
 interface InviteMemberModalProps {
   isOpen: boolean;
@@ -73,6 +74,9 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   const { projects, isLoading: isLoadingProjects } = useProjects();
   const [projectGrants, setProjectGrants] = useState<ProjectGrant[]>([]);
   const [openProjectPermissionsModal, setOpenProjectPermissionsModal] = useState<string | null>(null);
+  const [projectDocsMap, setProjectDocsMap] = useState<Record<string, { id: string; name: string; parent_id: string | null }[]>>({});
+  const [projectResourcesMap, setProjectResourcesMap] = useState<Record<string, Map<string, { id: string; parent_id: string | null; resource_type: string }>>>({});
+  const [projectRootsMap, setProjectRootsMap] = useState<Record<string, { projectDocsRootId: string | null; borrowerDocsRootId: string | null }>>({});
 
   useEffect(() => {
     if (!isOpen) return;
@@ -83,6 +87,9 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     setError(null);
     setProjectGrants([]);
     setOpenProjectPermissionsModal(null);
+    setProjectDocsMap({});
+    setProjectResourcesMap({});
+    setProjectRootsMap({});
   }, [isOpen]);
 
   useEffect(() => {
@@ -95,6 +102,83 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     return new Map(projectGrants.map((grant) => [grant.projectId, grant]));
   }, [projectGrants]);
 
+  const ensureProjectDocsLoaded = useCallback(
+    async (projectId: string) => {
+      if (projectDocsMap[projectId] && projectRootsMap[projectId] && projectResourcesMap[projectId]) return;
+      
+      // Load root resources first
+      const { data: roots } = await supabase
+        .from('resources')
+        .select('id,resource_type')
+        .eq('project_id', projectId)
+        .in('resource_type', ['PROJECT_DOCS_ROOT', 'BORROWER_DOCS_ROOT']);
+      
+      const projectDocsRootId = roots?.find(r => r.resource_type === 'PROJECT_DOCS_ROOT')?.id || null;
+      const borrowerDocsRootId = roots?.find(r => r.resource_type === 'BORROWER_DOCS_ROOT')?.id || null;
+      
+      setProjectRootsMap((prev) => ({ 
+        ...prev, 
+        [projectId]: { projectDocsRootId, borrowerDocsRootId } 
+      }));
+      
+      // Load all resources (files and folders) to trace parent chains
+      const { data: allResources } = await supabase
+        .from('resources')
+        .select('id,parent_id,resource_type')
+        .eq('project_id', projectId)
+        .in('resource_type', ['FILE', 'FOLDER', 'PROJECT_DOCS_ROOT', 'BORROWER_DOCS_ROOT']);
+      
+      const resourcesMap = new Map<string, { id: string; parent_id: string | null; resource_type: string }>();
+      allResources?.forEach(r => {
+        resourcesMap.set(r.id, { id: r.id, parent_id: r.parent_id, resource_type: r.resource_type });
+      });
+      
+      setProjectResourcesMap((prev) => ({ ...prev, [projectId]: resourcesMap }));
+      
+      // Load documents with parent_id for display
+      const { data: files } = await supabase
+        .from('resources')
+        .select('id,name,parent_id')
+        .eq('resource_type', 'FILE')
+        .eq('project_id', projectId);
+      setProjectDocsMap((prev) => ({ ...prev, [projectId]: files || [] }));
+    },
+    [projectDocsMap, projectRootsMap, projectResourcesMap]
+  );
+
+  // Helper function to determine which root a document belongs to by tracing up the parent chain
+  const getDocumentRootType = (projectId: string, docParentId: string | null): 'PROJECT_DOCS_ROOT' | 'BORROWER_DOCS_ROOT' | null => {
+    const roots = projectRootsMap[projectId];
+    const resourcesMap = projectResourcesMap[projectId];
+    if (!roots || !resourcesMap) return null;
+    
+    // Trace up the parent chain to find the root
+    let currentParentId = docParentId;
+    const visited = new Set<string>(); // Prevent infinite loops
+    
+    while (currentParentId) {
+      if (visited.has(currentParentId)) break; // Safety check
+      visited.add(currentParentId);
+      
+      // Check if current parent is one of the roots
+      if (currentParentId === roots.projectDocsRootId) return 'PROJECT_DOCS_ROOT';
+      if (currentParentId === roots.borrowerDocsRootId) return 'BORROWER_DOCS_ROOT';
+      
+      // Move up to the next parent
+      const parent = resourcesMap.get(currentParentId);
+      if (!parent) break;
+      currentParentId = parent.parent_id;
+    }
+    
+    return null;
+  };
+
+  useEffect(() => {
+    if (openProjectPermissionsModal) {
+      ensureProjectDocsLoaded(openProjectPermissionsModal);
+    }
+  }, [openProjectPermissionsModal, ensureProjectDocsLoaded]);
+
   const handleProjectLevelChange = (projectId: string, level: TriPermission) => {
     setProjectGrants((prev) => {
       if (level === 'none') {
@@ -105,6 +189,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
       const existing = prev.find((grant) => grant.projectId === projectId);
 
       if (existing) {
+        // Preserve existing fileOverrides when changing level
         return prev.map((grant) =>
           grant.projectId === projectId
             ? { ...grant, permissions }
@@ -121,6 +206,10 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
         },
       ];
     });
+    // Load docs when setting a project level (needed for per-doc permissions)
+    if (level !== 'none') {
+      ensureProjectDocsLoaded(projectId);
+    }
   };
 
   const handleResourcePermissionChange = (
@@ -152,12 +241,42 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
         ? [...otherPermissions, { resource_type: resourceType, permission }]
         : otherPermissions;
 
+      // Preserve existing fileOverrides
       return prev.map((grant) =>
         grant.projectId === projectId
-          ? { ...grant, permissions: updatedPermissions }
+          ? { ...grant, permissions: updatedPermissions, fileOverrides: grant.fileOverrides || [] }
           : grant
       );
     });
+    // Load docs if needed when setting BORROWER_DOCS_ROOT or PROJECT_DOCS_ROOT permission
+    if ((resourceType === 'BORROWER_DOCS_ROOT' || resourceType === 'PROJECT_DOCS_ROOT') && level !== 'none') {
+      ensureProjectDocsLoaded(projectId);
+    }
+  };
+
+  const setProjectDocPermission = (projectId: string, resourceId: string, permission: Permission | 'none') => {
+    setProjectGrants(prev => prev.map(g => {
+      if (g.projectId !== projectId) return g;
+      const overrides = [...(g.fileOverrides || [])];
+      const idx = overrides.findIndex(o => o.resource_id === resourceId);
+      
+      // Find the document to determine its root type
+      const doc = projectDocsMap[projectId]?.find(d => d.id === resourceId);
+      const rootType = doc ? getDocumentRootType(projectId, doc.parent_id) : null;
+      
+      // Get the appropriate root permission
+      const rootPerm = rootType 
+        ? g.permissions.find(p => p.resource_type === rootType)?.permission 
+        : g.permissions.find(p => p.resource_type === 'PROJECT_DOCS_ROOT' || p.resource_type === 'BORROWER_DOCS_ROOT')?.permission;
+      
+      if (permission === (rootPerm || 'view')) {
+        if (idx >= 0) overrides.splice(idx, 1);
+      } else {
+        if (idx >= 0) overrides[idx] = { resource_id: resourceId, permission } as any;
+        else overrides.push({ resource_id: resourceId, permission } as any);
+      }
+      return { ...g, fileOverrides: overrides };
+    }));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -438,6 +557,49 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                     />
                   </div>
                 ))}
+
+                {(currentGrantForModal.permissions.find((p) => p.resource_type === 'PROJECT_DOCS_ROOT') ||
+                  currentGrantForModal.permissions.find((p) => p.resource_type === 'BORROWER_DOCS_ROOT')) &&
+                  (projectDocsMap[currentProjectForModal.id]?.length || 0) > 0 && (
+                    <div className="border-t pt-2 space-y-1">
+                      <div className="text-sm text-gray-500">Set per-document permissions</div>
+                      {(projectDocsMap[currentProjectForModal.id] || []).map((doc) => {
+                        // Determine which root this document belongs to
+                        const rootType = getDocumentRootType(currentProjectForModal.id, doc.parent_id);
+                        
+                        // Get the appropriate root permission based on document type
+                        const rootPerm = rootType
+                          ? currentGrantForModal.permissions.find((p) => p.resource_type === rootType)?.permission
+                          : currentGrantForModal.permissions.find(
+                              (p) => p.resource_type === 'PROJECT_DOCS_ROOT' || p.resource_type === 'BORROWER_DOCS_ROOT'
+                            )?.permission;
+                        
+                        const current =
+                          currentGrantForModal.fileOverrides?.find((o) => o.resource_id === doc.id)?.permission ||
+                          rootPerm ||
+                          'view';
+                        
+                        // Determine document category label
+                        const docCategory = rootType === 'BORROWER_DOCS_ROOT' ? ' (Borrower)' : rootType === 'PROJECT_DOCS_ROOT' ? ' (Project)' : '';
+                        
+                        return (
+                          <div key={doc.id} className="flex items-center justify-between text-base py-1">
+                            <span className="text-gray-700 truncate pr-2">
+                              {doc.name}
+                              {docCategory && <span className="text-xs text-gray-500">{docCategory}</span>}
+                            </span>
+                            <PillToggle
+                              value={current as TriPermission}
+                              onChange={(val) =>
+                                setProjectDocPermission(currentProjectForModal.id, doc.id, val as Permission | 'none')
+                              }
+                              size="xs"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                 <div className="flex justify-end pt-4 border-t">
                   <Button

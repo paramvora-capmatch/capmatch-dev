@@ -437,7 +437,11 @@ export const DocumentDiffViewer: React.FC<DiffViewerProps> = ({
       exit={{ opacity: 0, y: 20 }}
       className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
     >
-      <div className={`bg-white rounded-lg shadow-xl ${isExcelFile ? 'max-w-[95vw]' : 'max-w-6xl'} w-full ${isExcelFile ? 'max-h-[90vh]' : 'max-h-96'} flex flex-col`}>
+      <div 
+        role="dialog"
+        aria-modal="true"
+        className={`bg-white rounded-lg shadow-xl ${isExcelFile ? 'max-w-[95vw]' : 'max-w-6xl'} w-full ${isExcelFile ? 'max-h-[90vh]' : 'max-h-96'} flex flex-col`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex-1">

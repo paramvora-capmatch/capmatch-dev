@@ -52,6 +52,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
       return false;
     }
   });
+  const [isChatHovered, setIsChatHovered] = useState(false);
 
   useEffect(() => {
     try {
@@ -82,12 +83,43 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
 
   const askAiEnabled = true; // presentation only; parent governs availability
 
+  // Determine width based on state
+  const getChatWidth = () => {
+    if (isChatCollapsed) {
+      return "w-14";
+    }
+    // For team tab: smaller when not hovered, larger when hovered
+    if (!hideTeamTab && rightTab === "team") {
+      if (isChatHovered) {
+        // Expanded: width + channel selector, but capped at 50% max
+        return "!w-[min(calc(35%+12rem),50%)] md:!w-[min(calc(40%+12rem),50%)] xl:!w-[min(calc(45%+12rem),50%)]";
+      } else {
+        // Collapsed: 35% width consistently
+        return "w-[35%]";
+      }
+    }
+    // For AI tab: also use hover-based width
+    if (rightTab === "ai" || hideTeamTab) {
+      if (isChatHovered) {
+        // Expanded: wider when hovered, capped at 50% max (no channel selector, so just use original widths)
+        return "!w-[min(45%,50%)] md:!w-[min(50%,50%)] xl:!w-[min(55%,50%)] max-w-[700px]";
+      } else {
+        // Collapsed: 35% width consistently
+        return "w-[35%]";
+      }
+    }
+    // Fallback: use provided width
+    return widthClassName;
+  };
+
   return (
     <aside
       className={cn(
-        "pl-3 sm:pl-4 mr-3 sm:mr-4 lg:mr-6 transition-[width] duration-200 ease-out pt-4",
-        isChatCollapsed ? "w-14" : widthClassName
+        "pl-3 sm:pl-4 mr-3 sm:mr-4 lg:mr-6 transition-[width] duration-300 ease-in-out pt-4",
+        getChatWidth()
       )}
+      onMouseEnter={() => setIsChatHovered(true)}
+      onMouseLeave={() => setIsChatHovered(false)}
     >
       <div className={cn("sticky", topOffsetClassName)}>
         {isChatCollapsed ? (
@@ -170,6 +202,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                   embedded
                   projectId={projectId || ""}
                   onMentionClick={onMentionClick}
+                  isHovered={isChatHovered}
                 />
               ) : (
                 <div className="h-full bg-transparent py-4">

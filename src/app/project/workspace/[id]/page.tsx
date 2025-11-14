@@ -146,7 +146,7 @@ export default function ProjectWorkspacePage() {
         )}
       </nav>
     );
-  }, [activeProject?.projectName, handleBack, isBorrowerEditing, router]);
+  }, [activeProject?.projectName, handleBack, isBorrowerEditing, router, handleBorrowerEditingChange]);
 
   if (!projectId) {
     // Handle case where ID is missing, maybe redirect or show error

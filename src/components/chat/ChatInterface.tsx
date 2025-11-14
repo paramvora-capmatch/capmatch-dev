@@ -29,11 +29,13 @@ interface ChatInterfaceProps {
   projectId: string;
   onMentionClick?: (resourceId: string) => void;
   embedded?: boolean; // when true, render without outer border/radius so parents can frame it
+  isHovered?: boolean; // when true, show channel selector
 }
 
 import { ManageChannelMembersModal } from "./ManageChannelMembersModal";
 import { ChatThread } from "@/types/enhanced-types";
 import { RichTextInput, RichTextInputRef } from "./RichTextInput";
+import { cn } from "@/utils/cn";
 
 
 interface BlockedDocInfo {
@@ -66,6 +68,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   projectId,
   onMentionClick,
   embedded = false,
+  isHovered = false,
 }) => {
   const BASE_INPUT_HEIGHT = 44; // px, matches Button h-11
   const {
@@ -727,29 +730,39 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     );
   }
 
-  return (
-    <div className={embedded ? "h-full flex" : "h-full flex rounded-2xl overflow-hidden bg-white/70 backdrop-blur-xl border border-gray-200 shadow-lg"}>
-      {/* Threads Sidebar - Always Visible */}
-      <div className="flex-shrink-0 bg-white/60 backdrop-blur border-r border-gray-100 w-48 flex flex-col">
-        <div className="p-3 border-b border-gray-100 bg-white/60">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-semibold text-gray-800 text-sm">Channels</h3>
-            {hasOwnerPermissions && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowCreateThreadModal(true)}
-                className="h-7 px-2 text-xs rounded-md border-gray-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                New
-              </Button>
-            )}
-          </div>
-          <div className="text-[11px] text-gray-500">Switch between discussion channels</div>
-        </div>
+  const activeThread = threads.find(t => t.id === activeThreadId);
+  const channelName = activeThread?.topic || "General";
 
-        <div className="overflow-y-auto flex-1">
+  return (
+    <div 
+      className={embedded ? "h-full flex" : "h-full flex rounded-2xl overflow-hidden bg-white/70 backdrop-blur-xl border border-gray-200 shadow-lg"}
+    >
+      {/* Threads Sidebar - Collapsible on hover */}
+      <div className={cn(
+        "flex-shrink-0 bg-white/60 backdrop-blur border-r border-gray-100 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
+        isHovered ? "w-48" : "w-0"
+      )}>
+        {isHovered && (
+          <>
+            <div className="p-3 border-b border-gray-100 bg-white/60">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-semibold text-gray-800 text-sm">Channels</h3>
+                {hasOwnerPermissions && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowCreateThreadModal(true)}
+                    className="h-7 px-2 text-xs rounded-md border-gray-200 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    New
+                  </Button>
+                )}
+              </div>
+              <div className="text-[11px] text-gray-500">Switch between discussion channels</div>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
           {isLoading && threads.length === 0 ? (
             <div className="p-3 text-center">
               <Loader2 className="h-4 w-4 animate-spin mx-auto" />
@@ -788,16 +801,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               ))}
             </div>
           )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Main Chat Area - Fixed width for messages */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Channel name header when sidebar is collapsed */}
+        {!isHovered && activeThreadId && (
+          <div className="px-3 py-2 border-b border-gray-100 bg-white/60 backdrop-blur flex items-center">
+            <Hash size={14} className="text-gray-600 mr-2" />
+            <span className="font-semibold text-gray-800 text-sm">{channelName}</span>
+          </div>
+        )}
         {activeThreadId ? (
           <>
             <div
               ref={messageListRef}
-              className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-3"
+              className="flex-1 overflow-y-auto overscroll-contain p-3 space-y-3 max-w-full"
             >
               {/* Loading shimmer when switching channels */}
               {isLoading && messages.length === 0 && (

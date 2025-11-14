@@ -568,7 +568,7 @@ export default function DashboardPage() {
               You have {totalProjects} {totalProjects === 1 ? 'project' : 'projects'} with borrower resumes.
             </p>
             <p className="text-sm text-gray-600">
-              Choose which project's borrower resume you want to edit.
+              Choose which project&apos;s borrower resume you want to edit.
             </p>
           </div>
           

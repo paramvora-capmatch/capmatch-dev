@@ -183,6 +183,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   // Subscribe to permissions object so component re-renders when permissions load
   const permissions = usePermissionStore((state) => state.permissions);
   const getPermission = usePermissionStore((state) => state.getPermission);
+  const loadPermissionsForProject = usePermissionStore((state) => state.loadPermissionsForProject);
 
   const getFileVisual = (fileName: string) => {
     const ext = (fileName.split(".").pop() || "").toLowerCase();
@@ -274,6 +275,10 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         }
       }
       await refresh();
+      // Reload permissions after upload to ensure newly uploaded documents have correct permissions in state
+      if (projectId) {
+        await loadPermissionsForProject(projectId);
+      }
     } catch (error) {
       console.error("[DocumentManager] Upload with permissions error", error);
     } finally {
@@ -440,7 +445,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {files.map((file) => {
               const fileCanEdit = getPermission(file.resource_id) === 'edit';
-              const isEditable = /\.(docx|xlsx|pptx)$/i.test(file.name);
+              const isEditable = /\.(docx|xlsx|pptx|pdf)$/i.test(file.name);
               const filePermission = getPermission(file.resource_id);
               console.log("[DocumentManager] Rendering file:", {
                 name: file.name,
