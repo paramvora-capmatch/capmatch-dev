@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 
@@ -8,7 +8,7 @@ import { ProjectResumeView } from "./ProjectResumeView"; // New component for vi
 import { ProjectSummaryCard } from "./ProjectSummaryCard"; // Borrower progress
 import { ProjectCompletionCard } from "./ProjectCompletionCard"; // Project progress moved below docs
 import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
-import { Loader2, FileSpreadsheet } from "lucide-react";
+import { Loader2, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { Button } from "../ui/Button"; // Import Button
@@ -20,10 +20,11 @@ import { BorrowerResumeForm } from "../forms/BorrowerResumeForm";
 import { BorrowerResumeView } from "../forms/BorrowerResumeView";
 import { useAskAI } from "@/hooks/useAskAI";
 import { useProjectBorrowerResume } from "@/hooks/useProjectBorrowerResume";
+import { RealtimeChannel } from "@supabase/supabase-js";
 import { Modal } from "../ui/Modal";
 import { Select } from "../ui/Select";
 import { supabase } from "../../../lib/supabaseClient";
-import { BorrowerResumeContent } from "@/lib/project-queries";
+import { BorrowerResumeContent, getProjectWithResume } from "@/lib/project-queries";
 import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
@@ -115,6 +116,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [currentFormData, setCurrentFormData] = useState<ProjectProfile | null>(
     null
   );
+  const [isProjectResumeRemoteUpdate, setIsProjectResumeRemoteUpdate] = useState(false);
+  const projectResumeChannelRef = useRef<RealtimeChannel | null>(null);
+  const isLocalProjectSaveRef = useRef(false);
 
   // Right column chat is handled by StickyChatCard
   // Centralize AskAI logic here; StickyChatCard is presentation-only
@@ -239,6 +243,70 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     router,
     loadOrg,
   ]);
+
+  // Subscribe to realtime changes for project resume
+  useEffect(() => {
+    if (!projectId || !user?.id) return;
+
+    const channel = supabase
+      .channel(`project-resume-workspace-${projectId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'project_resumes',
+          filter: `project_id=eq.${projectId}`
+        },
+        async (payload) => {
+          // Ignore our own updates (handled by EnhancedProjectForm via store)
+          if (isLocalProjectSaveRef.current) {
+            isLocalProjectSaveRef.current = false;
+            return;
+          }
+
+          // Don't reload if user is editing (preserves their work)
+          if (isEditing) {
+            return;
+          }
+
+          setIsProjectResumeRemoteUpdate(true);
+          
+          // Defer state update to avoid updating during render
+          setTimeout(async () => {
+            // Reload only the specific project, not all projects
+            try {
+              const updatedProject = await getProjectWithResume(projectId);
+              if (updatedProject) {
+                // Update active project if it's the current one
+                if (activeProject?.id === projectId) {
+                  setActiveProject(updatedProject);
+                }
+                // Note: We don't update the projects array here to avoid full refresh
+                // The next time loadUserProjects is called, it will get the latest data
+              }
+            } catch (error) {
+              console.error('Error reloading project after remote update:', error);
+              // Fallback to full reload if specific reload fails
+              await loadUserProjects();
+            }
+            
+            // Reset notification after 3 seconds
+            setTimeout(() => {
+              setIsProjectResumeRemoteUpdate(false);
+            }, 3000);
+          }, 0);
+        }
+      )
+      .subscribe();
+
+    projectResumeChannelRef.current = channel;
+
+    return () => {
+      projectResumeChannelRef.current?.unsubscribe();
+      projectResumeChannelRef.current = null;
+    };
+  }, [projectId, user?.id, isEditing, activeProject?.id, setActiveProject, loadUserProjects]);
 
   // Loading state render - show loading during initial loading or if project doesn't match
   if (isInitialLoading || !activeProject || activeProject.id !== projectId) {
@@ -382,7 +450,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   );
 
   return (
-    <div className="relative min-h-screen w-full flex flex-row animate-fadeIn">
+    <div className="relative min-h-screen w-full flex flex-row animate-fadeIn bg-gray-200">
       <AskAIProvider
         onFieldAskAI={(fieldId: string) => {
           setActiveFieldId(fieldId); // This will be passed to the chat widget
@@ -504,10 +572,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <ProjectResumeView
-                    project={activeProject}
-                    onEdit={() => setIsEditing(true)}
-                  />
+                  <>
+                    {/* Remote update notification */}
+                    {isProjectResumeRemoteUpdate && (
+                      <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mb-4 rounded-md flex items-center gap-2 animate-fadeIn">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                        <span className="text-sm font-medium">
+                          This project resume was updated by another user. Your view has been refreshed.
+                        </span>
+                      </div>
+                    )}
+                    <ProjectResumeView
+                      project={activeProject}
+                      onEdit={() => setIsEditing(true)}
+                    />
+                  </>
                 )}
               </div>
             )}

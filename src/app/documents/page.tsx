@@ -23,7 +23,7 @@ export default function DocumentsPage() {
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
           </div>
         ) : (
-          <div className="max-w-3xl space-y-6">
+          <div className="max-w-3xl space-y-6 mx-auto">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-6 space-y-4">
                 <h2 className="text-xl font-semibold text-gray-800">Borrower Documents Are Now Project-Specific</h2>

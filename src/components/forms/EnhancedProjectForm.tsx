@@ -180,8 +180,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
   // Update local form state if the existingProject prop changes externally
   useEffect(() => {
     setFormData(existingProject);
-    // Notify parent component of initial form data for AskAI
-    onFormDataChange?.(existingProject);
+    // Defer parent notification to avoid updating during render
+    setTimeout(() => {
+      onFormDataChange?.(existingProject);
+    }, 0);
   }, [existingProject, onFormDataChange]);
 
   // NEW: Focus/scroll to a specific field if requested
@@ -249,8 +251,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
           ...prev,
           [field]: value,
         };
-        // Notify parent component of form data changes for AskAI
-        onFormDataChange?.(nextFormData);
+        // Defer parent notification to avoid updating during render
+        setTimeout(() => {
+          onFormDataChange?.(nextFormData);
+        }, 0);
         return nextFormData;
       });
     },

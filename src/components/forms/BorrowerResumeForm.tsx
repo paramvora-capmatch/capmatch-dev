@@ -42,7 +42,7 @@ import {
 } from "../../types/enhanced-types";
 import { BorrowerResumeContent } from "../../lib/project-queries";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
-import { useProjectBorrowerResume } from "@/hooks/useProjectBorrowerResume";
+import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { BorrowerResumeView } from "./BorrowerResumeView";
 import {
@@ -172,7 +172,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     isLoading: resumeLoading,
     isSaving,
     save,
-  } = useProjectBorrowerResume(projectId);
+    isRemoteUpdate,
+  } = useProjectBorrowerResumeRealtime(projectId);
   // Principals removed from new schema - kept as empty array for form compatibility
   const principals: Principal[] = [];
 
@@ -206,7 +207,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 
   // Initialize form once on first load (avoid resetting on each store update)
+  // Don't reset formData if user is editing (preserves their work in progress)
   useEffect(() => {
+    // Skip updating formData if user is actively editing
+    if (isEditing) {
+      return;
+    }
+    
     const defaultData: Partial<BorrowerResumeContent> = {};
     const initialData = borrowerResume
       ? { ...defaultData, ...borrowerResume }
@@ -217,7 +224,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     }
     lastInitializedSnapshot.current = snapshotKey;
     setFormData(initialData);
-  }, [borrowerResume, user?.email, projectId]);
+  }, [borrowerResume, user?.email, projectId, isEditing]);
 
   const lastEmittedSnapshot = useRef<string | null>(null);
 
@@ -1219,6 +1226,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           )}
         </div>
       </div>
+      {/* Remote update notification */}
+      {isRemoteUpdate && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mt-4 rounded-md flex items-center gap-2 animate-fadeIn">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span className="text-sm font-medium">
+            This resume was updated by another user. Your view has been refreshed.
+          </span>
+        </div>
+      )}
       {showLoadingState ? (
         <div className="flex justify-center items-center h-32 text-gray-500">
           <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading borrower resume...

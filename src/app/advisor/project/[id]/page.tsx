@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Building,
   Send,
+  AlertCircle,
 } from "lucide-react";
 import {
   BorrowerProfile, // Used for demo mode mapping
@@ -36,6 +37,8 @@ import { ProjectSummaryCard } from "@/components/project/ProjectSummaryCard";
 import { BorrowerResumeForm } from "@/components/forms/BorrowerResumeForm";
 import { StickyChatCard } from "@/components/chat/StickyChatCard";
 import { usePermissionStore } from "@/stores/usePermissionStore";
+import { useProjectBorrowerResume } from "@/hooks/useProjectBorrowerResume";
+import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 // Utility functions
 const formatDate = (dateString: string) => {
@@ -131,11 +134,34 @@ export default function AdvisorProjectDetailPage() {
   const [isCopyingBorrower, setIsCopyingBorrower] = useState(false);
   const [isCopyOptionsLoading, setIsCopyOptionsLoading] = useState(false);
   const [borrowerResumeRefreshKey, setBorrowerResumeRefreshKey] = useState(0);
+  const [isProjectResumeRemoteUpdate, setIsProjectResumeRemoteUpdate] = useState(false);
+  const projectResumeChannelRef = useRef<RealtimeChannel | null>(null);
+  const isLocalProjectSaveRef = useRef(false);
   const loadPermissionsForProject = usePermissionStore(
     (state) => state.loadPermissionsForProject
   );
 
   const projectId = params?.id as string;
+
+  // Get borrower resume data and calculate progress
+  const {
+    content: borrowerResumeData,
+    isLoading: borrowerResumeLoading,
+  } = useProjectBorrowerResume(projectId);
+
+  const [borrowerProgress, setBorrowerProgress] = useState(0);
+
+  // Calculate borrower progress when resume data changes
+  useEffect(() => {
+    if (borrowerResumeData) {
+      const percent = computeBorrowerCompletion(borrowerResumeData);
+      setBorrowerProgress(percent);
+    } else if (project?.borrowerProgress) {
+      setBorrowerProgress(Math.round(project.borrowerProgress));
+    } else {
+      setBorrowerProgress(0);
+    }
+  }, [borrowerResumeData, project?.borrowerProgress]);
 
   const loadCopyOptions = useCallback(
     async (ownerOrgId?: string, currentProjectId?: string) => {
@@ -430,6 +456,63 @@ export default function AdvisorProjectDetailPage() {
     loadPermissionsForProject,
   ]);
 
+  // Subscribe to realtime changes for project resume
+  useEffect(() => {
+    if (!projectId || !user?.id) return;
+
+    const channel = supabase
+      .channel(`project-resume-advisor-${projectId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'project_resumes',
+          filter: `project_id=eq.${projectId}`
+        },
+        async (payload) => {
+          // Ignore our own updates
+          if (isLocalProjectSaveRef.current) {
+            isLocalProjectSaveRef.current = false;
+            return;
+          }
+
+          // Don't reload if user is editing (preserves their work)
+          if (isEditingProject) {
+            return;
+          }
+
+          setIsProjectResumeRemoteUpdate(true);
+          
+          // Defer state update to avoid updating during render
+          setTimeout(async () => {
+            // Reload project data
+            try {
+              const foundProject = await getProjectWithResume(projectId);
+              if (foundProject) {
+                setProject(foundProject);
+              }
+            } catch (error) {
+              console.error('Error reloading project after remote update:', error);
+            }
+            
+            // Reset notification after 3 seconds
+            setTimeout(() => {
+              setIsProjectResumeRemoteUpdate(false);
+            }, 3000);
+          }, 0);
+        }
+      )
+      .subscribe();
+
+    projectResumeChannelRef.current = channel;
+
+    return () => {
+      projectResumeChannelRef.current?.unsubscribe();
+      projectResumeChannelRef.current = null;
+    };
+  }, [projectId, user?.id, isEditingProject]);
+
   const loadMessages = useCallback(
     async (threadId: string) => {
       setIsLoadingMessages(true);
@@ -615,14 +698,25 @@ export default function AdvisorProjectDetailPage() {
             </div>
           </div>
         ) : (
-          <ProjectResumeView
-            project={project}
-            onEdit={() => setIsEditingProject(true)}
-          />
+          <>
+            {/* Remote update notification */}
+            {isProjectResumeRemoteUpdate && (
+              <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mb-4 rounded-md flex items-center gap-2 animate-fadeIn">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span className="text-sm font-medium">
+                  This project resume was updated by another user. Your view has been refreshed.
+                </span>
+              </div>
+            )}
+            <ProjectResumeView
+              project={project}
+              onEdit={() => setIsEditingProject(true)}
+            />
+          </>
         )}
       </>
     );
-  }, [project, isEditingProject]);
+  }, [project, isEditingProject, isProjectResumeRemoteUpdate]);
 
   // Document requirements removed
 
@@ -871,7 +965,7 @@ export default function AdvisorProjectDetailPage() {
 
   return (
     <RoleBasedRoute roles={["advisor"]}>
-      <div className="flex flex-col min-h-screen bg-gray-50">
+      <div className="flex flex-col min-h-screen bg-gray-200">
         <AnimatePresence>
           {isLoadingData && <SplashScreen />}
         </AnimatePresence>
@@ -939,6 +1033,7 @@ export default function AdvisorProjectDetailPage() {
                     onBorrowerClick={() => {
                       setActiveTab("borrower");
                     }}
+                    borrowerProgress={borrowerProgress}
                   />
                 </div>
 

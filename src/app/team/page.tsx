@@ -195,7 +195,7 @@ export default function TeamPage() {
         ) : (
           <>
             {/* Decorative Background Layer (mirrors dashboard) */}
-            <div className="relative min-h-full">
+            <div className="relative min-h-full bg-gray-200">
               {/* Subtle grid pattern */}
               <div className="pointer-events-none absolute inset-0 opacity-[0.5]">
                 <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
