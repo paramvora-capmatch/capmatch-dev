@@ -1,17 +1,19 @@
 // src/app/layout.tsx
 import type { Metadata } from "next";
-import { Inter, Manrope } from "next/font/google";
+import { Inter, Sora } from "next/font/google";
 import "./globals.css";
 import { ClientAppProviders } from "../components/providers/ClientAppProviders";
 
 const inter = Inter({
 	variable: "--font-sans",
 	subsets: ["latin"],
+	weight: ["400", "500", "600", "700"],
 });
 
-const manrope = Manrope({
+const sora = Sora({
 	variable: "--font-display",
 	subsets: ["latin"],
+	weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -33,7 +35,7 @@ export default function RootLayout({
 	return (
 		<html lang="en">
 			<body
-				className={`${inter.variable} ${manrope.variable} antialiased`}
+				className={`${inter.variable} ${sora.variable} antialiased`}
 			>
 				<ClientAppProviders>{children}</ClientAppProviders>
 			</body>
