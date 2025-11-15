@@ -38,7 +38,7 @@ export default function AdvisorResumePage() {
         <LoadingOverlay isLoading={false} />
 
         {/* Decorative Background Layer */}
-        <div className="absolute inset-0 -mx-4 sm:-mx-6 lg:-mx-8">
+        <div className="absolute inset-0 -mx-4 sm:-mx-6 lg:-mx-8 bg-gray-200">
           {/* Subtle grid pattern */}
           <div className="pointer-events-none absolute inset-0 opacity-[0.5]">
             <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">

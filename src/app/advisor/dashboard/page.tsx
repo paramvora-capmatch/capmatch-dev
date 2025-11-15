@@ -230,7 +230,7 @@ export default function AdvisorDashboardPage() {
         <LoadingOverlay isLoading={false} />
 
         {/* Decorative Background Layer */}
-        <div className="relative -mx-4 sm:-mx-6 lg:-mx-8">
+        <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 bg-gray-200">
 
           {/* Subtle grid pattern */}
           <div className="pointer-events-none absolute inset-0 opacity-[0.5]">

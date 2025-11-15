@@ -382,7 +382,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   );
 
   return (
-    <div className="relative min-h-screen w-full flex flex-row animate-fadeIn">
+    <div className="relative min-h-screen w-full flex flex-row animate-fadeIn bg-gray-200">
       <AskAIProvider
         onFieldAskAI={(fieldId: string) => {
           setActiveFieldId(fieldId); // This will be passed to the chat widget

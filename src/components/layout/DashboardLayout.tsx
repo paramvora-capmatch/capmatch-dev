@@ -46,7 +46,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-200">
       <LoadingOverlay isLoading={false} />
 
       {/* No sidebar - header-only layout */}
