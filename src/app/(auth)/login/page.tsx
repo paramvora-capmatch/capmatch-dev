@@ -11,7 +11,7 @@ import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
 import { Sparkles, Mail, Lock, Chrome } from "lucide-react";
 
-import { LoadingOverlay } from "../../../components/ui/LoadingOverlay";
+import { SplashScreen } from "../../../components/ui/SplashScreen";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -156,7 +156,6 @@ const LoginForm = () => {
 export default function LoginPage() {
   return (
     <AuthLayout>
-      <LoadingOverlay isLoading={false} />
       <Suspense
         fallback={
           <div className="w-full max-w-md animate-pulse bg-gray-200 h-96 rounded-xl"></div>

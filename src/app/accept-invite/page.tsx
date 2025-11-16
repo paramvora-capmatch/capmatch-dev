@@ -142,7 +142,7 @@ export default function AcceptInvitePage() {
   };
 
   if (isLoading) {
-    return <SplashScreen />;
+    return <SplashScreen text="Validating invitation..." />;
   }
 
   return (

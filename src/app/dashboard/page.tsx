@@ -7,6 +7,7 @@ import { useProjects } from "../../hooks/useProjects";
 import { useAuth } from "../../hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { SplashScreen } from "../../components/ui/SplashScreen";
+import { AnimatePresence } from "framer-motion";
 import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import Project Card
 import { ProjectCardSkeleton } from "../../components/dashboard/ProjectCardSkeleton";
 import {
@@ -411,7 +412,9 @@ export default function DashboardPage() {
         title="Dashboard"
         mainClassName="flex-1 overflow-auto pl-6 pr-3 sm:pr-4 lg:pr-6 pt-2 pb-6"
       >
-        {showSplashScreen && <SplashScreen />}
+        <AnimatePresence>
+          {showSplashScreen && <SplashScreen text="Loading dashboard..." />}
+        </AnimatePresence>
 
         {/* Decorative Background Layer */}
         <div className="relative -mx-6 sm:-mx-6 lg:-mx-6 bg-gray-200">
