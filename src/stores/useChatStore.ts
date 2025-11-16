@@ -253,14 +253,30 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
   loadParticipants: async (threadId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('chat_thread_participants')
-        .select(`*, user:profiles(id, full_name)`)
-        .eq('thread_id', threadId);
+      // Use edge function to bypass RLS and fetch all participants safely
+      const { data, error } = await supabase.functions.invoke('get-thread-participants', {
+        body: { thread_id: threadId },
+      });
 
-      if (error) throw error;
-      set({ participants: data || [] });
+      if (error) {
+        throw error;
+      }
+
+      const participants = (data?.participants || []) as {
+        thread_id: string;
+        user_id: string;
+        created_at: string;
+      }[];
+
+      set({
+        participants: participants.map((p) => ({
+          thread_id: p.thread_id,
+          user_id: p.user_id,
+          created_at: p.created_at,
+        })),
+      });
     } catch (err) {
+      console.error('[ChatStore] Failed to load participants via edge function:', err);
       set({ error: err instanceof Error ? err.message : 'Failed to load participants' });
     }
   },
