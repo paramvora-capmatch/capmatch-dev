@@ -149,7 +149,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
 
     const enrich = async () => {
       // Fetch profiles for all participant users via edge function (bypasses RLS)
-      let userProfilesMap = new Map<
+      const userProfilesMap = new Map<
         string,
         { id: string; full_name?: string; email?: string }
       >();
@@ -292,7 +292,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
 
           // Fetch all user profiles
           const allUserIds = (participantsData || []).map((p: any) => p.user_id);
-          let userProfilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
+          const userProfilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
           
           if (allUserIds.length > 0) {
             const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
