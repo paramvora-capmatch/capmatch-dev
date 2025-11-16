@@ -1,16 +1,16 @@
 // src/components/chat/ManageChannelMembersModal.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/Modal';
-import { MultiSelect } from '@/components/ui/MultiSelect';
 import { useOrgStore } from '@/stores/useOrgStore';
 import { useProjects } from '@/hooks/useProjects';
 import { useChatStore } from '@/stores/useChatStore';
-import { Loader2, User, X, Plus, Trash2, UserPlus } from 'lucide-react';
+import { Loader2, User, X, Plus, Trash2, UserPlus, FileText } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
+import { AttachableDocument } from '@/stores/useChatStore';
 
 interface ChatThread {
   id: string;
@@ -41,86 +41,181 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
   const router = useRouter();
   const { members, isOwner } = useOrgStore();
   const { activeProject } = useProjects();
-  const { participants, loadParticipants, addParticipant, removeParticipant, isLoading } = useChatStore();
+  const { participants, loadParticipants, addParticipant, removeParticipant, isLoading } =
+    useChatStore();
   const [selectedMembersToAdd, setSelectedMembersToAdd] = useState<string[]>([]);
   const [enrichedParticipants, setEnrichedParticipants] = useState<EnrichedParticipant[]>([]);
   const [projectMemberIds, setProjectMemberIds] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<AttachableDocument[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+  const previousParticipantIdsRef = useRef<Set<string>>(new Set());
 
+  // Ensure participants are loaded when modal opens
   useEffect(() => {
-    const loadAndEnrichParticipants = async () => {
-      if (!isOpen || !thread) return;
+    if (!isOpen || !thread) {
+      setEnrichedParticipants([]);
+      setError(null);
+      setSelectedMembersToAdd([]);
+      setDocuments([]);
+      setDocError(null);
+      setIsLoadingDocs(false);
+      return;
+    }
 
-      await loadParticipants(thread.id);
+    setError(null);
+    loadParticipants(thread.id);
+  }, [isOpen, thread, loadParticipants]);
 
-      // Enrich participants with profile data
-      const enriched: EnrichedParticipant[] = [];
+  // Compute participant IDs for document intersection (current + selected)
+  const participantIdsForDocs = useMemo(() => {
+    const ids = new Set<string>(participants.map((p) => p.user_id));
+    selectedMembersToAdd.forEach((id) => ids.add(id));
+    return Array.from(ids);
+  }, [participants, selectedMembersToAdd]);
 
-      for (const participant of participants) {
-        const memberInfo = members.find(m => m.user_id === participant.user_id);
+  // Fetch documents that everyone can reference
+  useEffect(() => {
+    if (!isOpen || !activeProject?.id || participantIdsForDocs.length === 0) {
+      setDocuments([]);
+      setDocError(null);
+      setIsLoadingDocs(false);
+      return;
+    }
 
-        if (memberInfo) {
-          // This is an org member
-          enriched.push({
-            ...participant,
-            userName: memberInfo.userName || memberInfo.userEmail || 'Unknown',
-            userEmail: memberInfo.userEmail || '',
-            userRole: memberInfo.role as any,
-            isAdvisor: false,
-          });
-        } else if (activeProject?.assignedAdvisorUserId === participant.user_id) {
-          // This is the assigned advisor - fetch their profile
-          try {
-            const { data: advisorProfile, error } = await supabase
-              .from('profiles')
-              .select('id, full_name, email, app_role')
-              .eq('id', participant.user_id)
-              .single();
-
-            if (error) {
-              console.error('[ManageChannelMembersModal] Error fetching advisor profile:', error);
-              enriched.push({
-                ...participant,
-                userName: 'Advisor',
-                userEmail: '',
-                userRole: 'advisor',
-                isAdvisor: true,
-              });
-            } else {
-              enriched.push({
-                ...participant,
-                userName: advisorProfile.full_name || advisorProfile.email,
-                userEmail: advisorProfile.email,
-                userRole: 'advisor',
-                isAdvisor: true,
-              });
-            }
-          } catch (err) {
-            console.error('[ManageChannelMembersModal] Failed to fetch advisor:', err);
-            enriched.push({
-              ...participant,
-              userName: 'Advisor',
-              userEmail: '',
-              userRole: 'advisor',
-              isAdvisor: true,
-            });
+    const fetchDocs = async () => {
+      setIsLoadingDocs(true);
+      setDocError(null);
+      try {
+        const { data, error } = await supabase.rpc(
+          'get_common_file_resources_for_member_set',
+          {
+            p_project_id: activeProject.id,
+            p_user_ids: participantIdsForDocs,
           }
-        } else {
-          // Unknown participant
-          enriched.push({
-            ...participant,
-            userName: 'Unknown',
-            userEmail: '',
-            userRole: 'member',
-            isAdvisor: false,
+        );
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const docs: AttachableDocument[] =
+          (data as any[])?.map((doc) => ({
+            resourceId: doc.resource_id,
+            name: doc.name,
+            scope: doc.scope,
+          })) ?? [];
+
+        setDocuments(docs);
+      } catch (err) {
+        console.error('[ManageChannelMembersModal] Failed to load documents:', err);
+        setDocError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to load shared documents'
+        );
+        setDocuments([]);
+      } finally {
+        setIsLoadingDocs(false);
+      }
+    };
+
+    fetchDocs();
+  }, [isOpen, participantIdsForDocs, activeProject?.id]);
+
+  // Enrich participants from store using org members + profiles
+  useEffect(() => {
+    if (!isOpen || !thread) return;
+
+    const participantUserIds = participants.map((p) => p.user_id);
+    if (participantUserIds.length === 0) {
+      setEnrichedParticipants([]);
+      previousParticipantIdsRef.current = new Set();
+      return;
+    }
+
+    const currentIds = new Set(participantUserIds);
+    const previousIds = previousParticipantIdsRef.current;
+    const hasChanges =
+      currentIds.size !== previousIds.size ||
+      Array.from(currentIds).some((id) => !previousIds.has(id));
+
+    if (!hasChanges && enrichedParticipants.length > 0) {
+      return;
+    }
+
+    previousParticipantIdsRef.current = currentIds;
+
+    const enrich = async () => {
+      // Fetch profiles for all participant users via edge function (bypasses RLS)
+      const userProfilesMap = new Map<
+        string,
+        { id: string; full_name?: string; email?: string }
+      >();
+
+      try {
+        const { data: profilesData, error: profilesError } = await supabase.functions.invoke(
+          "get-user-data",
+          { body: { userIds: participantUserIds } }
+        );
+
+        if (!profilesError && Array.isArray(profilesData)) {
+          profilesData.forEach((user: any) => {
+            userProfilesMap.set(user.id, {
+              id: user.id,
+              full_name: user.full_name,
+              email: user.email,
+            });
           });
         }
+      } catch (err) {
+        console.error(
+          "[ManageChannelMembersModal] Error fetching participant profiles:",
+          err
+        );
       }
+
+      const enriched: EnrichedParticipant[] = participants.map((participant) => {
+        const userId = participant.user_id;
+        const memberInfo = members.find((m) => m.user_id === userId);
+        const isAdvisor = activeProject?.assignedAdvisorUserId === userId;
+        const userProfile = userProfilesMap.get(userId);
+
+        if (memberInfo) {
+          return {
+            ...participant,
+            userName: memberInfo.userName || memberInfo.userEmail || "Unknown",
+            userEmail: memberInfo.userEmail || "",
+            userRole: (memberInfo.role as any) || "member",
+            isAdvisor: false,
+          };
+        }
+
+        if (isAdvisor) {
+          return {
+            ...participant,
+            userName: userProfile?.full_name || userProfile?.email || "Advisor",
+            userEmail: userProfile?.email || "",
+            userRole: "advisor",
+            isAdvisor: true,
+          };
+        }
+
+        return {
+          ...participant,
+          userName: userProfile?.full_name || "Unknown",
+          userEmail: userProfile?.email || "",
+          userRole: "member",
+          isAdvisor: false,
+        };
+      });
 
       setEnrichedParticipants(enriched);
     };
 
-    loadAndEnrichParticipants();
-  }, [isOpen, thread, loadParticipants, participants, members, activeProject]);
+    enrich();
+  }, [isOpen, thread, participants, members, activeProject, enrichedParticipants.length]);
 
   // Fetch project members when modal opens
   useEffect(() => {
@@ -166,8 +261,106 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
 
   const handleAdd = async () => {
     if (selectedMembersToAdd.length === 0) return;
-    await addParticipant(thread.id, selectedMembersToAdd);
-    setSelectedMembersToAdd([]);
+    
+    setError(null);
+    try {
+      await addParticipant(thread.id, selectedMembersToAdd);
+      setSelectedMembersToAdd([]);
+      setError(null); // Clear error on success
+      
+      // Force reload by fetching directly from DB and enriching
+      // This ensures we show the newly added member even if store hasn't updated
+      try {
+        const { data: participantsData, error } = await supabase
+          .from('chat_thread_participants')
+          .select(`*, user:profiles(id, full_name, email)`)
+          .eq('thread_id', thread.id);
+
+        if (!error && participantsData) {
+          // Ensure advisor is included if assigned to project but not in participants
+          const participantUserIds = new Set((participantsData || []).map((p: any) => p.user_id));
+          const advisorId = activeProject?.assignedAdvisorUserId;
+          
+          if (advisorId && !participantUserIds.has(advisorId)) {
+            participantsData.push({
+              user_id: advisorId,
+              thread_id: thread.id,
+              created_at: new Date().toISOString(),
+              user: null,
+            });
+          }
+
+          // Fetch all user profiles
+          const allUserIds = (participantsData || []).map((p: any) => p.user_id);
+          const userProfilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
+          
+          if (allUserIds.length > 0) {
+            const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
+              body: { userIds: allUserIds },
+            });
+
+            if (!profilesError && Array.isArray(profilesData)) {
+              profilesData.forEach((user: any) => {
+                userProfilesMap.set(user.id, {
+                  id: user.id,
+                  full_name: user.full_name,
+                  email: user.email,
+                });
+              });
+            }
+          }
+
+          // Enrich and update
+          const enriched: EnrichedParticipant[] = [];
+          for (const participant of participantsData || []) {
+            const userId = participant.user_id;
+            const memberInfo = members.find(m => m.user_id === userId);
+            const isAdvisor = activeProject?.assignedAdvisorUserId === userId;
+            const userProfile = userProfilesMap.get(userId) || participant.user;
+
+            if (memberInfo) {
+              enriched.push({
+                ...participant,
+                userName: memberInfo.userName || memberInfo.userEmail || 'Unknown',
+                userEmail: memberInfo.userEmail || '',
+                userRole: memberInfo.role as any,
+                isAdvisor: false,
+              });
+            } else if (isAdvisor) {
+              const profile = userProfile || participant.user;
+              enriched.push({
+                ...participant,
+                userName: profile?.full_name || profile?.email || 'Advisor',
+                userEmail: profile?.email || '',
+                userRole: 'advisor',
+                isAdvisor: true,
+              });
+            } else {
+              const profile = userProfile || participant.user;
+              enriched.push({
+                ...participant,
+                userName: profile?.full_name || 'Unknown',
+                userEmail: profile?.email || '',
+                userRole: 'member',
+                isAdvisor: false,
+              });
+            }
+          }
+
+          console.log('[ManageChannelMembersModal] After add: Enriched participants:', enriched);
+          setEnrichedParticipants(enriched);
+          previousParticipantIdsRef.current = new Set((participantsData || []).map((p: any) => p.user_id));
+        }
+      } catch (reloadErr) {
+        console.error('[ManageChannelMembersModal] Error reloading after add:', reloadErr);
+      }
+      
+      // Also update the store for consistency
+      await loadParticipants(thread.id);
+    } catch (err) {
+      console.error('[ManageChannelMembersModal] Failed to add participants:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add members to channel');
+    }
   };
 
   const handleRemove = async (userId: string) => {
@@ -177,12 +370,15 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Manage Members for #${thread.topic}`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Manage Members for #${thread.topic}`} size="4xl">
       <ModalBody>
-        <div className="space-y-4">
-          {/* Add Members Section */}
-          <div>
-            <h4 className="font-medium text-gray-800 mb-2">Add Members</h4>
+        <div className="grid grid-cols-2 gap-4 h-[500px]">
+          {/* Left Panel - Members */}
+          <div className="border-r border-gray-200 pr-4 flex flex-col min-h-0">
+            <div className="space-y-4 flex-shrink-0">
+              {/* Add Members Section */}
+              <div>
+                <h4 className="font-medium text-gray-800 mb-2">Add Members</h4>
             {availableMembers.length === 0 ? (
               <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
                 <div className="flex flex-col items-center justify-center text-center space-y-2">
@@ -205,75 +401,174 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
-                <div className="flex-grow">
-                  <MultiSelect
-                    options={availableMembers.map(m => m.userName || m.userEmail || '')}
-                    value={selectedMembersToAdd.map(id => members.find(m => m.user_id === id)?.userName || '')}
-                    onChange={(selectedLabels) => {
-                      const selectedIds = selectedLabels
-                        .map(label => members.find(m => m.userName === label)?.user_id)
-                        .filter(Boolean) as string[];
-                      setSelectedMembersToAdd(selectedIds);
-                    }}
-                    placeholder="Select members..."
-                  />
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2 min-h-[60px] p-3 bg-gray-50 rounded-md border border-gray-200">
+                  {availableMembers.length === 0 ? (
+                    <p className="text-sm text-gray-500 flex items-center">No members available to add</p>
+                  ) : (
+                    availableMembers.map((member) => {
+                      const isSelected = selectedMembersToAdd.includes(member.user_id);
+                      return (
+                        <button
+                          key={member.user_id}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedMembersToAdd(selectedMembersToAdd.filter(id => id !== member.user_id));
+                            } else {
+                              setSelectedMembersToAdd([...selectedMembersToAdd, member.user_id]);
+                            }
+                          }}
+                          className={`
+                            px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200
+                            flex items-center gap-2
+                            ${isSelected 
+                              ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700' 
+                              : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                            }
+                          `}
+                        >
+                          <User size={14} />
+                          <span>{member.userName || member.userEmail || 'Unknown'}</span>
+                          {isSelected && (
+                            <span className="ml-1">✓</span>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
-                <Button onClick={handleAdd} disabled={isLoading || selectedMembersToAdd.length === 0}>
-                  <Plus size={16} /> Add
-                </Button>
+                <div className="space-y-2">
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-sm">
+                      {error}
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={handleAdd} 
+                      disabled={isLoading || selectedMembersToAdd.length === 0}
+                      className="min-w-[100px]"
+                    >
+                      <Plus size={16} className="mr-1" /> Add {selectedMembersToAdd.length > 0 && `(${selectedMembersToAdd.length})`}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Current Members Section */}
-          <div>
-            <h4 className="font-medium text-gray-800 mb-2">Current Members</h4>
-            <div className="max-h-60 overflow-y-auto space-y-2 border rounded-md p-2">
+              {/* Current Members Section */}
+              <div>
+                <h4 className="font-medium text-gray-800 mb-2">Current Members</h4>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto mt-2">
               {isLoading && enrichedParticipants.length === 0 ? (
                 <div className="text-center p-4"><Loader2 className="animate-spin" /></div>
+              ) : enrichedParticipants.length === 0 ? (
+                <div className="text-sm text-gray-500 py-8 px-4 border border-gray-200 rounded-lg bg-gray-50 text-center">
+                  No members in this channel yet.
+                </div>
               ) : (
-                enrichedParticipants.map(p => {
-                  const isCurrentUserOwner = p.userRole === 'owner';
-                  const canRemove = !isCurrentUserOwner && !p.isAdvisor && isOwner;
+                <div className="space-y-2">
+                  {enrichedParticipants.map(p => {
+                    const isCurrentUserOwner = p.userRole === 'owner';
+                    const canRemove = !isCurrentUserOwner && !p.isAdvisor && isOwner;
 
-                  return (
-                    <div key={p.user_id} className="flex items-center justify-between p-2 rounded hover:bg-gray-50">
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          p.isAdvisor ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
-                        }`}>
-                          <User size={16} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium">{p.userName}</p>
-                            {p.isAdvisor && (
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                                Advisor
-                              </span>
-                            )}
-                            {isCurrentUserOwner && (
-                              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                                Owner
-                              </span>
-                            )}
+                    return (
+                      <div key={p.user_id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            p.isAdvisor ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
+                          }`}>
+                            <User size={16} />
                           </div>
-                          <p className="text-xs text-gray-500">{p.userEmail}</p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium">{p.userName}</p>
+                              {p.isAdvisor && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                                  Advisor
+                                </span>
+                              )}
+                              {isCurrentUserOwner && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                                  Owner
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">{p.userEmail}</p>
+                          </div>
+                        </div>
+                        {canRemove ? (
+                           <Button variant="ghost" size="icon" onClick={() => handleRemove(p.user_id)} disabled={isLoading}>
+                             <Trash2 size={16} className="text-red-500" />
+                           </Button>
+                        ) : (
+                          <span className="text-xs font-semibold text-gray-400">
+                            {p.isAdvisor ? 'Cannot Remove' : 'Owner'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Panel - Documents */}
+          <div className="flex flex-col pl-4 min-h-0">
+            <div className="flex items-center justify-between mb-3 flex-shrink-0">
+              <div className="text-sm font-semibold text-gray-900">
+                Documents everyone can mention
+              </div>
+              <span className="text-xs text-gray-500 font-medium">
+                {documents.length} {documents.length === 1 ? 'item' : 'items'}
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {isLoadingDocs ? (
+                <div className="flex items-center justify-center py-12 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading...
+                </div>
+              ) : docError ? (
+                <div className="py-4 px-3 text-sm text-red-600 border border-red-200 rounded-lg bg-red-50">
+                  {docError}
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-sm text-gray-500">
+                  <FileText className="h-8 w-8 text-gray-400 mb-2" />
+                  <p>No documents are currently shared</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    across all selected members
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.resourceId}
+                      className="border border-gray-200 rounded-lg p-3 bg-white hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start gap-2">
+                        <FileText className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {doc.name}
+                          </div>
+                          <div className="mt-1">
+                            <span className="text-xs uppercase tracking-wide text-gray-500 font-medium">
+                              {doc.scope === 'org' ? 'BORROWER DOCS' : 'PROJECT DOCS'}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      {canRemove ? (
-                         <Button variant="ghost" size="icon" onClick={() => handleRemove(p.user_id)} disabled={isLoading}>
-                           <Trash2 size={16} className="text-red-500" />
-                         </Button>
-                      ) : (
-                        <span className="text-xs font-semibold text-gray-400">
-                          {p.isAdvisor ? 'Cannot Remove' : 'Owner'}
-                        </span>
-                      )}
                     </div>
-                  );
-                })
+                  ))}
+                </div>
               )}
             </div>
           </div>

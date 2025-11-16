@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { InviteMemberModal } from "@/components/team/InviteMemberModal";
 import { EditMemberPermissionsModal } from "@/components/team/EditMemberPermissionsModal";
 import { SplashScreen } from "@/components/ui/SplashScreen";
+import { AnimatePresence } from "framer-motion";
 import { MemberView } from "@/components/team/MemberView";
 import { OwnerView } from "@/components/team/OwnerView";
 import { OrgMemberRole } from "@/types/enhanced-types";
@@ -184,7 +185,9 @@ export default function TeamPage() {
   return (
     <RoleBasedRoute roles={["borrower"]}>
       <DashboardLayout breadcrumb={breadcrumb} mainClassName="flex-1 overflow-auto">
-        {isLoading && !isInviting && !showInviteModal && !showEditPermissionsModal && <SplashScreen />}
+        <AnimatePresence>
+          {isLoading && !isInviting && !showInviteModal && !showEditPermissionsModal && <SplashScreen text="Loading team..." />}
+        </AnimatePresence>
 
         {!activeOrg ? (
           <div className="text-center py-8">

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../hooks/useAuth";
 
-import { LoadingOverlay } from "../../../components/ui/LoadingOverlay";
+import { SplashScreen } from "../../../components/ui/SplashScreen";
 import { Card, CardContent } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/Button";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -227,7 +227,6 @@ export default function AdvisorDashboardPage() {
   return (
     <RoleBasedRoute roles={["advisor"]}>
       <DashboardLayout title="Advisor Dashboard" scrollableContent={true} hideTeamButton={true}>
-        <LoadingOverlay isLoading={false} />
 
         {/* Decorative Background Layer */}
         <div className="relative -mx-4 sm:-mx-6 lg:-mx-8 bg-gray-200">

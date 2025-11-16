@@ -967,7 +967,7 @@ export default function AdvisorProjectDetailPage() {
     <RoleBasedRoute roles={["advisor"]}>
       <div className="flex flex-col min-h-screen bg-gray-200">
         <AnimatePresence>
-          {isLoadingData && <SplashScreen />}
+          {isLoadingData && <SplashScreen text="Loading project..." />}
         </AnimatePresence>
 
         {/* Header */}

@@ -7,7 +7,7 @@ import { RoleBasedRoute } from "../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../hooks/useAuth";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { AdvisorResumeForm } from "@/components/forms/AdvisorResumeForm";
-import { LoadingOverlay } from "@/components/ui/LoadingOverlay";
+import { SplashScreen } from "@/components/ui/SplashScreen";
 
 export default function AdvisorResumePage() {
   const router = useRouter();
@@ -35,7 +35,6 @@ export default function AdvisorResumePage() {
         hideTeamButton={true}
         mainClassName="flex-1 overflow-auto flex flex-col"
       >
-        <LoadingOverlay isLoading={false} />
 
         {/* Decorative Background Layer */}
         <div className="absolute inset-0 -mx-4 sm:-mx-6 lg:-mx-8 bg-gray-200">

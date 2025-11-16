@@ -8,7 +8,7 @@ import { LogOut, Users, Settings } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import Image from "next/image";
 
-import { LoadingOverlay } from "../ui/LoadingOverlay";
+import { SplashScreen } from "../ui/SplashScreen";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -47,7 +47,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <div className="flex h-screen bg-gray-200">
-      <LoadingOverlay isLoading={false} />
 
       {/* No sidebar - header-only layout */}
 

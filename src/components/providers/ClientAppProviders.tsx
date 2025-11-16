@@ -13,7 +13,7 @@ export const ClientAppProviders: React.FC<{ children: React.ReactNode }> = ({ ch
     // Show a full-screen splash/loader until the app is hydrated
     // Note: The SplashScreen itself has a timeout, but this hook will keep it
     // visible until all stores confirm they are loaded.
-    return <SplashScreen />;
+    return <SplashScreen text="Initializing application..." />;
   }
 
   return (

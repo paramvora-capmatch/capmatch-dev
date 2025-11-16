@@ -940,90 +940,141 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               <h3 className="text-base md:text-lg font-semibold text-gray-800">Add Principal</h3>
               {/* Name full width */}
               <FormGroup>
-                <Input
-                  id="pName"
-                  label={<span>Name <span className="text-red-500">*</span></span>}
-                  value={principalFormData.principalLegalName || ""}
-                  onChange={(e) =>
-                    handlePrincipalInputChange(
-                      "principalLegalName",
-                      e.target.value
-                    )
-                  }
-                  required
-                  disabled={!isEditing}
-                />
+                <AskAIButton id="principalLegalName" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="principalLegalName"
+                    data-field-type="input"
+                    data-field-section="principals"
+                    data-field-required="true"
+                    data-field-label="Principal Name"
+                  >
+                    <Input
+                      id="pName"
+                      label={<span>Name <span className="text-red-500">*</span></span>}
+                      value={principalFormData.principalLegalName || ""}
+                      onChange={(e) =>
+                        handlePrincipalInputChange(
+                          "principalLegalName",
+                          e.target.value
+                        )
+                      }
+                      required
+                      disabled={!isEditing}
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               {/* Role on next line, full width */}
               <FormGroup>
-                <ButtonSelect
-                  label="Role"
-                  options={principalRoleOptions}
-                  selectedValue={
-                    principalFormData.principalRoleDefault || "Key Principal"
-                  }
-                  onSelect={(v) =>
-                    handlePrincipalInputChange(
-                      "principalRoleDefault",
-                      v as PrincipalRole
-                    )
-                  }
-                  required
-                  disabled={!isEditing}
-                  buttonClassName="text-sm"
-                  gridCols="grid-cols-8"
-                />
+                <AskAIButton id="principalRoleDefault" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="principalRoleDefault"
+                    data-field-type="button-select"
+                    data-field-section="principals"
+                    data-field-required="true"
+                    data-field-label="Principal Role"
+                    data-field-options='["Managing Member","General Partner","Developer","Sponsor","Key Principal","Guarantor","Limited Partner","Other"]'
+                  >
+                    <ButtonSelect
+                      label="Role"
+                      options={principalRoleOptions}
+                      selectedValue={
+                        principalFormData.principalRoleDefault || "Key Principal"
+                      }
+                      onSelect={(v) =>
+                        handlePrincipalInputChange(
+                          "principalRoleDefault",
+                          v as PrincipalRole
+                        )
+                      }
+                      required
+                      disabled={!isEditing}
+                      buttonClassName="text-sm"
+                      gridCols="grid-cols-8"
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               {/* Email & Ownership side by side */}
               <div className="grid md:grid-cols-2 gap-4">
                 <FormGroup>
-                  <Input
-                    id="pEmail"
-                    type="email"
-                    label="Email"
-                    value={principalFormData.principalEmail || ""}
-                    onChange={(e) =>
-                      handlePrincipalInputChange("principalEmail", e.target.value)
-                    }
-                    disabled={!isEditing}
-                  />
+                  <AskAIButton id="principalEmail" onAskAI={onAskAI || (() => {})}>
+                    <div
+                      data-field-id="principalEmail"
+                      data-field-type="input"
+                      data-field-section="principals"
+                      data-field-required="false"
+                      data-field-label="Principal Email"
+                    >
+                      <Input
+                        id="pEmail"
+                        type="email"
+                        label="Email"
+                        value={principalFormData.principalEmail || ""}
+                        onChange={(e) =>
+                          handlePrincipalInputChange("principalEmail", e.target.value)
+                        }
+                        disabled={!isEditing}
+                      />
+                    </div>
+                  </AskAIButton>
                 </FormGroup>
                 <FormGroup>
-                  <Input
-                    id="pOwn"
-                    type="number"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    step="0.01"
-                    label="Ownership (%)"
-                    value={
-                      principalFormData.ownershipPercentage?.toString() || ""
-                    }
-                    onChange={(e) => {
-                      const raw = e.target.value || "";
-                      const cleaned = raw.replace(/[^\d.]/g, "");
-                      const bounded = Math.max(0, Math.min(100, Number(cleaned || 0)));
-                      handlePrincipalInputChange("ownershipPercentage", bounded);
-                    }}
-                    min="0"
-                    max="100"
-                    disabled={!isEditing}
-                  />
+                  <AskAIButton id="ownershipPercentage" onAskAI={onAskAI || (() => {})}>
+                    <div
+                      data-field-id="ownershipPercentage"
+                      data-field-type="input"
+                      data-field-section="principals"
+                      data-field-required="false"
+                      data-field-label="Ownership Percentage"
+                    >
+                      <Input
+                        id="pOwn"
+                        type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        step="0.01"
+                        label="Ownership (%)"
+                        value={
+                          principalFormData.ownershipPercentage?.toString() || ""
+                        }
+                        onChange={(e) => {
+                          const raw = e.target.value || "";
+                          const cleaned = raw.replace(/[^\d.]/g, "");
+                          const bounded = Math.max(0, Math.min(100, Number(cleaned || 0)));
+                          handlePrincipalInputChange("ownershipPercentage", bounded);
+                        }}
+                        min="0"
+                        max="100"
+                        disabled={!isEditing}
+                      />
+                    </div>
+                  </AskAIButton>
                 </FormGroup>
               </div>
               {/* Bio full width */}
               <FormGroup>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Bio (Opt)</label>
-                <textarea
-                  id="pBio"
-                  value={principalFormData.principalBio || ""}
-                  onChange={(e) =>
-                    handlePrincipalInputChange("principalBio", e.target.value)
-                  }
-                  rows={2}
-                  disabled={!isEditing}
-                  className="w-full border border-gray-300 rounded-md p-2 disabled:bg-gray-50 disabled:cursor-not-allowed focus:ring-blue-500 focus:border-blue-500"
-                />
+                <AskAIButton id="principalBio" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="principalBio"
+                    data-field-type="textarea"
+                    data-field-section="principals"
+                    data-field-required="false"
+                    data-field-label="Principal Bio"
+                  >
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio (Opt)</label>
+                    <textarea
+                      id="pBio"
+                      value={principalFormData.principalBio || ""}
+                      onChange={(e) =>
+                        handlePrincipalInputChange("principalBio", e.target.value)
+                      }
+                      rows={2}
+                      disabled={!isEditing}
+                      className="w-full border border-gray-300 rounded-md p-2 disabled:bg-gray-50 disabled:cursor-not-allowed focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <Button
                 onClick={handleAddPrincipal}
