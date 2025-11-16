@@ -1,15 +1,16 @@
 // src/components/chat/ManageChannelMembersModal.tsx
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/Modal';
 import { useOrgStore } from '@/stores/useOrgStore';
 import { useProjects } from '@/hooks/useProjects';
 import { useChatStore } from '@/stores/useChatStore';
-import { Loader2, User, X, Plus, Trash2, UserPlus } from 'lucide-react';
+import { Loader2, User, X, Plus, Trash2, UserPlus, FileText } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
+import { AttachableDocument } from '@/stores/useChatStore';
 
 interface ChatThread {
   id: string;
@@ -46,6 +47,9 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
   const [enrichedParticipants, setEnrichedParticipants] = useState<EnrichedParticipant[]>([]);
   const [projectMemberIds, setProjectMemberIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<AttachableDocument[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
   const previousParticipantIdsRef = useRef<Set<string>>(new Set());
 
   // Ensure participants are loaded when modal opens
@@ -53,12 +57,72 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
     if (!isOpen || !thread) {
       setEnrichedParticipants([]);
       setError(null);
+      setSelectedMembersToAdd([]);
+      setDocuments([]);
+      setDocError(null);
+      setIsLoadingDocs(false);
       return;
     }
 
     setError(null);
     loadParticipants(thread.id);
   }, [isOpen, thread, loadParticipants]);
+
+  // Compute participant IDs for document intersection (current + selected)
+  const participantIdsForDocs = useMemo(() => {
+    const ids = new Set<string>(participants.map((p) => p.user_id));
+    selectedMembersToAdd.forEach((id) => ids.add(id));
+    return Array.from(ids);
+  }, [participants, selectedMembersToAdd]);
+
+  // Fetch documents that everyone can reference
+  useEffect(() => {
+    if (!isOpen || !activeProject?.id || participantIdsForDocs.length === 0) {
+      setDocuments([]);
+      setDocError(null);
+      setIsLoadingDocs(false);
+      return;
+    }
+
+    const fetchDocs = async () => {
+      setIsLoadingDocs(true);
+      setDocError(null);
+      try {
+        const { data, error } = await supabase.rpc(
+          'get_common_file_resources_for_member_set',
+          {
+            p_project_id: activeProject.id,
+            p_user_ids: participantIdsForDocs,
+          }
+        );
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const docs: AttachableDocument[] =
+          (data as any[])?.map((doc) => ({
+            resourceId: doc.resource_id,
+            name: doc.name,
+            scope: doc.scope,
+          })) ?? [];
+
+        setDocuments(docs);
+      } catch (err) {
+        console.error('[ManageChannelMembersModal] Failed to load documents:', err);
+        setDocError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to load shared documents'
+        );
+        setDocuments([]);
+      } finally {
+        setIsLoadingDocs(false);
+      }
+    };
+
+    fetchDocs();
+  }, [isOpen, participantIdsForDocs, activeProject?.id]);
 
   // Enrich participants from store using org members + profiles
   useEffect(() => {
@@ -306,12 +370,15 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Manage Members for #${thread.topic}`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`Manage Members for #${thread.topic}`} size="4xl">
       <ModalBody>
-        <div className="space-y-4">
-          {/* Add Members Section */}
-          <div>
-            <h4 className="font-medium text-gray-800 mb-2">Add Members</h4>
+        <div className="grid grid-cols-2 gap-4 h-[500px]">
+          {/* Left Panel - Members */}
+          <div className="border-r border-gray-200 pr-4 flex flex-col min-h-0">
+            <div className="space-y-4 flex-shrink-0">
+              {/* Add Members Section */}
+              <div>
+                <h4 className="font-medium text-gray-800 mb-2">Add Members</h4>
             {availableMembers.length === 0 ? (
               <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
                 <div className="flex flex-col items-center justify-center text-center space-y-2">
@@ -391,54 +458,117 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
             )}
           </div>
 
-          {/* Current Members Section */}
-          <div>
-            <h4 className="font-medium text-gray-800 mb-2">Current Members</h4>
-            <div className="max-h-60 overflow-y-auto space-y-2 p-2">
+              {/* Current Members Section */}
+              <div>
+                <h4 className="font-medium text-gray-800 mb-2">Current Members</h4>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto mt-2">
               {isLoading && enrichedParticipants.length === 0 ? (
                 <div className="text-center p-4"><Loader2 className="animate-spin" /></div>
+              ) : enrichedParticipants.length === 0 ? (
+                <div className="text-sm text-gray-500 py-8 px-4 border border-gray-200 rounded-lg bg-gray-50 text-center">
+                  No members in this channel yet.
+                </div>
               ) : (
-                enrichedParticipants.map(p => {
-                  const isCurrentUserOwner = p.userRole === 'owner';
-                  const canRemove = !isCurrentUserOwner && !p.isAdvisor && isOwner;
+                <div className="space-y-2">
+                  {enrichedParticipants.map(p => {
+                    const isCurrentUserOwner = p.userRole === 'owner';
+                    const canRemove = !isCurrentUserOwner && !p.isAdvisor && isOwner;
 
-                  return (
-                    <div key={p.user_id} className="flex items-center justify-between p-2 rounded hover:bg-gray-50">
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          p.isAdvisor ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
-                        }`}>
-                          <User size={16} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium">{p.userName}</p>
-                            {p.isAdvisor && (
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                                Advisor
-                              </span>
-                            )}
-                            {isCurrentUserOwner && (
-                              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                                Owner
-                              </span>
-                            )}
+                    return (
+                      <div key={p.user_id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            p.isAdvisor ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
+                          }`}>
+                            <User size={16} />
                           </div>
-                          <p className="text-xs text-gray-500">{p.userEmail}</p>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium">{p.userName}</p>
+                              {p.isAdvisor && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                                  Advisor
+                                </span>
+                              )}
+                              {isCurrentUserOwner && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                                  Owner
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">{p.userEmail}</p>
+                          </div>
+                        </div>
+                        {canRemove ? (
+                           <Button variant="ghost" size="icon" onClick={() => handleRemove(p.user_id)} disabled={isLoading}>
+                             <Trash2 size={16} className="text-red-500" />
+                           </Button>
+                        ) : (
+                          <span className="text-xs font-semibold text-gray-400">
+                            {p.isAdvisor ? 'Cannot Remove' : 'Owner'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Panel - Documents */}
+          <div className="flex flex-col pl-4 min-h-0">
+            <div className="flex items-center justify-between mb-3 flex-shrink-0">
+              <div className="text-sm font-semibold text-gray-900">
+                Documents everyone can mention
+              </div>
+              <span className="text-xs text-gray-500 font-medium">
+                {documents.length} {documents.length === 1 ? 'item' : 'items'}
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {isLoadingDocs ? (
+                <div className="flex items-center justify-center py-12 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading...
+                </div>
+              ) : docError ? (
+                <div className="py-4 px-3 text-sm text-red-600 border border-red-200 rounded-lg bg-red-50">
+                  {docError}
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-sm text-gray-500">
+                  <FileText className="h-8 w-8 text-gray-400 mb-2" />
+                  <p>No documents are currently shared</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    across all selected members
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.resourceId}
+                      className="border border-gray-200 rounded-lg p-3 bg-white hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start gap-2">
+                        <FileText className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {doc.name}
+                          </div>
+                          <div className="mt-1">
+                            <span className="text-xs uppercase tracking-wide text-gray-500 font-medium">
+                              {doc.scope === 'org' ? 'BORROWER DOCS' : 'PROJECT DOCS'}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      {canRemove ? (
-                         <Button variant="ghost" size="icon" onClick={() => handleRemove(p.user_id)} disabled={isLoading}>
-                           <Trash2 size={16} className="text-red-500" />
-                         </Button>
-                      ) : (
-                        <span className="text-xs font-semibold text-gray-400">
-                          {p.isAdvisor ? 'Cannot Remove' : 'Owner'}
-                        </span>
-                      )}
                     </div>
-                  );
-                })
+                  ))}
+                </div>
               )}
             </div>
           </div>
