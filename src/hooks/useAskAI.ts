@@ -52,7 +52,7 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
   });
 
   // Send message to AI - moved before activateField to resolve dependency issue
-  const sendMessage = useCallback(async (content: string, displayMessage?: string, contextOverride?: FieldContext) => {
+  const sendMessage = useCallback(async (content: string, displayMessage?: string, contextOverride?: FieldContext, replyTo?: Message | null) => {
     const effectiveContext = contextOverride || fieldContext;
     if (!effectiveContext || !content.trim() || isBuildingContext) return;
     
@@ -64,7 +64,9 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
       type: 'user',
       content: displayMessage?.trim() || content.trim(), // Use displayMessage if provided, otherwise use content
       timestamp: new Date(),
-      fieldContext: effectiveContext
+      fieldContext: effectiveContext,
+      reply_to: replyTo?.id || null,
+      repliedMessage: replyTo || null,
     };
     
     // Add user message immediately

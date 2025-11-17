@@ -23,6 +23,7 @@ interface StickyChatCardProps {
   externalActiveTab?: 'team' | 'ai';
   externalShouldExpand?: boolean; // When true, expands the chat if collapsed
   hideTeamTab?: boolean; // When true, hides team tab and shows only AI chat
+  onAIReplyClick?: (message: Message) => void; // Callback for AI chat reply clicks
 }
 
 export const StickyChatCard: React.FC<StickyChatCardProps> = ({
@@ -39,6 +40,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   externalActiveTab,
   externalShouldExpand,
   hideTeamTab = false,
+  onAIReplyClick,
 }) => {
   const [rightTab, setRightTab] = useState<"team" | "ai">(hideTeamTab ? "ai" : "team");
   const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(() => {
@@ -214,6 +216,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                       isBuildingContext={isBuildingContext}
                       contextError={contextError}
                       hasActiveContext={hasActiveContext}
+                      onReplyClick={onAIReplyClick}
                     />
                   ) : (
                     <div className="h-full flex items-center justify-center">

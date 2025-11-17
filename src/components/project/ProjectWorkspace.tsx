@@ -607,6 +607,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           hasActiveContext={activeAskAi.hasActiveContext}
           externalActiveTab={chatTab}
           externalShouldExpand={shouldExpandChat}
+          onAIReplyClick={(message) => {
+            // When user clicks reply on an AI message, send a follow-up question
+            const followUpQuestion = `Following up on your previous response: "${message.content?.substring(0, 100)}..." - Can you provide more details?`;
+            void activeAskAi.sendMessage(followUpQuestion, undefined, undefined, message);
+          }}
         />
       </AskAIProvider>
       {previewingResourceId && (

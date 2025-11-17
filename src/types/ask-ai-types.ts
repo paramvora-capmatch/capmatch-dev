@@ -64,6 +64,8 @@ export interface Message {
   timestamp: Date;
   fieldContext?: FieldContext | null;
   isStreaming?: boolean;
+  reply_to?: string | null; // ID of the message this is replying to
+  repliedMessage?: Message | null; // The message being replied to (populated on load)
 }
 
 export interface PresetQuestion {

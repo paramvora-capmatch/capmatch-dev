@@ -24,6 +24,8 @@ import {
   FileText,
   X,
   Hash,
+  Reply,
+  ArrowUp,
 } from "lucide-react";
 
 interface ChatInterfaceProps {
@@ -37,6 +39,25 @@ import { ManageChannelMembersModal } from "./ManageChannelMembersModal";
 import { ChatThread } from "@/types/enhanced-types";
 import { RichTextInput, RichTextInputRef } from "./RichTextInput";
 import { cn } from "@/utils/cn";
+
+// ProjectMessage type matching what useChatStore provides (includes sender, reply_to, etc.)
+interface ProjectMessage {
+  id: number | string;
+  thread_id: string;
+  user_id: string;
+  content?: string;
+  created_at: string;
+  reply_to?: number | null;
+  status?: 'sending' | 'delivered' | 'failed';
+  isOptimistic?: boolean;
+  isFadingOut?: boolean;
+  sender?: {
+    id: string;
+    full_name?: string;
+    email?: string;
+  };
+  repliedMessage?: ProjectMessage | null;
+}
 
 
 interface BlockedDocInfo {
@@ -110,6 +131,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const permissions = usePermissionStore((state) => state.permissions);
   const [managingThread, setManagingThread] = useState<ChatThread | null>(null);
   const [showCreateThreadModal, setShowCreateThreadModal] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ProjectMessage | null>(null);
+  const messageRefs = useRef<Map<number | string, HTMLDivElement>>(new Map());
 
   // Fetch owners of the project's owner org directly from database
   useEffect(() => {
@@ -402,12 +425,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     setShowDocPicker(false);
     setBlockedState(null);
+    setReplyingTo(null); // Clear reply when switching threads
   }, [activeThreadId]);
 
 
-  const processSend = async (threadId: string, message: string) => {
+  const processSend = async (threadId: string, message: string, replyTo?: number | null) => {
     try {
-      await sendMessage(threadId, message.trim());
+      await sendMessage(threadId, message.trim(), replyTo);
       setNewMessage("");
       setBlockedState(null);
       return true;
@@ -440,7 +464,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleSendMessage = async () => {
     if (!canSendMessage || !activeThreadId) return;
-    await processSend(activeThreadId, newMessage);
+    const replyToId = replyingTo ? Number(replyingTo.id) : null;
+    await processSend(activeThreadId, newMessage, replyToId);
+    setReplyingTo(null); // Clear reply after sending
+  };
+
+  const handleReplyClick = (message: ProjectMessage) => {
+    setReplyingTo(message);
+    // Focus the input
+    if (richTextInputRef.current) {
+      richTextInputRef.current.focus();
+    }
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  const scrollToMessage = (messageId: number | string) => {
+    const messageElement = messageRefs.current.get(messageId);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight the message briefly
+      messageElement.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-75');
+      setTimeout(() => {
+        messageElement.classList.remove('ring-2', 'ring-blue-400', 'ring-opacity-75');
+      }, 2000);
+    }
   };
 
   const handleTextChange = (text: string) => {
@@ -819,16 +869,42 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   {g.items.map((message) => (
                     <motion.div
                       key={message.id}
+                      ref={(el) => {
+                        if (el) messageRefs.current.set(message.id, el);
+                      }}
+                      id={`message-${message.id}`}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2, ease: "easeOut" }}
-                      className={`flex ${
+                      className={`flex group ${
                         message.sender?.id === user?.id ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <div className="flex flex-col">
+                      <div className="flex flex-col relative">
+                        {/* Reply preview in message bubble */}
+                        {message.repliedMessage && (
+                          <div
+                            onClick={() => scrollToMessage(message.repliedMessage!.id)}
+                            className={`mb-2 px-2 py-1.5 rounded-md border-l-2 cursor-pointer transition-colors ${
+                              message.sender?.id === user?.id
+                                ? "bg-blue-500/30 border-blue-400 hover:bg-blue-500/40"
+                                : "bg-gray-100 border-gray-300 hover:bg-gray-200"
+                            }`}
+                          >
+                            <div className="text-[10px] font-semibold opacity-75 mb-0.5">
+                              {message.repliedMessage.sender?.full_name || "User"}
+                            </div>
+                            <div className="text-[11px] line-clamp-2 opacity-80">
+                              {renderMessageContent(
+                                message.repliedMessage.content && message.repliedMessage.content.length > 100
+                                  ? message.repliedMessage.content.substring(0, 100) + "..."
+                                  : message.repliedMessage.content
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <div
-                          className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl shadow-sm ${
+                          className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl shadow-sm relative ${
                             message.sender?.id === user?.id
                               ? "bg-blue-600 text-white"
                               : "bg-white border border-gray-200 text-gray-800"
@@ -836,6 +912,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             message.isOptimistic ? "opacity-75" : ""
                           }`}
                         >
+                          {/* Reply button - appears on hover */}
+                          {/* Position on right for other users' messages, left for own messages */}
+                          <button
+                            type="button"
+                            onClick={() => handleReplyClick(message)}
+                            className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full z-10 ${
+                              message.sender?.id === user?.id
+                                ? "-left-10 bg-blue-500 hover:bg-blue-600 text-white shadow-sm"
+                                : "-right-10 bg-gray-200 hover:bg-gray-300 text-gray-700 shadow-sm"
+                            }`}
+                            aria-label="Reply to message"
+                            title="Reply to this message"
+                          >
+                            <Reply size={14} />
+                          </button>
                           <div className="text-[11px] opacity-75 mb-1 font-semibold">
                             {message.sender?.full_name || "User"}
                           </div>
@@ -878,6 +969,38 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
 
             <div className="p-3 bg-white/60 backdrop-blur relative border-t border-gray-100">
+              {/* Reply preview above input */}
+              <AnimatePresence>
+                {replyingTo && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-2 px-3 py-2 bg-blue-50 border-l-4 border-blue-500 rounded-md flex items-start justify-between"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-blue-700 mb-1">
+                        Replying to {replyingTo.sender?.full_name || "User"}
+                      </div>
+                      <div className="text-sm text-gray-700 line-clamp-2">
+                        {renderMessageContent(
+                          replyingTo.content && replyingTo.content.length > 100
+                            ? replyingTo.content.substring(0, 100) + "..."
+                            : replyingTo.content
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelReply}
+                      className="ml-2 p-1 rounded hover:bg-blue-100 text-gray-500 hover:text-gray-700 transition-colors"
+                      aria-label="Cancel reply"
+                    >
+                      <X size={16} />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <AnimatePresence>
                 {mentionQuery !== null && (
                   <motion.div

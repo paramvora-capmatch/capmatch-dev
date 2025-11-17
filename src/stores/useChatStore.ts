@@ -27,6 +27,7 @@ interface ProjectMessage {
   user_id: string;
   content?: string;
   created_at: string;
+  reply_to?: number | null; // ID of the message this is replying to
   status?: 'sending' | 'delivered' | 'failed'; // iMessage-style status (no "sent" state)
   isOptimistic?: boolean; // Flag for optimistic messages
   isFadingOut?: boolean; // Flag for smooth fade-out animation
@@ -35,6 +36,7 @@ interface ProjectMessage {
     full_name?: string;
     email?: string;
   };
+  repliedMessage?: ProjectMessage | null; // The message being replied to (populated on load)
 }
 
 interface MessageAttachment {
@@ -83,7 +85,7 @@ interface ChatActions {
   
   // Messages
   loadMessages: (threadId: string) => Promise<void>;
-  sendMessage: (threadId: string, content: string) => Promise<void>;
+  sendMessage: (threadId: string, content: string, replyTo?: number | null) => Promise<void>;
   subscribeToMessages: (threadId: string) => void;
   unsubscribeFromMessages: () => void;
   
@@ -315,16 +317,34 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         }
       }
 
-      // Map messages with sender information
-      // Don't set status for loaded messages - status only shows for newly sent messages (iMessage-style)
-      const messagesWithSenders = (messages || []).map((msg: any) => ({
-        ...msg,
-        sender: profilesMap.get(msg.user_id) || { id: msg.user_id },
-        isOptimistic: false,
-        // No status - historical messages don't show status in iMessage
-      }));
+      // Create a map of messages by ID for quick lookup of replied messages
+      const messagesById = new Map<number, ProjectMessage>();
+      
+      // Map messages with sender information and populate repliedMessage
+      const messagesWithSenders = (messages || []).map((msg: any) => {
+        const message: ProjectMessage = {
+          ...msg,
+          sender: profilesMap.get(msg.user_id) || { id: msg.user_id },
+          isOptimistic: false,
+          // No status - historical messages don't show status in iMessage
+        };
+        messagesById.set(Number(msg.id), message);
+        return message;
+      });
 
-      set({ messages: messagesWithSenders, isLoading: false });
+      // Now populate repliedMessage for messages that have reply_to
+      const messagesWithReplies = messagesWithSenders.map((msg) => {
+        if (msg.reply_to) {
+          const repliedMsg = messagesById.get(msg.reply_to);
+          return {
+            ...msg,
+            repliedMessage: repliedMsg || null,
+          };
+        }
+        return msg;
+      });
+
+      set({ messages: messagesWithReplies, isLoading: false });
     } catch (err) {
       set({ 
         error: err instanceof Error ? err.message : 'Failed to load messages',
@@ -333,7 +353,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     }
   },
 
-  sendMessage: async (threadId: string, content: string) => {
+  sendMessage: async (threadId: string, content: string, replyTo?: number | null) => {
     // Get current authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -352,6 +372,10 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     }
     const resourceIdArray = Array.from(resourceIds);
 
+    // Find the replied message if replyTo is provided
+    const state = get();
+    const repliedMessage = replyTo ? state.messages.find((m) => Number(m.id) === replyTo) : null;
+
     // Create optimistic message immediately (WhatsApp-style instant feedback)
     const tempId = `opt-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const optimisticMessage: ProjectMessage = {
@@ -360,6 +384,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       user_id: user.id,
       content: content.trim(),
       created_at: new Date().toISOString(),
+      reply_to: replyTo || null,
       status: 'sending',
       isOptimistic: true,
       sender: {
@@ -367,6 +392,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         full_name: user.user_metadata?.full_name || undefined,
         email: user.email || undefined,
         },
+      repliedMessage: repliedMessage || null,
     };
 
     // Add optimistic message immediately (instant UI feedback)
@@ -383,6 +409,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           p_user_id: user.id,
           p_content: content.trim(),
           p_resource_ids: resourceIdArray,
+          p_reply_to: replyTo || null,
         }
       );
 
@@ -487,6 +514,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
             full_name: senderProfile.full_name,
             email: senderProfile.email,
           };
+
+          // If this message is a reply, find and attach the replied message
+          if (newMessage.reply_to) {
+            const repliedMsg = state.messages.find((m) => Number(m.id) === newMessage.reply_to);
+            newMessage.repliedMessage = repliedMsg || null;
+          }
           
           // Only show "Delivered" status for messages sent by current user (iMessage-style)
           const { data: { user: currentUser } } = await supabase.auth.getUser();

@@ -1,12 +1,12 @@
 // src/components/chat/AIChatInterface.tsx
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Card, CardContent } from "../ui/card";
 import { cn } from "@/utils/cn";
-import { Loader2, AlertCircle, MessageSquare } from "lucide-react";
+import { Loader2, AlertCircle, MessageSquare, Reply } from "lucide-react";
 import { Message, FieldContext } from "@/types/ask-ai-types";
 
 interface AIChatInterfaceProps {
@@ -16,6 +16,7 @@ interface AIChatInterfaceProps {
   isBuildingContext: boolean;
   contextError: string | null;
   hasActiveContext: boolean;
+  onReplyClick?: (message: Message) => void; // Callback when user clicks reply
 }
 
 export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
@@ -25,7 +26,21 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
   isBuildingContext,
   contextError,
   hasActiveContext,
+  onReplyClick,
 }) => {
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const scrollToMessage = (messageId: string) => {
+    const messageElement = messageRefs.current.get(messageId);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight the message briefly
+      messageElement.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-75');
+      setTimeout(() => {
+        messageElement.classList.remove('ring-2', 'ring-blue-400', 'ring-opacity-75');
+      }, 2000);
+    }
+  };
   if (!hasActiveContext) {
     return (
       <div className="h-full flex flex-col items-center justify-center border-2 border-dashed rounded-lg transition-all duration-300 mx-3 mb-10 border-gray-300 bg-gradient-to-br from-gray-50 to-blue-50/30 hover:border-blue-300 hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-purple-50/30">
@@ -62,33 +77,71 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
               {messages.map((message) => (
                 <div
                   key={message.id}
+                  ref={(el) => {
+                    if (el) messageRefs.current.set(message.id, el);
+                  }}
+                  id={`ai-message-${message.id}`}
                   className={cn(
-                    "flex space-x-2 animate-fadeInUp",
+                    "flex space-x-2 animate-fadeInUp group",
                     message.type === "user" ? "justify-end" : "justify-start"
                   )}
                 >
-                  <div
-                    className={cn(
-                      "max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm transition-all duration-200 hover:shadow-md",
-                      message.type === "user"
-                        ? "bg-blue-600 text-white"
-                        : "bg-gradient-to-r from-gray-100 to-gray-50 text-gray-800 hover:from-gray-150 hover:to-gray-100 border border-gray-200"
-                    )}
-                  >
-                    {message.type === "ai" && message.isStreaming ? (
-                      <div className="flex items-center space-x-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Thinking...</span>
+                  <div className="flex flex-col relative">
+                    {/* Reply preview in message bubble */}
+                    {message.repliedMessage && (
+                      <div
+                        onClick={() => scrollToMessage(message.repliedMessage!.id)}
+                        className={cn(
+                          "mb-2 px-2 py-1.5 rounded-md border-l-2 cursor-pointer transition-colors",
+                          message.type === "user"
+                            ? "bg-blue-500/30 border-blue-400 hover:bg-blue-500/40"
+                            : "bg-gray-100 border-gray-300 hover:bg-gray-200"
+                        )}
+                      >
+                        <div className="text-[10px] font-semibold opacity-75 mb-0.5">
+                          {message.repliedMessage.type === "user" ? "You" : "AI"}
+                        </div>
+                        <div className="text-[11px] line-clamp-2 opacity-80">
+                          {message.repliedMessage.content?.substring(0, 100)}
+                          {message.repliedMessage.content && message.repliedMessage.content.length > 100 ? "..." : ""}
+                        </div>
                       </div>
-                    ) : message.type === "ai" ? (
-                      <div className="prose prose-sm max-w-none prose-p:mb-4" style={{ whiteSpace: 'pre-wrap' }}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {message.content}
-                        </ReactMarkdown>
-                      </div>
-                    ) : (
-                      <div className="whitespace-pre-wrap text-white">{message.content}</div>
                     )}
+                    <div
+                      className={cn(
+                        "max-w-[80%] rounded-lg px-3 py-2 text-sm shadow-sm transition-all duration-200 hover:shadow-md relative",
+                        message.type === "user"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gradient-to-r from-gray-100 to-gray-50 text-gray-800 hover:from-gray-150 hover:to-gray-100 border border-gray-200"
+                      )}
+                    >
+                      {/* Reply button - appears on hover for AI messages */}
+                      {message.type === "ai" && onReplyClick && !message.isStreaming && (
+                        <button
+                          type="button"
+                          onClick={() => onReplyClick(message)}
+                          className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 shadow-sm z-10"
+                          aria-label="Reply to message"
+                          title="Reply to this message"
+                        >
+                          <Reply size={14} />
+                        </button>
+                      )}
+                      {message.type === "ai" && message.isStreaming ? (
+                        <div className="flex items-center space-x-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Thinking...</span>
+                        </div>
+                      ) : message.type === "ai" ? (
+                        <div className="prose prose-sm max-w-none prose-p:mb-4" style={{ whiteSpace: 'pre-wrap' }}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap text-white">{message.content}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
