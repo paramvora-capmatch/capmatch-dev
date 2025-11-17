@@ -18,6 +18,9 @@ module.exports = {
         },
       },
       extend: {
+        fontFamily: {
+          sans: ['var(--font-sans)', 'Poppins', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        },
         colors: {
           primary: { // Define primary color
             DEFAULT: "#007BFF", // A standard blue - you can adjust this hex code to your preferred blue
