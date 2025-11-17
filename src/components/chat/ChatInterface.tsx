@@ -7,6 +7,7 @@ import { useChatStore, AttachableDocument } from "../../stores/useChatStore";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useProjects } from "../../hooks/useProjects";
+import { usePermissionStore } from "@/stores/usePermissionStore";
 import { supabase } from "../../../lib/supabaseClient";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/Button";
@@ -23,6 +24,8 @@ import {
   FileText,
   X,
   Hash,
+  Reply,
+  ArrowUp,
 } from "lucide-react";
 
 interface ChatInterfaceProps {
@@ -36,6 +39,25 @@ import { ManageChannelMembersModal } from "./ManageChannelMembersModal";
 import { ChatThread } from "@/types/enhanced-types";
 import { RichTextInput, RichTextInputRef } from "./RichTextInput";
 import { cn } from "@/utils/cn";
+
+// ProjectMessage type matching what useChatStore provides (includes sender, reply_to, etc.)
+interface ProjectMessage {
+  id: number | string;
+  thread_id: string;
+  user_id: string;
+  content?: string;
+  created_at: string;
+  reply_to?: number | null;
+  status?: 'sending' | 'delivered' | 'failed';
+  isOptimistic?: boolean;
+  isFadingOut?: boolean;
+  sender?: {
+    id: string;
+    full_name?: string;
+    email?: string;
+  };
+  repliedMessage?: ProjectMessage | null;
+}
 
 
 interface BlockedDocInfo {
@@ -106,8 +128,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const [newMessage, setNewMessage] = useState("");
   const { isOwner, members, currentOrg } = useOrgStore();
+  const permissions = usePermissionStore((state) => state.permissions);
   const [managingThread, setManagingThread] = useState<ChatThread | null>(null);
   const [showCreateThreadModal, setShowCreateThreadModal] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ProjectMessage | null>(null);
+  const messageRefs = useRef<Map<number | string, HTMLDivElement>>(new Map());
 
   // Fetch owners of the project's owner org directly from database
   useEffect(() => {
@@ -301,7 +326,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [showDocPicker, setShowDocPicker] = useState(false);
   const [blockedState, setBlockedState] = useState<BlockedState | null>(null);
   const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
-  const [accessRequested, setAccessRequested] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
   const richTextInputRef = useRef<RichTextInputRef>(null);
 
@@ -349,6 +373,27 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }));
   }, [blockedState, participantLabelLookup, getDisplayLabel]);
 
+  // Check if user can grant access (has Edit permissions on all blocked docs OR is Owner/Advisor)
+  const canGrantAccess = useMemo(() => {
+    if (!blockedState || blockedState.docs.length === 0) return false;
+    
+    // Owners and Advisors can always grant access
+    if (hasOwnerPermissions) return true;
+    const isAssignedAdvisor = activeProject?.assignedAdvisorUserId === user?.id;
+    if (isAssignedAdvisor) return true;
+    
+    // For members, check if they have Edit permissions on ALL blocked docs
+    return blockedState.docs.every((doc) => {
+      const permission = permissions[doc.resourceId];
+      return permission === 'edit';
+    });
+  }, [blockedState, hasOwnerPermissions, activeProject?.assignedAdvisorUserId, user?.id, permissions]);
+
+  // Check if user is an Owner (not advisor) - only Owners can create threads
+  const isOwnerUser = useMemo(() => {
+    return isOwner && hasOwnerPermissions;
+  }, [isOwner, hasOwnerPermissions]);
+
   useEffect(() => {
     if (projectId) {
       loadThreadsForProject(projectId);
@@ -380,16 +425,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     setShowDocPicker(false);
     setBlockedState(null);
-    setAccessRequested(false);
+    setReplyingTo(null); // Clear reply when switching threads
   }, [activeThreadId]);
 
 
-  const processSend = async (threadId: string, message: string) => {
+  const processSend = async (threadId: string, message: string, replyTo?: number | null) => {
     try {
-      await sendMessage(threadId, message.trim());
+      await sendMessage(threadId, message.trim(), replyTo);
       setNewMessage("");
       setBlockedState(null);
-      setAccessRequested(false);
       return true;
     } catch (err) {
       if (typeof err === "object" && err && (err as any).code === "DOC_ACCESS_DENIED") {
@@ -403,7 +447,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           message,
           docs: blockedDocs,
         });
-        setAccessRequested(false);
         setNewMessage(message);
       } else {
         console.error("Failed to send message:", err);
@@ -421,7 +464,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const handleSendMessage = async () => {
     if (!canSendMessage || !activeThreadId) return;
-    await processSend(activeThreadId, newMessage);
+    const replyToId = replyingTo ? Number(replyingTo.id) : null;
+    await processSend(activeThreadId, newMessage, replyToId);
+    setReplyingTo(null); // Clear reply after sending
+  };
+
+  const handleReplyClick = (message: ProjectMessage) => {
+    setReplyingTo(message);
+    // Focus the input
+    if (richTextInputRef.current) {
+      richTextInputRef.current.focus();
+    }
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  const scrollToMessage = (messageId: number | string) => {
+    const messageElement = messageRefs.current.get(messageId);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight the message briefly
+      messageElement.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-75');
+      setTimeout(() => {
+        messageElement.classList.remove('ring-2', 'ring-blue-400', 'ring-opacity-75');
+      }, 2000);
+    }
   };
 
   const handleTextChange = (text: string) => {
@@ -470,7 +539,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleGrantAccess = async () => {
-    if (!blockedState || !hasOwnerPermissions) return;
+    if (!blockedState || !canGrantAccess) return;
     setIsProcessingBlocked(true);
     try {
       for (const doc of blockedState.docs) {
@@ -498,51 +567,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  const handleRequestAccess = async () => {
-    if (!blockedState) return;
-    setIsProcessingBlocked(true);
-    try {
-      for (const doc of blockedState.docs) {
-        const { error } = await supabase.functions.invoke('request-document-access', {
-          body: {
-            resource_id: doc.resourceId,
-            thread_id: blockedState.threadId,
-            missing_user_ids: doc.missingUserIds,
-          },
-        });
-        if (error) {
-          throw new Error(error.message || 'Failed to request access');
-        }
-      }
-      setAccessRequested(true);
-    } catch (error) {
-      console.error('Failed to request access:', error);
-    } finally {
-      setIsProcessingBlocked(false);
-    }
-  };
-
-  const handleSendWithoutDocs = async () => {
-    if (!blockedState) return;
-    let sanitized = blockedState.message;
-    const lookup = extractMentionNames(blockedState.message);
-    blockedState.docs.forEach((doc) => {
-      const label = lookup.get(doc.resourceId) || 'document';
-      const regex = new RegExp(`@\\[[^\\]]+\\]\\(doc:${doc.resourceId}\\)`, 'g');
-      sanitized = sanitized.replace(regex, label);
-    });
-
-    setNewMessage(sanitized);
-    setIsProcessingBlocked(true);
-    try {
-      await processSend(blockedState.threadId, sanitized);
-    } finally {
-      setIsProcessingBlocked(false);
-    }
-  };
-
   const handleCreateRestrictedThread = async () => {
-    if (!blockedState || !canCreateThreads) return;
+    if (!blockedState || !isOwnerUser) return;
     const blockedUserSet = new Set<string>();
     blockedState.docs.forEach((doc) => {
       doc.missingUserIds.forEach((id) => blockedUserSet.add(id));
@@ -843,16 +869,42 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   {g.items.map((message) => (
                     <motion.div
                       key={message.id}
+                      ref={(el) => {
+                        if (el) messageRefs.current.set(message.id, el);
+                      }}
+                      id={`message-${message.id}`}
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2, ease: "easeOut" }}
-                      className={`flex ${
+                      className={`flex group ${
                         message.sender?.id === user?.id ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <div className="flex flex-col">
+                      <div className="flex flex-col relative">
+                        {/* Reply preview in message bubble */}
+                        {message.repliedMessage && (
+                          <div
+                            onClick={() => scrollToMessage(message.repliedMessage!.id)}
+                            className={`mb-2 px-2 py-1.5 rounded-md border-l-2 cursor-pointer transition-colors ${
+                              message.sender?.id === user?.id
+                                ? "bg-blue-500/30 border-blue-400 hover:bg-blue-500/40"
+                                : "bg-gray-100 border-gray-300 hover:bg-gray-200"
+                            }`}
+                          >
+                            <div className="text-[10px] font-semibold opacity-75 mb-0.5">
+                              {message.repliedMessage.sender?.full_name || "User"}
+                            </div>
+                            <div className="text-[11px] line-clamp-2 opacity-80">
+                              {renderMessageContent(
+                                message.repliedMessage.content && message.repliedMessage.content.length > 100
+                                  ? message.repliedMessage.content.substring(0, 100) + "..."
+                                  : message.repliedMessage.content
+                              )}
+                            </div>
+                          </div>
+                        )}
                         <div
-                          className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl shadow-sm ${
+                          className={`max-w-xs lg:max-w-md px-3 py-2 rounded-xl shadow-sm relative ${
                             message.sender?.id === user?.id
                               ? "bg-blue-600 text-white"
                               : "bg-white border border-gray-200 text-gray-800"
@@ -860,6 +912,21 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             message.isOptimistic ? "opacity-75" : ""
                           }`}
                         >
+                          {/* Reply button - appears on hover */}
+                          {/* Position on right for other users' messages, left for own messages */}
+                          <button
+                            type="button"
+                            onClick={() => handleReplyClick(message)}
+                            className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full z-10 ${
+                              message.sender?.id === user?.id
+                                ? "-left-10 bg-blue-500 hover:bg-blue-600 text-white shadow-sm"
+                                : "-right-10 bg-gray-200 hover:bg-gray-300 text-gray-700 shadow-sm"
+                            }`}
+                            aria-label="Reply to message"
+                            title="Reply to this message"
+                          >
+                            <Reply size={14} />
+                          </button>
                           <div className="text-[11px] opacity-75 mb-1 font-semibold">
                             {message.sender?.full_name || "User"}
                           </div>
@@ -902,6 +969,38 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
 
             <div className="p-3 bg-white/60 backdrop-blur relative border-t border-gray-100">
+              {/* Reply preview above input */}
+              <AnimatePresence>
+                {replyingTo && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-2 px-3 py-2 bg-blue-50 border-l-4 border-blue-500 rounded-md flex items-start justify-between"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-blue-700 mb-1">
+                        Replying to {replyingTo.sender?.full_name || "User"}
+                      </div>
+                      <div className="text-sm text-gray-700 line-clamp-2">
+                        {renderMessageContent(
+                          replyingTo.content && replyingTo.content.length > 100
+                            ? replyingTo.content.substring(0, 100) + "..."
+                            : replyingTo.content
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCancelReply}
+                      className="ml-2 p-1 rounded hover:bg-blue-100 text-gray-500 hover:text-gray-700 transition-colors"
+                      aria-label="Cancel reply"
+                    >
+                      <X size={16} />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <AnimatePresence>
                 {mentionQuery !== null && (
                   <motion.div
@@ -1044,7 +1143,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           onClose={() => {
             if (!isProcessingBlocked) {
               setBlockedState(null);
-              setAccessRequested(false);
             }
           }}
           title="Document access required"
@@ -1070,43 +1168,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
 
             <div className="flex flex-col space-y-2">
-              {hasOwnerPermissions && (
-                <Button
-                  onClick={handleGrantAccess}
-                  disabled={isProcessingBlocked}
-                >
-                  Grant access and send
-                </Button>
-              )}
               <Button
-                variant="outline"
-                onClick={handleSendWithoutDocs}
-                disabled={isProcessingBlocked}
+                onClick={handleGrantAccess}
+                disabled={isProcessingBlocked || !canGrantAccess}
               >
-                Remove references and send
+                Grant access and send
               </Button>
               <Button
                 variant="outline"
-                onClick={handleRequestAccess}
-                disabled={isProcessingBlocked || accessRequested}
+                onClick={handleCreateRestrictedThread}
+                disabled={isProcessingBlocked || !isOwnerUser}
               >
-                {accessRequested ? "Request sent" : "Request access from owners"}
+                Create new thread with permitted members
               </Button>
-              {canCreateThreads && (
-                <Button
-                  variant="outline"
-                  onClick={handleCreateRestrictedThread}
-                  disabled={isProcessingBlocked}
-                >
-                  Create new thread with permitted members
-                </Button>
-              )}
               <Button
                 variant="outline"
                 onClick={() => {
                   if (!isProcessingBlocked) {
                     setBlockedState(null);
-                    setAccessRequested(false);
                   }
                 }}
               >

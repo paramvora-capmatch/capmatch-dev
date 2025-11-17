@@ -256,6 +256,7 @@ export interface ProjectMessage {
   user_id?: string | null; // FK to profiles.id (SET NULL on user delete)
   content?: string;
   created_at: string;
+  reply_to?: number | null; // FK to project_messages.id (the message being replied to)
 }
 
 export interface MessageAttachment {
