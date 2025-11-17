@@ -7,6 +7,7 @@ import { useChatStore, AttachableDocument } from "../../stores/useChatStore";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useProjects } from "../../hooks/useProjects";
+import { usePermissionStore } from "@/stores/usePermissionStore";
 import { supabase } from "../../../lib/supabaseClient";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/Button";
@@ -106,6 +107,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const [newMessage, setNewMessage] = useState("");
   const { isOwner, members, currentOrg } = useOrgStore();
+  const permissions = usePermissionStore((state) => state.permissions);
   const [managingThread, setManagingThread] = useState<ChatThread | null>(null);
   const [showCreateThreadModal, setShowCreateThreadModal] = useState(false);
 
@@ -301,7 +303,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [showDocPicker, setShowDocPicker] = useState(false);
   const [blockedState, setBlockedState] = useState<BlockedState | null>(null);
   const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
-  const [accessRequested, setAccessRequested] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
   const richTextInputRef = useRef<RichTextInputRef>(null);
 
@@ -349,6 +350,27 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }));
   }, [blockedState, participantLabelLookup, getDisplayLabel]);
 
+  // Check if user can grant access (has Edit permissions on all blocked docs OR is Owner/Advisor)
+  const canGrantAccess = useMemo(() => {
+    if (!blockedState || blockedState.docs.length === 0) return false;
+    
+    // Owners and Advisors can always grant access
+    if (hasOwnerPermissions) return true;
+    const isAssignedAdvisor = activeProject?.assignedAdvisorUserId === user?.id;
+    if (isAssignedAdvisor) return true;
+    
+    // For members, check if they have Edit permissions on ALL blocked docs
+    return blockedState.docs.every((doc) => {
+      const permission = permissions[doc.resourceId];
+      return permission === 'edit';
+    });
+  }, [blockedState, hasOwnerPermissions, activeProject?.assignedAdvisorUserId, user?.id, permissions]);
+
+  // Check if user is an Owner (not advisor) - only Owners can create threads
+  const isOwnerUser = useMemo(() => {
+    return isOwner && hasOwnerPermissions;
+  }, [isOwner, hasOwnerPermissions]);
+
   useEffect(() => {
     if (projectId) {
       loadThreadsForProject(projectId);
@@ -380,7 +402,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     setShowDocPicker(false);
     setBlockedState(null);
-    setAccessRequested(false);
   }, [activeThreadId]);
 
 
@@ -389,7 +410,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       await sendMessage(threadId, message.trim());
       setNewMessage("");
       setBlockedState(null);
-      setAccessRequested(false);
       return true;
     } catch (err) {
       if (typeof err === "object" && err && (err as any).code === "DOC_ACCESS_DENIED") {
@@ -403,7 +423,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           message,
           docs: blockedDocs,
         });
-        setAccessRequested(false);
         setNewMessage(message);
       } else {
         console.error("Failed to send message:", err);
@@ -470,7 +489,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleGrantAccess = async () => {
-    if (!blockedState || !hasOwnerPermissions) return;
+    if (!blockedState || !canGrantAccess) return;
     setIsProcessingBlocked(true);
     try {
       for (const doc of blockedState.docs) {
@@ -498,51 +517,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
-  const handleRequestAccess = async () => {
-    if (!blockedState) return;
-    setIsProcessingBlocked(true);
-    try {
-      for (const doc of blockedState.docs) {
-        const { error } = await supabase.functions.invoke('request-document-access', {
-          body: {
-            resource_id: doc.resourceId,
-            thread_id: blockedState.threadId,
-            missing_user_ids: doc.missingUserIds,
-          },
-        });
-        if (error) {
-          throw new Error(error.message || 'Failed to request access');
-        }
-      }
-      setAccessRequested(true);
-    } catch (error) {
-      console.error('Failed to request access:', error);
-    } finally {
-      setIsProcessingBlocked(false);
-    }
-  };
-
-  const handleSendWithoutDocs = async () => {
-    if (!blockedState) return;
-    let sanitized = blockedState.message;
-    const lookup = extractMentionNames(blockedState.message);
-    blockedState.docs.forEach((doc) => {
-      const label = lookup.get(doc.resourceId) || 'document';
-      const regex = new RegExp(`@\\[[^\\]]+\\]\\(doc:${doc.resourceId}\\)`, 'g');
-      sanitized = sanitized.replace(regex, label);
-    });
-
-    setNewMessage(sanitized);
-    setIsProcessingBlocked(true);
-    try {
-      await processSend(blockedState.threadId, sanitized);
-    } finally {
-      setIsProcessingBlocked(false);
-    }
-  };
-
   const handleCreateRestrictedThread = async () => {
-    if (!blockedState || !canCreateThreads) return;
+    if (!blockedState || !isOwnerUser) return;
     const blockedUserSet = new Set<string>();
     blockedState.docs.forEach((doc) => {
       doc.missingUserIds.forEach((id) => blockedUserSet.add(id));
@@ -1044,7 +1020,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           onClose={() => {
             if (!isProcessingBlocked) {
               setBlockedState(null);
-              setAccessRequested(false);
             }
           }}
           title="Document access required"
@@ -1070,43 +1045,24 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
 
             <div className="flex flex-col space-y-2">
-              {hasOwnerPermissions && (
-                <Button
-                  onClick={handleGrantAccess}
-                  disabled={isProcessingBlocked}
-                >
-                  Grant access and send
-                </Button>
-              )}
               <Button
-                variant="outline"
-                onClick={handleSendWithoutDocs}
-                disabled={isProcessingBlocked}
+                onClick={handleGrantAccess}
+                disabled={isProcessingBlocked || !canGrantAccess}
               >
-                Remove references and send
+                Grant access and send
               </Button>
               <Button
                 variant="outline"
-                onClick={handleRequestAccess}
-                disabled={isProcessingBlocked || accessRequested}
+                onClick={handleCreateRestrictedThread}
+                disabled={isProcessingBlocked || !isOwnerUser}
               >
-                {accessRequested ? "Request sent" : "Request access from owners"}
+                Create new thread with permitted members
               </Button>
-              {canCreateThreads && (
-                <Button
-                  variant="outline"
-                  onClick={handleCreateRestrictedThread}
-                  disabled={isProcessingBlocked}
-                >
-                  Create new thread with permitted members
-                </Button>
-              )}
               <Button
                 variant="outline"
                 onClick={() => {
                   if (!isProcessingBlocked) {
                     setBlockedState(null);
-                    setAccessRequested(false);
                   }
                 }}
               >
