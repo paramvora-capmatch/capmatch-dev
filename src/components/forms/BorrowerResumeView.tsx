@@ -3,6 +3,7 @@ import React from 'react';
 import { BorrowerResumeContent } from '@/lib/project-queries';
 import { Principal } from '@/types/enhanced-types';
 import { KeyValueDisplay } from '../om/KeyValueDisplay';
+import { motion } from 'framer-motion';
 import { User, Briefcase, DollarSign, Globe, Award, AlertTriangle } from 'lucide-react';
 
 interface BorrowerResumeViewProps {
@@ -22,9 +23,24 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
 
   return (
     <div className="flex-1 p-4 relative z-10">
-      <div className="space-y-6">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={{
+          visible: {
+            transition: {
+              staggerChildren: 0.1,
+            },
+          },
+        }}
+        className="space-y-6"
+      >
         {/* Basic Info */}
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
             <User className="h-4 w-4 mr-2 text-blue-600" /> Basic Information
           </h3>
@@ -39,11 +55,15 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
               <KeyValueDisplay label="Bio" value={resume.bioNarrative} fullWidth />
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Key Principals */}
         {Array.isArray((resume as any).principals) && (resume as any).principals.length > 0 && (
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
             <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
               <Award className="h-4 w-4 mr-2 text-blue-600" /> Key Principals
             </h3>
@@ -63,11 +83,15 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
         )}
 
         {/* Experience */}
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
           <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
             <Briefcase className="h-4 w-4 mr-2 text-blue-600" /> Experience & Background
           </h3>
@@ -80,10 +104,14 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
               <KeyValueDisplay label="Existing Lenders" value={resume.existingLenderRelationships} fullWidth />
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Financial Info */}
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.3 }}
+        >
           <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
             <DollarSign className="h-4 w-4 mr-2 text-blue-600" /> Financial Information
           </h3>
@@ -108,11 +136,15 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* Online Presence */}
         {(resume.linkedinUrl || resume.websiteUrl) && (
-          <div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.4 }}
+          >
             <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
               <Globe className="h-4 w-4 mr-2 text-blue-600" /> Online Presence
             </h3>
@@ -124,9 +156,9 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
                 <KeyValueDisplay label="Company Website" value={resume.websiteUrl} />
               )}
             </div>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 };

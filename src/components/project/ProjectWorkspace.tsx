@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { ProjectSummaryCard } from "./ProjectSummaryCard"; // Borrower progress
@@ -473,20 +474,57 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         <div className="flex-1 relative z-[1] min-w-0">
           {/* Content with padding */}
           <div className="relative p-6 min-w-0">
-            {borrowerEditing ? (
-              <div className="space-y-6">
-                {renderBorrowerDocumentsSection()}
-                {renderBorrowerResumeSection()}
-              </div>
-            ) : (
-              <div className="space-y-6">
+            <AnimatePresence mode="wait">
+              {borrowerEditing ? (
+                <motion.div
+                  key="borrower-view"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-6"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                  >
+                    {renderBorrowerDocumentsSection()}
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.2 }}
+                  >
+                    {renderBorrowerResumeSection()}
+                  </motion.div>
+                </motion.div>
+              ) : (
+              <motion.div
+                key="project-view"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6"
+              >
                 {/* Project Title */}
-                <h1 className="text-3xl font-bold text-gray-900 mb-5">
+                <motion.h1
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-3xl font-bold text-gray-900 mb-5"
+                >
                   {activeProject?.projectName || "Project"}
-                </h1>
+                </motion.h1>
 
                 {/* Project Progress Card */}
-                <div className="relative">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
+                  className="relative"
+                >
                   <ProjectSummaryCard
                     project={projectForProgress}
                     isLoading={projectsLoading}
@@ -500,11 +538,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     }}
                     borrowerProgress={borrowerResumeProgress}
                   />
-                </div>
+                </motion.div>
 
                 {/* Section for OM Link - Only show if project is complete */}
                 {isProjectComplete && (
-                  <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border border-emerald-200 rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group animate-fadeInUp">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.2 }}
+                    className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border border-emerald-200 rounded-lg p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden group"
+                  >
                     {/* Animated background pattern */}
                     <div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-transparent to-green-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -529,11 +572,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       <FileSpreadsheet className="mr-2 h-5 w-5" />
                       View OM
                     </Button>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Project Documents */}
-                <div id="project-documents-section" className="overflow-visible">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.3 }}
+                  id="project-documents-section"
+                  className="overflow-visible"
+                >
                   <DocumentManager
                     projectId={projectId}
                     resourceId="PROJECT_ROOT"
@@ -544,18 +593,29 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     highlightedResourceId={highlightedResourceId}
                     context="project"
                   />
-                </div>
+                </motion.div>
 
                 {/* Project completion progress */}
-                <ProjectCompletionCard
-                  project={projectForProgress}
-                  isLoading={projectsLoading}
-                  onEdit={() => setIsEditing(true)}
-                />
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.4 }}
+                >
+                  <ProjectCompletionCard
+                    project={projectForProgress}
+                    isLoading={projectsLoading}
+                    onEdit={() => setIsEditing(true)}
+                  />
+                </motion.div>
 
                 {/* Project Resume (View or Edit) */}
                 {isEditing ? (
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.5 }}
+                    className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+                  >
                     <div className="p-4">
                       <EnhancedProjectForm
                         existingProject={activeProject}
@@ -570,26 +630,38 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                         onFormDataChange={setCurrentFormData}
                       />
                     </div>
-                  </div>
+                  </motion.div>
                 ) : (
                   <>
                     {/* Remote update notification */}
                     {isProjectResumeRemoteUpdate && (
-                      <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mb-4 rounded-md flex items-center gap-2 animate-fadeIn">
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mb-4 rounded-md flex items-center gap-2"
+                      >
                         <AlertCircle className="h-4 w-4 flex-shrink-0" />
                         <span className="text-sm font-medium">
                           This project resume was updated by another user. Your view has been refreshed.
                         </span>
-                      </div>
+                      </motion.div>
                     )}
-                    <ProjectResumeView
-                      project={activeProject}
-                      onEdit={() => setIsEditing(true)}
-                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.5 }}
+                    >
+                      <ProjectResumeView
+                        project={activeProject}
+                        onEdit={() => setIsEditing(true)}
+                      />
+                    </motion.div>
                   </>
                 )}
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

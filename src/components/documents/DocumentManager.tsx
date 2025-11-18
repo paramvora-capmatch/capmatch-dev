@@ -24,7 +24,7 @@ import {
   FileCode,
   File,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -406,11 +406,12 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         {!isLoading && (
           <div className="space-y-4">
             {/* Folders */}
-            {folders.map((folder) => (
+            {folders.map((folder, index) => (
               <motion.button
                 key={folder.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
                 // onClick={() => handleFolderClick(folder.id)} // TODO: Implement folder navigation
                 className="w-full flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors text-left"
               >
@@ -443,7 +444,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
 
             {/* Files */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {files.map((file) => {
+            {files.map((file, index) => {
               const fileCanEdit = getPermission(file.resource_id) === 'edit';
               const isEditable = /\.(docx|xlsx|pptx|pdf)$/i.test(file.name);
               const filePermission = getPermission(file.resource_id);
@@ -458,8 +459,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
               return (
                 <motion.div
                   key={file.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
                   className={cn(
                     "group/file w-full bg-white border border-gray-200 rounded-2xl hover:shadow-md transition-all duration-300 text-left flex flex-col p-4 relative",
                     file.id === highlightedResourceId &&
@@ -482,13 +484,18 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   </button>
 
                   {/* Dropdown menu */}
-                  {openMenuId === file.id && (
-                    <div
-                      className="absolute top-0 left-[calc(100%+8px)] z-[9999] w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 text-left"
-                      onClick={(e) => e.stopPropagation()}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      data-dm-menu="true"
-                    >
+                  <AnimatePresence>
+                    {openMenuId === file.id && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="absolute top-0 left-[calc(100%+8px)] z-[9999] w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 text-left"
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        data-dm-menu="true"
+                      >
                       {/* Versions */}
                       <button
                         className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
@@ -560,8 +567,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                           <span>Delete</span>
                         </button>
                       )}
-                    </div>
-                  )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   <button
                     onClick={() => setPreviewingResourceId(file.resource_id)}
                     className="flex items-center space-x-3 overflow-hidden text-left pr-0 group-hover/file:pr-10 transition-[padding] duration-200"

@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
 
 export interface ModalProps {
@@ -87,8 +88,6 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const sizeClasses = {
     sm: 'max-w-sm',
     md: 'max-w-md',
@@ -109,21 +108,33 @@ export const Modal: React.FC<ModalProps> = ({
   const isFullSize = size === 'full';
   
   return createPortal(
-    <div className={cn(
-      "fixed inset-0 z-[99999] flex overflow-y-auto bg-black/20 backdrop-blur-sm",
-      isFullSize ? "p-1" : "items-center justify-center p-4"
-    )}>
-      <div
-        ref={modalRef}
-        className={cn(
-          'bg-white rounded-lg shadow-xl transform transition-all flex flex-col',
-          isFullSize
-            ? 'w-[98vw] h-[98vh] m-auto'
-            : `w-full ${sizeClasses[size]}`
-        )}
-        role="dialog"
-        aria-modal="true"
-      >
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className={cn(
+            "fixed inset-0 z-[99999] flex overflow-y-auto bg-black/20 backdrop-blur-sm",
+            isFullSize ? "p-1" : "items-center justify-center p-4"
+          )}
+        >
+          <motion.div
+            ref={modalRef}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className={cn(
+              'bg-white rounded-lg shadow-xl flex flex-col',
+              isFullSize
+                ? 'w-[98vw] h-[98vh] m-auto'
+                : `w-full ${sizeClasses[size]}`
+            )}
+            role="dialog"
+            aria-modal="true"
+          >
         {title && (
           <div className="px-6 py-4 border-b border-blue-200 flex items-center gap-3 flex-shrink-0">
             <h3 className="text-lg font-semibold text-gray-900 mr-auto truncate">{title}</h3>
@@ -142,8 +153,10 @@ export const Modal: React.FC<ModalProps> = ({
         <div className={cn("flex-1 overflow-hidden flex flex-col", !title && "pt-10", title ? "p-6" : "p-6")}>
           {children}
         </div>
-      </div>
-    </div>,
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   );
 };

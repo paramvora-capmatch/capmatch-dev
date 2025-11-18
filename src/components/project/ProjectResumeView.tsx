@@ -6,6 +6,7 @@ import { ProjectProfile } from '@/types/enhanced-types';
 import { Button } from '../ui/Button';
 import { Edit, MapPin, DollarSign, BarChart3, AlertCircle, ChevronDown } from 'lucide-react';
 import { KeyValueDisplay } from '../om/KeyValueDisplay'; // Reusing this component
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
 
 interface ProjectResumeViewProps {
@@ -46,16 +47,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
         } catch {}
     }, [collapsed, project?.id]);
 
-    // Collapsed: no custom sizing; simple overflow control
-    const containerCollapsedClasses = 'overflow-hidden';
-    const containerExpandedClasses = 'overflow-visible';
-
     return (
         <div
-            className={[
-                'h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30 cursor-pointer',
-                collapsed ? containerCollapsedClasses : containerExpandedClasses
-            ].join(' ')}
+            className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30 cursor-pointer"
             aria-expanded={!collapsed}
             role="button"
             tabIndex={0}
@@ -100,56 +94,89 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                 <div />
             </div>
 
-            {!collapsed && (
-            <div className="flex-1 p-6 relative z-10">
-                <div className="space-y-6">
-                    {/* Basic Info */}
-                    <div>
-                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><MapPin className="h-4 w-4 mr-2 text-blue-600" /> Location & Type</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                            <KeyValueDisplay label="Address" value={`${project.propertyAddressStreet || ''}, ${project.propertyAddressCity || ''}, ${project.propertyAddressState || ''} ${project.propertyAddressZip || ''}`} />
-                            <KeyValueDisplay label="County" value={project.propertyAddressCounty} />
-                            <KeyValueDisplay label="Asset Type" value={project.assetType} />
-                            <KeyValueDisplay label="Project Phase" value={project.projectPhase} />
-                            <KeyValueDisplay label="Project Description" value={project.projectDescription} fullWidth />
-                        </div>
-                    </div>
+            <AnimatePresence initial={false}>
+                {!collapsed && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="overflow-hidden relative z-10"
+                    >
+                        <div className="flex-1 p-6">
+                            <motion.div
+                                initial="hidden"
+                                animate="visible"
+                                variants={{
+                                    visible: {
+                                        transition: {
+                                            staggerChildren: 0.1,
+                                        },
+                                    },
+                                }}
+                                className="space-y-6"
+                            >
+                                {/* Basic Info */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><MapPin className="h-4 w-4 mr-2 text-blue-600" /> Location & Type</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                        <KeyValueDisplay label="Address" value={`${project.propertyAddressStreet || ''}, ${project.propertyAddressCity || ''}, ${project.propertyAddressState || ''} ${project.propertyAddressZip || ''}`} />
+                                        <KeyValueDisplay label="County" value={project.propertyAddressCounty} />
+                                        <KeyValueDisplay label="Asset Type" value={project.assetType} />
+                                        <KeyValueDisplay label="Project Phase" value={project.projectPhase} />
+                                        <KeyValueDisplay label="Project Description" value={project.projectDescription} fullWidth />
+                                    </div>
+                                </motion.div>
 
-                    {/* Loan Info */}
-                    <div>
-                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><DollarSign className="h-4 w-4 mr-2 text-blue-600" /> Financing Request</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                            <KeyValueDisplay label="Requested Amount" value={formatCurrency(project.loanAmountRequested)} />
-                            <KeyValueDisplay label="Capital Type" value={project.loanType} />
-                            <KeyValueDisplay label="Target LTV" value={project.targetLtvPercent ? `${project.targetLtvPercent}%` : 'N/A'} />
-                            <KeyValueDisplay label="Target LTC" value={project.targetLtcPercent ? `${project.targetLtcPercent}%` : 'N/A'} />
-                            <KeyValueDisplay label="Amortization" value={project.amortizationYears ? `${project.amortizationYears} Years` : 'N/A'} />
-                            <KeyValueDisplay label="Interest-Only" value={project.interestOnlyPeriodMonths ? `${project.interestOnlyPeriodMonths} Months` : 'N/A'} />
-                            <KeyValueDisplay label="Rate Type" value={project.interestRateType} />
-                            <KeyValueDisplay label="Recourse" value={project.recoursePreference} />
-                            <KeyValueDisplay label="Target Close Date" value={formatDate(project.targetCloseDate)} />
-                            <KeyValueDisplay label="Use of Proceeds" value={project.useOfProceeds} fullWidth />
-                        </div>
-                    </div>
+                                {/* Loan Info */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.1 }}
+                                >
+                                    <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><DollarSign className="h-4 w-4 mr-2 text-blue-600" /> Financing Request</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                        <KeyValueDisplay label="Requested Amount" value={formatCurrency(project.loanAmountRequested)} />
+                                        <KeyValueDisplay label="Capital Type" value={project.loanType} />
+                                        <KeyValueDisplay label="Target LTV" value={project.targetLtvPercent ? `${project.targetLtvPercent}%` : 'N/A'} />
+                                        <KeyValueDisplay label="Target LTC" value={project.targetLtcPercent ? `${project.targetLtcPercent}%` : 'N/A'} />
+                                        <KeyValueDisplay label="Amortization" value={project.amortizationYears ? `${project.amortizationYears} Years` : 'N/A'} />
+                                        <KeyValueDisplay label="Interest-Only" value={project.interestOnlyPeriodMonths ? `${project.interestOnlyPeriodMonths} Months` : 'N/A'} />
+                                        <KeyValueDisplay label="Rate Type" value={project.interestRateType} />
+                                        <KeyValueDisplay label="Recourse" value={project.recoursePreference} />
+                                        <KeyValueDisplay label="Target Close Date" value={formatDate(project.targetCloseDate)} />
+                                        <KeyValueDisplay label="Use of Proceeds" value={project.useOfProceeds} fullWidth />
+                                    </div>
+                                </motion.div>
 
-                    {/* Financials */}
-                    <div>
-                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><BarChart3 className="h-4 w-4 mr-2 text-blue-600" /> Financials & Strategy</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                            <KeyValueDisplay label="Purchase Price" value={formatCurrency(project.purchasePrice)} />
-                            <KeyValueDisplay label="Total Project Cost" value={formatCurrency(project.totalProjectCost)} />
-                            <KeyValueDisplay label="CapEx Budget" value={formatCurrency(project.capexBudget)} />
-                            <KeyValueDisplay label="Equity Committed" value={project.equityCommittedPercent ? `${project.equityCommittedPercent}%` : 'N/A'} />
-                            <KeyValueDisplay label="Current NOI (T12)" value={formatCurrency(project.propertyNoiT12)} />
-                            <KeyValueDisplay label="Projected Stabilized NOI" value={formatCurrency(project.stabilizedNoiProjected)} />
-                            <KeyValueDisplay label="Exit Strategy" value={project.exitStrategy} />
-                            <KeyValueDisplay label="Business Plan" value={project.businessPlanSummary} fullWidth />
-                            <KeyValueDisplay label="Market Overview" value={project.marketOverviewSummary} fullWidth />
+                                {/* Financials */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.3, delay: 0.2 }}
+                                >
+                                    <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><BarChart3 className="h-4 w-4 mr-2 text-blue-600" /> Financials & Strategy</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                        <KeyValueDisplay label="Purchase Price" value={formatCurrency(project.purchasePrice)} />
+                                        <KeyValueDisplay label="Total Project Cost" value={formatCurrency(project.totalProjectCost)} />
+                                        <KeyValueDisplay label="CapEx Budget" value={formatCurrency(project.capexBudget)} />
+                                        <KeyValueDisplay label="Equity Committed" value={project.equityCommittedPercent ? `${project.equityCommittedPercent}%` : 'N/A'} />
+                                        <KeyValueDisplay label="Current NOI (T12)" value={formatCurrency(project.propertyNoiT12)} />
+                                        <KeyValueDisplay label="Projected Stabilized NOI" value={formatCurrency(project.stabilizedNoiProjected)} />
+                                        <KeyValueDisplay label="Exit Strategy" value={project.exitStrategy} />
+                                        <KeyValueDisplay label="Business Plan" value={project.businessPlanSummary} fullWidth />
+                                        <KeyValueDisplay label="Market Overview" value={project.marketOverviewSummary} fullWidth />
+                                    </div>
+                                </motion.div>
+                            </motion.div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
