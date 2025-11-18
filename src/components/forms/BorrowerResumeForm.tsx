@@ -45,6 +45,7 @@ import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { BorrowerResumeView } from "./BorrowerResumeView";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   BORROWER_REQUIRED_FIELDS,
   computeBorrowerCompletion,
@@ -1126,10 +1127,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     ]
   );
 
-  // Collapsed: no custom sizing; simple overflow control
-  const containerCollapsedClasses = 'overflow-hidden';
-  const containerExpandedClasses = 'overflow-visible';
-
   // Handle showing/hiding completion percentage with delay
   const handleMouseEnter = () => {
     setShowCompletionPercent(false);
@@ -1159,10 +1156,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
   return (
     <div
-      className={cn(
-        'h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-700 ease-in-out cursor-pointer hover:shadow-lg hover:shadow-blue-100/40 hover:border-blue-200/50 hover:-translate-y-0.5 will-change-transform',
-        collapsed ? containerCollapsedClasses : containerExpandedClasses
-      )}
+      className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-700 ease-in-out cursor-pointer hover:shadow-lg hover:shadow-blue-100/40 hover:border-blue-200/50 hover:-translate-y-0.5 will-change-transform"
       aria-expanded={!collapsed}
       role="button"
       tabIndex={0}
@@ -1303,7 +1297,19 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           />
         </div>
       ) : (
-        !collapsed && <BorrowerResumeView resume={formData} />
+        <AnimatePresence initial={false}>
+          {!collapsed && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: 'easeInOut' }}
+              className="overflow-hidden relative z-10"
+            >
+              <BorrowerResumeView resume={formData} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       )}
     </div>
   );

@@ -6,7 +6,7 @@ import { RoleBasedRoute } from "../../../../components/auth/RoleBasedRoute";
 import { useAuth } from "../../../../hooks/useAuth";
 
 import { SplashScreen } from "../../../../components/ui/SplashScreen";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "../../../../components/ui/Button";
 import {
   ChevronLeft,
@@ -1023,9 +1023,25 @@ export default function AdvisorProjectDetailPage() {
 
             {/* Content with padding */}
             <div className="relative p-6 flex-1">
-              <div className="space-y-6">
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.1,
+                    },
+                  },
+                }}
+                className="space-y-6"
+              >
                 {/* Top summaries */}
-                <div className="relative">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="relative"
+                >
                   <ProjectSummaryCard
                     project={project}
                     isLoading={isLoadingData}
@@ -1035,50 +1051,93 @@ export default function AdvisorProjectDetailPage() {
                     }}
                     borrowerProgress={borrowerProgress}
                   />
-                </div>
+                </motion.div>
 
-                {activeTab === "project" ? (
-                  <>
-                    {/* Project Documents */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
-                      {project && (
-                        <DocumentManager
-                          resourceId="PROJECT_ROOT"
-                          title="Project-Specific Documents"
-                          projectId={project.id}
-                          orgId={project.owner_org_id}
-                          context="project"
+                <AnimatePresence mode="wait">
+                  {activeTab === "project" ? (
+                    <motion.div
+                      key="project-view"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-6"
+                    >
+                      {/* Project Documents */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                        className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible"
+                      >
+                        {project && (
+                          <DocumentManager
+                            resourceId="PROJECT_ROOT"
+                            title="Project-Specific Documents"
+                            projectId={project.id}
+                            orgId={project.owner_org_id}
+                            context="project"
+                          />
+                        )}
+                      </motion.div>
+
+                      {/* Project completion banner BETWEEN documents and resume */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.2 }}
+                      >
+                        <ProjectCompletionCard
+                          project={project}
+                          isLoading={isLoadingData}
+                          onEdit={() => setIsEditingProject(true)}
                         />
-                      )}
-                    </div>
+                      </motion.div>
 
-                    {/* Project completion banner BETWEEN documents and resume */}
-                    <ProjectCompletionCard
-                      project={project}
-                      isLoading={isLoadingData}
-                      onEdit={() => setIsEditingProject(true)}
-                    />
+                      {/* Project Resume View/Edit */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.3 }}
+                      >
+                        {renderProjectDetails()}
+                      </motion.div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="borrower-view"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-6"
+                    >
+                      {/* Borrower Documents */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                        className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible"
+                      >
+                        {project && (
+                          <DocumentManager
+                            resourceId="BORROWER_ROOT"
+                            title="General Borrower Documents"
+                            projectId={project.id}
+                            orgId={project.owner_org_id}
+                            context="borrower"
+                          />
+                        )}
+                      </motion.div>
 
-                    {/* Project Resume View/Edit */}
-                    {renderProjectDetails()}
-                  </>
-                ) : (
-                  <>
-                    {/* Borrower Documents */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-visible">
-                      {project && (
-                        <DocumentManager
-                          resourceId="BORROWER_ROOT"
-                          title="General Borrower Documents"
-                          projectId={project.id}
-                          orgId={project.owner_org_id}
-                          context="borrower"
-                        />
-                      )}
-                    </div>
-
-                    {/* Borrower Resume (Advisor editable) */}
-                    <div ref={borrowerResumeRef} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      {/* Borrower Resume (Advisor editable) */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.2 }}
+                        ref={borrowerResumeRef}
+                        className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+                      >
                         {project && (
                           <BorrowerResumeForm
                             key={borrowerResumeRefreshKey}
@@ -1100,10 +1159,11 @@ export default function AdvisorProjectDetailPage() {
                             }
                           />
                         )}
-                    </div>
-                  </>
-                )}
-              </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             </div>
           </div>
 
