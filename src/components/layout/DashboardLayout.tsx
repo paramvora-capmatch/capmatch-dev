@@ -9,6 +9,7 @@ import { useAuth } from "../../hooks/useAuth";
 import Image from "next/image";
 
 import { SplashScreen } from "../ui/SplashScreen";
+import { NotificationBell } from "../notifications/NotificationBell";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -101,6 +102,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     Team
                   </Link>
                 )}
+                <NotificationBell />
                 {/* Settings dropdown */}
                 <div className="relative">
                   <details className="group">

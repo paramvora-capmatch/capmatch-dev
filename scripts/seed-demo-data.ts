@@ -860,6 +860,7 @@ async function createChatMessage(
       p_user_id: userId,
       p_content: content,
       p_resource_ids: resourceIds || [],
+    p_reply_to: null,
     });
 
     if (error) {

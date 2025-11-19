@@ -299,6 +299,44 @@ export const useDocumentManagement = ({
           throw updateResourceError;
         }
 
+        const { data: eventId, error: eventError } = await supabase.rpc(
+          "insert_document_uploaded_event",
+          {
+            p_actor_id: user.id,
+            p_project_id: projectId,
+            p_resource_id: resourceId,
+            p_payload: {
+              fileName: file.name,
+              size: file.size,
+              mimeType: file.type,
+            },
+          }
+        );
+
+        if (eventError) {
+          console.error("[useDocumentManagement] Failed to log document_uploaded event:", {
+            error: eventError,
+            projectId,
+            resourceId,
+          });
+        } else {
+          console.log("[useDocumentManagement] Logged document_uploaded event:", eventId);
+          if (eventId) {
+            const { error: notifyError } = await supabase.functions.invoke(
+              "notify-document-uploaded",
+              {
+                body: { eventId },
+              }
+            );
+            if (notifyError) {
+              console.error(
+                "[useDocumentManagement] Failed to fan out document_uploaded notification:",
+                notifyError
+              );
+            }
+          }
+        }
+
         await listDocuments();
         return resource;
       } catch (err) {

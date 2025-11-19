@@ -28,7 +28,7 @@ serve(async (req) => {
   }
 
   try {
-    const { thread_id, content } = await req.json();
+    const { thread_id, content, reply_to } = await req.json();
 
     if (!thread_id) throw new Error("thread_id is required");
     if (!content || typeof content !== "string" || !content.trim()) {
@@ -88,6 +88,7 @@ serve(async (req) => {
         p_user_id: user.id,
         p_content: content.trim(),
         p_resource_ids: resourceIdArray,
+        p_reply_to: reply_to ?? null,
       }
     );
 
