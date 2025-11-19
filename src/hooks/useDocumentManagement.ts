@@ -340,10 +340,15 @@ export const useDocumentManagement = ({
         await listDocuments();
         return resource;
       } catch (err) {
+        const message = err instanceof Error 
+          ? err.message 
+          : (typeof err === 'object' && err !== null && 'message' in err) 
+            ? (err as any).message 
+            : JSON.stringify(err);
+            
         console.error("Error uploading file:", {
           error: err,
-          message: err instanceof Error ? err.message : "Unknown error",
-          stack: err instanceof Error ? err.stack : undefined,
+          message,
           resourceId,
           finalStoragePath,
           fileName: file.name,
@@ -352,7 +357,8 @@ export const useDocumentManagement = ({
           projectId,
           activeOrgId: activeOrg?.id
         });
-        setError(err instanceof Error ? err.message : "Failed to upload file");
+        
+        setError(message || "Failed to upload file");
         if (finalStoragePath && targetOrgId)
           await supabase.storage.from(targetOrgId).remove([finalStoragePath]);
         if (resourceId)

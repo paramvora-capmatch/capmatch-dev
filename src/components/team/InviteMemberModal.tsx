@@ -9,6 +9,7 @@ import { OrgMemberRole, Permission, ProjectGrant } from '@/types/enhanced-types'
 import { useProjects } from '@/hooks/useProjects';
 import { X, Copy, Check, Mail, Briefcase, Settings } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
 import { supabase } from '../../../lib/supabaseClient';
 
@@ -308,8 +309,6 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   const currentProjectForModal = projects.find(
     (project) => project.id === openProjectPermissionsModal
   );
@@ -318,10 +317,24 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     : undefined;
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="flex items-center justify-center gap-4 max-w-[95vw]">
-        {/* Wider modal for Invite Team Member */}
-        <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto flex-shrink-0">
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50"
+        >
+          <div className="flex items-center justify-center gap-4 max-w-[95vw]">
+            {/* Wider modal for Invite Team Member */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto flex-shrink-0"
+            >
           <Card className="border-0 shadow-none">
             <CardHeader className="flex flex-row items-center justify-between">
               <h3 className="flex items-center text-xl font-semibold">
@@ -517,10 +530,17 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
               )}
             </CardContent>
           </Card>
-        </div>
+            </motion.div>
 
-        {openProjectPermissionsModal && currentProjectForModal && currentGrantForModal && (
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-right duration-200 flex-shrink-0">
+            <AnimatePresence>
+              {openProjectPermissionsModal && currentProjectForModal && currentGrantForModal && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto flex-shrink-0"
+                >
             <Card className="border-0 shadow-none">
               <CardHeader className="flex flex-row items-center justify-between">
                 <h3 className="flex items-center text-xl font-semibold">
@@ -609,12 +629,15 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                     Done
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        )}
-      </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
