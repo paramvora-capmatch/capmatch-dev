@@ -26,6 +26,7 @@ import {
   Hash,
   Reply,
   ArrowUp,
+  User,
 } from "lucide-react";
 
 interface ChatInterfaceProps {
@@ -71,7 +72,11 @@ interface BlockedState {
   docs: BlockedDocInfo[];
 }
 
-const mentionLookupRegex = /@\[([^\]]+)\]\(doc:([^)]+)\)/g;
+type MentionSuggestion = 
+  | { type: 'document'; data: AttachableDocument }
+  | { type: 'user'; data: { id: string; name: string; email?: string } };
+
+const mentionLookupRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
 
 function extractMentionNames(content: string): Map<string, string> {
   const map = new Map<string, string>();
@@ -80,7 +85,8 @@ function extractMentionNames(content: string): Map<string, string> {
   const regex = new RegExp(mentionLookupRegex.source, 'g');
   let match;
   while ((match = regex.exec(content)) !== null) {
-    map.set(match[2], match[1]);
+    // match[1] is name, match[2] is type (doc/user), match[3] is id
+    map.set(match[3], match[1]);
   }
   return map;
 }
@@ -322,7 +328,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [baseParticipantIds, participantLabelLookup, user?.id, getDisplayLabel, members, baseParticipantUserInfo]);
 
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<AttachableDocument[]>([]);
+  const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
   const [showDocPicker, setShowDocPicker] = useState(false);
   const [blockedState, setBlockedState] = useState<BlockedState | null>(null);
   const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
@@ -504,20 +510,45 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (atMatch) {
       const query = atMatch[1].toLowerCase();
       setMentionQuery(query);
-      const filtered = attachableDocuments
+
+      const docSuggestions: MentionSuggestion[] = attachableDocuments
         .filter((doc) => doc.name.toLowerCase().includes(query))
-        .slice(0, 5);
-      setSuggestions(filtered);
+        .map(doc => ({ type: 'document', data: doc }));
+
+      const userSuggestions: MentionSuggestion[] = participants
+        .filter(p => p.user_id !== user?.id) // Don't suggest self
+        .map(p => {
+            const name = participantLabelLookup.get(p.user_id) || "Unknown";
+            return {
+                type: 'user' as const,
+                data: {
+                    id: p.user_id,
+                    name: name,
+                    email: p.user?.email
+                }
+            };
+        })
+        .filter(u => u.data.name.toLowerCase().includes(query) || u.data.email?.toLowerCase().includes(query));
+
+      // Combine and limit
+      setSuggestions([...userSuggestions, ...docSuggestions].slice(0, 5));
     } else {
       setMentionQuery(null);
       setSuggestions([]);
     }
   };
 
-  const handleSuggestionClick = (doc: AttachableDocument) => {
+  const handleSuggestionClick = (suggestion: MentionSuggestion) => {
     // Use the RichTextInput's insertAtCursor method to insert at current position
     if (richTextInputRef.current) {
-      const mentionText = `@[${doc.name}](doc:${doc.resourceId}) `;
+      let mentionText = '';
+      if (suggestion.type === 'document') {
+          const doc = suggestion.data as AttachableDocument;
+          mentionText = `@[${doc.name}](doc:${doc.resourceId}) `;
+      } else {
+          const u = suggestion.data as { id: string, name: string };
+          mentionText = `@[${u.name}](user:${u.id}) `;
+      }
       
       // If we're completing an @ mention, tell insertAtCursor to replace the query
       if (mentionQuery !== null) {
@@ -614,7 +645,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!content) return null;
 
     // Regex to find @[name](doc:id) patterns
-    const mentionRegex = /@\[([^\]]+)\]\(doc:([^)]+)\)/g;
+    const mentionRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
     let match;
@@ -630,20 +661,35 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         );
       }
 
-      // Add the document mention button
-      const docName = match[1];
-      const resourceId = match[2];
-      parts.push(
-        <button
-          key={`doc-${resourceId}-${match.index}`}
-          type="button"
-          onClick={() => handleMentionClick(resourceId)}
-          className="inline-flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors font-medium cursor-pointer border-0 mx-1"
-        >
-          <FileText size={14} className="inline mr-1.5" />
-          {docName}
-        </button>
-      );
+      // Add the mention button/pill
+      const name = match[1];
+      const type = match[2]; // 'doc' or 'user'
+      const id = match[3];
+      
+      if (type === 'doc') {
+          parts.push(
+            <button
+              key={`doc-${id}-${match.index}`}
+              type="button"
+              onClick={() => handleMentionClick(id)}
+              className="inline-flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors font-medium cursor-pointer border-0 mx-1 align-middle"
+            >
+              <FileText size={14} className="inline mr-1.5" />
+              {name}
+            </button>
+          );
+      } else {
+          // User mention
+          parts.push(
+            <span
+              key={`user-${id}-${match.index}`}
+              className="inline-flex items-center text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md font-medium border-0 mx-1 align-middle"
+            >
+              <span className="mr-1 font-bold">@</span>
+              {name}
+            </span>
+          );
+      }
 
       lastIndex = match.index + match[0].length;
     }
@@ -1010,19 +1056,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     className="absolute bottom-full left-3 right-3 mb-2 border border-gray-200 rounded-lg bg-white shadow-lg max-h-48 overflow-y-auto z-10"
                   >
                     {suggestions.length > 0 ? (
-                      suggestions.map((doc) => (
+                      suggestions.map((suggestion) => {
+                        const key = suggestion.type === 'document' 
+                            ? `doc-${suggestion.data.resourceId}`
+                            : `user-${suggestion.data.id}`;
+                        const name = suggestion.data.name;
+                        
+                        return (
                         <button
-                          key={doc.resourceId}
-                          onClick={() => handleSuggestionClick(doc)}
+                          key={key}
+                          onClick={() => handleSuggestionClick(suggestion)}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center"
                         >
-                          <FileText
-                            size={16}
-                            className="mr-2 text-gray-500 flex-shrink-0"
-                          />
-                          <span className="truncate">{doc.name}</span>
+                          {suggestion.type === 'document' ? (
+                              <FileText
+                                size={16}
+                                className="mr-2 text-gray-500 flex-shrink-0"
+                              />
+                          ) : (
+                              <User
+                                size={16}
+                                className="mr-2 text-blue-500 flex-shrink-0"
+                              />
+                          )}
+                          <span className="truncate">{name}</span>
                         </button>
-                      ))
+                      )})
                     ) : (
                       <div className="px-3 py-2 text-sm text-gray-500">
                         {isLoadingAttachable
@@ -1060,7 +1119,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             <button
                               key={doc.resourceId}
                               type="button"
-                              onClick={() => handleSuggestionClick(doc)}
+                              onClick={() => handleSuggestionClick({ type: 'document', data: doc })}
                               className="w-full flex items-start px-3 py-2 text-left hover:bg-gray-50"
                             >
                               <FileText className="h-4 w-4 text-gray-500 mt-0.5 mr-2" />

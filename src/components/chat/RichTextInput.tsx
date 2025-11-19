@@ -2,9 +2,10 @@
 import React, { useRef, useEffect, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { FileText, X } from 'lucide-react';
 
-interface DocumentMention {
+interface Mention {
   name: string;
-  resourceId: string;
+  id: string;
+  type: 'doc' | 'user';
   startIndex: number;
   endIndex: number;
 }
@@ -44,15 +45,16 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
   const isUpdatingDOMRef = useRef(false);
 
   // Parse markdown mentions from the value string
-  const parseMentions = useCallback((text: string): DocumentMention[] => {
-    const mentions: DocumentMention[] = [];
-    const regex = /@\[([^\]]+)\]\(doc:([^)]+)\)/g;
+  const parseMentions = useCallback((text: string): Mention[] => {
+    const mentions: Mention[] = [];
+    const regex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
     let match;
 
     while ((match = regex.exec(text)) !== null) {
       mentions.push({
         name: match[1],
-        resourceId: match[2],
+        type: match[2] as 'doc' | 'user',
+        id: match[3],
         startIndex: match.index,
         endIndex: match.index + match[0].length,
       });
@@ -88,11 +90,20 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
       }
 
       // Add the mention as a pill with reduced max width to prevent overflow
-      html += `<span class="doc-mention inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-sm font-medium mx-1 border border-blue-200" contenteditable="false" data-resource-id="${mention.resourceId}" data-doc-name="${mention.name.replace(/"/g, '&quot;')}" style="user-select: none; white-space: nowrap; max-width: 240px;">` +
-        `<span class="doc-mention-icon flex-shrink-0">📄</span>` +
-        `<span class="doc-mention-name flex-1 overflow-hidden text-ellipsis whitespace-nowrap">${mention.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>` +
-        `<button class="doc-mention-remove flex-shrink-0 w-4 h-4 flex items-center justify-center border-0 bg-transparent text-blue-600 cursor-pointer rounded opacity-70 hover:opacity-100 hover:bg-blue-600 hover:text-white transition-all text-lg leading-none p-0 m-0" type="button" aria-label="Remove document" style="font-size: 18px; line-height: 1;">×</button>` +
-        `</span>`;
+      if (mention.type === 'doc') {
+        html += `<span class="mention-pill doc-mention inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-sm font-medium mx-1 border border-blue-200" contenteditable="false" data-type="doc" data-id="${mention.id}" data-name="${mention.name.replace(/"/g, '&quot;')}" style="user-select: none; white-space: nowrap; max-width: 240px;">` +
+          `<span class="mention-icon flex-shrink-0">📄</span>` +
+          `<span class="mention-name flex-1 overflow-hidden text-ellipsis whitespace-nowrap">${mention.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>` +
+          `<button class="mention-remove flex-shrink-0 w-4 h-4 flex items-center justify-center border-0 bg-transparent text-blue-600 cursor-pointer rounded opacity-70 hover:opacity-100 hover:bg-blue-600 hover:text-white transition-all text-lg leading-none p-0 m-0" type="button" aria-label="Remove document" style="font-size: 18px; line-height: 1;">×</button>` +
+          `</span>`;
+      } else {
+        // User mention
+        html += `<span class="mention-pill user-mention inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md text-sm font-medium mx-1 border border-indigo-200" contenteditable="false" data-type="user" data-id="${mention.id}" data-name="${mention.name.replace(/"/g, '&quot;')}" style="user-select: none; white-space: nowrap; max-width: 240px;">` +
+          `<span class="mention-icon flex-shrink-0 font-bold">@</span>` +
+          `<span class="mention-name flex-1 overflow-hidden text-ellipsis whitespace-nowrap">${mention.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>` +
+          `<button class="mention-remove flex-shrink-0 w-4 h-4 flex items-center justify-center border-0 bg-transparent text-indigo-600 cursor-pointer rounded opacity-70 hover:opacity-100 hover:bg-indigo-600 hover:text-white transition-all text-lg leading-none p-0 m-0" type="button" aria-label="Remove user" style="font-size: 18px; line-height: 1;">×</button>` +
+          `</span>`;
+      }
 
       lastIndex = mention.endIndex;
     });
@@ -119,11 +130,13 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as HTMLElement;
         
-        if (el.classList.contains('doc-mention')) {
-          const resourceId = el.getAttribute('data-resource-id');
-          const docName = el.getAttribute('data-doc-name');
-          if (resourceId && docName) {
-            result += `@[${docName}](doc:${resourceId})`;
+        if (el.classList.contains('mention-pill')) {
+          const id = el.getAttribute('data-id') || el.getAttribute('data-resource-id'); // Fallback for backward compatibility
+          const name = el.getAttribute('data-name') || el.getAttribute('data-doc-name'); // Fallback
+          const type = el.getAttribute('data-type') || (el.classList.contains('doc-mention') ? 'doc' : 'user');
+          
+          if (id && name) {
+            result += `@[${name}](${type}:${id})`;
           }
         } else if (el.tagName === 'BR') {
           result += '\n';
@@ -179,45 +192,68 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
       // Save cursor position
       const selection = window.getSelection();
       let cursorPos = 0;
-      let cursorNode: Node | null = null;
       
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
-        cursorNode = range.startContainer;
-        cursorPos = range.startOffset;
-        
-        // Calculate absolute cursor position in text
-        let node: Node | null = editorRef.current.firstChild;
         let absolutePos = 0;
         let found = false;
-        
-        const traverse = (n: Node): boolean => {
-          if (n === cursorNode) {
-            absolutePos += cursorPos;
+
+        const traverse = (node: Node) => {
+          if (found) return;
+
+          // Check if cursor is inside this text node
+          if (node === range.startContainer && node.nodeType === Node.TEXT_NODE) {
+            absolutePos += range.startOffset;
             found = true;
-            return true;
+            return;
           }
-          if (n.nodeType === Node.TEXT_NODE) {
-            absolutePos += n.textContent?.length || 0;
-          } else if (n.nodeType === Node.ELEMENT_NODE) {
-            const el = n as HTMLElement;
-            if (el.classList.contains('doc-mention')) {
-              // Skip mention pills in cursor calculation
-              return false;
+
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as HTMLElement;
+            
+            // Check if cursor is inside this element (before any children)
+            // Note: startOffset for Element is child index
+            if (node === range.startContainer) {
+               // We handle this by checking index in the loop below
             }
-            for (let i = 0; i < n.childNodes.length; i++) {
-              if (traverse(n.childNodes[i])) return true;
+
+            if (el.classList.contains('mention-pill')) {
+              absolutePos += 1; // Count pill as 1 character
+              return; // Don't traverse children of pill
             }
+            
+            for (let i = 0; i < node.childNodes.length; i++) {
+              // Check if cursor is exactly at this child index
+              if (node === range.startContainer && i === range.startOffset) {
+                found = true;
+                return;
+              }
+              
+              traverse(node.childNodes[i]);
+              if (found) return;
+            }
+            
+            // Check if cursor is at the end of this element
+            if (node === range.startContainer && range.startOffset === node.childNodes.length) {
+               found = true;
+               return;
+            }
+            
+            if (el.tagName === 'BR') {
+              absolutePos += 1;
+            }
+          } else if (node.nodeType === Node.TEXT_NODE) {
+             // Node was fully traversed
+             absolutePos += node.textContent?.length || 0;
           }
-          return false;
         };
         
-        while (node && !found) {
-          traverse(node);
-          node = node.nextSibling;
+        if (editorRef.current) {
+          traverse(editorRef.current);
+          if (found) {
+            cursorPos = absolutePos;
+          }
         }
-        
-        cursorPos = absolutePos;
       }
       
       editorRef.current.innerHTML = valueToHTML(value);
@@ -240,39 +276,87 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
               remaining -= len;
             } else if (node.nodeType === Node.ELEMENT_NODE) {
               const el = node as HTMLElement;
-              if (!el.classList.contains('doc-mention')) {
-                for (let i = 0; i < node.childNodes.length; i++) {
-                  if (findPosition(node.childNodes[i])) return true;
+              
+              if (el.classList.contains('mention-pill')) {
+                if (remaining === 0) {
+                  // Cursor should be before this pill
+                  // We need to set range before this node.
+                  // But findPosition returns boolean to signal "found".
+                  // We'll handle the range setting logic here or ensure targetNode is set correctly.
+                  
+                  // Since we can't easily return "before node" via targetNode/targetOffset (unless we use parent),
+                  // let's handle it by setting a special flag or handling it in the loop.
+                  // Actually, if remaining is 0, we want the position *before* this element.
+                  // But the caller expects targetNode/targetOffset for setStart.
+                  
+                  // Alternative: set targetNode to parent, targetOffset to index.
+                  targetNode = node.parentNode;
+                  targetOffset = Array.from(node.parentNode?.childNodes || []).indexOf(node as ChildNode);
+                  return true;
                 }
+                remaining -= 1;
+                return false;
+              }
+              
+              if (el.tagName === 'BR') {
+                if (remaining === 0) {
+                   targetNode = node.parentNode;
+                   targetOffset = Array.from(node.parentNode?.childNodes || []).indexOf(node as ChildNode);
+                   return true;
+                }
+                remaining -= 1;
+              }
+
+              for (let i = 0; i < node.childNodes.length; i++) {
+                if (findPosition(node.childNodes[i])) return true;
               }
             }
             return false;
           };
           
+          // We need to handle the case where cursor is at the very end (remaining > 0 but no more nodes)
+          // handled by fallback.
+          
+          // But verify findPosition works for the "before pill" case.
+          
+          let found = false;
           for (let i = 0; i < editorRef.current.childNodes.length; i++) {
-            if (findPosition(editorRef.current.childNodes[i])) break;
+            if (findPosition(editorRef.current.childNodes[i])) {
+                found = true;
+                break;
+            }
           }
           
-          if (targetNode) {
+          if (found && targetNode) {
             const newRange = document.createRange();
             newRange.setStart(targetNode, targetOffset);
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
           } else {
-            // Fallback: place cursor at the end
-            const lastChild = editorRef.current.lastChild;
-            if (lastChild) {
-              const newRange = document.createRange();
-              if (lastChild.nodeType === Node.TEXT_NODE) {
-                newRange.setStart(lastChild, lastChild.textContent?.length || 0);
-              } else {
-                newRange.setStartAfter(lastChild);
-              }
-              newRange.collapse(true);
-              selection.removeAllRanges();
-              selection.addRange(newRange);
-            }
+             // If remaining is > 0, maybe it matches the very end?
+             // Or if remaining was 0 and we didn't find a node (empty editor?)
+             if (remaining === 0 && editorRef.current.childNodes.length === 0) {
+                 const newRange = document.createRange();
+                 newRange.setStart(editorRef.current, 0);
+                 newRange.collapse(true);
+                 selection.removeAllRanges();
+                 selection.addRange(newRange);
+             } else {
+                // Fallback: place cursor at the end
+                const lastChild = editorRef.current.lastChild;
+                if (lastChild) {
+                  const newRange = document.createRange();
+                  if (lastChild.nodeType === Node.TEXT_NODE) {
+                    newRange.setStart(lastChild, lastChild.textContent?.length || 0);
+                  } else {
+                    newRange.setStartAfter(lastChild);
+                  }
+                  newRange.collapse(true);
+                  selection.removeAllRanges();
+                  selection.addRange(newRange);
+                }
+             }
           }
         } catch (e) {
           // Ignore cursor restoration errors
@@ -374,18 +458,19 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
     const target = e.target as HTMLElement;
     
     // Handle remove button click
-    if (target.classList.contains('doc-mention-remove')) {
+    if (target.classList.contains('mention-remove')) {
       e.preventDefault();
       e.stopPropagation();
       
-      const mention = target.closest('.doc-mention') as HTMLElement;
+      const mention = target.closest('.mention-pill') as HTMLElement;
       if (mention) {
-        const resourceId = mention.getAttribute('data-resource-id');
-        const docName = mention.getAttribute('data-doc-name');
+        const id = mention.getAttribute('data-id') || mention.getAttribute('data-resource-id');
+        const name = mention.getAttribute('data-name') || mention.getAttribute('data-doc-name');
+        const type = mention.getAttribute('data-type') || (mention.classList.contains('doc-mention') ? 'doc' : 'user');
         
         // Remove the mention from the value
-        if (resourceId && docName) {
-          const mentionText = `@[${docName}](doc:${resourceId})`;
+        if (id && name) {
+          const mentionText = `@[${name}](${type}:${id})`;
           const newValue = value.replace(mentionText, '');
           onChange(newValue);
         }
@@ -399,7 +484,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
       return;
     }
 
-    // Handle backspace/delete for document pills
+    // Handle backspace/delete for mention pills
     if (e.key === 'Backspace' || e.key === 'Delete') {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0 || !editorRef.current) {
@@ -415,6 +500,41 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
         return;
       }
 
+      const removeMention = (el: HTMLElement) => {
+        if (el.classList && el.classList.contains('mention-pill')) {
+          e.preventDefault();
+          
+          // If Backspace, we are after the element. Move cursor before it so restoration works correctly.
+          // This ensures that after the element is removed, the cursor stays at the same relative position (now before the following content).
+          if (e.key === 'Backspace') {
+             const selection = window.getSelection();
+             if (selection) {
+                 const range = document.createRange();
+                 range.setStartBefore(el);
+                 range.collapse(true);
+                 selection.removeAllRanges();
+                 selection.addRange(range);
+             }
+          }
+          
+          // Find which occurrence this is
+          const allPills = Array.from(editorRef.current?.querySelectorAll('.mention-pill') || []);
+          const pillIndex = allPills.indexOf(el);
+          
+          if (pillIndex !== -1) {
+            const mentions = parseMentions(value);
+            if (mentions[pillIndex]) {
+              const m = mentions[pillIndex];
+              // Remove the mention range from the string
+              const newValue = value.substring(0, m.startIndex) + value.substring(m.endIndex);
+              onChange(newValue);
+            }
+          }
+          return true;
+        }
+        return false;
+      };
+
       if (e.key === 'Backspace') {
         // Check if there's a pill immediately before the cursor
         const container = range.startContainer;
@@ -424,18 +544,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
         if (container.nodeType === Node.TEXT_NODE && offset === 0) {
           const prevSibling = container.previousSibling;
           if (prevSibling && prevSibling.nodeType === Node.ELEMENT_NODE) {
-            const prevEl = prevSibling as HTMLElement;
-            if (prevEl.classList && prevEl.classList.contains('doc-mention')) {
-              e.preventDefault();
-              const resourceId = prevEl.getAttribute('data-resource-id');
-              const docName = prevEl.getAttribute('data-doc-name');
-              if (resourceId && docName) {
-                const mentionText = `@[${docName}](doc:${resourceId})`;
-                const newValue = value.replace(mentionText, '');
-                onChange(newValue);
-              }
-              return;
-            }
+            if (removeMention(prevSibling as HTMLElement)) return;
           }
         }
 
@@ -444,18 +553,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
           const el = container as HTMLElement;
           const childBefore = el.childNodes[offset - 1];
           if (childBefore && childBefore.nodeType === Node.ELEMENT_NODE) {
-            const childEl = childBefore as HTMLElement;
-            if (childEl.classList && childEl.classList.contains('doc-mention')) {
-              e.preventDefault();
-              const resourceId = childEl.getAttribute('data-resource-id');
-              const docName = childEl.getAttribute('data-doc-name');
-              if (resourceId && docName) {
-                const mentionText = `@[${docName}](doc:${resourceId})`;
-                const newValue = value.replace(mentionText, '');
-                onChange(newValue);
-              }
-              return;
-            }
+            if (removeMention(childBefore as HTMLElement)) return;
           }
         }
       } else if (e.key === 'Delete') {
@@ -469,18 +567,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
           if (offset === textContent.length) {
             const nextSibling = container.nextSibling;
             if (nextSibling && nextSibling.nodeType === Node.ELEMENT_NODE) {
-              const nextEl = nextSibling as HTMLElement;
-              if (nextEl.classList && nextEl.classList.contains('doc-mention')) {
-                e.preventDefault();
-                const resourceId = nextEl.getAttribute('data-resource-id');
-                const docName = nextEl.getAttribute('data-doc-name');
-                if (resourceId && docName) {
-                  const mentionText = `@[${docName}](doc:${resourceId})`;
-                  const newValue = value.replace(mentionText, '');
-                  onChange(newValue);
-                }
-                return;
-              }
+              if (removeMention(nextSibling as HTMLElement)) return;
             }
           }
         }
@@ -491,18 +578,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
           if (offset < el.childNodes.length) {
             const childAfter = el.childNodes[offset];
             if (childAfter && childAfter.nodeType === Node.ELEMENT_NODE) {
-              const childEl = childAfter as HTMLElement;
-              if (childEl.classList && childEl.classList.contains('doc-mention')) {
-                e.preventDefault();
-                const resourceId = childEl.getAttribute('data-resource-id');
-                const docName = childEl.getAttribute('data-doc-name');
-                if (resourceId && docName) {
-                  const mentionText = `@[${docName}](doc:${resourceId})`;
-                  const newValue = value.replace(mentionText, '');
-                  onChange(newValue);
-                }
-                return;
-              }
+              if (removeMention(childAfter as HTMLElement)) return;
             }
           }
         }
@@ -512,7 +588,7 @@ export const RichTextInput = forwardRef<RichTextInputRef, RichTextInputProps>(({
     if (onKeyDown) {
       onKeyDown(e);
     }
-  }, [onKeyDown, value, onChange]);
+  }, [onKeyDown, value, onChange, parseMentions]);
 
   // Show placeholder when empty
   const showPlaceholder = !value && !isFocused;

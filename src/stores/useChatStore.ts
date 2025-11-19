@@ -95,6 +95,7 @@ interface ChatActions {
   loadAttachableDocuments: (threadId: string) => Promise<void>;
   
   // Utility
+  markThreadRead: (threadId: string) => Promise<void>;
   reset: () => void;
   clearError: () => void;
 }
@@ -220,6 +221,15 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       get().loadParticipants(threadId);
       get().subscribeToMessages(threadId);
       get().loadAttachableDocuments(threadId);
+      void get().markThreadRead(threadId);
+    }
+  },
+
+  markThreadRead: async (threadId: string) => {
+    try {
+      await supabase.rpc('mark_thread_read', { p_thread_id: threadId });
+    } catch (err) {
+      console.error('Failed to mark thread read:', err);
     }
   },
 
@@ -402,7 +412,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
     try {
       // Call RPC directly - much faster than edge function!
-      const { data: messageId, error: insertError } = await supabase.rpc(
+      const { data: result, error: insertError } = await supabase.rpc(
         'insert_thread_message',
         {
           p_thread_id: threadId,
@@ -444,12 +454,33 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         throw new Error(insertError.message || 'Failed to send message');
       }
 
+      // result is now a JSON object { message_id: 123, event_id: 456 }
+      // Need to handle old version (bigint) or new version (json) during migration transition
+      let messageId = null;
+      let eventId = null;
+
+      if (typeof result === 'object' && result !== null && 'message_id' in result) {
+          messageId = result.message_id;
+          eventId = result.event_id;
+      } else {
+          messageId = result; // Legacy BIGINT return
+      }
+
       if (!messageId) {
         // Remove optimistic message if no ID returned
         set((state) => ({
           messages: state.messages.filter((msg) => msg.id !== tempId),
         }));
         throw new Error('Failed to send message');
+      }
+
+      // Trigger Notification Fan-Out (Fire and Forget)
+      if (eventId) {
+          void supabase.functions.invoke('notify-fan-out', {
+              body: { eventId: eventId }
+          }).then(({ error }) => {
+              if (error) console.error('Failed to trigger chat notification fan-out:', error);
+          });
       }
 
       // Keep message as "sending" - it will be updated to "delivered" when real message arrives
