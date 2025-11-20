@@ -640,6 +640,45 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  // Helper function to truncate content while preserving complete mentions
+  const truncateContentPreservingMentions = (content: string, maxLength: number = 100): string => {
+    if (!content || content.length <= maxLength) return content;
+    
+    // Find all mentions first using matchAll to avoid regex state issues
+    const mentionRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
+    const matches = Array.from(content.matchAll(mentionRegex));
+    const mentions: Array<{ start: number; end: number }> = [];
+    
+    matches.forEach((match) => {
+      const matchIndex = match.index ?? 0;
+      mentions.push({
+        start: matchIndex,
+        end: matchIndex + match[0].length
+      });
+    });
+    
+    // Find the truncation point that doesn't cut a mention
+    let truncateAt = maxLength;
+    
+    // Check if we're cutting through a mention
+    for (const mention of mentions) {
+      if (mention.start < maxLength && mention.end > maxLength) {
+        // We're cutting through this mention, truncate after it instead
+        truncateAt = mention.end;
+        break;
+      }
+    }
+    
+    // If truncating after a mention would be too long, just truncate at maxLength
+    // (This prevents extremely long previews if a mention is very long)
+    if (truncateAt > maxLength * 1.5) {
+      truncateAt = maxLength;
+    }
+    
+    return content.substring(0, truncateAt) + 
+           (truncateAt < content.length ? '...' : '');
+  };
+
   // Parse message content and render with document mention buttons
   const renderMessageContent = (content?: string) => {
     if (!content) return null;
@@ -648,12 +687,16 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const mentionRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
-    let match;
 
-    while ((match = mentionRegex.exec(content)) !== null) {
+    // Use matchAll to find all mentions at once, avoiding regex state issues
+    const matches = Array.from(content.matchAll(mentionRegex));
+
+    matches.forEach((match) => {
+      const matchIndex = match.index ?? 0;
+      
       // Add text before the mention
-      if (match.index > lastIndex) {
-        const textBefore = content.substring(lastIndex, match.index);
+      if (matchIndex > lastIndex) {
+        const textBefore = content.substring(lastIndex, matchIndex);
         parts.push(
           <ReactMarkdown key={`text-${lastIndex}`} remarkPlugins={[remarkGfm]}>
             {textBefore}
@@ -669,7 +712,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (type === 'doc') {
           parts.push(
             <button
-              key={`doc-${id}-${match.index}`}
+              key={`doc-${id}-${matchIndex}`}
               type="button"
               onClick={() => handleMentionClick(id)}
               className="inline-flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors font-medium cursor-pointer border-0 mx-1 align-middle"
@@ -682,7 +725,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           // User mention
           parts.push(
             <span
-              key={`user-${id}-${match.index}`}
+              key={`user-${id}-${matchIndex}`}
               className="inline-flex items-center text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md font-medium border-0 mx-1 align-middle"
             >
               <span className="mr-1 font-bold">@</span>
@@ -691,8 +734,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           );
       }
 
-      lastIndex = match.index + match[0].length;
-    }
+      lastIndex = matchIndex + match[0].length;
+    });
 
     // Add remaining text after the last mention
     if (lastIndex < content.length) {
@@ -942,9 +985,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             </div>
                             <div className="text-[11px] line-clamp-2 opacity-80">
                               {renderMessageContent(
-                                message.repliedMessage.content && message.repliedMessage.content.length > 100
-                                  ? message.repliedMessage.content.substring(0, 100) + "..."
-                                  : message.repliedMessage.content
+                                truncateContentPreservingMentions(message.repliedMessage.content || '', 100)
                               )}
                             </div>
                           </div>
@@ -1030,9 +1071,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       </div>
                       <div className="text-sm text-gray-700 line-clamp-2">
                         {renderMessageContent(
-                          replyingTo.content && replyingTo.content.length > 100
-                            ? replyingTo.content.substring(0, 100) + "..."
-                            : replyingTo.content
+                          truncateContentPreservingMentions(replyingTo.content || '', 100)
                         )}
                       </div>
                     </div>

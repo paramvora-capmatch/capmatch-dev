@@ -16,7 +16,6 @@ DECLARE
     v_event_id BIGINT;
     v_missing RECORD;
     v_project_id UUID;
-    v_preview TEXT;
     v_mentioned_ids UUID[];
     v_user_mention_regex TEXT := '@\[[^\]]+\]\(user:([0-9a-fA-F-]{36})\)';
 BEGIN
@@ -75,12 +74,6 @@ BEGIN
     INTO v_mentioned_ids
     FROM regexp_matches(p_content, v_user_mention_regex, 'g') AS match;
 
-    -- Create Preview (First 100 chars)
-    v_preview := substring(p_content from 1 for 100);
-    IF length(p_content) > 100 THEN
-        v_preview := v_preview || '...';
-    END IF;
-
     -- Insert Event
     INSERT INTO public.domain_events (
         event_type,
@@ -95,7 +88,7 @@ BEGIN
         p_thread_id,
         jsonb_build_object(
             'message_id', v_message_id,
-            'preview', v_preview,
+            'full_content', p_content,
             'mentioned_user_ids', COALESCE(v_mentioned_ids, ARRAY[]::UUID[])
         )
     )

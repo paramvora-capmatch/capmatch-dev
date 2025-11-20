@@ -173,6 +173,14 @@ async function handleChatMessage(
       return jsonResponse({ error: "Missing thread_id for chat event" }, 400);
   }
 
+  const threadInfo = await getThreadInfo(supabaseAdmin, event.thread_id);
+  const threadName = threadInfo?.topic?.trim() || "thread";
+  const threadLabel = threadName.startsWith("#") ? threadName : `#${threadName}`;
+  const projectId = threadInfo?.project_id ?? event.project_id;
+  const projectName = await getProjectName(supabaseAdmin, projectId);
+  const threadDescriptor = threadLabel;
+  const projectDescriptor = projectName || "this project";
+
   // 1. Get Participants (Candidates)
   const participants = await getThreadParticipants(supabaseAdmin, event.thread_id);
   
@@ -180,8 +188,16 @@ async function handleChatMessage(
   const senderName = await getProfileName(supabaseAdmin, event.actor_id);
   
   const mentionedUserIds = (event.payload?.mentioned_user_ids as string[]) || [];
-  const preview = (event.payload?.preview as string) || "New message";
-  const messageId = event.payload?.message_id;
+  // Use full_content for all notifications - preview generation moved to frontend
+  const fullContent = (event.payload?.full_content as string) || "New message";
+
+  const threadPayloadBase = {
+    count: 1,
+    thread_id: event.thread_id,
+    thread_name: threadName,
+    project_name: projectName,
+    type: "thread_activity",
+  };
 
   let insertedCount = 0;
   let updatedCount = 0;
@@ -202,7 +218,7 @@ async function handleChatMessage(
           scopeId: event.thread_id!,
           eventType: 'chat_message',
           channel: 'in_app',
-          projectId: event.project_id
+          projectId,
       });
       
       if (isMuted) continue;
@@ -210,58 +226,49 @@ async function handleChatMessage(
       // 5. Determine Notification Type
       const isMentioned = mentionedUserIds.includes(userId);
       
-      // 6. Check "Last Read" Logic (Client-side suppression logic mirror)
-      // If the user has read AFTER the message was sent, don't notify. 
-      // (This handles race conditions where user is online).
-      // But here, the message was *just* sent, so last_read is likely older.
-      // We skip this check for now as it's redundant with the client-side 'mark_read'.
-
       if (isMentioned) {
           // MENTIONS: Always create a new, distinct notification
+          // Use full_content to ensure all mentions are complete and renderable
           const { error } = await supabaseAdmin.from("notifications").insert({
               user_id: userId,
               event_id: event.id,
-              title: `${senderName} mentioned you`,
-              body: preview, // "Hey @Aryan..."
-              link_url: `/project/workspace/${event.project_id}?tab=chat&thread=${event.thread_id}`,
-              // We can store extra metadata if needed
+              title: `${senderName} mentioned you in ${threadDescriptor}`,
+              body: fullContent,
+              link_url: `/project/workspace/${projectId}?tab=chat&thread=${event.thread_id}`,
+              payload: { ...threadPayloadBase, type: "mention" },
           });
           if (!error) insertedCount++;
       } else {
           // GENERAL: Aggregate if possible
-          
-          // Check for existing UNREAD notification for this thread
           const { data: existingNotif } = await supabaseAdmin
               .from("notifications")
-              .select("id, body, payload") // payload isn't in schema v0 but body is
+              .select("id, payload")
               .eq("user_id", userId)
               .is("read_at", null)
-              .ilike("title", "%new message%") // Heuristic to find general chat notifs
+              .eq("payload->>thread_id", event.thread_id)
+              .eq("payload->>type", "thread_activity")
               .order("created_at", { ascending: false })
               .limit(1)
-              .single();
+              .maybeSingle();
 
-          if (existingNotif) {
-              // UPDATE existing: Atomic Increment via RPC
+          if (existingNotif?.id) {
               const { error } = await supabaseAdmin.rpc('increment_notification_count', {
                   p_notification_id: existingNotif.id
               });
                   
               if (error) {
                   console.error("[notify-fan-out] Failed to increment notification:", error);
-                  // Fallback or ignore, but logging is crucial
               } else {
                   updatedCount++;
               }
           } else {
-              // INSERT new
               const { error } = await supabaseAdmin.from("notifications").insert({
                   user_id: userId,
                   event_id: event.id,
-                  title: `New message in ${await getProjectName(supabaseAdmin, event.project_id)}`,
-                  body: `${senderName}: ${preview}`,
-                  link_url: `/project/workspace/${event.project_id}?tab=chat&thread=${event.thread_id}`,
-                  payload: { count: 1, thread_id: event.thread_id } // Store initial count and thread_id
+                  title: `New messages in ${projectDescriptor}`,
+                  body: `1 new message in **${threadDescriptor}**`,
+                  link_url: `/project/workspace/${projectId}?tab=chat&thread=${event.thread_id}`,
+                  payload: threadPayloadBase
               });
               if (!error) insertedCount++;
           }
@@ -336,6 +343,21 @@ async function getProfileName(supabaseAdmin: SupabaseClient, userId: string | nu
 async function getProjectName(supabaseAdmin: SupabaseClient, projectId: string) {
     const { data } = await supabaseAdmin.from("projects").select("name").eq("id", projectId).single();
     return data?.name || "Project";
+}
+
+async function getThreadInfo(supabaseAdmin: SupabaseClient, threadId: string) {
+    const { data, error } = await supabaseAdmin
+        .from("chat_threads")
+        .select("id, topic, project_id")
+        .eq("id", threadId)
+        .single();
+
+    if (error) {
+        console.error("[notify-fan-out] Failed to fetch thread info:", error);
+        return null;
+    }
+
+    return data;
 }
 
 // --- Existing Helpers (Document) ---

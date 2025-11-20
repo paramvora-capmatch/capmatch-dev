@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Fragment, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -25,10 +25,178 @@ export const NotificationBell = () => {
 
   const activeNotifications = activeTab === "unread" ? unreadNotifications : readNotifications;
 
+  // Generate preview from full content (truncates at word/mention boundaries when possible)
+  const generatePreview = useCallback((content: string, maxLength: number = 200): string => {
+    if (!content || content.length <= maxLength) {
+      return content;
+    }
+
+    // Try to truncate after the last complete mention within the limit
+    const mentionRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
+    const matches: Array<{ end: number }> = [];
+    let match;
+    
+    while ((match = mentionRegex.exec(content)) !== null) {
+      const endPos = match.index + match[0].length;
+      if (endPos <= maxLength + 50) { // Give some buffer
+        matches.push({ end: endPos });
+      }
+    }
+
+    // If we found mentions near the limit, truncate after the last one
+    if (matches.length > 0) {
+      const lastMentionEnd = matches[matches.length - 1].end;
+      if (lastMentionEnd <= maxLength + 50) {
+        const truncated = content.substring(0, lastMentionEnd);
+        return truncated.length < content.length ? truncated + "..." : truncated;
+      }
+    }
+
+    // Otherwise, truncate at word boundary
+    const truncated = content.substring(0, maxLength);
+    const lastSpace = truncated.lastIndexOf(" ");
+    if (lastSpace > maxLength * 0.8) { // Only use word boundary if it's not too early
+      return truncated.substring(0, lastSpace) + "...";
+    }
+    
+    return truncated + "...";
+  }, []);
+
+  const renderBoldLine = useCallback((line: string, keyPrefix: string) => {
+    const segments: ReactNode[] = [];
+    const boldRegex = /\*\*(.+?)\*\*/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    let segmentIndex = 0;
+
+    while ((match = boldRegex.exec(line)) !== null) {
+      const [fullMatch, boldText] = match;
+      if (match.index > lastIndex) {
+        const textPart = line.slice(lastIndex, match.index);
+        if (textPart) {
+          segments.push(
+            <span key={`${keyPrefix}-text-${segmentIndex}`}>{textPart}</span>
+          );
+          segmentIndex++;
+        }
+      }
+
+      segments.push(
+        <strong key={`${keyPrefix}-bold-${segmentIndex}`} className="font-semibold text-gray-900">
+          {boldText}
+        </strong>
+      );
+      segmentIndex++;
+      lastIndex = match.index + fullMatch.length;
+    }
+
+    const remaining = line.slice(lastIndex);
+    if (remaining || segments.length === 0) {
+      segments.push(
+        <span key={`${keyPrefix}-text-tail`}>{remaining}</span>
+      );
+    }
+
+    return segments;
+  }, []);
+
+  const renderNotificationContent = useCallback((content?: string) => {
+    if (!content) {
+      return null;
+    }
+
+    const mentionRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
+    const parts: ReactNode[] = [];
+    let lastIndex = 0;
+
+    const renderTextSegment = (text: string, key: string) => {
+      const lines = text.split("\n");
+      return (
+        <span key={key} className="text-sm text-gray-600">
+          {lines.map((line, idx) => (
+            <Fragment key={`${key}-${idx}`}>
+              {renderBoldLine(line, `${key}-${idx}`)}
+              {idx < lines.length - 1 && <br />}
+            </Fragment>
+          ))}
+        </span>
+      );
+    };
+
+    // Use matchAll to find all mentions at once, avoiding regex state issues
+    const matches = Array.from(content.matchAll(mentionRegex));
+
+    matches.forEach((match, matchIndex) => {
+      const matchIndexPos = match.index ?? 0;
+      
+      if (matchIndexPos > lastIndex) {
+        parts.push(renderTextSegment(content.substring(lastIndex, matchIndexPos), `text-${lastIndex}`));
+      }
+
+      const name = match[1];
+      const type = match[2];
+      const id = match[3];
+
+      if (type === "doc") {
+        parts.push(
+          <span
+            key={`doc-${id}-${matchIndexPos}-${matchIndex}`}
+            className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md text-xs font-medium border border-blue-200"
+          >
+            <span className="text-[11px] font-semibold">📄</span>
+            <span className="truncate max-w-[12rem]">{name}</span>
+          </span>
+        );
+      } else {
+        parts.push(
+          <span
+            key={`user-${id}-${matchIndexPos}-${matchIndex}`}
+            className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md text-xs font-medium border border-indigo-200"
+          >
+            <span className="font-bold">@</span>
+            <span className="truncate max-w-[12rem]">{name}</span>
+          </span>
+        );
+      }
+
+      lastIndex = matchIndexPos + match[0].length;
+    });
+
+    if (lastIndex < content.length) {
+      parts.push(renderTextSegment(content.substring(lastIndex), `text-${lastIndex}`));
+    }
+
+    if (parts.length === 0) {
+      return renderTextSegment(content, "text-full");
+    }
+
+    return <span className="inline-flex flex-wrap gap-1">{parts}</span>;
+  }, [renderBoldLine]);
+
   const closeDropdown = useCallback(() => {
     if (detailsRef.current) {
       detailsRef.current.open = false;
     }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const detailsEl = detailsRef.current;
+      if (!detailsEl || !detailsEl.open) {
+        return;
+      }
+      if (event.target instanceof Node && !detailsEl.contains(event.target)) {
+        detailsEl.open = false;
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
   const handleNotificationClick = useCallback(
@@ -100,7 +268,7 @@ export const NotificationBell = () => {
                   {activeTab === "unread"
                     ? "No unread notifications."
                     : readNotifications.length === 0
-                      ? "You haven&apos;t read any notifications yet."
+                      ? "You haven't read any notifications yet."
                       : "No read notifications to show."}
                 </p>
               </div>
@@ -112,22 +280,31 @@ export const NotificationBell = () => {
                       onClick={() =>
                         handleNotificationClick(notification.id, notification.link_url)
                       }
-                      className={cn(
-                        "w-full text-left px-4 py-3 transition-colors",
-                        notification.read_at
-                          ? "bg-white hover:bg-gray-50"
-                          : "bg-blue-50/70 hover:bg-blue-100"
-                      )}
+                      className="w-full text-left px-4 py-3 transition-colors bg-white hover:bg-gray-50"
                     >
-                      <p className={cn("text-sm font-semibold", notification.read_at ? "text-gray-800" : "text-blue-900")}>
-                        {notification.title}
-                      </p>
-                      {notification.body && (
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.body}</p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-2">
-                        {new Date(notification.created_at).toLocaleString()}
-                      </p>
+                      <div className="flex gap-3">
+                        <div className="pt-1 w-4 flex justify-center">
+                          {!notification.read_at && (
+                            <span className="relative flex h-2.5 w-2.5">
+                              <span className="absolute inline-flex h-full w-full rounded-full bg-blue-300 opacity-75 animate-ping" />
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className={cn("text-sm font-semibold", notification.read_at ? "text-gray-800" : "text-gray-900")}>
+                            {notification.title}
+                          </p>
+                          {notification.body && (
+                            <div className="text-sm text-gray-600 mt-1 line-clamp-2">
+                              {renderNotificationContent(notification.body)}
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-400 mt-2">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
                     </button>
                   </li>
                 ))}
