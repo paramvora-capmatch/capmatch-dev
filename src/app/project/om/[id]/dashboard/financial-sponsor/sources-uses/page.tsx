@@ -16,6 +16,11 @@ export default function SourcesUsesPage() {
     0
   );
 
+  const primaryDebtSource =
+    financialDetails.sourcesUses.sources.find((source) =>
+      /debt|loan/i.test(source.type)
+    ) || financialDetails.sourcesUses.sources[0];
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -26,6 +31,7 @@ export default function SourcesUsesPage() {
   };
 
   const formatPercentage = (amount: number, total: number) => {
+    if (total === 0) return "0.0";
     return ((amount / total) * 100).toFixed(1);
   };
 
@@ -79,11 +85,7 @@ export default function SourcesUsesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-purple-600">
-              {formatPercentage(
-                financialDetails.sourcesUses.sources[0].amount,
-                totalSources
-              )}
-              %
+              {formatPercentage(primaryDebtSource.amount, totalSources)}%
             </p>
             <p className="text-sm text-gray-500 mt-1">Debt to total capital</p>
           </CardContent>
@@ -292,36 +294,14 @@ export default function SourcesUsesPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Debt Component</span>
-                <Badge className="bg-blue-100 text-blue-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.sources[0].amount,
-                    totalSources
-                  )}
-                  %
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Sponsor Equity</span>
-                <Badge className="bg-green-100 text-green-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.sources[1].amount,
-                    totalSources
-                  )}
-                  %
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">LP Equity</span>
-                <Badge className="bg-purple-100 text-purple-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.sources[2].amount,
-                    totalSources
-                  )}
-                  %
-                </Badge>
-              </div>
+              {financialDetails.sourcesUses.sources.map((source) => (
+                <div key={source.type} className="flex justify-between items-center">
+                  <span className="text-gray-600">{source.type}</span>
+                  <Badge className="bg-blue-50 text-blue-800">
+                    {formatPercentage(source.amount, totalSources)}%
+                  </Badge>
+                </div>
+              ))}
 
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex justify-between items-center">
@@ -343,37 +323,17 @@ export default function SourcesUsesPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Land & Development</span>
-                <Badge className="bg-green-100 text-green-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.uses[0].amount +
-                      financialDetails.sourcesUses.uses[1].amount,
-                    totalUses
-                  )}
-                  %
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Soft Costs</span>
-                <Badge className="bg-blue-100 text-blue-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.uses[2].amount,
-                    totalUses
-                  )}
-                  %
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Financing Costs</span>
-                <Badge className="bg-purple-100 text-purple-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.uses[3].amount,
-                    totalUses
-                  )}
-                  %
-                </Badge>
-              </div>
+              {[...financialDetails.sourcesUses.uses]
+                .sort((a, b) => b.amount - a.amount)
+                .slice(0, 3)
+                .map((use) => (
+                  <div key={use.type} className="flex justify-between items-center">
+                    <span className="text-gray-600">{use.type}</span>
+                    <Badge className="bg-green-50 text-green-800">
+                      {formatPercentage(use.amount, totalUses)}%
+                    </Badge>
+                  </div>
+                ))}
 
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex justify-between items-center">

@@ -1,0 +1,17 @@
+<svg width="640" height="400" viewBox="0 0 640 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="400" fill="#f5f5f4" />
+  <rect x="40" y="40" width="560" height="320" fill="#e4e4e7" stroke="#d4d4d8" stroke-width="2" rx="16" />
+  <rect x="90" y="90" width="460" height="220" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2" rx="12" />
+  <rect x="140" y="140" width="180" height="120" fill="#a5f3fc" stroke="#0ea5e9" stroke-width="2" rx="10" />
+  <rect x="350" y="140" width="150" height="120" fill="#bfdbfe" stroke="#2563eb" stroke-width="2" rx="10" />
+  <rect x="200" y="280" width="240" height="40" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="6" />
+  <rect x="60" y="60" width="80" height="60" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
+  <rect x="500" y="60" width="80" height="60" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" />
+  <text x="115" y="100" text-anchor="middle" font-size="12" fill="#475569">Hickory St.</text>
+  <text x="525" y="100" text-anchor="middle" font-size="12" fill="#475569">Marilla St.</text>
+  <text x="230" y="200" font-size="14" fill="#0c4a6e">Innovation Center</text>
+  <text x="420" y="200" font-size="14" fill="#1d4ed8">Residential Podium</text>
+  <text x="320" y="305" font-size="13" fill="#b45309">Amenity Deck</text>
+  <text x="320" y="360" font-size="16" fill="#1f2937" text-anchor="middle">SoGood Apartments – Site Diagram</text>
+</svg>
+

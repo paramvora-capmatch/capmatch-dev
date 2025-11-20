@@ -170,6 +170,30 @@ export default function KeyTermsPage() {
           </CardContent>
         )}
       </Card>
+
+      <Card className="hover:shadow-lg transition-shadow mt-8">
+        <CardHeader>
+          <h3 className="text-xl font-semibold text-gray-800">Special Programs & Incentives</h3>
+          <p className="text-sm text-gray-600">
+            Opportunity Zone benefits, Dallas PFC lease, and workforce housing covenant tied to the Hoque structure.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {dealSnapshotDetails.specialPrograms.map((program, index) => (
+              <div key={program.name} className="flex items-start justify-between bg-gray-50 rounded-lg p-4">
+                <div className="pr-4">
+                  <h4 className="font-semibold text-gray-800">{program.name}</h4>
+                  <p className="text-sm text-gray-600 mt-1">{program.description}</p>
+                </div>
+                <Badge variant="outline" className="border-gray-200 whitespace-nowrap">
+                  {index === 0 ? "Qualified" : "In Structuring"}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
 import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { useOMDashboard } from '@/contexts/OMDashboardContext';
-import { scenarioData } from '@/services/mockOMData';
+import { scenarioData, dealSnapshotDetails } from '@/services/mockOMData';
 import { Layers, FileText, Calendar, AlertTriangle } from 'lucide-react';
 
 export default function DealSnapshotPage() {
@@ -62,27 +62,27 @@ export default function DealSnapshotPage() {
                     <div className="grid grid-cols-2 gap-2">
                         <div className="text-sm">
                             <p className="text-gray-500">Rate</p>
-                            <p className="font-medium">SOFR + 275</p>
+                            <p className="font-medium">{dealSnapshotDetails.keyTerms.rate}</p>
                         </div>
                         <div className="text-sm">
                             <p className="text-gray-500">Term</p>
-                            <p className="font-medium">3+1+1 Years</p>
+                            <p className="font-medium">{dealSnapshotDetails.keyTerms.term}</p>
                         </div>
                         <div className="text-sm">
                             <p className="text-gray-500">Recourse</p>
-                            <p className="font-medium">25% Partial</p>
+                            <p className="font-medium">{dealSnapshotDetails.keyTerms.recourse}</p>
                         </div>
                         <div className="text-sm">
                             <p className="text-gray-500">Origination</p>
-                            <p className="font-medium">1.0%</p>
+                            <p className="font-medium">{dealSnapshotDetails.keyTerms.origination}</p>
                         </div>
                     </div>
                     <div className="pt-2 border-t">
                         <p className="text-xs text-gray-500 mb-1">Key Covenants</p>
                         <ul className="text-xs space-y-1">
-                            <li>• Min DSCR: 1.20x</li>
-                            <li>• Max LTV: 80%</li>
-                            <li>• Completion Guaranty</li>
+                            <li>• Min DSCR: {dealSnapshotDetails.keyTerms.covenants.minDSCR}</li>
+                            <li>• Max LTV / LTC: {dealSnapshotDetails.keyTerms.covenants.maxLTV}</li>
+                            <li>• Liquidity: {dealSnapshotDetails.keyTerms.covenants.minLiquidity}</li>
                         </ul>
                     </div>
                 </div>
@@ -97,17 +97,17 @@ export default function DealSnapshotPage() {
             metrics: (
                 <div className="space-y-3">
                     <div className="space-y-2">
-                        {[
-                            { name: 'Term Sheet', date: 'Jul 1, 2025', status: 'upcoming' },
-                            { name: 'Due Diligence', date: 'Jul 15, 2025', status: 'upcoming' },
-                            { name: 'Closing', date: 'Aug 15, 2025', status: 'target' }
-                        ].map((milestone, idx) => (
+                        {dealSnapshotDetails.milestones.slice(0, 3).map((milestone, idx) => (
                             <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                <span className="text-sm">{milestone.name}</span>
+                                <span className="text-sm">{milestone.phase}</span>
                                 <div className="flex items-center space-x-2">
                                     <span className="text-xs text-gray-500">{milestone.date}</span>
                                     <div className={`w-2 h-2 rounded-full ${
-                                        milestone.status === 'target' ? 'bg-amber-400' : 'bg-gray-300'
+                                        milestone.status === 'completed'
+                                            ? 'bg-green-500'
+                                            : milestone.status === 'current'
+                                            ? 'bg-blue-500'
+                                            : 'bg-amber-400'
                                     }`} />
                                 </div>
                             </div>
@@ -126,15 +126,14 @@ export default function DealSnapshotPage() {
                 <div className="space-y-3">
                     <div className="space-y-2">
                         {[
-                            { risk: 'Construction', level: 'Medium', mitigant: 'Fixed-price GMP' },
-                            { risk: 'Market', level: 'Low', mitigant: 'Pre-leasing 35%' },
-                            { risk: 'Entitlement', level: 'Low', mitigant: 'Fully approved' }
-                        ].map((item, idx) => (
+                            ...dealSnapshotDetails.riskMatrix.medium.map(item => ({ ...item, level: 'Medium' })),
+                            ...dealSnapshotDetails.riskMatrix.low.map(item => ({ ...item, level: 'Low' }))
+                        ].slice(0, 3).map((item, idx) => (
                             <div key={idx} className="p-2 bg-gray-50 rounded">
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <p className="text-sm font-medium">{item.risk}</p>
-                                        <p className="text-xs text-gray-500">{item.mitigant}</p>
+                                        <p className="text-xs text-gray-500">{item.mitigation}</p>
                                     </div>
                                     <span className={`text-xs px-2 py-1 rounded ${
                                         item.level === 'Low' ? 'bg-green-100 text-green-700' :

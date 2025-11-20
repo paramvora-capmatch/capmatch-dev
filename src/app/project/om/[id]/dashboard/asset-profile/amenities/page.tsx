@@ -126,6 +126,32 @@ export default function AmenitiesPage() {
         })}
       </div>
 
+      {/* Commercial / Innovation Program */}
+      <Card className="hover:shadow-lg transition-shadow mb-8">
+        <CardHeader>
+          <h3 className="text-xl font-semibold text-gray-800">Commercial & Innovation Program</h3>
+          <p className="text-sm text-gray-600">30,000 SF Innovation Center plus flexible office/retail bays</p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {assetProfileDetails.commercialSpaces.map((space, index) => (
+              <div key={space.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">{space.name}</p>
+                  <p className="text-xs text-gray-500">{space.use}</p>
+                </div>
+                <div className="text-right">
+                  <Badge variant="outline" className="border-gray-200 mb-1">
+                    {space.size}
+                  </Badge>
+                  <div className="text-xs text-gray-500">{space.status}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Amenity Categories */}
       <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
