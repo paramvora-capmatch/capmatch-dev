@@ -8,9 +8,10 @@ import { Modal, ModalBody, ModalFooter, ModalHeader } from '@/components/ui/Moda
 import { useOrgStore } from '@/stores/useOrgStore';
 import { useProjects } from '@/hooks/useProjects';
 import { useChatStore } from '@/stores/useChatStore';
-import { Loader2, User, X, Plus, Trash2, UserPlus, FileText } from 'lucide-react';
+import { Loader2, User, X, Plus, Trash2, UserPlus, FileText, Check } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import { AttachableDocument } from '@/stores/useChatStore';
+import { useProjectEligibleMembers } from '@/hooks/useProjectEligibleMembers';
 
 interface ChatThread {
   id: string;
@@ -33,6 +34,13 @@ interface EnrichedParticipant {
   isAdvisor: boolean;
 }
 
+type SelectableMember = {
+  user_id: string;
+  userName?: string;
+  userEmail?: string | null;
+  role?: string;
+};
+
 export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps> = ({
   thread,
   isOpen,
@@ -45,12 +53,17 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
     useChatStore();
   const [selectedMembersToAdd, setSelectedMembersToAdd] = useState<string[]>([]);
   const [enrichedParticipants, setEnrichedParticipants] = useState<EnrichedParticipant[]>([]);
-  const [projectMemberIds, setProjectMemberIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [documents, setDocuments] = useState<AttachableDocument[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [docError, setDocError] = useState<string | null>(null);
   const previousParticipantIdsRef = useRef<Set<string>>(new Set());
+  const { eligibleMembers } = useProjectEligibleMembers({
+    projectId: activeProject?.id,
+    members,
+    advisorUserId: activeProject?.assignedAdvisorUserId,
+    enabled: isOpen,
+  });
 
   // Ensure participants are loaded when modal opens
   useEffect(() => {
@@ -217,47 +230,20 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
     enrich();
   }, [isOpen, thread, participants, members, activeProject, enrichedParticipants.length]);
 
-  // Fetch project members when modal opens
-  useEffect(() => {
-    const fetchProjectMembers = async () => {
-      if (!activeProject?.id) {
-        setProjectMemberIds(new Set());
-        return;
-      }
-
-      try {
-        const { data: grants, error } = await supabase
-          .from('project_access_grants')
-          .select('user_id')
-          .eq('project_id', activeProject.id);
-
-        if (error) {
-          console.error('[ManageChannelMembersModal] Failed to fetch project members:', error);
-          setProjectMemberIds(new Set());
-          return;
-        }
-
-        // Add the advisor if assigned
-        const userIds = new Set(grants?.map(g => g.user_id) || []);
-        if (activeProject?.assignedAdvisorUserId) {
-          userIds.add(activeProject.assignedAdvisorUserId);
-        }
-
-        setProjectMemberIds(userIds);
-      } catch (err) {
-        console.error('[ManageChannelMembersModal] Error fetching project members:', err);
-        setProjectMemberIds(new Set());
-      }
-    };
-
-    if (isOpen) {
-      fetchProjectMembers();
-    }
-  }, [isOpen, activeProject]);
-
-  const availableMembers = members.filter(
-    (m) => !participants.some((p) => p.user_id === m.user_id) && projectMemberIds.has(m.user_id)
-  );
+  const availableMembers = useMemo<SelectableMember[]>(() => {
+    return eligibleMembers
+      .filter(
+        (member) =>
+          !participants.some((p) => p.user_id === member.user_id) &&
+          member.user_id !== undefined
+      )
+      .map((member) => ({
+        user_id: member.user_id,
+        userName: member.userName,
+        userEmail: member.userEmail,
+        role: member.role,
+      }));
+  }, [eligibleMembers, participants]);
 
   const handleAdd = async () => {
     if (selectedMembersToAdd.length === 0) return;
@@ -271,27 +257,15 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
       // Force reload by fetching directly from DB and enriching
       // This ensures we show the newly added member even if store hasn't updated
       try {
+        // Query participants directly (RLS now allows this)
         const { data: participantsData, error } = await supabase
           .from('chat_thread_participants')
-          .select(`*, user:profiles(id, full_name, email)`)
+          .select('thread_id, user_id, created_at')
           .eq('thread_id', thread.id);
 
         if (!error && participantsData) {
-          // Ensure advisor is included if assigned to project but not in participants
-          const participantUserIds = new Set((participantsData || []).map((p: any) => p.user_id));
-          const advisorId = activeProject?.assignedAdvisorUserId;
-          
-          if (advisorId && !participantUserIds.has(advisorId)) {
-            participantsData.push({
-              user_id: advisorId,
-              thread_id: thread.id,
-              created_at: new Date().toISOString(),
-              user: null,
-            });
-          }
-
-          // Fetch all user profiles
-          const allUserIds = (participantsData || []).map((p: any) => p.user_id);
+          // Fetch all user profiles via edge function (can't join profiles due to RLS)
+          const allUserIds = participantsData.map((p: any) => p.user_id);
           const userProfilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
           
           if (allUserIds.length > 0) {
@@ -316,7 +290,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
             const userId = participant.user_id;
             const memberInfo = members.find(m => m.user_id === userId);
             const isAdvisor = activeProject?.assignedAdvisorUserId === userId;
-            const userProfile = userProfilesMap.get(userId) || participant.user;
+            const userProfile = userProfilesMap.get(userId) || null;
 
             if (memberInfo) {
               enriched.push({
@@ -327,7 +301,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
                 isAdvisor: false,
               });
             } else if (isAdvisor) {
-              const profile = userProfile || participant.user;
+              const profile = userProfile;
               enriched.push({
                 ...participant,
                 userName: profile?.full_name || profile?.email || 'Advisor',
@@ -336,7 +310,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
                 isAdvisor: true,
               });
             } else {
-              const profile = userProfile || participant.user;
+              const profile = userProfile;
               enriched.push({
                 ...participant,
                 userName: profile?.full_name || 'Unknown',
@@ -376,88 +350,6 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
           {/* Left Panel - Members */}
           <div className="border-r border-gray-200 pr-4 flex flex-col min-h-0">
             <div className="space-y-4 flex-shrink-0">
-              {/* Add Members Section */}
-              <div>
-                <h4 className="font-medium text-gray-800 mb-2">Add Members</h4>
-            {availableMembers.length === 0 ? (
-              <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                <div className="flex flex-col items-center justify-center text-center space-y-2">
-                  <UserPlus className="h-5 w-5 text-gray-400" />
-                  <p className="text-sm text-gray-600">Invite members</p>
-                  <p className="text-xs text-gray-500">
-                    Add members to your project to invite them to channels
-                  </p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      router.push("/team");
-                      onClose();
-                    }}
-                    className="mt-2"
-                  >
-                    Go to Team Page
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2 min-h-[60px] p-3 bg-gray-50 rounded-md border border-gray-200">
-                  {availableMembers.length === 0 ? (
-                    <p className="text-sm text-gray-500 flex items-center">No members available to add</p>
-                  ) : (
-                    availableMembers.map((member) => {
-                      const isSelected = selectedMembersToAdd.includes(member.user_id);
-                      return (
-                        <button
-                          key={member.user_id}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedMembersToAdd(selectedMembersToAdd.filter(id => id !== member.user_id));
-                            } else {
-                              setSelectedMembersToAdd([...selectedMembersToAdd, member.user_id]);
-                            }
-                          }}
-                          className={`
-                            px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200
-                            flex items-center gap-2
-                            ${isSelected 
-                              ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700' 
-                              : 'bg-white text-gray-700 border border-gray-300 hover:border-blue-400 hover:bg-blue-50'
-                            }
-                          `}
-                        >
-                          <User size={14} />
-                          <span>{member.userName || member.userEmail || 'Unknown'}</span>
-                          {isSelected && (
-                            <span className="ml-1">✓</span>
-                          )}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-                <div className="space-y-2">
-                  {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-sm">
-                      {error}
-                    </div>
-                  )}
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={handleAdd} 
-                      disabled={isLoading || selectedMembersToAdd.length === 0}
-                      className="min-w-[100px]"
-                    >
-                      <Plus size={16} className="mr-1" /> Add {selectedMembersToAdd.length > 0 && `(${selectedMembersToAdd.length})`}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
               {/* Current Members Section */}
               <div>
                 <h4 className="font-medium text-gray-800 mb-2">Current Members</h4>
@@ -465,57 +357,162 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
             </div>
 
             <div className="flex-1 overflow-y-auto mt-2">
-              {isLoading && enrichedParticipants.length === 0 ? (
-                <div className="text-center p-4"><Loader2 className="animate-spin" /></div>
-              ) : enrichedParticipants.length === 0 ? (
-                <div className="text-sm text-gray-500 py-8 px-4 border border-gray-200 rounded-lg bg-gray-50 text-center">
-                  No members in this channel yet.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {enrichedParticipants.map(p => {
-                    const isCurrentUserOwner = p.userRole === 'owner';
-                    const canRemove = !isCurrentUserOwner && !p.isAdvisor && isOwner;
+              <div className="space-y-4">
+                {isLoading && enrichedParticipants.length === 0 ? (
+                  <div className="text-center p-4"><Loader2 className="animate-spin" /></div>
+                ) : enrichedParticipants.length === 0 ? (
+                  <div className="text-sm text-gray-500 py-8 px-4 border border-gray-200 rounded-lg bg-gray-50 text-center">
+                    No members in this channel yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {enrichedParticipants.map(p => {
+                      const isCurrentUserOwner = p.userRole === 'owner';
+                      const canRemove = !isCurrentUserOwner && !p.isAdvisor && isOwner;
 
-                    return (
-                      <div key={p.user_id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            p.isAdvisor ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
-                          }`}>
-                            <User size={16} />
+                      return (
+                        <div key={p.user_id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              p.isAdvisor ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
+                            }`}>
+                              <User size={16} />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium">{p.userName}</p>
+                                {p.isAdvisor && (
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                                    Advisor
+                                  </span>
+                                )}
+                                {isCurrentUserOwner && (
+                                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                                    Owner
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500">{p.userEmail}</p>
+                            </div>
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-medium">{p.userName}</p>
-                              {p.isAdvisor && (
-                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                                  Advisor
-                                </span>
-                              )}
-                              {isCurrentUserOwner && (
-                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                                  Owner
-                                </span>
+                          {canRemove ? (
+                             <Button variant="ghost" size="icon" onClick={() => handleRemove(p.user_id)} disabled={isLoading}>
+                               <Trash2 size={16} className="text-red-500" />
+                             </Button>
+                          ) : (
+                            <span className="text-xs font-semibold text-gray-400">
+                              {p.isAdvisor ? 'Cannot Remove' : 'Owner'}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add Members Section */}
+                <div className="pt-4 border-t border-gray-200">
+                  <h4 className="font-medium text-gray-800 mb-2">Add Members</h4>
+                  {availableMembers.length === 0 ? (
+                    <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+                      <div className="flex flex-col items-center justify-center text-center space-y-2">
+                        <UserPlus className="h-5 w-5 text-gray-400" />
+                        <p className="text-sm text-gray-600">Invite members</p>
+                        <p className="text-xs text-gray-500">
+                          Add members to your project to invite them to channels
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            router.push("/team");
+                            onClose();
+                          }}
+                          className="mt-2"
+                        >
+                          Go to Team Page
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {availableMembers.map((member) => {
+                        const isSelected = selectedMembersToAdd.includes(member.user_id);
+                        const normalizedRole = member.role === "project_manager" ? "member" : member.role;
+                        const isOwner = normalizedRole === "owner";
+                        const isAdvisor = normalizedRole === "advisor";
+
+                        return (
+                          <div
+                            key={member.user_id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedMembersToAdd(selectedMembersToAdd.filter(id => id !== member.user_id));
+                              } else {
+                                setSelectedMembersToAdd([...selectedMembersToAdd, member.user_id]);
+                              }
+                            }}
+                            className={`
+                              flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all
+                              ${isSelected
+                                ? 'border-blue-500 bg-blue-50 hover:bg-blue-100'
+                                : 'border-gray-200 hover:bg-gray-50'
+                              }
+                            `}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                isAdvisor ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
+                              }`}>
+                                <User size={16} />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium">{member.userName || member.userEmail || 'Unknown'}</p>
+                                  {isAdvisor && (
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                                      Advisor
+                                    </span>
+                                  )}
+                                  {isOwner && (
+                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                                      Owner
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-500">{member.userEmail}</p>
+                              </div>
+                            </div>
+                            <div className="flex-shrink-0">
+                              {isSelected ? (
+                                <Check className="h-5 w-5 text-blue-600" />
+                              ) : (
+                                <Plus className="h-5 w-5 text-gray-400" />
                               )}
                             </div>
-                            <p className="text-xs text-gray-500">{p.userEmail}</p>
                           </div>
-                        </div>
-                        {canRemove ? (
-                           <Button variant="ghost" size="icon" onClick={() => handleRemove(p.user_id)} disabled={isLoading}>
-                             <Trash2 size={16} className="text-red-500" />
-                           </Button>
-                        ) : (
-                          <span className="text-xs font-semibold text-gray-400">
-                            {p.isAdvisor ? 'Cannot Remove' : 'Owner'}
-                          </span>
+                        );
+                      })}
+                      <div className="space-y-2 pt-2">
+                        {error && (
+                          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-sm">
+                            {error}
+                          </div>
                         )}
+                        <div className="flex justify-end">
+                          <Button 
+                            onClick={handleAdd} 
+                            disabled={isLoading || selectedMembersToAdd.length === 0}
+                            className="min-w-[100px]"
+                          >
+                            <Plus size={16} className="mr-1" /> Add {selectedMembersToAdd.length > 0 && `(${selectedMembersToAdd.length})`}
+                          </Button>
+                        </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
 

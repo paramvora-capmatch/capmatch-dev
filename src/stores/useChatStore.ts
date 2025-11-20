@@ -66,6 +66,7 @@ interface ChatState {
   
   // Realtime
   messageChannel: RealtimeChannel | null;
+  membershipChannel: RealtimeChannel | null;
   
   // Safe attachment UX
   attachableDocuments: AttachableDocument[];
@@ -88,6 +89,8 @@ interface ChatActions {
   sendMessage: (threadId: string, content: string, replyTo?: number | null) => Promise<void>;
   subscribeToMessages: (threadId: string) => void;
   unsubscribeFromMessages: () => void;
+  subscribeToMembershipChanges: (projectId: string) => Promise<void>;
+  unsubscribeFromMembershipChanges: () => void;
   
   // Attachments
   loadAttachments: (messageId: number) => Promise<void>;
@@ -95,6 +98,7 @@ interface ChatActions {
   loadAttachableDocuments: (threadId: string) => Promise<void>;
   
   // Utility
+  markThreadRead: (threadId: string) => Promise<void>;
   reset: () => void;
   clearError: () => void;
 }
@@ -159,6 +163,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
   isLoading: false,
   error: null,
   messageChannel: null,
+  membershipChannel: null,
   attachableDocuments: [],
   isLoadingAttachable: false,
 
@@ -220,6 +225,15 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       get().loadParticipants(threadId);
       get().subscribeToMessages(threadId);
       get().loadAttachableDocuments(threadId);
+      void get().markThreadRead(threadId);
+    }
+  },
+
+  markThreadRead: async (threadId: string) => {
+    try {
+      await supabase.rpc('mark_thread_read', { p_thread_id: threadId });
+    } catch (err) {
+      console.error('Failed to mark thread read:', err);
     }
   },
 
@@ -255,30 +269,48 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
   loadParticipants: async (threadId: string) => {
     try {
-      // Use edge function to bypass RLS and fetch all participants safely
-      const { data, error } = await supabase.functions.invoke('get-thread-participants', {
-        body: { thread_id: threadId },
-      });
+      // Query participants directly (RLS now allows this for threads user is part of)
+      const { data: participants, error } = await supabase
+        .from('chat_thread_participants')
+        .select('thread_id, user_id, created_at')
+        .eq('thread_id', threadId);
 
       if (error) {
         throw error;
       }
 
-      const participants = (data?.participants || []) as {
-        thread_id: string;
-        user_id: string;
-        created_at: string;
-      }[];
+      // Fetch user profiles via edge function (can't join profiles due to RLS)
+      const userIds = [...new Set((participants || []).map((p: any) => p.user_id).filter(Boolean))];
+      const profilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
+      
+      if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
+          body: { userIds: userIds as string[] },
+        });
+
+        if (!profilesError && Array.isArray(profilesData)) {
+          profilesData.forEach((user: any) => {
+            profilesMap.set(user.id, {
+              id: user.id,
+              full_name: user.full_name,
+              email: user.email,
+            });
+          });
+        } else if (profilesError) {
+          console.error('[ChatStore] Error fetching participant profiles:', profilesError);
+        }
+      }
 
       set({
-        participants: participants.map((p) => ({
+        participants: (participants || []).map((p: any) => ({
           thread_id: p.thread_id,
           user_id: p.user_id,
           created_at: p.created_at,
+          user: profilesMap.get(p.user_id) || undefined,
         })),
       });
     } catch (err) {
-      console.error('[ChatStore] Failed to load participants via edge function:', err);
+      console.error('[ChatStore] Failed to load participants:', err);
       set({ error: err instanceof Error ? err.message : 'Failed to load participants' });
     }
   },
@@ -402,7 +434,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
     try {
       // Call RPC directly - much faster than edge function!
-      const { data: messageId, error: insertError } = await supabase.rpc(
+      const { data: result, error: insertError } = await supabase.rpc(
         'insert_thread_message',
         {
           p_thread_id: threadId,
@@ -444,12 +476,33 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         throw new Error(insertError.message || 'Failed to send message');
       }
 
+      // result is now a JSON object { message_id: 123, event_id: 456 }
+      // Need to handle old version (bigint) or new version (json) during migration transition
+      let messageId = null;
+      let eventId = null;
+
+      if (typeof result === 'object' && result !== null && 'message_id' in result) {
+          messageId = result.message_id;
+          eventId = result.event_id;
+      } else {
+          messageId = result; // Legacy BIGINT return
+      }
+
       if (!messageId) {
         // Remove optimistic message if no ID returned
         set((state) => ({
           messages: state.messages.filter((msg) => msg.id !== tempId),
         }));
         throw new Error('Failed to send message');
+      }
+
+      // Trigger Notification Fan-Out (Fire and Forget)
+      if (eventId) {
+          void supabase.functions.invoke('notify-fan-out', {
+              body: { eventId: eventId }
+          }).then(({ error }) => {
+              if (error) console.error('Failed to trigger chat notification fan-out:', error);
+          });
       }
 
       // Keep message as "sending" - it will be updated to "delivered" when real message arrives
@@ -567,6 +620,75 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     statusTimeouts.clear();
     fadeOutTimeouts.forEach((timeout) => clearTimeout(timeout));
     fadeOutTimeouts.clear();
+  },
+
+  subscribeToMembershipChanges: async (projectId: string) => {
+    const { membershipChannel } = get();
+
+    if (membershipChannel) {
+      supabase.removeChannel(membershipChannel);
+      set({ membershipChannel: null });
+    }
+
+    if (!projectId) {
+      return;
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.warn("[ChatStore] Cannot subscribe to membership changes without auth user");
+      return;
+    }
+
+    const channel = supabase
+      .channel(`chat-thread-memberships-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_thread_participants',
+          filter: `user_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const newMembership = payload.new as { thread_id: string; user_id: string };
+          if (!newMembership?.thread_id) {
+            return;
+          }
+
+          try {
+            const { data: thread, error } = await supabase
+              .from('chat_threads')
+              .select('id, project_id, topic, created_at')
+              .eq('id', newMembership.thread_id)
+              .maybeSingle();
+
+            if (error) {
+              console.error('[ChatStore] Failed to fetch thread for membership change:', error);
+              return;
+            }
+
+            if (!thread || thread.project_id !== projectId) {
+              return;
+            }
+
+            await get().loadThreadsForProject(projectId);
+          } catch (err) {
+            console.error('[ChatStore] Error handling membership change:', err);
+          }
+        }
+      )
+      .subscribe();
+
+    set({ membershipChannel: channel });
+  },
+
+  unsubscribeFromMembershipChanges: () => {
+    const { membershipChannel } = get();
+    if (membershipChannel) {
+      supabase.removeChannel(membershipChannel);
+      set({ membershipChannel: null });
+    }
   },
 
   loadAttachments: async (messageId: number) => { /* Implementation... */ },
