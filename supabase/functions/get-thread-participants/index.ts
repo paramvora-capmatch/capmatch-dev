@@ -1,5 +1,22 @@
 // supabase/functions/get-thread-participants/index.ts
 //
+// ⚠️ DEPRECATED: This function is no longer used and should not be called.
+//
+// The chat system now uses direct queries to `chat_thread_participants` with
+// updated RLS policies that allow users to see all participants in threads
+// where they are also participants. See migration:
+// `20260121000000_update_chat_thread_participants_rls.sql`
+//
+// Instead of using this edge function, query `chat_thread_participants` directly:
+//   const { data } = await supabase
+//     .from('chat_thread_participants')
+//     .select('thread_id, user_id, created_at')
+//     .eq('thread_id', threadId);
+//
+// Profile data should be enriched using the `get-user-data` edge function
+// if needed, as the `profiles` table RLS remains restrictive.
+//
+// Original purpose (for reference):
 // Secure edge function to fetch all participants for a chat thread,
 // bypassing RLS with the service role key while still enforcing
 // authorization checks (must be project owner, assigned advisor, or

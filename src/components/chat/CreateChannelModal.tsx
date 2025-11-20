@@ -7,9 +7,12 @@ import { supabase } from "../../../lib/supabaseClient";
 import { AttachableDocument } from "../../stores/useChatStore";
 import { cn } from "../../utils/cn";
 
+type MemberRole = "owner" | "member" | "advisor" | "project_manager";
+
 interface MemberOption {
   value: string;
   label: string;
+  role?: MemberRole;
 }
 
 interface CreateChannelModalProps {
@@ -17,8 +20,6 @@ interface CreateChannelModalProps {
   onClose: () => void;
   onCreate: (topic: string, selectedMemberIds: string[]) => Promise<void>;
   memberOptions: MemberOption[];
-  baseParticipantIds: string[];
-  baseParticipantLabels: string[];
   projectId: string;
 }
 
@@ -27,8 +28,6 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
   onClose,
   onCreate,
   memberOptions,
-  baseParticipantIds,
-  baseParticipantLabels,
   projectId,
 }) => {
   const [topic, setTopic] = useState("");
@@ -51,14 +50,52 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
   };
 
   const participantsKey = useMemo(() => {
-    const ids = Array.from(new Set([...baseParticipantIds, ...Array.from(selectedMemberIds)])).sort();
+    // Note: Current user is automatically added by createThread, so we only need selectedMemberIds
+    const ids = Array.from(new Set(selectedMemberIds)).sort();
     return ids.join("|");
-  }, [baseParticipantIds, selectedMemberIds]);
+  }, [selectedMemberIds]);
 
   const participantIds = useMemo(() => {
     if (!participantsKey) return [] as string[];
     return participantsKey.split("|").filter(Boolean);
   }, [participantsKey]);
+
+  const prioritizedMemberOptions = useMemo(() => {
+    const rolePriority: Record<MemberRole, number> = {
+      owner: 0,
+      advisor: 1,
+      member: 2,
+      project_manager: 2,
+    };
+
+    return [...memberOptions].sort((a, b) => {
+      const aPriority =
+        (a.role && rolePriority[a.role as MemberRole]) ?? rolePriority.member;
+      const bPriority =
+        (b.role && rolePriority[b.role as MemberRole]) ?? rolePriority.member;
+
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      return a.label.localeCompare(b.label);
+    });
+  }, [memberOptions]);
+
+  // Preselect owners and advisors whenever modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    const defaultSelected = new Set(
+      prioritizedMemberOptions
+        .filter(
+          (option) =>
+            option.role === "owner" ||
+            option.role === "advisor" ||
+            option.role === "project_manager" // treat project managers as members (no auto select)
+        )
+        .filter((option) => option.role === "owner" || option.role === "advisor")
+        .map((option) => option.value)
+    );
+
+    setSelectedMemberIds(defaultSelected);
+  }, [isOpen, prioritizedMemberOptions]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -143,37 +180,31 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
                 onChange={(e) => setTopic(e.target.value)}
               />
 
-              <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                <div className="flex items-center text-sm font-semibold text-gray-900 mb-3">
-                  <Users className="h-4 w-4 mr-2 text-gray-600" />
-                  Owners included automatically
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {baseParticipantLabels.map((label) => (
-                    <span
-                      key={label}
-                      className="px-2.5 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 border border-blue-200"
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
 
               <h3 className="text-sm font-semibold text-gray-900">
-                Add members ({memberOptions.length})
+                Add members ({prioritizedMemberOptions.length})
               </h3>
             </div>
 
             <div className="flex-1 overflow-y-auto mt-2">
-              {memberOptions.length === 0 ? (
+              {prioritizedMemberOptions.length === 0 ? (
                 <div className="text-sm text-gray-500 py-8 px-4 border border-gray-200 rounded-lg bg-gray-50 text-center">
                   No additional members currently have access to this project.
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {memberOptions.map((option) => {
+                  {prioritizedMemberOptions.map((option) => {
                     const isSelected = selectedMemberIds.has(option.value);
+                    const normalizedRole =
+                      option.role === "project_manager" ? "member" : option.role;
+                    const roleStyles =
+                      normalizedRole === "owner"
+                        ? "bg-amber-100 text-amber-800 border border-amber-200"
+                        : normalizedRole === "advisor"
+                        ? "bg-indigo-100 text-indigo-800 border border-indigo-200"
+                        : normalizedRole === "member"
+                        ? "bg-slate-100 text-slate-700 border border-slate-200"
+                        : null;
                     return (
                       <div
                         key={option.value}
@@ -185,7 +216,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
                             : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-sm"
                         )}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-3">
                           <span
                             className={cn(
                               "text-sm",
@@ -196,7 +227,17 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
                           >
                             {option.label}
                           </span>
-                          <div className="flex-shrink-0 ml-2">
+                          <div className="flex items-center gap-2">
+                            {roleStyles && (
+                              <span
+                                className={cn(
+                                  "text-[11px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide",
+                                  roleStyles
+                                )}
+                              >
+                                {normalizedRole}
+                              </span>
+                            )}
                             {isSelected ? (
                               <Check className="h-5 w-5 text-blue-600" />
                             ) : (

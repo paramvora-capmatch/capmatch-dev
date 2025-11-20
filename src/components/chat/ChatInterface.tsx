@@ -7,6 +7,7 @@ import { useChatStore, AttachableDocument } from "../../stores/useChatStore";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useProjects } from "../../hooks/useProjects";
+import { useProjectEligibleMembers } from "../../hooks/useProjectEligibleMembers";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { supabase } from "../../../lib/supabaseClient";
 import { Card, CardContent } from "../ui/card";
@@ -26,6 +27,7 @@ import {
   Hash,
   Reply,
   ArrowUp,
+  User,
 } from "lucide-react";
 
 interface ChatInterfaceProps {
@@ -71,7 +73,11 @@ interface BlockedState {
   docs: BlockedDocInfo[];
 }
 
-const mentionLookupRegex = /@\[([^\]]+)\]\(doc:([^)]+)\)/g;
+type MentionSuggestion = 
+  | { type: 'document'; data: AttachableDocument }
+  | { type: 'user'; data: { id: string; name: string; email?: string } };
+
+const mentionLookupRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
 
 function extractMentionNames(content: string): Map<string, string> {
   const map = new Map<string, string>();
@@ -80,7 +86,8 @@ function extractMentionNames(content: string): Map<string, string> {
   const regex = new RegExp(mentionLookupRegex.source, 'g');
   let match;
   while ((match = regex.exec(content)) !== null) {
-    map.set(match[2], match[1]);
+    // match[1] is name, match[2] is type (doc/user), match[3] is id
+    map.set(match[3], match[1]);
   }
   return map;
 }
@@ -108,6 +115,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     attachableDocuments,
     loadAttachableDocuments,
     isLoadingAttachable,
+    subscribeToMembershipChanges,
+    unsubscribeFromMembershipChanges,
   } = useChatStore();
 
   const { user } = useAuthStore();
@@ -116,66 +125,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
   >(null);
-  
-  // State to track which members have access to this project
-  const [projectMemberIds, setProjectMemberIds] = useState<Set<string>>(new Set());
-
-  // State to store user info for base participants (e.g., assigned advisor who might be from different org)
-  const [baseParticipantUserInfo, setBaseParticipantUserInfo] = useState<Map<string, { full_name: string | null; email: string | null }>>(new Map());
-  
-  // State to store owner IDs of the project's owner org (fetched directly from DB)
-  const [projectOwnerOrgOwnerIds, setProjectOwnerOrgOwnerIds] = useState<Set<string>>(new Set());
+  const { isOwner, members, currentOrg } = useOrgStore();
+  const {
+    projectMemberIds,
+    advisorProfile,
+    eligibleMembers,
+  } = useProjectEligibleMembers({
+    projectId,
+    members,
+    advisorUserId: activeProject?.assignedAdvisorUserId,
+  });
 
   const [newMessage, setNewMessage] = useState("");
-  const { isOwner, members, currentOrg } = useOrgStore();
   const permissions = usePermissionStore((state) => state.permissions);
   const [managingThread, setManagingThread] = useState<ChatThread | null>(null);
   const [showCreateThreadModal, setShowCreateThreadModal] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ProjectMessage | null>(null);
   const messageRefs = useRef<Map<number | string, HTMLDivElement>>(new Map());
-
-  // Fetch owners of the project's owner org directly from database
-  useEffect(() => {
-    const fetchProjectOwnerOrgOwners = async () => {
-      if (!activeProject?.owner_org_id) {
-        setProjectOwnerOrgOwnerIds(new Set());
-        return;
-      }
-
-      try {
-        const { data: owners, error } = await supabase
-          .from("org_members")
-          .select("user_id")
-          .eq("org_id", activeProject.owner_org_id)
-          .eq("role", "owner");
-
-        if (error) {
-          console.error("[ChatInterface] Failed to fetch project owner org owners:", error);
-          setProjectOwnerOrgOwnerIds(new Set());
-          return;
-        }
-
-        const ownerIds = new Set(owners?.map(o => o.user_id) || []);
-        setProjectOwnerOrgOwnerIds(ownerIds);
-      } catch (err) {
-        console.error("[ChatInterface] Error fetching project owner org owners:", err);
-        setProjectOwnerOrgOwnerIds(new Set());
-      }
-    };
-
-    fetchProjectOwnerOrgOwners();
-  }, [activeProject?.owner_org_id]);
-
-  const baseParticipantIds = useMemo(() => {
-    const ids = new Set<string>();
-    // Always include current user
-    if (user?.id) ids.add(user.id);
-    // Always include assigned advisor
-    if (activeProject?.assignedAdvisorUserId) ids.add(activeProject.assignedAdvisorUserId);
-    // Include all owners of the project's owner org (fetched directly from DB)
-    projectOwnerOrgOwnerIds.forEach(id => ids.add(id));
-    return Array.from(ids);
-  }, [user?.id, activeProject?.assignedAdvisorUserId, projectOwnerOrgOwnerIds]);
 
   // Check if user is an owner of the org that owns this project
   const hasOwnerPermissions = useMemo(() => {
@@ -184,91 +150,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     console.log(`[ChatInterface] Has owner permissions: ${canManage}, isOwner: ${isOwner}, currentOrg: ${currentOrg?.id}, projectOwner: ${activeProject.owner_org_id}`);
     return canManage;
   }, [isOwner, currentOrg, activeProject]);
-
-  // Filter members to only show those with access to this project
-  // This state is now handled below with useState
-
-  useEffect(() => {
-    const fetchProjectMembers = async () => {
-      if (!projectId) {
-        setProjectMemberIds(new Set());
-        return;
-      }
-
-      try {
-        // Get all users who have been granted access to this project
-        const { data: grants, error } = await supabase
-          .from('project_access_grants')
-          .select('user_id')
-          .eq('project_id', projectId);
-
-        if (error) {
-          console.error('[ChatInterface] Failed to fetch project members:', error);
-          setProjectMemberIds(new Set());
-          return;
-        }
-
-        // Add the advisor if assigned
-        const userIds = new Set(grants?.map(g => g.user_id) || []);
-        if (activeProject?.assignedAdvisorUserId) {
-          userIds.add(activeProject.assignedAdvisorUserId);
-        }
-
-        setProjectMemberIds(userIds);
-      } catch (err) {
-        console.error('[ChatInterface] Error fetching project members:', err);
-        setProjectMemberIds(new Set());
-      }
-    };
-
-    fetchProjectMembers();
-  }, [projectId, activeProject?.assignedAdvisorUserId]);
-
-  // Fetch user info for base participants who aren't in members or participants
-  useEffect(() => {
-    const fetchBaseParticipantInfo = async () => {
-      if (baseParticipantIds.length === 0) {
-        setBaseParticipantUserInfo(new Map());
-        return;
-      }
-
-      // Find IDs that aren't in members or participants
-      const memberIds = new Set(members.map(m => m.user_id));
-      const participantIds = new Set(participants.map(p => p.user_id));
-      const missingIds = baseParticipantIds.filter(
-        id => !memberIds.has(id) && !participantIds.has(id) && id !== user?.id
-      );
-
-      if (missingIds.length === 0) {
-        setBaseParticipantUserInfo(new Map());
-        return;
-      }
-
-      try {
-        // Use the same edge function that org store uses to fetch user data
-        const { data: userData, error } = await supabase.functions.invoke("get-user-data", {
-          body: { userIds: missingIds },
-        });
-
-        if (error) {
-          console.error("[ChatInterface] Failed to fetch base participant info:", error);
-          return;
-        }
-
-        const infoMap = new Map<string, { full_name: string | null; email: string | null }>();
-        (userData as { id: string; email: string | null; full_name: string | null }[] || []).forEach(
-          (u) => {
-            infoMap.set(u.id, { full_name: u.full_name, email: u.email });
-          }
-        );
-        setBaseParticipantUserInfo(infoMap);
-      } catch (err) {
-        console.error("[ChatInterface] Error fetching base participant info:", err);
-      }
-    };
-
-    fetchBaseParticipantInfo();
-  }, [baseParticipantIds, members, participants, user?.id]);
 
   const getDisplayLabel = useCallback((
     userId: string,
@@ -301,28 +182,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return map;
   }, [getDisplayLabel, members, participants]);
 
-  const baseParticipantLabels = useMemo(() => {
-    return baseParticipantIds.map((id) => {
-      if (id === user?.id) return "You";
-      // First try to get from participantLabelLookup (includes members and participants)
-      const label = participantLabelLookup.get(id);
-      if (label) return label;
-      // Fallback: try to find in members directly (in case owner isn't in participants yet)
-      const member = members.find(m => m.user_id === id);
-      if (member) {
-        return getDisplayLabel(member.user_id, member.userName, member.userEmail);
-      }
-      // Final fallback: use fetched user info (for users from different orgs, like assigned advisor)
-      const userInfo = baseParticipantUserInfo.get(id);
-      if (userInfo) {
-        return getDisplayLabel(id, userInfo.full_name, userInfo.email);
-      }
-      return getDisplayLabel(id, undefined, undefined);
-    });
-  }, [baseParticipantIds, participantLabelLookup, user?.id, getDisplayLabel, members, baseParticipantUserInfo]);
-
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<AttachableDocument[]>([]);
+  const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
   const [showDocPicker, setShowDocPicker] = useState(false);
   const [blockedState, setBlockedState] = useState<BlockedState | null>(null);
   const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
@@ -336,23 +197,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [hasOwnerPermissions, activeProject?.assignedAdvisorUserId, user]);
 
   const memberOptions = useMemo(() => {
-    const baseSet = new Set(baseParticipantIds);
-    return members
-      .filter((m) => {
-        // Exclude base participants (already included automatically)
-        if (baseSet.has(m.user_id)) return false;
-        // Exclude current user
-        if (m.user_id === user?.id) return false;
-        // Exclude owners - only show members in the dropdown
-        if (m.role === "owner") return false;
-        // Only include members who have access to this project
-        return projectMemberIds.has(m.user_id);
-      })
-      .map((m) => ({
-        value: m.user_id,
-        label: getDisplayLabel(m.user_id, m.userName, m.userEmail),
+    return eligibleMembers
+      .filter((member) => member.user_id !== user?.id)
+      .map((member) => ({
+        value: member.user_id,
+        label: getDisplayLabel(member.user_id, member.userName, member.userEmail),
+        role: member.role,
       }));
-  }, [baseParticipantIds, getDisplayLabel, members, projectMemberIds, user]);
+  }, [eligibleMembers, getDisplayLabel, user]);
 
   const blockedDocDetails = useMemo(() => {
     if (!blockedState) return [] as Array<{
@@ -397,8 +249,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     if (projectId) {
       loadThreadsForProject(projectId);
+      subscribeToMembershipChanges(projectId);
     }
-  }, [projectId, loadThreadsForProject]);
+    return () => {
+      unsubscribeFromMembershipChanges();
+    };
+  }, [projectId, loadThreadsForProject, subscribeToMembershipChanges, unsubscribeFromMembershipChanges]);
 
 
   useEffect(() => {
@@ -504,20 +360,45 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (atMatch) {
       const query = atMatch[1].toLowerCase();
       setMentionQuery(query);
-      const filtered = attachableDocuments
+
+      const docSuggestions: MentionSuggestion[] = attachableDocuments
         .filter((doc) => doc.name.toLowerCase().includes(query))
-        .slice(0, 5);
-      setSuggestions(filtered);
+        .map(doc => ({ type: 'document', data: doc }));
+
+      const userSuggestions: MentionSuggestion[] = participants
+        .filter(p => p.user_id !== user?.id) // Don't suggest self
+        .map(p => {
+            const name = participantLabelLookup.get(p.user_id) || "Unknown";
+            return {
+                type: 'user' as const,
+                data: {
+                    id: p.user_id,
+                    name: name,
+                    email: p.user?.email
+                }
+            };
+        })
+        .filter(u => u.data.name.toLowerCase().includes(query) || u.data.email?.toLowerCase().includes(query));
+
+      // Combine and limit
+      setSuggestions([...userSuggestions, ...docSuggestions].slice(0, 5));
     } else {
       setMentionQuery(null);
       setSuggestions([]);
     }
   };
 
-  const handleSuggestionClick = (doc: AttachableDocument) => {
+  const handleSuggestionClick = (suggestion: MentionSuggestion) => {
     // Use the RichTextInput's insertAtCursor method to insert at current position
     if (richTextInputRef.current) {
-      const mentionText = `@[${doc.name}](doc:${doc.resourceId}) `;
+      let mentionText = '';
+      if (suggestion.type === 'document') {
+          const doc = suggestion.data as AttachableDocument;
+          mentionText = `@[${doc.name}](doc:${doc.resourceId}) `;
+      } else {
+          const u = suggestion.data as { id: string, name: string };
+          mentionText = `@[${u.name}](user:${u.id}) `;
+      }
       
       // If we're completing an @ mention, tell insertAtCursor to replace the query
       if (mentionQuery !== null) {
@@ -609,20 +490,63 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  // Helper function to truncate content while preserving complete mentions
+  const truncateContentPreservingMentions = (content: string, maxLength: number = 100): string => {
+    if (!content || content.length <= maxLength) return content;
+    
+    // Find all mentions first using matchAll to avoid regex state issues
+    const mentionRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
+    const matches = Array.from(content.matchAll(mentionRegex));
+    const mentions: Array<{ start: number; end: number }> = [];
+    
+    matches.forEach((match) => {
+      const matchIndex = match.index ?? 0;
+      mentions.push({
+        start: matchIndex,
+        end: matchIndex + match[0].length
+      });
+    });
+    
+    // Find the truncation point that doesn't cut a mention
+    let truncateAt = maxLength;
+    
+    // Check if we're cutting through a mention
+    for (const mention of mentions) {
+      if (mention.start < maxLength && mention.end > maxLength) {
+        // We're cutting through this mention, truncate after it instead
+        truncateAt = mention.end;
+        break;
+      }
+    }
+    
+    // If truncating after a mention would be too long, just truncate at maxLength
+    // (This prevents extremely long previews if a mention is very long)
+    if (truncateAt > maxLength * 1.5) {
+      truncateAt = maxLength;
+    }
+    
+    return content.substring(0, truncateAt) + 
+           (truncateAt < content.length ? '...' : '');
+  };
+
   // Parse message content and render with document mention buttons
   const renderMessageContent = (content?: string) => {
     if (!content) return null;
 
     // Regex to find @[name](doc:id) patterns
-    const mentionRegex = /@\[([^\]]+)\]\(doc:([^)]+)\)/g;
+    const mentionRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
     const parts: React.ReactNode[] = [];
     let lastIndex = 0;
-    let match;
 
-    while ((match = mentionRegex.exec(content)) !== null) {
+    // Use matchAll to find all mentions at once, avoiding regex state issues
+    const matches = Array.from(content.matchAll(mentionRegex));
+
+    matches.forEach((match) => {
+      const matchIndex = match.index ?? 0;
+      
       // Add text before the mention
-      if (match.index > lastIndex) {
-        const textBefore = content.substring(lastIndex, match.index);
+      if (matchIndex > lastIndex) {
+        const textBefore = content.substring(lastIndex, matchIndex);
         parts.push(
           <ReactMarkdown key={`text-${lastIndex}`} remarkPlugins={[remarkGfm]}>
             {textBefore}
@@ -630,23 +554,38 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         );
       }
 
-      // Add the document mention button
-      const docName = match[1];
-      const resourceId = match[2];
-      parts.push(
-        <button
-          key={`doc-${resourceId}-${match.index}`}
-          type="button"
-          onClick={() => handleMentionClick(resourceId)}
-          className="inline-flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors font-medium cursor-pointer border-0 mx-1"
-        >
-          <FileText size={14} className="inline mr-1.5" />
-          {docName}
-        </button>
-      );
+      // Add the mention button/pill
+      const name = match[1];
+      const type = match[2]; // 'doc' or 'user'
+      const id = match[3];
+      
+      if (type === 'doc') {
+          parts.push(
+            <button
+              key={`doc-${id}-${matchIndex}`}
+              type="button"
+              onClick={() => handleMentionClick(id)}
+              className="inline-flex items-center text-blue-600 bg-blue-50 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors font-medium cursor-pointer border-0 mx-1 align-middle"
+            >
+              <FileText size={14} className="inline mr-1.5" />
+              {name}
+            </button>
+          );
+      } else {
+          // User mention
+          parts.push(
+            <span
+              key={`user-${id}-${matchIndex}`}
+              className="inline-flex items-center text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md font-medium border-0 mx-1 align-middle"
+            >
+              <span className="mr-1 font-bold">@</span>
+              {name}
+            </span>
+          );
+      }
 
-      lastIndex = match.index + match[0].length;
-    }
+      lastIndex = matchIndex + match[0].length;
+    });
 
     // Add remaining text after the last mention
     if (lastIndex < content.length) {
@@ -675,13 +614,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!user?.id) return;
 
     try {
-      const participantsSet = new Set<string>(baseParticipantIds);
-      selectedMemberIds.forEach((id) => participantsSet.add(id));
-
+      // Note: createThread automatically adds the current user as a participant
       const threadId = await createThread(
         projectId,
         topic.trim(),
-        Array.from(participantsSet)
+        selectedMemberIds
       );
       setShowCreateThreadModal(false);
       setActiveThread(threadId);
@@ -896,9 +833,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             </div>
                             <div className="text-[11px] line-clamp-2 opacity-80">
                               {renderMessageContent(
-                                message.repliedMessage.content && message.repliedMessage.content.length > 100
-                                  ? message.repliedMessage.content.substring(0, 100) + "..."
-                                  : message.repliedMessage.content
+                                truncateContentPreservingMentions(message.repliedMessage.content || '', 100)
                               )}
                             </div>
                           </div>
@@ -984,9 +919,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       </div>
                       <div className="text-sm text-gray-700 line-clamp-2">
                         {renderMessageContent(
-                          replyingTo.content && replyingTo.content.length > 100
-                            ? replyingTo.content.substring(0, 100) + "..."
-                            : replyingTo.content
+                          truncateContentPreservingMentions(replyingTo.content || '', 100)
                         )}
                       </div>
                     </div>
@@ -1010,19 +943,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     className="absolute bottom-full left-3 right-3 mb-2 border border-gray-200 rounded-lg bg-white shadow-lg max-h-48 overflow-y-auto z-10"
                   >
                     {suggestions.length > 0 ? (
-                      suggestions.map((doc) => (
+                      suggestions.map((suggestion) => {
+                        const key = suggestion.type === 'document' 
+                            ? `doc-${suggestion.data.resourceId}`
+                            : `user-${suggestion.data.id}`;
+                        const name = suggestion.data.name;
+                        
+                        return (
                         <button
-                          key={doc.resourceId}
-                          onClick={() => handleSuggestionClick(doc)}
+                          key={key}
+                          onClick={() => handleSuggestionClick(suggestion)}
                           className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center"
                         >
-                          <FileText
-                            size={16}
-                            className="mr-2 text-gray-500 flex-shrink-0"
-                          />
-                          <span className="truncate">{doc.name}</span>
+                          {suggestion.type === 'document' ? (
+                              <FileText
+                                size={16}
+                                className="mr-2 text-gray-500 flex-shrink-0"
+                              />
+                          ) : (
+                              <User
+                                size={16}
+                                className="mr-2 text-blue-500 flex-shrink-0"
+                              />
+                          )}
+                          <span className="truncate">{name}</span>
                         </button>
-                      ))
+                      )})
                     ) : (
                       <div className="px-3 py-2 text-sm text-gray-500">
                         {isLoadingAttachable
@@ -1060,7 +1006,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             <button
                               key={doc.resourceId}
                               type="button"
-                              onClick={() => handleSuggestionClick(doc)}
+                              onClick={() => handleSuggestionClick({ type: 'document', data: doc })}
                               className="w-full flex items-start px-3 py-2 text-left hover:bg-gray-50"
                             >
                               <FileText className="h-4 w-4 text-gray-500 mt-0.5 mr-2" />
@@ -1133,8 +1079,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onClose={() => setShowCreateThreadModal(false)}
         onCreate={handleCreateChannel}
         memberOptions={memberOptions}
-        baseParticipantIds={baseParticipantIds}
-        baseParticipantLabels={baseParticipantLabels}
         projectId={projectId}
       />
       {blockedState && (
