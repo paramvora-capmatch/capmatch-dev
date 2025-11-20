@@ -265,30 +265,48 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
   loadParticipants: async (threadId: string) => {
     try {
-      // Use edge function to bypass RLS and fetch all participants safely
-      const { data, error } = await supabase.functions.invoke('get-thread-participants', {
-        body: { thread_id: threadId },
-      });
+      // Query participants directly (RLS now allows this for threads user is part of)
+      const { data: participants, error } = await supabase
+        .from('chat_thread_participants')
+        .select('thread_id, user_id, created_at')
+        .eq('thread_id', threadId);
 
       if (error) {
         throw error;
       }
 
-      const participants = (data?.participants || []) as {
-        thread_id: string;
-        user_id: string;
-        created_at: string;
-      }[];
+      // Fetch user profiles via edge function (can't join profiles due to RLS)
+      const userIds = [...new Set((participants || []).map((p: any) => p.user_id).filter(Boolean))];
+      const profilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
+      
+      if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
+          body: { userIds: userIds as string[] },
+        });
+
+        if (!profilesError && Array.isArray(profilesData)) {
+          profilesData.forEach((user: any) => {
+            profilesMap.set(user.id, {
+              id: user.id,
+              full_name: user.full_name,
+              email: user.email,
+            });
+          });
+        } else if (profilesError) {
+          console.error('[ChatStore] Error fetching participant profiles:', profilesError);
+        }
+      }
 
       set({
-        participants: participants.map((p) => ({
+        participants: (participants || []).map((p: any) => ({
           thread_id: p.thread_id,
           user_id: p.user_id,
           created_at: p.created_at,
+          user: profilesMap.get(p.user_id) || undefined,
         })),
       });
     } catch (err) {
-      console.error('[ChatStore] Failed to load participants via edge function:', err);
+      console.error('[ChatStore] Failed to load participants:', err);
       set({ error: err instanceof Error ? err.message : 'Failed to load participants' });
     }
   },

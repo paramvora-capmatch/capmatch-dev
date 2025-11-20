@@ -7,6 +7,7 @@ import { useChatStore, AttachableDocument } from "../../stores/useChatStore";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useProjects } from "../../hooks/useProjects";
+import { useProjectEligibleMembers } from "../../hooks/useProjectEligibleMembers";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { supabase } from "../../../lib/supabaseClient";
 import { Card, CardContent } from "../ui/card";
@@ -122,66 +123,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
   >(null);
-  
-  // State to track which members have access to this project
-  const [projectMemberIds, setProjectMemberIds] = useState<Set<string>>(new Set());
-
-  // State to store user info for base participants (e.g., assigned advisor who might be from different org)
-  const [baseParticipantUserInfo, setBaseParticipantUserInfo] = useState<Map<string, { full_name: string | null; email: string | null }>>(new Map());
-  
-  // State to store owner IDs of the project's owner org (fetched directly from DB)
-  const [projectOwnerOrgOwnerIds, setProjectOwnerOrgOwnerIds] = useState<Set<string>>(new Set());
+  const { isOwner, members, currentOrg } = useOrgStore();
+  const {
+    projectMemberIds,
+    advisorProfile,
+    eligibleMembers,
+  } = useProjectEligibleMembers({
+    projectId,
+    members,
+    advisorUserId: activeProject?.assignedAdvisorUserId,
+  });
 
   const [newMessage, setNewMessage] = useState("");
-  const { isOwner, members, currentOrg } = useOrgStore();
   const permissions = usePermissionStore((state) => state.permissions);
   const [managingThread, setManagingThread] = useState<ChatThread | null>(null);
   const [showCreateThreadModal, setShowCreateThreadModal] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ProjectMessage | null>(null);
   const messageRefs = useRef<Map<number | string, HTMLDivElement>>(new Map());
-
-  // Fetch owners of the project's owner org directly from database
-  useEffect(() => {
-    const fetchProjectOwnerOrgOwners = async () => {
-      if (!activeProject?.owner_org_id) {
-        setProjectOwnerOrgOwnerIds(new Set());
-        return;
-      }
-
-      try {
-        const { data: owners, error } = await supabase
-          .from("org_members")
-          .select("user_id")
-          .eq("org_id", activeProject.owner_org_id)
-          .eq("role", "owner");
-
-        if (error) {
-          console.error("[ChatInterface] Failed to fetch project owner org owners:", error);
-          setProjectOwnerOrgOwnerIds(new Set());
-          return;
-        }
-
-        const ownerIds = new Set(owners?.map(o => o.user_id) || []);
-        setProjectOwnerOrgOwnerIds(ownerIds);
-      } catch (err) {
-        console.error("[ChatInterface] Error fetching project owner org owners:", err);
-        setProjectOwnerOrgOwnerIds(new Set());
-      }
-    };
-
-    fetchProjectOwnerOrgOwners();
-  }, [activeProject?.owner_org_id]);
-
-  const baseParticipantIds = useMemo(() => {
-    const ids = new Set<string>();
-    // Always include current user
-    if (user?.id) ids.add(user.id);
-    // Always include assigned advisor
-    if (activeProject?.assignedAdvisorUserId) ids.add(activeProject.assignedAdvisorUserId);
-    // Include all owners of the project's owner org (fetched directly from DB)
-    projectOwnerOrgOwnerIds.forEach(id => ids.add(id));
-    return Array.from(ids);
-  }, [user?.id, activeProject?.assignedAdvisorUserId, projectOwnerOrgOwnerIds]);
 
   // Check if user is an owner of the org that owns this project
   const hasOwnerPermissions = useMemo(() => {
@@ -190,91 +148,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     console.log(`[ChatInterface] Has owner permissions: ${canManage}, isOwner: ${isOwner}, currentOrg: ${currentOrg?.id}, projectOwner: ${activeProject.owner_org_id}`);
     return canManage;
   }, [isOwner, currentOrg, activeProject]);
-
-  // Filter members to only show those with access to this project
-  // This state is now handled below with useState
-
-  useEffect(() => {
-    const fetchProjectMembers = async () => {
-      if (!projectId) {
-        setProjectMemberIds(new Set());
-        return;
-      }
-
-      try {
-        // Get all users who have been granted access to this project
-        const { data: grants, error } = await supabase
-          .from('project_access_grants')
-          .select('user_id')
-          .eq('project_id', projectId);
-
-        if (error) {
-          console.error('[ChatInterface] Failed to fetch project members:', error);
-          setProjectMemberIds(new Set());
-          return;
-        }
-
-        // Add the advisor if assigned
-        const userIds = new Set(grants?.map(g => g.user_id) || []);
-        if (activeProject?.assignedAdvisorUserId) {
-          userIds.add(activeProject.assignedAdvisorUserId);
-        }
-
-        setProjectMemberIds(userIds);
-      } catch (err) {
-        console.error('[ChatInterface] Error fetching project members:', err);
-        setProjectMemberIds(new Set());
-      }
-    };
-
-    fetchProjectMembers();
-  }, [projectId, activeProject?.assignedAdvisorUserId]);
-
-  // Fetch user info for base participants who aren't in members or participants
-  useEffect(() => {
-    const fetchBaseParticipantInfo = async () => {
-      if (baseParticipantIds.length === 0) {
-        setBaseParticipantUserInfo(new Map());
-        return;
-      }
-
-      // Find IDs that aren't in members or participants
-      const memberIds = new Set(members.map(m => m.user_id));
-      const participantIds = new Set(participants.map(p => p.user_id));
-      const missingIds = baseParticipantIds.filter(
-        id => !memberIds.has(id) && !participantIds.has(id) && id !== user?.id
-      );
-
-      if (missingIds.length === 0) {
-        setBaseParticipantUserInfo(new Map());
-        return;
-      }
-
-      try {
-        // Use the same edge function that org store uses to fetch user data
-        const { data: userData, error } = await supabase.functions.invoke("get-user-data", {
-          body: { userIds: missingIds },
-        });
-
-        if (error) {
-          console.error("[ChatInterface] Failed to fetch base participant info:", error);
-          return;
-        }
-
-        const infoMap = new Map<string, { full_name: string | null; email: string | null }>();
-        (userData as { id: string; email: string | null; full_name: string | null }[] || []).forEach(
-          (u) => {
-            infoMap.set(u.id, { full_name: u.full_name, email: u.email });
-          }
-        );
-        setBaseParticipantUserInfo(infoMap);
-      } catch (err) {
-        console.error("[ChatInterface] Error fetching base participant info:", err);
-      }
-    };
-
-    fetchBaseParticipantInfo();
-  }, [baseParticipantIds, members, participants, user?.id]);
 
   const getDisplayLabel = useCallback((
     userId: string,
@@ -307,26 +180,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return map;
   }, [getDisplayLabel, members, participants]);
 
-  const baseParticipantLabels = useMemo(() => {
-    return baseParticipantIds.map((id) => {
-      if (id === user?.id) return "You";
-      // First try to get from participantLabelLookup (includes members and participants)
-      const label = participantLabelLookup.get(id);
-      if (label) return label;
-      // Fallback: try to find in members directly (in case owner isn't in participants yet)
-      const member = members.find(m => m.user_id === id);
-      if (member) {
-        return getDisplayLabel(member.user_id, member.userName, member.userEmail);
-      }
-      // Final fallback: use fetched user info (for users from different orgs, like assigned advisor)
-      const userInfo = baseParticipantUserInfo.get(id);
-      if (userInfo) {
-        return getDisplayLabel(id, userInfo.full_name, userInfo.email);
-      }
-      return getDisplayLabel(id, undefined, undefined);
-    });
-  }, [baseParticipantIds, participantLabelLookup, user?.id, getDisplayLabel, members, baseParticipantUserInfo]);
-
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
   const [showDocPicker, setShowDocPicker] = useState(false);
@@ -342,23 +195,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [hasOwnerPermissions, activeProject?.assignedAdvisorUserId, user]);
 
   const memberOptions = useMemo(() => {
-    const baseSet = new Set(baseParticipantIds);
-    return members
-      .filter((m) => {
-        // Exclude base participants (already included automatically)
-        if (baseSet.has(m.user_id)) return false;
-        // Exclude current user
-        if (m.user_id === user?.id) return false;
-        // Exclude owners - only show members in the dropdown
-        if (m.role === "owner") return false;
-        // Only include members who have access to this project
-        return projectMemberIds.has(m.user_id);
-      })
-      .map((m) => ({
-        value: m.user_id,
-        label: getDisplayLabel(m.user_id, m.userName, m.userEmail),
+    return eligibleMembers
+      .filter((member) => member.user_id !== user?.id)
+      .map((member) => ({
+        value: member.user_id,
+        label: getDisplayLabel(member.user_id, member.userName, member.userEmail),
+        role: member.role,
       }));
-  }, [baseParticipantIds, getDisplayLabel, members, projectMemberIds, user]);
+  }, [eligibleMembers, getDisplayLabel, user]);
 
   const blockedDocDetails = useMemo(() => {
     if (!blockedState) return [] as Array<{
@@ -764,13 +608,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!user?.id) return;
 
     try {
-      const participantsSet = new Set<string>(baseParticipantIds);
-      selectedMemberIds.forEach((id) => participantsSet.add(id));
-
+      // Note: createThread automatically adds the current user as a participant
       const threadId = await createThread(
         projectId,
         topic.trim(),
-        Array.from(participantsSet)
+        selectedMemberIds
       );
       setShowCreateThreadModal(false);
       setActiveThread(threadId);
@@ -1231,8 +1073,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onClose={() => setShowCreateThreadModal(false)}
         onCreate={handleCreateChannel}
         memberOptions={memberOptions}
-        baseParticipantIds={baseParticipantIds}
-        baseParticipantLabels={baseParticipantLabels}
         projectId={projectId}
       />
       {blockedState && (
