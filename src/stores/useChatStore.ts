@@ -66,6 +66,7 @@ interface ChatState {
   
   // Realtime
   messageChannel: RealtimeChannel | null;
+  membershipChannel: RealtimeChannel | null;
   
   // Safe attachment UX
   attachableDocuments: AttachableDocument[];
@@ -88,6 +89,8 @@ interface ChatActions {
   sendMessage: (threadId: string, content: string, replyTo?: number | null) => Promise<void>;
   subscribeToMessages: (threadId: string) => void;
   unsubscribeFromMessages: () => void;
+  subscribeToMembershipChanges: (projectId: string) => Promise<void>;
+  unsubscribeFromMembershipChanges: () => void;
   
   // Attachments
   loadAttachments: (messageId: number) => Promise<void>;
@@ -160,6 +163,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
   isLoading: false,
   error: null,
   messageChannel: null,
+  membershipChannel: null,
   attachableDocuments: [],
   isLoadingAttachable: false,
 
@@ -616,6 +620,75 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     statusTimeouts.clear();
     fadeOutTimeouts.forEach((timeout) => clearTimeout(timeout));
     fadeOutTimeouts.clear();
+  },
+
+  subscribeToMembershipChanges: async (projectId: string) => {
+    const { membershipChannel } = get();
+
+    if (membershipChannel) {
+      supabase.removeChannel(membershipChannel);
+      set({ membershipChannel: null });
+    }
+
+    if (!projectId) {
+      return;
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.warn("[ChatStore] Cannot subscribe to membership changes without auth user");
+      return;
+    }
+
+    const channel = supabase
+      .channel(`chat-thread-memberships-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_thread_participants',
+          filter: `user_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const newMembership = payload.new as { thread_id: string; user_id: string };
+          if (!newMembership?.thread_id) {
+            return;
+          }
+
+          try {
+            const { data: thread, error } = await supabase
+              .from('chat_threads')
+              .select('id, project_id, topic, created_at')
+              .eq('id', newMembership.thread_id)
+              .maybeSingle();
+
+            if (error) {
+              console.error('[ChatStore] Failed to fetch thread for membership change:', error);
+              return;
+            }
+
+            if (!thread || thread.project_id !== projectId) {
+              return;
+            }
+
+            await get().loadThreadsForProject(projectId);
+          } catch (err) {
+            console.error('[ChatStore] Error handling membership change:', err);
+          }
+        }
+      )
+      .subscribe();
+
+    set({ membershipChannel: channel });
+  },
+
+  unsubscribeFromMembershipChanges: () => {
+    const { membershipChannel } = get();
+    if (membershipChannel) {
+      supabase.removeChannel(membershipChannel);
+      set({ membershipChannel: null });
+    }
   },
 
   loadAttachments: async (messageId: number) => { /* Implementation... */ },

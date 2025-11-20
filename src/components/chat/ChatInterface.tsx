@@ -115,6 +115,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     attachableDocuments,
     loadAttachableDocuments,
     isLoadingAttachable,
+    subscribeToMembershipChanges,
+    unsubscribeFromMembershipChanges,
   } = useChatStore();
 
   const { user } = useAuthStore();
@@ -247,8 +249,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     if (projectId) {
       loadThreadsForProject(projectId);
+      subscribeToMembershipChanges(projectId);
     }
-  }, [projectId, loadThreadsForProject]);
+    return () => {
+      unsubscribeFromMembershipChanges();
+    };
+  }, [projectId, loadThreadsForProject, subscribeToMembershipChanges, unsubscribeFromMembershipChanges]);
 
 
   useEffect(() => {
