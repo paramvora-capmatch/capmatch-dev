@@ -276,6 +276,7 @@ export interface Notification {
 }
 
 // Legacy ProjectProfile - kept for backward compatibility but deprecated
+// Extended to include all ProjectResumeContent fields for type safety
 export interface ProjectProfile {
   id: string;
   owner_org_id: string; // The org_id that owns the project
@@ -323,6 +324,137 @@ export interface ProjectProfile {
   projectSections?: any; // Add for consistency with mock data
   borrowerSections?: any; // Add for consistency with mock data
   // RBAC additions
+  
+  // Extended fields from ProjectResumeContent (for type safety)
+  parcelNumber?: string;
+  zoningDesignation?: string;
+  projectType?: string;
+  primaryAssetClass?: string;
+  constructionType?: string;
+  groundbreakingDate?: string;
+  completionDate?: string;
+  totalDevelopmentCost?: number;
+  requestedLoanTerm?: string;
+  masterPlanName?: string;
+  phaseNumber?: string;
+  totalResidentialUnits?: number;
+  totalResidentialNRSF?: number;
+  averageUnitSize?: number;
+  totalCommercialGRSF?: number;
+  grossBuildingArea?: number;
+  numberOfStories?: number;
+  buildingType?: string;
+  parkingSpaces?: number;
+  parkingRatio?: number;
+  parkingType?: string;
+  amenityList?: string[];
+  amenitySF?: number;
+  residentialUnitMix?: Array<{
+    unitType: string;
+    unitCount: number;
+    avgSF: number;
+    monthlyRent?: number;
+    totalSF?: number;
+    percentOfTotal?: number;
+  }>;
+  commercialSpaceMix?: Array<{
+    spaceType: string;
+    squareFootage: number;
+    tenant?: string;
+    leaseTerm?: string;
+    annualRent?: number;
+  }>;
+  landAcquisition?: number;
+  baseConstruction?: number;
+  contingency?: number;
+  ffe?: number;
+  constructionFees?: number;
+  aeFees?: number;
+  thirdPartyReports?: number;
+  legalAndOrg?: number;
+  titleAndRecording?: number;
+  taxesDuringConstruction?: number;
+  workingCapital?: number;
+  developerFee?: number;
+  pfcStructuringFee?: number;
+  loanFees?: number;
+  interestReserve?: number;
+  seniorLoanAmount?: number;
+  sponsorEquity?: number;
+  interestRate?: number;
+  underwritingRate?: number;
+  amortization?: string;
+  prepaymentTerms?: string;
+  recourse?: string;
+  permTakeoutPlanned?: boolean;
+  realEstateTaxes?: number;
+  insurance?: number;
+  utilities?: number;
+  repairsAndMaintenance?: number;
+  managementFee?: number;
+  generalAndAdmin?: number;
+  payroll?: number;
+  reserves?: number;
+  noiYear1?: number;
+  yieldOnCost?: number;
+  capRate?: number;
+  stabilizedValue?: number;
+  ltv?: number;
+  debtYield?: number;
+  dscr?: number;
+  submarketName?: string;
+  distanceToCBD?: number;
+  distanceToEmployment?: string;
+  distanceToTransit?: number;
+  walkabilityScore?: number;
+  population3Mi?: number;
+  popGrowth201020?: number;
+  projGrowth202429?: number;
+  medianHHIncome?: number;
+  renterOccupiedPercent?: number;
+  bachelorsDegreePercent?: number;
+  rentComps?: Array<{
+    propertyName: string;
+    address?: string;
+    distance?: number;
+    yearBuilt?: number;
+    totalUnits?: number;
+    occupancyPercent?: number;
+    avgRentMonth?: number;
+    rentPSF?: number;
+  }>;
+  opportunityZone?: boolean;
+  affordableHousing?: boolean;
+  affordableUnitsNumber?: number;
+  amiTargetPercent?: number;
+  taxExemption?: boolean;
+  tifDistrict?: boolean;
+  taxAbatement?: boolean;
+  paceFinancing?: boolean;
+  historicTaxCredits?: boolean;
+  newMarketsCredits?: boolean;
+  landAcqClose?: string;
+  entitlements?: string;
+  finalPlans?: string;
+  permitsIssued?: string;
+  verticalStart?: string;
+  firstOccupancy?: string;
+  stabilization?: string;
+  preLeasedSF?: number;
+  totalSiteAcreage?: number;
+  currentSiteStatus?: string;
+  topography?: string;
+  environmental?: string;
+  siteAccess?: string;
+  proximityShopping?: string;
+  proximityRestaurants?: string;
+  proximityParks?: string;
+  proximitySchools?: string;
+  proximityHospitals?: string;
+  sponsorEntityName?: string;
+  sponsorStructure?: string;
+  equityPartner?: string;
+  contactInfo?: string;
 }
 
 // Project Principal Types

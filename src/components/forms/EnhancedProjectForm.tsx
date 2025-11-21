@@ -14,6 +14,7 @@ import { useProjects } from "../../hooks/useProjects";
 
 import { FormProvider } from "../../contexts/FormContext";
 import { AskAIButton } from "../ui/AskAIProvider";
+import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
 
 import {
   FileText,
@@ -23,7 +24,13 @@ import {
   CheckCircle,
   FileQuestion,
   BarChart,
-  Info, // Added Info icon
+  Info,
+  Globe,
+  Calendar,
+  Map,
+  Users,
+  Calculator,
+  TrendingUp,
 } from "lucide-react";
 import {
   ProjectProfile,
@@ -298,22 +305,31 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
             </div>
               <FormGroup>
                 <AskAIButton id="projectName" onAskAI={onAskAI || (() => {})}>
-                  <Input
-                    id="projectName"
-                    label="Project Name"
-                    value={formData.projectName || ""}
-                    onChange={(e) =>
-                      handleInputChange("projectName", e.target.value)
-                    }
-                    placeholder="e.g., Riverfront Acquisition"
-                    required
-                    data-field-id="projectName"
-                    data-field-type="input"
-                    data-field-section="basic-info"
-                    data-field-required="true"
-                    data-field-label="Project Name"
-                    data-field-placeholder="e.g., Riverfront Acquisition"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <span>
+                        Project Name
+                        <span className="text-red-500 ml-1">*</span>
+                      </span>
+                      <FieldHelpTooltip fieldId="projectName" />
+                    </label>
+                    <Input
+                      id="projectName"
+                      label={null}
+                      value={formData.projectName || ""}
+                      onChange={(e) =>
+                        handleInputChange("projectName", e.target.value)
+                      }
+                      placeholder="e.g., Riverfront Acquisition"
+                      required
+                      data-field-id="projectName"
+                      data-field-type="input"
+                      data-field-section="basic-info"
+                      data-field-required="true"
+                      data-field-label="Project Name"
+                      data-field-placeholder="e.g., Riverfront Acquisition"
+                    />
+                  </div>
                 </AskAIButton>
               </FormGroup>
               {/* Property Address Section */}
@@ -327,25 +343,34 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="propertyAddressStreet"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="propertyAddressStreet"
-                      label="Street Address"
-                      value={formData.propertyAddressStreet || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "propertyAddressStreet",
-                          e.target.value
-                        )
-                      }
-                      placeholder="123 Main Street"
-                      required
-                      data-field-id="propertyAddressStreet"
-                      data-field-type="input"
-                      data-field-section="basic-info"
-                      data-field-required="true"
-                      data-field-label="Street Address"
-                      data-field-placeholder="123 Main Street"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>
+                          Street Address
+                          <span className="text-red-500 ml-1">*</span>
+                        </span>
+                        <FieldHelpTooltip fieldId="propertyAddressStreet" />
+                      </label>
+                      <Input
+                        id="propertyAddressStreet"
+                        label={null}
+                        value={formData.propertyAddressStreet || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "propertyAddressStreet",
+                            e.target.value
+                          )
+                        }
+                        placeholder="123 Main Street"
+                        required
+                        data-field-id="propertyAddressStreet"
+                        data-field-type="input"
+                        data-field-section="basic-info"
+                        data-field-required="true"
+                        data-field-label="Street Address"
+                        data-field-placeholder="123 Main Street"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
@@ -354,25 +379,34 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       id="propertyAddressCity"
                       onAskAI={onAskAI || (() => {})}
                     >
-                      <Input
-                        id="propertyAddressCity"
-                        label="City"
-                        value={formData.propertyAddressCity || ""}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "propertyAddressCity",
-                            e.target.value
-                          )
-                        }
-                        placeholder="Anytown"
-                        required
-                        data-field-id="propertyAddressCity"
-                        data-field-type="input"
-                        data-field-section="basic-info"
-                        data-field-required="true"
-                        data-field-label="City"
-                        data-field-placeholder="Anytown"
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                          <span>
+                            City
+                            <span className="text-red-500 ml-1">*</span>
+                          </span>
+                          <FieldHelpTooltip fieldId="propertyAddressCity" />
+                        </label>
+                        <Input
+                          id="propertyAddressCity"
+                          label={null}
+                          value={formData.propertyAddressCity || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              "propertyAddressCity",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Anytown"
+                          required
+                          data-field-id="propertyAddressCity"
+                          data-field-type="input"
+                          data-field-section="basic-info"
+                          data-field-required="true"
+                          data-field-label="City"
+                          data-field-placeholder="Anytown"
+                        />
+                      </div>
                     </AskAIButton>
                   </FormGroup>
                   {/* State uses Select */}
@@ -381,25 +415,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       id="propertyAddressState"
                       onAskAI={onAskAI || (() => {})}
                     >
-                      <Select
-                        id="propertyAddressState"
-                        label="State"
-                        value={formData.propertyAddressState || ""}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "propertyAddressState",
-                            e.target.value
-                          )
-                        }
-                        options={stateOptions}
-                        required
-                        data-field-id="propertyAddressState"
-                        data-field-type="select"
-                        data-field-section="basic-info"
-                        data-field-required="true"
-                        data-field-label="State"
-                        data-field-options={JSON.stringify(stateOptions)}
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                          <span>
+                            State
+                            <span className="text-red-500 ml-1">*</span>
+                          </span>
+                          <FieldHelpTooltip fieldId="propertyAddressState" />
+                        </label>
+                        <Select
+                          id="propertyAddressState"
+                          value={formData.propertyAddressState || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              "propertyAddressState",
+                              e.target.value
+                            )
+                          }
+                          options={stateOptions}
+                          required
+                          data-field-id="propertyAddressState"
+                          data-field-type="select"
+                          data-field-section="basic-info"
+                          data-field-required="true"
+                          data-field-label="State"
+                          data-field-options={JSON.stringify(stateOptions)}
+                        />
+                      </div>
                     </AskAIButton>
                   </FormGroup>
                   <FormGroup>
@@ -407,25 +449,34 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       id="propertyAddressZip"
                       onAskAI={onAskAI || (() => {})}
                     >
-                      <Input
-                        id="propertyAddressZip"
-                        label="ZIP Code"
-                        value={formData.propertyAddressZip || ""}
-                        onChange={(e) =>
-                          handleInputChange(
-                            "propertyAddressZip",
-                            e.target.value
-                          )
-                        }
-                        placeholder="12345"
-                        required
-                        data-field-id="propertyAddressZip"
-                        data-field-type="input"
-                        data-field-section="basic-info"
-                        data-field-required="true"
-                        data-field-label="ZIP Code"
-                        data-field-placeholder="12345"
-                      />
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                          <span>
+                            ZIP Code
+                            <span className="text-red-500 ml-1">*</span>
+                          </span>
+                          <FieldHelpTooltip fieldId="propertyAddressZip" />
+                        </label>
+                        <Input
+                          id="propertyAddressZip"
+                          label={null}
+                          value={formData.propertyAddressZip || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              "propertyAddressZip",
+                              e.target.value
+                            )
+                          }
+                          placeholder="12345"
+                          required
+                          data-field-id="propertyAddressZip"
+                          data-field-type="input"
+                          data-field-section="basic-info"
+                          data-field-required="true"
+                          data-field-label="ZIP Code"
+                          data-field-placeholder="12345"
+                        />
+                      </div>
                     </AskAIButton>
                   </FormGroup>
                 </div>
@@ -434,24 +485,30 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="propertyAddressCounty"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="propertyAddressCounty"
-                      label="County"
-                      value={formData.propertyAddressCounty || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "propertyAddressCounty",
-                          e.target.value
-                        )
-                      }
-                      placeholder="e.g., Orange County"
-                      data-field-id="propertyAddressCounty"
-                      data-field-type="input"
-                      data-field-section="basic-info"
-                      data-field-required="false"
-                      data-field-label="County"
-                      data-field-placeholder="e.g., Orange County"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>County</span>
+                        <FieldHelpTooltip fieldId="propertyAddressCounty" />
+                      </label>
+                      <Input
+                        id="propertyAddressCounty"
+                        label={null}
+                        value={formData.propertyAddressCounty || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "propertyAddressCounty",
+                            e.target.value
+                          )
+                        }
+                        placeholder="e.g., Orange County"
+                        data-field-id="propertyAddressCounty"
+                        data-field-type="input"
+                        data-field-section="basic-info"
+                        data-field-required="false"
+                        data-field-label="County"
+                        data-field-placeholder="e.g., Orange County"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
               </div>
@@ -472,8 +529,15 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-label="Asset Type"
                       data-field-options={JSON.stringify(assetTypeOptions)}
                     >
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <span>
+                          Asset Type
+                          <span className="text-red-500 ml-1">*</span>
+                        </span>
+                        <FieldHelpTooltip fieldId="assetType" />
+                      </label>
                       <ButtonSelect
-                        label="Asset Type"
+                        label=""
                         options={assetTypeOptions}
                         selectedValue={formData.assetType || ""}
                         onSelect={(value) =>
@@ -498,8 +562,15 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-label="Project Phase / Deal Type"
                       data-field-options={JSON.stringify(projectPhaseOptions)}
                     >
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <span>
+                          Project Phase / Deal Type
+                          <span className="text-red-500 ml-1">*</span>
+                        </span>
+                        <FieldHelpTooltip fieldId="projectPhase" />
+                      </label>
                       <ButtonSelect
-                        label="Project Phase / Deal Type"
+                        label=""
                         options={projectPhaseOptions}
                         selectedValue={formData.projectPhase || ""}
                         onSelect={(value) =>
@@ -527,9 +598,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-label="Project Description"
                       data-field-placeholder="Brief description of the project..."
                     >
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {" "}
-                        Project Description{" "}
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>
+                          Project Description
+                          <span className="text-red-500 ml-1">*</span>
+                        </span>
+                        <FieldHelpTooltip fieldId="projectDescription" />
                       </label>
                       <textarea
                         id="projectDescription"
@@ -570,26 +644,35 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="loanAmountRequested"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="loanAmountRequested"
-                      type="number"
-                      label="Requested Loan Amount ($)"
-                      value={formData.loanAmountRequested?.toString() || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "loanAmountRequested",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 10000000"
-                      required
-                      data-field-id="loanAmountRequested"
-                      data-field-type="number"
-                      data-field-section="loan-info"
-                      data-field-required="true"
-                      data-field-label="Requested Loan Amount ($)"
-                      data-field-placeholder="e.g., 10000000"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>
+                          Requested Loan Amount ($)
+                          <span className="text-red-500 ml-1">*</span>
+                        </span>
+                        <FieldHelpTooltip fieldId="loanAmountRequested" />
+                      </label>
+                      <Input
+                        id="loanAmountRequested"
+                        type="number"
+                        label={null}
+                        value={formData.loanAmountRequested?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "loanAmountRequested",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 10000000"
+                        required
+                        data-field-id="loanAmountRequested"
+                        data-field-type="number"
+                        data-field-section="loan-info"
+                        data-field-required="true"
+                        data-field-label="Requested Loan Amount ($)"
+                        data-field-placeholder="e.g., 10000000"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
                 {/* Capital Type uses ButtonSelect */}
@@ -603,8 +686,15 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-label="Capital Type"
                       data-field-options={JSON.stringify(capitalTypeOptions)}
                     >
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <span>
+                          Capital Type
+                          <span className="text-red-500 ml-1">*</span>
+                        </span>
+                        <FieldHelpTooltip fieldId="loanType" />
+                      </label>
                       <ButtonSelect
-                        label="Capital Type"
+                        label=""
                         options={capitalTypeOptions}
                         selectedValue={formData.loanType || ""}
                         onSelect={(value) =>
@@ -623,26 +713,35 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="targetLtvPercent"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="targetLtvPercent"
-                      type="number"
-                      label="Target LTV (%)"
-                      value={formData.targetLtvPercent?.toString() || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "targetLtvPercent",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 70"
-                      required
-                      data-field-id="targetLtvPercent"
-                      data-field-type="number"
-                      data-field-section="loan-info"
-                      data-field-required="true"
-                      data-field-label="Target LTV (%)"
-                      data-field-placeholder="e.g., 70"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>
+                          Target LTV (%)
+                          <span className="text-red-500 ml-1">*</span>
+                        </span>
+                        <FieldHelpTooltip fieldId="targetLtvPercent" />
+                      </label>
+                      <Input
+                        id="targetLtvPercent"
+                        type="number"
+                        label={null}
+                        value={formData.targetLtvPercent?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "targetLtvPercent",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 70"
+                        required
+                        data-field-id="targetLtvPercent"
+                        data-field-type="number"
+                        data-field-section="loan-info"
+                        data-field-required="true"
+                        data-field-label="Target LTV (%)"
+                        data-field-placeholder="e.g., 70"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
                 <FormGroup>
@@ -650,25 +749,31 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="targetLtcPercent"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="targetLtcPercent"
-                      type="number"
-                      label="Target LTC (%) (Construction/Dev)"
-                      value={formData.targetLtcPercent?.toString() || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "targetLtcPercent",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 80"
-                      data-field-id="targetLtcPercent"
-                      data-field-type="number"
-                      data-field-section="loan-info"
-                      data-field-required="false"
-                      data-field-label="Target LTC (%) (Construction/Dev)"
-                      data-field-placeholder="e.g., 80"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Target LTC (%) (Construction/Dev)</span>
+                        <FieldHelpTooltip fieldId="targetLtcPercent" />
+                      </label>
+                      <Input
+                        id="targetLtcPercent"
+                        type="number"
+                        label={null}
+                        value={formData.targetLtcPercent?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "targetLtcPercent",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 80"
+                        data-field-id="targetLtcPercent"
+                        data-field-type="number"
+                        data-field-section="loan-info"
+                        data-field-required="false"
+                        data-field-label="Target LTC (%) (Construction/Dev)"
+                        data-field-placeholder="e.g., 80"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
               </div>
@@ -678,25 +783,31 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="amortizationYears"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="amortizationYears"
-                      type="number"
-                      label="Amortization (Years)"
-                      value={formData.amortizationYears?.toString() || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "amortizationYears",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 30"
-                      data-field-id="amortizationYears"
-                      data-field-type="number"
-                      data-field-section="loan-info"
-                      data-field-required="false"
-                      data-field-label="Amortization (Years)"
-                      data-field-placeholder="e.g., 30"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Amortization (Years)</span>
+                        <FieldHelpTooltip fieldId="amortizationYears" />
+                      </label>
+                      <Input
+                        id="amortizationYears"
+                        type="number"
+                        label={null}
+                        value={formData.amortizationYears?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "amortizationYears",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 30"
+                        data-field-id="amortizationYears"
+                        data-field-type="number"
+                        data-field-section="loan-info"
+                        data-field-required="false"
+                        data-field-label="Amortization (Years)"
+                        data-field-placeholder="e.g., 30"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
                 <FormGroup>
@@ -704,27 +815,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="interestOnlyPeriodMonths"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="interestOnlyPeriodMonths"
-                      type="number"
-                      label="Interest-Only Period (Months)"
-                      value={
-                        formData.interestOnlyPeriodMonths?.toString() || ""
-                      }
-                      onChange={(e) =>
-                        handleInputChange(
-                          "interestOnlyPeriodMonths",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 36"
-                      data-field-id="interestOnlyPeriodMonths"
-                      data-field-type="number"
-                      data-field-section="loan-info"
-                      data-field-required="false"
-                      data-field-label="Interest-Only Period (Months)"
-                      data-field-placeholder="e.g., 36"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Interest-Only Period (Months)</span>
+                        <FieldHelpTooltip fieldId="interestOnlyPeriodMonths" />
+                      </label>
+                      <Input
+                        id="interestOnlyPeriodMonths"
+                        type="number"
+                        label={null}
+                        value={
+                          formData.interestOnlyPeriodMonths?.toString() || ""
+                        }
+                        onChange={(e) =>
+                          handleInputChange(
+                            "interestOnlyPeriodMonths",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 36"
+                        data-field-id="interestOnlyPeriodMonths"
+                        data-field-type="number"
+                        data-field-section="loan-info"
+                        data-field-required="false"
+                        data-field-label="Interest-Only Period (Months)"
+                        data-field-placeholder="e.g., 36"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
               </div>
@@ -745,8 +862,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                         interestRateTypeOptions
                       )}
                     >
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <span>Interest Rate Type</span>
+                        <FieldHelpTooltip fieldId="interestRateType" />
+                      </label>
                       <ButtonSelect
-                        label="Interest Rate Type"
+                        label=""
                         options={interestRateTypeOptions}
                         selectedValue={
                           formData.interestRateType || "Not Specified"
@@ -767,20 +888,26 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="targetCloseDate"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="targetCloseDate"
-                      type="date"
-                      label="Target Close Date"
-                      value={formData.targetCloseDate || ""}
-                      onChange={(e) =>
-                        handleInputChange("targetCloseDate", e.target.value)
-                      }
-                      data-field-id="targetCloseDate"
-                      data-field-type="date"
-                      data-field-section="loan-info"
-                      data-field-required="false"
-                      data-field-label="Target Close Date"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Target Close Date</span>
+                        <FieldHelpTooltip fieldId="targetCloseDate" />
+                      </label>
+                      <Input
+                        id="targetCloseDate"
+                        type="date"
+                        label={null}
+                        value={formData.targetCloseDate || ""}
+                        onChange={(e) =>
+                          handleInputChange("targetCloseDate", e.target.value)
+                        }
+                        data-field-id="targetCloseDate"
+                        data-field-type="date"
+                        data-field-section="loan-info"
+                        data-field-required="false"
+                        data-field-label="Target Close Date"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
               </div>
@@ -798,8 +925,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-label="Recourse Preference"
                     data-field-options={JSON.stringify(recourseOptions)}
                   >
+                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                      <span>Recourse Preference</span>
+                      <FieldHelpTooltip fieldId="recoursePreference" />
+                    </label>
                     <ButtonSelect
-                      label="Recourse Preference"
+                      label=""
                       options={recourseOptions}
                       selectedValue={formData.recoursePreference || "Flexible"}
                       onSelect={(value) =>
@@ -824,9 +955,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-label="Use of Proceeds"
                     data-field-placeholder="Describe how the loan proceeds will be used..."
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {" "}
-                      Use of Proceeds{" "}
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <span>
+                        Use of Proceeds
+                        <span className="text-red-500 ml-1">*</span>
+                      </span>
+                      <FieldHelpTooltip fieldId="useOfProceeds" />
                     </label>
                     <textarea
                       id="useOfProceeds"
@@ -863,25 +997,31 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="purchasePrice"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="purchasePrice"
-                      type="number"
-                      label="Purchase Price / Current Basis ($)"
-                      value={formData.purchasePrice?.toString() || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "purchasePrice",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 15000000"
-                      data-field-id="purchasePrice"
-                      data-field-type="number"
-                      data-field-section="financials"
-                      data-field-required="false"
-                      data-field-label="Purchase Price / Current Basis ($)"
-                      data-field-placeholder="e.g., 15000000"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Purchase Price / Current Basis ($)</span>
+                        <FieldHelpTooltip fieldId="purchasePrice" />
+                      </label>
+                      <Input
+                        id="purchasePrice"
+                        type="number"
+                        label={null}
+                        value={formData.purchasePrice?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "purchasePrice",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 15000000"
+                        data-field-id="purchasePrice"
+                        data-field-type="number"
+                        data-field-section="financials"
+                        data-field-required="false"
+                        data-field-label="Purchase Price / Current Basis ($)"
+                        data-field-placeholder="e.g., 15000000"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
                 <FormGroup>
@@ -889,50 +1029,62 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="totalProjectCost"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="totalProjectCost"
-                      type="number"
-                      label="Total Project Cost ($)"
-                      value={formData.totalProjectCost?.toString() || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "totalProjectCost",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 18000000"
-                      data-field-id="totalProjectCost"
-                      data-field-type="number"
-                      data-field-section="financials"
-                      data-field-required="false"
-                      data-field-label="Total Project Cost ($)"
-                      data-field-placeholder="e.g., 18000000"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Total Project Cost ($)</span>
+                        <FieldHelpTooltip fieldId="totalProjectCost" />
+                      </label>
+                      <Input
+                        id="totalProjectCost"
+                        type="number"
+                        label={null}
+                        value={formData.totalProjectCost?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "totalProjectCost",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 18000000"
+                        data-field-id="totalProjectCost"
+                        data-field-type="number"
+                        data-field-section="financials"
+                        data-field-required="false"
+                        data-field-label="Total Project Cost ($)"
+                        data-field-placeholder="e.g., 18000000"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="capexBudget" onAskAI={onAskAI || (() => {})}>
-                    <Input
-                      id="capexBudget"
-                      type="number"
-                      label="CapEx Budget ($)"
-                      value={formData.capexBudget?.toString() || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "capexBudget",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 1500000"
-                      data-field-id="capexBudget"
-                      data-field-type="number"
-                      data-field-section="financials"
-                      data-field-required="false"
-                      data-field-label="CapEx Budget ($)"
-                      data-field-placeholder="e.g., 1500000"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>CapEx Budget ($)</span>
+                        <FieldHelpTooltip fieldId="capexBudget" />
+                      </label>
+                      <Input
+                        id="capexBudget"
+                        type="number"
+                        label={null}
+                        value={formData.capexBudget?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "capexBudget",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 1500000"
+                        data-field-id="capexBudget"
+                        data-field-type="number"
+                        data-field-section="financials"
+                        data-field-required="false"
+                        data-field-label="CapEx Budget ($)"
+                        data-field-placeholder="e.g., 1500000"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
                 <FormGroup>
@@ -940,25 +1092,31 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="equityCommittedPercent"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="equityCommittedPercent"
-                      type="number"
-                      label="Equity Committed (%)"
-                      value={formData.equityCommittedPercent?.toString() || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "equityCommittedPercent",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 100"
-                      data-field-id="equityCommittedPercent"
-                      data-field-type="number"
-                      data-field-section="financials"
-                      data-field-required="false"
-                      data-field-label="Equity Committed (%)"
-                      data-field-placeholder="e.g., 100"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Equity Committed (%)</span>
+                        <FieldHelpTooltip fieldId="equityCommittedPercent" />
+                      </label>
+                      <Input
+                        id="equityCommittedPercent"
+                        type="number"
+                        label={null}
+                        value={formData.equityCommittedPercent?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "equityCommittedPercent",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 100"
+                        data-field-id="equityCommittedPercent"
+                        data-field-type="number"
+                        data-field-section="financials"
+                        data-field-required="false"
+                        data-field-label="Equity Committed (%)"
+                        data-field-placeholder="e.g., 100"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
               </div>
@@ -968,10 +1126,15 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="propertyNoiT12"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="propertyNoiT12"
-                      type="number"
-                      label="Current/T12 NOI ($)"
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Current/T12 NOI ($)</span>
+                        <FieldHelpTooltip fieldId="propertyNoiT12" />
+                      </label>
+                      <Input
+                        id="propertyNoiT12"
+                        type="number"
+                        label={null}
                       value={formData.propertyNoiT12?.toString() || ""}
                       onChange={(e) =>
                         handleInputChange(
@@ -986,7 +1149,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-required="false"
                       data-field-label="Current/T12 NOI ($)"
                       data-field-placeholder="e.g., 450000"
-                    />
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
                 <FormGroup>
@@ -994,25 +1158,31 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="stabilizedNoiProjected"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <Input
-                      id="stabilizedNoiProjected"
-                      type="number"
-                      label="Projected Stabilized NOI ($)"
-                      value={formData.stabilizedNoiProjected?.toString() || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "stabilizedNoiProjected",
-                          e.target.value ? Number(e.target.value) : null
-                        )
-                      }
-                      placeholder="e.g., 750000"
-                      data-field-id="stabilizedNoiProjected"
-                      data-field-type="number"
-                      data-field-section="financials"
-                      data-field-required="false"
-                      data-field-label="Projected Stabilized NOI ($)"
-                      data-field-placeholder="e.g., 750000"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Projected Stabilized NOI ($)</span>
+                        <FieldHelpTooltip fieldId="stabilizedNoiProjected" />
+                      </label>
+                      <Input
+                        id="stabilizedNoiProjected"
+                        type="number"
+                        label={null}
+                        value={formData.stabilizedNoiProjected?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "stabilizedNoiProjected",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 750000"
+                        data-field-id="stabilizedNoiProjected"
+                        data-field-type="number"
+                        data-field-section="financials"
+                        data-field-required="false"
+                        data-field-label="Projected Stabilized NOI ($)"
+                        data-field-placeholder="e.g., 750000"
+                      />
+                    </div>
                   </AskAIButton>
                 </FormGroup>
               </div>
@@ -1027,8 +1197,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-label="Exit Strategy"
                     data-field-options={JSON.stringify(exitStrategyOptions)}
                   >
+                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                      <span>Exit Strategy</span>
+                      <FieldHelpTooltip fieldId="exitStrategy" />
+                    </label>
                     <ButtonSelect
-                      label="Exit Strategy"
+                      label=""
                       options={exitStrategyOptions}
                       selectedValue={formData.exitStrategy || "Undecided"}
                       onSelect={(value) =>
@@ -1052,9 +1226,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-label="Business Plan Summary"
                     data-field-placeholder="Summary of your business plan..."
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {" "}
-                      Business Plan Summary{" "}
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <span>Business Plan Summary</span>
+                      <FieldHelpTooltip fieldId="businessPlanSummary" />
                     </label>
                     <textarea
                       id="businessPlanSummary"
@@ -1081,9 +1255,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-label="Market Overview"
                     data-field-placeholder="Brief overview of the market..."
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {" "}
-                      Market Overview{" "}
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                      <span>Market Overview</span>
+                      <FieldHelpTooltip fieldId="marketOverviewSummary" />
                     </label>
                     <textarea
                       id="marketOverviewSummary"
@@ -1100,6 +1274,1114 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                   </div>
                 </AskAIButton>
               </FormGroup>
+            </div>
+          </>
+        ),
+      },
+      // --- Step 4: Property Specifications ---
+      {
+        id: "property-specs",
+        title: "Property Specs",
+        component: (
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <Building className="h-5 w-5 mr-2 text-blue-600" /> Property Specifications
+              </h2>
+            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="totalResidentialUnits" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Total Residential Units</span>
+                        <FieldHelpTooltip fieldId="totalResidentialUnits" />
+                      </label>
+                      <Input
+                        id="totalResidentialUnits"
+                        type="number"
+                        label={null}
+                        value={formData.totalResidentialUnits?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "totalResidentialUnits",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 116"
+                        data-field-id="totalResidentialUnits"
+                        data-field-type="number"
+                        data-field-section="property-specs"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="totalResidentialNRSF" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Total Residential NRSF</span>
+                        <FieldHelpTooltip fieldId="totalResidentialNRSF" />
+                      </label>
+                      <Input
+                        id="totalResidentialNRSF"
+                        type="number"
+                        label={null}
+                        value={formData.totalResidentialNRSF?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "totalResidentialNRSF",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 59520"
+                        data-field-id="totalResidentialNRSF"
+                        data-field-type="number"
+                        data-field-section="property-specs"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="totalCommercialGRSF" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Total Commercial GRSF</span>
+                        <FieldHelpTooltip fieldId="totalCommercialGRSF" />
+                      </label>
+                      <Input
+                        id="totalCommercialGRSF"
+                        type="number"
+                        label={null}
+                        value={formData.totalCommercialGRSF?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "totalCommercialGRSF",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 49569"
+                        data-field-id="totalCommercialGRSF"
+                        data-field-type="number"
+                        data-field-section="property-specs"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="grossBuildingArea" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Gross Building Area</span>
+                        <FieldHelpTooltip fieldId="grossBuildingArea" />
+                      </label>
+                      <Input
+                        id="grossBuildingArea"
+                        type="number"
+                        label={null}
+                        value={formData.grossBuildingArea?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "grossBuildingArea",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 127406"
+                        data-field-id="grossBuildingArea"
+                        data-field-type="number"
+                        data-field-section="property-specs"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="numberOfStories" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Number of Stories</span>
+                        <FieldHelpTooltip fieldId="numberOfStories" />
+                      </label>
+                      <Input
+                        id="numberOfStories"
+                        type="number"
+                        label={null}
+                        value={formData.numberOfStories?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "numberOfStories",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 6"
+                        data-field-id="numberOfStories"
+                        data-field-type="number"
+                        data-field-section="property-specs"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="parkingSpaces" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Parking Spaces</span>
+                        <FieldHelpTooltip fieldId="parkingSpaces" />
+                      </label>
+                      <Input
+                        id="parkingSpaces"
+                        type="number"
+                        label={null}
+                        value={formData.parkingSpaces?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "parkingSpaces",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 180"
+                        data-field-id="parkingSpaces"
+                        data-field-type="number"
+                        data-field-section="property-specs"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+            </div>
+          </>
+        ),
+      },
+      // --- Step 5: Development Budget ---
+      {
+        id: "dev-budget",
+        title: "Dev Budget",
+        component: (
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <Calculator className="h-5 w-5 mr-2 text-blue-600" /> Development Budget
+              </h2>
+            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="landAcquisition" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Land Acquisition</span>
+                        <FieldHelpTooltip fieldId="landAcquisition" />
+                      </label>
+                      <Input
+                        id="landAcquisition"
+                        type="number"
+                        label={null}
+                        value={(formData as any).landAcquisition?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "landAcquisition",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 6000000"
+                        data-field-id="landAcquisition"
+                        data-field-type="number"
+                        data-field-section="dev-budget"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="baseConstruction" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Base Construction (Hard Cost)</span>
+                        <FieldHelpTooltip fieldId="baseConstruction" />
+                      </label>
+                      <Input
+                        id="baseConstruction"
+                        type="number"
+                        label={null}
+                        value={(formData as any).baseConstruction?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "baseConstruction",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 16950000"
+                        data-field-id="baseConstruction"
+                        data-field-type="number"
+                        data-field-section="dev-budget"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="contingency" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Contingency</span>
+                        <FieldHelpTooltip fieldId="contingency" />
+                      </label>
+                      <Input
+                        id="contingency"
+                        type="number"
+                        label={null}
+                        value={(formData as any).contingency?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "contingency",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 847500"
+                        data-field-id="contingency"
+                        data-field-type="number"
+                        data-field-section="dev-budget"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="ffe" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>FF&E (Furniture, Fixtures & Equipment)</span>
+                        <FieldHelpTooltip fieldId="ffe" />
+                      </label>
+                      <Input
+                        id="ffe"
+                        type="number"
+                        label={null}
+                        value={(formData as any).ffe?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "ffe",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 580000"
+                        data-field-id="ffe"
+                        data-field-type="number"
+                        data-field-section="dev-budget"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="aeFees" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>A&E Fees (Architecture & Engineering)</span>
+                        <FieldHelpTooltip fieldId="aeFees" />
+                      </label>
+                      <Input
+                        id="aeFees"
+                        type="number"
+                        label={null}
+                        value={(formData as any).aeFees?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "aeFees",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 859800"
+                        data-field-id="aeFees"
+                        data-field-type="number"
+                        data-field-section="dev-budget"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="developerFee" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Developer Fee</span>
+                        <FieldHelpTooltip fieldId="developerFee" />
+                      </label>
+                      <Input
+                        id="developerFee"
+                        type="number"
+                        label={null}
+                        value={(formData as any).developerFee?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "developerFee",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 678000"
+                        data-field-id="developerFee"
+                        data-field-type="number"
+                        data-field-section="dev-budget"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="interestReserve" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Interest Reserve</span>
+                        <FieldHelpTooltip fieldId="interestReserve" />
+                      </label>
+                      <Input
+                        id="interestReserve"
+                        type="number"
+                        label={null}
+                        value={(formData as any).interestReserve?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "interestReserve",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 1147500"
+                        data-field-id="interestReserve"
+                        data-field-type="number"
+                        data-field-section="dev-budget"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="workingCapital" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Working Capital</span>
+                        <FieldHelpTooltip fieldId="workingCapital" />
+                      </label>
+                      <Input
+                        id="workingCapital"
+                        type="number"
+                        label={null}
+                        value={(formData as any).workingCapital?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "workingCapital",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 1900000"
+                        data-field-id="workingCapital"
+                        data-field-type="number"
+                        data-field-section="dev-budget"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+            </div>
+          </>
+        ),
+      },
+      // --- Step 6: Market Context ---
+      {
+        id: "market-context",
+        title: "Market Context",
+        component: (
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2 text-blue-600" /> Market Context
+              </h2>
+            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="submarketName" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Submarket Name</span>
+                        <FieldHelpTooltip fieldId="submarketName" />
+                      </label>
+                      <Input
+                        id="submarketName"
+                        label={null}
+                        value={(formData as any).submarketName || ""}
+                        onChange={(e) =>
+                          handleInputChange("submarketName", e.target.value)
+                        }
+                        placeholder="e.g., Downtown Dallas"
+                        data-field-id="submarketName"
+                        data-field-type="input"
+                        data-field-section="market-context"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="walkabilityScore" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Walkability Score</span>
+                        <FieldHelpTooltip fieldId="walkabilityScore" />
+                      </label>
+                      <Input
+                        id="walkabilityScore"
+                        type="number"
+                        label={null}
+                        value={(formData as any).walkabilityScore?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "walkabilityScore",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 85"
+                        min="0"
+                        max="100"
+                        data-field-id="walkabilityScore"
+                        data-field-type="number"
+                        data-field-section="market-context"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="population3Mi" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Population (3-mile radius)</span>
+                        <FieldHelpTooltip fieldId="population3Mi" />
+                      </label>
+                      <Input
+                        id="population3Mi"
+                        type="number"
+                        label={null}
+                        value={(formData as any).population3Mi?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "population3Mi",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 174270"
+                        data-field-id="population3Mi"
+                        data-field-type="number"
+                        data-field-section="market-context"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="medianHHIncome" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Median Household Income (3-mile)</span>
+                        <FieldHelpTooltip fieldId="medianHHIncome" />
+                      </label>
+                      <Input
+                        id="medianHHIncome"
+                        type="number"
+                        label={null}
+                        value={(formData as any).medianHHIncome?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "medianHHIncome",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 85906"
+                        data-field-id="medianHHIncome"
+                        data-field-type="number"
+                        data-field-section="market-context"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="renterOccupiedPercent" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>% Renter Occupied (3-mile)</span>
+                        <FieldHelpTooltip fieldId="renterOccupiedPercent" />
+                      </label>
+                      <Input
+                        id="renterOccupiedPercent"
+                        type="number"
+                        label={null}
+                        value={(formData as any).renterOccupiedPercent?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "renterOccupiedPercent",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 76.7"
+                        min="0"
+                        max="100"
+                        data-field-id="renterOccupiedPercent"
+                        data-field-type="number"
+                        data-field-section="market-context"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="popGrowth201020" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Population Growth (2010-2020)</span>
+                        <FieldHelpTooltip fieldId="popGrowth201020" />
+                      </label>
+                      <Input
+                        id="popGrowth201020"
+                        type="number"
+                        label={null}
+                        value={(formData as any).popGrowth201020?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "popGrowth201020",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 23.3"
+                        data-field-id="popGrowth201020"
+                        data-field-type="number"
+                        data-field-section="market-context"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+            </div>
+          </>
+        ),
+      },
+      // --- Step 7: Special Considerations ---
+      {
+        id: "special-considerations",
+        title: "Special Programs",
+        component: (
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <CheckCircle className="h-5 w-5 mr-2 text-blue-600" /> Special Considerations
+              </h2>
+            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="opportunityZone" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Opportunity Zone?</span>
+                        <FieldHelpTooltip fieldId="opportunityZone" />
+                      </label>
+                      <ButtonSelect
+                        label=""
+                        options={["Yes", "No"]}
+                        selectedValue={(formData as any).opportunityZone ? "Yes" : (formData as any).opportunityZone === false ? "No" : ""}
+                        onSelect={(value) =>
+                          handleInputChange("opportunityZone", value === "Yes")
+                        }
+                        gridCols="grid-cols-2"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="affordableHousing" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Affordable Housing?</span>
+                        <FieldHelpTooltip fieldId="affordableHousing" />
+                      </label>
+                      <ButtonSelect
+                        label=""
+                        options={["Yes", "No"]}
+                        selectedValue={(formData as any).affordableHousing ? "Yes" : (formData as any).affordableHousing === false ? "No" : ""}
+                        onSelect={(value) =>
+                          handleInputChange("affordableHousing", value === "Yes")
+                        }
+                        gridCols="grid-cols-2"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              {(formData as any).affordableHousing && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormGroup>
+                      <AskAIButton id="affordableUnitsNumber" onAskAI={onAskAI || (() => {})}>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                            <span>Number of Affordable Units</span>
+                            <FieldHelpTooltip fieldId="affordableUnitsNumber" />
+                          </label>
+                          <Input
+                            id="affordableUnitsNumber"
+                            type="number"
+                            label={null}
+                            value={(formData as any).affordableUnitsNumber?.toString() || ""}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "affordableUnitsNumber",
+                                e.target.value ? Number(e.target.value) : null
+                              )
+                            }
+                            placeholder="e.g., 58"
+                            data-field-id="affordableUnitsNumber"
+                            data-field-type="number"
+                            data-field-section="special-considerations"
+                          />
+                        </div>
+                      </AskAIButton>
+                    </FormGroup>
+                    <FormGroup>
+                      <AskAIButton id="amiTargetPercent" onAskAI={onAskAI || (() => {})}>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                            <span>AMI Target %</span>
+                            <FieldHelpTooltip fieldId="amiTargetPercent" />
+                          </label>
+                          <Input
+                            id="amiTargetPercent"
+                            type="number"
+                            label={null}
+                            value={(formData as any).amiTargetPercent?.toString() || ""}
+                            onChange={(e) =>
+                              handleInputChange(
+                                "amiTargetPercent",
+                                e.target.value ? Number(e.target.value) : null
+                              )
+                            }
+                            placeholder="e.g., 80"
+                            data-field-id="amiTargetPercent"
+                            data-field-type="number"
+                            data-field-section="special-considerations"
+                          />
+                        </div>
+                      </AskAIButton>
+                    </FormGroup>
+                  </div>
+                </>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="taxExemption" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Tax Exemption?</span>
+                        <FieldHelpTooltip fieldId="taxExemption" />
+                      </label>
+                      <ButtonSelect
+                        label=""
+                        options={["Yes", "No"]}
+                        selectedValue={(formData as any).taxExemption ? "Yes" : (formData as any).taxExemption === false ? "No" : ""}
+                        onSelect={(value) =>
+                          handleInputChange("taxExemption", value === "Yes")
+                        }
+                        gridCols="grid-cols-2"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="taxAbatement" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Tax Abatement?</span>
+                        <FieldHelpTooltip fieldId="taxAbatement" />
+                      </label>
+                      <ButtonSelect
+                        label=""
+                        options={["Yes", "No"]}
+                        selectedValue={(formData as any).taxAbatement ? "Yes" : (formData as any).taxAbatement === false ? "No" : ""}
+                        onSelect={(value) =>
+                          handleInputChange("taxAbatement", value === "Yes")
+                        }
+                        gridCols="grid-cols-2"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+            </div>
+          </>
+        ),
+      },
+      // --- Step 8: Timeline & Milestones ---
+      {
+        id: "timeline",
+        title: "Timeline",
+        component: (
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <Calendar className="h-5 w-5 mr-2 text-blue-600" /> Timeline & Milestones
+              </h2>
+            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="groundbreakingDate" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Groundbreaking Date</span>
+                        <FieldHelpTooltip fieldId="groundbreakingDate" />
+                      </label>
+                      <Input
+                        id="groundbreakingDate"
+                        type="date"
+                        label={null}
+                        value={(formData as any).groundbreakingDate || ""}
+                        onChange={(e) =>
+                          handleInputChange("groundbreakingDate", e.target.value)
+                        }
+                        data-field-id="groundbreakingDate"
+                        data-field-type="date"
+                        data-field-section="timeline"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="completionDate" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Completion Date</span>
+                        <FieldHelpTooltip fieldId="completionDate" />
+                      </label>
+                      <Input
+                        id="completionDate"
+                        type="date"
+                        label={null}
+                        value={(formData as any).completionDate || ""}
+                        onChange={(e) =>
+                          handleInputChange("completionDate", e.target.value)
+                        }
+                        data-field-id="completionDate"
+                        data-field-type="date"
+                        data-field-section="timeline"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="firstOccupancy" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>First Occupancy</span>
+                        <FieldHelpTooltip fieldId="firstOccupancy" />
+                      </label>
+                      <Input
+                        id="firstOccupancy"
+                        type="date"
+                        label={null}
+                        value={(formData as any).firstOccupancy || ""}
+                        onChange={(e) =>
+                          handleInputChange("firstOccupancy", e.target.value)
+                        }
+                        data-field-id="firstOccupancy"
+                        data-field-type="date"
+                        data-field-section="timeline"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="stabilization" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Stabilization Date</span>
+                        <FieldHelpTooltip fieldId="stabilization" />
+                      </label>
+                      <Input
+                        id="stabilization"
+                        type="date"
+                        label={null}
+                        value={(formData as any).stabilization || ""}
+                        onChange={(e) =>
+                          handleInputChange("stabilization", e.target.value)
+                        }
+                        data-field-id="stabilization"
+                        data-field-type="date"
+                        data-field-section="timeline"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="entitlements" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Entitlements Status</span>
+                        <FieldHelpTooltip fieldId="entitlements" />
+                      </label>
+                      <ButtonSelect
+                        label=""
+                        options={["Approved", "Pending"]}
+                        selectedValue={(formData as any).entitlements || ""}
+                        onSelect={(value) =>
+                          handleInputChange("entitlements", value)
+                        }
+                        gridCols="grid-cols-2"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="permitsIssued" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Permits Status</span>
+                        <FieldHelpTooltip fieldId="permitsIssued" />
+                      </label>
+                      <ButtonSelect
+                        label=""
+                        options={["Issued", "Pending"]}
+                        selectedValue={(formData as any).permitsIssued || ""}
+                        onSelect={(value) =>
+                          handleInputChange("permitsIssued", value)
+                        }
+                        gridCols="grid-cols-2"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+            </div>
+          </>
+        ),
+      },
+      // --- Step 9: Site & Context ---
+      {
+        id: "site-context",
+        title: "Site & Context",
+        component: (
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <Map className="h-5 w-5 mr-2 text-blue-600" /> Site & Context
+              </h2>
+            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="totalSiteAcreage" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Total Site Acreage</span>
+                        <FieldHelpTooltip fieldId="totalSiteAcreage" />
+                      </label>
+                      <Input
+                        id="totalSiteAcreage"
+                        type="number"
+                        label={null}
+                        value={(formData as any).totalSiteAcreage?.toString() || ""}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "totalSiteAcreage",
+                            e.target.value ? Number(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g., 2.5"
+                        step="0.01"
+                        data-field-id="totalSiteAcreage"
+                        data-field-type="number"
+                        data-field-section="site-context"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="currentSiteStatus" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Current Site Status</span>
+                        <FieldHelpTooltip fieldId="currentSiteStatus" />
+                      </label>
+                      <ButtonSelect
+                        label=""
+                        options={["Vacant", "Existing"]}
+                        selectedValue={(formData as any).currentSiteStatus || ""}
+                        onSelect={(value) =>
+                          handleInputChange("currentSiteStatus", value)
+                        }
+                        gridCols="grid-cols-2"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="siteAccess" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Site Access</span>
+                        <FieldHelpTooltip fieldId="siteAccess" />
+                      </label>
+                      <Input
+                        id="siteAccess"
+                        label={null}
+                        value={(formData as any).siteAccess || ""}
+                        onChange={(e) =>
+                          handleInputChange("siteAccess", e.target.value)
+                        }
+                        placeholder="e.g., Hickory St, Ferris St"
+                        data-field-id="siteAccess"
+                        data-field-type="input"
+                        data-field-section="site-context"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="proximityShopping" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Proximity to Shopping</span>
+                        <FieldHelpTooltip fieldId="proximityShopping" />
+                      </label>
+                      <Input
+                        id="proximityShopping"
+                        label={null}
+                        value={(formData as any).proximityShopping || ""}
+                        onChange={(e) =>
+                          handleInputChange("proximityShopping", e.target.value)
+                        }
+                        placeholder="e.g., Farmers Market, Deep Ellum nearby"
+                        data-field-id="proximityShopping"
+                        data-field-type="input"
+                        data-field-section="site-context"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+            </div>
+          </>
+        ),
+      },
+      // --- Step 10: Sponsor Information ---
+      {
+        id: "sponsor-info",
+        title: "Sponsor Info",
+        component: (
+          <>
+          <div className="space-y-6">
+            <div className="mb-2">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <Users className="h-5 w-5 mr-2 text-blue-600" /> Sponsor Information
+              </h2>
+            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="sponsorEntityName" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Sponsor Entity Name</span>
+                        <FieldHelpTooltip fieldId="sponsorEntityName" />
+                      </label>
+                      <Input
+                        id="sponsorEntityName"
+                        label={null}
+                        value={(formData as any).sponsorEntityName || ""}
+                        onChange={(e) =>
+                          handleInputChange("sponsorEntityName", e.target.value)
+                        }
+                        placeholder="e.g., Hoque Global"
+                        data-field-id="sponsorEntityName"
+                        data-field-type="input"
+                        data-field-section="sponsor-info"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="sponsorStructure" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Sponsor Structure</span>
+                        <FieldHelpTooltip fieldId="sponsorStructure" />
+                      </label>
+                      <Input
+                        id="sponsorStructure"
+                        label={null}
+                        value={(formData as any).sponsorStructure || ""}
+                        onChange={(e) =>
+                          handleInputChange("sponsorStructure", e.target.value)
+                        }
+                        placeholder="e.g., General Partner"
+                        data-field-id="sponsorStructure"
+                        data-field-type="input"
+                        data-field-section="sponsor-info"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup>
+                  <AskAIButton id="equityPartner" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Equity Partner</span>
+                        <FieldHelpTooltip fieldId="equityPartner" />
+                      </label>
+                      <Input
+                        id="equityPartner"
+                        label={null}
+                        value={(formData as any).equityPartner || ""}
+                        onChange={(e) =>
+                          handleInputChange("equityPartner", e.target.value)
+                        }
+                        placeholder="e.g., ACARA"
+                        data-field-id="equityPartner"
+                        data-field-type="input"
+                        data-field-section="sponsor-info"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+                <FormGroup>
+                  <AskAIButton id="contactInfo" onAskAI={onAskAI || (() => {})}>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                        <span>Contact Info</span>
+                        <FieldHelpTooltip fieldId="contactInfo" />
+                      </label>
+                      <textarea
+                        id="contactInfo"
+                        value={(formData as any).contactInfo || ""}
+                        onChange={(e) =>
+                          handleInputChange("contactInfo", e.target.value)
+                        }
+                        placeholder="e.g., Cody Field (415.202.3258), Joel Heikenfeld (972.455.1943)"
+                        className="w-full h-20 px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        data-field-id="contactInfo"
+                        data-field-type="textarea"
+                        data-field-section="sponsor-info"
+                      />
+                    </div>
+                  </AskAIButton>
+                </FormGroup>
+              </div>
             </div>
           </>
         ),

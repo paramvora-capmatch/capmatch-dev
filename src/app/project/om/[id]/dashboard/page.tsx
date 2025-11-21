@@ -12,6 +12,7 @@ import {
   scenarioData,
   timelineData,
   marketContextDetails,
+  projectOverview,
 } from "@/services/mockOMData";
 import {
   DollarSign,
@@ -35,6 +36,13 @@ export default function OMDashboardPage() {
     return <div>Project not found</div>;
   }
 
+  const propertyStats = projectOverview.propertyStats;
+  const populationGrowth = parseFloat(
+    marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr
+  );
+  const jobGrowth = parseFloat(
+    marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr
+  );
   const quadrants = [
     {
       id: "deal-snapshot",
@@ -50,8 +58,14 @@ export default function OMDashboardPage() {
               label="Loan Amount"
               value={data.loanAmount}
               format="currency"
+              dataSourceFields={['loan amount requested']}
             />
-            <MetricCard label="LTV" value={data.ltv} format="percent" />
+            <MetricCard 
+              label="LTV" 
+              value={data.ltv} 
+              format="percent"
+              dataSourceFields={['ltv']}
+            />
           </div>
           <div className="mt-3">
             <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
@@ -101,8 +115,11 @@ export default function OMDashboardPage() {
       metrics: (
         <>
           <div className="grid grid-cols-2 gap-3">
-            <MetricCard label="Total Units" value={120} />
-            <MetricCard label="Total SF" value="95,000" />
+            <MetricCard label="Total Units" value={propertyStats.totalResidentialUnits} />
+            <MetricCard
+              label="Gross Building Area"
+              value={`${propertyStats.grossBuildingArea.toLocaleString()} SF`}
+            />
           </div>
           <div className="mt-3">
             <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
@@ -112,12 +129,16 @@ export default function OMDashboardPage() {
               {/* Quick stats */}
               <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-2 rounded hover:bg-gray-100 transition-colors duration-200">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-green-600">$4.20</div>
-                  <div className="text-gray-500">Avg Rent PSF</div>
+                  <div className="text-lg font-bold text-green-600">
+                    {projectOverview.propertyStats.parkingRatio.toFixed(2)}x
+                  </div>
+                  <div className="text-gray-500">Parking Ratio</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold text-blue-600">85%</div>
-                  <div className="text-gray-500">Efficiency</div>
+                  <div className="text-lg font-bold text-blue-600">
+                    {projectOverview.propertyStats.affordableUnits}
+                  </div>
+                  <div className="text-gray-500">Workforce Units</div>
                 </div>
               </div>
             </div>
@@ -137,15 +158,15 @@ export default function OMDashboardPage() {
           <div className="grid grid-cols-2 gap-3">
             <MetricCard
               label="Population Growth"
-              value={2.8}
+              value={populationGrowth}
               format="percent"
-              change={0.3}
+              change={0.4}
             />
             <MetricCard
               label="Job Growth"
-              value={3.5}
+              value={jobGrowth}
               format="percent"
-              change={0.8}
+              change={0.6}
             />
           </div>
           <div className="mt-3">
@@ -254,7 +275,7 @@ export default function OMDashboardPage() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="space-y-6">
       <AIInsightsBar scenario={scenario} />
       <QuadrantGrid quadrants={quadrants} />
     </div>

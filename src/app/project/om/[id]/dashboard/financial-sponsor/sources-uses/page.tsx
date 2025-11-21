@@ -16,6 +16,11 @@ export default function SourcesUsesPage() {
     0
   );
 
+  const primaryDebtSource =
+    financialDetails.sourcesUses.sources.find((source) =>
+      /debt|loan/i.test(source.type)
+    ) || financialDetails.sourcesUses.sources[0];
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -26,11 +31,12 @@ export default function SourcesUsesPage() {
   };
 
   const formatPercentage = (amount: number, total: number) => {
+    if (total === 0) return "0.0";
     return ((amount / total) * 100).toFixed(1);
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Sources & Uses</h1>
         <p className="text-gray-600 mt-2">
@@ -41,7 +47,7 @@ export default function SourcesUsesPage() {
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceSection="sources & uses">
             <div className="flex items-center">
               <DollarSign className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold">Total Sources</h3>
@@ -56,7 +62,7 @@ export default function SourcesUsesPage() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceSection="sources & uses">
             <div className="flex items-center">
               <TrendingDown className="h-5 w-5 text-green-500 mr-2" />
               <h3 className="text-lg font-semibold">Total Uses</h3>
@@ -71,7 +77,7 @@ export default function SourcesUsesPage() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['leverage', 'ltv']}>
             <div className="flex items-center">
               <PieChart className="h-5 w-5 text-purple-500 mr-2" />
               <h3 className="text-lg font-semibold">Leverage</h3>
@@ -79,11 +85,7 @@ export default function SourcesUsesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-purple-600">
-              {formatPercentage(
-                financialDetails.sourcesUses.sources[0].amount,
-                totalSources
-              )}
-              %
+              {formatPercentage(primaryDebtSource.amount, totalSources)}%
             </p>
             <p className="text-sm text-gray-500 mt-1">Debt to total capital</p>
           </CardContent>
@@ -92,7 +94,7 @@ export default function SourcesUsesPage() {
 
       {/* Sources of Capital */}
       <Card>
-        <CardHeader>
+        <CardHeader dataSourceSection="capital stack">
           <h3 className="text-xl font-semibold">Sources of Capital</h3>
         </CardHeader>
         <CardContent>
@@ -137,7 +139,7 @@ export default function SourcesUsesPage() {
 
       {/* Uses of Capital */}
       <Card>
-        <CardHeader>
+        <CardHeader dataSourceSection="sources & uses">
           <h3 className="text-xl font-semibold">Uses of Capital</h3>
         </CardHeader>
         <CardContent>
@@ -182,7 +184,7 @@ export default function SourcesUsesPage() {
 
       {/* Waterfall Chart */}
       <Card>
-        <CardHeader>
+        <CardHeader dataSourceSection="sources & uses">
           <h3 className="text-xl font-semibold">Capital Flow Waterfall</h3>
         </CardHeader>
         <CardContent>
@@ -287,41 +289,19 @@ export default function SourcesUsesPage() {
       {/* Capital Structure Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader>
+          <CardHeader dataSourceSection="capital stack">
             <h3 className="text-xl font-semibold">Capital Structure</h3>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Debt Component</span>
-                <Badge className="bg-blue-100 text-blue-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.sources[0].amount,
-                    totalSources
-                  )}
-                  %
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Sponsor Equity</span>
-                <Badge className="bg-green-100 text-green-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.sources[1].amount,
-                    totalSources
-                  )}
-                  %
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">LP Equity</span>
-                <Badge className="bg-purple-100 text-purple-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.sources[2].amount,
-                    totalSources
-                  )}
-                  %
-                </Badge>
-              </div>
+              {financialDetails.sourcesUses.sources.map((source) => (
+                <div key={source.type} className="flex justify-between items-center">
+                  <span className="text-gray-600">{source.type}</span>
+                  <Badge className="bg-blue-50 text-blue-800">
+                    {formatPercentage(source.amount, totalSources)}%
+                  </Badge>
+                </div>
+              ))}
 
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex justify-between items-center">
@@ -338,42 +318,22 @@ export default function SourcesUsesPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader dataSourceSection="sources & uses">
             <h3 className="text-xl font-semibold">Investment Allocation</h3>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Land & Development</span>
-                <Badge className="bg-green-100 text-green-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.uses[0].amount +
-                      financialDetails.sourcesUses.uses[1].amount,
-                    totalUses
-                  )}
-                  %
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Soft Costs</span>
-                <Badge className="bg-blue-100 text-blue-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.uses[2].amount,
-                    totalUses
-                  )}
-                  %
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Financing Costs</span>
-                <Badge className="bg-purple-100 text-purple-800">
-                  {formatPercentage(
-                    financialDetails.sourcesUses.uses[3].amount,
-                    totalUses
-                  )}
-                  %
-                </Badge>
-              </div>
+              {[...financialDetails.sourcesUses.uses]
+                .sort((a, b) => b.amount - a.amount)
+                .slice(0, 3)
+                .map((use) => (
+                  <div key={use.type} className="flex justify-between items-center">
+                    <span className="text-gray-600">{use.type}</span>
+                    <Badge className="bg-green-50 text-green-800">
+                      {formatPercentage(use.amount, totalUses)}%
+                    </Badge>
+                  </div>
+                ))}
 
               <div className="pt-4 border-t border-gray-200">
                 <div className="flex justify-between items-center">

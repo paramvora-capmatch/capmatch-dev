@@ -16,6 +16,12 @@ export default function UnitMixPage() {
     0
   );
 
+  const blendedAverageRent = Object.values(assetProfileDetails.unitMixDetails).reduce((sum, unit) => {
+    const [low, high] = unit.rentRange.split('-').map(r => parseFloat(r.replace(/[^\d.]/g, '')));
+    const avg = (low + high) / 2;
+    return sum + avg * unit.count;
+  }, 0) / totalUnits;
+
   const getUnitTypeColor = (type: string) => {
     const colors: { [key: string]: string } = {
       studios: 'bg-blue-500',
@@ -62,7 +68,7 @@ export default function UnitMixPage() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Unit Mix</h1>
         <p className="text-gray-600 mt-2">Detailed breakdown of unit types, sizes, and pricing</p>
@@ -71,7 +77,7 @@ export default function UnitMixPage() {
       {/* Unit Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['total residential units']}>
             <div className="flex items-center">
               <Home className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Total Units</h3>
@@ -84,7 +90,7 @@ export default function UnitMixPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['total residential nrsf']}>
             <div className="flex items-center">
               <Users className="h-5 w-5 text-green-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Total SF</h3>
@@ -105,7 +111,7 @@ export default function UnitMixPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-purple-600">
-              ${Math.round(totalRentableSF / totalUnits * 4.5).toLocaleString()}
+              ${Math.round(blendedAverageRent).toLocaleString()}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per unit average</p>
           </CardContent>
@@ -128,7 +134,7 @@ export default function UnitMixPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Unit Breakdown Table */}
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
+          <CardHeader dataSourceSection="unit mix">
             <h3 className="text-xl font-semibold text-gray-800">Unit Breakdown</h3>
           </CardHeader>
           <CardContent>
@@ -258,6 +264,38 @@ export default function UnitMixPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Detailed Unit Plans */}
+      <Card className="hover:shadow-lg transition-shadow mt-8">
+        <CardHeader>
+          <h3 className="text-xl font-semibold text-gray-800">Detailed Unit Plans</h3>
+          <p className="text-sm text-gray-600">Breakdown of S, A, and B series layouts from the Hoque OM</p>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left">
+                  <th className="py-3 px-2 font-semibold text-gray-700">Plan</th>
+                  <th className="py-3 px-2 font-semibold text-gray-700">Type</th>
+                  <th className="py-3 px-2 font-semibold text-gray-700">Units</th>
+                  <th className="py-3 px-2 font-semibold text-gray-700">Avg SF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assetProfileDetails.detailedUnitMix.map((plan) => (
+                  <tr key={plan.code} className="border-b border-gray-50">
+                    <td className="py-3 px-2 font-medium text-gray-800">{plan.code}</td>
+                    <td className="py-3 px-2 text-gray-600">{plan.type}</td>
+                    <td className="py-3 px-2 text-gray-600">{plan.units}</td>
+                    <td className="py-3 px-2 text-gray-600">{plan.avgSF.toLocaleString()} SF</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>

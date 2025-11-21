@@ -8,7 +8,7 @@ import { QuadrantGrid } from '@/components/om/QuadrantGrid';
 import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
 import { useOMDashboard } from '@/contexts/OMDashboardContext';
-import { scenarioData, sponsorDeals } from '@/services/mockOMData';
+import { sponsorDeals, financialDetails, projectOverview } from '@/services/mockOMData';
 import { DollarSign, BarChart3, Users, Activity } from 'lucide-react';
 import ReturnsCharts from '@/components/om/ReturnsCharts';
 
@@ -18,7 +18,6 @@ export default function FinancialSponsorPage() {
     const { getProject } = useProjects();
     const project = projectId ? getProject(projectId) : null;
     const { scenario } = useOMDashboard();
-    const data = scenarioData[scenario];
     
     if (!project) return <div>Project not found</div>;
     
@@ -34,31 +33,23 @@ export default function FinancialSponsorPage() {
                     <div className="space-y-2">
                         <p className="text-xs text-gray-500 uppercase tracking-wider">Sources</p>
                         <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                                <span>Senior Debt</span>
-                                <span className="font-medium">${(data.loanAmount / 1000000).toFixed(1)}M</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span>Equity</span>
-                                <span className="font-medium">${((data.constructionCost - data.loanAmount) / 1000000).toFixed(1)}M</span>
-                            </div>
+                            {financialDetails.sourcesUses.sources.slice(0, 2).map((source) => (
+                                <div key={source.type} className="flex justify-between text-sm">
+                                    <span>{source.type}</span>
+                                    <span className="font-medium">${(source.amount / 1_000_000).toFixed(1)}M</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                     <div className="space-y-2 pt-2 border-t">
                         <p className="text-xs text-gray-500 uppercase tracking-wider">Uses</p>
                         <div className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                                <span>Land</span>
-                                <span>$4.5M</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span>Hard Costs</span>
-                                <span>$11.2M</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span>Soft Costs</span>
-                                <span>$3.1M</span>
-                            </div>
+                            {financialDetails.sourcesUses.uses.slice(0, 3).map((use) => (
+                                <div key={use.type} className="flex justify-between text-sm">
+                                    <span>{use.type}</span>
+                                    <span className="font-medium">${(use.amount / 1_000_000).toFixed(2)}M</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -72,10 +63,10 @@ export default function FinancialSponsorPage() {
             metrics: (
                 <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
-                        <MetricCard label="Yield on Cost" value={7.8} format="percent" size="sm" />
-                        <MetricCard label="Stabilized Cap" value={5.5} format="percent" size="sm" />
-                        <MetricCard label="Dev Spread" value={2.3} format="percent" size="sm" />
-                        <MetricCard label="Profit Margin" value={28} format="percent" size="sm" />
+                        <MetricCard label="Yield on Cost" value={projectOverview.propertyStats.yieldOnCost} format="percent" size="sm" />
+                        <MetricCard label="Stabilized Cap" value={projectOverview.propertyStats.capRate} format="percent" size="sm" />
+                        <MetricCard label="Debt Yield" value={projectOverview.propertyStats.debtYield} format="percent" size="sm" />
+                        <MetricCard label="Profit Margin" value={financialDetails.returnProjections.base.profitMargin} format="percent" size="sm" />
                     </div>
                     <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2">5-Year Cash Flow</p>
@@ -102,11 +93,11 @@ export default function FinancialSponsorPage() {
                     <div className="grid grid-cols-2 gap-2">
                         <div className="text-sm">
                             <p className="text-gray-500">Experience</p>
-                            <p className="font-medium">15+ Years</p>
+                            <p className="font-medium">{new Date().getFullYear() - financialDetails.sponsorProfile.yearFounded}+ Years</p>
                         </div>
                         <div className="text-sm">
                             <p className="text-gray-500">Total Developed</p>
-                            <p className="font-medium">$450M</p>
+                            <p className="font-medium">{financialDetails.sponsorProfile.totalDeveloped}</p>
                         </div>
                     </div>
                     <div className="pt-2">
@@ -137,15 +128,15 @@ export default function FinancialSponsorPage() {
                     <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                             <p className="text-gray-500">Base IRR</p>
-                            <p className="font-medium text-blue-600">18.5%</p>
+                            <p className="font-medium text-blue-600">{financialDetails.returnProjections.base.irr}%</p>
                         </div>
                         <div>
                             <p className="text-gray-500">Upside IRR</p>
-                            <p className="font-medium text-green-600">24.5%</p>
+                            <p className="font-medium text-green-600">{financialDetails.returnProjections.upside.irr}%</p>
                         </div>
                         <div>
                             <p className="text-gray-500">Downside IRR</p>
-                            <p className="font-medium text-red-600">12.5%</p>
+                            <p className="font-medium text-red-600">{financialDetails.returnProjections.downside.irr}%</p>
                         </div>
                         <div>
                             <p className="text-gray-500">Break-even</p>
@@ -158,7 +149,7 @@ export default function FinancialSponsorPage() {
     ];
     
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Financial & Sponsor Details</h2>
             <QuadrantGrid quadrants={quadrants} />
         </div>

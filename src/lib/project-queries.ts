@@ -8,28 +8,116 @@ import { ProjectProfile, ProjectMessage, Principal } from "@/types/enhanced-type
 
 /**
  * Defines the structure of project_resumes.content JSONB column
- * This preserves all the fields from the original DTO mapper
+ * This preserves all the fields from the original DTO mapper and includes all fields from Hoque_Data.md
  */
 export interface ProjectResumeContent {
-  // Basic project info
+  // Section 1: Project Identification & Basic Info
   projectName: string;
   assetType: string;
   projectStatus: string;
-  
-  // Address fields
   propertyAddressStreet?: string;
   propertyAddressCity?: string;
   propertyAddressState?: string;
   propertyAddressCounty?: string;
   propertyAddressZip?: string;
-  
-  // Project details
+  parcelNumber?: string;
+  zoningDesignation?: string;
+  projectType?: string; // Multi-select: Mixed-Use, Retail, Office, etc.
+  primaryAssetClass?: string;
+  constructionType?: string; // Ground-Up, Renovation, Adaptive Reuse
+  groundbreakingDate?: string;
+  completionDate?: string;
+  totalDevelopmentCost?: number; // TDC - derived from budget sum
+  loanAmountRequested?: number;
+  loanType?: string;
+  requestedLoanTerm?: string; // e.g., "2 years"
+  masterPlanName?: string;
+  phaseNumber?: string;
   projectDescription?: string;
   projectPhase?: string;
   
-  // Financial fields
-  loanAmountRequested?: number;
-  loanType?: string;
+  // Section 2: Property Specifications
+  totalResidentialUnits?: number; // Derived from unit mix
+  totalResidentialNRSF?: number; // Derived from unit SF
+  averageUnitSize?: number; // Derived: NRSF / Units
+  totalCommercialGRSF?: number;
+  grossBuildingArea?: number;
+  numberOfStories?: number;
+  buildingType?: string; // High-rise, Mid-rise, Garden, Podium
+  parkingSpaces?: number;
+  parkingRatio?: number; // Derived: Spaces / Units
+  parkingType?: string; // Surface, Structured, Underground
+  amenityList?: string[]; // Array of amenities
+  amenitySF?: number;
+  
+  // Section 2.1: Residential Unit Mix (stored as array)
+  residentialUnitMix?: Array<{
+    unitType: string; // e.g., "S1", "Studio", "1BR"
+    unitCount: number;
+    avgSF: number;
+    monthlyRent?: number;
+    totalSF?: number; // Derived: Count * SF
+    percentOfTotal?: number; // Derived: Count / Total Units
+  }>;
+  
+  // Section 2.2: Commercial Space Mix (stored as array)
+  commercialSpaceMix?: Array<{
+    spaceType: string; // e.g., "Retail", "Office"
+    squareFootage: number;
+    tenant?: string;
+    leaseTerm?: string;
+    annualRent?: number;
+  }>;
+  
+  // Section 3: Financial Details - Development Budget
+  landAcquisition?: number;
+  baseConstruction?: number;
+  contingency?: number;
+  ffe?: number; // FF&E
+  constructionFees?: number;
+  aeFees?: number; // A&E Fees
+  thirdPartyReports?: number;
+  legalAndOrg?: number;
+  titleAndRecording?: number;
+  taxesDuringConstruction?: number;
+  workingCapital?: number;
+  developerFee?: number;
+  pfcStructuringFee?: number;
+  loanFees?: number;
+  interestReserve?: number;
+  
+  // Section 3.2: Sources of Funds
+  seniorLoanAmount?: number;
+  sponsorEquity?: number;
+  
+  // Section 3.3: Loan Terms
+  interestRate?: number; // Percentage
+  underwritingRate?: number; // Percentage
+  amortization?: string; // IO, 30yr, 25yr
+  prepaymentTerms?: string;
+  recourse?: string; // Full, Partial, Non
+  permTakeoutPlanned?: boolean;
+  
+  // Section 3.5: Operating Expenses (Proforma Year 1)
+  realEstateTaxes?: number;
+  insurance?: number;
+  utilities?: number;
+  repairsAndMaintenance?: number;
+  managementFee?: number;
+  generalAndAdmin?: number;
+  payroll?: number;
+  reserves?: number;
+  
+  // Section 3.6: Investment Metrics
+  noiYear1?: number; // Derived: EGI - Total Exp
+  yieldOnCost?: number; // Derived: NOI / TDC
+  capRate?: number; // Percentage
+  stabilizedValue?: number; // Derived: NOI / Cap Rate
+  ltv?: number; // Derived: Loan / Value
+  debtYield?: number; // Derived: NOI / Loan
+  dscr?: number; // Derived: NOI / Debt Svc
+  
+  // Financial fields (existing/legacy)
   targetLtvPercent?: number;
   targetLtcPercent?: number;
   amortizationYears?: number;
@@ -47,6 +135,71 @@ export interface ProjectResumeContent {
   businessPlanSummary?: string;
   marketOverviewSummary?: string;
   equityCommittedPercent?: number;
+  
+  // Section 4: Market Context
+  submarketName?: string;
+  distanceToCBD?: number; // Decimal (miles)
+  distanceToEmployment?: string;
+  distanceToTransit?: number; // Decimal (miles)
+  walkabilityScore?: number; // Integer 0-100
+  population3Mi?: number; // Integer
+  popGrowth201020?: number; // Percentage
+  projGrowth202429?: number; // Percentage
+  medianHHIncome?: number; // Currency
+  renterOccupiedPercent?: number; // Percentage
+  bachelorsDegreePercent?: number; // Percentage
+  
+  // Section 4.3: Rent Comps (stored as array)
+  rentComps?: Array<{
+    propertyName: string;
+    address?: string;
+    distance?: number; // Derived: Geo-calc
+    yearBuilt?: number;
+    totalUnits?: number;
+    occupancyPercent?: number;
+    avgRentMonth?: number;
+    rentPSF?: number; // Derived: Rent / Size
+  }>;
+  
+  // Section 5: Special Considerations
+  opportunityZone?: boolean;
+  affordableHousing?: boolean;
+  affordableUnitsNumber?: number;
+  amiTargetPercent?: number; // Percentage (e.g., 80% AMI)
+  taxExemption?: boolean;
+  tifDistrict?: boolean;
+  taxAbatement?: boolean;
+  paceFinancing?: boolean;
+  historicTaxCredits?: boolean;
+  newMarketsCredits?: boolean;
+  
+  // Section 6: Timeline & Milestones
+  landAcqClose?: string; // Date
+  entitlements?: string; // Approved/Pending
+  finalPlans?: string; // Approved/Pending
+  permitsIssued?: string; // Issued/Pending
+  verticalStart?: string; // Date
+  firstOccupancy?: string; // Date
+  stabilization?: string; // Date
+  preLeasedSF?: number;
+  
+  // Section 7: Site & Context
+  totalSiteAcreage?: number; // Decimal
+  currentSiteStatus?: string; // Vacant/Existing
+  topography?: string; // Flat/Sloped
+  environmental?: string; // Clean/Remediation
+  siteAccess?: string; // Text
+  proximityShopping?: string; // Text
+  proximityRestaurants?: string; // Text
+  proximityParks?: string; // Text
+  proximitySchools?: string; // Text
+  proximityHospitals?: string; // Text
+  
+  // Section 8: Sponsor Information
+  sponsorEntityName?: string;
+  sponsorStructure?: string; // GP/LP
+  equityPartner?: string;
+  contactInfo?: string;
   
   // Progress tracking (stored in JSONB, similar to borrower resume)
   completenessPercent?: number;
@@ -188,52 +341,35 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
     (borrowerResumeContent.completenessPercent as number | undefined) ?? 0
   );
 
-  // Combine core project fields with resume content
-  return {
-    // Core project fields (from projects table)
-    id: project.id,
-    owner_org_id: project.owner_org_id,
-    assignedAdvisorUserId: project.assigned_advisor_id,
-    createdAt: project.created_at,
-    updatedAt: project.updated_at,
-    
-    // Detailed fields (from project_resumes.content JSONB)
-    projectName: resumeContent.projectName || project.name, // Fallback to core name
-    assetType: resumeContent.assetType || "",
-    projectStatus: resumeContent.projectStatus || "Draft",
-    propertyAddressStreet: resumeContent.propertyAddressStreet || "",
-    propertyAddressCity: resumeContent.propertyAddressCity || "",
-    propertyAddressState: resumeContent.propertyAddressState || "",
-    propertyAddressCounty: resumeContent.propertyAddressCounty || "",
-    propertyAddressZip: resumeContent.propertyAddressZip || "",
-    projectDescription: resumeContent.projectDescription || "",
-    projectPhase: resumeContent.projectPhase,
-    loanAmountRequested: resumeContent.loanAmountRequested,
-    loanType: resumeContent.loanType || "",
-    targetLtvPercent: resumeContent.targetLtvPercent,
-    targetLtcPercent: resumeContent.targetLtcPercent,
-    amortizationYears: resumeContent.amortizationYears,
-    interestOnlyPeriodMonths: resumeContent.interestOnlyPeriodMonths,
-    interestRateType: resumeContent.interestRateType as any || "Not Specified",
-    targetCloseDate: resumeContent.targetCloseDate,
-    useOfProceeds: resumeContent.useOfProceeds || "",
-    recoursePreference: resumeContent.recoursePreference as any || "Flexible",
-    purchasePrice: resumeContent.purchasePrice,
-    totalProjectCost: resumeContent.totalProjectCost,
-    capexBudget: resumeContent.capexBudget,
-    propertyNoiT12: resumeContent.propertyNoiT12,
-    stabilizedNoiProjected: resumeContent.stabilizedNoiProjected,
-    exitStrategy: resumeContent.exitStrategy as any,
-    businessPlanSummary: resumeContent.businessPlanSummary || "",
-    marketOverviewSummary: resumeContent.marketOverviewSummary || "",
-    equityCommittedPercent: resumeContent.equityCommittedPercent,
-    // Load completenessPercent from DB, fallback to 0 if not stored
-    completenessPercent: resumeContent.completenessPercent ?? 0,
-    internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
-    borrowerProgress,
-    projectSections: resumeContent.projectSections || {},
-    borrowerSections: borrowerResumeContent || {},
-  };
+    // Combine core project fields with resume content
+    return {
+      // Core project fields (from projects table)
+      id: project.id,
+      owner_org_id: project.owner_org_id,
+      assignedAdvisorUserId: project.assigned_advisor_id,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at,
+      
+      // New fields from expanded ProjectResumeContent (spread first)
+      ...resumeContent,
+      
+      // Override with fallbacks for key fields
+      projectName: resumeContent.projectName || project.name, // Fallback to core name
+      assetType: resumeContent.assetType || "",
+      projectStatus: resumeContent.projectStatus || "Draft",
+      
+      // Type-safe overrides for enum fields
+      interestRateType: (resumeContent.interestRateType as any) || "Not Specified",
+      recoursePreference: (resumeContent.recoursePreference as any) || "Flexible",
+      exitStrategy: resumeContent.exitStrategy as any,
+      
+      // Load completenessPercent from DB, fallback to 0 if not stored
+      completenessPercent: resumeContent.completenessPercent ?? 0,
+      internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
+      borrowerProgress,
+      projectSections: resumeContent.projectSections || {},
+      borrowerSections: borrowerResumeContent || {},
+    } as ProjectProfile;
 };
 
 /**
@@ -299,36 +435,19 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       createdAt: project.created_at,
       updatedAt: project.updated_at,
       
-      // Detailed fields from resume
+      // New fields from expanded ProjectResumeContent (spread first)
+      ...resumeContent,
+      
+      // Override with fallbacks for key fields
       projectName: resumeContent.projectName || project.name,
       assetType: resumeContent.assetType || "",
       projectStatus: resumeContent.projectStatus || "Draft",
-      propertyAddressStreet: resumeContent.propertyAddressStreet || "",
-      propertyAddressCity: resumeContent.propertyAddressCity || "",
-      propertyAddressState: resumeContent.propertyAddressState || "",
-      propertyAddressCounty: resumeContent.propertyAddressCounty || "",
-      propertyAddressZip: resumeContent.propertyAddressZip || "",
-      projectDescription: resumeContent.projectDescription || "",
-      projectPhase: resumeContent.projectPhase,
-      loanAmountRequested: resumeContent.loanAmountRequested,
-      loanType: resumeContent.loanType || "",
-      targetLtvPercent: resumeContent.targetLtvPercent,
-      targetLtcPercent: resumeContent.targetLtcPercent,
-      amortizationYears: resumeContent.amortizationYears,
-      interestOnlyPeriodMonths: resumeContent.interestOnlyPeriodMonths,
-      interestRateType: resumeContent.interestRateType as any || "Not Specified",
-      targetCloseDate: resumeContent.targetCloseDate,
-      useOfProceeds: resumeContent.useOfProceeds || "",
-      recoursePreference: resumeContent.recoursePreference as any || "Flexible",
-      purchasePrice: resumeContent.purchasePrice,
-      totalProjectCost: resumeContent.totalProjectCost,
-      capexBudget: resumeContent.capexBudget,
-      propertyNoiT12: resumeContent.propertyNoiT12,
-      stabilizedNoiProjected: resumeContent.stabilizedNoiProjected,
+      
+      // Type-safe overrides for enum fields
+      interestRateType: (resumeContent.interestRateType as any) || "Not Specified",
+      recoursePreference: (resumeContent.recoursePreference as any) || "Flexible",
       exitStrategy: resumeContent.exitStrategy as any,
-      businessPlanSummary: resumeContent.businessPlanSummary || "",
-      marketOverviewSummary: resumeContent.marketOverviewSummary || "",
-      equityCommittedPercent: resumeContent.equityCommittedPercent,
+      
       // Load completenessPercent from DB, fallback to 0 if not stored
       completenessPercent: resumeContent.completenessPercent ?? 0,
       internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
@@ -338,7 +457,7 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       
       // Legacy field
       borrowerProfileId: undefined,
-    };
+    } as ProjectProfile;
   }) || [];
 };
 

@@ -44,7 +44,7 @@ export default function AmenitiesPage() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Amenities</h1>
         <p className="text-gray-600 mt-2">Premium lifestyle amenities and shared spaces</p>
@@ -53,7 +53,7 @@ export default function AmenitiesPage() {
       {/* Amenities Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['amenity list']}>
             <h3 className="text-lg font-semibold text-gray-800">Total Amenities</h3>
           </CardHeader>
           <CardContent>
@@ -63,7 +63,7 @@ export default function AmenitiesPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['amenity sf']}>
             <h3 className="text-lg font-semibold text-gray-800">Total SF</h3>
           </CardHeader>
           <CardContent>
@@ -125,6 +125,32 @@ export default function AmenitiesPage() {
           );
         })}
       </div>
+
+      {/* Commercial / Innovation Program */}
+      <Card className="hover:shadow-lg transition-shadow mb-8">
+        <CardHeader dataSourceFields={['total commercial grsf', 'space type']}>
+          <h3 className="text-xl font-semibold text-gray-800">Commercial & Innovation Program</h3>
+          <p className="text-sm text-gray-600">30,000 SF Innovation Center plus flexible office/retail bays</p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {assetProfileDetails.commercialSpaces.map((space, index) => (
+              <div key={space.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">{space.name}</p>
+                  <p className="text-xs text-gray-500">{space.use}</p>
+                </div>
+                <div className="text-right">
+                  <Badge variant="outline" className="border-gray-200 mb-1">
+                    {space.size}
+                  </Badge>
+                  <div className="text-xs text-gray-500">{space.status}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Amenity Categories */}
       <Card className="hover:shadow-lg transition-shadow">

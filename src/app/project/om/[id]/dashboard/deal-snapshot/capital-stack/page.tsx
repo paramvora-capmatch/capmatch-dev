@@ -8,6 +8,7 @@ import { useOMDashboard } from '@/contexts/OMDashboardContext';
 import { capitalStackData } from '@/services/mockOMData';
 import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
 
 export default function CapitalStackPage() {
@@ -31,7 +32,7 @@ export default function CapitalStackPage() {
   }));
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold text-gray-800">Capital Stack</h2>
         <div className="text-sm text-gray-500">
@@ -47,31 +48,37 @@ export default function CapitalStackPage() {
           value={data.totalCapitalization}
           format="currency"
           size="lg"
+          dataSourceFields={['total capitalization', 'loan amount requested', 'sponsor equity']}
         />
         <MetricCard
           label="Loan to Cost"
           value={data.sources[0].percentage}
           format="percent"
           size="lg"
+          dataSourceFields={['loan to cost', 'ltv']}
         />
         <MetricCard
           label="Equity Contribution"
           value={100 - data.sources[0].percentage}
           format="percent"
           size="lg"
+          dataSourceFields={['equity contribution', 'sponsor equity']}
         />
       </div>
 
       {/* Sources & Uses Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Sources */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center mb-4">
-            <DollarSign className="h-6 w-6 text-green-600 mr-2" />
-            <h3 className="text-xl font-semibold text-gray-800">
-              Capital Sources
-            </h3>
-          </div>
+        <Card>
+          <CardHeader dataSourceSection="capital stack">
+            <div className="flex items-center">
+              <DollarSign className="h-6 w-6 text-green-600 mr-2" />
+              <h3 className="text-xl font-semibold text-gray-800">
+                Capital Sources
+              </h3>
+            </div>
+          </CardHeader>
+          <CardContent>
 
           <div className="mb-6">
             <MiniChart
@@ -107,19 +114,22 @@ export default function CapitalStackPage() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Uses */}
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center mb-4">
-            <TrendingUp className="h-6 w-6 text-blue-600 mr-2" />
-            <h3 className="text-xl font-semibold text-gray-800">
-              Capital Uses
-            </h3>
-          </div>
-
-          <div className="mb-6">
+        <Card>
+          <CardHeader dataSourceSection="sources & uses">
+            <div className="flex items-center">
+              <TrendingUp className="h-6 w-6 text-blue-600 mr-2" />
+              <h3 className="text-xl font-semibold text-gray-800">
+                Capital Uses
+              </h3>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-6">
             <MiniChart
               type="pie"
               data={usesChartData}
@@ -146,18 +156,21 @@ export default function CapitalStackPage() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Debt Terms */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="flex items-center mb-6">
-          <FileText className="h-6 w-6 text-purple-600 mr-2" />
-          <h3 className="text-xl font-semibold text-gray-800">Debt Terms</h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <Card>
+        <CardHeader dataSourceSection="key terms">
+          <div className="flex items-center">
+            <FileText className="h-6 w-6 text-purple-600 mr-2" />
+            <h3 className="text-xl font-semibold text-gray-800">Debt Terms</h3>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-3">
             <div className="p-3 bg-blue-50 rounded-lg">
               <p className="text-sm text-gray-600">Loan Type</p>
@@ -216,10 +229,10 @@ export default function CapitalStackPage() {
               </p>
             </div>
           </div>
-        </div>
+          </div>
 
-        {/* Reserves */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
+          {/* Reserves */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
           <h4 className="text-lg font-semibold text-gray-800 mb-4">
             Lender Reserves
           </h4>
@@ -243,19 +256,22 @@ export default function CapitalStackPage() {
               </p>
             </div>
           </div>
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Key Risks & Mitigants */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="flex items-center mb-6">
-          <AlertTriangle className="h-6 w-6 text-red-600 mr-2" />
-          <h3 className="text-xl font-semibold text-gray-800">
-            Key Risks & Mitigants
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center">
+            <AlertTriangle className="h-6 w-6 text-red-600 mr-2" />
+            <h3 className="text-xl font-semibold text-gray-800">
+              Key Risks & Mitigants
+            </h3>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3">
             <h4 className="font-medium text-gray-800">Construction Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
@@ -311,8 +327,9 @@ export default function CapitalStackPage() {
               </p>
             </div>
           </div>
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

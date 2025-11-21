@@ -20,29 +20,29 @@ interface InteractiveSiteMapProps {
 }
 
 export default function InteractiveSiteMap({ className = '' }: InteractiveSiteMapProps) {
-  // Mock site data - in a real app this would come from props or API
-  const siteCenter = [37.7749, -122.4194]; // San Francisco coordinates
+  // Mock site data - 2300 Hickory St, Dallas, TX 75215
+  const siteCenter = [32.7800, -96.7900]; // Dallas coordinates
   const buildingFootprint = [
-    [37.7749, -122.4194],
-    [37.7749, -122.4189],
-    [37.7745, -122.4189],
-    [37.7745, -122.4194],
+    [32.7800, -96.7900],
+    [32.7800, -96.7895],
+    [32.7796, -96.7895],
+    [32.7796, -96.7900],
   ];
   
   const parkingAreas = [
-    { center: [37.7747, -122.4196], radius: 0.001, label: 'Surface Parking' },
-    { center: [37.7747, -122.4187], radius: 0.001, label: 'Garage Parking' },
+    { center: [32.7798, -96.7902], radius: 0.001, label: 'Surface Parking' },
+    { center: [32.7798, -96.7893], radius: 0.001, label: 'Garage Parking' },
   ];
   
   const greenSpaces = [
-    { center: [37.7751, -122.4192], radius: 0.0008, label: 'Central Plaza' },
-    { center: [37.7743, -122.4192], radius: 0.0006, label: 'Garden Area' },
+    { center: [32.7802, -96.7898], radius: 0.0008, label: 'Central Plaza' },
+    { center: [32.7794, -96.7898], radius: 0.0006, label: 'Garden Area' },
   ];
   
   const amenities = [
-    { position: [37.7750, -122.4190], label: 'Main Entrance', icon: '🏢' },
-    { position: [37.7748, -122.4198], label: 'Parking Entrance', icon: '🚗' },
-    { position: [37.7742, -122.4190], label: 'Garden Path', icon: '🌳' },
+    { position: [32.7801, -96.7896], label: 'Main Entrance', icon: '🏢' },
+    { position: [32.7799, -96.7904], label: 'Parking Entrance', icon: '🚗' },
+    { position: [32.7793, -96.7896], label: 'Garden Path', icon: '🌳' },
   ];
 
   return (
@@ -72,7 +72,7 @@ export default function InteractiveSiteMap({ className = '' }: InteractiveSiteMa
             <div className="text-center">
               <Building2 className="h-5 w-5 mx-auto mb-2 text-blue-600" />
               <h3 className="font-semibold text-gray-800">Building Footprint</h3>
-              <p className="text-sm text-gray-600">8 Stories • 120 Units</p>
+              <p className="text-sm text-gray-600">6 Stories • 116 Units</p>
               <p className="text-sm text-gray-600">FAR: 3.5/4.0 • Height: 85&apos;/100&apos;</p>
             </div>
           </Popup>

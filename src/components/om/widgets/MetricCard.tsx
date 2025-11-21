@@ -2,6 +2,7 @@
 import React from 'react';
 import { cn } from '@/utils/cn';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { DataSourceTooltip } from '@/components/om/DataSourceTooltip';
 
 interface MetricCardProps {
     label: string;
@@ -10,6 +11,7 @@ interface MetricCardProps {
     format?: 'currency' | 'percent' | 'number';
     size?: 'sm' | 'md' | 'lg';
     className?: string;
+    dataSourceFields?: string | string[];
 }
 
 export const MetricCard: React.FC<MetricCardProps> = ({
@@ -18,7 +20,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     change,
     format = 'number',
     size = 'md',
-    className
+    className,
+    dataSourceFields
 }) => {
     const formattedValue = () => {
         if (typeof value === 'number') {
@@ -40,8 +43,19 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     };
     
     return (
-        <div className={cn("bg-gray-50 rounded-lg p-3", className)}>
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</p>
+        <div className={cn("bg-gray-50 rounded-lg p-3 relative", className)}>
+            <div className="flex items-start justify-between mb-1">
+                <p className="text-xs text-gray-500 uppercase tracking-wider">{label}</p>
+                {dataSourceFields && (
+                    <div className="ml-2 flex-shrink-0">
+                        <DataSourceTooltip
+                            fields={dataSourceFields}
+                            iconSize={14}
+                            placement="top"
+                        />
+                    </div>
+                )}
+            </div>
             <div className="flex items-end justify-between">
                 <p className={cn(
                     "font-semibold",

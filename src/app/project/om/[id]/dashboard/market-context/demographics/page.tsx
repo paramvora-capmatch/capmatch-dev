@@ -23,7 +23,7 @@ export default function DemographicsPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Demographics</h1>
         <p className="text-gray-600 mt-2">Comprehensive demographic analysis and population trends</p>
@@ -146,7 +146,7 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(marketContextDetails.demographicProfile).filter(([key]) => key !== 'growthTrends').map(([radius, data], index) => {
+              {Object.entries(marketContextDetails.demographicProfile).filter(([key]) => !['growthTrends', 'renterShare', 'bachelorsShare'].includes(key)).map(([radius, data], index) => {
                 const colors = [
                   'bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500',
                   'bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500',
@@ -187,7 +187,7 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(marketContextDetails.demographicProfile).filter(([key]) => key !== 'growthTrends').map(([radius, data], index) => {
+              {Object.entries(marketContextDetails.demographicProfile).filter(([key]) => !['growthTrends', 'renterShare', 'bachelorsShare'].includes(key)).map(([radius, data], index) => {
                 const colors = [
                   'from-blue-400 to-blue-600',
                   'from-green-400 to-green-600',
@@ -238,11 +238,11 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Strong population growth (14.2% 5-year)
+                  Strong population growth ({marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr} 5-year)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  High median income ($72K in 1-mile)
+                  High median income (${marketContextDetails.demographicProfile.oneMile.medianIncome.toLocaleString()} within 1-mile)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
@@ -256,15 +256,15 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Growing tech employment base
+                  Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Rising disposable income
+                  Walkability to Farmers Market and Deep Ellum entertainment district
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Limited luxury housing supply
+                  Limited new supply in Deep Ellum/Farmers Market corridor
                 </li>
               </ul>
             </div>
@@ -274,15 +274,15 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-purple-500 mr-2">•</span>
-                  Young professionals (25-35)
+                  Downtown Dallas professionals (25-35)
                 </li>
                 <li className="flex items-center">
                   <span className="text-purple-500 mr-2">•</span>
-                  Dual-income households
+                  Workforce housing eligible households (≤80% AMI)
                 </li>
                 <li className="flex items-center">
                   <span className="text-purple-500 mr-2">•</span>
-                  Tech and finance workers
+                  Healthcare, finance, and tech workers
                 </li>
               </ul>
             </div>

@@ -101,6 +101,7 @@ export const computeBorrowerCompletion = (
 };
 
 export const PROJECT_REQUIRED_FIELDS: (keyof ProjectProfile)[] = [
+  // Section 1: Basic Info (existing critical fields)
   "projectName",
   "propertyAddressStreet",
   "propertyAddressCity",
@@ -109,14 +110,40 @@ export const PROJECT_REQUIRED_FIELDS: (keyof ProjectProfile)[] = [
   "assetType",
   "projectDescription",
   "projectPhase",
+  
+  // Section 1: Additional Basic Info (new critical fields)
+  "parcelNumber",
+  "zoningDesignation",
+  "constructionType",
+  "groundbreakingDate",
+  "completionDate",
+  "totalDevelopmentCost",
+  
+  // Section 2: Loan Info (existing critical fields)
   "loanAmountRequested",
   "loanType",
   "targetLtvPercent",
   "targetCloseDate",
   "useOfProceeds",
   "recoursePreference",
+  
+  // Section 2: Property Specifications (new critical fields)
+  "totalResidentialUnits",
+  "grossBuildingArea",
+  "numberOfStories",
+  "parkingSpaces",
+  
+  // Section 3: Financial Details (existing critical fields)
   "exitStrategy",
   "businessPlanSummary",
+  
+  // Section 3: Development Budget (new critical fields)
+  "landAcquisition",
+  "baseConstruction",
+  "totalProjectCost",
+  
+  // Section 5: Sponsor Information (new critical fields)
+  "sponsorEntityName",
 ];
 
 export const PROJECT_PLACEHOLDER_VALUES: Partial<

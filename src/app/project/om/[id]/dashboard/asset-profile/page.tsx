@@ -6,8 +6,8 @@ import { useParams } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
-import { unitMixData, marketComps } from '@/services/mockOMData';
-import { MapPin, Home, Package, Building2 } from 'lucide-react';
+import { unitMixData, marketComps, assetProfileDetails, projectOverview, mediaAssets } from '@/services/mockOMData';
+import { MapPin, Home, Package, Building2, Image as ImageIcon } from 'lucide-react';
 import ZoningMap from '@/components/om/ZoningMap';
 
 export default function AssetProfilePage() {
@@ -18,6 +18,8 @@ export default function AssetProfilePage() {
   
   if (!project) return <div>Project not found</div>;
   
+  const avgCompRentPSF = (marketComps.reduce((sum, comp) => sum + comp.rentPSF, 0) / marketComps.length).toFixed(2);
+  const amenityLabels = assetProfileDetails.amenityDetails.map((a) => a.name);
   const quadrants = [
     {
       id: 'site-zoning',
@@ -31,19 +33,23 @@ export default function AssetProfilePage() {
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <p className="text-gray-500">Lot Size</p>
-              <p className="font-medium">2.5 Acres</p>
+              <p className="font-medium">{assetProfileDetails.sitePlan.lotSize}</p>
             </div>
             <div>
               <p className="text-gray-500">Zoning</p>
-              <p className="font-medium">MU-4</p>
+              <p className="font-medium">{assetProfileDetails.sitePlan.zoningDetails.current}</p>
             </div>
             <div>
               <p className="text-gray-500">FAR</p>
-              <p className="font-medium">3.5 / 4.0</p>
+              <p className="font-medium">
+                {assetProfileDetails.sitePlan.zoningDetails.usedFAR} / {assetProfileDetails.sitePlan.zoningDetails.allowedFAR}
+              </p>
             </div>
             <div>
               <p className="text-gray-500">Height</p>
-              <p className="font-medium">85&apos; / 100&apos;</p>
+              <p className="font-medium">
+                {assetProfileDetails.sitePlan.zoningDetails.actualHeight} / {assetProfileDetails.sitePlan.zoningDetails.heightLimit}
+              </p>
             </div>
           </div>
         </div>
@@ -58,7 +64,7 @@ export default function AssetProfilePage() {
       metrics: (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            {['Pool', 'Gym', 'Lounge', 'Rooftop', 'Co-work', 'Pet Spa'].map((amenity) => (
+            {amenityLabels.slice(0, 6).map((amenity) => (
               <div key={amenity} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded text-center">
                 {amenity}
               </div>
@@ -69,15 +75,15 @@ export default function AssetProfilePage() {
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Stories</span>
-                <span className="font-medium">8</span>
+                  <span className="font-medium">{projectOverview.propertyStats.stories}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Parking Ratio</span>
-                <span className="font-medium">1.2 / unit</span>
+                  <span className="text-gray-600">Parking Ratio</span>
+                  <span className="font-medium">{projectOverview.propertyStats.parkingRatio.toFixed(2)} / unit</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Efficiency</span>
-                <span className="font-medium">85%</span>
+                  <span className="text-gray-600">Amenity SF</span>
+                  <span className="font-medium">{assetProfileDetails.amenityDetails.reduce((sum, amenity) => sum + parseInt(amenity.size.replace(/[^\d]/g, ''), 10), 0).toLocaleString()} SF</span>
               </div>
             </div>
           </div>
@@ -109,7 +115,7 @@ export default function AssetProfilePage() {
           <div className="pt-2 border-t text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Avg Rent PSF</span>
-              <span className="font-medium">$4.20</span>
+              <span className="font-medium">${avgCompRentPSF}</span>
             </div>
           </div>
         </div>
@@ -118,7 +124,7 @@ export default function AssetProfilePage() {
     {
       id: 'comparable-assets',
       title: 'Comparable Assets',
-      icon: Building2,
+      icon: ImageIcon,
       color: 'from-amber-400 to-amber-500',
       href: `/project/om/${projectId}/dashboard/asset-profile/comparables`,
       metrics: (
@@ -143,11 +149,35 @@ export default function AssetProfilePage() {
           </div>
         </div>
       )
+    },
+    {
+      id: 'media-gallery',
+      title: 'Media & Plans',
+      icon: Building2,
+      color: 'from-purple-400 to-purple-500',
+      href: `/project/om/${projectId}/dashboard/asset-profile/media`,
+      metrics: (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-purple-50 rounded p-2 text-center">
+              <p className="text-xs text-gray-500 uppercase mb-1">Site Imagery</p>
+              <p className="text-lg font-semibold text-purple-700">{mediaAssets.site.length}</p>
+            </div>
+            <div className="bg-indigo-50 rounded p-2 text-center">
+              <p className="text-xs text-gray-500 uppercase mb-1">Diagrams</p>
+              <p className="text-lg font-semibold text-indigo-700">{mediaAssets.diagrams.length}</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500">
+            Review architectural diagrams, site renderings, and streetscape imagery pulled from the Hoque OM.
+          </p>
+        </div>
+      )
     }
   ];
   
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">
         Asset Profile Details
       </h2>
