@@ -31,7 +31,7 @@ export default function CapitalStackPage() {
   }));
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold text-gray-800">Capital Stack</h2>
         <div className="text-sm text-gray-500">

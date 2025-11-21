@@ -41,7 +41,7 @@ export default function EmploymentPage() {
   ) / marketContextDetails.majorEmployers.length;
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Employment</h1>
         <p className="text-gray-600 mt-2">Major employers and job market analysis</p>

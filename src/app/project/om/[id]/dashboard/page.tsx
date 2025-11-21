@@ -269,7 +269,7 @@ export default function OMDashboardPage() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="space-y-6">
       <AIInsightsBar scenario={scenario} />
       <QuadrantGrid quadrants={quadrants} />
     </div>

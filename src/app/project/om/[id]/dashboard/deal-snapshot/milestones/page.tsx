@@ -35,7 +35,7 @@ export default function MilestonesPage() {
   const totalDuration = dealSnapshotDetails.milestones.reduce((sum, milestone) => sum + milestone.duration, 0);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Project Milestones</h1>
         <p className="text-gray-600 mt-2">Timeline and progress tracking for deal execution</p>

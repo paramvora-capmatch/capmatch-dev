@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { cn } from '@/utils/cn';
 
 interface OMChatSidebarProps {
-  setIsChatOpen: (isOpen: boolean) => void;
+  setIsChatOpen?: (isOpen: boolean) => void;
 }
 
 interface Message {
@@ -105,18 +105,20 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen }) =
             <span className="text-sm font-medium text-gray-900">Talk to the OM</span>
           </div>
         </div>
-        <button
-          type="button"
-          aria-label="Close chat"
-          aria-expanded={true}
-          onClick={() => setIsChatOpen(false)}
-          className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-          title="Close chat"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" className="rotate-180">
-            <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" />
-          </svg>
-        </button>
+        {setIsChatOpen && (
+          <button
+            type="button"
+            aria-label="Close chat"
+            aria-expanded={true}
+            onClick={() => setIsChatOpen(false)}
+            className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            title="Close chat"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" className="rotate-180">
+              <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Chat Content Area */}

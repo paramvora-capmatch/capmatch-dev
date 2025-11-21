@@ -41,7 +41,7 @@ export default function ComparablesPage() {
   ) / assetProfileDetails.comparableDetails.length;
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-800">Comparable Properties</h1>
         <p className="text-gray-600 mt-2">Market analysis and competitive positioning</p>
