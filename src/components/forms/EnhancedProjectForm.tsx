@@ -425,7 +425,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                         </label>
                         <Select
                           id="propertyAddressState"
-                          label={null}
                           value={formData.propertyAddressState || ""}
                           onChange={(e) =>
                             handleInputChange(

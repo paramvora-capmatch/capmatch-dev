@@ -350,39 +350,18 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
       createdAt: project.created_at,
       updatedAt: project.updated_at,
       
-      // Detailed fields (from project_resumes.content JSONB)
+      // New fields from expanded ProjectResumeContent (spread first)
+      ...resumeContent,
+      
+      // Override with fallbacks for key fields
       projectName: resumeContent.projectName || project.name, // Fallback to core name
       assetType: resumeContent.assetType || "",
       projectStatus: resumeContent.projectStatus || "Draft",
-      propertyAddressStreet: resumeContent.propertyAddressStreet || "",
-      propertyAddressCity: resumeContent.propertyAddressCity || "",
-      propertyAddressState: resumeContent.propertyAddressState || "",
-      propertyAddressCounty: resumeContent.propertyAddressCounty || "",
-      propertyAddressZip: resumeContent.propertyAddressZip || "",
-      projectDescription: resumeContent.projectDescription || "",
-      projectPhase: resumeContent.projectPhase,
-      loanAmountRequested: resumeContent.loanAmountRequested,
-      loanType: resumeContent.loanType || "",
-      targetLtvPercent: resumeContent.targetLtvPercent,
-      targetLtcPercent: resumeContent.targetLtcPercent,
-      amortizationYears: resumeContent.amortizationYears,
-      interestOnlyPeriodMonths: resumeContent.interestOnlyPeriodMonths,
-      interestRateType: resumeContent.interestRateType as any || "Not Specified",
-      targetCloseDate: resumeContent.targetCloseDate,
-      useOfProceeds: resumeContent.useOfProceeds || "",
-      recoursePreference: resumeContent.recoursePreference as any || "Flexible",
-      purchasePrice: resumeContent.purchasePrice,
-      totalProjectCost: resumeContent.totalProjectCost,
-      capexBudget: resumeContent.capexBudget,
-      propertyNoiT12: resumeContent.propertyNoiT12,
-      stabilizedNoiProjected: resumeContent.stabilizedNoiProjected,
-      exitStrategy: resumeContent.exitStrategy as any,
-      businessPlanSummary: resumeContent.businessPlanSummary || "",
-      marketOverviewSummary: resumeContent.marketOverviewSummary || "",
-      equityCommittedPercent: resumeContent.equityCommittedPercent,
       
-      // New fields from expanded ProjectResumeContent
-      ...resumeContent,
+      // Type-safe overrides for enum fields
+      interestRateType: (resumeContent.interestRateType as any) || "Not Specified",
+      recoursePreference: (resumeContent.recoursePreference as any) || "Flexible",
+      exitStrategy: resumeContent.exitStrategy as any,
       
       // Load completenessPercent from DB, fallback to 0 if not stored
       completenessPercent: resumeContent.completenessPercent ?? 0,
@@ -390,7 +369,7 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
       borrowerProgress,
       projectSections: resumeContent.projectSections || {},
       borrowerSections: borrowerResumeContent || {},
-    };
+    } as ProjectProfile;
 };
 
 /**
@@ -456,39 +435,18 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       createdAt: project.created_at,
       updatedAt: project.updated_at,
       
-      // Detailed fields from resume
+      // New fields from expanded ProjectResumeContent (spread first)
+      ...resumeContent,
+      
+      // Override with fallbacks for key fields
       projectName: resumeContent.projectName || project.name,
       assetType: resumeContent.assetType || "",
       projectStatus: resumeContent.projectStatus || "Draft",
-      propertyAddressStreet: resumeContent.propertyAddressStreet || "",
-      propertyAddressCity: resumeContent.propertyAddressCity || "",
-      propertyAddressState: resumeContent.propertyAddressState || "",
-      propertyAddressCounty: resumeContent.propertyAddressCounty || "",
-      propertyAddressZip: resumeContent.propertyAddressZip || "",
-      projectDescription: resumeContent.projectDescription || "",
-      projectPhase: resumeContent.projectPhase,
-      loanAmountRequested: resumeContent.loanAmountRequested,
-      loanType: resumeContent.loanType || "",
-      targetLtvPercent: resumeContent.targetLtvPercent,
-      targetLtcPercent: resumeContent.targetLtcPercent,
-      amortizationYears: resumeContent.amortizationYears,
-      interestOnlyPeriodMonths: resumeContent.interestOnlyPeriodMonths,
-      interestRateType: resumeContent.interestRateType as any || "Not Specified",
-      targetCloseDate: resumeContent.targetCloseDate,
-      useOfProceeds: resumeContent.useOfProceeds || "",
-      recoursePreference: resumeContent.recoursePreference as any || "Flexible",
-      purchasePrice: resumeContent.purchasePrice,
-      totalProjectCost: resumeContent.totalProjectCost,
-      capexBudget: resumeContent.capexBudget,
-      propertyNoiT12: resumeContent.propertyNoiT12,
-      stabilizedNoiProjected: resumeContent.stabilizedNoiProjected,
-      exitStrategy: resumeContent.exitStrategy as any,
-      businessPlanSummary: resumeContent.businessPlanSummary || "",
-      marketOverviewSummary: resumeContent.marketOverviewSummary || "",
-      equityCommittedPercent: resumeContent.equityCommittedPercent,
       
-      // New fields from expanded ProjectResumeContent
-      ...resumeContent,
+      // Type-safe overrides for enum fields
+      interestRateType: (resumeContent.interestRateType as any) || "Not Specified",
+      recoursePreference: (resumeContent.recoursePreference as any) || "Flexible",
+      exitStrategy: resumeContent.exitStrategy as any,
       
       // Load completenessPercent from DB, fallback to 0 if not stored
       completenessPercent: resumeContent.completenessPercent ?? 0,
@@ -499,7 +457,7 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       
       // Legacy field
       borrowerProfileId: undefined,
-    };
+    } as ProjectProfile;
   }) || [];
 };
 

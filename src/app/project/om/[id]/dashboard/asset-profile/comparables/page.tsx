@@ -292,7 +292,7 @@ export default function ComparablesPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pipeline</span>
-                  <Badge className="bg-yellow-100 text-yellow-800"><6K units (24mo)</Badge>
+                  <Badge className="bg-yellow-100 text-yellow-800">{'<'}6K units (24mo)</Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Rent Growth</span>
