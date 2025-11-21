@@ -1,5 +1,5 @@
 // src/components/om/DataSourceTooltip.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FileText, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,20 +42,7 @@ export const DataSourceTooltip: React.FC<DataSourceTooltipProps> = ({
     ? getSectionSources(sectionName)
     : [];
 
-  if (sources.length === 0) {
-    return null; // Don't show tooltip if no sources found
-  }
-
-  const handleMouseEnter = () => {
-    setIsOpen(true);
-    updateTooltipPosition();
-  };
-
-  const handleMouseLeave = () => {
-    setIsOpen(false);
-  };
-
-  const updateTooltipPosition = () => {
+  const updateTooltipPosition = useCallback(() => {
     if (!iconRef.current) return;
 
     const rect = iconRef.current.getBoundingClientRect();
@@ -85,7 +72,7 @@ export const DataSourceTooltip: React.FC<DataSourceTooltipProps> = ({
     }
 
     setTooltipPosition({ top, left });
-  };
+  }, [placement]);
 
   useEffect(() => {
     if (isOpen) {
@@ -99,7 +86,20 @@ export const DataSourceTooltip: React.FC<DataSourceTooltipProps> = ({
         window.removeEventListener('resize', handleResize);
       };
     }
-  }, [isOpen, placement]);
+  }, [isOpen, placement, updateTooltipPosition]);
+
+  if (sources.length === 0) {
+    return null; // Don't show tooltip if no sources found
+  }
+
+  const handleMouseEnter = () => {
+    setIsOpen(true);
+    updateTooltipPosition();
+  };
+
+  const handleMouseLeave = () => {
+    setIsOpen(false);
+  };
 
   const getPlacementStyles = () => {
     switch (placement) {
