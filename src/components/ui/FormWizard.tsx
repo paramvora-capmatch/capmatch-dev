@@ -39,6 +39,11 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   // Internal completion tracking for visual state
   const [internallyCompletedSteps, setInternallyCompletedSteps] = useState<Record<string, boolean>>({});
   const numSteps = steps.length; // Memoize the number of steps
+  
+  // Scroll position tracking for tabs variant
+  const [showLeftGradient, setShowLeftGradient] = useState(false);
+  const [showRightGradient, setShowRightGradient] = useState(false);
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   // Initialize internal completion based on external prop (if provided)
   useEffect(() => {
@@ -55,6 +60,43 @@ export const FormWizard: React.FC<FormWizardProps> = ({
     setInternallyCompletedSteps(initialCompleted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialStep, numSteps]); // Rerun only if initialStep or number of steps changes
+
+  // Track scroll position for tabs variant to show/hide gradients
+  const updateScrollGradients = React.useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || variant !== 'tabs') return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    const isScrollable = scrollWidth > clientWidth;
+    
+    setShowLeftGradient(isScrollable && scrollLeft > 0);
+    setShowRightGradient(isScrollable && scrollLeft < scrollWidth - clientWidth - 1);
+  }, [variant]);
+
+  useEffect(() => {
+    if (variant !== 'tabs') return;
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // Initial check
+    updateScrollGradients();
+
+    // Listen to scroll events
+    container.addEventListener('scroll', updateScrollGradients);
+    
+    // Listen to resize events (window and container)
+    const resizeObserver = new ResizeObserver(() => {
+      updateScrollGradients();
+    });
+    resizeObserver.observe(container);
+
+    // Cleanup
+    return () => {
+      container.removeEventListener('scroll', updateScrollGradients);
+      resizeObserver.disconnect();
+    };
+  }, [variant, updateScrollGradients]);
 
 
   const currentStep = steps[currentStepIndex];
@@ -100,22 +142,37 @@ export const FormWizard: React.FC<FormWizardProps> = ({
       {/* Tabs header when in tabs variant */}
       {variant === 'tabs' && (
         <div className="mb-6 border-b border-gray-200/70 bg-white/60 px-2 py-1">
-          <div className="flex flex-1 bg-gradient-to-r from-gray-100 to-gray-50 p-1 rounded-lg shadow-inner gap-1">
-            {steps.map((step, index) => (
-              <button
-                key={step.id}
-                className={cn(
-                  "flex-1 flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
-                  index === currentStepIndex
-                    ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm transform scale-105 border border-blue-200/50"
-                    : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
-                )}
-                onClick={() => goToStep(index)}
-                aria-pressed={index === currentStepIndex}
-              >
-                {step.title}
-              </button>
-            ))}
+          <div className="max-w-6xl mx-auto relative">
+            {/* Left gradient overlay */}
+            {showLeftGradient && (
+              <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-white/95 via-white/60 to-transparent pointer-events-none z-10" />
+            )}
+            {/* Right gradient overlay */}
+            {showRightGradient && (
+              <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-white/95 via-white/60 to-transparent pointer-events-none z-10" />
+            )}
+            <div
+              ref={scrollContainerRef}
+              className="overflow-x-auto scroll-smooth hide-scrollbar"
+            >
+              <div className="flex bg-gradient-to-r from-gray-100 to-gray-50 p-1 rounded-lg shadow-inner gap-1 min-w-max">
+                {steps.map((step, index) => (
+                  <button
+                    key={step.id}
+                    className={cn(
+                      "flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0",
+                      index === currentStepIndex
+                        ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm transform scale-105 border border-blue-200/50"
+                        : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
+                    )}
+                    onClick={() => goToStep(index)}
+                    aria-pressed={index === currentStepIndex}
+                  >
+                    {step.title}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
