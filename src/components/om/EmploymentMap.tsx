@@ -22,79 +22,59 @@ interface EmploymentMapProps {
 }
 
 export default function EmploymentMap({ className = '', compact = false }: EmploymentMapProps) {
-  // Mock employment data - in a real app this would come from props or API
-  const siteCenter = [37.7749, -122.4194]; // San Francisco coordinates
+  // Mock employment data - 2300 Hickory St, Dallas, TX 75215
+  const siteCenter = [32.7800, -96.7900]; // Dallas coordinates
   
   const employers = [
     {
-      position: [37.7755, -122.4200],
-      name: 'Tech Corp',
-      employees: 15000,
-      growth: '+12%',
+      position: [32.7806, -96.7906],
+      name: 'AT&T Discovery District',
+      employees: 5200,
+      growth: '+6%',
       industry: 'Technology',
-      distance: '1.2 miles',
+      distance: '0.6 miles',
       color: '#3b82f6',
-      description: 'Leading software company specializing in enterprise solutions'
+      description: 'AT&T corporate campus and innovation hub in Downtown Dallas'
     },
     {
-      position: [37.7740, -122.4180],
-      name: 'Regional Medical Center',
-      employees: 8500,
-      growth: '+5%',
-      industry: 'Healthcare',
-      distance: '1.5 miles',
-      color: '#10b981',
-      description: 'Full-service medical center with 24/7 emergency care'
-    },
-    {
-      position: [37.7760, -122.4170],
-      name: 'Financial Services Inc',
-      employees: 6200,
-      growth: '+8%',
-      industry: 'Finance',
-      distance: '2.1 miles',
-      color: '#f59e0b',
-      description: 'Investment banking and wealth management services'
-    },
-    {
-      position: [37.7735, -122.4210],
-      name: 'State University',
-      employees: 4800,
+      position: [32.7795, -96.7895],
+      name: 'Baylor Univ. Medical Center',
+      employees: 7800,
       growth: '+3%',
-      industry: 'Education',
-      distance: '2.8 miles',
-      color: '#8b5cf6',
-      description: 'Public research university with strong STEM programs'
+      industry: 'Healthcare',
+      distance: '1.1 miles',
+      color: '#10b981',
+      description: 'Major medical center serving Downtown Dallas and surrounding communities'
     },
     {
-      position: [37.7750, -122.4160],
-      name: 'Aerospace Manufacturing',
-      employees: 3200,
-      growth: '+15%',
-      industry: 'Manufacturing',
-      distance: '3.2 miles',
-      color: '#ef4444',
-      description: 'Advanced aerospace components and systems'
-    },
-    {
-      position: [37.7725, -122.4190],
-      name: 'Retail Chain HQ',
-      employees: 2800,
-      growth: '+2%',
-      industry: 'Retail',
-      distance: '3.5 miles',
-      color: '#06b6d4',
-      description: 'National retail chain headquarters and distribution'
-    },
-    {
-      position: [37.7765, -122.4200],
-      name: 'Biotech Research',
-      employees: 1800,
-      growth: '+22%',
-      industry: 'Biotechnology',
+      position: [32.7803, -96.7898],
+      name: 'Dallas County Government Campus',
+      employees: 4200,
+      growth: '+1%',
+      industry: 'Government',
       distance: '0.8 miles',
+      color: '#8b5cf6',
+      description: 'Dallas County Government administrative campus'
+    },
+    {
+      position: [32.7810, -96.7885],
+      name: 'JP Morgan Chase Regional HQ',
+      employees: 5100,
+      growth: '+5%',
+      industry: 'Finance',
+      distance: '1.8 miles',
+      color: '#f59e0b',
+      description: 'JP Morgan Chase regional headquarters and operations center'
+    },
+    {
+      position: [32.7775, -96.7895],
+      name: 'Pegasus Park BioLabs',
+      employees: 3400,
+      growth: '+8%',
+      industry: 'Biotechnology',
+      distance: '3.5 miles',
       color: '#84cc16',
-      description: 'Cutting-edge biotechnology research and development'
+      description: 'Biotechnology research and development facility in South Dallas'
     }
   ];
 
@@ -103,9 +83,7 @@ export default function EmploymentMap({ className = '', compact = false }: Emplo
       'Technology': 'bg-blue-100 text-blue-800',
       'Healthcare': 'bg-green-100 text-green-800',
       'Finance': 'bg-yellow-100 text-yellow-800',
-      'Education': 'bg-purple-100 text-purple-800',
-      'Manufacturing': 'bg-red-100 text-red-800',
-      'Retail': 'bg-cyan-100 text-cyan-800',
+      'Government': 'bg-purple-100 text-purple-800',
       'Biotechnology': 'bg-lime-100 text-lime-800'
     };
     return colors[industry] || 'bg-gray-100 text-gray-800';
@@ -206,10 +184,10 @@ export default function EmploymentMap({ className = '', compact = false }: Emplo
           <Popup>
             <div className="text-center">
               <MapPin className="h-5 w-5 mx-auto mb-2 text-red-600" />
-              <h3 className="font-semibold text-gray-800">Downtown Highrise</h3>
+              <h3 className="font-semibold text-gray-800">SoGood Apartments</h3>
               <p className="text-sm text-gray-600">Our Project</p>
-              <p className="text-sm text-gray-600">120 Units • 8 Stories</p>
-              <p className="text-sm text-gray-600">Target: Tech & Finance Workers</p>
+              <p className="text-sm text-gray-600">116 Units • 6 Stories</p>
+              <p className="text-sm text-gray-600">2300 Hickory St, Dallas, TX</p>
             </div>
           </Popup>
         </Circle>

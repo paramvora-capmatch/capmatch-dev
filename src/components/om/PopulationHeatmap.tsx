@@ -21,8 +21,8 @@ interface PopulationHeatmapProps {
 }
 
 export default function PopulationHeatmap({ className = '', compact = false }: PopulationHeatmapProps) {
-  // Mock population data for different radius areas
-  const siteCenter = [37.7749, -122.4194]; // San Francisco coordinates
+  // Mock population data for different radius areas - 2300 Hickory St, Dallas, TX 75215
+  const siteCenter = [32.7800, -96.7900]; // Dallas coordinates
   
   const populationData = [
     {
@@ -137,18 +137,18 @@ export default function PopulationHeatmap({ className = '', compact = false }: P
             <div className="text-center">
               <MapPin className="h-5 w-5 mx-auto mb-2 text-blue-600" />
               <h3 className="font-semibold text-gray-800">Project Site</h3>
-              <p className="text-sm text-gray-600">Downtown Highrise</p>
-              <p className="text-sm text-gray-600">120 Units • 8 Stories</p>
+              <p className="text-sm text-gray-600">SoGood Apartments</p>
+              <p className="text-sm text-gray-600">116 Units • 6 Stories</p>
             </div>
           </Popup>
         </Circle>
         
         {/* Additional Demographic Points */}
         {[
-          { pos: [37.7755, -122.4200], label: 'High-Income Area', income: '$120K+', density: 'high' },
-          { pos: [37.7735, -122.4180], label: 'Mixed-Income Area', income: '$75K', density: 'medium' },
-          { pos: [37.7760, -122.4170], label: 'Student Area', income: '$45K', density: 'high' },
-          { pos: [37.7720, -122.4210], label: 'Family Area', income: '$85K', density: 'medium' },
+          { pos: [32.7806, -96.7906], label: 'High-Income Area', income: '$120K+', density: 'high' },
+          { pos: [32.7795, -96.7895], label: 'Mixed-Income Area', income: '$85K', density: 'medium' },
+          { pos: [32.7810, -96.7885], label: 'Student Area', income: '$45K', density: 'high' },
+          { pos: [32.7785, -96.7915], label: 'Family Area', income: '$85K', density: 'medium' },
         ].map((point, index) => (
           <Circle
             key={`demographic-${index}`}

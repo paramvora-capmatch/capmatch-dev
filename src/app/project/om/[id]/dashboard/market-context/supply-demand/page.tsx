@@ -394,15 +394,15 @@ export default function SupplyDemandPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Limited luxury supply
+                  Limited new supply in Deep Ellum/Farmers Market corridor
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  High occupancy rates
+                  Downtown Dallas occupancy above 94%
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Controlled pipeline
+                  &lt;6,000 units delivering over next 24 months
                 </li>
               </ul>
             </div>
@@ -414,15 +414,15 @@ export default function SupplyDemandPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Growing demand base
+                  Strong job growth in Downtown Dallas (12.1% 5-year)
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Premium positioning
+                  Workforce housing demand with PFC tax exemption
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Limited competition
+                  Proximity to DART rail and I-30/I-45 interchange
                 </li>
               </ul>
             </div>

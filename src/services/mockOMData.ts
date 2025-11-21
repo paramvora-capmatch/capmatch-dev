@@ -268,7 +268,7 @@ export const assetProfileDetails = {
   comparableDetails: [
     {
       name: "The Hamilton",
-      address: "2525 Elm St",
+      address: "2525 Elm St, Dallas, TX 75201",
       distance: "0.4 miles",
       yearBuilt: 2020,
       units: 329,
@@ -278,13 +278,23 @@ export const assetProfileDetails = {
     },
     {
       name: "Novel Deep Ellum",
-      address: "2900 Canton St",
+      address: "2900 Canton St, Dallas, TX 75226",
       distance: "0.6 miles",
       yearBuilt: 2022,
       units: 231,
       occupancy: "93%",
       avgRent: "$3.25 PSF",
       lastSale: { date: "Jan 2024", price: "$105M", capRate: "4.8%" },
+    },
+    {
+      name: "The Gabriella",
+      address: "2400 Main St, Dallas, TX 75201",
+      distance: "0.8 miles",
+      yearBuilt: 2020,
+      units: 364,
+      occupancy: "94%",
+      avgRent: "$3.10 PSF",
+      lastSale: { date: "Mar 2023", price: "$132M", capRate: "4.7%" },
     },
   ],
 };
@@ -321,6 +331,7 @@ export const marketContextDetails = {
       { quarter: "Q1 2026", units: 760 },
       { quarter: "Q3 2026", units: 890 },
     ],
+    marketNotes: "Downtown Dallas submarket shows strong fundamentals with <6,000 units delivering over next 24 months, keeping occupancy above 94%. Limited new supply in Deep Ellum/Farmers Market corridor supports rent growth.",
   },
 };
 

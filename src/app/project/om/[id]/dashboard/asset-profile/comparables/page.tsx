@@ -270,21 +270,21 @@ export default function ComparablesPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Premium amenities package
+                  Workforce housing with PFC tax exemption
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Superior location & views
+                  Pre-leased Innovation Center (30,000 SF)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Modern design & finishes
+                  Adjacent to Farmers Market and Deep Ellum
                 </li>
               </ul>
             </div>
             
             <div>
-              <h4 className="font-semibold text-gray-800 mb-3">Market Trends</h4>
+              <h4 className="font-semibold text-gray-800 mb-3">Downtown Dallas Market Trends</h4>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Demand Trend</span>
@@ -292,11 +292,11 @@ export default function ComparablesPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pipeline</span>
-                  <Badge className="bg-yellow-100 text-yellow-800">Moderate</Badge>
+                  <Badge className="bg-yellow-100 text-yellow-800"><6K units (24mo)</Badge>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Price Appreciation</span>
-                  <Badge className="bg-green-100 text-green-800">+8% YoY</Badge>
+                  <span className="text-sm text-gray-600">Rent Growth</span>
+                  <Badge className="bg-green-100 text-green-800">+6.9% (5yr)</Badge>
                 </div>
               </div>
             </div>

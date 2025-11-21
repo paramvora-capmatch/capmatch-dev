@@ -256,15 +256,15 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Growing tech employment base
+                  Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Rising disposable income
+                  Walkability to Farmers Market and Deep Ellum entertainment district
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Limited luxury housing supply
+                  Limited new supply in Deep Ellum/Farmers Market corridor
                 </li>
               </ul>
             </div>
@@ -274,15 +274,15 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-purple-500 mr-2">•</span>
-                  Young professionals (25-35)
+                  Downtown Dallas professionals (25-35)
                 </li>
                 <li className="flex items-center">
                   <span className="text-purple-500 mr-2">•</span>
-                  Dual-income households
+                  Workforce housing eligible households (≤80% AMI)
                 </li>
                 <li className="flex items-center">
                   <span className="text-purple-500 mr-2">•</span>
-                  Tech and finance workers
+                  Healthcare, finance, and tech workers
                 </li>
               </ul>
             </div>

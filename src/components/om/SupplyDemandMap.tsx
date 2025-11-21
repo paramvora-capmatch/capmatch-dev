@@ -21,13 +21,13 @@ interface SupplyDemandMapProps {
 }
 
 export default function SupplyDemandMap({ className = '', compact = false }: SupplyDemandMapProps) {
-  // Mock supply data - in a real app this would come from props or API
-  const siteCenter = [37.7749, -122.4194]; // San Francisco coordinates
+  // Mock supply data - 2300 Hickory St, Dallas, TX 75215
+  const siteCenter = [32.7800, -96.7900]; // Dallas coordinates
   
   const supplyData = [
     // Current Supply
     {
-      position: [37.7755, -122.4200],
+      position: [32.7806, -96.7906],
       name: 'The Modern',
       type: 'current',
       units: 145,
@@ -38,7 +38,7 @@ export default function SupplyDemandMap({ className = '', compact = false }: Sup
       icon: Building2
     },
     {
-      position: [37.7740, -122.4180],
+      position: [32.7795, -96.7895],
       name: 'Park Place Tower',
       type: 'current',
       units: 200,
@@ -49,7 +49,7 @@ export default function SupplyDemandMap({ className = '', compact = false }: Sup
       icon: Building2
     },
     {
-      position: [37.7760, -122.4170],
+      position: [32.7810, -96.7885],
       name: 'Urban Living',
       type: 'current',
       units: 175,
@@ -62,7 +62,7 @@ export default function SupplyDemandMap({ className = '', compact = false }: Sup
     
     // Under Construction
     {
-      position: [37.7735, -122.4210],
+      position: [32.7785, -96.7915],
       name: 'Metro Heights',
       type: 'underConstruction',
       units: 160,
@@ -73,7 +73,7 @@ export default function SupplyDemandMap({ className = '', compact = false }: Sup
       icon: Clock
     },
     {
-      position: [37.7750, -122.4160],
+      position: [32.7805, -96.7875],
       name: 'City View',
       type: 'underConstruction',
       units: 180,
@@ -86,7 +86,7 @@ export default function SupplyDemandMap({ className = '', compact = false }: Sup
     
     // Planned
     {
-      position: [37.7725, -122.4190],
+      position: [32.7775, -96.7895],
       name: 'Riverside Gardens',
       type: 'planned',
       units: 220,
@@ -96,7 +96,7 @@ export default function SupplyDemandMap({ className = '', compact = false }: Sup
       icon: BarChart3
     },
     {
-      position: [37.7765, -122.4200],
+      position: [32.7815, -96.7906],
       name: 'Skyline Tower',
       type: 'planned',
       units: 300,
@@ -231,10 +231,10 @@ export default function SupplyDemandMap({ className = '', compact = false }: Sup
           <Popup>
             <div className="text-center">
               <MapPin className="h-5 w-5 mx-auto mb-2 text-green-600" />
-              <h3 className="font-semibold text-gray-800">Downtown Highrise</h3>
+              <h3 className="font-semibold text-gray-800">SoGood Apartments</h3>
               <p className="text-sm text-gray-600">Our Project</p>
-              <p className="text-sm text-gray-600">120 Units • 8 Stories</p>
-              <p className="text-sm text-gray-600">Est. Completion: Q4 2026</p>
+              <p className="text-sm text-gray-600">116 Units • 6 Stories</p>
+              <p className="text-sm text-gray-600">Est. Completion: Q3 2027</p>
             </div>
           </Popup>
         </Circle>

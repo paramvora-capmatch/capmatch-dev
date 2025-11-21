@@ -27,26 +27,26 @@ export default function ZoningMap({
   className = "",
   compact = false,
 }: ZoningMapProps) {
-  // Mock zoning data
-  const siteCenter = [37.7749, -122.4194];
+  // Mock zoning data - 2300 Hickory St, Dallas, TX 75215
+  const siteCenter = [32.7800, -96.7900];
   const siteBoundary = [
-    [37.7749, -122.4194],
-    [37.7749, -122.4189],
-    [37.7745, -122.4189],
-    [37.7745, -122.4194],
+    [32.7800, -96.7900],
+    [32.7800, -96.7895],
+    [32.7796, -96.7895],
+    [32.7796, -96.7900],
   ];
 
   const zoningAreas = [
     {
-      name: "MU-4 (Mixed Use)",
+      name: "PD317 (Planned Development)",
       boundary: [
-        [37.7752, -122.4197],
-        [37.7752, -122.4186],
-        [37.7742, -122.4186],
-        [37.7742, -122.4197],
+        [32.7803, -96.7903],
+        [32.7803, -96.7892],
+        [32.7793, -96.7892],
+        [32.7793, -96.7903],
       ],
       color: "#3b82f6",
-      description: "Mixed Use - 4 Stories Max",
+      description: "Planned Development - Mixed Use",
       far: "4.0",
       height: "100 ft",
       setbacks: "15 ft front, 10 ft side/rear",
@@ -54,10 +54,10 @@ export default function ZoningMap({
     {
       name: "R-3 (Residential)",
       boundary: [
-        [37.7755, -122.42],
-        [37.7755, -122.4197],
-        [37.7749, -122.4197],
-        [37.7749, -122.42],
+        [32.7806, -96.7906],
+        [32.7806, -96.7903],
+        [32.7800, -96.7903],
+        [32.7800, -96.7906],
       ],
       color: "#10b981",
       description: "Residential - 3 Stories Max",
@@ -68,10 +68,10 @@ export default function ZoningMap({
     {
       name: "C-2 (Commercial)",
       boundary: [
-        [37.7749, -122.4186],
-        [37.7749, -122.418],
-        [37.7742, -122.418],
-        [37.7742, -122.4186],
+        [32.7800, -96.7892],
+        [32.7800, -96.7886],
+        [32.7793, -96.7886],
+        [32.7793, -96.7892],
       ],
       color: "#f59e0b",
       description: "Commercial - 2 Stories Max",
@@ -153,7 +153,7 @@ export default function ZoningMap({
               <MapPin className="h-5 w-5 mx-auto mb-2 text-red-600" />
               <h3 className="font-semibold text-gray-800">Project Site</h3>
               <p className="text-sm text-gray-600">2.5 Acres</p>
-              <p className="text-sm text-gray-600">Zoning: MU-4</p>
+              <p className="text-sm text-gray-600">Zoning: PD317</p>
               <p className="text-sm text-gray-600">FAR: 3.5/4.0</p>
               <p className="text-sm text-gray-600">Height: 85&apos;/100&apos;</p>
             </div>
@@ -190,7 +190,7 @@ export default function ZoningMap({
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <span className="text-gray-600">Zoning:</span>
-                <span className="font-medium ml-1">MU-4</span>
+                <span className="font-medium ml-1">PD317</span>
               </div>
               <div>
                 <span className="text-gray-600">FAR:</span>

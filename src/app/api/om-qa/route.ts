@@ -244,7 +244,7 @@ ${employerData
 - **Income Growth**: ${marketContextDetails.demographicProfile.growthTrends.incomeGrowth5yr} (5-year)
 - **Job Growth**: ${marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr} (5-year)
 - **Supply vs. Demand**: ${marketContextDetails.supplyAnalysis.currentInventory.toLocaleString()} current inventory vs. ${marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()} under construction
-- **Demand Drivers**: Farmers Market / Deep Ellum walkability, proximity to CBD employers, transit access within 0.5 miles
+- **Demand Drivers**: Farmers Market / Deep Ellum walkability, proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical), DART rail access, I-30/I-45 interchange
 
 ### Regulatory / Incentives
 ${dealSnapshotDetails.specialPrograms

@@ -259,7 +259,7 @@ export default function EmploymentPage() {
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Proximity to major employers
+                  Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government
                 </li>
               </ul>
             </div>
@@ -269,15 +269,15 @@ export default function EmploymentPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-purple-500 mr-2">•</span>
-                  Tech professionals
+                  Downtown Dallas professionals (AT&T, JP Morgan Chase)
                 </li>
                 <li className="flex items-center">
                   <span className="text-purple-500 mr-2">•</span>
-                  Healthcare workers
+                  Healthcare workers (Baylor Medical Center)
                 </li>
                 <li className="flex items-center">
                   <span className="text-purple-500 mr-2">•</span>
-                  Finance professionals
+                  Government employees (Dallas County)
                 </li>
               </ul>
             </div>
