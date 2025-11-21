@@ -77,7 +77,7 @@ export default function UnitMixPage() {
       {/* Unit Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['total residential units']}>
             <div className="flex items-center">
               <Home className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Total Units</h3>
@@ -90,7 +90,7 @@ export default function UnitMixPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['total residential nrsf']}>
             <div className="flex items-center">
               <Users className="h-5 w-5 text-green-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Total SF</h3>
@@ -134,7 +134,7 @@ export default function UnitMixPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Unit Breakdown Table */}
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
+          <CardHeader dataSourceSection="unit mix">
             <h3 className="text-xl font-semibold text-gray-800">Unit Breakdown</h3>
           </CardHeader>
           <CardContent>

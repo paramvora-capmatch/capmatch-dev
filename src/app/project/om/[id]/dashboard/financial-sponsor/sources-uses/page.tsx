@@ -47,7 +47,7 @@ export default function SourcesUsesPage() {
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceSection="sources & uses">
             <div className="flex items-center">
               <DollarSign className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold">Total Sources</h3>
@@ -62,7 +62,7 @@ export default function SourcesUsesPage() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceSection="sources & uses">
             <div className="flex items-center">
               <TrendingDown className="h-5 w-5 text-green-500 mr-2" />
               <h3 className="text-lg font-semibold">Total Uses</h3>
@@ -77,7 +77,7 @@ export default function SourcesUsesPage() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['leverage', 'ltv']}>
             <div className="flex items-center">
               <PieChart className="h-5 w-5 text-purple-500 mr-2" />
               <h3 className="text-lg font-semibold">Leverage</h3>
@@ -94,7 +94,7 @@ export default function SourcesUsesPage() {
 
       {/* Sources of Capital */}
       <Card>
-        <CardHeader>
+        <CardHeader dataSourceSection="capital stack">
           <h3 className="text-xl font-semibold">Sources of Capital</h3>
         </CardHeader>
         <CardContent>
@@ -139,7 +139,7 @@ export default function SourcesUsesPage() {
 
       {/* Uses of Capital */}
       <Card>
-        <CardHeader>
+        <CardHeader dataSourceSection="sources & uses">
           <h3 className="text-xl font-semibold">Uses of Capital</h3>
         </CardHeader>
         <CardContent>
@@ -184,7 +184,7 @@ export default function SourcesUsesPage() {
 
       {/* Waterfall Chart */}
       <Card>
-        <CardHeader>
+        <CardHeader dataSourceSection="sources & uses">
           <h3 className="text-xl font-semibold">Capital Flow Waterfall</h3>
         </CardHeader>
         <CardContent>
@@ -289,7 +289,7 @@ export default function SourcesUsesPage() {
       {/* Capital Structure Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader>
+          <CardHeader dataSourceSection="capital stack">
             <h3 className="text-xl font-semibold">Capital Structure</h3>
           </CardHeader>
           <CardContent>
@@ -318,7 +318,7 @@ export default function SourcesUsesPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader dataSourceSection="sources & uses">
             <h3 className="text-xl font-semibold">Investment Allocation</h3>
           </CardHeader>
           <CardContent>

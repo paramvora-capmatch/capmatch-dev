@@ -53,7 +53,7 @@ export default function AmenitiesPage() {
       {/* Amenities Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['amenity list']}>
             <h3 className="text-lg font-semibold text-gray-800">Total Amenities</h3>
           </CardHeader>
           <CardContent>
@@ -63,7 +63,7 @@ export default function AmenitiesPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['amenity sf']}>
             <h3 className="text-lg font-semibold text-gray-800">Total SF</h3>
           </CardHeader>
           <CardContent>
@@ -128,7 +128,7 @@ export default function AmenitiesPage() {
 
       {/* Commercial / Innovation Program */}
       <Card className="hover:shadow-lg transition-shadow mb-8">
-        <CardHeader>
+        <CardHeader dataSourceFields={['total commercial grsf', 'space type']}>
           <h3 className="text-xl font-semibold text-gray-800">Commercial & Innovation Program</h3>
           <p className="text-sm text-gray-600">30,000 SF Innovation Center plus flexible office/retail bays</p>
         </CardHeader>

@@ -18,7 +18,7 @@ export default function KeyTermsPage() {
 
       {/* Basic Loan Terms */}
       <Card className="hover:shadow-lg transition-shadow mb-8 border-blue-200 bg-white">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3" dataSourceSection="key terms">
           <div className="flex items-center space-x-2">
             <DollarSign className="h-6 w-6 text-blue-600" />
             <h3 className="text-xl font-semibold text-gray-800">
@@ -71,7 +71,7 @@ export default function KeyTermsPage() {
       {/* Fees and Reserves */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <Card className="hover:shadow-lg transition-shadow border-orange-200 bg-white">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3" dataSourceFields={['origination fee', 'exit fee', 'loan fees']}>
             <div className="flex items-center space-x-2">
               <Percent className="h-6 w-6 text-orange-600" />
               <h3 className="text-xl font-semibold text-gray-800">Fees</h3>
@@ -96,7 +96,7 @@ export default function KeyTermsPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow border-teal-200 bg-white">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3" dataSourceSection="lender reserves">
             <div className="flex items-center space-x-2">
               <Shield className="h-6 w-6 text-teal-600" />
               <h3 className="text-xl font-semibold text-gray-800">
@@ -131,7 +131,7 @@ export default function KeyTermsPage() {
 
       {/* Covenants */}
       <Card className="hover:shadow-lg transition-shadow border-violet-200 bg-white">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3" dataSourceSection="financial covenants">
           <div className="flex items-center space-x-2">
             <FileText className="h-6 w-6 text-violet-600" />
             <h3 className="text-xl font-semibold text-gray-800">
@@ -170,7 +170,7 @@ export default function KeyTermsPage() {
       </Card>
 
       <Card className="hover:shadow-lg transition-shadow mt-8 border-emerald-200 bg-white">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3" dataSourceFields={['opportunity zone', 'tax exemption', 'affordable housing']}>
           <div className="flex items-center space-x-2">
             <Sparkles className="h-6 w-6 text-emerald-600" />
             <h3 className="text-xl font-semibold text-gray-800">Special Programs & Incentives</h3>

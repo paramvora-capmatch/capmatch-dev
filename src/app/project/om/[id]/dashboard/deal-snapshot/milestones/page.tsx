@@ -43,7 +43,7 @@ export default function MilestonesPage() {
 
       {/* Timeline View */}
       <Card>
-        <CardHeader>
+        <CardHeader dataSourceSection="milestones">
           <h2 className="text-xl">Timeline Overview</h2>
         </CardHeader>
         <CardContent>
@@ -75,7 +75,7 @@ export default function MilestonesPage() {
 
       {/* Gantt Chart */}
       <Card>
-        <CardHeader>
+        <CardHeader dataSourceSection="milestones">
           <h2 className="text-xl">Gantt Chart</h2>
         </CardHeader>
         <CardContent>

@@ -17,7 +17,7 @@ export default function SitePlanPage() {
       {/* Site Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['total site acreage']}>
             <div className="flex items-center">
               <MapPin className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Lot Size</h3>
@@ -43,7 +43,7 @@ export default function SitePlanPage() {
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2" dataSourceFields={['parking spaces']}>
             <div className="flex items-center">
               <Car className="h-5 w-5 text-purple-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Parking</h3>
@@ -71,7 +71,7 @@ export default function SitePlanPage() {
 
       {/* Zoning Details */}
       <Card className="hover:shadow-lg transition-shadow mb-8">
-        <CardHeader>
+        <CardHeader dataSourceSection="site & zoning">
           <h3 className="text-xl font-semibold text-gray-800">Zoning Information</h3>
         </CardHeader>
         <CardContent>

@@ -58,8 +58,14 @@ export default function OMDashboardPage() {
               label="Loan Amount"
               value={data.loanAmount}
               format="currency"
+              dataSourceFields={['loan amount requested']}
             />
-            <MetricCard label="LTV" value={data.ltv} format="percent" />
+            <MetricCard 
+              label="LTV" 
+              value={data.ltv} 
+              format="percent"
+              dataSourceFields={['ltv']}
+            />
           </div>
           <div className="mt-3">
             <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">
