@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { Button } from '../ui/Button';
-import { Edit, MapPin, DollarSign, BarChart3, AlertCircle, ChevronDown } from 'lucide-react';
+import { Edit, MapPin, DollarSign, BarChart3, AlertCircle, ChevronDown, Building2, Calculator, TrendingUp, CheckCircle, Calendar, Map, Users } from 'lucide-react';
 import { KeyValueDisplay } from '../om/KeyValueDisplay'; // Reusing this component
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
@@ -172,6 +172,223 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                         <KeyValueDisplay label="Market Overview" value={project.marketOverviewSummary} fullWidth />
                                     </div>
                                 </motion.div>
+
+                                {/* Property Specifications */}
+                                {(project as any).totalResidentialUnits || (project as any).totalCommercialGRSF || (project as any).numberOfStories ? (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: 0.3 }}
+                                    >
+                                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><Building2 className="h-4 w-4 mr-2 text-blue-600" /> Property Specifications</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                            {(project as any).totalResidentialUnits && (
+                                                <KeyValueDisplay label="Total Residential Units" value={(project as any).totalResidentialUnits?.toString() || 'N/A'} />
+                                            )}
+                                            {(project as any).totalResidentialNRSF && (
+                                                <KeyValueDisplay label="Total Residential NRSF" value={(project as any).totalResidentialNRSF?.toLocaleString() || 'N/A'} />
+                                            )}
+                                            {(project as any).totalCommercialGRSF && (
+                                                <KeyValueDisplay label="Total Commercial GRSF" value={(project as any).totalCommercialGRSF?.toLocaleString() || 'N/A'} />
+                                            )}
+                                            {(project as any).grossBuildingArea && (
+                                                <KeyValueDisplay label="Gross Building Area" value={(project as any).grossBuildingArea?.toLocaleString() || 'N/A'} />
+                                            )}
+                                            {(project as any).numberOfStories && (
+                                                <KeyValueDisplay label="Number of Stories" value={(project as any).numberOfStories?.toString() || 'N/A'} />
+                                            )}
+                                            {(project as any).parkingSpaces && (
+                                                <KeyValueDisplay label="Parking Spaces" value={(project as any).parkingSpaces?.toString() || 'N/A'} />
+                                            )}
+                                            {(project as any).parkingRatio && (
+                                                <KeyValueDisplay label="Parking Ratio" value={(project as any).parkingRatio?.toFixed(2) || 'N/A'} />
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ) : null}
+
+                                {/* Development Budget */}
+                                {(project as any).landAcquisition || (project as any).baseConstruction || (project as any).totalDevelopmentCost ? (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: 0.4 }}
+                                    >
+                                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><Calculator className="h-4 w-4 mr-2 text-blue-600" /> Development Budget</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                            {(project as any).landAcquisition && (
+                                                <KeyValueDisplay label="Land Acquisition" value={formatCurrency((project as any).landAcquisition)} />
+                                            )}
+                                            {(project as any).baseConstruction && (
+                                                <KeyValueDisplay label="Base Construction" value={formatCurrency((project as any).baseConstruction)} />
+                                            )}
+                                            {(project as any).contingency && (
+                                                <KeyValueDisplay label="Contingency" value={formatCurrency((project as any).contingency)} />
+                                            )}
+                                            {(project as any).ffe && (
+                                                <KeyValueDisplay label="FF&E" value={formatCurrency((project as any).ffe)} />
+                                            )}
+                                            {(project as any).aeFees && (
+                                                <KeyValueDisplay label="A&E Fees" value={formatCurrency((project as any).aeFees)} />
+                                            )}
+                                            {(project as any).developerFee && (
+                                                <KeyValueDisplay label="Developer Fee" value={formatCurrency((project as any).developerFee)} />
+                                            )}
+                                            {(project as any).interestReserve && (
+                                                <KeyValueDisplay label="Interest Reserve" value={formatCurrency((project as any).interestReserve)} />
+                                            )}
+                                            {(project as any).workingCapital && (
+                                                <KeyValueDisplay label="Working Capital" value={formatCurrency((project as any).workingCapital)} />
+                                            )}
+                                            {(project as any).totalDevelopmentCost && (
+                                                <KeyValueDisplay label="Total Development Cost (TDC)" value={formatCurrency((project as any).totalDevelopmentCost)} />
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ) : null}
+
+                                {/* Market Context */}
+                                {(project as any).submarketName || (project as any).population3Mi || (project as any).medianHHIncome ? (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: 0.5 }}
+                                    >
+                                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><TrendingUp className="h-4 w-4 mr-2 text-blue-600" /> Market Context</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                            {(project as any).submarketName && (
+                                                <KeyValueDisplay label="Submarket" value={(project as any).submarketName} />
+                                            )}
+                                            {(project as any).walkabilityScore && (
+                                                <KeyValueDisplay label="Walkability Score" value={(project as any).walkabilityScore?.toString() || 'N/A'} />
+                                            )}
+                                            {(project as any).population3Mi && (
+                                                <KeyValueDisplay label="Population (3-mile)" value={(project as any).population3Mi?.toLocaleString() || 'N/A'} />
+                                            )}
+                                            {(project as any).medianHHIncome && (
+                                                <KeyValueDisplay label="Median Household Income" value={formatCurrency((project as any).medianHHIncome)} />
+                                            )}
+                                            {(project as any).renterOccupiedPercent && (
+                                                <KeyValueDisplay label="% Renter Occupied" value={`${(project as any).renterOccupiedPercent?.toFixed(1) || 'N/A'}%`} />
+                                            )}
+                                            {(project as any).popGrowth201020 && (
+                                                <KeyValueDisplay label="Population Growth (2010-2020)" value={`${(project as any).popGrowth201020?.toFixed(1) || 'N/A'}%`} />
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ) : null}
+
+                                {/* Special Considerations */}
+                                {(project as any).opportunityZone !== undefined || (project as any).affordableHousing !== undefined || (project as any).taxExemption !== undefined ? (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: 0.6 }}
+                                    >
+                                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><CheckCircle className="h-4 w-4 mr-2 text-blue-600" /> Special Considerations</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                            {(project as any).opportunityZone !== undefined && (
+                                                <KeyValueDisplay label="Opportunity Zone" value={(project as any).opportunityZone ? 'Yes' : 'No'} />
+                                            )}
+                                            {(project as any).affordableHousing !== undefined && (
+                                                <KeyValueDisplay label="Affordable Housing" value={(project as any).affordableHousing ? 'Yes' : 'No'} />
+                                            )}
+                                            {(project as any).affordableUnitsNumber && (
+                                                <KeyValueDisplay label="Affordable Units" value={(project as any).affordableUnitsNumber?.toString() || 'N/A'} />
+                                            )}
+                                            {(project as any).amiTargetPercent && (
+                                                <KeyValueDisplay label="AMI Target %" value={`${(project as any).amiTargetPercent || 'N/A'}%`} />
+                                            )}
+                                            {(project as any).taxExemption !== undefined && (
+                                                <KeyValueDisplay label="Tax Exemption" value={(project as any).taxExemption ? 'Yes' : 'No'} />
+                                            )}
+                                            {(project as any).taxAbatement !== undefined && (
+                                                <KeyValueDisplay label="Tax Abatement" value={(project as any).taxAbatement ? 'Yes' : 'No'} />
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ) : null}
+
+                                {/* Timeline & Milestones */}
+                                {(project as any).groundbreakingDate || (project as any).completionDate || (project as any).firstOccupancy || (project as any).entitlements ? (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: 0.7 }}
+                                    >
+                                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><Calendar className="h-4 w-4 mr-2 text-blue-600" /> Timeline & Milestones</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                            {(project as any).groundbreakingDate && (
+                                                <KeyValueDisplay label="Groundbreaking Date" value={formatDate((project as any).groundbreakingDate)} />
+                                            )}
+                                            {(project as any).completionDate && (
+                                                <KeyValueDisplay label="Completion Date" value={formatDate((project as any).completionDate)} />
+                                            )}
+                                            {(project as any).firstOccupancy && (
+                                                <KeyValueDisplay label="First Occupancy" value={formatDate((project as any).firstOccupancy)} />
+                                            )}
+                                            {(project as any).stabilization && (
+                                                <KeyValueDisplay label="Stabilization Date" value={formatDate((project as any).stabilization)} />
+                                            )}
+                                            {(project as any).entitlements && (
+                                                <KeyValueDisplay label="Entitlements" value={(project as any).entitlements} />
+                                            )}
+                                            {(project as any).permitsIssued && (
+                                                <KeyValueDisplay label="Permits Status" value={(project as any).permitsIssued} />
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ) : null}
+
+                                {/* Site & Context */}
+                                {(project as any).totalSiteAcreage || (project as any).currentSiteStatus || (project as any).siteAccess ? (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: 0.8 }}
+                                    >
+                                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><Map className="h-4 w-4 mr-2 text-blue-600" /> Site & Context</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                            {(project as any).totalSiteAcreage && (
+                                                <KeyValueDisplay label="Total Site Acreage" value={`${(project as any).totalSiteAcreage || 'N/A'} acres`} />
+                                            )}
+                                            {(project as any).currentSiteStatus && (
+                                                <KeyValueDisplay label="Current Site Status" value={(project as any).currentSiteStatus} />
+                                            )}
+                                            {(project as any).siteAccess && (
+                                                <KeyValueDisplay label="Site Access" value={(project as any).siteAccess} />
+                                            )}
+                                            {(project as any).proximityShopping && (
+                                                <KeyValueDisplay label="Proximity to Shopping" value={(project as any).proximityShopping} />
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ) : null}
+
+                                {/* Sponsor Information */}
+                                {(project as any).sponsorEntityName || (project as any).equityPartner || (project as any).contactInfo ? (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.3, delay: 0.9 }}
+                                    >
+                                        <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><Users className="h-4 w-4 mr-2 text-blue-600" /> Sponsor Information</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                            {(project as any).sponsorEntityName && (
+                                                <KeyValueDisplay label="Sponsor Entity Name" value={(project as any).sponsorEntityName} />
+                                            )}
+                                            {(project as any).sponsorStructure && (
+                                                <KeyValueDisplay label="Sponsor Structure" value={(project as any).sponsorStructure} />
+                                            )}
+                                            {(project as any).equityPartner && (
+                                                <KeyValueDisplay label="Equity Partner" value={(project as any).equityPartner} />
+                                            )}
+                                            {(project as any).contactInfo && (
+                                                <KeyValueDisplay label="Contact Info" value={(project as any).contactInfo} fullWidth />
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                ) : null}
                             </motion.div>
                         </div>
                     </motion.div>

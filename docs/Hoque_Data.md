@@ -235,3 +235,217 @@ The following table contains information that we want to display on the platform
 | **Certifications** | **Green Building** | LEED, Energy Star | ❌ **Missing** | No mention of green certifications (only Opportunity Zone). |
 | **Unit Mix** | **Deposit Amounts** | "$500" | ❌ **Missing** | Rent roll data does not include security deposit info. |
 | | **Rent Range** | "$1,850-$2,050" | ⚠️ **Partial** | OM provides a single "Market Rent" point, not a range per unit type. |
+
+
+Here are all the fields that need to be included in the Project Resume:
+
+### **Section 1: Project Identification & Basic Info**
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Project Name** | Text | **User Input**  | N/A | Legal/Marketing ID | Simple text input. Placeholder: "e.g., SoGood Apartments". |
+| **Project Address** | Address | **User Input**  | N/A | **CRITICAL TRIGGER** | Google Places Autocomplete input. On selection, trigger backend API jobs. |
+| **City** | Text | **Derived** [Extract from Address] | **External** [Google Maps API] | Market ID | Auto-populated, read-only. |
+| **State** | Dropdown | **Derived** [Extract from Address] | **External** [Google Maps API] | Jurisdiction | Auto-populated. 2-letter code. |
+| **Zip Code** | Numeric | **Derived** [Extract from Address] | **External** [USPS API] | Location | Auto-populated. |
+| **County** | Text | **Document** [Title Commitment] | **External** [Census TIGERweb] | Tax Jurisdiction | Auto-populated. |
+| **Parcel Number(s)** | Text | **Document** [ALTA Survey] | **External** [Regrid API] | Legal Property ID | Text input. Allow multiple comma-separated values. |
+| **Zoning Designation** | Text | **Document** [Zoning Letter] | **External** [Zoneomics API] | Development Rights | Text input. |
+| **Project Type** | Multi-select | **User Input**  | N/A | Asset Classification | Multi-select: [Multifamily, Mixed-Use, Retail, Office]. |
+| **Primary Asset Class** | Dropdown | **User Input**  | N/A | Loan Product | Single Select: [Multifamily]. |
+| **Construction Type** | Radio | **Document** [Arch Plans] | **User Input**  | Risk Profile | Radio: [Ground-Up, Renovation, Adaptive Reuse]. |
+| **Groundbreaking Date** | Date | **Document** [Construction Schedule] | **User Input**  | Timeline | Date Picker. |
+| **Completion Date** | Date | **Document** [Construction Schedule] | **User Input**  | Timeline | Date Picker. |
+| **Total Dev Cost (TDC)** | Currency | **Derived** [Sum of Budget] | **Document** [Dev Budget] | Loan Sizing Basis | Read-only calculated field. |
+| **Loan Amount Requested** | Currency | **Document** [Sources & Uses] | **User Input**  | Primary Ask | Currency Input. |
+| **Loan Type** | Dropdown | **User Input**  | N/A | Product Type | Dropdown: [Construction Loan, Bridge, Perm]. |
+| **Requested Loan Term** | Text | **Document** [Term Sheet] | **User Input**  | Repayment Timeline | Text input (e.g., "2 years"). |
+| **Master Plan Name** | Text | **Document** [Marketing Brochure] | **User Input**  | Context | Optional text field. |
+| **Phase Number** | Numeric | **Document** [Site Plan] | **User Input**  | Context | Optional numeric field. |
+
+### **Section 2: Property Specifications**
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Total Residential Units** | Integer | **Derived** [Sum of Unit Mix] | **Document** [Arch Plans] | Density | Read-only calculated field. |
+| **Total Residential NRSF** | Integer | **Derived** [Sum of Unit SF] | **Document** [Arch Plans] | Revenue Basis | Read-only calculated field. |
+| **Average Unit Size** | Integer | **Derived** [NRSF / Units] | N/A | Marketability | Read-only calculated field. |
+| **Total Commercial GRSF** | Integer | **Document** [Arch Plans] | **User Input**  | Revenue Basis | Numeric Input. |
+| **Gross Building Area** | Integer | **Document** [Arch Plans] | **User Input**  | Cost Basis | Numeric Input. |
+| **Number of Stories** | Integer | **Document** [Elevations] | **User Input**  | Building Type | Numeric Input. |
+| **Building Type** | Dropdown | **Document** [Arch Plans] | **User Input**  | Asset Class | Dropdown: [High-rise, Mid-rise, Garden, Podium]. |
+| **Parking Spaces** | Integer | **Document** [Site Plan] | **User Input**  | Zoning | Numeric Input. |
+| **Parking Ratio** | Decimal | **Derived** [Spaces / Units] | N/A | Marketability | Read-only calculated. |
+| **Parking Type** | Checkbox | **Document** [Site Plan] | **User Input**  | Cost Driver | Checkbox: [Surface, Structured, Underground]. |
+| **Amenity List** | Checklist | **Document** [Arch Plans] | **User Input**  | Lifestyle Value | Multi-select: [Pool, Gym, Coworking, etc.]. |
+| **Amenity SF** | Integer | **Derived** [Sum of Areas] | **Document** [Arch Plans] | Valuation | Numeric Input. |
+
+**Sub-Table: Residential Unit Mix (One Row Per Unit Type)***Section 2.1*
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Unit Type** | Text | **Document** [Arch Plans] | **User Input**  | Segmentation | e.g., "Studio S1", "1BR A1". |
+| **Unit Count** | Integer | **Document** [Arch Plans] | **User Input**  | Density | Numeric Input. |
+| **Avg SF/Unit** | Integer | **Document** [Arch Plans] | **User Input**  | Size | Numeric Input. |
+| **Monthly Rent/Unit** | Currency | **Document** [Market Study] | **User Input**  | Revenue | Currency Input. |
+| **Total SF** | Integer | **Derived** [Count * SF] | N/A | Density | Auto-calc. |
+| **% of Total Units** | Percent | **Derived** [Count / Total Units] | N/A | Mix Analysis | Auto-calc. |
+
+**Sub-Table: Commercial Space Mix***Section 2.2*
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Space Type** | Text | **Document** [Arch Plans] | **User Input**  | Usage | e.g., "Retail", "Office". |
+| **Square Footage** | Integer | **Document** [Arch Plans] | **User Input**  | Revenue | Numeric Input. |
+| **Tenant (if known)** | Text | **Document** [Lease/LOI] | **User Input**  | Risk | Text Input. |
+| **Lease Term** | Text | **Document** [Lease/LOI] | **User Input**  | Stability | Text Input. |
+| **Annual Rent** | Currency | **Document** [Lease/LOI] | **User Input**  | Income | Currency Input. |
+
+### **Section 3: Financial Details (Detailed)**
+
+**3.1 Development Budget (Uses of Funds)***Section 3.1 - Granular Line Items*
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Land Acquisition** | Currency | **Document** [Purchase Agmt] | **User Input**  | Cost Basis | Currency Input. |
+| **Base Construction** | Currency | **Document** [Budget] | **User Input**  | Hard Cost | Currency Input. |
+| **Contingency** | Currency | **Document** [Budget] | **Derived** [5% of Hard] | Risk Buffer | Currency Input. |
+| **FF&E** | Currency | **Document** [Budget] | **User Input**  | Hard Cost | Furniture, Fixtures & Equipment. |
+| **Construction Fees** | Currency | **Document** [Budget] | **User Input**  | Hard Cost | GC Fees/General Conditions. |
+| **A&E Fees** | Currency | **Document** [Budget] | **User Input**  | Soft Cost | Architecture & Engineering. |
+| **Third Party Reports** | Currency | **Document** [Budget] | **User Input**  | Soft Cost | Environmental, Appraisal, etc. |
+| **Legal & Org** | Currency | **Document** [Budget] | **User Input**  | Soft Cost | Legal fees. |
+| **Title & Recording** | Currency | **Document** [Budget] | **User Input**  | Soft Cost | Closing costs. |
+| **Taxes During Const.** | Currency | **Document** [Budget] | **User Input**  | Soft Cost | Property taxes before stabilization. |
+| **Working Capital** | Currency | **Document** [Budget] | **User Input**  | Soft Cost | Operating cash. |
+| **Developer Fee** | Currency | **Document** [Budget] | **Derived** [4% of TDC] | Sponsor Profit | Currency Input. |
+| **PFC Structuring Fee** | Currency | **Document** [Budget] | **User Input**  | Soft Cost | Specific to Tax Exemption deals. |
+| **Loan Fees** | Currency | **Document** [Budget] | **Derived** [1-2% of Loan] | Financing | Origination fees. |
+| **Interest Reserve** | Currency | **Document** [Budget] | **Derived** [Calc] | Financing | Debt service during construction. |
+
+**3.2 Sources of Funds***Section 3.2*
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Senior Loan Amount** | Currency | **Document** [Sources & Uses] | **User Input**  | Debt | Currency Input. |
+| **Sponsor Equity** | Currency | **Document** [Sources & Uses] | **Derived** [TDC - Loan] | Equity | Currency Input. |
+
+**3.3 Loan Terms***Section 3.3*
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Interest Rate** | Percent | **Document** [Term Sheet] | **User Input**  | Cost of Debt | Percentage Input. |
+| **Underwriting Rate** | Percent | **Document** [Term Sheet] | **Derived** [Rate + 2%] | Stress Test | Percentage Input. |
+| **Amortization** | Dropdown | **Document** [Term Sheet] | **User Input**  | Repayment | Dropdown: [IO, 30yr, 25yr]. |
+| **Prepayment Terms** | Text | **Document** [Term Sheet] | **User Input**  | Exit Cost | Text Input. |
+| **Recourse** | Dropdown | **Document** [Term Sheet] | **User Input**  | Liability | Dropdown: [Full, Partial, Non]. |
+| **Perm Takeout Planned** | Boolean | **Document** [Term Sheet] | **User Input**  | Strategy | Toggle Switch. |
+
+**3.5 Operating Expenses (Proforma)***Section 3.5 - Granular Line Items*
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Real Estate Taxes** | Currency | **Document** [Proforma] | **External** [Tax Assessor] | OpEx | Currency Input. |
+| **Insurance** | Currency | **Document** [Proforma] | **User Input**  | OpEx | Currency Input. |
+| **Utilities** | Currency | **Document** [Proforma] | **User Input**  | OpEx | Currency Input. |
+| **Repairs & Maint.** | Currency | **Document** [Proforma] | **User Input**  | OpEx | Currency Input. |
+| **Management Fee** | Currency | **Document** [Proforma] | **Derived** [3-5% EGI] | OpEx | Currency Input. |
+| **General & Admin** | Currency | **Document** [Proforma] | **User Input**  | OpEx | Currency Input. |
+| **Payroll** | Currency | **Document** [Proforma] | **User Input**  | OpEx | Currency Input. |
+| **Reserves** | Currency | **Document** [Proforma] | **Derived** [$250/unit] | OpEx | Currency Input. |
+
+**3.6 Investment Metrics***Section 3.6*
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **NOI (Year 1)** | Currency | **Derived** [EGI - Total Exp] | **Document** [Proforma] | Valuation | Read-only calculated. |
+| **Yield on Cost** | Percent | **Derived** [NOI / TDC] | N/A | Return | Read-only calculated. |
+| **Cap Rate** | Percent | **Document** [Appraisal] | **External** [CoStar] | Valuation | Percentage Input. |
+| **Stabilized Value** | Currency | **Derived** [NOI / Cap Rate] | **Document** [Appraisal] | Exit Value | Read-only calculated. |
+| **LTV** | Percent | **Derived** [Loan / Value] | N/A | Leverage | Read-only calculated. |
+| **Debt Yield** | Percent | **Derived** [NOI / Loan] | N/A | Risk | Read-only calculated. |
+| **DSCR** | Decimal | **Derived** [NOI / Debt Svc] | N/A | Coverage | Read-only calculated. |
+
+### **Section 4: Market Context**
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Submarket Name** | Text | **Document** [Market Study] | **External** [CoStar] | Comp ID | Text Input. |
+| **Distance to CBD** | Decimal | **Derived** [Geo-calc] | **External** [Google Maps] | Location | Read-only. |
+| **Dist. to Employment** | Text | **Document** [Market Study] | **External** [Google Maps] | Demand | Text Input. |
+| **Dist. to Transit** | Decimal | **Derived** [Geo-calc] | **External** [Walk Score] | Access | Read-only. |
+| **Walkability Score** | Integer | **Document** [Market Study] | **External** [Walk Score] | Lifestyle | Read-only. |
+| **Population (3-mi)** | Integer | **External** [Census ACS] | **Document** [Market Study] | Demand | Read-only. |
+| **Pop Growth (2010-20)** | Percent | **External** [Census ACS] | **Document** [Market Study] | Trend | Read-only. |
+| **Proj Growth (2024-29)** | Percent | **External** [Census ACS] | **Document** [Market Study] | Trend | Read-only. |
+| **Median HH Income** | Currency | **External** [Census ACS] | **Document** [Market Study] | Affordability | Read-only. |
+| **% Renter Occupied** | Percent | **External** [Census ACS] | **Document** [Market Study] | Demand | Read-only. |
+| **% Bachelor's Degree** | Percent | **External** [Census ACS] | **Document** [Market Study] | Workforce | Read-only. |
+
+**Rent Comps Table***Section 4.3*
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Property Name** | Text | **Document** [Market Study] | **External** [CoStar] | Benchmarking | Text Input. |
+| **Address** | Address | **Document** [Market Study] | **External** [CoStar] | Location | Text Input. |
+| **Distance** | Decimal | **Derived** [Geo-calc] | **External** [Google Maps] | Relevance | Read-only. |
+| **Year Built** | Integer | **Document** [Market Study] | **External** [CoStar] | Quality | Numeric Input. |
+| **Total Units** | Integer | **Document** [Market Study] | **External** [CoStar] | Size | Numeric Input. |
+| **Occupancy %** | Percent | **Document** [Market Study] | **External** [CoStar] | Demand | Percentage Input. |
+| **Avg Rent/Month** | Currency | **Document** [Market Study] | **External** [CoStar] | Price | Currency Input. |
+| **Rent/SF** | Currency | **Derived** [Rent / Size] | **Document** [Market Study] | Price | Read-only. |
+
+### **Section 5: Special Considerations**
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Opportunity Zone?** | Boolean | **External** [US Treasury] | **User Input**  | Tax Benefit | Read-only flag. |
+| **Affordable Housing?** | Boolean | **Document** [Reg Agreement] | **User Input**  | Compliance | Toggle Switch. |
+| **Affordable Units #** | Integer | **Document** [Reg Agreement] | **User Input**  | Compliance | Numeric Input. |
+| **AMI Target %** | Percent | **Document** [Reg Agreement] | **User Input**  | Restriction | Percentage Input. |
+| **Tax Exemption?** | Boolean | **Document** [Incentive Agmt] | **User Input**  | Savings | Toggle Switch. |
+| **TIF District** | Boolean | **External** [City GIS] | **User Input**  | Financing | Toggle Switch. |
+| **Tax Abatement** | Boolean | **Document** [Incentive Agmt] | **User Input**  | Savings | Toggle Switch. |
+| **PACE Financing** | Boolean | **User Input**  | N/A | Capital | Toggle Switch. |
+| **Historic Tax Credits** | Boolean | **Document** [NPS Cert] | **User Input**  | Capital | Toggle Switch. |
+| **New Markets Credits** | Boolean | **External** [CDFI Fund] | **User Input**  | Capital | Toggle Switch. |
+
+### **Section 6: Timeline & Milestones**
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Land Acq. Close** | Date | **Document** [Settlement Stmt] | **User Input**  | Status | Date Picker. |
+| **Entitlements** | Text | **Document** [Zoning Letter] | **User Input**  | Risk | Dropdown: [Approved/Pending]. |
+| **Final Plans** | Text | **Document** [Arch Contract] | **User Input**  | Risk | Dropdown: [Approved/Pending]. |
+| **Permits Issued** | Text | **Document** [Building Permits] | **External** [Census BPS] | Risk | Dropdown: [Issued/Pending]. |
+| **Groundbreaking** | Date | **Document** [Schedule] | **User Input**  | Start | Date Picker. |
+| **Vertical Start** | Date | **Document** [Schedule] | **User Input**  | Draw | Date Picker. |
+| **Substantial Comp** | Date | **Document** [Schedule] | **User Input**  | Completion | Date Picker. |
+| **First Occupancy** | Date | **Document** [Schedule] | **User Input**  | Revenue | Date Picker. |
+| **Stabilization** | Date | **Document** [Proforma] | **User Input**  | Exit | Date Picker. |
+| **Pre-Leased SF** | Integer | **Document** [Lease Agmt] | **User Input**  | Risk | Numeric Input. |
+
+### **Section 7: Site & Context**
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Total Site Acreage** | Decimal | **Document** [ALTA Survey] | **External** [Regrid API] | Density | Numeric Input. |
+| **Current Site Status** | Dropdown | **Document** [Phase I ESA] | **External** [Street View] | Prep Cost | Dropdown: [Vacant/Existing]. |
+| **Topography** | Dropdown | **Document** [Survey] | **External** [USGS API] | Site Work | Dropdown: [Flat/Sloped]. |
+| **Environmental** | Dropdown | **Document** [Phase I ESA] | **External** [EPA API] | Liability | Dropdown: [Clean/Remediation]. |
+| **Utilities** | Dropdown | **Document** [Civil Plans] | **User Input**  | Infra | Dropdown: [Available/None]. |
+| **Site Access** | Text | **Document** [Civil Plans] | **External** [Google Maps] | Logistics | Text Input. |
+| **Proximity Shopping** | Text | **Document** [Market Study] | **External** [Google Maps] | Lifestyle | Text Input. |
+| **Proximity Restaurants** | Text | **Document** [Market Study] | **External** [Google Maps] | Lifestyle | Text Input. |
+| **Proximity Parks** | Text | **Document** [Market Study] | **External** [Google Maps] | Lifestyle | Text Input. |
+| **Proximity Schools** | Text | **Document** [Market Study] | **External** [Google Maps] | Lifestyle | Text Input. |
+| **Proximity Hospitals** | Text | **Document** [Market Study] | **External** [Google Maps] | Lifestyle | Text Input. |
+
+### **Section 8: Sponsor Information**
+
+| Field | Data Type | Primary Source | Backup Source | Relevance | Notes  |
+| --- | --- | --- | --- | --- | --- |
+| **Sponsor Entity Name** | Text | **Document** [Org Chart] | **User Input**  | Borrower | Text Input. |
+| **Sponsor Structure** | Text | **Document** [Org Chart] | **User Input**  | Legal | Text Input (GP/LP). |
+| **Equity Partner** | Text | **Document** [Org Chart] | **User Input**  | Capital | Text Input. |
+| **Contact Info** | Text | **User Input**  | N/A | Comms | Text Input. |

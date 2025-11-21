@@ -151,6 +151,7 @@ BEGIN
   );
 
   v_project_resume := jsonb_build_object(
+    -- Section 1: Project Identification & Basic Info
     'projectName', 'SoGood Apartments',
     'assetType', 'Mixed-Use (Retail, Office, Multifamily)',
     'projectStatus', 'Advisor Review',
@@ -159,8 +160,98 @@ BEGIN
     'propertyAddressState', 'TX',
     'propertyAddressCounty', 'Dallas County',
     'propertyAddressZip', '75215',
+    'parcelNumber', '000472000A01B0100',
+    'zoningDesignation', 'PD317',
+    'projectType', 'Mixed-Use (Retail, Office and Multifamily)',
+    'primaryAssetClass', 'Multifamily',
+    'constructionType', 'Ground-Up',
+    'groundbreakingDate', '2025-08-01',
+    'completionDate', '2027-09-30',
+    'totalDevelopmentCost', 29800000,
+    'requestedLoanTerm', '2 Years',
+    'masterPlanName', 'SoGood Master Planned Development',
+    'phaseNumber', 'Building B',
     'projectDescription', v_project_overview,
     'projectPhase', 'Construction',
+    
+    -- Section 2: Property Specifications
+    'totalResidentialUnits', 116,
+    'totalResidentialNRSF', 59520,
+    'averageUnitSize', 513,
+    'totalCommercialGRSF', 49569,
+    'grossBuildingArea', 127406,
+    'numberOfStories', 6,
+    'buildingType', 'Mid-rise / Podium',
+    'parkingSpaces', 180,
+    'parkingRatio', 1.55,
+    'parkingType', 'Structured',
+    'amenityList', jsonb_build_array('Fitness center', 'Shared working space', 'Lounge', 'Outdoor terrace', 'Swimming pool'),
+    'amenitySF', 35264,
+    'residentialUnitMix', jsonb_build_array(
+      jsonb_build_object('unitType', 'S1', 'type', 'Studio', 'units', 48, 'avgSF', 374),
+      jsonb_build_object('unitType', 'S2', 'type', 'Studio', 'units', 28, 'avgSF', 380),
+      jsonb_build_object('unitType', 'S3', 'type', 'Studio', 'units', 8, 'avgSF', 470),
+      jsonb_build_object('unitType', 'A1', 'type', '1BR', 'units', 8, 'avgSF', 720),
+      jsonb_build_object('unitType', 'A2', 'type', '1BR', 'units', 8, 'avgSF', 736),
+      jsonb_build_object('unitType', 'A3', 'type', '1BR', 'units', 8, 'avgSF', 820),
+      jsonb_build_object('unitType', 'B1', 'type', '2BR', 'units', 8, 'avgSF', 1120)
+    ),
+    'commercialSpaceMix', jsonb_build_array(
+      jsonb_build_object('spaceType', 'Innovation Center', 'squareFootage', 30000, 'tenant', 'GSV Holdings LLC'),
+      jsonb_build_object('spaceType', 'Office 1', 'squareFootage', 6785),
+      jsonb_build_object('spaceType', 'Office 2', 'squareFootage', 5264),
+      jsonb_build_object('spaceType', 'Retail', 'squareFootage', 745)
+    ),
+    
+    -- Section 3: Financial Details - Development Budget
+    'landAcquisition', 6000000,
+    'baseConstruction', 16950000,
+    'contingency', 847500,
+    'ffe', 580000,
+    'constructionFees', 174000,
+    'aeFees', 859800,
+    'thirdPartyReports', 50000,
+    'legalAndOrg', 50000,
+    'titleAndRecording', 75000,
+    'taxesDuringConstruction', 20000,
+    'workingCapital', 1900000,
+    'developerFee', 678000,
+    'pfcStructuringFee', 116000,
+    'loanFees', 360000,
+    'interestReserve', 1147500,
+    
+    -- Section 3.2: Sources of Funds
+    'seniorLoanAmount', 18000000,
+    'sponsorEquity', 11800000,
+    
+    -- Section 3.3: Loan Terms
+    'interestRate', 8.00,
+    'underwritingRate', 8.00,
+    'amortization', 'Interest-Only for Construction',
+    'prepaymentTerms', 'Minimum interest',
+    'recourse', 'Partial Recourse',
+    'permTakeoutPlanned', true,
+    
+    -- Section 3.5: Operating Expenses (Proforma Year 1)
+    'realEstateTaxes', 34200,
+    'insurance', 92800,
+    'utilities', 23200,
+    'repairsAndMaintenance', 46400,
+    'managementFee', 85000,
+    'generalAndAdmin', 40600,
+    'payroll', 174000,
+    'reserves', 23200,
+    
+    -- Section 3.6: Investment Metrics
+    'noiYear1', 2268000,
+    'yieldOnCost', 7.6,
+    'capRate', 5.50,
+    'stabilizedValue', 41200000,
+    'ltv', 44,
+    'debtYield', 12.6,
+    'dscr', 1.25,
+    
+    -- Section 2: Loan Info (existing fields)
     'loanAmountRequested', 18000000,
     'loanType', 'Senior Construction Loan',
     'targetLtvPercent', 44,
@@ -171,6 +262,8 @@ BEGIN
     'targetCloseDate', '2025-08-15',
     'useOfProceeds', 'Land acquisition, vertical construction, soft costs, and financing reserves for Building B within the SoGood master plan.',
     'recoursePreference', 'Partial Recourse',
+    
+    -- Section 3: Financials (existing fields)
     'purchasePrice', 6000000,
     'totalProjectCost', 29807800,
     'capexBudget', 16950000,
@@ -180,6 +273,47 @@ BEGIN
     'businessPlanSummary', v_business_plan,
     'marketOverviewSummary', v_market_summary,
     'equityCommittedPercent', 39.6,
+    
+    -- Section 4: Market Context
+    'submarketName', 'Downtown Dallas',
+    'population3Mi', 174270,
+    'popGrowth201020', 23.3,
+    'projGrowth202429', 6.9,
+    'medianHHIncome', 85906,
+    'renterOccupiedPercent', 76.7,
+    'bachelorsDegreePercent', 50.2,
+    
+    -- Section 5: Special Considerations
+    'opportunityZone', true,
+    'affordableHousing', true,
+    'affordableUnitsNumber', 58,
+    'amiTargetPercent', 80,
+    'taxExemption', true,
+    'taxAbatement', true,
+    'paceFinancing', false,
+    'historicTaxCredits', false,
+    'newMarketsCredits', false,
+    
+    -- Section 6: Timeline & Milestones
+    'firstOccupancy', '2027-10-15',
+    'stabilization', '2028-03-31',
+    'preLeasedSF', 30000,
+    'entitlements', 'Approved',
+    'permitsIssued', 'Issued',
+    
+    -- Section 7: Site & Context
+    'totalSiteAcreage', 2.5,
+    'currentSiteStatus', 'Vacant',
+    'siteAccess', 'Hickory St, Ferris St',
+    'proximityShopping', 'Farmers Market, Deep Ellum nearby',
+    
+    -- Section 8: Sponsor Information
+    'sponsorEntityName', 'Hoque Global',
+    'sponsorStructure', 'General Partner',
+    'equityPartner', 'ACARA',
+    'contactInfo', 'Cody Field (415.202.3258), Joel Heikenfeld (972.455.1943)',
+    
+    -- Metadata
     'completenessPercent', 100,
     'internalAdvisorNotes', 'Seeded via scripts/seed-hoque-project.sql',
     'projectSections', jsonb_build_object(
