@@ -11,6 +11,8 @@ import { Select } from "../ui/Select"; // Keep Select for States
 import { Button } from "../ui/Button";
 import { ButtonSelect } from "../ui/ButtonSelect"; // Import ButtonSelect
 import { useProjects } from "../../hooks/useProjects";
+import { motion } from "framer-motion";
+import { cn } from "@/utils/cn";
 
 import { FormProvider } from "../../contexts/FormContext";
 import { AskAIButton } from "../ui/AskAIProvider";
@@ -31,6 +33,10 @@ import {
   Users,
   Calculator,
   TrendingUp,
+  Sparkles,
+  Loader2,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import {
   ProjectProfile,
@@ -182,7 +188,236 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
     ...existingProject,
   }));
   const [formSaved, setFormSaved] = useState(false); // State for save button feedback
+  const [isAutofilling, setIsAutofilling] = useState(false);
+  const [showSparkles, setShowSparkles] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  
+  // Lock state management
+  const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
+  const [lockedSections, setLockedSections] = useState<Set<string>>(new Set());
+  const [unlockedFields, setUnlockedFields] = useState<Set<string>>(new Set()); // Fields explicitly unlocked even when section is locked
+
+  // Helper function to check if a field is locked
+  const isFieldLocked = useCallback((fieldId: string, sectionId?: string): boolean => {
+    // If explicitly unlocked (overrides section lock), return false
+    if (unlockedFields.has(fieldId)) return false;
+    
+    // If explicitly locked, return true
+    if (lockedFields.has(fieldId)) return true;
+    
+    // If section is locked and field is not explicitly unlocked, return true
+    if (sectionId && lockedSections.has(sectionId)) return true;
+    
+    return false;
+  }, [lockedFields, lockedSections, unlockedFields]);
+
+  // Toggle lock for a single field
+  const toggleFieldLock = useCallback((fieldId: string, sectionId?: string) => {
+    // Check current effective lock state
+    const currentlyLocked = (() => {
+      if (unlockedFields.has(fieldId)) return false;
+      if (lockedFields.has(fieldId)) return true;
+      if (sectionId && lockedSections.has(sectionId)) return true;
+      return false;
+    })();
+
+    if (currentlyLocked) {
+      // Unlocking the field
+      // If section is locked, add to unlockedFields (override section lock)
+      if (sectionId && lockedSections.has(sectionId)) {
+        setUnlockedFields((prev) => {
+          const next = new Set(prev);
+          next.add(fieldId);
+          return next;
+        });
+      } else {
+        // Field was explicitly locked, remove from lockedFields
+        setLockedFields((prev) => {
+          const next = new Set(prev);
+          next.delete(fieldId);
+          return next;
+        });
+        // Also remove from unlockedFields if it was there
+        setUnlockedFields((prev) => {
+          const next = new Set(prev);
+          next.delete(fieldId);
+          return next;
+        });
+      }
+    } else {
+      // Locking the field
+      // Remove from unlockedFields if it was there
+      setUnlockedFields((prev) => {
+        const next = new Set(prev);
+        next.delete(fieldId);
+        return next;
+      });
+      // Add to lockedFields
+      setLockedFields((prev) => {
+        const next = new Set(prev);
+        next.add(fieldId);
+        return next;
+      });
+    }
+  }, [lockedSections, unlockedFields]);
+
+  // Get all field IDs in a section (needed for section lock visual feedback)
+  const getSectionFieldIds = useCallback((sectionId: string): string[] => {
+    // Map of section IDs to their field IDs based on data-field-section attributes
+    const sectionFieldMap: Record<string, string[]> = {
+      "basic-info": [
+        "projectName",
+        "propertyAddressStreet",
+        "propertyAddressCity",
+        "propertyAddressState",
+        "propertyAddressZip",
+        "propertyAddressCounty",
+        "assetType",
+        "projectPhase",
+        "projectDescription",
+      ],
+      "loan-info": [
+        "loanAmountRequested",
+        "loanType",
+        "targetLtvPercent",
+        "targetLtcPercent",
+        "amortizationYears",
+        "interestOnlyPeriodMonths",
+        "interestRateType",
+        "targetCloseDate",
+        "recoursePreference",
+        "useOfProceeds",
+      ],
+      "financials": [
+        "purchasePrice",
+        "totalProjectCost",
+        "capexBudget",
+        "equityCommittedPercent",
+        "propertyNoiT12",
+        "stabilizedNoiProjected",
+        "exitStrategy",
+        "businessPlanSummary",
+        "marketOverviewSummary",
+      ],
+      "property-specs": [
+        "totalResidentialUnits",
+        "totalResidentialNRSF",
+        "totalCommercialGRSF",
+        "grossBuildingArea",
+        "numberOfStories",
+        "parkingSpaces",
+      ],
+      "dev-budget": [
+        "landAcquisition",
+        "baseConstruction",
+        "contingency",
+        "ffe",
+        "aeFees",
+        "developerFee",
+        "interestReserve",
+        "workingCapital",
+      ],
+      "market-context": [
+        "submarketName",
+        "walkabilityScore",
+        "population3Mi",
+        "medianHHIncome",
+        "renterOccupiedPercent",
+        "popGrowth201020",
+      ],
+      "special-considerations": [
+        "opportunityZone",
+        "affordableHousing",
+        "affordableUnitsNumber",
+        "amiTargetPercent",
+        "taxExemption",
+        "taxAbatement",
+      ],
+      "timeline": [
+        "groundbreakingDate",
+        "completionDate",
+        "firstOccupancy",
+        "stabilization",
+        "entitlements",
+        "permitsIssued",
+      ],
+      "site-context": [
+        "totalSiteAcreage",
+        "currentSiteStatus",
+        "siteAccess",
+        "proximityShopping",
+      ],
+      "sponsor-info": [
+        "sponsorEntityName",
+        "sponsorStructure",
+        "equityPartner",
+        "contactInfo",
+      ],
+    };
+    return sectionFieldMap[sectionId] || [];
+  }, []);
+
+  // Toggle lock for an entire section
+  const toggleSectionLock = useCallback((sectionId: string) => {
+    setLockedSections((prev) => {
+      const next = new Set(prev);
+      const wasLocked = next.has(sectionId);
+      if (wasLocked) {
+        // Unlocking section - remove it from locked sections
+        next.delete(sectionId);
+        // Also clear any unlocked fields for this section since they're no longer needed
+        setUnlockedFields((prevUnlocked) => {
+          const sectionFields = getSectionFieldIds(sectionId);
+          const nextUnlocked = new Set(prevUnlocked);
+          sectionFields.forEach((fieldId) => {
+            nextUnlocked.delete(fieldId);
+          });
+          return nextUnlocked;
+        });
+      } else {
+        // Locking section - add it to locked sections
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, [getSectionFieldIds]);
+
+  // Helper function to render field lock button - always visible, positioned next to Ask AI button
+  const renderFieldLockButton = useCallback((fieldId: string, sectionId: string) => {
+    const locked = isFieldLocked(fieldId, sectionId);
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          toggleFieldLock(fieldId, sectionId);
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+        }}
+        className={cn(
+          "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all relative z-30 border cursor-pointer",
+          locked
+            ? "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
+            : "text-gray-600 bg-gray-50 border-gray-200 hover:bg-gray-100"
+        )}
+        title={locked ? "Unlock field" : "Lock field"}
+      >
+        {locked ? (
+          <>
+            <Lock className="h-3.5 w-3.5" />
+            <span className="text-xs">Unlock</span>
+          </>
+        ) : (
+          <>
+            <Unlock className="h-3.5 w-3.5" />
+            <span className="text-xs">Lock</span>
+          </>
+        )}
+      </button>
+    );
+  }, [isFieldLocked, toggleFieldLock]);
 
   // Update local form state if the existingProject prop changes externally
   useEffect(() => {
@@ -288,6 +523,23 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
     }
   }, [formData, updateProject, onComplete]);
 
+  // Handle autofill button click
+  const handleAutofill = useCallback(async () => {
+    // Trigger sparkle animation
+    setShowSparkles(true);
+    setIsAutofilling(true);
+    
+    // Simulate processing time (2-3 seconds)
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    
+    // Hide sparkles after animation
+    setTimeout(() => setShowSparkles(false), 500);
+    setIsAutofilling(false);
+    
+    // TODO: Implement actual autofill logic when backend is ready
+    console.log('Autofill Resume clicked - will extract data from documents');
+  }, []);
+
   // --- Define Steps for FormWizard ---
   const steps: Step[] = useMemo(
     () => [
@@ -298,20 +550,55 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <FileText className="h-5 w-5 mr-2 text-blue-600" /> Project Information
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("basic-info")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("basic-info")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("basic-info") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("basic-info") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <FormGroup>
                 <AskAIButton id="projectName" onAskAI={onAskAI || (() => {})}>
-                  <div>
+                  <div className="relative group/field">
                     <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                       <span>
                         Project Name
                         <span className="text-red-500 ml-1">*</span>
                       </span>
                       <FieldHelpTooltip fieldId="projectName" />
+                      {/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
+                      <div className="ml-auto flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => (onAskAI || (() => {}))("projectName")}
+                          className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
+                          title="Ask AI for help with this field"
+                        >
+                          Ask AI
+                        </button>
+                        {renderFieldLockButton("projectName", "basic-info")}
+                      </div>
                     </label>
                     <Input
                       id="projectName"
@@ -322,6 +609,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       }
                       placeholder="e.g., Riverfront Acquisition"
                       required
+                      disabled={isFieldLocked("projectName", "basic-info")}
+                      className={cn(
+                        isFieldLocked("projectName", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                      )}
                       data-field-id="projectName"
                       data-field-type="input"
                       data-field-section="basic-info"
@@ -343,13 +634,25 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="propertyAddressStreet"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
+                    <div className="relative group/field">
                       <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                         <span>
                           Street Address
                           <span className="text-red-500 ml-1">*</span>
                         </span>
                         <FieldHelpTooltip fieldId="propertyAddressStreet" />
+                        {/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
+                        <div className="ml-auto flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => (onAskAI || (() => {}))("propertyAddressStreet")}
+                            className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
+                            title="Ask AI for help with this field"
+                          >
+                            Ask AI
+                          </button>
+                          {renderFieldLockButton("propertyAddressStreet", "basic-info")}
+                        </div>
                       </label>
                       <Input
                         id="propertyAddressStreet"
@@ -363,6 +666,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                         }
                         placeholder="123 Main Street"
                         required
+                        disabled={isFieldLocked("propertyAddressStreet", "basic-info")}
+                        className={cn(
+                          isFieldLocked("propertyAddressStreet", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        )}
                         data-field-id="propertyAddressStreet"
                         data-field-type="input"
                         data-field-section="basic-info"
@@ -386,6 +693,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                             <span className="text-red-500 ml-1">*</span>
                           </span>
                           <FieldHelpTooltip fieldId="propertyAddressCity" />
+                          {renderFieldLockButton("propertyAddressCity", "basic-info")}
                         </label>
                         <Input
                           id="propertyAddressCity"
@@ -399,6 +707,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           }
                           placeholder="Anytown"
                           required
+                          disabled={isFieldLocked("propertyAddressCity", "basic-info")}
+                          className={cn(
+                            isFieldLocked("propertyAddressCity", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                          )}
                           data-field-id="propertyAddressCity"
                           data-field-type="input"
                           data-field-section="basic-info"
@@ -422,6 +734,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                             <span className="text-red-500 ml-1">*</span>
                           </span>
                           <FieldHelpTooltip fieldId="propertyAddressState" />
+                          {renderFieldLockButton("propertyAddressState", "basic-info")}
                         </label>
                         <Select
                           id="propertyAddressState"
@@ -434,6 +747,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           }
                           options={stateOptions}
                           required
+                          disabled={isFieldLocked("propertyAddressState", "basic-info")}
+                          className={cn(
+                            isFieldLocked("propertyAddressState", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                          )}
                           data-field-id="propertyAddressState"
                           data-field-type="select"
                           data-field-section="basic-info"
@@ -489,6 +806,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                         <span>County</span>
                         <FieldHelpTooltip fieldId="propertyAddressCounty" />
+                        {renderFieldLockButton("propertyAddressCounty", "basic-info")}
                       </label>
                       <Input
                         id="propertyAddressCounty"
@@ -501,6 +819,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           )
                         }
                         placeholder="e.g., Orange County"
+                        disabled={isFieldLocked("propertyAddressCounty", "basic-info")}
+                        className={cn(
+                          isFieldLocked("propertyAddressCounty", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        )}
                         data-field-id="propertyAddressCounty"
                         data-field-type="input"
                         data-field-section="basic-info"
@@ -535,6 +857,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           <span className="text-red-500 ml-1">*</span>
                         </span>
                         <FieldHelpTooltip fieldId="assetType" />
+                        {renderFieldLockButton("assetType", "basic-info")}
                       </label>
                       <ButtonSelect
                         label=""
@@ -544,6 +867,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           handleInputChange("assetType", value)
                         }
                         required
+                        disabled={isFieldLocked("assetType", "basic-info")}
                       />
                     </div>
                   </AskAIButton>
@@ -568,6 +892,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           <span className="text-red-500 ml-1">*</span>
                         </span>
                         <FieldHelpTooltip fieldId="projectPhase" />
+                        {renderFieldLockButton("projectPhase", "basic-info")}
                       </label>
                       <ButtonSelect
                         label=""
@@ -580,6 +905,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           )
                         }
                         required
+                        disabled={isFieldLocked("projectPhase", "basic-info")}
                       />
                     </div>
                   </AskAIButton>
@@ -604,6 +930,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           <span className="text-red-500 ml-1">*</span>
                         </span>
                         <FieldHelpTooltip fieldId="projectDescription" />
+                        {renderFieldLockButton("projectDescription", "basic-info")}
                       </label>
                       <textarea
                         id="projectDescription"
@@ -615,7 +942,11 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           )
                         }
                         placeholder="Brief description of the project..."
-                        className="w-full h-24 px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isFieldLocked("projectDescription", "basic-info")}
+                        className={cn(
+                          "w-full h-24 px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                          isFieldLocked("projectDescription", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        )}
                         required
                       />
                     </div>
@@ -633,10 +964,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <DollarSign className="h-5 w-5 mr-2 text-blue-600" /> Loan Request Details
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("loan-info")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("loan-info")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("loan-info") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("loan-info") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
@@ -651,6 +1005,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           <span className="text-red-500 ml-1">*</span>
                         </span>
                         <FieldHelpTooltip fieldId="loanAmountRequested" />
+                        {renderFieldLockButton("loanAmountRequested", "loan-info")}
                       </label>
                       <Input
                         id="loanAmountRequested"
@@ -665,6 +1020,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                         }
                         placeholder="e.g., 10000000"
                         required
+                        disabled={isFieldLocked("loanAmountRequested", "loan-info")}
+                        className={cn(
+                          isFieldLocked("loanAmountRequested", "loan-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        )}
                         data-field-id="loanAmountRequested"
                         data-field-type="number"
                         data-field-section="loan-info"
@@ -692,6 +1051,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           <span className="text-red-500 ml-1">*</span>
                         </span>
                         <FieldHelpTooltip fieldId="loanType" />
+                        {renderFieldLockButton("loanType", "loan-info")}
                       </label>
                       <ButtonSelect
                         label=""
@@ -701,6 +1061,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           handleInputChange("loanType", value)
                         }
                         required
+                        disabled={isFieldLocked("loanType", "loan-info")}
                         gridCols="grid-cols-2 md:grid-cols-3"
                       />
                     </div>
@@ -720,6 +1081,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                           <span className="text-red-500 ml-1">*</span>
                         </span>
                         <FieldHelpTooltip fieldId="targetLtvPercent" />
+                        {renderFieldLockButton("targetLtvPercent", "loan-info")}
                       </label>
                       <Input
                         id="targetLtvPercent"
@@ -734,6 +1096,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                         }
                         placeholder="e.g., 70"
                         required
+                        disabled={isFieldLocked("targetLtvPercent", "loan-info")}
+                        className={cn(
+                          isFieldLocked("targetLtvPercent", "loan-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        )}
                         data-field-id="targetLtvPercent"
                         data-field-type="number"
                         data-field-section="loan-info"
@@ -986,10 +1352,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <BarChart className="h-5 w-5 mr-2 text-blue-600" /> Financial Information
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("financials")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("financials")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("financials") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("financials") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
@@ -1285,10 +1674,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <Building className="h-5 w-5 mr-2 text-blue-600" /> Property Specifications
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("property-specs")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("property-specs")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("property-specs") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("property-specs") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
@@ -1463,10 +1875,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <Calculator className="h-5 w-5 mr-2 text-blue-600" /> Development Budget
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("dev-budget")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("dev-budget")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("dev-budget") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("dev-budget") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
@@ -1695,10 +2130,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <TrendingUp className="h-5 w-5 mr-2 text-blue-600" /> Market Context
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("market-context")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("market-context")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("market-context") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("market-context") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
@@ -1873,10 +2331,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <CheckCircle className="h-5 w-5 mr-2 text-blue-600" /> Special Considerations
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("special-considerations")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("special-considerations")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("special-considerations") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("special-considerations") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
@@ -2027,10 +2508,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <Calendar className="h-5 w-5 mr-2 text-blue-600" /> Timeline & Milestones
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("timeline")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("timeline")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("timeline") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("timeline") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
@@ -2175,10 +2679,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <Map className="h-5 w-5 mr-2 text-blue-600" /> Site & Context
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("site-context")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("site-context")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("site-context") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("site-context") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
@@ -2285,10 +2812,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         component: (
           <>
           <div className="space-y-6">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 <Users className="h-5 w-5 mr-2 text-blue-600" /> Sponsor Information
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("sponsor-info")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("sponsor-info")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("sponsor-info") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("sponsor-info") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
@@ -2388,7 +2938,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
       },
       // Documents and Review steps removed (DocumentManager exists above; autosave in place)
     ],
-    [formData, handleInputChange, onAskAI]
+    [formData, handleInputChange, onAskAI, lockedFields, lockedSections, unlockedFields, isFieldLocked, renderFieldLockButton]
   );
   return (
     <FormProvider initialFormData={formData as Record<string, any>}>
@@ -2402,6 +2952,62 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
           <p className="text-sm text-gray-500">{formData.projectName}</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAutofill}
+            disabled={isAutofilling}
+            className={cn(
+              "group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-hidden",
+              isAutofilling 
+                ? "border-blue-400 bg-blue-50 text-blue-700" 
+                : "border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 hover:border-blue-400 text-blue-700 hover:text-blue-800 shadow-sm hover:shadow-md"
+            )}
+          >
+            {isAutofilling ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                <span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Autofilling...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                <span className="text-sm font-medium text-blue-700 whitespace-nowrap max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Autofill Resume</span>
+              </>
+            )}
+            {/* Sparkle animation overlay */}
+            {showSparkles && (
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {[...Array(20)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-1 h-1 bg-yellow-400 rounded-full"
+                    initial={{
+                      x: '50%',
+                      y: '50%',
+                      opacity: 1,
+                      scale: 0,
+                    }}
+                    animate={{
+                      x: `${Math.random() * 100}%`,
+                      y: `${Math.random() * 100}%`,
+                      opacity: [1, 1, 0],
+                      scale: [0, 1.5, 0],
+                    }}
+                    transition={{
+                      duration: 0.8,
+                      delay: Math.random() * 0.3,
+                      ease: 'easeOut',
+                    }}
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </Button>
           <Button
             variant="outline"
             size="sm"

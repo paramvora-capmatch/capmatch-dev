@@ -4,7 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { Button } from '../ui/Button';
-import { Edit, MapPin, DollarSign, BarChart3, AlertCircle, ChevronDown, Building2, Calculator, TrendingUp, CheckCircle, Calendar, Map, Users, FileText, Home, Briefcase, Percent, Clock, Award } from 'lucide-react';
+import { Edit, MapPin, DollarSign, BarChart3, AlertCircle, ChevronDown, Building2, Calculator, TrendingUp, CheckCircle, Calendar, Map, Users, FileText, Home, Briefcase, Percent, Clock, Award, Sparkles, Loader2 } from 'lucide-react';
 import { KeyValueDisplay } from '../om/KeyValueDisplay'; // Reusing this component
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
@@ -176,6 +176,27 @@ const formatFieldValue = (value: any, dataType?: string): string => {
     }
 };
 
+// Animated field wrapper component for cascading fade-in effect
+const AnimatedField: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    return (
+        <motion.div
+            variants={{
+                hidden: { opacity: 0 },
+                visible: { opacity: 1 },
+                autofill: { 
+                    opacity: [0, 1],
+                    transition: {
+                        duration: 0.5,
+                        ease: [0.25, 0.46, 0.45, 0.94]
+                    }
+                }
+            }}
+        >
+            {children}
+        </motion.div>
+    );
+};
+
 // Helper to get a readable label from field metadata
 const getFieldLabel = (field: { fieldId: string; description: string }): string => {
     // Use a mapping for common fields to get better labels
@@ -281,6 +302,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
     const completeness = project.completenessPercent ?? 0;
     const progressColor = completeness >= 100 ? 'bg-green-600' : 'bg-blue-600';
     const router = useRouter();
+    const [isAutofilling, setIsAutofilling] = React.useState(false);
+    const [showSparkles, setShowSparkles] = React.useState(false);
+    const [showAutofillSuccess, setShowAutofillSuccess] = React.useState(false);
+    const [autofillAnimationKey, setAutofillAnimationKey] = React.useState(0);
 
     // Collapsible state (persisted per project)
     const [collapsed, setCollapsed] = React.useState<boolean>(() => {
@@ -300,6 +325,51 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
             localStorage.setItem(`resumeCollapsed:${project.id}`, JSON.stringify(collapsed));
         } catch {}
     }, [collapsed, project?.id]);
+
+    // Handle autofill button click
+    const handleAutofill = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        // Trigger sparkle animation
+        setShowSparkles(true);
+        setIsAutofilling(true);
+        
+        // Simulate processing time (2-3 seconds)
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        
+        // Hide sparkles after animation
+        setTimeout(() => setShowSparkles(false), 500);
+        setIsAutofilling(false);
+        
+        // Trigger success animation in resume view (only if expanded)
+        // Increment key to trigger animation only once
+        const newKey = autofillAnimationKey + 1;
+        
+        if (!collapsed) {
+            // Update both key and state together to prevent double animation
+            setAutofillAnimationKey(newKey);
+            setShowAutofillSuccess(true);
+            
+            // Auto-hide success animation after animation completes
+            setTimeout(() => {
+                setShowAutofillSuccess(false);
+            }, 4000);
+        } else {
+            // If collapsed, expand it first, then show animation
+            setCollapsed(false);
+            // Wait for expand animation, then show success
+            setTimeout(() => {
+                setAutofillAnimationKey(newKey);
+                setShowAutofillSuccess(true);
+                setTimeout(() => {
+                    setShowAutofillSuccess(false);
+                }, 4000);
+            }, 350); // Wait for collapse animation to complete
+        }
+        
+        // TODO: Implement actual autofill logic when backend is ready
+        console.log('Autofill Resume clicked - will extract data from documents');
+    };
 
     return (
         <div
@@ -344,6 +414,62 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                           {collapsed ? 'Show Project Details' : 'Hide Project Details'}
                         </span>
                     </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAutofill}
+                        disabled={isAutofilling}
+                        className={cn(
+                            "group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-hidden text-base",
+                            isAutofilling 
+                                ? "border-blue-400 bg-blue-50 text-blue-700" 
+                                : "border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 hover:border-blue-400 text-blue-700 hover:text-blue-800 shadow-sm hover:shadow-md"
+                        )}
+                    >
+                        {isAutofilling ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                                <span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Autofilling...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                <span className="text-sm font-medium text-blue-700 whitespace-nowrap max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Autofill Resume</span>
+                            </>
+                        )}
+                        {/* Sparkle animation overlay */}
+                        {showSparkles && (
+                            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                                {[...Array(20)].map((_, i) => (
+                                    <motion.div
+                                        key={i}
+                                        className="absolute w-1 h-1 bg-yellow-400 rounded-full"
+                                        initial={{
+                                            x: '50%',
+                                            y: '50%',
+                                            opacity: 1,
+                                            scale: 0,
+                                        }}
+                                        animate={{
+                                            x: `${Math.random() * 100}%`,
+                                            y: `${Math.random() * 100}%`,
+                                            opacity: [1, 1, 0],
+                                            scale: [0, 1.5, 0],
+                                        }}
+                                        transition={{
+                                            duration: 0.8,
+                                            delay: Math.random() * 0.3,
+                                            ease: 'easeOut',
+                                        }}
+                                        style={{
+                                            left: '50%',
+                                            top: '50%',
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </Button>
                 </div>
                 <div />
             </div>
@@ -357,14 +483,21 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
                         className="overflow-hidden relative z-10"
                     >
-                        <div className="flex-1 p-6">
+                        <div className="flex-1 p-6 relative overflow-hidden">
                             <motion.div
+                                key={autofillAnimationKey > 0 ? `autofill-${autofillAnimationKey}` : 'normal'}
                                 initial="hidden"
-                                animate="visible"
+                                animate={showAutofillSuccess && autofillAnimationKey > 0 ? "autofill" : "visible"}
                                 variants={{
                                     visible: {
                                         transition: {
                                             staggerChildren: 0.05,
+                                        },
+                                    },
+                                    autofill: {
+                                        transition: {
+                                            staggerChildren: 0.025,
+                                            delayChildren: 0.05,
                                         },
                                     },
                                 }}
@@ -404,7 +537,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                         const zip = getFieldValue(project, 'propertyAddressZip') || '';
                                                         const address = [street, city, state, zip].filter(Boolean).join(', ');
                                                         return address ? (
-                                                            <KeyValueDisplay key={field.fieldId} label="Address" value={address} fullWidth={true} />
+                                                            <AnimatedField key={field.fieldId}>
+                                                                <KeyValueDisplay label="Address" value={address} fullWidth={true} />
+                                                            </AnimatedField>
                                                         ) : null;
                                                     }
                                                     
@@ -414,12 +549,13 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     }
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                            fullWidth={isFullWidth}
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                                fullWidth={isFullWidth}
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
@@ -453,11 +589,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     const formattedValue = formatFieldValue(value, field.dataType);
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
@@ -565,12 +702,13 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     const isFullWidth = field.dataType === 'Textarea';
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                            fullWidth={isFullWidth}
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                                fullWidth={isFullWidth}
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
@@ -605,11 +743,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     const formattedValue = formatFieldValue(value, field.dataType);
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
@@ -644,11 +783,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     const formattedValue = formatFieldValue(value, field.dataType);
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
@@ -684,12 +824,13 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                                 const isFullWidth = field.type === 'Textarea';
                                                                 
                                                                 return (
-                                                                    <KeyValueDisplay 
-                                                                        key={field.id} 
-                                                                        label={field.label} 
-                                                                        value={formattedValue} 
-                                                                        fullWidth={isFullWidth}
-                                                                    />
+                                                                    <AnimatedField key={field.id}>
+                                                                        <KeyValueDisplay 
+                                                                            label={field.label} 
+                                                                            value={formattedValue} 
+                                                                            fullWidth={isFullWidth}
+                                                                        />
+                                                                    </AnimatedField>
                                                                 );
                                                             })}
                                                         </div>
@@ -727,11 +868,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     const formattedValue = formatFieldValue(value, field.dataType);
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
@@ -809,11 +951,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     const formattedValue = formatFieldValue(value, field.dataType);
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
@@ -848,11 +991,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     const formattedValue = formatFieldValue(value, field.dataType);
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
@@ -887,11 +1031,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     const formattedValue = formatFieldValue(value, field.dataType);
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
@@ -927,12 +1072,13 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                                     const isFullWidth = field.fieldId === 'contactInfo';
                                                     
                                                     return (
-                                                        <KeyValueDisplay 
-                                                            key={field.fieldId} 
-                                                            label={getFieldLabel(field)} 
-                                                            value={formattedValue} 
-                                                            fullWidth={isFullWidth}
-                                                        />
+                                                        <AnimatedField key={field.fieldId}>
+                                                            <KeyValueDisplay 
+                                                                label={getFieldLabel(field)} 
+                                                                value={formattedValue} 
+                                                                fullWidth={isFullWidth}
+                                                            />
+                                                        </AnimatedField>
                                                     );
                                                 })}
                                             </div>
