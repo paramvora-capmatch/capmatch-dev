@@ -369,7 +369,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
         return next;
       });
     }
-  }, [lockedSections, unlockedFields]);
+  }, [lockedSections, unlockedFields, lockedFields]);
 
   // Get all field IDs in a section (needed for section lock visual feedback)
   const getSectionFieldIds = useCallback((sectionId: string): string[] => {
@@ -3308,7 +3308,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
       },
       // Documents and Review steps removed (DocumentManager exists above; autosave in place)
     ],
-    [formData, handleInputChange, onAskAI, lockedFields, lockedSections, unlockedFields, isFieldLocked, renderFieldLockButton]
+    [formData, handleInputChange, onAskAI, lockedSections, isFieldLocked, renderFieldLockButton, getFieldWarning, toggleSectionLock]
   );
   return (
     <FormProvider initialFormData={formData as Record<string, any>}>
