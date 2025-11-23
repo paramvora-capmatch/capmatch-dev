@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { Modal } from '@/components/ui/Modal';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
@@ -29,7 +30,6 @@ export function ImagePreviewModal({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const currentImage = images[currentIndex];
@@ -70,6 +70,7 @@ export function ImagePreviewModal({
   useEffect(() => {
     if (!isOpen || !containerRef.current) return;
 
+    const container = containerRef.current;
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
@@ -78,9 +79,9 @@ export function ImagePreviewModal({
       }
     };
 
-    containerRef.current.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener('wheel', handleWheel, { passive: false });
     return () => {
-      containerRef.current?.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('wheel', handleWheel);
     };
   }, [isOpen]);
 
@@ -209,17 +210,19 @@ export function ImagePreviewModal({
               </div>
             </div>
           ) : (
-            <img
-              ref={imageRef}
-              src={currentImage.url}
-              alt={currentImage.name}
-              className="max-w-full max-h-full object-contain transition-transform duration-200"
-              style={{
-                transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-                transformOrigin: 'center center',
-              }}
-              draggable={false}
-            />
+            <div className="relative w-full h-full">
+              <Image
+                src={currentImage.url}
+                alt={currentImage.name}
+                fill
+                sizes="100vw"
+                className="object-contain transition-transform duration-200"
+                style={{
+                  transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+                  transformOrigin: 'center center',
+                }}
+              />
+            </div>
           )}
 
           {/* Navigation Arrows */}
