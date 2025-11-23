@@ -30,10 +30,10 @@ export default function AmenitiesPage() {
     const colors = [
       'border-blue-200 bg-blue-50',
       'border-green-200 bg-green-50',
-      'border-purple-200 bg-purple-50',
-      'border-orange-200 bg-orange-50',
-      'border-pink-200 bg-pink-50',
-      'border-indigo-200 bg-indigo-50',
+      'border-red-200 bg-red-50',
+      'border-blue-200 bg-blue-50',
+      'border-green-200 bg-green-50',
+      'border-red-200 bg-red-50',
     ];
     return colors[index % colors.length];
   };
@@ -77,7 +77,7 @@ export default function AmenitiesPage() {
             <h3 className="text-lg font-semibold text-gray-800">Avg Size</h3>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">
+            <p className="text-3xl font-bold text-blue-600">
               {Math.round(totalAmenitySF / assetProfileDetails.amenityDetails.length).toLocaleString()} SF
             </p>
             <p className="text-sm text-gray-500 mt-1">Per amenity space</p>
@@ -219,8 +219,8 @@ export default function AmenitiesPage() {
               <p className="text-sm text-gray-600">Round-the-clock fitness center access</p>
             </div>
             <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Sun className="h-8 w-8 text-purple-600" />
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Sun className="h-8 w-8 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">City Views</h4>
               <p className="text-sm text-gray-600">Panoramic views from sky lounge</p>

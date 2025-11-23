@@ -153,7 +153,7 @@ export default function MilestonesPage() {
             <h2 className="text-lg">Remaining</h2>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-orange-600">
+            <p className="text-3xl font-bold text-red-600">
               {dealSnapshotDetails.milestones.filter(m => m.status === 'upcoming').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones pending</p>

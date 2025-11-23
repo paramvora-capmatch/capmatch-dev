@@ -30,7 +30,7 @@ export const QuadrantGrid: React.FC<QuadrantGridProps> = ({ quadrants, className
     }, []);
     
     return (
-        <div className={cn("grid grid-cols-2 gap-6", className)}>
+        <div className={cn("grid grid-cols-2 gap-7", className)}>
             {quadrants.map((quadrant) => {
                 const Icon = quadrant.icon;
                 
@@ -53,35 +53,37 @@ export const QuadrantGrid: React.FC<QuadrantGridProps> = ({ quadrants, className
                             quadrant.color
                         )} />
                         
-                        <div className="p-6">
-                            <div className="flex items-start justify-between mb-4">
+                        <div className="p-7">
+                            <div className="flex items-start justify-between mb-5">
                                 <div className="flex items-center">
                                     <div className={cn(
-                                        "p-3 rounded-lg",
+                                        "p-4 rounded-lg",
                                         quadrant.color.includes('blue') && "bg-blue-50",
-                                        quadrant.color.includes('green') && "bg-green-50"
+                                        quadrant.color.includes('green') && "bg-green-50",
+                                        quadrant.color.includes('red') && "bg-red-50"
                                     )}>
                                         <Icon className={cn(
-                                            "h-6 w-6",
+                                            "h-7 w-7",
                                             quadrant.color.includes('blue') && "text-blue-600",
-                                            quadrant.color.includes('green') && "text-green-600"
+                                            quadrant.color.includes('green') && "text-green-600",
+                                            quadrant.color.includes('red') && "text-red-600"
                                         )} />
                                     </div>
-                                    <h3 className="ml-3 text-lg font-semibold text-gray-800">
+                                    <h3 className="ml-4 text-xl font-semibold text-gray-800">
                                         {quadrant.title}
                                     </h3>
                                 </div>
                                 {quadrant.href && (
-                                    <Expand className="h-5 w-5 text-gray-400 group-hover:text-gray-600 transition-all duration-300 group-hover:scale-125" />
+                                    <Expand className="h-6 w-6 text-gray-400 group-hover:text-gray-600 transition-all duration-300 group-hover:scale-125" />
                                 )}
                             </div>
                             
                             {quadrant.description && (
-                                <p className="text-sm text-gray-600 mb-4">{quadrant.description}</p>
+                                <p className="text-sm text-gray-600 mb-5">{quadrant.description}</p>
                             )}
                             
                             {quadrant.metrics && (
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                     {React.Children.map(quadrant.metrics.props.children, (child, index) => {
                                         if (React.isValidElement(child)) {
                                     return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {

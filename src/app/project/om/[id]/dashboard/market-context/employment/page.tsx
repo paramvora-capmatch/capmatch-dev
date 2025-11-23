@@ -11,7 +11,7 @@ export default function EmploymentPage() {
     const growthNum = parseInt(growth.replace(/[^\d-]/g, ''));
     if (growthNum >= 10) return 'bg-green-100 text-green-800';
     if (growthNum >= 5) return 'bg-blue-100 text-blue-800';
-    if (growthNum >= 0) return 'bg-yellow-100 text-yellow-800';
+    if (growthNum >= 0) return 'bg-green-100 text-green-800';
     return 'bg-red-100 text-red-800';
   };
 
@@ -19,12 +19,12 @@ export default function EmploymentPage() {
     const dist = parseFloat(distance);
     if (dist <= 1.5) return 'bg-green-100 text-green-800';
     if (dist <= 3.0) return 'bg-blue-100 text-blue-800';
-    if (dist <= 5.0) return 'bg-yellow-100 text-yellow-800';
+    if (dist <= 5.0) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
 
   const getEmployeeSizeColor = (employees: number) => {
-    if (employees >= 10000) return 'bg-purple-100 text-purple-800';
+    if (employees >= 10000) return 'bg-blue-100 text-blue-800';
     if (employees >= 5000) return 'bg-blue-100 text-blue-800';
     if (employees >= 2000) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
@@ -78,12 +78,12 @@ export default function EmploymentPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <TrendingUp className="h-5 w-5 text-purple-500 mr-2" />
+              <TrendingUp className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Avg Growth</h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">+{avgGrowth.toFixed(1)}%</p>
+            <p className="text-3xl font-bold text-blue-600">+{avgGrowth.toFixed(1)}%</p>
             <p className="text-sm text-gray-500 mt-1">Annual average</p>
           </CardContent>
         </Card>
@@ -93,7 +93,7 @@ export default function EmploymentPage() {
             <h3 className="text-lg font-semibold text-gray-800">Avg Distance</h3>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-orange-600">
+            <p className="text-3xl font-bold text-red-600">
               {(marketContextDetails.majorEmployers.reduce((sum, employer) => sum + parseFloat(employer.distance.replace(/[^\d.]/g, '')), 0) / marketContextDetails.majorEmployers.length).toFixed(1)} mi
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
@@ -147,7 +147,7 @@ export default function EmploymentPage() {
                     <td className="py-4 px-4">
                       <div className="text-sm">
                         {employer.employees >= 10000 ? (
-                          <Badge className="bg-purple-100 text-purple-800">Major</Badge>
+                          <Badge className="bg-blue-100 text-blue-800">Major</Badge>
                         ) : employer.employees >= 5000 ? (
                           <Badge className="bg-blue-100 text-blue-800">Significant</Badge>
                         ) : (
@@ -268,15 +268,15 @@ export default function EmploymentPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Target Market</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
-                  <span className="text-purple-500 mr-2">•</span>
+                  <span className="text-blue-500 mr-2">•</span>
                   Downtown Dallas professionals (AT&T, JP Morgan Chase)
                 </li>
                 <li className="flex items-center">
-                  <span className="text-purple-500 mr-2">•</span>
+                  <span className="text-blue-500 mr-2">•</span>
                   Healthcare workers (Baylor Medical Center)
                 </li>
                 <li className="flex items-center">
-                  <span className="text-purple-500 mr-2">•</span>
+                  <span className="text-blue-500 mr-2">•</span>
                   Government employees (Dallas County)
                 </li>
               </ul>

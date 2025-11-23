@@ -31,7 +31,7 @@ const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
     return (
       <div
         ref={ref}
-        className={cn("flex flex-col space-y-1.5 p-6 pb-0", className)}
+        className={cn("flex flex-col space-y-2 p-7 pb-0", className)}
         {...props}
       >
         {hasTooltip ? (
@@ -42,7 +42,7 @@ const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
                 fields={dataSourceFields}
                 sectionName={dataSourceSection}
                 placement="top"
-                iconSize={16}
+                iconSize={19}
               />
             </div>
           </div>
@@ -57,7 +57,7 @@ CardHeader.displayName = "CardHeader";
 
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, children, ...props }, ref) => (
-    <div ref={ref} className={cn("p-6 pt-0", className)} {...props}>
+    <div ref={ref} className={cn("p-7 pt-0", className)} {...props}>
       {children}
     </div>
   )
@@ -68,7 +68,7 @@ const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDiv
   ({ className, children, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("flex justify-end p-6 pt-0", className)}
+      className={cn("flex justify-end p-7 pt-0", className)}
       {...props}
     >
       {children}

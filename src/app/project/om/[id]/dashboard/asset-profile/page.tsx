@@ -65,29 +65,29 @@ export default function AssetProfilePage() {
       id: 'site-zoning',
       title: 'Site & Zoning',
       icon: MapPin,
-      color: 'from-purple-400 to-purple-500',
+      color: 'from-blue-400 to-blue-500',
       href: `/project/om/${projectId}/dashboard/asset-profile/site-plan`,
       metrics: (
         <div className="space-y-3">
           <ZoningMap compact={true} />
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <p className="text-gray-500">Lot Size</p>
-              <p className="font-medium">{assetProfileDetails.sitePlan.lotSize}</p>
+              <p className="text-xs text-gray-500">Lot Size</p>
+              <p className="text-sm font-medium">{assetProfileDetails.sitePlan.lotSize}</p>
             </div>
             <div>
-              <p className="text-gray-500">Zoning</p>
-              <p className="font-medium">{assetProfileDetails.sitePlan.zoningDetails.current}</p>
+              <p className="text-xs text-gray-500">Zoning</p>
+              <p className="text-sm font-medium">{assetProfileDetails.sitePlan.zoningDetails.current}</p>
             </div>
             <div>
-              <p className="text-gray-500">FAR</p>
-              <p className="font-medium">
+              <p className="text-xs text-gray-500">FAR</p>
+              <p className="text-sm font-medium">
                 {assetProfileDetails.sitePlan.zoningDetails.usedFAR} / {assetProfileDetails.sitePlan.zoningDetails.allowedFAR}
               </p>
             </div>
             <div>
-              <p className="text-gray-500">Height</p>
-              <p className="font-medium">
+              <p className="text-xs text-gray-500">Height</p>
+              <p className="text-sm font-medium">
                 {assetProfileDetails.sitePlan.zoningDetails.actualHeight} / {assetProfileDetails.sitePlan.zoningDetails.heightLimit}
               </p>
             </div>
@@ -111,17 +111,17 @@ export default function AssetProfilePage() {
             ))}
           </div>
           <div className="pt-2">
-            <p className="text-xs text-gray-500 mb-2">Building Stats</p>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
+            <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Building Stats</p>
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Stories</span>
                   <span className="font-medium">{projectOverview.propertyStats.stories}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Parking Ratio</span>
                   <span className="font-medium">{projectOverview.propertyStats.parkingRatio.toFixed(2)} / unit</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Amenity SF</span>
                   <span className="font-medium">{assetProfileDetails.amenityDetails.reduce((sum, amenity) => sum + parseInt(amenity.size.replace(/[^\d]/g, ''), 10), 0).toLocaleString()} SF</span>
               </div>
@@ -146,14 +146,14 @@ export default function AssetProfilePage() {
           <div className="space-y-2">
             {unitMixData.slice(0, 3).map((unit) => (
               <div key={unit.type} className="flex justify-between text-sm">
-                <span>{unit.type}</span>
-                <span>{unit.units} units</span>
+                <span className="text-gray-600">{unit.type}</span>
+                <span className="text-gray-600">{unit.units} units</span>
                 <span className="font-medium">${unit.avgRent}</span>
               </div>
             ))}
           </div>
-          <div className="pt-2 border-t text-sm">
-            <div className="flex justify-between">
+          <div className="pt-2 border-t">
+            <div className="flex justify-between text-sm">
               <span className="text-gray-600">Avg Rent PSF</span>
               <span className="font-medium">${avgCompRentPSF}</span>
             </div>
@@ -165,7 +165,7 @@ export default function AssetProfilePage() {
       id: 'comparable-assets',
       title: 'Comparable Assets',
       icon: ImageIcon,
-      color: 'from-amber-400 to-amber-500',
+      color: 'from-red-400 to-red-500',
       href: `/project/om/${projectId}/dashboard/asset-profile/comparables`,
       metrics: (
         <div className="space-y-3">
@@ -194,18 +194,18 @@ export default function AssetProfilePage() {
       id: 'media-gallery',
       title: 'Media & Plans',
       icon: Building2,
-      color: 'from-purple-400 to-purple-500',
+      color: 'from-blue-400 to-blue-500',
       href: `/project/om/${projectId}/dashboard/asset-profile/media`,
       metrics: (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="bg-purple-50 rounded p-2 text-center">
-              <p className="text-xs text-gray-500 uppercase mb-1">Site Imagery</p>
-              <p className="text-lg font-semibold text-purple-700">{siteImageCount}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-blue-50 rounded p-2 text-center">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Site Imagery</p>
+              <p className="text-xl font-semibold text-blue-700">{siteImageCount}</p>
             </div>
-            <div className="bg-indigo-50 rounded p-2 text-center">
-              <p className="text-xs text-gray-500 uppercase mb-1">Diagrams</p>
-              <p className="text-lg font-semibold text-indigo-700">{diagramCount}</p>
+            <div className="bg-blue-50 rounded p-2 text-center">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Diagrams</p>
+              <p className="text-xl font-semibold text-blue-700">{diagramCount}</p>
             </div>
           </div>
           <p className="text-xs text-gray-500">

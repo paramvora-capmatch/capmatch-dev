@@ -57,8 +57,8 @@ export default function PopulationHeatmap({ className = '', compact = false }: P
   const getDensityColor = (density: string) => {
     switch (density) {
       case 'high': return 'bg-red-100 text-red-800';
-      case 'medium': return 'bg-orange-100 text-orange-800';
-      case 'medium-low': return 'bg-yellow-100 text-yellow-800';
+      case 'medium': return 'bg-red-100 text-red-800';
+      case 'medium-low': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -163,7 +163,7 @@ export default function PopulationHeatmap({ className = '', compact = false }: P
           >
             <Popup>
               <div className="text-center">
-                <TrendingUp className="h-4 w-4 mx-auto mb-2 text-purple-600" />
+                <TrendingUp className="h-4 w-4 mx-auto mb-2 text-blue-600" />
                 <h3 className="font-semibold text-gray-800">{point.label}</h3>
                 <p className="text-sm text-gray-600">Median Income: {point.income}</p>
                 <p className="text-sm text-gray-600">Density: {point.density}</p>

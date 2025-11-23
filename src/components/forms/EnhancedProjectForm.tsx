@@ -232,6 +232,9 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
   const [uploadingDiagrams, setUploadingDiagrams] = useState(false);
   const [loading, setLoading] = useState(true);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  const [selectedSiteImages, setSelectedSiteImages] = useState<Set<string>>(new Set());
+  const [selectedDiagrams, setSelectedDiagrams] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const loadImages = useCallback(async () => {
     if (!orgId || !projectId) return;
@@ -334,26 +337,141 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
     fileName: string,
     folder: "site-images" | "architectural-diagrams"
   ) => {
-    if (!orgId || !projectId || disabled) return;
+    await handleDeleteMultipleImages([fileName], folder);
+  };
+
+  const handleDeleteMultipleImages = async (
+    fileNames: string[],
+    folder: "site-images" | "architectural-diagrams"
+  ) => {
+    if (!orgId || !projectId || disabled || fileNames.length === 0) return;
 
     const isSiteImages = folder === "site-images";
     const setImages = isSiteImages ? setSiteImages : setArchitecturalDiagrams;
+    const setSelected = isSiteImages ? setSelectedSiteImages : setSelectedDiagrams;
 
-    if (!confirm(`Delete ${fileName}?`)) return;
+    if (!confirm(`Delete ${fileNames.length} ${fileNames.length === 1 ? 'image' : 'images'}?`)) return;
 
+    setDeleting(true);
     try {
-      const filePath = `${projectId}/${folder}/${fileName}`;
-      const { error } = await supabase.storage.from(orgId).remove([filePath]);
+      const filePaths = fileNames.map(fileName => `${projectId}/${folder}/${fileName}`);
+      console.log(`[ProjectMediaUpload] Attempting to delete files from bucket "${orgId}":`, filePaths);
+      
+      const { data, error } = await supabase.storage.from(orgId).remove(filePaths);
 
       if (error) {
-        console.error("Error deleting file:", error);
-        alert("Failed to delete file");
-      } else {
-        setImages((prev) => prev.filter((name) => name !== fileName));
+        console.error("[ProjectMediaUpload] Error deleting files:", error);
+        console.error("[ProjectMediaUpload] Error details:", JSON.stringify(error, null, 2));
+        alert(`Failed to delete files: ${error.message || JSON.stringify(error)}`);
+        setDeleting(false);
+        return; // Don't update state if deletion failed
       }
+
+      console.log(`[ProjectMediaUpload] Deletion API response:`, data);
+
+      // Verify deletion by listing the folder after a short delay
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds for storage propagation
+      
+      // Verify files are actually deleted by listing the folder
+      const { data: remainingFiles, error: listError } = await supabase.storage
+        .from(orgId)
+        .list(`${projectId}/${folder}`, { limit: 1000 });
+      
+      let deletionVerified = true;
+      
+      if (listError) {
+        console.warn("[ProjectMediaUpload] Could not verify deletion (will proceed optimistically):", listError);
+      } else if (remainingFiles) {
+        const remainingNames = new Set(remainingFiles.map(f => f.name));
+        const stillExist = fileNames.filter(name => remainingNames.has(name));
+        
+        if (stillExist.length > 0) {
+          console.error(`[ProjectMediaUpload] Files still exist after deletion attempt:`, stillExist);
+          console.error(`[ProjectMediaUpload] This indicates deletion may have failed. Check RLS policies and permissions.`);
+          alert(`Failed to delete files: ${stillExist.join(', ')}\n\nThis may be a permissions issue. Check the browser console for details.`);
+          deletionVerified = false;
+        } else {
+          console.log(`[ProjectMediaUpload] ✓ Verification: All ${fileNames.length} file(s) successfully deleted.`);
+        }
+      }
+
+      // Only update state if deletion was verified
+      if (deletionVerified) {
+        // Update state only after successful verification
+        setImages((prev) => prev.filter((name) => !fileNames.includes(name)));
+        
+        // Remove from selected set
+        setSelected((prev) => {
+          const next = new Set(prev);
+          fileNames.forEach(name => next.delete(name));
+          return next;
+        });
+        
+        // Remove URLs from imageUrls state
+        setImageUrls((prev) => {
+          const next = { ...prev };
+          fileNames.forEach(fileName => {
+            delete next[`${folder}/${fileName}`];
+          });
+          return next;
+        });
+
+        // Reload images from storage to refresh the list
+        // Use a small delay to ensure storage has fully updated
+        setTimeout(async () => {
+          await loadImages();
+        }, 300);
+        
+        console.log(`[ProjectMediaUpload] ✓ Successfully deleted ${fileNames.length} file(s) and updated UI.`);
+      } else {
+        console.error(`[ProjectMediaUpload] ✗ Deletion verification failed - files were not removed from storage.`);
+        // Don't reload if deletion failed - this would bring back the files
+      }
+      
+      console.log(`[ProjectMediaUpload] Successfully deleted ${fileNames.length} file(s) and reloaded images.`);
     } catch (error) {
-      console.error("Error deleting file:", error);
-      alert("Failed to delete file");
+      console.error("[ProjectMediaUpload] Exception during deletion:", error);
+      alert(`Failed to delete files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleToggleSelect = (
+    fileName: string,
+    folder: "site-images" | "architectural-diagrams"
+  ) => {
+    if (disabled) return;
+    
+    const isSiteImages = folder === "site-images";
+    const setSelected = isSiteImages ? setSelectedSiteImages : setSelectedDiagrams;
+    const selected = isSiteImages ? selectedSiteImages : selectedDiagrams;
+    
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(fileName)) {
+        next.delete(fileName);
+      } else {
+        next.add(fileName);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = (folder: "site-images" | "architectural-diagrams") => {
+    if (disabled) return;
+    
+    const isSiteImages = folder === "site-images";
+    const images = isSiteImages ? siteImages : architecturalDiagrams;
+    const setSelected = isSiteImages ? setSelectedSiteImages : setSelectedDiagrams;
+    const selected = isSiteImages ? selectedSiteImages : selectedDiagrams;
+    
+    if (selected.size === images.length) {
+      // Deselect all
+      setSelected(new Set());
+    } else {
+      // Select all
+      setSelected(new Set(images));
     }
   };
 
@@ -393,7 +511,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
   }, [orgId, projectId, siteImages, architecturalDiagrams]);
 
   const getImageUrl = (fileName: string, folder: "site-images" | "architectural-diagrams") => {
-    return imageUrls[`${folder}/${fileName}`] || "";
+    return imageUrls[`${folder}/${fileName}`] || null;
   };
 
   if (loading) {
@@ -404,9 +522,35 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
     <div className="space-y-8">
       {/* Site Images */}
       <FormGroup>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Site Images
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Site Images
+          </label>
+          {siteImages.length > 0 && !disabled && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSelectAll("site-images")}
+                className="text-xs text-blue-600 hover:text-blue-700"
+              >
+                {selectedSiteImages.size === siteImages.length ? "Deselect All" : "Select All"}
+              </button>
+              {selectedSiteImages.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMultipleImages(Array.from(selectedSiteImages), "site-images")}
+                  disabled={deleting}
+                  className={cn(
+                    "text-xs text-red-600 hover:text-red-700 font-medium",
+                    deleting && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {deleting ? "Deleting..." : `Delete Selected (${selectedSiteImages.size})`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
           <input
             type="file"
@@ -432,37 +576,94 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
         </div>
         {siteImages.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            {siteImages.map((fileName) => (
-              <div key={fileName} className="relative group">
-                <div className="relative w-full h-32 rounded-lg border border-gray-200 overflow-hidden">
-                  <Image
-                    src={getImageUrl(fileName, "site-images")}
-                    alt={fileName}
-                    fill
-                    sizes="(max-width: 768px) 50vw, 25vw"
-                    className="object-cover"
-                  />
+            {siteImages.map((fileName) => {
+              const imageUrl = getImageUrl(fileName, "site-images");
+              const isSelected = selectedSiteImages.has(fileName);
+              return (
+                <div 
+                  key={fileName} 
+                  className={cn(
+                    "relative group border-2 rounded-lg transition-all",
+                    isSelected ? "border-blue-500 ring-2 ring-blue-200" : "border-gray-200"
+                  )}
+                  onClick={() => handleToggleSelect(fileName, "site-images")}
+                >
+                  {!disabled && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleSelect(fileName, "site-images")}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                  {imageUrl ? (
+                    <div className="relative w-full h-32 rounded-lg overflow-hidden">
+                      <Image
+                        src={imageUrl}
+                        alt={fileName}
+                        fill
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    </div>
+                  )}
+                  {!disabled && !deleting && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteImage(fileName, "site-images");
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
-                {!disabled && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteImage(fileName, "site-images")}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </FormGroup>
 
       {/* Architectural Diagrams */}
       <FormGroup>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Architectural Diagrams
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Architectural Diagrams
+          </label>
+          {architecturalDiagrams.length > 0 && !disabled && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSelectAll("architectural-diagrams")}
+                className="text-xs text-blue-600 hover:text-blue-700"
+              >
+                {selectedDiagrams.size === architecturalDiagrams.length ? "Deselect All" : "Select All"}
+              </button>
+              {selectedDiagrams.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMultipleImages(Array.from(selectedDiagrams), "architectural-diagrams")}
+                  disabled={deleting}
+                  className={cn(
+                    "text-xs text-red-600 hover:text-red-700 font-medium",
+                    deleting && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {deleting ? "Deleting..." : `Delete Selected (${selectedDiagrams.size})`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
           <input
             type="file"
@@ -488,34 +689,64 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
         </div>
         {architecturalDiagrams.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            {architecturalDiagrams.map((fileName) => (
-              <div key={fileName} className="relative group">
-                {fileName.match(/\.pdf$/i) ? (
-                  <div className="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                    <FileText className="h-8 w-8 text-gray-400" />
-                  </div>
-                ) : (
-                  <div className="relative w-full h-32 rounded-lg border border-gray-200 overflow-hidden">
-                    <Image
-                      src={getImageUrl(fileName, "architectural-diagrams")}
-                      alt={fileName}
-                      fill
-                      sizes="(max-width: 768px) 50vw, 25vw"
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-                {!disabled && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteImage(fileName, "architectural-diagrams")}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+            {architecturalDiagrams.map((fileName) => {
+              const imageUrl = getImageUrl(fileName, "architectural-diagrams");
+              const isSelected = selectedDiagrams.has(fileName);
+              const isPdf = fileName.match(/\.pdf$/i);
+              return (
+                <div 
+                  key={fileName} 
+                  className={cn(
+                    "relative group border-2 rounded-lg transition-all",
+                    isSelected ? "border-blue-500 ring-2 ring-blue-200" : "border-gray-200"
+                  )}
+                  onClick={() => handleToggleSelect(fileName, "architectural-diagrams")}
+                >
+                  {!disabled && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleSelect(fileName, "architectural-diagrams")}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                  {isPdf ? (
+                    <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <FileText className="h-8 w-8 text-gray-400" />
+                    </div>
+                  ) : imageUrl ? (
+                    <div className="relative w-full h-32 rounded-lg overflow-hidden">
+                      <Image
+                        src={imageUrl}
+                        alt={fileName}
+                        fill
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    </div>
+                  )}
+                  {!disabled && !deleting && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteImage(fileName, "architectural-diagrams");
+                      }}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </FormGroup>

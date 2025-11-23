@@ -45,12 +45,12 @@ export default function SitePlanPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2" dataSourceFields={['parking spaces']}>
             <div className="flex items-center">
-              <Car className="h-5 w-5 text-purple-500 mr-2" />
+              <Car className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Parking</h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-purple-600">{assetProfileDetails.sitePlan.parkingSpaces}</p>
+            <p className="text-2xl font-bold text-blue-600">{assetProfileDetails.sitePlan.parkingSpaces}</p>
             <p className="text-sm text-gray-500 mt-1">Parking spaces</p>
           </CardContent>
         </Card>
@@ -58,12 +58,12 @@ export default function SitePlanPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <TreePine className="h-5 w-5 text-emerald-500 mr-2" />
+              <TreePine className="h-5 w-5 text-green-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Green Space</h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-emerald-600">{assetProfileDetails.sitePlan.greenSpace}</p>
+            <p className="text-2xl font-bold text-green-600">{assetProfileDetails.sitePlan.greenSpace}</p>
             <p className="text-sm text-gray-500 mt-1">Site coverage</p>
           </CardContent>
         </Card>

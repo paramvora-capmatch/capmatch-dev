@@ -165,7 +165,7 @@ export default function CapitalStackPage() {
       <Card>
         <CardHeader dataSourceSection="key terms">
           <div className="flex items-center">
-            <FileText className="h-6 w-6 text-purple-600 mr-2" />
+            <FileText className="h-6 w-6 text-blue-600 mr-2" />
             <h3 className="text-xl font-semibold text-gray-800">Debt Terms</h3>
           </div>
         </CardHeader>
@@ -210,19 +210,19 @@ export default function CapitalStackPage() {
           </div>
 
           <div className="space-y-3">
-            <div className="p-3 bg-amber-50 rounded-lg">
+            <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-gray-600">Recourse</p>
               <p className="font-medium text-gray-800">
                 {data.debtTerms.recourse}
               </p>
             </div>
-            <div className="p-3 bg-amber-50 rounded-lg">
+            <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-gray-600">Origination Fee</p>
               <p className="font-medium text-gray-800">
                 {data.debtTerms.origination}
               </p>
             </div>
-            <div className="p-3 bg-amber-50 rounded-lg">
+            <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-gray-600">Exit Fee</p>
               <p className="font-medium text-gray-800">
                 {data.debtTerms.exitFee}

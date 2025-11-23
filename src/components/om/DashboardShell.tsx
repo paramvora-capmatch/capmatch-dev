@@ -148,48 +148,6 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
             <div className="flex-1 relative z-[1] min-w-0">
                 {/* Content with padding */}
                 <div className="relative p-6 min-w-0 pt-32">
-                    {isHome && (
-                        <div className="mb-6">
-                            {/* Prominent Scenario Toggle */}
-                            <div className="flex justify-center">
-                                <div className="inline-flex items-center bg-white rounded-lg shadow-sm border border-gray-200 p-1">
-                                    <button
-                                        onClick={() => onScenarioChange('downside')}
-                                        className={cn(
-                                            "px-6 py-2 rounded-md text-sm font-medium transition-all duration-200",
-                                            currentScenario === 'downside'
-                                                ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
-                                                : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                                        )}
-                                    >
-                                        Downside
-                                    </button>
-                                    <button
-                                        onClick={() => onScenarioChange('base')}
-                                        className={cn(
-                                            "px-6 py-2 rounded-md text-sm font-medium transition-all duration-200",
-                                            currentScenario === 'base'
-                                                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
-                                                : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                                        )}
-                                    >
-                                        Base Case
-                                    </button>
-                                    <button
-                                        onClick={() => onScenarioChange('upside')}
-                                        className={cn(
-                                            "px-6 py-2 rounded-md text-sm font-medium transition-all duration-200",
-                                            currentScenario === 'upside'
-                                                ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md"
-                                                : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                                        )}
-                                    >
-                                        Upside
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     {children}
                 </div>
             </div>
@@ -200,7 +158,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                 isCollapsed={isChatCollapsed}
                 onCollapseChange={setIsChatCollapsed}
                 topOffsetClassName="top-32"
-                widthClassName="w-[40%]"
+                widthClassName="w-[30%]"
             />
         </div>
     );

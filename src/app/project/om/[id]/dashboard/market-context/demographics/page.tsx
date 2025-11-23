@@ -11,14 +11,14 @@ export default function DemographicsPage() {
     const growthNum = parseFloat(growth);
     if (growthNum >= 15) return 'bg-green-100 text-green-800';
     if (growthNum >= 10) return 'bg-blue-100 text-blue-800';
-    if (growthNum >= 5) return 'bg-yellow-100 text-yellow-800';
+    if (growthNum >= 5) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
 
   const getIncomeTier = (income: number) => {
     if (income >= 80000) return 'bg-green-100 text-green-800';
     if (income >= 60000) return 'bg-blue-100 text-blue-800';
-    if (income >= 40000) return 'bg-yellow-100 text-yellow-800';
+    if (income >= 40000) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
 
@@ -76,12 +76,12 @@ export default function DemographicsPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <MapPin className="h-5 w-5 text-purple-500 mr-2" />
+              <MapPin className="h-5 w-5 text-blue-500 mr-2" />
               <h4 className="text-lg font-semibold text-gray-800">5 Mile Radius</h4>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">
+            <p className="text-3xl font-bold text-blue-600">
               {marketContextDetails.demographicProfile.fiveMile.population.toLocaleString()}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
@@ -125,8 +125,8 @@ export default function DemographicsPage() {
             </div>
             
             <div className="text-center">
-              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="h-10 w-10 text-purple-600" />
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="h-10 w-10 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Job Growth</h4>
               <Badge className={getGrowthColor(marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr)}>
@@ -150,7 +150,7 @@ export default function DemographicsPage() {
                 const colors = [
                   'bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500',
                   'bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500',
-                  'bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500'
+                  'bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500'
                 ];
                 const color = colors[index % colors.length];
                 
@@ -191,7 +191,7 @@ export default function DemographicsPage() {
                 const colors = [
                   'from-blue-400 to-blue-600',
                   'from-green-400 to-green-600',
-                  'from-purple-400 to-purple-600'
+                  'from-blue-400 to-blue-600'
                 ];
                 const color = colors[index % colors.length];
                 
@@ -273,15 +273,15 @@ export default function DemographicsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Target Demographics</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
-                  <span className="text-purple-500 mr-2">•</span>
+                  <span className="text-blue-500 mr-2">•</span>
                   Downtown Dallas professionals (25-35)
                 </li>
                 <li className="flex items-center">
-                  <span className="text-purple-500 mr-2">•</span>
+                  <span className="text-blue-500 mr-2">•</span>
                   Workforce housing eligible households (≤80% AMI)
                 </li>
                 <li className="flex items-center">
-                  <span className="text-purple-500 mr-2">•</span>
+                  <span className="text-blue-500 mr-2">•</span>
                   Healthcare, finance, and tech workers
                 </li>
               </ul>

@@ -7,11 +7,19 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { supabase } from '@/lib/supabaseClient';
 import { useProjects } from '@/hooks/useProjects';
 import { FileText, Loader2 } from 'lucide-react';
+import { ImagePreviewModal } from '@/components/om/ImagePreviewModal';
 
 interface MediaFile {
   name: string;
   url: string;
   isPdf: boolean;
+}
+
+// Helper function to remove file extension from filename
+function removeFileExtension(filename: string): string {
+  const lastDotIndex = filename.lastIndexOf('.');
+  if (lastDotIndex === -1) return filename; // No extension found
+  return filename.substring(0, lastDotIndex);
 }
 
 export default function MediaGalleryPage() {
@@ -23,6 +31,11 @@ export default function MediaGalleryPage() {
   const [siteImages, setSiteImages] = useState<MediaFile[]>([]);
   const [architecturalDiagrams, setArchitecturalDiagrams] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  
+  // Combine all images for preview navigation
+  const allImages = [...siteImages, ...architecturalDiagrams];
 
   const loadMedia = useCallback(async () => {
     if (!projectId || !project?.owner_org_id) return;
@@ -116,6 +129,21 @@ export default function MediaGalleryPage() {
     return <div className="text-center py-8">Project not found</div>;
   }
 
+  const handleImageClick = (index: number) => {
+    setPreviewIndex(index);
+    setPreviewOpen(true);
+  };
+
+  const handleSiteImageClick = (image: MediaFile) => {
+    const index = siteImages.findIndex(img => img.name === image.name);
+    handleImageClick(index);
+  };
+
+  const handleDiagramClick = (diagram: MediaFile) => {
+    const index = siteImages.length + architecturalDiagrams.findIndex(img => img.name === diagram.name);
+    handleImageClick(index);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -150,7 +178,10 @@ export default function MediaGalleryPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {siteImages.map((image) => (
                 <div key={image.name} className="space-y-3">
-                  <div className="relative w-full h-56 rounded-xl overflow-hidden border border-gray-100">
+                  <div 
+                    className="relative w-full h-56 rounded-xl overflow-hidden border border-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => handleSiteImageClick(image)}
+                  >
                     <Image
                       src={image.url}
                       alt={image.name}
@@ -160,7 +191,7 @@ export default function MediaGalleryPage() {
                     />
                   </div>
                   <div>
-                    <h4 className="text-lg font-semibold text-gray-800">{image.name}</h4>
+                    <h4 className="text-lg font-semibold text-gray-800">{removeFileExtension(image.name)}</h4>
                   </div>
                 </div>
               ))}
@@ -186,7 +217,10 @@ export default function MediaGalleryPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {architecturalDiagrams.map((diagram) => (
                 <div key={diagram.name} className="space-y-3">
-                  <div className="relative w-full h-48 rounded-xl overflow-hidden border border-gray-100 bg-white">
+                  <div 
+                    className="relative w-full h-48 rounded-xl overflow-hidden border border-gray-100 bg-white cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => handleDiagramClick(diagram)}
+                  >
                     {diagram.isPdf ? (
                       <div className="w-full h-full flex items-center justify-center bg-gray-50">
                         <FileText className="h-12 w-12 text-gray-400" />
@@ -202,7 +236,7 @@ export default function MediaGalleryPage() {
                     )}
                   </div>
                   <div>
-                    <h4 className="text-base font-semibold text-gray-800">{diagram.name}</h4>
+                    <h4 className="text-base font-semibold text-gray-800">{removeFileExtension(diagram.name)}</h4>
                   </div>
                 </div>
               ))}
@@ -210,6 +244,17 @@ export default function MediaGalleryPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Image Preview Modal */}
+      {allImages.length > 0 && (
+        <ImagePreviewModal
+          isOpen={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          images={allImages}
+          currentIndex={previewIndex}
+          onIndexChange={setPreviewIndex}
+        />
+      )}
     </div>
   );
 }

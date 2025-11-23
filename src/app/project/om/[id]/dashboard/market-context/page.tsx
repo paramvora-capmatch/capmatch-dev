@@ -28,22 +28,22 @@ export default function MarketContextPage() {
       metrics: (
         <div className="space-y-3">
           <PopulationHeatmap compact={true} />
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <p className="text-gray-500">Population</p>
-              <p className="font-medium">425,000</p>
+              <p className="text-xs text-gray-500">Population</p>
+              <p className="text-sm font-medium">425,000</p>
             </div>
             <div>
-              <p className="text-gray-500">5yr Growth</p>
-              <p className="font-medium text-green-600">+14.2%</p>
+              <p className="text-xs text-gray-500">5yr Growth</p>
+              <p className="text-sm font-medium text-green-600">+14.2%</p>
             </div>
             <div>
-              <p className="text-gray-500">Median Age</p>
-              <p className="font-medium">32.5</p>
+              <p className="text-xs text-gray-500">Median Age</p>
+              <p className="text-sm font-medium">32.5</p>
             </div>
             <div>
-              <p className="text-gray-500">College Grad%</p>
-              <p className="font-medium">45%</p>
+              <p className="text-xs text-gray-500">College Grad%</p>
+              <p className="text-sm font-medium">45%</p>
             </div>
           </div>
         </div>
@@ -58,22 +58,22 @@ export default function MarketContextPage() {
       metrics: (
         <div className="space-y-3">
           <EmploymentMap compact={true} />
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <p className="text-gray-500">Unemployment</p>
-              <p className="font-medium text-green-600">3.2%</p>
+              <p className="text-xs text-gray-500">Unemployment</p>
+              <p className="text-sm font-medium text-green-600">3.2%</p>
             </div>
             <div>
-              <p className="text-gray-500">Job Growth</p>
-              <p className="font-medium text-green-600">+3.5%</p>
+              <p className="text-xs text-gray-500">Job Growth</p>
+              <p className="text-sm font-medium text-green-600">+3.5%</p>
             </div>
             <div>
-              <p className="text-gray-500">Total Jobs</p>
-              <p className="font-medium">42,000</p>
+              <p className="text-xs text-gray-500">Total Jobs</p>
+              <p className="text-sm font-medium">42,000</p>
             </div>
             <div>
-              <p className="text-gray-500">Avg Growth</p>
-              <p className="font-medium text-green-600">+8.2%</p>
+              <p className="text-xs text-gray-500">Avg Growth</p>
+              <p className="text-sm font-medium text-green-600">+8.2%</p>
             </div>
           </div>
         </div>
@@ -88,22 +88,22 @@ export default function MarketContextPage() {
       metrics: (
         <div className="space-y-3">
           <SupplyDemandMap compact={true} />
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <p className="text-gray-500">Units U/C</p>
-              <p className="font-medium">2,450</p>
+              <p className="text-xs text-gray-500">Units U/C</p>
+              <p className="text-sm font-medium">2,450</p>
             </div>
             <div>
-              <p className="text-gray-500">24mo Pipeline</p>
-              <p className="font-medium">4,200</p>
+              <p className="text-xs text-gray-500">24mo Pipeline</p>
+              <p className="text-sm font-medium">4,200</p>
             </div>
             <div>
-              <p className="text-gray-500">Current Supply</p>
-              <p className="font-medium">12,500</p>
+              <p className="text-xs text-gray-500">Current Supply</p>
+              <p className="text-sm font-medium">12,500</p>
             </div>
             <div>
-              <p className="text-gray-500">Occupancy</p>
-              <p className="font-medium text-green-600">93.5%</p>
+              <p className="text-xs text-gray-500">Occupancy</p>
+              <p className="text-sm font-medium text-green-600">93.5%</p>
             </div>
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function MarketContextPage() {
           </div>
           <div className="pt-2 border-t">
             <p className="text-xs text-gray-500 mb-1">Total Incentive Value</p>
-            <p className="text-lg font-semibold text-green-600">$2.4M</p>
+            <p className="text-xl font-semibold text-green-600">$2.4M</p>
           </div>
         </div>
       ),

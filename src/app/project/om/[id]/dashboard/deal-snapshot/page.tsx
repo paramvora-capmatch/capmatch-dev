@@ -55,7 +55,7 @@ export default function DealSnapshotPage() {
             id: 'key-terms',
             title: 'Key Terms',
             icon: FileText,
-            color: 'from-purple-400 to-purple-500',
+            color: 'from-blue-400 to-blue-500',
             href: `/project/om/${projectId}/dashboard/deal-snapshot/key-terms`,
             metrics: (
                 <div className="space-y-3">
@@ -67,10 +67,10 @@ export default function DealSnapshotPage() {
                             </div>
                             <p className="font-bold text-gray-900 text-xs leading-tight">{dealSnapshotDetails.keyTerms.rate}</p>
                         </div>
-                        <div className="text-sm p-2 bg-white rounded-lg border-2 border-amber-200 hover:border-amber-400 transition-colors">
+                        <div className="text-sm p-2 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
                             <div className="flex items-center space-x-1 mb-1">
-                                <Clock className="h-3 w-3 text-amber-600" />
-                                <p className="text-xs font-medium text-amber-600">Term</p>
+                                <Clock className="h-3 w-3 text-red-600" />
+                                <p className="text-xs font-medium text-red-600">Term</p>
                             </div>
                             <p className="font-bold text-gray-900 text-xs">{dealSnapshotDetails.keyTerms.term}</p>
                         </div>
@@ -81,31 +81,31 @@ export default function DealSnapshotPage() {
                             </div>
                             <p className="font-bold text-gray-900 text-xs leading-tight">{dealSnapshotDetails.keyTerms.recourse}</p>
                         </div>
-                        <div className="text-sm p-2 bg-white rounded-lg border-2 border-orange-200 hover:border-orange-400 transition-colors">
+                        <div className="text-sm p-2 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
                             <div className="flex items-center space-x-1 mb-1">
-                                <DollarSign className="h-3 w-3 text-orange-600" />
-                                <p className="text-xs font-medium text-orange-600">Origination</p>
+                                <DollarSign className="h-3 w-3 text-red-600" />
+                                <p className="text-xs font-medium text-red-600">Origination</p>
                             </div>
                             <p className="font-bold text-gray-900 text-xs">{dealSnapshotDetails.keyTerms.origination}</p>
                         </div>
                     </div>
-                    <div className="pt-2 border-t-2 border-violet-200">
+                    <div className="pt-2 border-t-2 border-blue-200">
                         <div className="flex items-center space-x-1 mb-2">
-                            <FileText className="h-3 w-3 text-violet-600" />
-                            <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide">Key Covenants</p>
+                            <FileText className="h-3 w-3 text-blue-600" />
+                            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Key Covenants</p>
                         </div>
                         <div className="space-y-1.5">
-                            <div className="flex items-center justify-between p-1.5 bg-violet-50 rounded border border-violet-200">
-                                <span className="text-xs font-medium text-violet-700">Min DSCR</span>
-                                <span className="text-xs font-bold text-violet-900">{dealSnapshotDetails.keyTerms.covenants.minDSCR}</span>
+                            <div className="flex items-center justify-between p-1.5 bg-blue-50 rounded border border-blue-200">
+                                <span className="text-xs font-medium text-blue-700">Min DSCR</span>
+                                <span className="text-xs font-bold text-blue-900">{dealSnapshotDetails.keyTerms.covenants.minDSCR}</span>
                             </div>
-                            <div className="flex items-center justify-between p-1.5 bg-purple-50 rounded border border-purple-200">
-                                <span className="text-xs font-medium text-purple-700">Max LTV / LTC</span>
-                                <span className="text-xs font-bold text-purple-900">{dealSnapshotDetails.keyTerms.covenants.maxLTV}</span>
+                            <div className="flex items-center justify-between p-1.5 bg-blue-50 rounded border border-blue-200">
+                                <span className="text-xs font-medium text-blue-700">Max LTV / LTC</span>
+                                <span className="text-xs font-bold text-blue-900">{dealSnapshotDetails.keyTerms.covenants.maxLTV}</span>
                             </div>
-                            <div className="flex items-center justify-between p-1.5 bg-indigo-50 rounded border border-indigo-200">
-                                <span className="text-xs font-medium text-indigo-700">Liquidity</span>
-                                <span className="text-xs font-bold text-indigo-900">{dealSnapshotDetails.keyTerms.covenants.minLiquidity}</span>
+                            <div className="flex items-center justify-between p-1.5 bg-blue-50 rounded border border-blue-200">
+                                <span className="text-xs font-medium text-blue-700">Liquidity</span>
+                                <span className="text-xs font-bold text-blue-900">{dealSnapshotDetails.keyTerms.covenants.minLiquidity}</span>
                             </div>
                         </div>
                     </div>
@@ -131,7 +131,7 @@ export default function DealSnapshotPage() {
                                             ? 'bg-green-500'
                                             : milestone.status === 'current'
                                             ? 'bg-blue-500'
-                                            : 'bg-amber-400'
+                                            : 'bg-red-400'
                                     }`} />
                                 </div>
                             </div>
@@ -144,7 +144,7 @@ export default function DealSnapshotPage() {
             id: 'risk-analysis',
             title: 'Risk Flags & Mitigants',
             icon: AlertTriangle,
-            color: 'from-amber-400 to-amber-500',
+            color: 'from-red-400 to-red-500',
             href: `/project/om/${projectId}/dashboard/deal-snapshot/risk-analysis`,
             metrics: (
                 <div className="space-y-3">
@@ -161,7 +161,7 @@ export default function DealSnapshotPage() {
                                     </div>
                                     <span className={`text-xs px-2 py-1 rounded ${
                                         item.level === 'Low' ? 'bg-green-100 text-green-700' :
-                                        item.level === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                                        item.level === 'Medium' ? 'bg-red-100 text-red-700' :
                                         'bg-red-100 text-red-700'
                                     }`}>
                                         {item.level}

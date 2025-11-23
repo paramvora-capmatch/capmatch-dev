@@ -11,7 +11,7 @@ export default function SupplyDemandPage() {
     const occ = parseFloat(occupancy);
     if (occ >= 95) return "bg-green-100 text-green-800";
     if (occ >= 90) return "bg-blue-100 text-blue-800";
-    if (occ >= 85) return "bg-yellow-100 text-yellow-800";
+    if (occ >= 85) return "bg-red-100 text-red-800";
     return "bg-red-100 text-red-800";
   };
 
@@ -62,14 +62,14 @@ export default function SupplyDemandPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <Clock className="h-5 w-5 text-yellow-500 mr-2" />
+              <Clock className="h-5 w-5 text-red-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">
                 Under Construction
               </h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-yellow-600">
+            <p className="text-3xl font-bold text-red-600">
               {marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()}
             </p>
             <p className="text-sm text-gray-500 mt-1">Units in progress</p>
@@ -79,14 +79,14 @@ export default function SupplyDemandPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <BarChart3 className="h-5 w-5 text-purple-500 mr-2" />
+              <BarChart3 className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">
                 Planned 24M
               </h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">
+            <p className="text-3xl font-bold text-blue-600">
               {marketContextDetails.supplyAnalysis.planned24Months.toLocaleString()}
             </p>
             <p className="text-sm text-gray-500 mt-1">Future units</p>
@@ -149,14 +149,14 @@ export default function SupplyDemandPage() {
                   {marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()}{" "}
                   units
                 </span>
-                <Badge className="bg-yellow-100 text-yellow-800">
+                <Badge className="bg-red-100 text-red-800">
                   In Progress
                 </Badge>
               </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-4">
               <div
-                className="h-4 rounded-full bg-yellow-500"
+                className="h-4 rounded-full bg-red-500"
                 style={{
                   width: `${
                     (marketContextDetails.supplyAnalysis.underConstruction /
@@ -176,12 +176,12 @@ export default function SupplyDemandPage() {
                   {marketContextDetails.supplyAnalysis.planned24Months.toLocaleString()}{" "}
                   units
                 </span>
-                <Badge className="bg-purple-100 text-purple-800">Planned</Badge>
+                <Badge className="bg-blue-100 text-blue-800">Planned</Badge>
               </div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-4">
               <div
-                className="h-4 rounded-full bg-purple-500"
+                className="h-4 rounded-full bg-blue-500"
                 style={{
                   width: `${
                     (marketContextDetails.supplyAnalysis.planned24Months /
@@ -368,7 +368,7 @@ export default function SupplyDemandPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pressure</span>
-                  <Badge className="bg-yellow-100 text-yellow-800">
+                  <Badge className="bg-red-100 text-red-800">
                     Moderate
                   </Badge>
                 </div>
@@ -431,15 +431,15 @@ export default function SupplyDemandPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
-                  <span className="text-yellow-500 mr-2">•</span>
+                  <span className="text-red-500 mr-2">•</span>
                   Pipeline delivery timing
                 </li>
                 <li className="flex items-center">
-                  <span className="text-yellow-500 mr-2">•</span>
+                  <span className="text-red-500 mr-2">•</span>
                   Economic sensitivity
                 </li>
                 <li className="flex items-center">
-                  <span className="text-yellow-500 mr-2">•</span>
+                  <span className="text-red-500 mr-2">•</span>
                   Interest rate impact
                 </li>
               </ul>

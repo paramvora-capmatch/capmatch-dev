@@ -11,7 +11,7 @@ export default function RiskAnalysisPage() {
       case "high":
         return "border-red-200 bg-red-50";
       case "medium":
-        return "border-yellow-200 bg-yellow-50";
+        return "border-red-200 bg-red-50";
       case "low":
         return "border-green-200 bg-green-50";
       default:
@@ -22,7 +22,7 @@ export default function RiskAnalysisPage() {
   const getProbabilityColor = (probability: string) => {
     const prob = parseInt(probability);
     if (prob >= 50) return "bg-red-100 text-red-800";
-    if (prob >= 25) return "bg-yellow-100 text-yellow-800";
+    if (prob >= 25) return "bg-red-100 text-red-800";
     return "bg-green-100 text-green-800";
   };
 
@@ -49,17 +49,17 @@ export default function RiskAnalysisPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-yellow-200 bg-yellow-50">
+        <Card className="border-red-200 bg-red-50">
           <CardHeader className="pb-2">
-            <h3 className="text-lg font-semibold text-yellow-800">
+            <h3 className="text-lg font-semibold text-red-800">
               Medium Risk
             </h3>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-yellow-600">
+            <p className="text-3xl font-bold text-red-600">
               {dealSnapshotDetails.riskMatrix.medium.length}
             </p>
-            <p className="text-sm text-yellow-600 mt-1">Monitor closely</p>
+            <p className="text-sm text-red-600 mt-1">Monitor closely</p>
           </CardContent>
         </Card>
 
@@ -134,7 +134,7 @@ export default function RiskAnalysisPage() {
             {/* Medium Risk */}
             {dealSnapshotDetails.riskMatrix.medium.length > 0 && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-yellow-800 flex items-center">
+                <h3 className="text-lg font-semibold text-red-800 flex items-center">
                   <Info className="h-5 w-5 mr-2" />
                   Medium Risk Items
                 </h3>
@@ -148,10 +148,10 @@ export default function RiskAnalysisPage() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="font-semibold text-yellow-900 mb-2">
+                          <h4 className="font-semibold text-red-900 mb-2">
                             {risk.risk as string}
                           </h4>
-                          <p className="text-yellow-800 text-sm mb-3">
+                          <p className="text-red-800 text-sm mb-3">
                             {risk.mitigation as string}
                           </p>
                           <Badge

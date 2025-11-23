@@ -7,7 +7,9 @@ import { useProjects } from "@/hooks/useProjects";
 import { QuadrantGrid } from "@/components/om/QuadrantGrid";
 import { MetricCard } from "@/components/om/widgets/MetricCard";
 import { AIInsightsBar } from "@/components/om/AIInsightsBar";
+import { ImageSlideshow } from "@/components/om/ImageSlideshow";
 import { useOMDashboard } from "@/contexts/OMDashboardContext";
+import { cn } from "@/utils/cn";
 import {
   scenarioData,
   timelineData,
@@ -29,7 +31,7 @@ export default function OMDashboardPage() {
   const projectId = params?.id as string;
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
-  const { scenario } = useOMDashboard();
+  const { scenario, setScenario } = useOMDashboard();
   const data = scenarioData[scenario];
 
   if (!project) {
@@ -127,18 +129,18 @@ export default function OMDashboardPage() {
             </p>
             <div className="space-y-3">
               {/* Quick stats */}
-              <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-2 rounded hover:bg-gray-100 transition-colors duration-200">
+              <div className="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded hover:bg-gray-100 transition-colors duration-200">
                 <div className="text-center">
-                  <div className="text-lg font-bold text-green-600">
+                  <div className="text-xl font-bold text-green-600">
                     {projectOverview.propertyStats.parkingRatio.toFixed(2)}x
                   </div>
-                  <div className="text-gray-500">Parking Ratio</div>
+                  <div className="text-xs text-gray-500">Parking Ratio</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-lg font-bold text-blue-600">
+                  <div className="text-xl font-bold text-blue-600">
                     {projectOverview.propertyStats.affordableUnits}
                   </div>
-                  <div className="text-gray-500">Workforce Units</div>
+                  <div className="text-xs text-gray-500">Workforce Units</div>
                 </div>
               </div>
             </div>
@@ -179,14 +181,14 @@ export default function OMDashboardPage() {
                 <PopulationHeatmap compact={true} />
               </div>
               {/* Quick supply stats */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-sm">
                   <span className="text-gray-500">U/C:</span>
                   <span className="font-medium ml-1">
                     {marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()}
                   </span>
                 </div>
-                <div>
+                <div className="text-sm">
                   <span className="text-gray-500">Pipeline:</span>
                   <span className="font-medium ml-1">
                     {marketContextDetails.supplyAnalysis.planned24Months.toLocaleString()}
@@ -246,7 +248,7 @@ export default function OMDashboardPage() {
                 ].map(({ key, label, irr, color, icon: Icon }) => (
                   <div key={key} className="text-center group cursor-pointer">
                     <div
-                      className={`bg-gradient-to-br ${color} text-white text-lg p-2 rounded-lg mb-1 shadow-sm group-hover:shadow-lg group-hover:scale-105 transition-all duration-200`}
+                      className={`bg-gradient-to-br ${color} text-white text-sm p-2 rounded-lg mb-1 shadow-sm group-hover:shadow-lg group-hover:scale-105 transition-all duration-200`}
                     >
                       <Icon className="h-5 w-5 mx-auto group-hover:scale-110 transition-transform duration-200" />
                     </div>
@@ -254,7 +256,7 @@ export default function OMDashboardPage() {
                       {label}
                     </div>
                     <div
-                      className={`text-lg font-bold ${
+                      className={`text-xl font-bold ${
                         key === "downside"
                           ? "text-red-600"
                           : key === "base"
@@ -276,7 +278,59 @@ export default function OMDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Image Slideshow */}
+      {project?.owner_org_id && (
+        <ImageSlideshow
+          projectId={projectId}
+          orgId={project.owner_org_id}
+          autoPlayInterval={5000}
+          height="h-80 md:h-96"
+        />
+      )}
+
+      {/* Case Switcher (Downside/Base/Upside) */}
+      <div className="flex justify-center">
+        <div className="inline-flex items-center bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+          <button
+            onClick={() => setScenario('downside')}
+            className={cn(
+              "px-6 py-2 rounded-md text-sm font-medium transition-all duration-200",
+              scenario === 'downside'
+                ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-md"
+                : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+            )}
+          >
+            Downside
+          </button>
+          <button
+            onClick={() => setScenario('base')}
+            className={cn(
+              "px-6 py-2 rounded-md text-sm font-medium transition-all duration-200",
+              scenario === 'base'
+                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md"
+                : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+            )}
+          >
+            Base Case
+          </button>
+          <button
+            onClick={() => setScenario('upside')}
+            className={cn(
+              "px-6 py-2 rounded-md text-sm font-medium transition-all duration-200",
+              scenario === 'upside'
+                ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md"
+                : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+            )}
+          >
+            Upside
+          </button>
+        </div>
+      </div>
+
+      {/* CapMatch Deal Room Insights */}
       <AIInsightsBar scenario={scenario} />
+      
+      {/* Quadrant Cards */}
       <QuadrantGrid quadrants={quadrants} />
     </div>
   );
