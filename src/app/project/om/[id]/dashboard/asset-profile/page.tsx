@@ -1,7 +1,7 @@
 // src/app/project/om/[id]/dashboard/asset-profile/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
@@ -19,12 +19,7 @@ export default function AssetProfilePage() {
   const [siteImageCount, setSiteImageCount] = useState(0);
   const [diagramCount, setDiagramCount] = useState(0);
   
-  useEffect(() => {
-    if (!projectId || !project?.owner_org_id) return;
-    loadMediaCounts();
-  }, [projectId, project]);
-
-  const loadMediaCounts = async () => {
+  const loadMediaCounts = useCallback(async () => {
     if (!projectId || !project?.owner_org_id) return;
     
     try {
@@ -54,7 +49,12 @@ export default function AssetProfilePage() {
     } catch (error) {
       console.error('Error loading media counts:', error);
     }
-  };
+  }, [projectId, project]);
+
+  useEffect(() => {
+    if (!projectId || !project?.owner_org_id) return;
+    loadMediaCounts();
+  }, [projectId, project, loadMediaCounts]);
   
   if (!project) return <div>Project not found</div>;
   

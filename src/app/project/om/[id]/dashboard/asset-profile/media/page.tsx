@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -24,12 +24,7 @@ export default function MediaGalleryPage() {
   const [architecturalDiagrams, setArchitecturalDiagrams] = useState<MediaFile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!projectId || !project) return;
-    loadMedia();
-  }, [projectId, project]);
-
-  const loadMedia = async () => {
+  const loadMedia = useCallback(async () => {
     if (!projectId || !project?.owner_org_id) return;
     
     setLoading(true);
@@ -110,7 +105,12 @@ export default function MediaGalleryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, project]);
+
+  useEffect(() => {
+    if (!projectId || !project) return;
+    loadMedia();
+  }, [projectId, project, loadMedia]);
 
   if (!project) {
     return <div className="text-center py-8">Project not found</div>;

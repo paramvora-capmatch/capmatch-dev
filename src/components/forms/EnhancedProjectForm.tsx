@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { FormWizard, Step } from "../ui/FormWizard";
 // Removed Card wrappers to match Borrower styling (single container only)
 import { FormGroup } from "../ui/Form";
@@ -232,13 +233,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
   const [loading, setLoading] = useState(true);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
 
-  // Load existing images
-  useEffect(() => {
-    if (!orgId || !projectId) return;
-    loadImages();
-  }, [orgId, projectId]);
-
-  const loadImages = async () => {
+  const loadImages = useCallback(async () => {
     if (!orgId || !projectId) return;
     setLoading(true);
     try {
@@ -274,7 +269,13 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [orgId, projectId]);
+
+  // Load existing images
+  useEffect(() => {
+    if (!orgId || !projectId) return;
+    loadImages();
+  }, [orgId, projectId, loadImages]);
 
   const handleFileUpload = async (
     files: FileList | null,
@@ -433,11 +434,15 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             {siteImages.map((fileName) => (
               <div key={fileName} className="relative group">
-                <img
-                  src={getImageUrl(fileName, "site-images")}
-                  alt={fileName}
-                  className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                />
+                <div className="relative w-full h-32 rounded-lg border border-gray-200 overflow-hidden">
+                  <Image
+                    src={getImageUrl(fileName, "site-images")}
+                    alt={fileName}
+                    fill
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                    className="object-cover"
+                  />
+                </div>
                 {!disabled && (
                   <button
                     type="button"
@@ -490,11 +495,15 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
                     <FileText className="h-8 w-8 text-gray-400" />
                   </div>
                 ) : (
-                  <img
-                    src={getImageUrl(fileName, "architectural-diagrams")}
-                    alt={fileName}
-                    className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                  />
+                  <div className="relative w-full h-32 rounded-lg border border-gray-200 overflow-hidden">
+                    <Image
+                      src={getImageUrl(fileName, "architectural-diagrams")}
+                      alt={fileName}
+                      fill
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                      className="object-cover"
+                    />
+                  </div>
                 )}
                 {!disabled && (
                   <button
@@ -3382,7 +3391,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
       },
       // Documents and Review steps removed (DocumentManager exists above; autosave in place)
     ],
-    [formData, handleInputChange, onAskAI, lockedSections, isFieldLocked, renderFieldLabel, toggleSectionLock]
+    [formData, handleInputChange, onAskAI, lockedSections, isFieldLocked, renderFieldLabel, toggleSectionLock, activeOrg?.id]
   );
   return (
     <FormProvider initialFormData={formData as Record<string, any>}>
