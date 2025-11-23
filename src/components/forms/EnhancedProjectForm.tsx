@@ -507,23 +507,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
           e.stopPropagation();
         }}
         className={cn(
-          "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all relative z-30 border cursor-pointer",
+          "flex items-center justify-center p-1 rounded transition-colors relative z-30 cursor-pointer",
           locked
-            ? "text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100"
-            : "text-gray-600 bg-gray-50 border-gray-200 hover:bg-gray-100"
+            ? "text-amber-600 hover:text-amber-700"
+            : "text-gray-500 hover:text-gray-600"
         )}
         title={locked ? "Unlock field" : "Lock field"}
       >
         {locked ? (
-          <>
-            <Lock className="h-3.5 w-3.5" />
-            <span className="text-xs">Unlock</span>
-          </>
+          <Lock className="h-4 w-4" />
         ) : (
-          <>
-            <Unlock className="h-3.5 w-3.5" />
-            <span className="text-xs">Lock</span>
-          </>
+          <Unlock className="h-4 w-4" />
         )}
       </button>
     );

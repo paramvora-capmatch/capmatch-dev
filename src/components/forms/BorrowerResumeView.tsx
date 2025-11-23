@@ -8,9 +8,37 @@ import { User, Briefcase, DollarSign, Globe, Award, AlertTriangle } from 'lucide
 
 interface BorrowerResumeViewProps {
   resume: Partial<BorrowerResumeContent>;
+  autofillAnimationKey?: number;
+  showAutofillSuccess?: boolean;
 }
 
-export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }) => {
+// Animated field wrapper component for cascading fade-in effect
+const AnimatedField: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <motion.div
+      variants={{
+        hidden: { opacity: 0 },
+        visible: { opacity: 1 },
+        autofill: { 
+          opacity: [0, 1],
+          y: [10, 0],
+          transition: {
+            duration: 0.5,
+            ease: [0.25, 0.46, 0.45, 0.94]
+          }
+        }
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ 
+  resume, 
+  autofillAnimationKey = 0,
+  showAutofillSuccess = false 
+}) => {
   const formatArray = (arr: string[] | null | undefined): string => {
     if (!arr || arr.length === 0) return 'N/A';
     return arr.join(', ');
@@ -24,12 +52,19 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
   return (
     <div className="flex-1 p-4 relative z-10">
       <motion.div
+        key={autofillAnimationKey > 0 ? `autofill-${autofillAnimationKey}` : 'normal'}
         initial="hidden"
-        animate="visible"
+        animate={showAutofillSuccess && autofillAnimationKey > 0 ? "autofill" : "visible"}
         variants={{
           visible: {
             transition: {
-              staggerChildren: 0.1,
+              staggerChildren: 0.05,
+            },
+          },
+          autofill: {
+            transition: {
+              staggerChildren: 0.025,
+              delayChildren: 0.05,
             },
           },
         }}
@@ -45,14 +80,28 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
             <User className="h-4 w-4 mr-2 text-blue-600" /> Basic Information
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            <KeyValueDisplay label="Full Legal Name" value={resume.fullLegalName} />
-            <KeyValueDisplay label="Primary Entity Name" value={resume.primaryEntityName} />
-            <KeyValueDisplay label="Entity Structure" value={resume.primaryEntityStructure} />
-            <KeyValueDisplay label="Contact Email" value={resume.contactEmail} />
-            <KeyValueDisplay label="Contact Phone" value={resume.contactPhone} />
-            <KeyValueDisplay label="Mailing Address" value={resume.contactAddress} />
+            <AnimatedField>
+              <KeyValueDisplay label="Full Legal Name" value={resume.fullLegalName} />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Primary Entity Name" value={resume.primaryEntityName} />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Entity Structure" value={resume.primaryEntityStructure} />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Contact Email" value={resume.contactEmail} />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Contact Phone" value={resume.contactPhone} />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Mailing Address" value={resume.contactAddress} />
+            </AnimatedField>
             {resume.bioNarrative && (
-              <KeyValueDisplay label="Bio" value={resume.bioNarrative} fullWidth />
+              <AnimatedField>
+                <KeyValueDisplay label="Bio" value={resume.bioNarrative} fullWidth />
+              </AnimatedField>
             )}
           </div>
         </motion.div>
@@ -96,12 +145,22 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
             <Briefcase className="h-4 w-4 mr-2 text-blue-600" /> Experience & Background
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            <KeyValueDisplay label="Years of CRE Experience" value={resume.yearsCREExperienceRange} />
-            <KeyValueDisplay label="Total Value Deals Closed" value={resume.totalDealValueClosedRange} />
-            <KeyValueDisplay label="Asset Classes Experience" value={formatArray(resume.assetClassesExperience)} fullWidth />
-            <KeyValueDisplay label="Geographic Markets Experience" value={formatArray(resume.geographicMarketsExperience)} fullWidth />
+            <AnimatedField>
+              <KeyValueDisplay label="Years of CRE Experience" value={resume.yearsCREExperienceRange} />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Total Value Deals Closed" value={resume.totalDealValueClosedRange} />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Asset Classes Experience" value={formatArray(resume.assetClassesExperience)} fullWidth />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Geographic Markets Experience" value={formatArray(resume.geographicMarketsExperience)} fullWidth />
+            </AnimatedField>
             {resume.existingLenderRelationships && (
-              <KeyValueDisplay label="Existing Lenders" value={resume.existingLenderRelationships} fullWidth />
+              <AnimatedField>
+                <KeyValueDisplay label="Existing Lenders" value={resume.existingLenderRelationships} fullWidth />
+              </AnimatedField>
             )}
           </div>
         </motion.div>
@@ -116,9 +175,15 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
             <DollarSign className="h-4 w-4 mr-2 text-blue-600" /> Financial Information
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            <KeyValueDisplay label="Credit Score Range" value={resume.creditScoreRange} />
-            <KeyValueDisplay label="Net Worth Range" value={resume.netWorthRange} />
-            <KeyValueDisplay label="Liquidity Range" value={resume.liquidityRange} />
+            <AnimatedField>
+              <KeyValueDisplay label="Credit Score Range" value={resume.creditScoreRange} />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Net Worth Range" value={resume.netWorthRange} />
+            </AnimatedField>
+            <AnimatedField>
+              <KeyValueDisplay label="Liquidity Range" value={resume.liquidityRange} />
+            </AnimatedField>
           </div>
           
           {/* Financial Background */}
@@ -130,9 +195,15 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
                 <AlertTriangle className="mr-2 h-4 w-4 text-amber-600" /> Financial Background
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
-                <KeyValueDisplay label="Bankruptcy (7yr)" value={formatBoolean(resume.bankruptcyHistory)} />
-                <KeyValueDisplay label="Foreclosure (7yr)" value={formatBoolean(resume.foreclosureHistory)} />
-                <KeyValueDisplay label="Litigation" value={formatBoolean(resume.litigationHistory)} />
+                <AnimatedField>
+                  <KeyValueDisplay label="Bankruptcy (7yr)" value={formatBoolean(resume.bankruptcyHistory)} />
+                </AnimatedField>
+                <AnimatedField>
+                  <KeyValueDisplay label="Foreclosure (7yr)" value={formatBoolean(resume.foreclosureHistory)} />
+                </AnimatedField>
+                <AnimatedField>
+                  <KeyValueDisplay label="Litigation" value={formatBoolean(resume.litigationHistory)} />
+                </AnimatedField>
               </div>
             </div>
           )}
@@ -150,10 +221,14 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({ resume }
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
               {resume.linkedinUrl && (
-                <KeyValueDisplay label="LinkedIn URL" value={resume.linkedinUrl} />
+                <AnimatedField>
+                  <KeyValueDisplay label="LinkedIn URL" value={resume.linkedinUrl} />
+                </AnimatedField>
               )}
               {resume.websiteUrl && (
-                <KeyValueDisplay label="Company Website" value={resume.websiteUrl} />
+                <AnimatedField>
+                  <KeyValueDisplay label="Company Website" value={resume.websiteUrl} />
+                </AnimatedField>
               )}
             </div>
           </motion.div>

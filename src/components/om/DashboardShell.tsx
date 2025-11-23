@@ -200,7 +200,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                 isCollapsed={isChatCollapsed}
                 onCollapseChange={setIsChatCollapsed}
                 topOffsetClassName="top-32"
-                widthClassName="w-[45%] md:w-[50%] xl:w-[55%] max-w-[700px]"
+                widthClassName="w-[40%]"
             />
         </div>
     );
