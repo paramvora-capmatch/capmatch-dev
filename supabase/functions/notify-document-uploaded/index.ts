@@ -1,5 +1,11 @@
 "use strict";
 
+/**
+ * @deprecated
+ * This edge function has been superseded by `notify-fan-out`.
+ * It remains in the repo temporarily for reference and should not be invoked.
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
