@@ -26,7 +26,7 @@ export default function UnitMixPage() {
     const colors: { [key: string]: string } = {
       studios: 'bg-blue-500',
       oneBed: 'bg-green-500',
-      twoBed: 'bg-purple-500',
+      twoBed: 'bg-blue-500',
     };
     return colors[type] || 'bg-gray-500';
   };
@@ -105,12 +105,12 @@ export default function UnitMixPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <DollarSign className="h-5 w-5 text-purple-500 mr-2" />
+              <DollarSign className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Avg Rent</h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">
+            <p className="text-3xl font-bold text-blue-600">
               ${Math.round(blendedAverageRent).toLocaleString()}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per unit average</p>
@@ -122,7 +122,7 @@ export default function UnitMixPage() {
             <h3 className="text-lg font-semibold text-gray-800">Avg SF</h3>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-orange-600">
+            <p className="text-3xl font-bold text-red-600">
               {Math.round(totalRentableSF / totalUnits)}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per unit average</p>
@@ -252,7 +252,7 @@ export default function UnitMixPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Luxury Tier</span>
-                  <Badge className="bg-purple-100 text-purple-800">Premium</Badge>
+                  <Badge className="bg-blue-100 text-blue-800">Premium</Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Target Market</span>

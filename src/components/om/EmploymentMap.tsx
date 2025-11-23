@@ -82,9 +82,9 @@ export default function EmploymentMap({ className = '', compact = false }: Emplo
     const colors: { [key: string]: string } = {
       'Technology': 'bg-blue-100 text-blue-800',
       'Healthcare': 'bg-green-100 text-green-800',
-      'Finance': 'bg-yellow-100 text-yellow-800',
-      'Government': 'bg-purple-100 text-purple-800',
-      'Biotechnology': 'bg-lime-100 text-lime-800'
+      'Finance': 'bg-red-100 text-red-800',
+      'Government': 'bg-blue-100 text-blue-800',
+      'Biotechnology': 'bg-green-100 text-green-800'
     };
     return colors[industry] || 'bg-gray-100 text-gray-800';
   };
@@ -238,7 +238,7 @@ export default function EmploymentMap({ className = '', compact = false }: Emplo
           <h4 className="font-semibold text-gray-800 text-sm mb-2">Employee Size</h4>
           <div className="space-y-1 text-xs">
             <div className="flex items-center">
-              <div className="w-3 h-3 rounded mr-2 bg-purple-500" />
+              <div className="w-3 h-3 rounded mr-2 bg-blue-500" />
               <span className="text-gray-700">10K+ employees</span>
             </div>
             <div className="flex items-center">

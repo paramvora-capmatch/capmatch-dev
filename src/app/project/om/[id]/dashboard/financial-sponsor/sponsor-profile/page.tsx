@@ -21,7 +21,7 @@ export default function SponsorProfilePage() {
     const irrNum = parseFloat(irr);
     if (irrNum >= 25) return "bg-green-100 text-green-800";
     if (irrNum >= 20) return "bg-blue-100 text-blue-800";
-    if (irrNum >= 15) return "bg-yellow-100 text-yellow-800";
+    if (irrNum >= 15) return "bg-green-100 text-green-800";
     return "bg-gray-100 text-gray-800";
   };
 
@@ -71,14 +71,14 @@ export default function SponsorProfilePage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <Users className="h-5 w-5 text-purple-500 mr-2" />
+              <Users className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">
                 Total Units
               </h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">
+            <p className="text-3xl font-bold text-blue-600">
               {financialDetails.sponsorProfile.totalUnits.toLocaleString()}
             </p>
             <p className="text-sm text-gray-500 mt-1">Units delivered</p>
@@ -88,14 +88,14 @@ export default function SponsorProfilePage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <TrendingUp className="h-5 w-5 text-orange-500 mr-2" />
+              <TrendingUp className="h-5 w-5 text-red-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">
                 Active Projects
               </h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-orange-600">
+            <p className="text-3xl font-bold text-red-600">
               {financialDetails.sponsorProfile.activeProjects}
             </p>
             <p className="text-sm text-gray-500 mt-1">Current developments</p>
@@ -261,7 +261,7 @@ export default function SponsorProfilePage() {
                       <div className="space-y-2">
                         {principal.achievements.map((achievement, idx) => (
                           <div key={idx} className="flex items-center">
-                            <Star className="h-3 w-3 text-yellow-500 mr-2" />
+                            <Star className="h-3 w-3 text-green-500 mr-2" />
                             <span className="text-sm text-gray-600">
                               {achievement}
                             </span>
@@ -357,7 +357,7 @@ export default function SponsorProfilePage() {
                               Strong
                             </Badge>
                           ) : (
-                            <Badge className="bg-yellow-100 text-yellow-800">
+                            <Badge className="bg-green-100 text-green-800">
                               Good
                             </Badge>
                           )}
@@ -478,22 +478,22 @@ export default function SponsorProfilePage() {
               </ul>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl p-6 border border-purple-100">
+            <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-6 border border-blue-100">
               <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
-                <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
                 Market Position
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-center">
-                  <span className="text-purple-500 mr-2">•</span>
+                  <span className="text-blue-500 mr-2">•</span>
                   Established lender relationships
                 </li>
                 <li className="flex items-center">
-                  <span className="text-purple-500 mr-2">•</span>
+                  <span className="text-blue-500 mr-2">•</span>
                   Strong local market knowledge
                 </li>
                 <li className="flex items-center">
-                  <span className="text-purple-500 mr-2">•</span>
+                  <span className="text-blue-500 mr-2">•</span>
                   Reputation for quality execution
                 </li>
               </ul>

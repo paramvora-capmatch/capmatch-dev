@@ -93,7 +93,7 @@ export default function InteractiveSiteMap({ className = '' }: InteractiveSiteMa
           >
             <Popup>
               <div className="text-center">
-                <Car className="h-5 w-5 mx-auto mb-2 text-purple-600" />
+                <Car className="h-5 w-5 mx-auto mb-2 text-blue-600" />
                 <h3 className="font-semibold text-gray-800">{area.label}</h3>
                 <p className="text-sm text-gray-600">108 Parking Spaces</p>
                 <p className="text-sm text-gray-600">Ratio: 1.2 per unit</p>

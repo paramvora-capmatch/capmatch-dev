@@ -10,7 +10,7 @@ export default function ComparablesPage() {
     const dist = parseFloat(distance);
     if (dist <= 0.5) return 'bg-green-100 text-green-800';
     if (dist <= 1.0) return 'bg-blue-100 text-blue-800';
-    if (dist <= 2.0) return 'bg-yellow-100 text-yellow-800';
+    if (dist <= 2.0) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
 
@@ -18,7 +18,7 @@ export default function ComparablesPage() {
     const occ = parseFloat(occupancy);
     if (occ >= 95) return 'bg-green-100 text-green-800';
     if (occ >= 90) return 'bg-blue-100 text-blue-800';
-    if (occ >= 85) return 'bg-yellow-100 text-yellow-800';
+    if (occ >= 85) return 'bg-green-100 text-green-800';
     return 'bg-red-100 text-red-800';
   };
 
@@ -26,7 +26,7 @@ export default function ComparablesPage() {
     const cap = parseFloat(capRate);
     if (cap <= 4.5) return 'bg-green-100 text-green-800';
     if (cap <= 5.5) return 'bg-blue-100 text-blue-800';
-    if (cap <= 6.5) return 'bg-yellow-100 text-yellow-800';
+    if (cap <= 6.5) return 'bg-green-100 text-green-800';
     return 'bg-red-100 text-red-800';
   };
 
@@ -78,12 +78,12 @@ export default function ComparablesPage() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="pb-2">
             <div className="flex items-center">
-              <BarChart3 className="h-5 w-5 text-purple-500 mr-2" />
+              <BarChart3 className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold text-gray-800">Avg Cap Rate</h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">{avgCapRate.toFixed(1)}%</p>
+            <p className="text-3xl font-bold text-blue-600">{avgCapRate.toFixed(1)}%</p>
             <p className="text-sm text-gray-500 mt-1">Market average</p>
           </CardContent>
         </Card>
@@ -93,7 +93,7 @@ export default function ComparablesPage() {
             <h3 className="text-lg font-semibold text-gray-800">Avg Distance</h3>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-orange-600">
+            <p className="text-3xl font-bold text-red-600">
               {(assetProfileDetails.comparableDetails.reduce((sum, comp) => sum + parseFloat(comp.distance.replace(/[^\d.]/g, '')), 0) / assetProfileDetails.comparableDetails.length).toFixed(1)} mi
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
@@ -232,7 +232,7 @@ export default function ComparablesPage() {
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Market Average</span>
-                  <Badge className="bg-purple-100 text-blue-800">{avgCapRate.toFixed(1)}%</Badge>
+                  <Badge className="bg-blue-100 text-blue-800">{avgCapRate.toFixed(1)}%</Badge>
                 </div>
               </div>
             </div>
@@ -292,7 +292,7 @@ export default function ComparablesPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pipeline</span>
-                  <Badge className="bg-yellow-100 text-yellow-800">{'<'}6K units (24mo)</Badge>
+                  <Badge className="bg-green-100 text-green-800">{'<'}6K units (24mo)</Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Rent Growth</span>

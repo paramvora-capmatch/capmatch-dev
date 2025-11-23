@@ -73,7 +73,7 @@ export default function ZoningMap({
         [32.7793, -96.7886],
         [32.7793, -96.7892],
       ],
-      color: "#f59e0b",
+      color: "#ef4444",
       description: "Commercial - 2 Stories Max",
       far: "1.5",
       height: "50 ft",

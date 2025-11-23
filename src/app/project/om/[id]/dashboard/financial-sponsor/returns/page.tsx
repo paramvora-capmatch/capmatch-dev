@@ -10,21 +10,21 @@ export default function ReturnsPage() {
   const getIRRColor = (irr: number) => {
     if (irr >= 25) return "bg-green-100 text-green-800";
     if (irr >= 20) return "bg-blue-100 text-blue-800";
-    if (irr >= 15) return "bg-yellow-100 text-yellow-800";
+    if (irr >= 15) return "bg-green-100 text-green-800";
     return "bg-red-100 text-red-800";
   };
 
   const getMultipleColor = (multiple: number) => {
     if (multiple >= 2.5) return "bg-green-100 text-green-800";
     if (multiple >= 2.0) return "bg-blue-100 text-blue-800";
-    if (multiple >= 1.5) return "bg-yellow-100 text-yellow-800";
+    if (multiple >= 1.5) return "bg-green-100 text-green-800";
     return "bg-red-100 text-red-800";
   };
 
   const getProfitMarginColor = (margin: number) => {
     if (margin >= 30) return "bg-green-100 text-green-800";
     if (margin >= 25) return "bg-blue-100 text-blue-800";
-    if (margin >= 20) return "bg-yellow-100 text-yellow-800";
+    if (margin >= 20) return "bg-green-100 text-green-800";
     return "bg-red-100 text-red-800";
   };
 
@@ -452,15 +452,15 @@ export default function ReturnsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
-                  <span className="text-yellow-500 mr-2">•</span>
+                  <span className="text-green-500 mr-2">•</span>
                   Construction cost overruns
                 </li>
                 <li className="flex items-center">
-                  <span className="text-yellow-500 mr-2">•</span>
+                  <span className="text-green-500 mr-2">•</span>
                   Market timing risks
                 </li>
                 <li className="flex items-center">
-                  <span className="text-yellow-500 mr-2">•</span>
+                  <span className="text-green-500 mr-2">•</span>
                   Interest rate volatility
                 </li>
               </ul>

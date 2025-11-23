@@ -79,12 +79,12 @@ export default function SourcesUsesPage() {
         <Card>
           <CardHeader className="pb-2" dataSourceFields={['leverage', 'ltv']}>
             <div className="flex items-center">
-              <PieChart className="h-5 w-5 text-purple-500 mr-2" />
+              <PieChart className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="text-lg font-semibold">Leverage</h3>
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-purple-600">
+            <p className="text-3xl font-bold text-blue-600">
               {formatPercentage(primaryDebtSource.amount, totalSources)}%
             </p>
             <p className="text-sm text-gray-500 mt-1">Debt to total capital</p>

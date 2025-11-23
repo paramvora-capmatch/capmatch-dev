@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/Button';
-import { MessageSquare, Send, ChevronDown } from 'lucide-react';
+import { MessageSquare, Send, ChevronDown, Table2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { OmQaSchema } from '@/types/om-types';
 import { z } from 'zod';
 import { cn } from '@/utils/cn';
+import { Modal } from '@/components/ui/Modal';
 
 interface OMChatSidebarProps {
   setIsChatOpen?: (isOpen: boolean) => void;
@@ -24,10 +25,53 @@ interface Message {
 
 const CHAT_STORAGE_KEY = 'om-chat-messages';
 
+// Table wrapper component that can use hooks
+const TableWrapper: React.FC<{
+  children: React.ReactNode;
+  props: any;
+  onViewTable: (tableHtml: string) => void;
+}> = ({ children, props: tableProps, onViewTable }) => {
+  const tableRef = React.useRef<HTMLTableElement>(null);
+  const tableId = React.useId();
+  
+  const handleViewTable = () => {
+    if (tableRef.current) {
+      const clonedTable = tableRef.current.cloneNode(true) as HTMLTableElement;
+      clonedTable.classList.remove('hidden');
+      clonedTable.className = 'min-w-full border-collapse';
+      onViewTable(clonedTable.outerHTML);
+    }
+  };
+
+  return (
+    <div className="my-4">
+      {/* Hidden table for HTML extraction */}
+      <table
+        ref={tableRef}
+        {...tableProps}
+        className="hidden"
+        data-table-id={tableId}
+      >
+        {children}
+      </table>
+      <button
+        type="button"
+        onClick={handleViewTable}
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md transition-colors"
+      >
+        <Table2 size={16} />
+        <span>View Table</span>
+      </button>
+    </div>
+  );
+};
+
 export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onCollapse }) => {
   const [question, setQuestion] = React.useState('');
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [assumptionsOpen, setAssumptionsOpen] = React.useState(false);
+  const [tableModalOpen, setTableModalOpen] = React.useState(false);
+  const [tableContent, setTableContent] = React.useState<string>('');
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const { object, submit, isLoading, error } = useObject({
@@ -95,6 +139,21 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
 
   const assumptionsId = React.useId();
 
+  // Custom components for react-markdown to handle tables
+  const markdownComponents = {
+    table: ({ children, ...props }: any) => (
+      <TableWrapper
+        props={props}
+        onViewTable={(tableHtml) => {
+          setTableContent(tableHtml);
+          setTableModalOpen(true);
+        }}
+      >
+        {children}
+      </TableWrapper>
+    ),
+  };
+
   return (
     <div className="flex flex-col h-full rounded-2xl shadow-lg overflow-hidden border border-gray-200 bg-white/70 backdrop-blur-xl">
       {/* Header */}
@@ -153,9 +212,9 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
               {/* Sample Query Pills */}
               <div className="flex flex-col gap-2 mt-6">
                 {[
-                  "What is the loan amount?",
-                  "Tell me about the property details",
-                  "What are the key financial metrics?"
+                  "Create a 5-year cash flow projection for the base case scenario",
+                  "Analyze the impact of a 50 basis point cap rate expansion on exit valuation across all scenarios",
+                  "Compare risk-adjusted returns and recommend the optimal scenario given current market conditions"
                 ].map((query, idx) => (
                   <button
                     key={idx}
@@ -190,7 +249,10 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
                 <div key={message.id} className="flex justify-start">
                   <div className="bg-white border border-gray-200 text-gray-800 rounded-lg px-4 py-3 max-w-[80%] shadow-sm">
                     <div className="prose prose-sm max-w-none">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={markdownComponents}
+                      >
                         {answer_markdown || ''}
                       </ReactMarkdown>
                     </div>
@@ -322,6 +384,21 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
           </div>
         </form>
       </div>
+
+      {/* Table Modal */}
+      <Modal
+        isOpen={tableModalOpen}
+        onClose={() => setTableModalOpen(false)}
+        title="Table View"
+        size="5xl"
+      >
+        <div className="overflow-x-auto -mx-6 px-6">
+          <div 
+            className="prose prose-sm max-w-none [&_table]:min-w-full [&_table]:border-collapse [&_th]:border [&_th]:border-gray-300 [&_th]:bg-gray-50 [&_th]:px-4 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_th]:text-gray-900 [&_td]:border [&_td]:border-gray-300 [&_td]:px-4 [&_td]:py-2 [&_td]:text-gray-700"
+            dangerouslySetInnerHTML={{ __html: tableContent }}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }; 

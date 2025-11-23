@@ -131,13 +131,13 @@ export const AIInsightsBar: React.FC<AIInsightsBarProps> = ({ scenario }) => {
                                     <div className={cn(
                                         "p-2 rounded-lg flex-shrink-0",
                                         insight.type === 'positive' && "bg-green-100",
-                                        insight.type === 'neutral' && "bg-amber-100",
+                                        insight.type === 'neutral' && "bg-red-100",
                                         insight.type === 'insight' && "bg-blue-100"
                                     )}>
                                         <Icon className={cn(
                                             "h-5 w-5",
                                             insight.type === 'positive' && "text-green-600",
-                                            insight.type === 'neutral' && "text-amber-600",
+                                            insight.type === 'neutral' && "text-red-600",
                                             insight.type === 'insight' && "text-blue-600"
                                         )} />
                                     </div>
