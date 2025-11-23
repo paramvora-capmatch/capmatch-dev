@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       // 1. Get info about the resource being saved
       const { data: resource, error: resourceError } = await supabase
         .from("resources")
-        .select("org_id, project_id, name")
+        .select("org_id, project_id, name, parent_id")
         .eq("id", resourceId)
         .single();
       if (resourceError)
@@ -146,6 +146,59 @@ export async function POST(request: NextRequest) {
         resourceId,
         resourceName: resource.name,
       });
+
+      // Determine which subdirectory to use by checking the previous version's storage path
+      // or by tracing up the parent chain to find the root type
+      let storageSubdir = "project-docs"; // default
+      
+      // First, try to get the previous version's storage path to extract the subdirectory
+      const { data: previousVersion } = await supabase
+        .from("document_versions")
+        .select("storage_path")
+        .eq("resource_id", resourceId)
+        .neq("storage_path", "placeholder")
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (previousVersion?.storage_path) {
+        // Extract subdirectory from previous version's path
+        // Path format: <project_id>/<subdir>/<resource_id>/v<version>_<filename>
+        const pathParts = previousVersion.storage_path.split("/");
+        if (pathParts.length >= 2) {
+          const subdir = pathParts[1];
+          if (subdir === "borrower-docs" || subdir === "project-docs") {
+            storageSubdir = subdir;
+          }
+        }
+      } else {
+        // Fallback: trace up the parent chain to find the root type
+        let currentParentId = resource.parent_id;
+        const visited = new Set<string>();
+        
+        while (currentParentId) {
+          if (visited.has(currentParentId)) break;
+          visited.add(currentParentId);
+          
+          const { data: parent } = await supabase
+            .from("resources")
+            .select("id, resource_type, parent_id")
+            .eq("id", currentParentId)
+            .single();
+          
+          if (!parent) break;
+          
+          if (parent.resource_type === "BORROWER_DOCS_ROOT") {
+            storageSubdir = "borrower-docs";
+            break;
+          } else if (parent.resource_type === "PROJECT_DOCS_ROOT") {
+            storageSubdir = "project-docs";
+            break;
+          }
+          
+          currentParentId = parent.parent_id;
+        }
+      }
 
       // 2. Create a new document_versions record. The trigger will set the version_number.
       const { data: newVersion, error: versionError } = await supabase
@@ -178,8 +231,8 @@ export async function POST(request: NextRequest) {
           `Failed to mark previous versions as superseded: ${supersedError.message}`
         );
 
-      // 3. Construct the new storage path
-      const newStoragePath = `${resource.project_id}/${resourceId}/v${newVersion.version_number}_${resource.name}`;
+      // 3. Construct the new storage path with the correct subdirectory
+      const newStoragePath = `${resource.project_id}/${storageSubdir}/${resourceId}/v${newVersion.version_number}_${resource.name}`;
 
       // Download the updated document from OnlyOffice server
       console.log(

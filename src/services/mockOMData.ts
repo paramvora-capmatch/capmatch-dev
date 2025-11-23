@@ -335,47 +335,7 @@ export const marketContextDetails = {
   },
 };
 
-export const mediaAssets = {
-  site: [
-    {
-      title: "Master Plan Context",
-      description: "Aerial shows Building B within the SoGood district, proximate to the Farmers Market and I-30.",
-      imageUrl: "/hoque-context.svg",
-      tags: ["site", "context"],
-      source: "Hoque OM p.10",
-    },
-    {
-      title: "Streetscape Rendering",
-      description: "Activated ground plane with double-height lobby and Innovation Center frontage along Hickory Street.",
-      imageUrl: "/hoque-streetscape.svg",
-      tags: ["architecture", "activation"],
-      source: "Hoque OM p.11",
-    },
-  ],
-  diagrams: [
-    {
-      title: "Site Plan Diagram",
-      description: "Depicts courtyard, amenity deck, and structured parking access.",
-      imageUrl: "/hoque-site-plan.svg",
-      tags: ["site plan"],
-      source: "Hoque OM p.15",
-    },
-    {
-      title: "Level 02 Floor Plate",
-      description: "Typical residential plate highlighting workforce and market-rate mix.",
-      imageUrl: "/hoque-floorplate.svg",
-      tags: ["floor plate"],
-      source: "Hoque OM p.17",
-    },
-    {
-      title: "Massing Diagram",
-      description: "Step-back massing to transition from Farmers Market scale to CBD towers.",
-      imageUrl: "/hoque-massing.svg",
-      tags: ["massing"],
-      source: "Hoque OM p.12",
-    },
-  ],
-};
+// mediaAssets removed - now using Supabase storage for site-images and architectural-diagrams folders
 
 export const financialDetails = {
   sourcesUses: {

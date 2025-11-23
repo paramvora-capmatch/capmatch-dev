@@ -55,20 +55,7 @@ export const OMChatCard: React.FC<OMChatCardProps> = ({
           </button>
         ) : (
           <div className="h-[calc(100vh-10rem)] flex flex-col">
-            <div className="flex-1 min-h-0">
-              <OMChatSidebar />
-            </div>
-            <button
-              aria-label="Collapse chat"
-              onClick={() => setIsCollapsed(true)}
-              className="mt-2 w-full p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors text-sm text-center"
-              title="Collapse chat"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" className="rotate-180 inline-block mr-1">
-                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" />
-              </svg>
-              Collapse
-            </button>
+            <OMChatSidebar onCollapse={() => setIsCollapsed(true)} />
           </div>
         )}
       </div>

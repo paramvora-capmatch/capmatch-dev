@@ -28,6 +28,9 @@ import {
   AlertCircle,
   ChevronDown,
   Copy,
+  Lock,
+  Unlock,
+  Sparkles,
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import {
@@ -44,6 +47,7 @@ import { BorrowerResumeContent } from "../../lib/project-queries";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
 import { AskAIButton } from "../ui/AskAIProvider";
+import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
 import { BorrowerResumeView } from "./BorrowerResumeView";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -206,6 +210,251 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   const prevIsSavingRef = useRef<boolean>(false);
   const lastInitializedSnapshot = useRef<string | null>(null);
 
+  // Lock state management
+  const [lockedFields, setLockedFields] = useState<Set<string>>(new Set());
+  const [lockedSections, setLockedSections] = useState<Set<string>>(new Set());
+  const [unlockedFields, setUnlockedFields] = useState<Set<string>>(new Set()); // Fields explicitly unlocked even when section is locked
+
+  // Autofill state
+  const [isAutofilling, setIsAutofilling] = useState(false);
+  const [showSparkles, setShowSparkles] = useState(false);
+  const [showAutofillSuccess, setShowAutofillSuccess] = useState(false);
+  const [autofillAnimationKey, setAutofillAnimationKey] = useState(0);
+
+  // Helper function to check if a field is locked
+  const isFieldLocked = useCallback((fieldId: string, sectionId?: string): boolean => {
+    // If explicitly unlocked (overrides section lock), return false
+    if (unlockedFields.has(fieldId)) return false;
+    
+    // If explicitly locked, return true
+    if (lockedFields.has(fieldId)) return true;
+    
+    // If section is locked and field is not explicitly unlocked, return true
+    if (sectionId && lockedSections.has(sectionId)) return true;
+    
+    return false;
+  }, [lockedFields, lockedSections, unlockedFields]);
+
+  // Toggle lock for a single field
+  const toggleFieldLock = useCallback((fieldId: string, sectionId?: string) => {
+    // Check current effective lock state
+    const currentlyLocked = (() => {
+      if (unlockedFields.has(fieldId)) return false;
+      if (lockedFields.has(fieldId)) return true;
+      if (sectionId && lockedSections.has(sectionId)) return true;
+      return false;
+    })();
+
+    if (currentlyLocked) {
+      // Unlocking the field
+      // If section is locked, add to unlockedFields (override section lock)
+      if (sectionId && lockedSections.has(sectionId)) {
+        setUnlockedFields((prev) => {
+          const next = new Set(prev);
+          next.add(fieldId);
+          return next;
+        });
+      } else {
+        // Field was explicitly locked, remove from lockedFields
+        setLockedFields((prev) => {
+          const next = new Set(prev);
+          next.delete(fieldId);
+          return next;
+        });
+        // Also remove from unlockedFields if it was there
+        setUnlockedFields((prev) => {
+          const next = new Set(prev);
+          next.delete(fieldId);
+          return next;
+        });
+      }
+    } else {
+      // Locking the field
+      // Remove from unlockedFields if it was there
+      setUnlockedFields((prev) => {
+        const next = new Set(prev);
+        next.delete(fieldId);
+        return next;
+      });
+      // Add to lockedFields
+      setLockedFields((prev) => {
+        const next = new Set(prev);
+        next.add(fieldId);
+        return next;
+      });
+    }
+  }, [lockedSections, unlockedFields, lockedFields]);
+
+  // Get all field IDs in a section (needed for section lock visual feedback)
+  const getSectionFieldIds = useCallback((sectionId: string): string[] => {
+    // Map of section IDs to their field IDs based on data-field-section attributes
+    const sectionFieldMap: Record<string, string[]> = {
+      "basic-info": [
+        "fullLegalName",
+        "primaryEntityName",
+        "primaryEntityStructure",
+        "contactEmail",
+        "contactPhone",
+        "contactAddress",
+      ],
+      "experience": [
+        "yearsCREExperienceRange",
+        "assetClassesExperience",
+        "geographicMarketsExperience",
+        "totalDealValueClosedRange",
+        "existingLenderRelationships",
+        "bioNarrative",
+      ],
+      "borrower-financials": [
+        "creditScoreRange",
+        "netWorthRange",
+        "liquidityRange",
+        "bankruptcyHistory",
+        "foreclosureHistory",
+        "litigationHistory",
+      ],
+      "online-presence": [
+        "linkedinUrl",
+        "websiteUrl",
+      ],
+      "principals": [
+        "principalLegalName",
+        "principalRoleDefault",
+        "principalEmail",
+        "ownershipPercentage",
+        "principalBio",
+      ],
+    };
+    return sectionFieldMap[sectionId] || [];
+  }, []);
+
+  // Toggle lock for an entire section
+  const toggleSectionLock = useCallback((sectionId: string) => {
+    setLockedSections((prev) => {
+      const next = new Set(prev);
+      const wasLocked = next.has(sectionId);
+      if (wasLocked) {
+        // Unlocking section - remove it from locked sections
+        next.delete(sectionId);
+        // Also clear any unlocked fields for this section since they're no longer needed
+        setUnlockedFields((prevUnlocked) => {
+          const sectionFields = getSectionFieldIds(sectionId);
+          const nextUnlocked = new Set(prevUnlocked);
+          sectionFields.forEach((fieldId) => {
+            nextUnlocked.delete(fieldId);
+          });
+          return nextUnlocked;
+        });
+      } else {
+        // Locking section - add it to locked sections
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, [getSectionFieldIds]);
+
+  // Helper function to render field lock button - always visible, positioned next to Ask AI button
+  const renderFieldLockButton = useCallback((fieldId: string, sectionId: string) => {
+    const locked = isFieldLocked(fieldId, sectionId);
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          toggleFieldLock(fieldId, sectionId);
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+        }}
+        className={cn(
+          "flex items-center justify-center p-1 rounded transition-colors relative z-30 cursor-pointer",
+          locked
+            ? "text-amber-600 hover:text-amber-700"
+            : "text-gray-500 hover:text-gray-600"
+        )}
+        title={locked ? "Unlock field" : "Lock field"}
+      >
+        {locked ? (
+          <Lock className="h-4 w-4" />
+        ) : (
+          <Unlock className="h-4 w-4" />
+        )}
+      </button>
+    );
+  }, [isFieldLocked, toggleFieldLock]);
+
+  // Helper function to render field label with Ask AI and Lock buttons
+  const renderFieldLabel = useCallback((
+    fieldId: string,
+    sectionId: string,
+    labelText: string,
+    required: boolean = false
+  ) => {
+    return (
+      <div className="flex items-center gap-2 mb-1 relative group/field">
+        <label className="block text-sm font-medium text-gray-700">
+          {labelText}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+        <FieldHelpTooltip fieldId={fieldId} />
+        {/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => (onAskAI || (() => {}))(fieldId)}
+            className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
+            title="Ask AI for help with this field"
+          >
+            Ask AI
+          </button>
+          {renderFieldLockButton(fieldId, sectionId)}
+        </div>
+      </div>
+    );
+  }, [onAskAI, renderFieldLockButton]);
+
+  // Handle autofill button click
+  const handleAutofill = useCallback(async () => {
+    // Trigger sparkle animation
+    setShowSparkles(true);
+    setIsAutofilling(true);
+    
+    // Simulate processing time (2-3 seconds)
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    
+    // Hide sparkles after animation
+    setTimeout(() => setShowSparkles(false), 500);
+    setIsAutofilling(false);
+    
+    // Trigger success animation in resume view (only if in view mode and expanded)
+    const newKey = autofillAnimationKey + 1;
+    
+    if (!isEditing && !collapsed) {
+      // Update both key and state together to prevent double animation
+      setAutofillAnimationKey(newKey);
+      setShowAutofillSuccess(true);
+      
+      // Auto-hide success animation after animation completes
+      setTimeout(() => {
+        setShowAutofillSuccess(false);
+      }, 4000);
+    } else if (!isEditing && collapsed) {
+      // If collapsed, expand it first, then show animation
+      setCollapsed(false);
+      // Wait for expand animation, then show success
+      setTimeout(() => {
+        setAutofillAnimationKey(newKey);
+        setShowAutofillSuccess(true);
+        setTimeout(() => {
+          setShowAutofillSuccess(false);
+        }, 4000);
+      }, 350); // Wait for collapse animation to complete
+    }
+    
+    // TODO: Implement actual autofill logic when backend is ready
+    console.log('Autofill Borrower Resume clicked - will extract data from documents');
+  }, [isEditing, collapsed, autofillAnimationKey]);
 
   // Initialize form once on first load (avoid resetting on each store update)
   // Don't reset formData if user is editing (preserves their work in progress)
@@ -403,10 +652,33 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         title: "Basic Info",
         component: (
           <div className="space-y-6">
-            <div className="flex items-center mb-4">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold flex items-center">
                 <User className="mr-2" /> Basic Info
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("basic-info")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("basic-info")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("basic-info") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("basic-info") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
             <div className="space-y-6">
               {" "}
@@ -415,19 +687,24 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   <div
                     data-field-id="fullLegalName"
                     data-field-type="input"
-                    data-field-section="entity-info"
+                    data-field-section="basic-info"
                     data-field-required="true"
                     data-field-label="Full Legal Name"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("fullLegalName", "basic-info", "Full Legal Name", true)}
                     <Input
                       id="fullLegalName"
-                      label="Full Legal Name"
+                      label={null}
                       value={formData.fullLegalName || ""}
                       onChange={(e) =>
                         handleInputChange("fullLegalName", e.target.value)
                       }
                       required
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("fullLegalName", "basic-info")}
+                      className={cn(
+                        isFieldLocked("fullLegalName", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -437,19 +714,24 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   <div
                     data-field-id="primaryEntityName"
                     data-field-type="input"
-                    data-field-section="entity-info"
+                    data-field-section="basic-info"
                     data-field-required="true"
                     data-field-label="Primary Entity Name"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("primaryEntityName", "basic-info", "Primary Entity Name", true)}
                     <Input
                       id="primaryEntityName"
-                      label="Primary Entity Name"
+                      label={null}
                       value={formData.primaryEntityName || ""}
                       onChange={(e) =>
                         handleInputChange("primaryEntityName", e.target.value)
                       }
                       required
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("primaryEntityName", "basic-info")}
+                      className={cn(
+                        isFieldLocked("primaryEntityName", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -459,13 +741,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   <div
                     data-field-id="primaryEntityStructure"
                     data-field-type="button-select"
-                    data-field-section="entity-info"
+                    data-field-section="basic-info"
                     data-field-required="true"
                     data-field-label="Entity Structure"
                     data-field-options='["LLC","LP","S-Corp","C-Corp","Sole Proprietorship","Trust","Other"]'
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("primaryEntityStructure", "basic-info", "Entity Structure", true)}
                     <ButtonSelect
-                      label="Entity Structure"
+                      label=""
                       options={entityStructureOptions}
                       selectedValue={formData.primaryEntityStructure || "LLC"}
                       onSelect={(v) =>
@@ -474,44 +758,59 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                           v as EntityStructure
                         )
                       }
-                      required
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("primaryEntityStructure", "basic-info")}
                     />
                   </div>
                 </AskAIButton>
               </FormGroup>
               <FormGroup>
-                {" "}
-                <Input
-                  id="contactEmail"
-                  type="email"
-                  label="Contact Email"
-                  value={formData.contactEmail || ""}
-                  onChange={(e) =>
-                    handleInputChange("contactEmail", e.target.value)
-                  }
-                  required
-                  disabled
-                />
+                <AskAIButton id="contactEmail" onAskAI={onAskAI || (() => {})}>
+                  <div
+                    data-field-id="contactEmail"
+                    data-field-type="input"
+                    data-field-section="basic-info"
+                    data-field-required="true"
+                    data-field-label="Contact Email"
+                    className="relative group/field"
+                  >
+                    {renderFieldLabel("contactEmail", "basic-info", "Contact Email", true)}
+                    <Input
+                      id="contactEmail"
+                      type="email"
+                      label={null}
+                      value={formData.contactEmail || ""}
+                      onChange={(e) =>
+                        handleInputChange("contactEmail", e.target.value)
+                      }
+                      required
+                      disabled
+                    />
+                  </div>
+                </AskAIButton>
               </FormGroup>
               <FormGroup>
                 <AskAIButton id="contactPhone" onAskAI={onAskAI || (() => {})}>
                   <div
                     data-field-id="contactPhone"
                     data-field-type="input"
-                    data-field-section="entity-info"
+                    data-field-section="basic-info"
                     data-field-required="true"
                     data-field-label="Contact Phone"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("contactPhone", "basic-info", "Contact Phone", true)}
                     <Input
                       id="contactPhone"
-                      label="Contact Phone"
+                      label={null}
                       value={formData.contactPhone || ""}
                       onChange={(e) =>
                         handleInputChange("contactPhone", e.target.value)
                       }
                       required
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("contactPhone", "basic-info")}
+                      className={cn(
+                        isFieldLocked("contactPhone", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -521,19 +820,24 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   <div
                     data-field-id="contactAddress"
                     data-field-type="input"
-                    data-field-section="entity-info"
+                    data-field-section="basic-info"
                     data-field-required="true"
                     data-field-label="Mailing Address"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("contactAddress", "basic-info", "Mailing Address", true)}
                     <Input
                       id="contactAddress"
-                      label="Mailing Address"
+                      label={null}
                       value={formData.contactAddress || ""}
                       onChange={(e) =>
                         handleInputChange("contactAddress", e.target.value)
                       }
                       required
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("contactAddress", "basic-info")}
+                      className={cn(
+                        isFieldLocked("contactAddress", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -548,10 +852,33 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         title: "Experience",
         component: (
           <div className="space-y-6">
-            <div className="flex items-center mb-4">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold flex items-center">
                 <Briefcase className="mr-2" /> Experience
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("experience")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("experience")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("experience") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("experience") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
             <div className="space-y-6">
               <FormGroup>
@@ -563,9 +890,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-required="true"
                     data-field-label="Years of CRE Experience"
                     data-field-options='["0-2","3-5","6-10","11-15","16+"]'
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("yearsCREExperienceRange", "experience", "Years of CRE Experience", true)}
                     <ButtonSelect
-                      label="Years of CRE Experience"
+                      label=""
                       options={experienceRangeOptions}
                       selectedValue={formData.yearsCREExperienceRange || "0-2"}
                       onSelect={(v) =>
@@ -574,8 +903,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                           v as ExperienceRange
                         )
                       }
-                      required
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("yearsCREExperienceRange", "experience")}
                     />
                   </div>
                 </AskAIButton>
@@ -589,9 +917,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-required="false"
                     data-field-label="Asset Classes Experience"
                     data-field-options='["Multifamily","Office","Retail","Industrial","Hospitality","Land","Mixed-Use","Self-Storage","Data Center","Medical Office","Senior Housing","Student Housing","Other"]'
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("assetClassesExperience", "experience", "Asset Classes Experience", false)}
                     <MultiSelectPills
-                      label="Asset Classes Experience"
+                      label=""
                       options={assetClassOptions}
                       selectedValues={formData.assetClassesExperience || []}
                       onSelect={(v) =>
@@ -610,9 +940,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="experience"
                     data-field-required="false"
                     data-field-label="Geographic Markets Experience"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("geographicMarketsExperience", "experience", "Geographic Markets Experience", false)}
                     <MultiSelectPills
-                      label="Geographic Markets Experience"
+                      label=""
                       options={geographicMarketsOptions}
                       selectedValues={formData.geographicMarketsExperience || []}
                       onSelect={(v) =>
@@ -631,9 +963,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="experience"
                     data-field-required="false"
                     data-field-label="Total Value Deals Closed"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("totalDealValueClosedRange", "experience", "Total Value Deals Closed", false)}
                     <ButtonSelect
-                      label="Total Value Deals Closed"
+                      label=""
                       options={dealValueRangeOptions}
                       selectedValue={formData.totalDealValueClosedRange || "N/A"}
                       onSelect={(v) =>
@@ -655,10 +989,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="experience"
                     data-field-required="false"
                     data-field-label="Existing Lenders (Opt)"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("existingLenderRelationships", "experience", "Existing Lenders (Opt)", false)}
                     <Input
                       id="existingLenderRelationships"
-                      label="Existing Lenders (Opt)"
+                      label={null}
                       value={formData.existingLenderRelationships || ""}
                       onChange={(e) =>
                         handleInputChange(
@@ -679,10 +1015,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="experience"
                     data-field-required="false"
                     data-field-label="Bio (Opt)"
+                    className="relative group/field"
                   >
-                    <label className="block text-sm font-medium mb-1">
-                      Bio (Opt)
-                    </label>
+                    {renderFieldLabel("bioNarrative", "experience", "Bio (Opt)", false)}
                     <textarea
                       id="bioNarrative"
                       value={formData.bioNarrative || ""}
@@ -705,10 +1040,33 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         title: "Financial Info",
         component: (
           <div className="space-y-6">
-            <div className="flex items-center mb-4">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold flex items-center">
                 <DollarSign className="mr-2" /> Financial Info
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("borrower-financials")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("borrower-financials")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("borrower-financials") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("borrower-financials") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
             <div className="space-y-6">
               <FormGroup>
@@ -720,15 +1078,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-required="false"
                     data-field-label="Credit Score Range"
                     data-field-options='["N/A","<600","600-649","650-699","700-749","750-799","800+"]'
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("creditScoreRange", "borrower-financials", "Credit Score Range", false)}
                     <ButtonSelect
-                      label="Credit Score Range"
+                      label=""
                       options={creditScoreRangeOptions}
                       selectedValue={formData.creditScoreRange || "N/A"}
                       onSelect={(v) =>
                         handleInputChange("creditScoreRange", v as CreditScoreRange)
                       }
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("creditScoreRange", "borrower-financials")}
                     />
                   </div>
                 </AskAIButton>
@@ -741,9 +1101,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="borrower-financials"
                     data-field-required="false"
                     data-field-label="Net Worth Range"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("netWorthRange", "borrower-financials", "Net Worth Range", false)}
                     <ButtonSelect
-                      label="Net Worth Range"
+                      label=""
                       options={netWorthRangeOptions}
                       selectedValue={formData.netWorthRange || "<$1M"}
                       onSelect={(v) =>
@@ -762,9 +1124,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="borrower-financials"
                     data-field-required="false"
                     data-field-label="Liquidity Range"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("liquidityRange", "borrower-financials", "Liquidity Range", false)}
                     <ButtonSelect
-                      label="Liquidity Range"
+                      label=""
                       options={liquidityRangeOptions}
                       selectedValue={formData.liquidityRange || "<$100k"}
                       onSelect={(v) =>
@@ -780,84 +1144,90 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                   <AlertTriangle className="mr-2 h-4 w-4" /> Financial
                   Background
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <AskAIButton id="bankruptcyHistory" onAskAI={onAskAI || (() => {})}>
-                  <div
-                    data-field-id="bankruptcyHistory"
-                    data-field-type="button"
-                    data-field-section="borrower-financials"
-                    data-field-required="false"
-                    data-field-label="Bankruptcy (7yr)"
-                  >
-                  <Button
-                    type="button"
-                    variant={(formData.bankruptcyHistory || false) ? 'primary' : 'outline'}
-                    onClick={() =>
-                      handleInputChange("bankruptcyHistory", !(formData.bankruptcyHistory || false))
-                    }
-                    disabled={!isEditing}
-                    className={cn(
-                      "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
-                      (formData.bankruptcyHistory || false)
-                        ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    )}
-                  >
-                    Bankruptcy (7yr)
-                  </Button>
-                  </div>
+                    <div
+                      data-field-id="bankruptcyHistory"
+                      data-field-type="button"
+                      data-field-section="borrower-financials"
+                      data-field-required="false"
+                      data-field-label="Bankruptcy (7yr)"
+                      className="relative group/field"
+                    >
+                      {renderFieldLabel("bankruptcyHistory", "borrower-financials", "Bankruptcy (7yr)", false)}
+                      <Button
+                        type="button"
+                        variant={(formData.bankruptcyHistory || false) ? 'primary' : 'outline'}
+                        onClick={() =>
+                          handleInputChange("bankruptcyHistory", !(formData.bankruptcyHistory || false))
+                        }
+                        disabled={!isEditing}
+                        className={cn(
+                          "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
+                          (formData.bankruptcyHistory || false)
+                            ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        )}
+                      >
+                        Yes
+                      </Button>
+                    </div>
                   </AskAIButton>
                   <AskAIButton id="foreclosureHistory" onAskAI={onAskAI || (() => {})}>
-                  <div
-                    data-field-id="foreclosureHistory"
-                    data-field-type="button"
-                    data-field-section="borrower-financials"
-                    data-field-required="false"
-                    data-field-label="Foreclosure (7yr)"
-                  >
-                  <Button
-                    type="button"
-                    variant={(formData.foreclosureHistory || false) ? 'primary' : 'outline'}
-                    onClick={() =>
-                      handleInputChange("foreclosureHistory", !(formData.foreclosureHistory || false))
-                    }
-                    disabled={!isEditing}
-                    className={cn(
-                      "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
-                      (formData.foreclosureHistory || false)
-                        ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    )}
-                  >
-                    Foreclosure (7yr)
-                  </Button>
-                  </div>
+                    <div
+                      data-field-id="foreclosureHistory"
+                      data-field-type="button"
+                      data-field-section="borrower-financials"
+                      data-field-required="false"
+                      data-field-label="Foreclosure (7yr)"
+                      className="relative group/field"
+                    >
+                      {renderFieldLabel("foreclosureHistory", "borrower-financials", "Foreclosure (7yr)", false)}
+                      <Button
+                        type="button"
+                        variant={(formData.foreclosureHistory || false) ? 'primary' : 'outline'}
+                        onClick={() =>
+                          handleInputChange("foreclosureHistory", !(formData.foreclosureHistory || false))
+                        }
+                        disabled={!isEditing}
+                        className={cn(
+                          "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
+                          (formData.foreclosureHistory || false)
+                            ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        )}
+                      >
+                        Yes
+                      </Button>
+                    </div>
                   </AskAIButton>
                   <AskAIButton id="litigationHistory" onAskAI={onAskAI || (() => {})}>
-                  <div
-                    data-field-id="litigationHistory"
-                    data-field-type="button"
-                    data-field-section="borrower-financials"
-                    data-field-required="false"
-                    data-field-label="Litigation"
-                  >
-                  <Button
-                    type="button"
-                    variant={(formData.litigationHistory || false) ? 'primary' : 'outline'}
-                    onClick={() =>
-                      handleInputChange("litigationHistory", !(formData.litigationHistory || false))
-                    }
-                    disabled={!isEditing}
-                    className={cn(
-                      "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
-                      (formData.litigationHistory || false)
-                        ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    )}
-                  >
-                    Litigation
-                  </Button>
-                  </div>
+                    <div
+                      data-field-id="litigationHistory"
+                      data-field-type="button"
+                      data-field-section="borrower-financials"
+                      data-field-required="false"
+                      data-field-label="Litigation"
+                      className="relative group/field"
+                    >
+                      {renderFieldLabel("litigationHistory", "borrower-financials", "Litigation", false)}
+                      <Button
+                        type="button"
+                        variant={(formData.litigationHistory || false) ? 'primary' : 'outline'}
+                        onClick={() =>
+                          handleInputChange("litigationHistory", !(formData.litigationHistory || false))
+                        }
+                        disabled={!isEditing}
+                        className={cn(
+                          "justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
+                          (formData.litigationHistory || false)
+                            ? 'ring-2 ring-blue-500 ring-offset-1 shadow-md'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        )}
+                      >
+                        Yes
+                      </Button>
+                    </div>
                   </AskAIButton>
                 </div>
               </div>
@@ -872,10 +1242,33 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         isOptional: true,
         component: (
           <div className="space-y-6">
-            <div className="flex items-center mb-4">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold flex items-center">
                 <Globe className="mr-2" /> Online Presence (Opt)
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("online-presence")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("online-presence")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("online-presence") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("online-presence") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
             <div className="space-y-6">
               <FormGroup>
@@ -886,15 +1279,20 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="online-presence"
                     data-field-required="false"
                     data-field-label="LinkedIn URL"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("linkedinUrl", "online-presence", "LinkedIn URL", false)}
                     <Input
                       id="linkedinUrl"
-                      label="LinkedIn URL"
+                      label={null}
                       value={formData.linkedinUrl || ""}
                       onChange={(e) =>
                         handleInputChange("linkedinUrl", e.target.value)
                       }
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("linkedinUrl", "online-presence")}
+                      className={cn(
+                        isFieldLocked("linkedinUrl", "online-presence") && "bg-gray-50 cursor-not-allowed opacity-75"
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -907,15 +1305,20 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="online-presence"
                     data-field-required="false"
                     data-field-label="Company Website"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("websiteUrl", "online-presence", "Company Website", false)}
                     <Input
                       id="websiteUrl"
-                      label="Company Website"
+                      label={null}
                       value={formData.websiteUrl || ""}
                       onChange={(e) =>
                         handleInputChange("websiteUrl", e.target.value)
                       }
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("websiteUrl", "online-presence")}
+                      className={cn(
+                        isFieldLocked("websiteUrl", "online-presence") && "bg-gray-50 cursor-not-allowed opacity-75"
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -931,10 +1334,33 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
         isOptional: true,
         component: (
           <div className="space-y-6">
-            <div className="flex items-center mb-4">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold flex items-center">
                 <Award className="mr-2" /> Key Principals (Opt)
               </h2>
+              <button
+                type="button"
+                onClick={() => toggleSectionLock("principals")}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                  lockedSections.has("principals")
+                    ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                )}
+                title={lockedSections.has("principals") ? "Unlock section" : "Lock section"}
+              >
+                {lockedSections.has("principals") ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    <span>Unlock</span>
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4" />
+                    <span>Lock</span>
+                  </>
+                )}
+              </button>
             </div>
             <div className="space-y-6">
               {/* Add Principal (unstyled container to match page theme) */}
@@ -948,10 +1374,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="principals"
                     data-field-required="true"
                     data-field-label="Principal Name"
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("principalLegalName", "principals", "Name", true)}
                     <Input
                       id="pName"
-                      label={<span>Name <span className="text-red-500">*</span></span>}
+                      label={null}
                       value={principalFormData.principalLegalName || ""}
                       onChange={(e) =>
                         handlePrincipalInputChange(
@@ -960,7 +1388,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         )
                       }
                       required
-                      disabled={!isEditing}
+                      disabled={!isEditing || isFieldLocked("principalLegalName", "principals")}
+                      className={cn(
+                        isFieldLocked("principalLegalName", "principals") && "bg-gray-50 cursor-not-allowed opacity-75"
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -975,9 +1406,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-required="true"
                     data-field-label="Principal Role"
                     data-field-options='["Managing Member","General Partner","Developer","Sponsor","Key Principal","Guarantor","Limited Partner","Other"]'
+                    className="relative group/field"
                   >
+                    {renderFieldLabel("principalRoleDefault", "principals", "Role", true)}
                     <ButtonSelect
-                      label="Role"
+                      label=""
                       options={principalRoleOptions}
                       selectedValue={
                         principalFormData.principalRoleDefault || "Key Principal"
@@ -988,7 +1421,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                           v as PrincipalRole
                         )
                       }
-                      required
                       disabled={!isEditing}
                       buttonClassName="text-sm"
                       gridCols="grid-cols-8"
@@ -1006,11 +1438,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       data-field-section="principals"
                       data-field-required="false"
                       data-field-label="Principal Email"
+                      className="relative group/field"
                     >
+                      {renderFieldLabel("principalEmail", "principals", "Email", false)}
                       <Input
                         id="pEmail"
                         type="email"
-                        label="Email"
+                        label={null}
                         value={principalFormData.principalEmail || ""}
                         onChange={(e) =>
                           handlePrincipalInputChange("principalEmail", e.target.value)
@@ -1028,14 +1462,16 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       data-field-section="principals"
                       data-field-required="false"
                       data-field-label="Ownership Percentage"
+                      className="relative group/field"
                     >
+                      {renderFieldLabel("ownershipPercentage", "principals", "Ownership (%)", false)}
                       <Input
                         id="pOwn"
                         type="number"
                         inputMode="numeric"
                         pattern="[0-9]*"
                         step="0.01"
-                        label="Ownership (%)"
+                        label={null}
                         value={
                           principalFormData.ownershipPercentage?.toString() || ""
                         }
@@ -1062,8 +1498,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                     data-field-section="principals"
                     data-field-required="false"
                     data-field-label="Principal Bio"
+                    className="relative group/field"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bio (Opt)</label>
+                    {renderFieldLabel("principalBio", "principals", "Bio (Opt)", false)}
                     <textarea
                       id="pBio"
                       value={principalFormData.principalBio || ""}
@@ -1124,6 +1561,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       handlePrincipalInputChange,
       onAskAI,
       isEditing,
+      lockedSections,
+      isFieldLocked,
+      renderFieldLabel,
+      toggleSectionLock,
     ]
   );
 
@@ -1184,6 +1625,66 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
           )}
         </div>
         <div className="flex items-center gap-3">
+          {/* Autofill button - show in both edit and view modes */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAutofill();
+            }}
+            disabled={isAutofilling}
+            className={cn(
+              "group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-hidden",
+              isAutofilling 
+                ? "border-blue-400 bg-blue-50 text-blue-700" 
+                : "border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 hover:border-blue-400 text-blue-700 hover:text-blue-800 shadow-sm hover:shadow-md"
+            )}
+          >
+            {isAutofilling ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                <span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Autofilling...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                <span className="text-sm font-medium text-blue-700 whitespace-nowrap max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Autofill Resume</span>
+              </>
+            )}
+            {/* Sparkle animation overlay */}
+            {showSparkles && (
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {[...Array(20)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-1 h-1 bg-yellow-400 rounded-full"
+                    initial={{
+                      x: '50%',
+                      y: '50%',
+                      opacity: 1,
+                      scale: 0,
+                    }}
+                    animate={{
+                      x: `${Math.random() * 100}%`,
+                      y: `${Math.random() * 100}%`,
+                      opacity: [1, 1, 0],
+                      scale: [0, 1.5, 0],
+                    }}
+                    transition={{
+                      duration: 0.8,
+                      delay: Math.random() * 0.3,
+                      ease: 'easeOut',
+                    }}
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </Button>
           {/* Edit button */}
           <Button
             variant="outline"
@@ -1306,7 +1807,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               transition={{ duration: 0.3, ease: 'easeInOut' }}
               className="overflow-hidden relative z-10"
             >
-              <BorrowerResumeView resume={formData} />
+              <BorrowerResumeView 
+                resume={formData} 
+                autofillAnimationKey={autofillAnimationKey}
+                showAutofillSuccess={showAutofillSuccess}
+              />
             </motion.div>
           )}
         </AnimatePresence>

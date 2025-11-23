@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/Button';
 import { MessageSquare, Send, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import { OmQaSchema } from '@/types/om-types';
 import { z } from 'zod';
@@ -13,6 +12,7 @@ import { cn } from '@/utils/cn';
 
 interface OMChatSidebarProps {
   setIsChatOpen?: (isOpen: boolean) => void;
+  onCollapse?: () => void;
 }
 
 interface Message {
@@ -24,7 +24,7 @@ interface Message {
 
 const CHAT_STORAGE_KEY = 'om-chat-messages';
 
-export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen }) => {
+export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onCollapse }) => {
   const [question, setQuestion] = React.useState('');
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [assumptionsOpen, setAssumptionsOpen] = React.useState(false);
@@ -105,45 +105,74 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen }) =
             <span className="text-sm font-medium text-gray-900">Talk to the OM</span>
           </div>
         </div>
-        {setIsChatOpen && (
-          <button
-            type="button"
-            aria-label="Close chat"
-            aria-expanded={true}
-            onClick={() => setIsChatOpen(false)}
-            className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            title="Close chat"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" className="rotate-180">
-              <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" />
-            </svg>
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {onCollapse && (
+            <button
+              type="button"
+              aria-label="Collapse chat"
+              onClick={onCollapse}
+              className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              title="Collapse chat"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" className="rotate-180">
+                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            </button>
+          )}
+          {setIsChatOpen && (
+            <button
+              type="button"
+              aria-label="Close chat"
+              aria-expanded={true}
+              onClick={() => setIsChatOpen(false)}
+              className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              title="Close chat"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" className="rotate-180">
+                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Chat Content Area */}
       <div className="flex-1 p-0 min-h-0 overflow-hidden bg-transparent">
-        <div className="h-full bg-transparent py-4 overflow-y-auto px-4">
-        {/* Welcome Message */}
+        <div className="h-full bg-transparent overflow-y-auto px-4">
+        {/* Welcome Message - Centered */}
         {messages.length === 0 && !isLoading && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-            <div className="flex items-start space-x-2">
-              <div className="p-1.5 bg-blue-100 rounded-full">
-                <MessageSquare className="h-3 w-3 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-blue-800 font-medium">Welcome to the OM Assistant!</p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Ask me anything about the Offering Memorandum. I can help you find specific information,
-                  explain terms, or analyze the deal structure.
-                </p>
+          <div className="h-full flex flex-col items-center justify-center py-4">
+            <div className="text-center space-y-4">
+              <p className="text-base text-gray-700 font-medium">
+                Welcome to the OM
+              </p>
+              <p className="text-sm text-gray-600 max-w-xs">
+                You can use the Talk to OM feature to discuss the data in the OM
+              </p>
+              
+              {/* Sample Query Pills */}
+              <div className="flex flex-col gap-2 mt-6">
+                {[
+                  "What is the loan amount?",
+                  "Tell me about the property details",
+                  "What are the key financial metrics?"
+                ].map((query, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setQuestion(query)}
+                    className="px-4 py-2 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full transition-colors"
+                  >
+                    {query}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         )}
 
         {/* Chat Messages */}
-        <div className="space-y-4">
+        {messages.length > 0 && (
+        <div className="space-y-4 py-4">
           {messages.map((message) => {
             if (message.role === 'user') {
               return (
@@ -159,8 +188,8 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen }) =
               const { answer_markdown, assumptions } = message.data;
               return (
                 <div key={message.id} className="flex justify-start">
-                  <div className="bg-gray-100 text-gray-800 rounded-lg px-3 py-2 max-w-[80%]">
-                    <div className="prose prose-sm">
+                  <div className="bg-white border border-gray-200 text-gray-800 rounded-lg px-4 py-3 max-w-[80%] shadow-sm">
+                    <div className="prose prose-sm max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {answer_markdown || ''}
                       </ReactMarkdown>
@@ -168,55 +197,51 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen }) =
 
                     {/* Assumptions card at the bottom, collapsed by default */}
                     {assumptions?.length ? (
-                      <Card className="mt-4 border-gray-200">
-                        <CardHeader className="p-3 pb-0">
-                          <button
-                            type="button"
-                            onClick={() => setAssumptionsOpen(o => !o)}
-                            className="w-full flex items-center justify-between text-left"
-                            aria-expanded={assumptionsOpen}
-                            aria-controls={assumptionsId}
-                          >
-                            <span className="font-medium text-gray-900">
-                              Assumptions ({assumptions.length})
-                            </span>
-                            <ChevronDown
-                              className={`h-4 w-4 text-gray-500 transition-transform ${
-                                assumptionsOpen ? 'rotate-180' : ''
-                              }`}
-                            />
-                          </button>
-                        </CardHeader>
-                        <CardContent
-                          id={assumptionsId}
-                          className={`px-3 pb-3 ${assumptionsOpen ? 'block' : 'hidden'}`}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <button
+                          type="button"
+                          onClick={() => setAssumptionsOpen(o => !o)}
+                          className="w-full flex items-center justify-between text-left mb-3"
+                          aria-expanded={assumptionsOpen}
+                          aria-controls={assumptionsId}
                         >
-                          <div className="space-y-3">
-                            {assumptions?.map((a, idx) => {
-                              if (!a) return null;
-                              return (
-                                <Card key={idx} className="border-gray-100 bg-gray-50/50">
-                                  <CardContent className="p-3">
-                                    <div className="flex items-start gap-3">
-                                      <div className="flex-1">
-                                        <p className="text-sm text-gray-800 leading-relaxed">{a.text}</p>
-                                        {a.citation && (
-                                          <p className="text-xs text-gray-500 mt-2">
-                                            <span className="font-medium">Section:</span> {a.citation}
-                                          </p>
-                                        )}
-                                      </div>
-                                      {a.source && (<span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-gray-200 text-gray-700 capitalize font-medium">
-                                        {a.source}
-                                      </span>)}
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              )
-                            })}
-                          </div>
-                        </CardContent>
-                      </Card>
+                          <span className="text-sm font-semibold text-gray-700">
+                            Assumptions ({assumptions.length})
+                          </span>
+                          <ChevronDown
+                            className={`h-4 w-4 text-gray-500 transition-transform ${
+                              assumptionsOpen ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                        <div
+                          id={assumptionsId}
+                          className={`${assumptionsOpen ? 'block' : 'hidden'} space-y-3`}
+                        >
+                          {assumptions?.map((a, idx) => {
+                            if (!a) return null;
+                            return (
+                              <div key={idx} className="bg-gray-50 border border-gray-100 rounded-md p-4">
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-1">
+                                    <p className="text-sm text-gray-800 leading-relaxed">{a.text}</p>
+                                    {a.citation && (
+                                      <p className="text-xs text-gray-500 mt-2">
+                                        <span className="font-medium">Section:</span> {a.citation}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {a.source && (
+                                    <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 capitalize font-medium">
+                                      {a.source}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -240,6 +265,7 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen }) =
             return null;
           })}
         </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-4">

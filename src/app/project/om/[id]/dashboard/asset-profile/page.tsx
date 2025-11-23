@@ -1,20 +1,60 @@
 // src/app/project/om/[id]/dashboard/asset-profile/page.tsx
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
-import { unitMixData, marketComps, assetProfileDetails, projectOverview, mediaAssets } from '@/services/mockOMData';
+import { unitMixData, marketComps, assetProfileDetails, projectOverview } from '@/services/mockOMData';
 import { MapPin, Home, Package, Building2, Image as ImageIcon } from 'lucide-react';
 import ZoningMap from '@/components/om/ZoningMap';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function AssetProfilePage() {
   const params = useParams();
   const projectId = params?.id as string;
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
+  const [siteImageCount, setSiteImageCount] = useState(0);
+  const [diagramCount, setDiagramCount] = useState(0);
+  
+  const loadMediaCounts = useCallback(async () => {
+    if (!projectId || !project?.owner_org_id) return;
+    
+    try {
+      const orgId = project.owner_org_id;
+
+      // Count site images
+      const { data: siteData } = await supabase.storage
+        .from(orgId)
+        .list(`${projectId}/site-images`, {
+          limit: 100,
+        });
+      if (siteData) {
+        const count = siteData.filter((f) => f.name !== ".keep" && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)).length;
+        setSiteImageCount(count);
+      }
+
+      // Count diagrams
+      const { data: diagramData } = await supabase.storage
+        .from(orgId)
+        .list(`${projectId}/architectural-diagrams`, {
+          limit: 100,
+        });
+      if (diagramData) {
+        const count = diagramData.filter((f) => f.name !== ".keep" && f.name.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)).length;
+        setDiagramCount(count);
+      }
+    } catch (error) {
+      console.error('Error loading media counts:', error);
+    }
+  }, [projectId, project]);
+
+  useEffect(() => {
+    if (!projectId || !project?.owner_org_id) return;
+    loadMediaCounts();
+  }, [projectId, project, loadMediaCounts]);
   
   if (!project) return <div>Project not found</div>;
   
@@ -161,11 +201,11 @@ export default function AssetProfilePage() {
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="bg-purple-50 rounded p-2 text-center">
               <p className="text-xs text-gray-500 uppercase mb-1">Site Imagery</p>
-              <p className="text-lg font-semibold text-purple-700">{mediaAssets.site.length}</p>
+              <p className="text-lg font-semibold text-purple-700">{siteImageCount}</p>
             </div>
             <div className="bg-indigo-50 rounded p-2 text-center">
               <p className="text-xs text-gray-500 uppercase mb-1">Diagrams</p>
-              <p className="text-lg font-semibold text-indigo-700">{mediaAssets.diagrams.length}</p>
+              <p className="text-lg font-semibold text-indigo-700">{diagramCount}</p>
             </div>
           </div>
           <p className="text-xs text-gray-500">
