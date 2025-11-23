@@ -57,7 +57,7 @@ export const NotificationSettingsPanel = () => {
     setProjectsLoading(true);
     setProjectsError(null);
     const { data, error: projectError } = await supabase
-      .from<ProjectSummary>("projects")
+      .from("projects")
       .select("id,name")
       .order("name", { ascending: true });
 

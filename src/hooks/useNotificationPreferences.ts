@@ -68,7 +68,7 @@ export const useNotificationPreferences = () => {
     setError(null);
 
     const { data, error: queryError } = await supabase
-      .from<NotificationPreferenceRow>("user_notification_preferences")
+      .from("user_notification_preferences")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
