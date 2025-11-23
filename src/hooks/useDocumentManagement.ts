@@ -323,7 +323,7 @@ export const useDocumentManagement = ({
           console.log("[useDocumentManagement] Logged document_uploaded event:", eventId);
           if (eventId) {
             const { error: notifyError } = await supabase.functions.invoke(
-              "notify-document-uploaded",
+              "notify-fan-out",
               {
                 body: { eventId },
               }
