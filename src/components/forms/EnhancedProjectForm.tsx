@@ -18,6 +18,8 @@ import { cn } from "@/utils/cn";
 import { FormProvider } from "../../contexts/FormContext";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
+import { supabase } from "../../../lib/supabaseClient";
+import { useAuthStore } from "../../stores/useAuthStore";
 
 import {
   FileText,
@@ -39,6 +41,9 @@ import {
   Lock,
   Unlock,
   AlertTriangle,
+  Image as ImageIcon,
+  Upload,
+  X,
 } from "lucide-react";
 import {
   ProjectProfile,
@@ -208,6 +213,307 @@ const FieldWarning: React.FC<FieldWarningProps> = ({ message, className }) => {
   );
 };
 
+// Project Media Upload Component
+interface ProjectMediaUploadProps {
+  projectId: string;
+  orgId: string | null;
+  disabled?: boolean;
+}
+
+const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
+  projectId,
+  orgId,
+  disabled = false,
+}) => {
+  const [siteImages, setSiteImages] = useState<string[]>([]);
+  const [architecturalDiagrams, setArchitecturalDiagrams] = useState<string[]>([]);
+  const [uploadingSite, setUploadingSite] = useState(false);
+  const [uploadingDiagrams, setUploadingDiagrams] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+
+  // Load existing images
+  useEffect(() => {
+    if (!orgId || !projectId) return;
+    loadImages();
+  }, [orgId, projectId]);
+
+  const loadImages = async () => {
+    if (!orgId || !projectId) return;
+    setLoading(true);
+    try {
+      // Load site images
+      const { data: siteData } = await supabase.storage
+        .from(orgId)
+        .list(`${projectId}/site-images`, {
+          limit: 100,
+          sortBy: { column: "name", order: "asc" },
+        });
+      if (siteData) {
+        const imageFiles = siteData
+          .filter((f) => f.name !== ".keep" && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+          .map((f) => f.name);
+        setSiteImages(imageFiles);
+      }
+
+      // Load architectural diagrams
+      const { data: diagramData } = await supabase.storage
+        .from(orgId)
+        .list(`${projectId}/architectural-diagrams`, {
+          limit: 100,
+          sortBy: { column: "name", order: "asc" },
+        });
+      if (diagramData) {
+        const diagramFiles = diagramData
+          .filter((f) => f.name !== ".keep" && f.name.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i))
+          .map((f) => f.name);
+        setArchitecturalDiagrams(diagramFiles);
+      }
+    } catch (error) {
+      console.error("Error loading images:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (
+    files: FileList | null,
+    folder: "site-images" | "architectural-diagrams"
+  ) => {
+    if (!files || !orgId || !projectId || disabled) return;
+
+    const isSiteImages = folder === "site-images";
+    const setUploading = isSiteImages ? setUploadingSite : setUploadingDiagrams;
+    const setImages = isSiteImages ? setSiteImages : setArchitecturalDiagrams;
+
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        // Validate image file
+        if (!file.type.startsWith("image/") && !file.name.match(/\.pdf$/i)) {
+          alert(`${file.name} is not a valid image or PDF file`);
+          continue;
+        }
+
+        const filePath = `${projectId}/${folder}/${file.name}`;
+        const { error } = await supabase.storage
+          .from(orgId)
+          .upload(filePath, file, {
+            cacheControl: "3600",
+            upsert: true,
+          });
+
+        if (error) {
+          console.error(`Error uploading ${file.name}:`, error);
+          alert(`Failed to upload ${file.name}`);
+        } else {
+          setImages((prev) => [...prev, file.name]);
+          // Generate signed URL for the newly uploaded file
+          const filePath = `${projectId}/${folder}/${file.name}`;
+          const { data: urlData } = await supabase.storage
+            .from(orgId)
+            .createSignedUrl(filePath, 3600);
+          if (urlData) {
+            setImageUrls((prev) => ({
+              ...prev,
+              [`${folder}/${file.name}`]: urlData.signedUrl,
+            }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      alert("Failed to upload files");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteImage = async (
+    fileName: string,
+    folder: "site-images" | "architectural-diagrams"
+  ) => {
+    if (!orgId || !projectId || disabled) return;
+
+    const isSiteImages = folder === "site-images";
+    const setImages = isSiteImages ? setSiteImages : setArchitecturalDiagrams;
+
+    if (!confirm(`Delete ${fileName}?`)) return;
+
+    try {
+      const filePath = `${projectId}/${folder}/${fileName}`;
+      const { error } = await supabase.storage.from(orgId).remove([filePath]);
+
+      if (error) {
+        console.error("Error deleting file:", error);
+        alert("Failed to delete file");
+      } else {
+        setImages((prev) => prev.filter((name) => name !== fileName));
+      }
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      alert("Failed to delete file");
+    }
+  };
+
+  // Generate signed URLs for images when they're loaded
+  useEffect(() => {
+    if (!orgId || !projectId) return;
+    
+    const generateUrls = async () => {
+      const urlMap: Record<string, string> = {};
+      
+      // Generate URLs for site images
+      for (const fileName of siteImages) {
+        const filePath = `${projectId}/site-images/${fileName}`;
+        const { data, error } = await supabase.storage
+          .from(orgId)
+          .createSignedUrl(filePath, 3600);
+        if (!error && data) {
+          urlMap[`site-images/${fileName}`] = data.signedUrl;
+        }
+      }
+      
+      // Generate URLs for architectural diagrams
+      for (const fileName of architecturalDiagrams) {
+        const filePath = `${projectId}/architectural-diagrams/${fileName}`;
+        const { data, error } = await supabase.storage
+          .from(orgId)
+          .createSignedUrl(filePath, 3600);
+        if (!error && data) {
+          urlMap[`architectural-diagrams/${fileName}`] = data.signedUrl;
+        }
+      }
+      
+      setImageUrls(urlMap);
+    };
+    
+    generateUrls();
+  }, [orgId, projectId, siteImages, architecturalDiagrams]);
+
+  const getImageUrl = (fileName: string, folder: "site-images" | "architectural-diagrams") => {
+    return imageUrls[`${folder}/${fileName}`] || "";
+  };
+
+  if (loading) {
+    return <div className="text-center py-8">Loading images...</div>;
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Site Images */}
+      <FormGroup>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Site Images
+        </label>
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => handleFileUpload(e.target.files, "site-images")}
+            disabled={disabled || uploadingSite}
+            className="hidden"
+            id="site-images-upload"
+          />
+          <label
+            htmlFor="site-images-upload"
+            className={cn(
+              "flex flex-col items-center justify-center cursor-pointer",
+              (disabled || uploadingSite) && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <Upload className="h-8 w-8 text-gray-400 mb-2" />
+            <span className="text-sm text-gray-600">
+              {uploadingSite ? "Uploading..." : "Click to upload site images"}
+            </span>
+          </label>
+        </div>
+        {siteImages.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            {siteImages.map((fileName) => (
+              <div key={fileName} className="relative group">
+                <img
+                  src={getImageUrl(fileName, "site-images")}
+                  alt={fileName}
+                  className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                />
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteImage(fileName, "site-images")}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </FormGroup>
+
+      {/* Architectural Diagrams */}
+      <FormGroup>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Architectural Diagrams
+        </label>
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+          <input
+            type="file"
+            accept="image/*,.pdf"
+            multiple
+            onChange={(e) => handleFileUpload(e.target.files, "architectural-diagrams")}
+            disabled={disabled || uploadingDiagrams}
+            className="hidden"
+            id="architectural-diagrams-upload"
+          />
+          <label
+            htmlFor="architectural-diagrams-upload"
+            className={cn(
+              "flex flex-col items-center justify-center cursor-pointer",
+              (disabled || uploadingDiagrams) && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <Upload className="h-8 w-8 text-gray-400 mb-2" />
+            <span className="text-sm text-gray-600">
+              {uploadingDiagrams ? "Uploading..." : "Click to upload architectural diagrams"}
+            </span>
+          </label>
+        </div>
+        {architecturalDiagrams.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            {architecturalDiagrams.map((fileName) => (
+              <div key={fileName} className="relative group">
+                {fileName.match(/\.pdf$/i) ? (
+                  <div className="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                    <FileText className="h-8 w-8 text-gray-400" />
+                  </div>
+                ) : (
+                  <img
+                    src={getImageUrl(fileName, "architectural-diagrams")}
+                    alt={fileName}
+                    className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                  />
+                )}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteImage(fileName, "architectural-diagrams")}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </FormGroup>
+    </div>
+  );
+};
+
 const stateOptions = [
   // Keep states for Select component
   { value: "", label: "Select a state..." },
@@ -273,6 +579,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 }) => {
   const router = useRouter();
   const { updateProject } = useProjects();
+  const { activeOrg } = useAuthStore();
 
   // Form state initialized from existingProject prop
   const [formData, setFormData] = useState<ProjectProfile>(() => ({
@@ -3025,6 +3332,50 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                   </AskAIButton>
                 </FormGroup>
               </div>
+            </div>
+          </>
+        ),
+      },
+      // --- Step 11: Project Media ---
+      {
+        id: "project-media",
+        title: "Project Media",
+        component: (
+          <>
+            <div className="space-y-6">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                  <ImageIcon className="h-5 w-5 mr-2 text-blue-600" /> Project Media
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => toggleSectionLock("project-media")}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                    lockedSections.has("project-media")
+                      ? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                      : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                  )}
+                  title={lockedSections.has("project-media") ? "Unlock section" : "Lock section"}
+                >
+                  {lockedSections.has("project-media") ? (
+                    <>
+                      <Lock className="h-4 w-4" />
+                      <span>Unlock</span>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock className="h-4 w-4" />
+                      <span>Lock</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <ProjectMediaUpload
+                projectId={formData.id}
+                orgId={activeOrg?.id || null}
+                disabled={isFieldLocked("project-media", "project-media")}
+              />
             </div>
           </>
         ),

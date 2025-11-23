@@ -22,6 +22,8 @@ interface CloneBorrowerDocsParams {
 
 const BORROWER_DOCS_SUBDIR = "borrower-docs";
 const PROJECT_DOCS_SUBDIR = "project-docs";
+const SITE_IMAGES_SUBDIR = "site-images";
+const ARCHITECTURAL_DIAGRAMS_SUBDIR = "architectural-diagrams";
 const PLACEHOLDER_BLOB = new Blob(["keep"], {
   type: "text/plain;charset=UTF-8",
 });
@@ -68,6 +70,8 @@ async function ensureStorageFolders(
   const paths = [
     `${projectId}/${PROJECT_DOCS_SUBDIR}/${PLACEHOLDER_FILENAME}`,
     `${projectId}/${BORROWER_DOCS_SUBDIR}/${PLACEHOLDER_FILENAME}`,
+    `${projectId}/${SITE_IMAGES_SUBDIR}/${PLACEHOLDER_FILENAME}`,
+    `${projectId}/${ARCHITECTURAL_DIAGRAMS_SUBDIR}/${PLACEHOLDER_FILENAME}`,
   ];
 
   for (const path of paths) {
