@@ -4,7 +4,7 @@ import { cn } from '@/utils/cn';
 import { Button } from './Button';
 
 interface MultiSelectPillsProps {
-  label: string;
+  label?: string;
   options: ReadonlyArray<string>;
   selectedValues: string[];
   onSelect: (values: string[]) => void;
@@ -40,9 +40,11 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
 
   return (
     <div className={cn("w-full", className)}>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </label>
+      )}
       <div className={`grid ${gridCols} gap-2`}>
         {options.map((option) => {
           const isSelected = selectedValues.includes(option);

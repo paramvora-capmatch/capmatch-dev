@@ -523,6 +523,39 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
     );
   }, [isFieldLocked, toggleFieldLock]);
 
+  // Helper function to render field label with Ask AI and Lock buttons
+  const renderFieldLabel = useCallback((
+    fieldId: string,
+    sectionId: string,
+    labelText: string,
+    required: boolean = false,
+    showWarning: boolean = false
+  ) => {
+    const warning = showWarning ? getFieldWarning(fieldId) : null;
+    return (
+      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2 relative group/field">
+        <span>
+          {labelText}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </span>
+        <FieldHelpTooltip fieldId={fieldId} />
+        {warning && <FieldWarning message={warning} />}
+        {/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => (onAskAI || (() => {}))(fieldId)}
+            className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
+            title="Ask AI for help with this field"
+          >
+            Ask AI
+          </button>
+          {renderFieldLockButton(fieldId, sectionId)}
+        </div>
+      </label>
+    );
+  }, [onAskAI, renderFieldLockButton, getFieldWarning]);
+
   // Update local form state if the existingProject prop changes externally
   useEffect(() => {
     setFormData(existingProject);
@@ -685,25 +718,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <FormGroup>
                 <AskAIButton id="projectName" onAskAI={onAskAI || (() => {})}>
                   <div className="relative group/field">
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                      <span>
-                        Project Name
-                        <span className="text-red-500 ml-1">*</span>
-                      </span>
-                      <FieldHelpTooltip fieldId="projectName" />
-                      {/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
-                      <div className="ml-auto flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => (onAskAI || (() => {}))("projectName")}
-                          className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
-                          title="Ask AI for help with this field"
-                        >
-                          Ask AI
-                        </button>
-                        {renderFieldLockButton("projectName", "basic-info")}
-                      </div>
-                    </label>
+                    {renderFieldLabel("projectName", "basic-info", "Project Name", true)}
                     <Input
                       id="projectName"
                       label={null}
@@ -739,25 +754,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     onAskAI={onAskAI || (() => {})}
                   >
                     <div className="relative group/field">
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>
-                          Street Address
-                          <span className="text-red-500 ml-1">*</span>
-                        </span>
-                        <FieldHelpTooltip fieldId="propertyAddressStreet" />
-                        {/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
-                        <div className="ml-auto flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => (onAskAI || (() => {}))("propertyAddressStreet")}
-                            className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
-                            title="Ask AI for help with this field"
-                          >
-                            Ask AI
-                          </button>
-                          {renderFieldLockButton("propertyAddressStreet", "basic-info")}
-                        </div>
-                      </label>
+                      {renderFieldLabel("propertyAddressStreet", "basic-info", "Street Address", true)}
                       <Input
                         id="propertyAddressStreet"
                         label={null}
@@ -790,15 +787,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       id="propertyAddressCity"
                       onAskAI={onAskAI || (() => {})}
                     >
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                          <span>
-                            City
-                            <span className="text-red-500 ml-1">*</span>
-                          </span>
-                          <FieldHelpTooltip fieldId="propertyAddressCity" />
-                          {renderFieldLockButton("propertyAddressCity", "basic-info")}
-                        </label>
+                      <div className="relative group/field">
+                        {renderFieldLabel("propertyAddressCity", "basic-info", "City", true)}
                         <Input
                           id="propertyAddressCity"
                           label={null}
@@ -831,15 +821,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       id="propertyAddressState"
                       onAskAI={onAskAI || (() => {})}
                     >
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                          <span>
-                            State
-                            <span className="text-red-500 ml-1">*</span>
-                          </span>
-                          <FieldHelpTooltip fieldId="propertyAddressState" />
-                          {renderFieldLockButton("propertyAddressState", "basic-info")}
-                        </label>
+                      <div className="relative group/field">
+                        {renderFieldLabel("propertyAddressState", "basic-info", "State", true)}
                         <Select
                           id="propertyAddressState"
                           value={formData.propertyAddressState || ""}
@@ -870,18 +853,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       id="propertyAddressZip"
                       onAskAI={onAskAI || (() => {})}
                     >
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                          <span>
-                            ZIP Code
-                            <span className="text-red-500 ml-1">*</span>
-                          </span>
-                          <FieldHelpTooltip fieldId="propertyAddressZip" />
-                          {getFieldWarning("propertyAddressZip") && (
-                            <FieldWarning message={getFieldWarning("propertyAddressZip")!} />
-                          )}
-                          {renderFieldLockButton("propertyAddressZip", "basic-info")}
-                        </label>
+                      <div className="relative group/field">
+                        {renderFieldLabel("propertyAddressZip", "basic-info", "ZIP Code", true, true)}
                         <Input
                           id="propertyAddressZip"
                           label={null}
@@ -914,12 +887,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="propertyAddressCounty"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>County</span>
-                        <FieldHelpTooltip fieldId="propertyAddressCounty" />
-                        {renderFieldLockButton("propertyAddressCounty", "basic-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("propertyAddressCounty", "basic-info", "County", false)}
                       <Input
                         id="propertyAddressCounty"
                         label={null}
@@ -962,17 +931,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-required="true"
                       data-field-label="Asset Type"
                       data-field-options={JSON.stringify(assetTypeOptions)}
+                      className="relative group/field"
                     >
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        <span>
-                          Asset Type
-                        </span>
-                        <FieldHelpTooltip fieldId="assetType" />
-                        {getFieldWarning("assetType") && (
-                          <FieldWarning message={getFieldWarning("assetType")!} />
-                        )}
-                        {renderFieldLockButton("assetType", "basic-info")}
-                      </label>
+                      {renderFieldLabel("assetType", "basic-info", "Asset Type", true, true)}
                       <ButtonSelect
                         label=""
                         options={assetTypeOptions}
@@ -980,7 +941,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                         onSelect={(value) =>
                           handleInputChange("assetType", value)
                         }
-                        required
                         disabled={isFieldLocked("assetType", "basic-info")}
                       />
                     </div>
@@ -999,15 +959,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-required="true"
                       data-field-label="Project Phase / Deal Type"
                       data-field-options={JSON.stringify(projectPhaseOptions)}
+                      className="relative group/field"
                     >
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        <span>
-                          Project Phase / Deal Type
-                          <span className="text-red-500 ml-1">*</span>
-                        </span>
-                        <FieldHelpTooltip fieldId="projectPhase" />
-                        {renderFieldLockButton("projectPhase", "basic-info")}
-                      </label>
+                      {renderFieldLabel("projectPhase", "basic-info", "Project Phase / Deal Type", true)}
                       <ButtonSelect
                         label=""
                         options={projectPhaseOptions}
@@ -1018,7 +972,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                             value as ProjectPhase
                           )
                         }
-                        required
                         disabled={isFieldLocked("projectPhase", "basic-info")}
                       />
                     </div>
@@ -1037,15 +990,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-required="true"
                       data-field-label="Project Description"
                       data-field-placeholder="Brief description of the project..."
+                      className="relative group/field"
                     >
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>
-                          Project Description
-                          <span className="text-red-500 ml-1">*</span>
-                        </span>
-                        <FieldHelpTooltip fieldId="projectDescription" />
-                        {renderFieldLockButton("projectDescription", "basic-info")}
-                      </label>
+                      {renderFieldLabel("projectDescription", "basic-info", "Project Description", true)}
                       <textarea
                         id="projectDescription"
                         value={formData.projectDescription || ""}
@@ -1112,15 +1059,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="loanAmountRequested"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>
-                          Requested Loan Amount ($)
-                          <span className="text-red-500 ml-1">*</span>
-                        </span>
-                        <FieldHelpTooltip fieldId="loanAmountRequested" />
-                        {renderFieldLockButton("loanAmountRequested", "loan-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("loanAmountRequested", "loan-info", "Requested Loan Amount ($)", true)}
                       <Input
                         id="loanAmountRequested"
                         type="number"
@@ -1158,15 +1098,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-required="true"
                       data-field-label="Capital Type"
                       data-field-options={JSON.stringify(capitalTypeOptions)}
+                      className="relative group/field"
                     >
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        <span>
-                          Capital Type
-                          <span className="text-red-500 ml-1">*</span>
-                        </span>
-                        <FieldHelpTooltip fieldId="loanType" />
-                        {renderFieldLockButton("loanType", "loan-info")}
-                      </label>
+                      {renderFieldLabel("loanType", "loan-info", "Capital Type", true)}
                       <ButtonSelect
                         label=""
                         options={capitalTypeOptions}
@@ -1174,7 +1108,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                         onSelect={(value) =>
                           handleInputChange("loanType", value)
                         }
-                        required
                         disabled={isFieldLocked("loanType", "loan-info")}
                         gridCols="grid-cols-2 md:grid-cols-3"
                       />
@@ -1188,15 +1121,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="targetLtvPercent"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>
-                          Target LTV (%)
-                          <span className="text-red-500 ml-1">*</span>
-                        </span>
-                        <FieldHelpTooltip fieldId="targetLtvPercent" />
-                        {renderFieldLockButton("targetLtvPercent", "loan-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("targetLtvPercent", "loan-info", "Target LTV (%)", true)}
                       <Input
                         id="targetLtvPercent"
                         type="number"
@@ -1229,12 +1155,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="targetLtcPercent"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Target LTC (%) (Construction/Dev)</span>
-                        <FieldHelpTooltip fieldId="targetLtcPercent" />
-                        {renderFieldLockButton("targetLtcPercent", "loan-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("targetLtcPercent", "loan-info", "Target LTC (%) (Construction/Dev)", false)}
                       <Input
                         id="targetLtcPercent"
                         type="number"
@@ -1268,12 +1190,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="amortizationYears"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Amortization (Years)</span>
-                        <FieldHelpTooltip fieldId="amortizationYears" />
-                        {renderFieldLockButton("amortizationYears", "loan-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("amortizationYears", "loan-info", "Amortization (Years)", false)}
                       <Input
                         id="amortizationYears"
                         type="number"
@@ -1305,12 +1223,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="interestOnlyPeriodMonths"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Interest-Only Period (Months)</span>
-                        <FieldHelpTooltip fieldId="interestOnlyPeriodMonths" />
-                        {renderFieldLockButton("interestOnlyPeriodMonths", "loan-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("interestOnlyPeriodMonths", "loan-info", "Interest-Only Period (Months)", false)}
                       <Input
                         id="interestOnlyPeriodMonths"
                         type="number"
@@ -1356,12 +1270,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                       data-field-options={JSON.stringify(
                         interestRateTypeOptions
                       )}
+                      className="relative group/field"
                     >
-                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                        <span>Interest Rate Type</span>
-                        <FieldHelpTooltip fieldId="interestRateType" />
-                        {renderFieldLockButton("interestRateType", "loan-info")}
-                      </label>
+                      {renderFieldLabel("interestRateType", "loan-info", "Interest Rate Type", false)}
                       <ButtonSelect
                         label=""
                         options={interestRateTypeOptions}
@@ -1385,12 +1296,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="targetCloseDate"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Target Close Date</span>
-                        <FieldHelpTooltip fieldId="targetCloseDate" />
-                        {renderFieldLockButton("targetCloseDate", "loan-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("targetCloseDate", "loan-info", "Target Close Date", false)}
                       <Input
                         id="targetCloseDate"
                         type="date"
@@ -1426,12 +1333,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-required="false"
                     data-field-label="Recourse Preference"
                     data-field-options={JSON.stringify(recourseOptions)}
+                    className="relative group/field"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <span>Recourse Preference</span>
-                      <FieldHelpTooltip fieldId="recoursePreference" />
-                      {renderFieldLockButton("recoursePreference", "loan-info")}
-                    </label>
+                    {renderFieldLabel("recoursePreference", "loan-info", "Recourse Preference", false)}
                     <ButtonSelect
                       label=""
                       options={recourseOptions}
@@ -1458,15 +1362,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-required="true"
                     data-field-label="Use of Proceeds"
                     data-field-placeholder="Describe how the loan proceeds will be used..."
+                    className="relative group/field"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                      <span>
-                        Use of Proceeds
-                        <span className="text-red-500 ml-1">*</span>
-                      </span>
-                      <FieldHelpTooltip fieldId="useOfProceeds" />
-                      {renderFieldLockButton("useOfProceeds", "loan-info")}
-                    </label>
+                    {renderFieldLabel("useOfProceeds", "loan-info", "Use of Proceeds", true)}
                     <textarea
                       id="useOfProceeds"
                       value={formData.useOfProceeds || ""}
@@ -1529,12 +1427,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="purchasePrice"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Purchase Price / Current Basis ($)</span>
-                        <FieldHelpTooltip fieldId="purchasePrice" />
-                        {renderFieldLockButton("purchasePrice", "financials")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("purchasePrice", "financials", "Purchase Price / Current Basis ($)", false)}
                       <Input
                         id="purchasePrice"
                         type="number"
@@ -1566,12 +1460,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="totalProjectCost"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Total Project Cost ($)</span>
-                        <FieldHelpTooltip fieldId="totalProjectCost" />
-                        {renderFieldLockButton("totalProjectCost", "financials")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("totalProjectCost", "financials", "Total Project Cost ($)", false)}
                       <Input
                         id="totalProjectCost"
                         type="number"
@@ -1602,12 +1492,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="capexBudget" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>CapEx Budget ($)</span>
-                        <FieldHelpTooltip fieldId="capexBudget" />
-                        {renderFieldLockButton("capexBudget", "financials")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("capexBudget", "financials", "CapEx Budget ($)", false)}
                       <Input
                         id="capexBudget"
                         type="number"
@@ -1639,12 +1525,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="equityCommittedPercent"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Equity Committed (%)</span>
-                        <FieldHelpTooltip fieldId="equityCommittedPercent" />
-                        {renderFieldLockButton("equityCommittedPercent", "financials")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("equityCommittedPercent", "financials", "Equity Committed (%)", false)}
                       <Input
                         id="equityCommittedPercent"
                         type="number"
@@ -1678,12 +1560,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="propertyNoiT12"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Current/T12 NOI ($)</span>
-                        <FieldHelpTooltip fieldId="propertyNoiT12" />
-                        {renderFieldLockButton("propertyNoiT12", "financials")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("propertyNoiT12", "financials", "Current/T12 NOI ($)", false)}
                       <Input
                         id="propertyNoiT12"
                         type="number"
@@ -1715,12 +1593,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     id="stabilizedNoiProjected"
                     onAskAI={onAskAI || (() => {})}
                   >
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Projected Stabilized NOI ($)</span>
-                        <FieldHelpTooltip fieldId="stabilizedNoiProjected" />
-                        {renderFieldLockButton("stabilizedNoiProjected", "financials")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("stabilizedNoiProjected", "financials", "Projected Stabilized NOI ($)", false)}
                       <Input
                         id="stabilizedNoiProjected"
                         type="number"
@@ -1758,12 +1632,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-required="false"
                     data-field-label="Exit Strategy"
                     data-field-options={JSON.stringify(exitStrategyOptions)}
+                    className="relative group/field"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                      <span>Exit Strategy</span>
-                      <FieldHelpTooltip fieldId="exitStrategy" />
-                      {renderFieldLockButton("exitStrategy", "financials")}
-                    </label>
+                    {renderFieldLabel("exitStrategy", "financials", "Exit Strategy", false)}
                     <ButtonSelect
                       label=""
                       options={exitStrategyOptions}
@@ -1789,12 +1660,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-required="false"
                     data-field-label="Business Plan Summary"
                     data-field-placeholder="Summary of your business plan..."
+                    className="relative group/field"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                      <span>Business Plan Summary</span>
-                      <FieldHelpTooltip fieldId="businessPlanSummary" />
-                      {renderFieldLockButton("businessPlanSummary", "financials")}
-                    </label>
+                    {renderFieldLabel("businessPlanSummary", "financials", "Business Plan Summary", false)}
                     <textarea
                       id="businessPlanSummary"
                       value={formData.businessPlanSummary || ""}
@@ -1823,12 +1691,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     data-field-required="false"
                     data-field-label="Market Overview"
                     data-field-placeholder="Brief overview of the market..."
+                    className="relative group/field"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                      <span>Market Overview</span>
-                      <FieldHelpTooltip fieldId="marketOverviewSummary" />
-                      {renderFieldLockButton("marketOverviewSummary", "financials")}
-                    </label>
+                    {renderFieldLabel("marketOverviewSummary", "financials", "Market Overview", false)}
                     <textarea
                       id="marketOverviewSummary"
                       value={formData.marketOverviewSummary || ""}
@@ -1890,12 +1755,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="totalResidentialUnits" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Total Residential Units</span>
-                        <FieldHelpTooltip fieldId="totalResidentialUnits" />
-                        {renderFieldLockButton("totalResidentialUnits", "property-specs")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("totalResidentialUnits", "property-specs", "Total Residential Units", false)}
                       <Input
                         id="totalResidentialUnits"
                         type="number"
@@ -1921,12 +1782,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="totalResidentialNRSF" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Total Residential NRSF</span>
-                        <FieldHelpTooltip fieldId="totalResidentialNRSF" />
-                        {renderFieldLockButton("totalResidentialNRSF", "property-specs")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("totalResidentialNRSF", "property-specs", "Total Residential NRSF", false)}
                       <Input
                         id="totalResidentialNRSF"
                         type="number"
@@ -1954,12 +1811,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="totalCommercialGRSF" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Total Commercial GRSF</span>
-                        <FieldHelpTooltip fieldId="totalCommercialGRSF" />
-                        {renderFieldLockButton("totalCommercialGRSF", "property-specs")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("totalCommercialGRSF", "property-specs", "Total Commercial GRSF", false)}
                       <Input
                         id="totalCommercialGRSF"
                         type="number"
@@ -1985,12 +1838,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="grossBuildingArea" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Gross Building Area</span>
-                        <FieldHelpTooltip fieldId="grossBuildingArea" />
-                        {renderFieldLockButton("grossBuildingArea", "property-specs")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("grossBuildingArea", "property-specs", "Gross Building Area", false)}
                       <Input
                         id="grossBuildingArea"
                         type="number"
@@ -2018,12 +1867,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="numberOfStories" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Number of Stories</span>
-                        <FieldHelpTooltip fieldId="numberOfStories" />
-                        {renderFieldLockButton("numberOfStories", "property-specs")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("numberOfStories", "property-specs", "Number of Stories", false)}
                       <Input
                         id="numberOfStories"
                         type="number"
@@ -2049,12 +1894,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="parkingSpaces" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Parking Spaces</span>
-                        <FieldHelpTooltip fieldId="parkingSpaces" />
-                        {renderFieldLockButton("parkingSpaces", "property-specs")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("parkingSpaces", "property-specs", "Parking Spaces", false)}
                       <Input
                         id="parkingSpaces"
                         type="number"
@@ -2121,12 +1962,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="landAcquisition" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Land Acquisition</span>
-                        <FieldHelpTooltip fieldId="landAcquisition" />
-                        {renderFieldLockButton("landAcquisition", "dev-budget")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("landAcquisition", "dev-budget", "Land Acquisition", false)}
                       <Input
                         id="landAcquisition"
                         type="number"
@@ -2152,12 +1989,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="baseConstruction" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Base Construction (Hard Cost)</span>
-                        <FieldHelpTooltip fieldId="baseConstruction" />
-                        {renderFieldLockButton("baseConstruction", "dev-budget")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("baseConstruction", "dev-budget", "Base Construction (Hard Cost)", false)}
                       <Input
                         id="baseConstruction"
                         type="number"
@@ -2185,12 +2018,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="contingency" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Contingency</span>
-                        <FieldHelpTooltip fieldId="contingency" />
-                        {renderFieldLockButton("contingency", "dev-budget")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("contingency", "dev-budget", "Contingency", false)}
                       <Input
                         id="contingency"
                         type="number"
@@ -2216,12 +2045,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="ffe" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>FF&E (Furniture, Fixtures & Equipment)</span>
-                        <FieldHelpTooltip fieldId="ffe" />
-                        {renderFieldLockButton("ffe", "dev-budget")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("ffe", "dev-budget", "FF&E (Furniture, Fixtures & Equipment)", false)}
                       <Input
                         id="ffe"
                         type="number"
@@ -2249,12 +2074,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="aeFees" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>A&E Fees (Architecture & Engineering)</span>
-                        <FieldHelpTooltip fieldId="aeFees" />
-                        {renderFieldLockButton("aeFees", "dev-budget")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("aeFees", "dev-budget", "A&E Fees (Architecture & Engineering)", false)}
                       <Input
                         id="aeFees"
                         type="number"
@@ -2280,12 +2101,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="developerFee" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Developer Fee</span>
-                        <FieldHelpTooltip fieldId="developerFee" />
-                        {renderFieldLockButton("developerFee", "dev-budget")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("developerFee", "dev-budget", "Developer Fee", false)}
                       <Input
                         id="developerFee"
                         type="number"
@@ -2313,12 +2130,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="interestReserve" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Interest Reserve</span>
-                        <FieldHelpTooltip fieldId="interestReserve" />
-                        {renderFieldLockButton("interestReserve", "dev-budget")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("interestReserve", "dev-budget", "Interest Reserve", false)}
                       <Input
                         id="interestReserve"
                         type="number"
@@ -2344,12 +2157,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="workingCapital" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Working Capital</span>
-                        <FieldHelpTooltip fieldId="workingCapital" />
-                        {renderFieldLockButton("workingCapital", "dev-budget")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("workingCapital", "dev-budget", "Working Capital", false)}
                       <Input
                         id="workingCapital"
                         type="number"
@@ -2416,12 +2225,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="submarketName" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Submarket Name</span>
-                        <FieldHelpTooltip fieldId="submarketName" />
-                        {renderFieldLockButton("submarketName", "market-context")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("submarketName", "market-context", "Submarket Name", false)}
                       <Input
                         id="submarketName"
                         label={null}
@@ -2443,12 +2248,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="walkabilityScore" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Walkability Score</span>
-                        <FieldHelpTooltip fieldId="walkabilityScore" />
-                        {renderFieldLockButton("walkabilityScore", "market-context")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("walkabilityScore", "market-context", "Walkability Score", false)}
                       <Input
                         id="walkabilityScore"
                         type="number"
@@ -2478,12 +2279,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="population3Mi" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Population (3-mile radius)</span>
-                        <FieldHelpTooltip fieldId="population3Mi" />
-                        {renderFieldLockButton("population3Mi", "market-context")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("population3Mi", "market-context", "Population (3-mile radius)", false)}
                       <Input
                         id="population3Mi"
                         type="number"
@@ -2509,12 +2306,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="medianHHIncome" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Median Household Income (3-mile)</span>
-                        <FieldHelpTooltip fieldId="medianHHIncome" />
-                        {renderFieldLockButton("medianHHIncome", "market-context")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("medianHHIncome", "market-context", "Median Household Income (3-mile)", false)}
                       <Input
                         id="medianHHIncome"
                         type="number"
@@ -2542,12 +2335,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="renterOccupiedPercent" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>% Renter Occupied (3-mile)</span>
-                        <FieldHelpTooltip fieldId="renterOccupiedPercent" />
-                        {renderFieldLockButton("renterOccupiedPercent", "market-context")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("renterOccupiedPercent", "market-context", "% Renter Occupied (3-mile)", false)}
                       <Input
                         id="renterOccupiedPercent"
                         type="number"
@@ -2575,12 +2364,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="popGrowth201020" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Population Growth (2010-2020)</span>
-                        <FieldHelpTooltip fieldId="popGrowth201020" />
-                        {renderFieldLockButton("popGrowth201020", "market-context")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("popGrowth201020", "market-context", "Population Growth (2010-2020)", false)}
                       <Input
                         id="popGrowth201020"
                         type="number"
@@ -2647,12 +2432,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="opportunityZone" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Opportunity Zone?</span>
-                        <FieldHelpTooltip fieldId="opportunityZone" />
-                        {renderFieldLockButton("opportunityZone", "special-considerations")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("opportunityZone", "special-considerations", "Opportunity Zone?", false)}
                       <ButtonSelect
                         label=""
                         options={["Yes", "No"]}
@@ -2668,12 +2449,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="affordableHousing" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Affordable Housing?</span>
-                        <FieldHelpTooltip fieldId="affordableHousing" />
-                        {renderFieldLockButton("affordableHousing", "special-considerations")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("affordableHousing", "special-considerations", "Affordable Housing?", false)}
                       <ButtonSelect
                         label=""
                         options={["Yes", "No"]}
@@ -2693,12 +2470,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormGroup>
                       <AskAIButton id="affordableUnitsNumber" onAskAI={onAskAI || (() => {})}>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                            <span>Number of Affordable Units</span>
-                            <FieldHelpTooltip fieldId="affordableUnitsNumber" />
-                            {renderFieldLockButton("affordableUnitsNumber", "special-considerations")}
-                          </label>
+                        <div className="relative group/field">
+                          {renderFieldLabel("affordableUnitsNumber", "special-considerations", "Number of Affordable Units", false)}
                           <Input
                             id="affordableUnitsNumber"
                             type="number"
@@ -2724,12 +2497,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                     </FormGroup>
                     <FormGroup>
                       <AskAIButton id="amiTargetPercent" onAskAI={onAskAI || (() => {})}>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                            <span>AMI Target %</span>
-                            <FieldHelpTooltip fieldId="amiTargetPercent" />
-                            {renderFieldLockButton("amiTargetPercent", "special-considerations")}
-                          </label>
+                        <div className="relative group/field">
+                          {renderFieldLabel("amiTargetPercent", "special-considerations", "AMI Target %", false)}
                           <Input
                             id="amiTargetPercent"
                             type="number"
@@ -2759,12 +2528,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="taxExemption" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Tax Exemption?</span>
-                        <FieldHelpTooltip fieldId="taxExemption" />
-                        {renderFieldLockButton("taxExemption", "special-considerations")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("taxExemption", "special-considerations", "Tax Exemption?", false)}
                       <ButtonSelect
                         label=""
                         options={["Yes", "No"]}
@@ -2780,12 +2545,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="taxAbatement" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Tax Abatement?</span>
-                        <FieldHelpTooltip fieldId="taxAbatement" />
-                        {renderFieldLockButton("taxAbatement", "special-considerations")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("taxAbatement", "special-considerations", "Tax Abatement?", false)}
                       <ButtonSelect
                         label=""
                         options={["Yes", "No"]}
@@ -2842,12 +2603,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="groundbreakingDate" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Groundbreaking Date</span>
-                        <FieldHelpTooltip fieldId="groundbreakingDate" />
-                        {renderFieldLockButton("groundbreakingDate", "timeline")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("groundbreakingDate", "timeline", "Groundbreaking Date", false)}
                       <Input
                         id="groundbreakingDate"
                         type="date"
@@ -2869,12 +2626,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="completionDate" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Completion Date</span>
-                        <FieldHelpTooltip fieldId="completionDate" />
-                        {renderFieldLockButton("completionDate", "timeline")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("completionDate", "timeline", "Completion Date", false)}
                       <Input
                         id="completionDate"
                         type="date"
@@ -2898,12 +2651,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="firstOccupancy" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>First Occupancy</span>
-                        <FieldHelpTooltip fieldId="firstOccupancy" />
-                        {renderFieldLockButton("firstOccupancy", "timeline")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("firstOccupancy", "timeline", "First Occupancy", false)}
                       <Input
                         id="firstOccupancy"
                         type="date"
@@ -2925,12 +2674,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="stabilization" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Stabilization Date</span>
-                        <FieldHelpTooltip fieldId="stabilization" />
-                        {renderFieldLockButton("stabilization", "timeline")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("stabilization", "timeline", "Stabilization Date", false)}
                       <Input
                         id="stabilization"
                         type="date"
@@ -2954,12 +2699,16 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="entitlements" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Entitlements Status</span>
-                        <FieldHelpTooltip fieldId="entitlements" />
-                        {renderFieldLockButton("entitlements", "timeline")}
-                      </label>
+                    <div
+                      data-field-id="entitlements"
+                      data-field-type="button-select"
+                      data-field-section="timeline"
+                      data-field-required="false"
+                      data-field-label="Entitlements Status"
+                      data-field-options={JSON.stringify(["Approved", "Pending"])}
+                      className="relative group/field"
+                    >
+                      {renderFieldLabel("entitlements", "timeline", "Entitlements Status", false)}
                       <ButtonSelect
                         label=""
                         options={["Approved", "Pending"]}
@@ -2975,12 +2724,16 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="permitsIssued" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Permits Status</span>
-                        <FieldHelpTooltip fieldId="permitsIssued" />
-                        {renderFieldLockButton("permitsIssued", "timeline")}
-                      </label>
+                    <div
+                      data-field-id="permitsIssued"
+                      data-field-type="button-select"
+                      data-field-section="timeline"
+                      data-field-required="false"
+                      data-field-label="Permits Status"
+                      data-field-options={JSON.stringify(["Issued", "Pending"])}
+                      className="relative group/field"
+                    >
+                      {renderFieldLabel("permitsIssued", "timeline", "Permits Status", false)}
                       <ButtonSelect
                         label=""
                         options={["Issued", "Pending"]}
@@ -3037,12 +2790,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="totalSiteAcreage" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Total Site Acreage</span>
-                        <FieldHelpTooltip fieldId="totalSiteAcreage" />
-                        {renderFieldLockButton("totalSiteAcreage", "site-context")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("totalSiteAcreage", "site-context", "Total Site Acreage", false)}
                       <Input
                         id="totalSiteAcreage"
                         type="number"
@@ -3069,12 +2818,16 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="currentSiteStatus" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Current Site Status</span>
-                        <FieldHelpTooltip fieldId="currentSiteStatus" />
-                        {renderFieldLockButton("currentSiteStatus", "site-context")}
-                      </label>
+                    <div
+                      data-field-id="currentSiteStatus"
+                      data-field-type="button-select"
+                      data-field-section="site-context"
+                      data-field-required="false"
+                      data-field-label="Current Site Status"
+                      data-field-options={JSON.stringify(["Vacant", "Existing"])}
+                      className="relative group/field"
+                    >
+                      {renderFieldLabel("currentSiteStatus", "site-context", "Current Site Status", false)}
                       <ButtonSelect
                         label=""
                         options={["Vacant", "Existing"]}
@@ -3092,12 +2845,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="siteAccess" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Site Access</span>
-                        <FieldHelpTooltip fieldId="siteAccess" />
-                        {renderFieldLockButton("siteAccess", "site-context")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("siteAccess", "site-context", "Site Access", false)}
                       <Input
                         id="siteAccess"
                         label={null}
@@ -3119,12 +2868,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="proximityShopping" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Proximity to Shopping</span>
-                        <FieldHelpTooltip fieldId="proximityShopping" />
-                        {renderFieldLockButton("proximityShopping", "site-context")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("proximityShopping", "site-context", "Proximity to Shopping", false)}
                       <Input
                         id="proximityShopping"
                         label={null}
@@ -3187,12 +2932,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="sponsorEntityName" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Sponsor Entity Name</span>
-                        <FieldHelpTooltip fieldId="sponsorEntityName" />
-                        {renderFieldLockButton("sponsorEntityName", "sponsor-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("sponsorEntityName", "sponsor-info", "Sponsor Entity Name", false)}
                       <Input
                         id="sponsorEntityName"
                         label={null}
@@ -3214,12 +2955,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="sponsorStructure" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Sponsor Structure</span>
-                        <FieldHelpTooltip fieldId="sponsorStructure" />
-                        {renderFieldLockButton("sponsorStructure", "sponsor-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("sponsorStructure", "sponsor-info", "Sponsor Structure", false)}
                       <Input
                         id="sponsorStructure"
                         label={null}
@@ -3243,12 +2980,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormGroup>
                   <AskAIButton id="equityPartner" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Equity Partner</span>
-                        <FieldHelpTooltip fieldId="equityPartner" />
-                        {renderFieldLockButton("equityPartner", "sponsor-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("equityPartner", "sponsor-info", "Equity Partner", false)}
                       <Input
                         id="equityPartner"
                         label={null}
@@ -3270,12 +3003,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
                 </FormGroup>
                 <FormGroup>
                   <AskAIButton id="contactInfo" onAskAI={onAskAI || (() => {})}>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                        <span>Contact Info</span>
-                        <FieldHelpTooltip fieldId="contactInfo" />
-                        {renderFieldLockButton("contactInfo", "sponsor-info")}
-                      </label>
+                    <div className="relative group/field">
+                      {renderFieldLabel("contactInfo", "sponsor-info", "Contact Info", false)}
                       <textarea
                         id="contactInfo"
                         value={(formData as any).contactInfo || ""}
@@ -3302,7 +3031,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
       },
       // Documents and Review steps removed (DocumentManager exists above; autosave in place)
     ],
-    [formData, handleInputChange, onAskAI, lockedSections, isFieldLocked, renderFieldLockButton, getFieldWarning, toggleSectionLock]
+    [formData, handleInputChange, onAskAI, lockedSections, isFieldLocked, renderFieldLabel, toggleSectionLock]
   );
   return (
     <FormProvider initialFormData={formData as Record<string, any>}>
