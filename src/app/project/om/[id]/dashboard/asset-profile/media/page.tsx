@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useProjects } from '@/hooks/useProjects';
 import { FileText, Loader2 } from 'lucide-react';
 import { ImagePreviewModal } from '@/components/om/ImagePreviewModal';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 interface MediaFile {
   name: string;
@@ -36,6 +37,10 @@ export default function MediaGalleryPage() {
   
   // Combine all images for preview navigation
   const allImages = [...siteImages, ...architecturalDiagrams];
+
+  useOMPageHeader({
+    subtitle: "Gallery of site imagery, streetscapes, and architectural diagrams.",
+  });
 
   const loadMedia = useCallback(async () => {
     if (!projectId || !project?.owner_org_id) return;
@@ -154,12 +159,6 @@ export default function MediaGalleryPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-800">Media & Diagrams</h1>
-        <p className="text-gray-600 mt-2">
-          Visual materials uploaded to the project including site imagery, streetscapes, and architectural diagrams.
-        </p>
-      </div>
 
       {/* Site Imagery */}
       <Card className="hover:shadow-lg transition-shadow">

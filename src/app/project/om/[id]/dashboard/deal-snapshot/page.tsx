@@ -9,6 +9,7 @@ import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { useOMDashboard } from '@/contexts/OMDashboardContext';
 import { scenarioData, dealSnapshotDetails } from '@/services/mockOMData';
 import { Layers, FileText, Calendar, AlertTriangle, Percent, Clock, Shield, DollarSign } from 'lucide-react';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function DealSnapshotPage() {
     const params = useParams();
@@ -17,6 +18,12 @@ export default function DealSnapshotPage() {
     const project = projectId ? getProject(projectId) : null;
     const { scenario } = useOMDashboard();
     const data = scenarioData[scenario];
+    
+    useOMPageHeader({
+        subtitle: project
+            ? "Overview of capital stack, key terms, milestones, and risk mitigants."
+            : undefined,
+    });
     
     if (!project) return <div>Project not found</div>;
     
@@ -177,7 +184,6 @@ export default function DealSnapshotPage() {
     
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Deal Snapshot Details</h2>
             <QuadrantGrid quadrants={quadrants} />
         </div>
     );

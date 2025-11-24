@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import ReturnsCharts from "@/components/om/ReturnsCharts";
+import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 
 export default function ReturnsPage() {
   const getIRRColor = (irr: number) => {
@@ -28,14 +29,12 @@ export default function ReturnsPage() {
     return "bg-red-100 text-red-800";
   };
 
+  useOMPageHeader({
+    subtitle: "Scenario IRRs, equity multiples, and sensitivity testing.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Return Projections</h1>
-        <p className="text-gray-600 mt-2">
-          Comprehensive return analysis across multiple scenarios
-        </p>
-      </div>
 
       {/* Scenario Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

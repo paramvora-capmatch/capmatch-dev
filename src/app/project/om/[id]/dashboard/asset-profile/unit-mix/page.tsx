@@ -4,6 +4,7 @@ import { assetProfileDetails } from '@/services/mockOMData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Home, DollarSign, Users } from 'lucide-react';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function UnitMixPage() {
   const totalUnits = Object.values(assetProfileDetails.unitMixDetails).reduce(
@@ -67,12 +68,12 @@ export default function UnitMixPage() {
     return { type, unit, ...segment };
   });
 
+  useOMPageHeader({
+    subtitle: "Distribution of unit types, sizes, rents, and pricing insights.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Unit Mix</h1>
-        <p className="text-gray-600 mt-2">Detailed breakdown of unit types, sizes, and pricing</p>
-      </div>
 
       {/* Unit Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

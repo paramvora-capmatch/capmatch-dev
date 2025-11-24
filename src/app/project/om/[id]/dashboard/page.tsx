@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
 import { QuadrantGrid } from "@/components/om/QuadrantGrid";
 import { MetricCard } from "@/components/om/widgets/MetricCard";
@@ -10,6 +10,7 @@ import { AIInsightsBar } from "@/components/om/AIInsightsBar";
 import { ImageSlideshow } from "@/components/om/ImageSlideshow";
 import { useOMDashboard } from "@/contexts/OMDashboardContext";
 import { cn } from "@/utils/cn";
+import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import {
   scenarioData,
   timelineData,
@@ -29,10 +30,17 @@ import PopulationHeatmap from "@/components/om/PopulationHeatmap";
 export default function OMDashboardPage() {
   const params = useParams();
   const projectId = params?.id as string;
+  const router = useRouter();
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
   const { scenario, setScenario } = useOMDashboard();
   const data = scenarioData[scenario];
+
+  useOMPageHeader({
+    subtitle: project
+      ? "High-level snapshot of capital needs, returns, and market context."
+      : undefined,
+  });
 
   if (!project) {
     return <div>Project not found</div>;
@@ -283,8 +291,10 @@ export default function OMDashboardPage() {
         <ImageSlideshow
           projectId={projectId}
           orgId={project.owner_org_id}
+          projectName={project.projectName}
           autoPlayInterval={5000}
           height="h-80 md:h-96"
+          onClick={() => router.push(`/project/om/${projectId}/dashboard/asset-profile/media`)}
         />
       )}
 

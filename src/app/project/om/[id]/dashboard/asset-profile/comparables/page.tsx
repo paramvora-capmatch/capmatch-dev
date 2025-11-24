@@ -4,6 +4,7 @@ import { assetProfileDetails } from '@/services/mockOMData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Building2, DollarSign, BarChart3 } from 'lucide-react';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function ComparablesPage() {
   const getDistanceColor = (distance: string) => {
@@ -40,12 +41,12 @@ export default function ComparablesPage() {
     0
   ) / assetProfileDetails.comparableDetails.length;
 
+  useOMPageHeader({
+    subtitle: "Market comps showcasing rents, occupancy, pricing, and scale.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Comparable Properties</h1>
-        <p className="text-gray-600 mt-2">Market analysis and competitive positioning</p>
-      </div>
 
       {/* Market Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

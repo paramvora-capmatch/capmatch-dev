@@ -15,6 +15,7 @@ import {
   Calendar,
 } from "lucide-react";
 import PlaceholderImage from "@/components/ui/PlaceholderImage";
+import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 
 export default function SponsorProfilePage() {
   const getIRRColor = (irr: string) => {
@@ -25,14 +26,12 @@ export default function SponsorProfilePage() {
     return "bg-gray-100 text-gray-800";
   };
 
+  useOMPageHeader({
+    subtitle: "Sponsor team overview, track record, and lender references.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Sponsor Profile</h1>
-        <p className="text-gray-600 mt-2">
-          Comprehensive overview of the development sponsor
-        </p>
-      </div>
 
       {/* Company Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

@@ -10,6 +10,7 @@ import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function CapitalStackPage() {
   const params = useParams();
@@ -18,6 +19,12 @@ export default function CapitalStackPage() {
   const project = projectId ? getProject(projectId) : null;
   const { scenario } = useOMDashboard();
   const data = capitalStackData[scenario];
+
+  useOMPageHeader({
+    subtitle: project
+      ? "Breakdown of senior debt, equity, and how total capitalization is deployed."
+      : undefined,
+  });
 
   if (!project) return <div>Project not found</div>;
 
@@ -33,8 +40,7 @@ export default function CapitalStackPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-gray-800">Capital Stack</h2>
+      <div className="flex items-center justify-end">
         <div className="text-sm text-gray-500">
           Current Scenario:{" "}
           <span className="font-medium capitalize">{scenario}</span>

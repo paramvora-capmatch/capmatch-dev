@@ -5,14 +5,15 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Building2, TreePine, Car } from 'lucide-react';
 import InteractiveSiteMap from '@/components/om/InteractiveSiteMap';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function SitePlanPage() {
+  useOMPageHeader({
+    subtitle: "Layout of buildings, circulation, zoning, and site efficiencies.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Site Plan</h1>
-        <p className="text-gray-600 mt-2">Comprehensive site analysis and zoning information</p>
-      </div>
 
       {/* Site Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

@@ -12,6 +12,7 @@ import {
   Inbox
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function AmenitiesPage() {
   const getAmenityIcon = (name: string): LucideIcon => {
@@ -43,12 +44,12 @@ export default function AmenitiesPage() {
     0
   );
 
+  useOMPageHeader({
+    subtitle: "Inventory of onsite amenities and experiential highlights.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Amenities</h1>
-        <p className="text-gray-600 mt-2">Premium lifestyle amenities and shared spaces</p>
-      </div>
 
       {/* Amenities Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

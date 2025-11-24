@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, BarChart3, Clock } from "lucide-react";
 import SupplyDemandMap from "@/components/om/SupplyDemandMap";
+import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 
 export default function SupplyDemandPage() {
   const getOccupancyColor = (occupancy: string) => {
@@ -31,14 +32,12 @@ export default function SupplyDemandPage() {
     ...marketContextDetails.supplyAnalysis.deliveryByQuarter.map((q) => q.units)
   );
 
+  useOMPageHeader({
+    subtitle: "Pipeline deliveries, occupancy, and the market’s supply-demand balance.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Supply & Demand</h1>
-        <p className="text-gray-600 mt-2">
-          Market supply analysis and demand trends
-        </p>
-      </div>
 
       {/* Supply Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

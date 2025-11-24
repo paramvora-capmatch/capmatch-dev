@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/Button';
-import { MessageSquare, Send, ChevronDown, Table2 } from 'lucide-react';
+import { MessageSquare, Send, ChevronDown, Table2, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
@@ -79,6 +79,16 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
     schema: OmQaSchema,
   });
 
+  const handleResetChat = React.useCallback(() => {
+    setQuestion('');
+    setMessages([]);
+    try {
+      sessionStorage.removeItem(CHAT_STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear chat messages from session storage:', error);
+    }
+  }, []);
+
   // Load messages from session storage on component mount
   React.useEffect(() => {
     try {
@@ -108,15 +118,16 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
     }
   }, [question]);
 
-  const askQuestion = async (e?: React.FormEvent) => {
+  const askQuestion = async (e?: React.FormEvent, queryOverride?: string) => {
     e?.preventDefault();
-    if (!question.trim() || isLoading) return;
+    const queryToUse = queryOverride || question;
+    if (!queryToUse.trim() || isLoading) return;
     
-    const userMessage: Message = { id: Date.now().toString(), role: 'user', question };
+    const userMessage: Message = { id: Date.now().toString(), role: 'user', question: queryToUse };
     const thinkingMessage: Message = { id: (Date.now() + 1).toString(), role: 'thinking' };
     setMessages(prev => [...prev, userMessage, thinkingMessage]);
 
-    submit({ question });
+    submit({ question: queryToUse });
     setQuestion('');
   };
 
@@ -165,6 +176,15 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Reset chat history"
+            onClick={handleResetChat}
+            className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            title="Reset chat"
+          >
+            <RotateCcw size={16} />
+          </button>
           {onCollapse && (
             <button
               type="button"
@@ -205,7 +225,7 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
               <p className="text-base text-gray-700 font-medium">
                 Welcome to the OM
               </p>
-              <p className="text-sm text-gray-600 max-w-xs">
+              <p className="text-sm text-gray-600 max-w-xs mx-auto">
                 You can use the Talk to OM feature to discuss the data in the OM
               </p>
               
@@ -218,7 +238,7 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
                 ].map((query, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setQuestion(query)}
+                    onClick={() => askQuestion(undefined, query)}
                     className="px-4 py-2 text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full transition-colors"
                   >
                     {query}

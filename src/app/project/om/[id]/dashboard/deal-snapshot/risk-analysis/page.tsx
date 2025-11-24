@@ -4,6 +4,7 @@ import { dealSnapshotDetails } from "@/services/mockOMData";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Shield, Info } from "lucide-react";
+import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 
 export default function RiskAnalysisPage() {
   const getRiskColor = (severity: string) => {
@@ -26,15 +27,12 @@ export default function RiskAnalysisPage() {
     return "bg-green-100 text-green-800";
   };
 
+  useOMPageHeader({
+    subtitle: "Key underwriting risks, severity levels, and mitigations.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Risk Analysis</h1>
-        <p className="text-gray-600 mt-2">
-          Comprehensive risk assessment and mitigation strategies
-        </p>
-      </div>
-
       {/* Risk Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="border-red-200 bg-red-50">
