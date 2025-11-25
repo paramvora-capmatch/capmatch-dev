@@ -9,6 +9,9 @@ import { KeyValueDisplay } from '../om/KeyValueDisplay'; // Reusing this compone
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
 import { projectResumeFieldMetadata, getFieldsForSection } from '@/lib/project-resume-field-metadata';
+import { supabase } from '@/lib/supabaseClient';
+import { useCallback } from 'react';
+import { useAutofill } from '@/hooks/useAutofill';
 
 interface ProjectResumeViewProps {
   project: ProjectProfile;
@@ -72,15 +75,24 @@ const formatArray = (value: any): string => {
     return String(value);
 };
 
-// Helper to get field value from project (handles both direct properties and nested content)
+// Helper to get field value from project (handles both direct properties, nested content, and rich format)
 const getFieldValue = (project: ProjectProfile, fieldId: string): any => {
-    // First try direct property
+    // First try direct property (flat format)
     if ((project as any)[fieldId] !== undefined) {
         return (project as any)[fieldId];
     }
     // Then try nested content (for JSONB fields)
     if ((project as any).content && (project as any).content[fieldId] !== undefined) {
-        return (project as any).content[fieldId];
+        const item = (project as any).content[fieldId];
+        // Check if it's in rich format {value, source, warnings}
+        if (item && typeof item === 'object' && 'value' in item) {
+            return item.value;
+        }
+        return item;
+    }
+    // Check metadata for rich format
+    if (project._metadata && project._metadata[fieldId]) {
+        return project._metadata[fieldId].value;
     }
     return undefined;
 };
@@ -302,10 +314,14 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
     const completeness = project.completenessPercent ?? 0;
     const progressColor = completeness >= 100 ? 'bg-green-600' : 'bg-blue-600';
     const router = useRouter();
-    const [isAutofilling, setIsAutofilling] = React.useState(false);
-    const [showSparkles, setShowSparkles] = React.useState(false);
     const [showAutofillSuccess, setShowAutofillSuccess] = React.useState(false);
     const [autofillAnimationKey, setAutofillAnimationKey] = React.useState(0);
+    
+    // Use the shared autofill hook
+    const projectAddress = project.propertyAddressStreet && project.propertyAddressCity && project.propertyAddressState
+      ? `${project.propertyAddressStreet} | ${project.propertyAddressCity} ${project.propertyAddressState}, ${project.propertyAddressZip || ''}`.trim()
+      : undefined;
+    const { isAutofilling, showSparkles, handleAutofill } = useAutofill(project.id, { projectAddress });
 
     // Collapsible state (persisted per project)
     const [collapsed, setCollapsed] = React.useState<boolean>(() => {
@@ -326,50 +342,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
         } catch {}
     }, [collapsed, project?.id]);
 
-    // Handle autofill button click
-    const handleAutofill = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        
-        // Trigger sparkle animation
-        setShowSparkles(true);
-        setIsAutofilling(true);
-        
-        // Simulate processing time (2-3 seconds)
-        await new Promise(resolve => setTimeout(resolve, 2500));
-        
-        // Hide sparkles after animation
-        setTimeout(() => setShowSparkles(false), 500);
-        setIsAutofilling(false);
-        
-        // Trigger success animation in resume view (only if expanded)
-        // Increment key to trigger animation only once
-        const newKey = autofillAnimationKey + 1;
-        
-        if (!collapsed) {
-            // Update both key and state together to prevent double animation
-            setAutofillAnimationKey(newKey);
-            setShowAutofillSuccess(true);
-            
-            // Auto-hide success animation after animation completes
-            setTimeout(() => {
-                setShowAutofillSuccess(false);
-            }, 4000);
-        } else {
-            // If collapsed, expand it first, then show animation
-            setCollapsed(false);
-            // Wait for expand animation, then show success
-            setTimeout(() => {
-                setAutofillAnimationKey(newKey);
-                setShowAutofillSuccess(true);
-                setTimeout(() => {
-                    setShowAutofillSuccess(false);
-                }, 4000);
-            }, 350); // Wait for collapse animation to complete
-        }
-        
-        // TODO: Implement actual autofill logic when backend is ready
-        console.log('Autofill Resume clicked - will extract data from documents');
-    };
+    // handleAutofill is now provided by the useAutofill hook
 
     return (
         <div

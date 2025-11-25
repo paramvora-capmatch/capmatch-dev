@@ -1,6 +1,7 @@
 // src/lib/project-queries.ts
 import { supabase } from "../../lib/supabaseClient";
 import { ProjectProfile, ProjectMessage, Principal } from "@/types/enhanced-types";
+import { ungroupFromSections, isGroupedFormat } from "./section-grouping";
 
 // =============================================================================
 // JSONB Content Type Definitions
@@ -312,19 +313,48 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
     throw new Error(`Failed to fetch project: ${projectError.message}`);
   }
 
-  // Fetch detailed project data from resume
-  const { data: resume, error: resumeError } = await supabase
-    .from('project_resumes')
-    .select('content')
+  // Fetch detailed project data from resume using Pointer Logic
+  // 1. Check for a pointer in the 'resources' table
+  const { data: resource } = await supabase
+    .from('resources')
+    .select('current_version_id')
+    .eq('type', 'PROJECT_RESUME')
     .eq('project_id', projectId)
-    .single();
+    .maybeSingle();
+
+  let resume: { content: ProjectResumeContent } | null = null;
+  let resumeError = null;
+
+  if (resource?.current_version_id) {
+    // 2a. Pointer exists: Fetch that specific version
+    const result = await supabase
+      .from('project_resumes')
+      .select('content')
+      .eq('id', resource.current_version_id)
+      .single();
+    
+    resume = result.data;
+    resumeError = result.error;
+  } else {
+    // 2b. No pointer: Fallback to fetching the latest by date
+    const result = await supabase
+      .from('project_resumes')
+      .select('content')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+      
+    resume = result.data;
+    resumeError = result.error;
+  }
 
   // Resume not found is OK (project might not have detailed data yet)
   if (resumeError && resumeError.code !== 'PGRST116') {
     throw new Error(`Failed to fetch project resume: ${resumeError.message}`);
   }
 
-  const resumeContent: ProjectResumeContent = resume?.content || {};
+  const rawContent = (resume?.content || {}) as any;
 
   const { data: borrowerResume, error: borrowerResumeError } = await supabase
     .from('borrower_resumes')
@@ -340,6 +370,32 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
   const borrowerProgress = Math.round(
     (borrowerResumeContent.completenessPercent as number | undefined) ?? 0
   );
+
+  // Prepare metadata map and extract flat values
+  const _metadata: Record<string, import('@/types/enhanced-types').FieldMetadata> = {};
+  const resumeContent: Partial<ProjectResumeContent> = {};
+
+  for (const key in rawContent) {
+    const item = rawContent[key];
+    
+    // If item is in { value, source, warnings } format (rich data)
+    if (item && typeof item === 'object' && 'source' in item && 'value' in item) {
+      // Extract value for the flat form
+      (resumeContent as any)[key] = item.value;
+      
+      // Store rich metadata
+      _metadata[key] = {
+        value: item.value,
+        source: item.source || null,
+        original_source: item.source || null, // Snapshot the original source
+        original_value: item.value,   // Snapshot the original value
+        warnings: item.warnings || []
+      };
+    } else {
+      // Handle legacy flat data
+      (resumeContent as any)[key] = item;
+    }
+  }
 
     // Combine core project fields with resume content
     return {
@@ -369,6 +425,9 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
       borrowerProgress,
       projectSections: resumeContent.projectSections || {},
       borrowerSections: borrowerResumeContent || {},
+      
+      // Add metadata container
+      _metadata,
     } as ProjectProfile;
 };
 
@@ -390,10 +449,12 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
   }
 
   // Fetch all resume data
+  // Fetch all resume data, sorted by newest first
   const { data: resumes, error: resumesError } = await supabase
     .from('project_resumes')
-    .select('project_id, content')
-    .in('project_id', projectIds);
+    .select('project_id, content, locked_fields, locked_sections, created_at')
+    .in('project_id', projectIds)
+    .order('created_at', { ascending: false });
 
   if (resumesError) {
     throw new Error(`Failed to fetch project resumes: ${resumesError.message}`);
@@ -409,9 +470,47 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
   }
 
   // Create a map of resume content by project ID
-  const resumeMap = new Map<string, ProjectResumeContent>();
+  // Since we sorted by created_at DESC, the first entry we encounter for each project_id is the latest
+  const resumeMap = new Map<string, any>();
+  const metadataMap = new Map<string, Record<string, import('@/types/enhanced-types').FieldMetadata>>();
+  const lockedFieldsMap = new Map<string, Record<string, boolean>>();
+  const lockedSectionsMap = new Map<string, Record<string, boolean>>();
+  
   resumes?.forEach((resume: any) => {
-    resumeMap.set(resume.project_id, resume.content || {});
+    if (!resumeMap.has(resume.project_id)) {
+      let rawContent = resume.content || {};
+      
+      // Check if content is in section-grouped format and ungroup if needed
+      if (isGroupedFormat(rawContent)) {
+        rawContent = ungroupFromSections(rawContent);
+      }
+      
+      const flatContent: Partial<ProjectResumeContent> = {};
+      const metadata: Record<string, import('@/types/enhanced-types').FieldMetadata> = {};
+      
+      // Process rich data format
+      for (const key in rawContent) {
+        const item = rawContent[key];
+        if (item && typeof item === 'object' && 'source' in item && 'value' in item) {
+          (flatContent as any)[key] = item.value;
+          metadata[key] = {
+            value: item.value,
+            source: item.source || null,
+            original_source: item.source || null,
+            original_value: item.original_value !== undefined ? item.original_value : item.value, // Use original_value if available, fallback to value
+            warnings: item.warnings || []
+          };
+        } else {
+          (flatContent as any)[key] = item;
+        }
+      }
+      
+      resumeMap.set(resume.project_id, flatContent);
+      metadataMap.set(resume.project_id, metadata);
+      // Store locked_fields and locked_sections
+      lockedFieldsMap.set(resume.project_id, resume.locked_fields || {});
+      lockedSectionsMap.set(resume.project_id, resume.locked_sections || {});
+    }
   });
 
   const borrowerResumeMap = new Map<string, BorrowerResumeContent>();
@@ -422,6 +521,7 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
   // Combine projects with their resume content
   return projects?.map((project: any) => {
     const resumeContent = resumeMap.get(project.id) || {} as ProjectResumeContent;
+    const metadata = metadataMap.get(project.id) || {};
     const borrowerResumeContent = borrowerResumeMap.get(project.id) || {} as BorrowerResumeContent;
     const borrowerProgress = Math.round(
       (borrowerResumeContent.completenessPercent as number | undefined) ?? 0
@@ -454,6 +554,13 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       borrowerProgress,
       projectSections: resumeContent.projectSections || {},
       borrowerSections: borrowerResumeContent || {},
+      
+      // Add metadata container
+      _metadata: metadata,
+      
+      // Add locked_fields and locked_sections
+      _lockedFields: lockedFieldsMap.get(project.id) || {},
+      _lockedSections: lockedSectionsMap.get(project.id) || {},
       
       // Legacy field
       borrowerProfileId: undefined,
@@ -495,23 +602,104 @@ export const getProjectMessages = async (threadId: string): Promise<ProjectMessa
 /**
  * Saves project resume content to the JSONB column.
  * This provides a type-safe way to update project details.
+ * Now supports rich data format with metadata (value + source + warnings).
  */
 export const saveProjectResume = async (
   projectId: string, 
-  content: Partial<ProjectResumeContent>
+  content: Partial<ProjectProfile> // Changed to ProjectProfile to access _metadata
 ): Promise<void> => {
-  const { error } = await supabase
+  // 1. Find the latest existing row for this project
+  const { data: existing } = await supabase
     .from('project_resumes')
-    .upsert(
-      { 
-        project_id: projectId, 
-        content: content as any // Cast to any for JSONB storage
-      }, 
-      { onConflict: 'project_id' }
-    );
+    .select('id, content')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error) {
-    throw new Error(`Failed to save project resume: ${error.message}`);
+  // Extract metadata and prepare final content
+  const metadata = (content as any)._metadata || {};
+  const finalContent: any = {};
+  
+  // Iterate over fields to construct the JSONB object
+  for (const key in content) {
+    if (key === '_metadata') continue; // Skip metadata container
+    
+    const currentValue = (content as any)[key];
+    const meta = metadata[key];
+    
+    if (meta) {
+      // If we have metadata, save the full structure
+      finalContent[key] = {
+        value: currentValue,
+        source: meta.source,
+        warnings: meta.warnings
+        // We don't save original_value/source to DB, those are runtime helpers
+      };
+    } else {
+      // Check if existing content has rich format for this field
+      const existingItem = existing?.content?.[key];
+      if (existingItem && typeof existingItem === 'object' && 'source' in existingItem) {
+        // Preserve existing metadata structure if no new metadata provided
+        finalContent[key] = {
+          value: currentValue,
+          source: existingItem.source,
+          warnings: existingItem.warnings || []
+        };
+      } else {
+        // Save flat value if no metadata exists
+        finalContent[key] = currentValue;
+      }
+    }
+  }
+
+  if (existing) {
+    // 2a. Update in Place: Modify the current version directly
+    // This ensures manual edits don't create new history entries
+    // Merge with existing content to preserve fields not in the update
+    const mergedContent = { ...existing.content, ...finalContent };
+    
+    const { error } = await supabase
+      .from('project_resumes')
+      .update({ content: mergedContent as any })
+      .eq('id', existing.id);
+
+    if (error) {
+      throw new Error(`Failed to update project resume: ${error.message}`);
+    }
+  } else {
+    // 2b. Insert New: Brand new project resume
+    // We also need to initialize the resource pointer if it doesn't exist, 
+    // but typically the backend might handle that. 
+    // For now, we just insert the resume row.
+    const { data: newResume, error } = await supabase
+      .from('project_resumes')
+      .insert({ 
+        project_id: projectId, 
+        content: finalContent as any 
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to create project resume: ${error.message}`);
+    }
+
+    // Optional: We could try to update/create the resource pointer here to be safe,
+    // ensuring the new resume is marked as current.
+    const { error: resourceError } = await supabase
+      .from('resources')
+      .upsert({
+        project_id: projectId,
+        type: 'PROJECT_RESUME',
+        current_version_id: newResume.id
+      }, { onConflict: 'project_id, type' }); // Assuming composite unique key or similar
+      
+    // We don't throw on resource error strictly, as the table might not be fully set up 
+    // or permissions might vary, but it's good practice to try.
+    if (resourceError) {
+      console.warn('Failed to update resource pointer:', resourceError.message);
+    }
   }
 };
 

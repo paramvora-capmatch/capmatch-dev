@@ -399,12 +399,30 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					...projectProfileToResumeContent(updates),
 					completenessPercent: progressResult.completenessPercent,
 				};
+				
+				// Include metadata if present in updates
+				if ((updates as any)._metadata) {
+					(resumeContent as any)._metadata = (updates as any)._metadata;
+				}
+
+				// Extract locked_fields and locked_sections if present (separate columns, not part of content)
+				const lockedFields = (updates as any)._lockedFields;
+				const lockedSections = (updates as any)._lockedSections;
+				
+				if (lockedFields !== undefined) {
+					console.log(`[ProjectStore] Saving locked_fields for project ${id}:`, lockedFields);
+				}
+				if (lockedSections !== undefined) {
+					console.log(`[ProjectStore] Saving locked_sections for project ${id}:`, lockedSections);
+				}
 
 				const { error } = await supabase.functions.invoke('update-project', {
 					body: {
 						project_id: id,
 						core_updates: coreUpdates,
 						resume_updates: resumeContent,
+						locked_fields: lockedFields,
+						locked_sections: lockedSections,
 					},
 				});
 				if (error) throw error;

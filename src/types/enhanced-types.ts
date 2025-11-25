@@ -455,6 +455,13 @@ export interface ProjectProfile {
   sponsorStructure?: string;
   equityPartner?: string;
   contactInfo?: string;
+  
+  // Metadata container for rich data (value + source + warnings)
+  _metadata?: Record<string, FieldMetadata>;
+  // Locked fields container (fieldId -> true)
+  _lockedFields?: Record<string, boolean>;
+  // Locked sections container (sectionId -> true)
+  _lockedSections?: Record<string, boolean>;
 }
 
 // Project Principal Types
@@ -561,6 +568,15 @@ export type FilePermissionOverride = {
   resource_id: string;
   permission: Permission | 'none';
 };
+
+// Field Metadata Types for warnings and source tracking
+export interface FieldMetadata {
+  value: any;
+  source: 'document' | 'knowledge_base' | 'user_input' | null;
+  original_source?: 'document' | 'knowledge_base' | null; // To track origin after edit
+  original_value?: any; // To compare against
+  warnings: string[];
+}
 
 export type ProjectGrant = {
   projectId: string;

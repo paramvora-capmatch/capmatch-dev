@@ -1,12 +1,9 @@
 -- =============================================================================
--- Migration: Add Resource Validation Triggers
+-- Migration: Add OM to Root Resource Types
 -- =============================================================================
---
--- This migration adds triggers for INSERT, UPDATE, and DELETE operations on resources.
--- These triggers provide an additional layer of authorization validation alongside RLS.
---
+-- This migration updates the resource validation triggers to allow OM as a root resource type
 
--- Step 1: Create the validate_resource_insert function if it doesn't exist
+-- Update validate_resource_insert function to include OM
 CREATE OR REPLACE FUNCTION public.validate_resource_insert()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -31,38 +28,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Step 2: Create the validation triggers for resources
-DROP TRIGGER IF EXISTS validate_resource_insert_trigger ON public.resources;
-CREATE TRIGGER validate_resource_insert_trigger
-BEFORE INSERT ON public.resources
-FOR EACH ROW
-EXECUTE FUNCTION public.validate_resource_insert();
-
--- Step 4: Create a trigger for UPDATE operations
-CREATE OR REPLACE FUNCTION public.validate_resource_update()
-RETURNS TRIGGER AS $$
-DECLARE
-    v_user_id UUID;
-BEGIN
-    v_user_id := auth.uid();
-    
-    -- User must have 'edit' permission to update a resource
-    IF NOT public.can_edit(v_user_id, NEW.id) THEN
-        RAISE EXCEPTION 'User does not have edit permission on this resource';
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS validate_resource_update_trigger ON public.resources;
-
-CREATE TRIGGER validate_resource_update_trigger
-BEFORE UPDATE ON public.resources
-FOR EACH ROW
-EXECUTE FUNCTION public.validate_resource_update();
-
--- Step 5: Create a trigger for DELETE operations
+-- Update validate_resource_delete function to include OM in protected root resources
 CREATE OR REPLACE FUNCTION public.validate_resource_delete()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -84,10 +50,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP TRIGGER IF EXISTS validate_resource_delete_trigger ON public.resources;
-
-CREATE TRIGGER validate_resource_delete_trigger
-BEFORE DELETE ON public.resources
-FOR EACH ROW
-EXECUTE FUNCTION public.validate_resource_delete();
+COMMENT ON FUNCTION public.validate_resource_insert() IS 'Validates resource insertions, allowing OM as a root resource type';
+COMMENT ON FUNCTION public.validate_resource_delete() IS 'Validates resource deletions, protecting OM as a root resource type';
 

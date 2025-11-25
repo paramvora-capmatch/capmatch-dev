@@ -10,12 +10,8 @@ import { AIInsightsBar } from "@/components/om/AIInsightsBar";
 import { ImageSlideshow } from "@/components/om/ImageSlideshow";
 import { useOMDashboard } from "@/contexts/OMDashboardContext";
 import { cn } from "@/utils/cn";
-import {
-  scenarioData,
-  timelineData,
-  marketContextDetails,
-  projectOverview,
-} from "@/services/mockOMData";
+import { useOMData } from "@/hooks/useOMData";
+import { getOMValue } from "@/lib/om-queries";
 import {
   DollarSign,
   Building,
@@ -32,19 +28,56 @@ export default function OMDashboardPage() {
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
   const { scenario, setScenario } = useOMDashboard();
-  const data = scenarioData[scenario];
+  const { omData, isLoading, error } = useOMData(projectId || '');
 
   if (!project) {
     return <div>Project not found</div>;
   }
 
-  const propertyStats = projectOverview.propertyStats;
-  const populationGrowth = parseFloat(
-    marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr
-  );
-  const jobGrowth = parseFloat(
-    marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr
-  );
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8">Loading OM data...</div>;
+  }
+
+  if (error || !omData) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <p className="text-red-600 mb-2">Error loading OM data</p>
+          <p className="text-sm text-gray-500">
+            {error?.message || "No OM data available. Please trigger autofill first."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Extract values from OM data
+  const content = omData.content || {};
+  const loanAmount = getOMValue(content, 'loanAmountRequested') || 0;
+  const ltv = getOMValue(content, 'ltv') || 0;
+  const totalUnits = getOMValue(content, 'totalResidentialUnits') || 0;
+  const grossBuildingArea = getOMValue(content, 'grossBuildingArea') || 0;
+  const parkingRatio = getOMValue(content, 'parkingRatio') || 0;
+  const affordableUnits = getOMValue(content, 'affordableUnitsNumber') || 0;
+  const irr = getOMValue(content, 'irr') || 0; // This might not exist, will need to calculate or get from scenarios
+  const equityMultiple = getOMValue(content, 'equityMultiple') || 0; // Same
+
+  // For now, use mock data for scenarios until we have scenario data in OM
+  // TODO: Add scenario data to OM table
+  const scenarioData = {
+    downside: { irr: '12.5', equityMultiple: '1.8x', loanAmount: loanAmount, ltv: ltv },
+    base: { irr: '18.5', equityMultiple: '2.1x', loanAmount: loanAmount, ltv: ltv },
+    upside: { irr: '24.2', equityMultiple: '2.5x', loanAmount: loanAmount, ltv: ltv },
+  };
+  const data = scenarioData[scenario];
+
+  // Mock timeline data for now - TODO: extract from OM
+  const timelineData = [
+    { phase: "Land Acquisition", status: "completed" },
+    { phase: "Entitlements", status: "completed" },
+    { phase: "Construction", status: "current" },
+    { phase: "Stabilization", status: "pending" },
+  ];
   const quadrants = [
     {
       id: "deal-snapshot",
@@ -117,10 +150,10 @@ export default function OMDashboardPage() {
       metrics: (
         <>
           <div className="grid grid-cols-2 gap-3">
-            <MetricCard label="Total Units" value={propertyStats.totalResidentialUnits} />
+            <MetricCard label="Total Units" value={totalUnits} />
             <MetricCard
               label="Gross Building Area"
-              value={`${propertyStats.grossBuildingArea.toLocaleString()} SF`}
+              value={`${grossBuildingArea.toLocaleString()} SF`}
             />
           </div>
           <div className="mt-3">
@@ -132,13 +165,13 @@ export default function OMDashboardPage() {
               <div className="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded hover:bg-gray-100 transition-colors duration-200">
                 <div className="text-center">
                   <div className="text-xl font-bold text-green-600">
-                    {projectOverview.propertyStats.parkingRatio.toFixed(2)}x
+                    {parkingRatio.toFixed(2)}x
                   </div>
                   <div className="text-xs text-gray-500">Parking Ratio</div>
                 </div>
                 <div className="text-center">
                   <div className="text-xl font-bold text-blue-600">
-                    {projectOverview.propertyStats.affordableUnits}
+                    {affordableUnits}
                   </div>
                   <div className="text-xs text-gray-500">Workforce Units</div>
                 </div>
@@ -160,13 +193,13 @@ export default function OMDashboardPage() {
           <div className="grid grid-cols-2 gap-3">
             <MetricCard
               label="Population Growth"
-              value={populationGrowth}
+              value={getOMValue(content, 'popGrowth201020') || 0}
               format="percent"
               change={0.4}
             />
             <MetricCard
               label="Job Growth"
-              value={jobGrowth}
+              value={getOMValue(content, 'projGrowth202429') || 0}
               format="percent"
               change={0.6}
             />
@@ -180,19 +213,15 @@ export default function OMDashboardPage() {
               <div className="h-16 bg-gray-50 rounded-lg overflow-hidden">
                 <PopulationHeatmap compact={true} />
               </div>
-              {/* Quick supply stats */}
+              {/* Quick supply stats - TODO: Add to OM */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="text-sm">
                   <span className="text-gray-500">U/C:</span>
-                  <span className="font-medium ml-1">
-                    {marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()}
-                  </span>
+                  <span className="font-medium ml-1">-</span>
                 </div>
                 <div className="text-sm">
                   <span className="text-gray-500">Pipeline:</span>
-                  <span className="font-medium ml-1">
-                    {marketContextDetails.supplyAnalysis.planned24Months.toLocaleString()}
-                  </span>
+                  <span className="font-medium ml-1">-</span>
                 </div>
               </div>
             </div>
