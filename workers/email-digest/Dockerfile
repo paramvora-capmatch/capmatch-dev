@@ -1,33 +1,26 @@
 FROM python:3.13-slim
 
+# 1. Setup standard python env vars
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# 2. Install uv (using the COPY method is best/fastest)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install uv (standalone)
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:${PATH}"
-
-# Copy project files (pyproject/lock first for caching)
+# 3. Copy dependencies
 COPY pyproject.toml uv.lock ./
 
-# Create a project-local virtual environment based on the lockfile
-RUN uv sync --frozen --no-dev
+# 4. Create venv and install dependencies
+# uv automatically creates .venv in the current directory
+RUN uv sync --frozen --no-install-project
 
-# Ensure the virtual environment's binaries are preferred
-ENV VIRTUAL_ENV=/app/.venv
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+# 5. "Activate" the venv for all future commands
+# By putting the venv bin directory first in PATH, 'python' now refers to the venv python
+ENV PATH="/app/.venv/bin:$PATH"
 
-# Copy application code
+# 6. Copy code and run
 COPY . .
-
-# Run the worker using the synced virtual environment
-CMD ["python", "main.py"]
-
+# Use uv run to ensure we're using the correct Python environment
+CMD ["uv", "run", "python", "main.py"]
