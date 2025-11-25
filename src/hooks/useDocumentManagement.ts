@@ -428,24 +428,121 @@ export const useDocumentManagement = ({
   const deleteFile = useCallback(
     async (fileId: string) => {
       if (!targetOrgId) return;
+      
+      /**
+       * Recursively lists all files in a storage folder prefix
+       */
+      const listAllFilesRecursively = async (
+        folderPrefix: string,
+        allFiles: string[] = []
+      ): Promise<string[]> => {
+        const { data: files, error } = await supabase.storage
+          .from(targetOrgId)
+          .list(folderPrefix, {
+            limit: 1000,
+            sortBy: { column: 'name', order: 'asc' },
+          });
+
+        if (error) {
+          // Folder might not exist, return what we have
+          console.warn(`Error listing folder ${folderPrefix}:`, error);
+          return allFiles;
+        }
+
+        if (!files || files.length === 0) {
+          return allFiles;
+        }
+
+        // Process files and folders
+        for (const item of files) {
+          const itemPath = folderPrefix ? `${folderPrefix}/${item.name}` : item.name;
+          
+          // In Supabase storage, folders have id === null, files have id !== null
+          // Also, folders typically don't have metadata.size
+          if (item.id === null || item.metadata === null) {
+            // This is a folder, recurse into it
+            const subFiles = await listAllFilesRecursively(itemPath, []);
+            allFiles.push(...subFiles);
+          } else {
+            // This is a file, add it to the list
+            allFiles.push(itemPath);
+          }
+        }
+
+        return allFiles;
+      };
+
       try {
+        // Get all versions to extract the resource folder path
         const { data: versions, error: versionsError } = await supabase
           .from("document_versions")
           .select("storage_path")
           .eq("resource_id", fileId);
         if (versionsError) throw versionsError;
 
-        const filePaths = (versions || [])
-          .map((v) => v.storage_path)
-          .filter((path): path is string => Boolean(path));
-
-        if (filePaths.length > 0) {
-          const { error: removeError } = await supabase.storage
-            .from(targetOrgId)
-            .remove(filePaths);
-          if (removeError) throw removeError;
+        // Extract the resource folder path from the first version's storage_path
+        // Format: {project_id}/project-docs/{resource_id}/v{version}_{filename}
+        // We want: {project_id}/project-docs/{resource_id}/
+        let resourceFolderPath: string | null = null;
+        
+        if (versions && versions.length > 0) {
+          const firstPath = versions[0].storage_path;
+          if (firstPath && firstPath !== "placeholder") {
+            // Split path and reconstruct up to resource_id folder
+            const pathParts = firstPath.split('/');
+            // Path format: [project_id, project-docs, resource_id, ...]
+            if (pathParts.length >= 3) {
+              resourceFolderPath = pathParts.slice(0, 3).join('/');
+            }
+          }
         }
 
+        // If we couldn't extract from versions, try to get it from the resource's project_id
+        if (!resourceFolderPath && projectId) {
+          resourceFolderPath = `${projectId}/${STORAGE_SUBDIR[context]}/${fileId}`;
+        }
+
+        // Delete all files in the resource folder (including artifacts)
+        if (resourceFolderPath) {
+          console.log(`[deleteFile] Deleting all files in folder: ${resourceFolderPath}`);
+          
+          // Recursively list all files in the resource folder
+          const allFiles = await listAllFilesRecursively(resourceFolderPath);
+          
+          console.log(`[deleteFile] Found ${allFiles.length} files to delete`);
+          
+          // Delete all files found
+          if (allFiles.length > 0) {
+            // Split into batches of 1000 (Supabase storage remove limit)
+            const batchSize = 1000;
+            for (let i = 0; i < allFiles.length; i += batchSize) {
+              const batch = allFiles.slice(i, i + batchSize);
+              const { error: removeError } = await supabase.storage
+                .from(targetOrgId)
+                .remove(batch);
+              if (removeError) {
+                console.error(`[deleteFile] Error removing batch ${i / batchSize + 1}:`, removeError);
+                throw removeError;
+              }
+            }
+            console.log(`[deleteFile] Successfully deleted ${allFiles.length} files from storage`);
+          }
+        } else {
+          // Fallback: delete only the version files if we can't determine the folder
+          console.warn(`[deleteFile] Could not determine resource folder, deleting version files only`);
+          const filePaths = (versions || [])
+            .map((v) => v.storage_path)
+            .filter((path): path is string => Boolean(path) && path !== "placeholder");
+
+          if (filePaths.length > 0) {
+            const { error: removeError } = await supabase.storage
+              .from(targetOrgId)
+              .remove(filePaths);
+            if (removeError) throw removeError;
+          }
+        }
+
+        // Delete the resource from the database (this will cascade delete versions)
         const { error: deleteError } = await supabase
           .from("resources")
           .delete()
@@ -459,7 +556,7 @@ export const useDocumentManagement = ({
         throw err;
       }
     },
-    [targetOrgId, listDocuments]
+    [targetOrgId, listDocuments, projectId, context]
   );
 
   const deleteFolder = useCallback(

@@ -6,26 +6,32 @@ export interface ImageData {
   name: string;
   title: string; // AI-generated title (extracted from filename)
   category: 'site_images' | 'architectural_diagrams' | 'other';
-  resourceId: string;
-  version: string;
+  resourceId?: string; // Only for artifacts images
+  version?: string; // Only for artifacts images
+  source: 'main_folder' | 'artifacts'; // Source of the image
+  storagePath: string; // Full storage path for deletion
+  documentName?: string; // Document name if from artifacts
 }
 
 /**
- * Extracts a human-readable title from the AI-generated filename.
- * Filenames are like: "front-elevation-view-abc123.jpg"
- * We remove the ID suffix and convert to Title Case.
+ * Extracts a human-readable title from the filename.
+ * New format: "3rd Floor Unit Key Plan.jpg" (Title Case with spaces, no extension)
+ * Old format: "front-elevation-view-abc123.jpg" (kebab-case with ID)
  */
 function extractTitleFromFilename(filename: string): string {
   // Remove extension
   const withoutExt = filename.replace(/\.[^/.]+$/, '');
   
-  // Remove the ID suffix (last part after last dash that looks like an ID)
-  // IDs are typically 6 alphanumeric characters appended by backend
+  // If filename already has spaces (new format), use it as-is
+  if (withoutExt.includes(' ')) {
+    return withoutExt;
+  }
+  
+  // Old format: kebab-case with possible ID suffix
   const parts = withoutExt.split('-');
   if (parts.length > 1) {
     const lastPart = parts[parts.length - 1];
     // If last part looks like an ID (short alphanumeric, 6 chars or less), remove it
-    // This matches the backend's safe_id[:6] pattern
     if (lastPart.length <= 6 && /^[a-zA-Z0-9]+$/.test(lastPart)) {
       parts.pop();
     }
@@ -46,95 +52,150 @@ function extractTitleFromFilename(filename: string): string {
 }
 
 /**
- * Loads images from the artifacts folder structure for a project.
- * Searches all resources' artifacts folders and organizes by category.
+ * Loads images from both main folders (site-images, architectural-diagrams) 
+ * and artifacts folders for a project.
  */
 export async function loadProjectImages(
   projectId: string,
-  orgId: string
+  orgId: string,
+  excludeOther: boolean = false // Exclude "other" category from artifacts
 ): Promise<ImageData[]> {
   try {
-    // First, get all resources for this project
+    const allImages: ImageData[] = [];
+
+    // 1. Load images from main folders (site-images, architectural-diagrams)
+    const mainFolders = [
+      { path: `${projectId}/site-images`, category: 'site_images' as const },
+      { path: `${projectId}/architectural-diagrams`, category: 'architectural_diagrams' as const }
+    ];
+
+    for (const folder of mainFolders) {
+      try {
+        const { data: files, error } = await supabase.storage
+          .from(orgId)
+          .list(folder.path, {
+            limit: 1000,
+            sortBy: { column: 'name', order: 'asc' },
+          });
+
+        if (error) {
+          console.warn(`Error listing ${folder.path}:`, error);
+          continue;
+        }
+
+        if (files && files.length > 0) {
+          const imagePromises = files
+            .filter((f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+            .map(async (f) => {
+              const filePath = `${folder.path}/${f.name}`;
+              const { data: urlData, error: urlError } = await supabase.storage
+                .from(orgId)
+                .createSignedUrl(filePath, 3600);
+
+              if (urlError) {
+                console.error(`Error creating signed URL for ${f.name}:`, urlError);
+                return null;
+              }
+
+              return {
+                url: urlData.signedUrl,
+                name: f.name,
+                title: extractTitleFromFilename(f.name),
+                category: folder.category,
+                source: 'main_folder' as const,
+                storagePath: filePath,
+              };
+            });
+
+          const images = (await Promise.all(imagePromises)).filter(
+            (img): img is ImageData => img !== null
+          );
+
+          allImages.push(...images);
+        }
+      } catch (err) {
+        console.error(`Error loading images from ${folder.path}:`, err);
+      }
+    }
+
+    // 2. Load images from artifacts folders
+    // Get all FILE resources that are project documents (not folders)
     const { data: resources, error: resourcesError } = await supabase
       .from('resources')
-      .select('id')
+      .select('id, name')
       .eq('project_id', projectId)
-      .eq('resource_type', 'PROJECT_DOCUMENT');
+      .eq('resource_type', 'FILE');
 
     if (resourcesError) {
       console.error('Error loading resources:', resourcesError);
-      return [];
-    }
+    } else if (resources && resources.length > 0) {
+      // Create a map of resource ID to name
+      const resourceMap = new Map(resources.map(r => [r.id, r.name]));
 
-    if (!resources || resources.length === 0) {
-      return [];
-    }
-
-    const allImages: ImageData[] = [];
-
-    // For each resource, check its artifacts folder
-    for (const resource of resources) {
-      const resourceId = resource.id;
-      
-      // Check for artifacts in different versions (v1, v2, etc.)
-      // We'll check up to v10 (adjust as needed)
-      for (let version = 1; version <= 10; version++) {
-        const basePath = `${projectId}/project-docs/${resourceId}/artifacts/v${version}/images`;
+      // For each resource, check its artifacts folder
+      for (const resource of resources) {
+        const resourceId = resource.id;
+        const documentName = resource.name;
         
-        // Check each category folder
-        const categories: Array<'site_images' | 'architectural_diagrams' | 'other'> = [
-          'site_images',
-          'architectural_diagrams',
-          'other'
-        ];
+        // Check for artifacts in different versions (v1, v2, etc.)
+        for (let version = 1; version <= 10; version++) {
+          const basePath = `${projectId}/project-docs/${resourceId}/artifacts/v${version}/images`;
+          
+          // Check each category folder (exclude "other" if requested)
+          const categories: Array<'site_images' | 'architectural_diagrams' | 'other'> = excludeOther
+            ? ['site_images', 'architectural_diagrams']
+            : ['site_images', 'architectural_diagrams', 'other'];
 
-        for (const category of categories) {
-          try {
-            const { data: files, error } = await supabase.storage
-              .from(orgId)
-              .list(`${basePath}/${category}`, {
-                limit: 100,
-                sortBy: { column: 'name', order: 'asc' },
-              });
-
-            if (error) {
-              // Folder might not exist, which is fine
-              continue;
-            }
-
-            if (files && files.length > 0) {
-              // Create signed URLs for each image
-              const imagePromises = files
-                .filter((f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
-                .map(async (f) => {
-                  const filePath = `${basePath}/${category}/${f.name}`;
-                  const { data: urlData, error: urlError } = await supabase.storage
-                    .from(orgId)
-                    .createSignedUrl(filePath, 3600);
-
-                  if (urlError) {
-                    console.error(`Error creating signed URL for ${f.name}:`, urlError);
-                    return null;
-                  }
-
-                  return {
-                    url: urlData.signedUrl,
-                    name: f.name,
-                    title: extractTitleFromFilename(f.name),
-                    category,
-                    resourceId,
-                    version: `v${version}`,
-                  };
+          for (const category of categories) {
+            try {
+              const { data: files, error } = await supabase.storage
+                .from(orgId)
+                .list(`${basePath}/${category}`, {
+                  limit: 100,
+                  sortBy: { column: 'name', order: 'asc' },
                 });
 
-              const images = (await Promise.all(imagePromises)).filter(
-                (img): img is ImageData => img !== null
-              );
+              if (error) {
+                // Folder might not exist, which is fine
+                continue;
+              }
 
-              allImages.push(...images);
+              if (files && files.length > 0) {
+                const imagePromises = files
+                  .filter((f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+                  .map(async (f) => {
+                    const filePath = `${basePath}/${category}/${f.name}`;
+                    const { data: urlData, error: urlError } = await supabase.storage
+                      .from(orgId)
+                      .createSignedUrl(filePath, 3600);
+
+                    if (urlError) {
+                      console.error(`Error creating signed URL for ${f.name}:`, urlError);
+                      return null;
+                    }
+
+                    return {
+                      url: urlData.signedUrl,
+                      name: f.name,
+                      title: extractTitleFromFilename(f.name),
+                      category,
+                      resourceId,
+                      version: `v${version}`,
+                      source: 'artifacts' as const,
+                      storagePath: filePath,
+                      documentName,
+                    };
+                  });
+
+                const images = (await Promise.all(imagePromises)).filter(
+                  (img): img is ImageData => img !== null
+                );
+
+                allImages.push(...images);
+              }
+            } catch (err) {
+              console.error(`Error loading images from ${basePath}/${category}:`, err);
             }
-          } catch (err) {
-            console.error(`Error loading images from ${basePath}/${category}:`, err);
           }
         }
       }

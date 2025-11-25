@@ -43,8 +43,8 @@ export default function MediaGalleryPage() {
     try {
       const orgId = project.owner_org_id;
 
-      // Load all images from artifacts folder structure
-      const allImages = await loadProjectImages(projectId, orgId);
+      // Load all images from both main folders and artifacts (exclude "other" category)
+      const allImages = await loadProjectImages(projectId, orgId, true);
       
       // Group by category
       const grouped = groupImagesByCategory(allImages);

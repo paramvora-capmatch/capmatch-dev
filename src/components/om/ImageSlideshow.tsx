@@ -39,16 +39,16 @@ export function ImageSlideshow({
       
       setIsLoading(true);
       try {
-        // Load all images from artifacts (prioritize site_images for slideshow)
-        const allImages = await loadProjectImages(projectId, orgId);
+        // Load images from artifacts, excluding "other" category (logos, abstract images, etc.)
+        // Only show site_images and architectural_diagrams
+        const allImages = await loadProjectImages(projectId, orgId, true); // true = exclude "other"
         
-        // Filter to site_images first, then architectural_diagrams, then other
+        // Filter to site_images first, then architectural_diagrams (exclude "other")
         const siteImages = allImages.filter(img => img.category === 'site_images');
         const diagrams = allImages.filter(img => img.category === 'architectural_diagrams');
-        const other = allImages.filter(img => img.category === 'other');
         
-        // Combine: site images first, then diagrams, then other
-        const sortedImages = [...siteImages, ...diagrams, ...other];
+        // Combine: site images first, then diagrams (no "other" category)
+        const sortedImages = [...siteImages, ...diagrams];
         
         setImages(sortedImages);
       } catch (error) {

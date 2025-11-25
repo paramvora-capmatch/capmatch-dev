@@ -235,9 +235,9 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 	orgId,
 	disabled = false,
 }) => {
-	const [siteImages, setSiteImages] = useState<string[]>([]);
+	const [siteImages, setSiteImages] = useState<Array<{fileName: string; source: 'main_folder' | 'artifacts'; storagePath: string; documentName?: string}>>([]);
 	const [architecturalDiagrams, setArchitecturalDiagrams] = useState<
-		string[]
+		Array<{fileName: string; source: 'main_folder' | 'artifacts'; storagePath: string; documentName?: string}>
 	>([]);
 	const [uploadingSite, setUploadingSite] = useState(false);
 	const [uploadingDiagrams, setUploadingDiagrams] = useState(false);
@@ -255,41 +255,45 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		if (!orgId || !projectId) return;
 		setLoading(true);
 		try {
-			// Load site images
-			const { data: siteData } = await supabase.storage
-				.from(orgId)
-				.list(`${projectId}/site-images`, {
-					limit: 100,
-					sortBy: { column: "name", order: "asc" },
-				});
-			if (siteData) {
-				const imageFiles = siteData
-					.filter(
-						(f) =>
-							f.name !== ".keep" &&
-							f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)
-					)
-					.map((f) => f.name);
-				setSiteImages(imageFiles);
+			// Import loadProjectImages function
+			const { loadProjectImages } = await import('@/lib/imageUtils');
+			
+			// Load all images (from main folders and artifacts, excluding "other" category)
+			const allImages = await loadProjectImages(projectId, orgId, true); // true = exclude "other"
+			
+			// Separate by category
+			const siteImagesList = allImages
+				.filter(img => img.category === 'site_images')
+				.map(img => ({
+					fileName: img.name,
+					source: img.source,
+					storagePath: img.storagePath,
+					documentName: img.documentName,
+				}));
+			
+			const diagramsList = allImages
+				.filter(img => img.category === 'architectural_diagrams')
+				.map(img => ({
+					fileName: img.name,
+					source: img.source,
+					storagePath: img.storagePath,
+					documentName: img.documentName,
+				}));
+			
+			setSiteImages(siteImagesList);
+			setArchitecturalDiagrams(diagramsList);
+			
+			// Generate signed URLs for all images
+			const urlMap: Record<string, string> = {};
+			for (const img of allImages) {
+				const { data: urlData } = await supabase.storage
+					.from(orgId)
+					.createSignedUrl(img.storagePath, 3600);
+				if (urlData) {
+					urlMap[img.storagePath] = urlData.signedUrl;
+				}
 			}
-
-			// Load architectural diagrams
-			const { data: diagramData } = await supabase.storage
-				.from(orgId)
-				.list(`${projectId}/architectural-diagrams`, {
-					limit: 100,
-					sortBy: { column: "name", order: "asc" },
-				});
-			if (diagramData) {
-				const diagramFiles = diagramData
-					.filter(
-						(f) =>
-							f.name !== ".keep" &&
-							f.name.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)
-					)
-					.map((f) => f.name);
-				setArchitecturalDiagrams(diagramFiles);
-			}
+			setImageUrls(urlMap);
 		} catch (error) {
 			console.error("Error loading images:", error);
 		} finally {
@@ -341,16 +345,20 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					console.error(`Error uploading ${file.name}:`, error);
 					alert(`Failed to upload ${file.name}`);
 				} else {
-					setImages((prev) => [...prev, file.name]);
-					// Generate signed URL for the newly uploaded file
 					const filePath = `${projectId}/${folder}/${file.name}`;
+					setImages((prev) => [...prev, {
+						fileName: file.name,
+						source: 'main_folder',
+						storagePath: filePath,
+					}]);
+					// Generate signed URL for the newly uploaded file
 					const { data: urlData } = await supabase.storage
 						.from(orgId)
 						.createSignedUrl(filePath, 3600);
 					if (urlData) {
 						setImageUrls((prev) => ({
 							...prev,
-							[`${folder}/${file.name}`]: urlData.signedUrl,
+							[filePath]: urlData.signedUrl,
 						}));
 					}
 				}
@@ -377,6 +385,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		if (!orgId || !projectId || disabled || fileNames.length === 0) return;
 
 		const isSiteImages = folder === "site-images";
+		const images = isSiteImages ? siteImages : architecturalDiagrams;
 		const setImages = isSiteImages
 			? setSiteImages
 			: setArchitecturalDiagrams;
@@ -395,9 +404,12 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 
 		setDeleting(true);
 		try {
-			const filePaths = fileNames.map(
-				(fileName) => `${projectId}/${folder}/${fileName}`
-			);
+			// Get storage paths for the selected files
+			const filePaths = fileNames.map((fileName) => {
+				const image = images.find(img => img.fileName === fileName);
+				return image ? image.storagePath : `${projectId}/${folder}/${fileName}`;
+			}).filter(Boolean) as string[];
+
 			console.log(
 				`[ProjectMediaUpload] Attempting to delete files from bucket "${orgId}":`,
 				filePaths
@@ -412,107 +424,43 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					"[ProjectMediaUpload] Error deleting files:",
 					error
 				);
-				console.error(
-					"[ProjectMediaUpload] Error details:",
-					JSON.stringify(error, null, 2)
-				);
 				alert(
 					`Failed to delete files: ${
 						error.message || JSON.stringify(error)
 					}`
 				);
 				setDeleting(false);
-				return; // Don't update state if deletion failed
+				return;
 			}
 
-			console.log(`[ProjectMediaUpload] Deletion API response:`, data);
+			// Update state after successful deletion
+			setImages((prev) =>
+				prev.filter((img) => !fileNames.includes(img.fileName))
+			);
 
-			// Verify deletion by listing the folder after a short delay
-			await new Promise((resolve) => setTimeout(resolve, 1500)); // Wait 1.5 seconds for storage propagation
+			// Remove from selected set
+			setSelected((prev) => {
+				const next = new Set(prev);
+				fileNames.forEach((name) => next.delete(name));
+				return next;
+			});
 
-			// Verify files are actually deleted by listing the folder
-			const { data: remainingFiles, error: listError } =
-				await supabase.storage
-					.from(orgId)
-					.list(`${projectId}/${folder}`, { limit: 1000 });
-
-			let deletionVerified = true;
-
-			if (listError) {
-				console.warn(
-					"[ProjectMediaUpload] Could not verify deletion (will proceed optimistically):",
-					listError
-				);
-			} else if (remainingFiles) {
-				const remainingNames = new Set(
-					remainingFiles.map((f) => f.name)
-				);
-				const stillExist = fileNames.filter((name) =>
-					remainingNames.has(name)
-				);
-
-				if (stillExist.length > 0) {
-					console.error(
-						`[ProjectMediaUpload] Files still exist after deletion attempt:`,
-						stillExist
-					);
-					console.error(
-						`[ProjectMediaUpload] This indicates deletion may have failed. Check RLS policies and permissions.`
-					);
-					alert(
-						`Failed to delete files: ${stillExist.join(
-							", "
-						)}\n\nThis may be a permissions issue. Check the browser console for details.`
-					);
-					deletionVerified = false;
-				} else {
-					console.log(
-						`[ProjectMediaUpload] ✓ Verification: All ${fileNames.length} file(s) successfully deleted.`
-					);
-				}
-			}
-
-			// Only update state if deletion was verified
-			if (deletionVerified) {
-				// Update state only after successful verification
-				setImages((prev) =>
-					prev.filter((name) => !fileNames.includes(name))
-				);
-
-				// Remove from selected set
-				setSelected((prev) => {
-					const next = new Set(prev);
-					fileNames.forEach((name) => next.delete(name));
-					return next;
+			// Remove URLs from imageUrls state
+			setImageUrls((prev) => {
+				const next = { ...prev };
+				filePaths.forEach((path) => {
+					delete next[path];
 				});
+				return next;
+			});
 
-				// Remove URLs from imageUrls state
-				setImageUrls((prev) => {
-					const next = { ...prev };
-					fileNames.forEach((fileName) => {
-						delete next[`${folder}/${fileName}`];
-					});
-					return next;
-				});
-
-				// Reload images from storage to refresh the list
-				// Use a small delay to ensure storage has fully updated
-				setTimeout(async () => {
-					await loadImages();
-				}, 300);
-
-				console.log(
-					`[ProjectMediaUpload] ✓ Successfully deleted ${fileNames.length} file(s) and updated UI.`
-				);
-			} else {
-				console.error(
-					`[ProjectMediaUpload] ✗ Deletion verification failed - files were not removed from storage.`
-				);
-				// Don't reload if deletion failed - this would bring back the files
-			}
+			// Reload images from storage to refresh the list
+			setTimeout(async () => {
+				await loadImages();
+			}, 300);
 
 			console.log(
-				`[ProjectMediaUpload] Successfully deleted ${fileNames.length} file(s) and reloaded images.`
+				`[ProjectMediaUpload] ✓ Successfully deleted ${fileNames.length} file(s) and updated UI.`
 			);
 		} catch (error) {
 			console.error(
@@ -539,7 +487,6 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		const setSelected = isSiteImages
 			? setSelectedSiteImages
 			: setSelectedDiagrams;
-		const selected = isSiteImages ? selectedSiteImages : selectedDiagrams;
 
 		setSelected((prev) => {
 			const next = new Set(prev);
@@ -573,47 +520,8 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		}
 	};
 
-	// Generate signed URLs for images when they're loaded
-	useEffect(() => {
-		if (!orgId || !projectId) return;
-
-		const generateUrls = async () => {
-			const urlMap: Record<string, string> = {};
-
-			// Generate URLs for site images
-			for (const fileName of siteImages) {
-				const filePath = `${projectId}/site-images/${fileName}`;
-				const { data, error } = await supabase.storage
-					.from(orgId)
-					.createSignedUrl(filePath, 3600);
-				if (!error && data) {
-					urlMap[`site-images/${fileName}`] = data.signedUrl;
-				}
-			}
-
-			// Generate URLs for architectural diagrams
-			for (const fileName of architecturalDiagrams) {
-				const filePath = `${projectId}/architectural-diagrams/${fileName}`;
-				const { data, error } = await supabase.storage
-					.from(orgId)
-					.createSignedUrl(filePath, 3600);
-				if (!error && data) {
-					urlMap[`architectural-diagrams/${fileName}`] =
-						data.signedUrl;
-				}
-			}
-
-			setImageUrls(urlMap);
-		};
-
-		generateUrls();
-	}, [orgId, projectId, siteImages, architecturalDiagrams]);
-
-	const getImageUrl = (
-		fileName: string,
-		folder: "site-images" | "architectural-diagrams"
-	) => {
-		return imageUrls[`${folder}/${fileName}`] || null;
+	const getImageUrl = (storagePath: string) => {
+		return imageUrls[storagePath] || null;
 	};
 
 	if (loading) {
@@ -693,15 +601,12 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 				</div>
 				{siteImages.length > 0 && (
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-						{siteImages.map((fileName) => {
-							const imageUrl = getImageUrl(
-								fileName,
-								"site-images"
-							);
-							const isSelected = selectedSiteImages.has(fileName);
+						{siteImages.map((image) => {
+							const imageUrl = getImageUrl(image.storagePath);
+							const isSelected = selectedSiteImages.has(image.fileName);
 							return (
 								<div
-									key={fileName}
+									key={image.storagePath}
 									className={cn(
 										"relative group border-2 rounded-lg transition-all",
 										isSelected
@@ -710,7 +615,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 									)}
 									onClick={() =>
 										handleToggleSelect(
-											fileName,
+											image.fileName,
 											"site-images"
 										)
 									}
@@ -722,7 +627,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 												checked={isSelected}
 												onChange={() =>
 													handleToggleSelect(
-														fileName,
+														image.fileName,
 														"site-images"
 													)
 												}
@@ -733,11 +638,22 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 											/>
 										</div>
 									)}
+									{image.source === 'artifacts' && image.documentName && (
+										<div className="absolute top-2 right-2 z-10 group/tooltip">
+											<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
+											<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+												<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+													From: {image.documentName}
+													<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+												</div>
+											</div>
+										</div>
+									)}
 									{imageUrl ? (
 										<div className="relative w-full h-32 rounded-lg overflow-hidden">
 											<Image
 												src={imageUrl}
-												alt={fileName}
+												alt={image.fileName}
 												fill
 												sizes="(max-width: 768px) 50vw, 25vw"
 												className="object-cover"
@@ -754,11 +670,11 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 											onClick={(e) => {
 												e.stopPropagation();
 												handleDeleteImage(
-													fileName,
+													image.fileName,
 													"site-images"
 												);
 											}}
-											className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+											className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
 										>
 											<X className="h-4 w-4" />
 										</button>
@@ -847,16 +763,13 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 				</div>
 				{architecturalDiagrams.length > 0 && (
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-						{architecturalDiagrams.map((fileName) => {
-							const imageUrl = getImageUrl(
-								fileName,
-								"architectural-diagrams"
-							);
-							const isSelected = selectedDiagrams.has(fileName);
-							const isPdf = fileName.match(/\.pdf$/i);
+						{architecturalDiagrams.map((image) => {
+							const imageUrl = getImageUrl(image.storagePath);
+							const isSelected = selectedDiagrams.has(image.fileName);
+							const isPdf = image.fileName.match(/\.pdf$/i);
 							return (
 								<div
-									key={fileName}
+									key={image.storagePath}
 									className={cn(
 										"relative group border-2 rounded-lg transition-all",
 										isSelected
@@ -865,7 +778,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 									)}
 									onClick={() =>
 										handleToggleSelect(
-											fileName,
+											image.fileName,
 											"architectural-diagrams"
 										)
 									}
@@ -877,7 +790,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 												checked={isSelected}
 												onChange={() =>
 													handleToggleSelect(
-														fileName,
+														image.fileName,
 														"architectural-diagrams"
 													)
 												}
@@ -888,6 +801,17 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 											/>
 										</div>
 									)}
+									{image.source === 'artifacts' && image.documentName && (
+										<div className="absolute top-2 right-2 z-10 group/tooltip">
+											<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
+											<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+												<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+													From: {image.documentName}
+													<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+												</div>
+											</div>
+										</div>
+									)}
 									{isPdf ? (
 										<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
 											<FileText className="h-8 w-8 text-gray-400" />
@@ -896,7 +820,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 										<div className="relative w-full h-32 rounded-lg overflow-hidden">
 											<Image
 												src={imageUrl}
-												alt={fileName}
+												alt={image.fileName}
 												fill
 												sizes="(max-width: 768px) 50vw, 25vw"
 												className="object-cover"
@@ -913,11 +837,11 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 											onClick={(e) => {
 												e.stopPropagation();
 												handleDeleteImage(
-													fileName,
+													image.fileName,
 													"architectural-diagrams"
 												);
 											}}
-											className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+											className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
 										>
 											<X className="h-4 w-4" />
 										</button>
