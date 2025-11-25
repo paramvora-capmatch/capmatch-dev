@@ -358,11 +358,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const atMatch = lastLine.match(/@([\w\s.-]*)$/);
 
     if (atMatch) {
-      const query = atMatch[1].toLowerCase();
-      setMentionQuery(query);
+      const rawQuery = atMatch[1];
+      const queryLower = rawQuery.toLowerCase();
+      setMentionQuery(rawQuery);
 
       const docSuggestions: MentionSuggestion[] = attachableDocuments
-        .filter((doc) => doc.name.toLowerCase().includes(query))
+        .filter((doc) => doc.name.toLowerCase().includes(queryLower))
         .map(doc => ({ type: 'document', data: doc }));
 
       const userSuggestions: MentionSuggestion[] = participants
@@ -378,7 +379,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 }
             };
         })
-        .filter(u => u.data.name.toLowerCase().includes(query) || u.data.email?.toLowerCase().includes(query));
+        .filter(u => u.data.name.toLowerCase().includes(queryLower) || u.data.email?.toLowerCase().includes(queryLower));
 
       // Combine and limit
       setSuggestions([...userSuggestions, ...docSuggestions].slice(0, 5));
