@@ -2,7 +2,7 @@
 
 import sys
 import logging
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import List, Dict, Any
 
 from config import Config
@@ -14,9 +14,14 @@ from email_sender import send_digest_email
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, Config.LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
+
+# Reduce noise from httpx and httpcore
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,6 +71,13 @@ def process_user_digest(
                     if not db.check_resource_access(user_id, event['resource_id']):
                         continue
                 recipient_events.append(event)
+            else:
+                logger.debug(
+                    "[recipients] user %s not in recipients for event %s (recipients=%s)",
+                    user_id,
+                    event.get("id"),
+                    recipients,
+                )
         
         if not recipient_events:
             logger.info(f"User {user_id} is not a recipient of any events - skipping")
@@ -114,7 +126,7 @@ def process_user_digest(
 
 def main():
     """Main execution function."""
-    start_time = datetime.utcnow()
+    start_time = datetime.now(timezone.utc)
     logger.info("=" * 80)
     logger.info("Starting email digest job")
     logger.info(f"Started at: {start_time.isoformat()}")
@@ -122,17 +134,21 @@ def main():
     try:
         # Validate configuration
         Config.validate()
+        if Config.SKIP_IDEMPOTENCY_CHECK:
+            logger.warning("[idempotency] SKIP_IDEMPOTENCY_CHECK enabled – worker will reprocess events (testing only)")
         
         # Initialize database
-        db = Database(Config.SUPABASE_URL, Config.SUPABASE_SERVICE_ROLE_KEY)
+        db = Database(
+            Config.SUPABASE_URL,
+            Config.SUPABASE_SERVICE_ROLE_KEY,
+            skip_idempotency=Config.SKIP_IDEMPOTENCY_CHECK,
+        )
         
-        # Get digest date (yesterday UTC)
-        digest_date = date.fromisoformat(Config.get_digest_date())
-        start_datetime = datetime.combine(digest_date, datetime.min.time())
-        end_datetime = start_datetime + timedelta(days=1)
+        # Compute sliding 24-hour window (UTC)
+        window_start, window_end = Config.get_digest_window()
+        digest_date = window_end.date()
         
-        logger.info(f"Processing digest for date: {digest_date}")
-        logger.info(f"Event time range: {start_datetime.isoformat()} to {end_datetime.isoformat()}")
+        logger.info(f"Processing digest window: {window_start.isoformat()} to {window_end.isoformat()}")
         
         # Get users with digest preferences
         users = db.get_users_with_digest_preferences()
@@ -152,8 +168,8 @@ def main():
                 db,
                 user,
                 digest_date,
-                start_datetime.isoformat(),
-                end_datetime.isoformat()
+                window_start.isoformat(),
+                window_end.isoformat()
             )
             
             if success:
@@ -163,7 +179,7 @@ def main():
                 total_failed += 1
         
         # Summary
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         duration = (end_time - start_time).total_seconds()
         
         logger.info("=" * 80)

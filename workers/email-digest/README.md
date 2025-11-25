@@ -24,6 +24,7 @@ Set these in Cloud Run Job configuration or Secret Manager:
 - `RESEND_API_KEY`: Resend API key (for future email sending)
 - `EMAIL_FROM`: Sender email address (default: notifications@capmatch.com)
 - `LOG_LEVEL`: Logging level (default: INFO)
+- `SKIP_IDEMPOTENCY_CHECK`: Set to `true` while testing to reprocess the same events (default: false)
 
 ### 2. Build Docker Image
 
@@ -74,9 +75,18 @@ pip install -r requirements.txt
 ### Run Locally
 
 ```bash
+# Create .env.local file with your Supabase credentials
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+# LOG_LEVEL=DEBUG
+
+# Run with uv (recommended)
+uv run --env-file .env.local python main.py
+
+# Or set environment variables manually
 export SUPABASE_URL="https://your-project.supabase.co"
 export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-python main.py
+uv run python main.py
 ```
 
 ## How It Works

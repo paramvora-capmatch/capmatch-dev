@@ -89,8 +89,21 @@ def filter_events_by_preferences(
     Filter events to only include those that should be in digest
     based on user preferences.
     """
-    return [
-        event for event in events
-        if should_include_in_digest(db, event, user_id)
-    ]
+    filtered_events = []
+
+    for event in events:
+        include = should_include_in_digest(db, event, user_id)
+        logger.debug(
+            "[preferences] user=%s event_id=%s event_type=%s include=%s thread=%s project=%s",
+            user_id,
+            event.get("id"),
+            event.get("event_type"),
+            include,
+            event.get("thread_id"),
+            event.get("project_id"),
+        )
+        if include:
+            filtered_events.append(event)
+
+    return filtered_events
 

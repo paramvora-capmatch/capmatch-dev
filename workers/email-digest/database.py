@@ -11,8 +11,9 @@ logger = logging.getLogger(__name__)
 class Database:
     """Database connection manager using Supabase client."""
     
-    def __init__(self, supabase_url: str, supabase_key: str):
+    def __init__(self, supabase_url: str, supabase_key: str, *, skip_idempotency: bool = False):
         self.client: Client = create_client(supabase_url, supabase_key)
+        self.skip_idempotency = skip_idempotency
     
     def get_users_with_digest_preferences(self) -> List[Dict[str, Any]]:
         """
@@ -78,15 +79,25 @@ class Database:
         1. Occurred within the date range
         2. Haven't been processed for this user/date
         """
-        # Query domain_events in the date range
-        events_response = self.client.table('domain_events').select(
-            '*'
-        ).gte('occurred_at', start_time).lt('occurred_at', end_time).order(
-            'occurred_at', desc=False
-        ).execute()
-        
-        if not events_response.data:
-            return []
+        query = self.client.table('domain_events').select('*')
+
+        if not self.skip_idempotency:
+            query = query.gte('occurred_at', start_time).lt('occurred_at', end_time)
+        else:
+            logger.debug(
+                "[testing] SKIP_IDEMPOTENCY_CHECK true -> returning all domain events regardless of time"
+            )
+
+        events_response = query.order('occurred_at', desc=False).execute()
+        events = events_response.data or []
+
+        if self.skip_idempotency:
+            logger.debug(
+                "[idempotency] Skipping processed-event filtering for user %s (returning %d events)",
+                user_id,
+                len(events),
+            )
+            return events
         
         # Get processed events for this user/date
         processed_response = self.client.table('email_digest_processed').select(
@@ -96,10 +107,20 @@ class Database:
         processed_event_ids = {p['event_id'] for p in (processed_response.data or [])}
         
         # Filter out processed events
-        return [
-            event for event in events_response.data
+        filtered = [
+            event for event in events
             if event['id'] not in processed_event_ids
         ]
+
+        logger.debug(
+            "[idempotency] Filtered %d/%d events for user %s on %s",
+            len(events) - len(filtered),
+            len(events),
+            user_id,
+            digest_date,
+        )
+        
+        return filtered
     
     def get_event_recipients(self, event: Dict[str, Any]) -> Set[str]:
         """
@@ -107,6 +128,15 @@ class Database:
         Reuses logic from notify-fan-out: project access grants + org owners + thread participants.
         """
         recipients = set()
+        logger.debug(
+            "[recipients] event_id=%s type=%s project=%s thread=%s resource=%s actor=%s",
+            event.get("id"),
+            event.get("event_type"),
+            event.get("project_id"),
+            event.get("thread_id"),
+            event.get("resource_id"),
+            event.get("actor_id"),
+        )
         
         # Get project access grants
         grants_response = self.client.table('project_access_grants').select(
@@ -147,7 +177,16 @@ class Database:
         # Exclude actor
         if event.get('actor_id'):
             recipients.discard(event['actor_id'])
+            logger.debug(
+                "[recipients] removed actor %s from recipient list",
+                event['actor_id']
+            )
         
+        logger.debug(
+            "[recipients] final recipients for event %s: %s",
+            event.get("id"),
+            list(recipients),
+        )
         return recipients
     
     def check_resource_access(self, user_id: str, resource_id: str) -> bool:
@@ -181,6 +220,13 @@ class Database:
     ) -> None:
         """Mark events as processed in email_digest_processed table."""
         if not events:
+            return
+
+        if self.skip_idempotency:
+            logger.debug(
+                "[idempotency] Skipping mark_events_processed for user %s (testing mode)",
+                user_id,
+            )
             return
         
         # Prepare data for batch insert
