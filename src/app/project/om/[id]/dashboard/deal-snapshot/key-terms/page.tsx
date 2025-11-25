@@ -4,18 +4,16 @@ import { dealSnapshotDetails } from "@/services/mockOMData";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Percent, Clock, Shield, FileText, Sparkles } from "lucide-react";
+import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 
 export default function KeyTermsPage() {
 
+  useOMPageHeader({
+    subtitle: "Quick read on rate, term, recourse, and covenant highlights.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Key Terms</h1>
-        <p className="text-gray-600 mt-2">
-          Comprehensive loan structure and terms overview
-        </p>
-      </div>
-
       {/* Basic Loan Terms */}
       <Card className="hover:shadow-lg transition-shadow mb-8 border-blue-200 bg-white">
         <CardHeader className="pb-3" dataSourceSection="key terms">

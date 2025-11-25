@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, TrendingUp, MapPin, Users } from 'lucide-react';
 import EmploymentMap from '@/components/om/EmploymentMap';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function EmploymentPage() {
   const getGrowthColor = (growth: string) => {
@@ -40,12 +41,12 @@ export default function EmploymentPage() {
     0
   ) / marketContextDetails.majorEmployers.length;
 
+  useOMPageHeader({
+    subtitle: "Job base composition, employer proximity, and growth trends.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Employment</h1>
-        <p className="text-gray-600 mt-2">Major employers and job market analysis</p>
-      </div>
 
       {/* Employment Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

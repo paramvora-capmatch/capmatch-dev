@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, TrendingUp, MapPin, BarChart3 } from 'lucide-react';
 import PopulationHeatmap from '@/components/om/PopulationHeatmap';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function DemographicsPage() {
   const getGrowthColor = (growth: string) => {
@@ -22,12 +23,12 @@ export default function DemographicsPage() {
     return 'bg-gray-100 text-gray-800';
   };
 
+  useOMPageHeader({
+    subtitle: "Population make-up, income bands, and growth across key radii.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-800">Demographics</h1>
-        <p className="text-gray-600 mt-2">Comprehensive demographic analysis and population trends</p>
-      </div>
 
       {/* Radius Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

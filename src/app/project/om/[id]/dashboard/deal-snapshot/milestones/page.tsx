@@ -4,6 +4,7 @@ import { dealSnapshotDetails } from '@/services/mockOMData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function MilestonesPage() {
   const getStatusIcon = (status: string) => {
@@ -34,13 +35,12 @@ export default function MilestonesPage() {
 
   const totalDuration = dealSnapshotDetails.milestones.reduce((sum, milestone) => sum + milestone.duration, 0);
 
+  useOMPageHeader({
+    subtitle: "Timeline of critical phases, durations, and current status.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Project Milestones</h1>
-        <p className="text-gray-600 mt-2">Timeline and progress tracking for deal execution</p>
-      </div>
-
       {/* Timeline View */}
       <Card>
         <CardHeader dataSourceSection="milestones">

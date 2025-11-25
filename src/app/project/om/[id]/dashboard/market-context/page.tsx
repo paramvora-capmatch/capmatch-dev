@@ -9,12 +9,19 @@ import { Users, Briefcase, Building2, Zap } from "lucide-react";
 import PopulationHeatmap from "@/components/om/PopulationHeatmap";
 import EmploymentMap from "@/components/om/EmploymentMap";
 import SupplyDemandMap from "@/components/om/SupplyDemandMap";
+import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 
 export default function MarketContextPage() {
   const params = useParams();
   const projectId = params?.id as string;
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
+
+  useOMPageHeader({
+    subtitle: project
+      ? "Macro demographics, employment drivers, and supply-demand signals."
+      : undefined,
+  });
 
   if (!project) return <div>Project not found</div>;
 
@@ -145,9 +152,6 @@ export default function MarketContextPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">
-        Market Context Details
-      </h2>
       <QuadrantGrid quadrants={quadrants} />
     </div>
   );

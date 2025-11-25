@@ -4,6 +4,7 @@ import { financialDetails } from "@/services/mockOMData";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingDown, PieChart } from "lucide-react";
+import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 
 export default function SourcesUsesPage() {
   const totalSources = financialDetails.sourcesUses.sources.reduce(
@@ -35,14 +36,12 @@ export default function SourcesUsesPage() {
     return ((amount / total) * 100).toFixed(1);
   };
 
+  useOMPageHeader({
+    subtitle: "Detailed breakdown of capital sources and where funds are deployed.",
+  });
+
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Sources & Uses</h1>
-        <p className="text-gray-600 mt-2">
-          Capital structure and funding allocation
-        </p>
-      </div>
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

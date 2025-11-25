@@ -11,6 +11,7 @@ import { useOMDashboard } from '@/contexts/OMDashboardContext';
 import { sponsorDeals, financialDetails, projectOverview } from '@/services/mockOMData';
 import { DollarSign, BarChart3, Users, Activity } from 'lucide-react';
 import ReturnsCharts from '@/components/om/ReturnsCharts';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function FinancialSponsorPage() {
     const params = useParams();
@@ -18,6 +19,12 @@ export default function FinancialSponsorPage() {
     const { getProject } = useProjects();
     const project = projectId ? getProject(projectId) : null;
     const { scenario } = useOMDashboard();
+    
+    useOMPageHeader({
+        subtitle: project
+            ? "Returns, capital structure, and sponsor track record at a glance."
+            : undefined,
+    });
     
     if (!project) return <div>Project not found</div>;
     
@@ -150,7 +157,6 @@ export default function FinancialSponsorPage() {
     
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Financial & Sponsor Details</h2>
             <QuadrantGrid quadrants={quadrants} />
         </div>
     );

@@ -1,60 +1,29 @@
 // src/app/project/om/[id]/dashboard/asset-profile/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import React from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { QuadrantGrid } from '@/components/om/QuadrantGrid';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
 import { unitMixData, marketComps, assetProfileDetails, projectOverview } from '@/services/mockOMData';
-import { MapPin, Home, Package, Building2, Image as ImageIcon } from 'lucide-react';
+import { MapPin, Home, Package, Image as ImageIcon } from 'lucide-react';
 import ZoningMap from '@/components/om/ZoningMap';
-import { supabase } from '@/lib/supabaseClient';
+import { ImageSlideshow } from '@/components/om/ImageSlideshow';
+import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 
 export default function AssetProfilePage() {
   const params = useParams();
   const projectId = params?.id as string;
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
-  const [siteImageCount, setSiteImageCount] = useState(0);
-  const [diagramCount, setDiagramCount] = useState(0);
-  
-  const loadMediaCounts = useCallback(async () => {
-    if (!projectId || !project?.owner_org_id) return;
-    
-    try {
-      const orgId = project.owner_org_id;
+  const router = useRouter();
 
-      // Count site images
-      const { data: siteData } = await supabase.storage
-        .from(orgId)
-        .list(`${projectId}/site-images`, {
-          limit: 100,
-        });
-      if (siteData) {
-        const count = siteData.filter((f) => f.name !== ".keep" && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)).length;
-        setSiteImageCount(count);
-      }
-
-      // Count diagrams
-      const { data: diagramData } = await supabase.storage
-        .from(orgId)
-        .list(`${projectId}/architectural-diagrams`, {
-          limit: 100,
-        });
-      if (diagramData) {
-        const count = diagramData.filter((f) => f.name !== ".keep" && f.name.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)).length;
-        setDiagramCount(count);
-      }
-    } catch (error) {
-      console.error('Error loading media counts:', error);
-    }
-  }, [projectId, project]);
-
-  useEffect(() => {
-    if (!projectId || !project?.owner_org_id) return;
-    loadMediaCounts();
-  }, [projectId, project, loadMediaCounts]);
+  useOMPageHeader({
+    subtitle: project
+      ? "Property composition, stats, and quick links into detailed asset views."
+      : undefined,
+  });
   
   if (!project) return <div>Project not found</div>;
   
@@ -189,38 +158,21 @@ export default function AssetProfilePage() {
           </div>
         </div>
       )
-    },
-    {
-      id: 'media-gallery',
-      title: 'Media & Plans',
-      icon: Building2,
-      color: 'from-blue-400 to-blue-500',
-      href: `/project/om/${projectId}/dashboard/asset-profile/media`,
-      metrics: (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-blue-50 rounded p-2 text-center">
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Site Imagery</p>
-              <p className="text-xl font-semibold text-blue-700">{siteImageCount}</p>
-            </div>
-            <div className="bg-blue-50 rounded p-2 text-center">
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Diagrams</p>
-              <p className="text-xl font-semibold text-blue-700">{diagramCount}</p>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500">
-            Review architectural diagrams, site renderings, and streetscape imagery pulled from the Hoque OM.
-          </p>
-        </div>
-      )
     }
   ];
   
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">
-        Asset Profile Details
-      </h2>
+      {project?.owner_org_id && (
+        <ImageSlideshow
+          projectId={projectId}
+          orgId={project.owner_org_id}
+          projectName={project.projectName}
+          autoPlayInterval={5000}
+          height="h-80 md:h-96"
+          onClick={() => router.push(`/project/om/${projectId}/dashboard/asset-profile/media`)}
+        />
+      )}
       <QuadrantGrid quadrants={quadrants} />
     </div>
   );

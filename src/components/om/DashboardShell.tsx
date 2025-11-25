@@ -1,10 +1,11 @@
 // src/components/om/DashboardShell.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Download, Home, ChevronLeft } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { OMChatCard } from './OMChatCard';
+import { useOMDashboard } from '@/contexts/OMDashboardContext';
 
 
 interface DashboardShellProps {
@@ -24,6 +25,7 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
 }) => {
     const router = useRouter();
     const pathname = usePathname();
+    const { pageHeader } = useOMDashboard();
     const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(() => {
         try {
             return JSON.parse(
@@ -54,7 +56,39 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
     }).filter(crumb => crumb.label !== 'Dashboard'); // Filter out "Dashboard" breadcrumb
     
     const isHome = pathname.endsWith('/dashboard');
-    
+
+    const handleBackClick = () => {
+        if (isHome) {
+            router.push(`/project/workspace/${projectId}`);
+            return;
+        }
+        router.back();
+    };
+
+    const [showStickyTitle, setShowStickyTitle] = useState(false);
+    const headerRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                setShowStickyTitle(!entry.isIntersecting);
+            },
+            { root: null, threshold: 0, rootMargin: '-80px 0px 0px 0px' }
+        );
+
+        if (headerRef.current) {
+            observer.observe(headerRef.current);
+        }
+
+        return () => {
+            observer.disconnect();
+        };
+    }, []);
+
+    const displayTitle = pageHeader.title?.trim() || projectName;
+    const displaySubtitle = pageHeader.subtitle?.trim();
+
     return (
         <div className="relative min-h-screen w-full flex flex-row animate-fadeIn bg-gray-200">
             {/* Global page background (grid + blue tint) behind both columns */}
@@ -75,52 +109,69 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
             <div className="fixed top-0 left-0 right-0 bg-white shadow-sm border-b border-gray-200 z-50">
                 <div className="px-6 py-4">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            {!isHome && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => router.back()}
-                                    className="mr-2"
+                        <div className="flex items-center space-x-6">
+                            <nav className="flex items-center space-x-2 text-base">
+                                <button
+                                    onClick={handleBackClick}
+                                    className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md transition-colors"
+                                    aria-label="Go back"
                                 >
                                     <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                            )}
-                            
-                            {/* Breadcrumbs */}
-                            <div className="flex items-center space-x-2 text-sm">
-                                {/* Project Name - First Breadcrumb */}
+                                </button>
+
                                 <button
                                     onClick={() => router.push(`/project/workspace/${projectId}`)}
                                     className="text-gray-500 hover:text-gray-700 font-medium"
                                 >
-                                    {projectName}
+                                    Project Workspace
                                 </button>
-                                
-                                {/* Separator */}
                                 <span className="text-gray-400">/</span>
-                                
-                                {/* OM Dashboard - Second Breadcrumb */}
-                                <button
-                                    onClick={() => router.push(`/project/om/${projectId}/dashboard`)}
-                                    className="text-gray-500 hover:text-gray-700 flex items-center"
-                                >
-                                    <Home className="h-4 w-4 mr-1" />
-                                    OM Dashboard
-                                </button>
-                                
-                                {/* Additional Breadcrumbs */}
-                                {breadcrumbs.map((crumb, idx) => (
-                                    <React.Fragment key={idx}>
-                                        <span className="text-gray-400">/</span>
+
+                                {breadcrumbs.length === 0 ? (
+                                    <span className="text-gray-800 font-semibold flex items-center">
+                                        <Home className="h-4 w-4 mr-1" />
+                                        OM Dashboard
+                                    </span>
+                                ) : (
+                                    <>
                                         <button
-                                            onClick={() => router.push(crumb.path)}
-                                            className="text-gray-500 hover:text-gray-700"
+                                            onClick={() => router.push(`/project/om/${projectId}/dashboard`)}
+                                            className="text-gray-500 hover:text-gray-700 font-medium flex items-center"
                                         >
-                                            {crumb.label}
+                                            <Home className="h-4 w-4 mr-1" />
+                                            OM Dashboard
                                         </button>
-                                    </React.Fragment>
-                                ))}
+                                        {breadcrumbs.map((crumb, idx) => {
+                                            const isLast = idx === breadcrumbs.length - 1;
+                                            return (
+                                                <React.Fragment key={idx}>
+                                                    <span className="text-gray-400">/</span>
+                                                    {isLast ? (
+                                                        <span className="text-gray-800 font-semibold">
+                                                            {crumb.label}
+                                                        </span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => router.push(crumb.path)}
+                                                            className="text-gray-500 hover:text-gray-700"
+                                                        >
+                                                            {crumb.label}
+                                                        </button>
+                                                    )}
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </>
+                                )}
+                            </nav>
+                            <div
+                                className={cn(
+                                    "text-lg font-semibold text-gray-900 transition-opacity duration-300",
+                                    showStickyTitle ? "opacity-100" : "opacity-0"
+                                )}
+                                aria-hidden={!showStickyTitle}
+                            >
+                                {projectName}
                             </div>
                         </div>
                         
@@ -137,10 +188,6 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
                         </div>
                     </div>
                     
-                    {/* Project Name */}
-                    <div className="mt-2">
-                        <h1 className="text-xl font-semibold text-gray-800">{projectName}</h1>
-                    </div>
                 </div>
             </div>
 
@@ -148,6 +195,12 @@ export const DashboardShell: React.FC<DashboardShellProps> = ({
             <div className="flex-1 relative z-[1] min-w-0">
                 {/* Content with padding */}
                 <div className="relative p-6 min-w-0 pt-32">
+                    <div ref={headerRef} className="mb-6 space-y-1">
+                        <h1 className="text-3xl font-bold text-gray-900">{displayTitle}</h1>
+                        {displaySubtitle && (
+                            <p className="text-sm text-gray-500">{displaySubtitle}</p>
+                        )}
+                    </div>
                     {children}
                 </div>
             </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
 import { cn } from '@/utils/cn';
@@ -10,8 +10,10 @@ import { cn } from '@/utils/cn';
 interface ImageSlideshowProps {
   projectId: string;
   orgId: string;
+  projectName?: string;
   autoPlayInterval?: number; // milliseconds
   height?: string; // e.g., "h-64", "h-96"
+  onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 interface ImageData {
@@ -22,13 +24,14 @@ interface ImageData {
 export function ImageSlideshow({
   projectId,
   orgId,
+  projectName,
   autoPlayInterval = 5000, // 5 seconds default
   height = 'h-64',
+  onClick,
 }: ImageSlideshowProps) {
   const [images, setImages] = useState<ImageData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const touchStartX = useRef<number | null>(null);
@@ -92,25 +95,30 @@ export function ImageSlideshow({
 
   // Auto-play functionality
   useEffect(() => {
-    if (images.length <= 1) return;
-    
-    if (isPlaying && !isHovered) {
+    if (images.length <= 1) {
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    }
+
+    if (!isHovered) {
       intervalRef.current = setInterval(() => {
         setCurrentIndex((prev) => (prev + 1) % images.length);
       }, autoPlayInterval);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [isPlaying, isHovered, images.length, autoPlayInterval]);
+  }, [isHovered, images.length, autoPlayInterval]);
 
   const goToNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % images.length);
@@ -170,12 +178,19 @@ export function ImageSlideshow({
 
   return (
     <div
-      className={cn('relative w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg', height)}
+      className={cn(
+        'relative w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg',
+        height,
+        onClick && 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500'
+      )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       {/* Images */}
       <div className="relative w-full h-full">
@@ -211,37 +226,32 @@ export function ImageSlideshow({
       {images.length > 1 && (
         <>
           <button
-            onClick={goToPrevious}
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10 backdrop-blur-sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              goToPrevious();
+            }}
+            className={cn(
+              'absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10 backdrop-blur-sm duration-300',
+              isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            )}
             aria-label="Previous image"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
           <button
-            onClick={goToNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10 backdrop-blur-sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              goToNext();
+            }}
+            className={cn(
+              'absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10 backdrop-blur-sm duration-300',
+              isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            )}
             aria-label="Next image"
           >
             <ChevronRight className="h-6 w-6" />
           </button>
         </>
-      )}
-
-      {/* Controls (top right) */}
-      {images.length > 1 && (
-        <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-          <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors backdrop-blur-sm"
-            aria-label={isPlaying ? 'Pause slideshow' : 'Play slideshow'}
-          >
-            {isPlaying ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-          </button>
-        </div>
       )}
 
       {/* Dots Indicator (bottom center) */}
@@ -250,7 +260,10 @@ export function ImageSlideshow({
           {images.map((_, index) => (
             <button
               key={index}
-              onClick={() => goToSlide(index)}
+              onClick={(event) => {
+                event.stopPropagation();
+                goToSlide(index);
+              }}
               className={cn(
                 'transition-all duration-300 rounded-full',
                 index === currentIndex
@@ -263,12 +276,18 @@ export function ImageSlideshow({
         </div>
       )}
 
-      {/* Image Counter */}
-      {images.length > 1 && (
-        <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-black/50 text-white text-xs backdrop-blur-sm z-10">
-          {currentIndex + 1} / {images.length}
-        </div>
-      )}
+      {/* Project Name + Image Counter */}
+      <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-black/50 text-white text-xs md:text-sm backdrop-blur-sm z-10 flex items-center gap-3 max-w-[85%]">
+        {projectName && (
+          <span className="font-semibold text-sm md:text-base truncate">
+            {projectName}
+          </span>
+        )}
+        <span className="text-white/60">•</span>
+        <span className="text-xs md:text-sm">
+          {images.length ? currentIndex + 1 : 0} / {images.length || 0}
+        </span>
+      </div>
     </div>
   );
 }
