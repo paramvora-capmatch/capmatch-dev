@@ -4,23 +4,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { supabase } from '@/lib/supabaseClient';
 import { useProjects } from '@/hooks/useProjects';
 import { FileText, Loader2 } from 'lucide-react';
 import { ImagePreviewModal } from '@/components/om/ImagePreviewModal';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
+import { loadProjectImages, groupImagesByCategory, type ImageData } from '@/lib/imageUtils';
 
 interface MediaFile {
   name: string;
   url: string;
+  title: string;
   isPdf: boolean;
-}
-
-// Helper function to remove file extension from filename
-function removeFileExtension(filename: string): string {
-  const lastDotIndex = filename.lastIndexOf('.');
-  if (lastDotIndex === -1) return filename; // No extension found
-  return filename.substring(0, lastDotIndex);
 }
 
 export default function MediaGalleryPage() {
@@ -49,75 +43,29 @@ export default function MediaGalleryPage() {
     try {
       const orgId = project.owner_org_id;
 
-      // Load site images
-      const { data: siteData, error: siteError } = await supabase.storage
-        .from(orgId)
-        .list(`${projectId}/site-images`, {
-          limit: 100,
-          sortBy: { column: "name", order: "asc" },
-        });
-
-      if (siteError) {
-        console.error('Error loading site images:', siteError);
-      } else if (siteData) {
-        const imagePromises = siteData
-          .filter((f) => f.name !== ".keep" && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
-          .map(async (f) => {
-            const filePath = `${projectId}/site-images/${f.name}`;
-            const { data, error } = await supabase.storage
-              .from(orgId)
-              .createSignedUrl(filePath, 3600); // 1 hour expiry
-            
-            if (error) {
-              console.error(`Error creating signed URL for ${f.name}:`, error);
-              return null;
-            }
-            
-            return {
-              name: f.name,
-              url: data.signedUrl,
-              isPdf: false,
-            };
-          });
-        
-        const images = (await Promise.all(imagePromises)).filter((img): img is MediaFile => img !== null);
-        setSiteImages(images);
-      }
-
-      // Load architectural diagrams
-      const { data: diagramData, error: diagramError } = await supabase.storage
-        .from(orgId)
-        .list(`${projectId}/architectural-diagrams`, {
-          limit: 100,
-          sortBy: { column: "name", order: "asc" },
-        });
-
-      if (diagramError) {
-        console.error('Error loading diagrams:', diagramError);
-      } else if (diagramData) {
-        const diagramPromises = diagramData
-          .filter((f) => f.name !== ".keep" && (f.name.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)))
-          .map(async (f) => {
-            const filePath = `${projectId}/architectural-diagrams/${f.name}`;
-            const { data, error } = await supabase.storage
-              .from(orgId)
-              .createSignedUrl(filePath, 3600); // 1 hour expiry
-            
-            if (error) {
-              console.error(`Error creating signed URL for ${f.name}:`, error);
-              return null;
-            }
-            
-            return {
-              name: f.name,
-              url: data.signedUrl,
-              isPdf: f.name.match(/\.pdf$/i) !== null,
-            };
-          });
-        
-        const diagrams = (await Promise.all(diagramPromises)).filter((diag): diag is MediaFile => diag !== null);
-        setArchitecturalDiagrams(diagrams);
-      }
+      // Load all images from artifacts folder structure
+      const allImages = await loadProjectImages(projectId, orgId);
+      
+      // Group by category
+      const grouped = groupImagesByCategory(allImages);
+      
+      // Convert to MediaFile format
+      const siteImagesData: MediaFile[] = grouped.site_images.map(img => ({
+        name: img.name,
+        url: img.url,
+        title: img.title,
+        isPdf: false,
+      }));
+      
+      const diagramsData: MediaFile[] = grouped.architectural_diagrams.map(img => ({
+        name: img.name,
+        url: img.url,
+        title: img.title,
+        isPdf: false, // PDFs would be handled separately if needed
+      }));
+      
+      setSiteImages(siteImagesData);
+      setArchitecturalDiagrams(diagramsData);
     } catch (error) {
       console.error('Error loading media:', error);
     } finally {
@@ -190,7 +138,7 @@ export default function MediaGalleryPage() {
                     />
                   </div>
                   <div>
-                    <h4 className="text-lg font-semibold text-gray-800">{removeFileExtension(image.name)}</h4>
+                    <h4 className="text-lg font-semibold text-gray-800">{image.title}</h4>
                   </div>
                 </div>
               ))}
@@ -235,7 +183,7 @@ export default function MediaGalleryPage() {
                     )}
                   </div>
                   <div>
-                    <h4 className="text-base font-semibold text-gray-800">{removeFileExtension(diagram.name)}</h4>
+                    <h4 className="text-base font-semibold text-gray-800">{diagram.title}</h4>
                   </div>
                 </div>
               ))}

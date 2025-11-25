@@ -1151,7 +1151,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	// Helper function to check if a field should be disabled (locked OR autofilling)
 	const isFieldDisabled = useCallback(
 		(fieldId: string, sectionId?: string): boolean => {
-			return isFieldDisabled(fieldId, sectionId) || isAutofilling;
+			return isFieldLocked(fieldId, sectionId) || isAutofilling;
 		},
 		[isFieldLocked, isAutofilling]
 	);
