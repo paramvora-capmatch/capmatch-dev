@@ -840,6 +840,43 @@ async function uploadDocumentToProject(
       console.error(`[seed] Failed to update resource current version:`, updateResourceError);
     }
 
+    // Log a domain event so downstream notification plumbing (digests, unread counts, etc.) sees seeded docs
+    const { data: eventId, error: eventError } = await supabaseAdmin.rpc(
+      'insert_document_uploaded_event',
+      {
+        p_actor_id: uploadedById,
+        p_project_id: projectId,
+        p_resource_id: resourceId,
+        p_payload: {
+          fileName,
+          size: fileBuffer.length,
+          mimeType: 'application/pdf',
+          rootResourceType,
+          source: 'seed-demo-data',
+        },
+      }
+    );
+
+    if (eventError) {
+      console.warn('[seed] Failed to log document_uploaded event during seeding', {
+        projectId,
+        resourceId,
+        error: eventError.message,
+      });
+    } else if (eventId) {
+      const { error: notifyError } = await supabaseAdmin.functions.invoke('notify-fan-out', {
+        body: { eventId },
+      });
+      if (notifyError) {
+        console.warn('[seed] notify-fan-out failed for seeded document', {
+          eventId,
+          projectId,
+          resourceId,
+          error: notifyError.message,
+        });
+      }
+    }
+
     console.log(`[seed] ✅ Uploaded document: ${fileName}`);
     return resourceId;
   } catch (err) {
