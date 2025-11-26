@@ -5,6 +5,7 @@ import React from 'react';
 import { AuthRedirector } from '../auth/AuthRedirector';
 import { useAppHydration } from '@/hooks/useAppHydration';
 import { SplashScreen } from '../ui/SplashScreen';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 export const ClientAppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isHydrated = useAppHydration();
@@ -17,9 +18,9 @@ export const ClientAppProviders: React.FC<{ children: React.ReactNode }> = ({ ch
   }
 
   return (
-    <>
+    <ThemeProvider>
       <AuthRedirector />
       {children}
-    </>
+    </ThemeProvider>
   );
 };

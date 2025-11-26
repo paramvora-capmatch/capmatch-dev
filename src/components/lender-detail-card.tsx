@@ -2,12 +2,13 @@
 
 'use client';
 
-import { X, Check } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from "./ui/Button";
 import { Card, CardContent, CardHeader } from "./ui/card";
-import { Badge } from "./ui/badge";
 import type { LenderProfile } from "../types/lender";
 import { LenderFilters } from "@/contexts/LenderContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { cn } from "@/utils/cn";
 
 interface LenderDetailCardProps {
   lender: LenderProfile;
@@ -23,6 +24,8 @@ export default function LenderDetailCard({
   onClose,
   color,
 }: LenderDetailCardProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   // Keep existing functionality
   const matchScore = lender.match_score || 0;
   const matchPercentage = Math.round(matchScore * 100);
@@ -44,39 +47,30 @@ export default function LenderDetailCard({
     return range.replace(/_/g, ' ');
   };
 
-  const criteriaMatches = (
-    lenderCriteria: string[] | undefined,
-    formCriteria: string[] | undefined,
-    criteriaType: keyof Pick<LenderFilters, "asset_types" | "deal_types" | "capital_types" | "locations" | "debt_ranges">
-  ) => {
-    if (!formCriteria || formCriteria.length === 0) {
-      return null;
-    }
-
-    if (criteriaType === "locations" && lenderCriteria?.includes("nationwide")) {
-      return true;
-    }
-
-    const anyMatch = formCriteria.some((item) => lenderCriteria?.includes(item));
-    return anyMatch;
-  };
+  // Removed criteriaMatches - just show the criteria without match/mismatch badges
 
   return (
-    <Card className="w-80 shadow-md bg-white rounded-lg border border-gray-200">
-      <CardHeader className="relative pb-0 border-b border-gray-100">
+    <Card className={cn(
+      "w-80 shadow-xl rounded-lg transition-colors duration-300",
+      isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+    )}>
+      <CardHeader className={cn("relative pb-0 border-b transition-colors duration-300", isDark ? "border-gray-700" : "border-gray-200")}>
         <div
           className="absolute top-0 left-0 right-0 h-1 rounded-t-lg"
           style={{ backgroundColor: color }}
         ></div>
         <div className="flex justify-between items-center pt-3">
           <div className="flex-1">
-            <h3 className="font-bold text-2xl text-gray-900">{matchPercentage}% Match</h3>
+            <h3 className={cn("font-bold text-2xl", isDark ? "text-white" : "text-gray-900")}>{matchPercentage}% Match</h3>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 rounded-full hover:bg-gray-100">
+          <Button variant="ghost" size="sm" onClick={onClose} className={cn(
+            "h-8 w-8 rounded-full",
+            isDark ? "hover:bg-gray-700 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-900"
+          )}>
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden mt-2 mb-3">
+        <div className={cn("w-full h-2 rounded-full overflow-hidden mt-2 mb-3", isDark ? "bg-gray-700" : "bg-gray-200")}>
           <div
             className="h-full rounded-full"
             style={{
@@ -88,96 +82,36 @@ export default function LenderDetailCard({
       </CardHeader>
       <CardContent className="space-y-4 text-sm py-4">
         <div className="space-y-3">
-          <h4 className="font-semibold text-gray-800 text-base">Lending Criteria</h4>
+          <h4 className={cn("font-semibold text-base", isDark ? "text-gray-200" : "text-gray-800")}>Lending Criteria</h4>
           <div className="grid grid-cols-[120px_1fr] gap-y-3">
-            <div className="text-gray-500">Asset Types:</div>
-            <div className="text-gray-900">
-              {criteriaMatches(lender.asset_types, formData?.asset_types, "asset_types") === false ? (
-                <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
-                  <X className="h-3 w-3 mr-1" />
-                  Mismatch
-                </Badge>
-              ) : criteriaMatches(lender.asset_types, formData?.asset_types, "asset_types") === true ? (
-                <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
-                  <Check className="h-3 w-3 mr-1" />
-                  Match
-                </Badge>
-              ) : (
-                formatCriteria(lender.asset_types)
-              )}
+            <div className={cn(isDark ? "text-gray-400" : "text-gray-600")}>Asset Types:</div>
+            <div className={cn(isDark ? "text-gray-200" : "text-gray-900")}>
+              {formatCriteria(lender.asset_types)}
             </div>
 
-            <div className="text-gray-500">Deal Types:</div>
-            <div className="text-gray-900">
-              {criteriaMatches(lender.deal_types, formData?.deal_types, "deal_types") === false ? (
-                <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
-                  <X className="h-3 w-3 mr-1" />
-                  Mismatch
-                </Badge>
-              ) : criteriaMatches(lender.deal_types, formData?.deal_types, "deal_types") === true ? (
-                <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
-                  <Check className="h-3 w-3 mr-1" />
-                  Match
-                </Badge>
-              ) : (
-                formatCriteria(lender.deal_types)
-              )}
+            <div className={cn(isDark ? "text-gray-400" : "text-gray-600")}>Deal Types:</div>
+            <div className={cn(isDark ? "text-gray-200" : "text-gray-900")}>
+              {formatCriteria(lender.deal_types)}
             </div>
 
-            <div className="text-gray-500">Capital Types:</div>
-            <div className="text-gray-900">
-              {criteriaMatches(lender.capital_types, formData?.capital_types, "capital_types") === false ? (
-                <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
-                  <X className="h-3 w-3 mr-1" />
-                  Mismatch
-                </Badge>
-              ) : criteriaMatches(lender.capital_types, formData?.capital_types, "capital_types") === true ? (
-                <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
-                  <Check className="h-3 w-3 mr-1" />
-                  Match
-                </Badge>
-              ) : (
-                formatCriteria(lender.capital_types)
-              )}
+            <div className={cn(isDark ? "text-gray-400" : "text-gray-600")}>Capital Types:</div>
+            <div className={cn(isDark ? "text-gray-200" : "text-gray-900")}>
+              {formatCriteria(lender.capital_types)}
             </div>
 
-            <div className="text-gray-500">Debt Range:</div>
-            <div className="text-gray-900 font-medium">
-              {criteriaMatches(lender.debt_ranges, formData?.debt_ranges, "debt_ranges") === false ? (
-                <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
-                  <X className="h-3 w-3 mr-1" />
-                  Mismatch
-                </Badge>
-              ) : criteriaMatches(lender.debt_ranges, formData?.debt_ranges, "debt_ranges") === true ? (
-                <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
-                  <Check className="h-3 w-3 mr-1" />
-                  Match
-                </Badge>
-              ) : (
-                lender.debt_ranges?.map((range) => formatDebtRange(range)).join(", ")
-              )}
+            <div className={cn(isDark ? "text-gray-400" : "text-gray-600")}>Debt Range:</div>
+            <div className={cn("font-medium", isDark ? "text-gray-200" : "text-gray-900")}>
+              {lender.debt_ranges?.map((range) => formatDebtRange(range)).join(", ")}
             </div>
 
-            <div className="text-gray-500">Loan Amount:</div>
-            <div className="text-gray-900 font-medium">
+            <div className={cn(isDark ? "text-gray-400" : "text-gray-600")}>Loan Amount:</div>
+            <div className={cn("font-medium", isDark ? "text-gray-200" : "text-gray-900")}>
               {formatCurrency(lender.min_deal_size)} - {formatCurrency(lender.max_deal_size)}
             </div>
 
-            <div className="text-gray-500">Locations:</div>
-            <div className="text-gray-900">
-              {criteriaMatches(lender.locations, formData?.locations, "locations") === false ? (
-                <Badge variant="outline" className="border-red-100 bg-red-50 text-red-500 font-medium">
-                  <X className="h-3 w-3 mr-1" />
-                  Mismatch
-                </Badge>
-              ) : criteriaMatches(lender.locations, formData?.locations, "locations") === true ? (
-                <Badge variant="outline" className="border-green-100 bg-green-50 text-green-600 font-medium">
-                  <Check className="h-3 w-3 mr-1" />
-                  Match
-                </Badge>
-              ) : (
-                formatCriteria(lender.locations)
-              )}
+            <div className={cn(isDark ? "text-gray-400" : "text-gray-600")}>Locations:</div>
+            <div className={cn(isDark ? "text-gray-200" : "text-gray-900")}>
+              {formatCriteria(lender.locations)}
             </div>
           </div>
         </div>
