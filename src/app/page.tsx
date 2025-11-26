@@ -44,6 +44,7 @@ export default function HomePage() {
     part2Visible: false,
     part3Visible: false,
   });
+  const [dotWaterfallVisible, setDotWaterfallVisible] = useState(false);
 
   // Animate text when component mounts
   useEffect(() => {
@@ -65,6 +66,12 @@ export default function HomePage() {
       clearTimeout(timeout3);
     };
   }, []);
+
+  useEffect(() => {
+    if (!textAnimation.part3Visible) return;
+    const timeout = setTimeout(() => setDotWaterfallVisible(true), 800);
+    return () => clearTimeout(timeout);
+  }, [textAnimation.part3Visible]);
 
   // Load lenders only once on mount
   useEffect(() => {
@@ -182,8 +189,7 @@ export default function HomePage() {
                       }}
                       transition={{ duration: 0.6 }}
                       className={cn(
-                        "text-5xl sm:text-6xl lg:text-7xl font-normal leading-tight",
-                        isDark ? "text-white" : "text-gray-900"
+                        "text-5xl sm:text-6xl lg:text-7xl font-normal leading-tight text-blue-500"
                       )}
                     >
                       CRE Funding
@@ -198,12 +204,13 @@ export default function HomePage() {
                       }}
                       transition={{ duration: 0.6, delay: 0.1 }}
                       className={cn(
-                        "text-4xl sm:text-5xl lg:text-6xl font-normal leading-tight",
+                        "text-3xl sm:text-4xl lg:text-5xl font-normal leading-tight",
                         isDark ? "text-white" : "text-gray-900"
                       )}
                     >
-                      From <span className="text-blue-500">Months</span> to{" "}
-                      <span className="text-green-500">Minutes</span>
+                      <span className="text-black">From</span>{" "}
+                      <span className="text-black">Months</span> to{" "}
+                      <span className="text-blue-500">Minutes</span>
                     </motion.p>
                   </div>
                   <div className="overflow-hidden">
@@ -216,7 +223,7 @@ export default function HomePage() {
                       transition={{ duration: 0.6, delay: 0.2 }}
                       className={cn(
                         "text-lg md:text-xl max-w-2xl",
-                        isDark ? "text-gray-300" : "text-gray-600"
+                        isDark ? "text-gray-300" : "text-black"
                       )}
                     >
                       CapMatch&apos;s intelligent platform automates and
@@ -259,8 +266,8 @@ export default function HomePage() {
               <motion.div
                 className="relative w-full h-[360px] sm:h-[420px] lg:h-[520px]"
                 initial={{ opacity: 0, x: 40 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
+                animate={dotWaterfallVisible ? { opacity: 1, x: 0 } : { opacity: 0, x: 40 }}
+                transition={{ duration: 0.8 }}
               >
                 <DotWaterfall
                   steps={HERO_WATERFALL_STEPS}
@@ -298,7 +305,7 @@ export default function HomePage() {
                   Lender Matching
                 </h2>
               </div>
-              <p className={cn("text-lg max-w-3xl mx-auto", isDark ? "text-gray-400" : "text-gray-600")}>
+              <p className={cn("text-lg max-w-3xl mx-auto", isDark ? "text-gray-400" : "text-black")}>
                 Select your project criteria below to visualize matching lenders
                 in real-time.
               </p>

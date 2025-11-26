@@ -1,7 +1,7 @@
 // src/components/ui/ProcessSection.tsx
 "use client";
 
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { Search, BrainCircuit, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/utils/cn";
@@ -74,6 +74,13 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
     amount: 0.3,
     margin: "-10% 0px -10% 0px",
   });
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    if (isInView && !hasAnimated) {
+      setHasAnimated(true);
+    }
+  }, [isInView, hasAnimated]);
 
   // Improved easing functions for smoother transitions
   const commonTransition = { duration: 0.8, ease: "easeOut" };
@@ -109,34 +116,66 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
   const TextContent = () => (
     <motion.div
       className={cn(
-        "w-full lg:w-2/5 flex flex-col justify-center py-8 lg:py-0",
+        "w-full lg:w-2/5 flex justify-center py-8 lg:py-0 group",
         step.layout === "textLeft"
           ? "lg:pr-10 xl:pr-16 pl-6 lg:pl-8 xl:pl-12"
           : "lg:pl-10 xl:pl-16 pr-6 lg:pr-8 xl:pr-12"
       )}
       variants={textVariants}
     >
-      <div className={cn(
-        "mb-5 inline-flex items-center justify-center p-3 rounded-full border-2 w-20 h-20 shadow-lg",
-        isDark ? "bg-blue-600/25 border-blue-500" : "bg-blue-100 border-blue-400"
-      )}>
-        {step.icon}
+      <div
+        className={cn(
+          "w-full rounded-[2rem] border shadow-2xl p-6 md:p-8 lg:p-10 transition-colors",
+          isDark
+            ? "bg-gray-900/80 border-white/10"
+            : "bg-white border-gray-100"
+        )}
+      >
+        <div
+          className={cn(
+            "mb-5 inline-flex items-center justify-center p-3 rounded-full border-2 w-20 h-20 shadow-lg",
+            isDark
+              ? "bg-blue-600/25 border-blue-500"
+              : "bg-blue-50 border-blue-200"
+          )}
+        >
+          {step.icon}
+        </div>
+        <h3
+          className={cn(
+            "text-3xl md:text-4xl font-bold mb-5 leading-tight",
+            isDark ? "text-white" : "text-gray-900"
+          )}
+        >
+          {step.title}
+        </h3>
+        <p
+          className={cn(
+            "text-lg md:text-xl leading-relaxed",
+            isDark ? "text-gray-300" : "text-gray-700"
+          )}
+        >
+          {step.description}
+        </p>
       </div>
-      <h3 className={cn("text-3xl md:text-4xl font-bold mb-5 leading-tight", isDark ? "text-white" : "text-gray-900")}>
-        {step.title}
-      </h3>
-      <p className={cn("text-lg md:text-xl leading-relaxed", isDark ? "text-gray-300" : "text-gray-600")}>
-        {step.description}
-      </p>
     </motion.div>
   );
 
   const GraphicContent = () => (
     <motion.div
-      className="w-full lg:w-3/5 h-[28rem] sm:h-[30rem] md:h-[34rem] lg:h-[34rem] xl:h-[38rem]"
+      className="w-full lg:w-3/5 h-[28rem] sm:h-[30rem] md:h-[34rem] lg:h-[34rem] xl:h-[38rem] flex items-center justify-center px-6 lg:px-8"
       variants={graphicVariants}
     >
-      <ProcessGraphics activeIndex={step.graphicIndex} />
+      <div
+        className={cn(
+          "w-full h-full rounded-[2.5rem] border shadow-2xl flex items-center justify-center p-4 sm:p-6 md:p-8",
+          isDark
+            ? "bg-gray-900/85 border-white/10"
+            : "bg-white border-gray-100"
+        )}
+      >
+        <ProcessGraphics activeIndex={step.graphicIndex} />
+      </div>
     </motion.div>
   );
 
@@ -151,7 +190,7 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
         "max-w-7xl" // Control max width
       )}
       initial="hidden"
-      animate={isInView ? "visible" : "hidden"}
+      animate={hasAnimated ? "visible" : "hidden"}
     >
       <div
         className={cn(
@@ -169,15 +208,12 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
 export const ProcessSection: React.FC = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const sectionRef = useRef(null);
-  const titleInView = useInView(sectionRef, { once: true, amount: 0.2 });
 
   return (
     <div
-      ref={sectionRef}
       id="process-section"
       className={cn(
-        "min-h-screen overflow-hidden relative flex flex-col justify-center transition-colors duration-300 pattern-background",
+        "min-h-screen overflow-hidden relative flex flex-col justify-center transition-colors duration-300 pattern-background hero-font",
         isDark
           ? "bg-gray-900 text-gray-100 pattern-background-dark"
           : "bg-white text-gray-900 pattern-background-light"
@@ -187,20 +223,17 @@ export const ProcessSection: React.FC = () => {
       <motion.div
         className="text-center pt-20 pb-0 md:pt-28 md:pb-0 px-6"
         initial={{ opacity: 0, y: 30 }}
-        animate={
-          titleInView
-            ? {
-                opacity: 1,
-                y: 0,
-                transition: { delay: 0.1, duration: 0.6, ease: "easeOut" },
-              }
-            : {}
-        }
+        whileInView={{
+          opacity: 1,
+          y: 0,
+          transition: { delay: 0.1, duration: 0.6, ease: "easeOut" },
+        }}
+        viewport={{ once: true, amount: 0.2 }}
       >
         <h2 className={cn("text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight text-center", isDark ? "text-white" : "text-gray-900")}>
           <span className="text-blue-500">AI</span>-Powered, <span className="text-green-500">Borrower</span>-Controlled
         </h2>
-        <p className={cn("text-lg md:text-xl max-w-3xl mx-auto", isDark ? "text-gray-300" : "text-gray-600")}>
+        <p className={cn("text-lg md:text-xl max-w-3xl mx-auto", isDark ? "text-gray-300" : "text-black")}>
           CapMatch delivers superior lender matching through our top-down project acquisition approach, featuring AI-based processing and industry-leading lender matching capabilities that outperform everything else in the market.
         </p>
       </motion.div>

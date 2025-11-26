@@ -525,7 +525,7 @@ export default function LenderGraph({
   );
 
   return (
-    <div className="h-full w-full flex" ref={containerRef}>
+    <div className="h-full w-full flex hero-font" ref={containerRef}>
       <div className="relative w-full h-full">
         <canvas
           ref={canvasRef}
