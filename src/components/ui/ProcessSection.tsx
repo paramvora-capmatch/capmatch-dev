@@ -64,6 +64,7 @@ const processStepsContent: ProcessStepData[] = [
 
 const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
   step,
+  index,
 }) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -143,7 +144,10 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
     <motion.section
       ref={ref}
       className={cn(
-        "min-h-[70vh] md:min-h-[80vh] py-16 md:py-20 flex items-center mx-auto px-4 md:px-8 xl:px-12",
+        "flex items-center mx-auto px-4 md:px-8 xl:px-12 py-6 sm:py-8 lg:py-10",
+        index === 0
+          ? "pt-0 pb-6 sm:pb-8 lg:pb-10"
+          : undefined,
         "max-w-7xl" // Control max width
       )}
       initial="hidden"
@@ -151,7 +155,7 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
     >
       <div
         className={cn(
-          "flex flex-col lg:gap-12 xl:gap-20 w-full items-center",
+          "flex flex-col lg:gap-6 xl:gap-10 w-full items-center",
           step.layout === "textRight" ? "lg:flex-row-reverse" : "lg:flex-row"
         )}
       >
@@ -181,7 +185,7 @@ export const ProcessSection: React.FC = () => {
     >
       {/* Enhanced title section with better spacing */}
       <motion.div
-        className="text-center pt-20 pb-12 md:pt-28 md:pb-16 px-6"
+        className="text-center pt-20 pb-0 md:pt-28 md:pb-0 px-6"
         initial={{ opacity: 0, y: 30 }}
         animate={
           titleInView

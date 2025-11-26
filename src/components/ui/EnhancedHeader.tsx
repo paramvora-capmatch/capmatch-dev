@@ -112,9 +112,9 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
               animate={{ opacity: textVisible ? 1 : 0 }}
               transition={{ duration: 0.6 }}
               className={cn(
-                "ml-3 transition-all duration-300 font-bold flex items-center hero-font",
+                "ml-3 transition-all duration-300 flex items-center hero-font font-bold",
                 isDark ? "text-white" : "text-gray-900",
-                scrolled ? "text-lg" : "text-2xl drop-shadow-sm"
+                scrolled ? "text-2xl" : "text-4xl drop-shadow-sm"
               )}
             >
               CapMatch

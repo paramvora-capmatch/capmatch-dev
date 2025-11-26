@@ -37,30 +37,13 @@ export default function HomePage() {
   const { filteredLenders, filters, setFilters, selectLender, loadLenders } =
     useLenders();
 
-  const [scrolled, setScrolled] = useState(false);
+  const scrolled = true;
   const isDark = theme === 'dark';
   const [textAnimation, setTextAnimation] = useState({
     part1Visible: false,
     part2Visible: false,
     part3Visible: false,
   });
-
-  // Optimized scroll handler with requestAnimationFrame
-  useEffect(() => {
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          setScrolled(window.scrollY > 10);
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-    handleScroll(); // Initial check
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   // Animate text when component mounts
   useEffect(() => {

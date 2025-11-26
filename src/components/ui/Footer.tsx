@@ -14,8 +14,10 @@ export const Footer: React.FC = () => {
 
   return (
     <footer className={cn(
-      "py-6 transition-colors duration-300",
-      isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"
+      "py-6 transition-all duration-300 backdrop-blur-sm shadow-lg",
+      isDark
+        ? "bg-gray-900/95 text-white shadow-black/20"
+        : "bg-white/95 text-gray-900 shadow-gray-200/20"
     )}>
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-center">
