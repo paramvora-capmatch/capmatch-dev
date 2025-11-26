@@ -38,11 +38,12 @@ export type DotWaterfallProps = {
   className?: string;
 };
 
-const DEFAULT_ANIMATION_DELAY = 15;
+const DEFAULT_ANIMATION_DELAY = 20;
 const DOTS_PER_ROW_MULTIPLIER = 1.5;
 const DOTS_PER_TICK = 15;
 const MAX_VERTICAL_PADDING = 36;
 const LABEL_OFFSET_PX = 28;
+const LOOP_RESET_DELAY_MS = 1200;
 
 export const DotWaterfall: React.FC<DotWaterfallProps> = ({
   steps,
@@ -58,6 +59,7 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
   const activationTimesRef = useRef<number[]>([]);
   const lastActivatedIndexRef = useRef(-1);
   const [stepLabels, setStepLabels] = useState<StepLabelMeta[]>([]);
+  const [loopIteration, setLoopIteration] = useState(0);
 
   const orderedDots: DotDefinition[] = useMemo(() => {
     const defs: DotDefinition[] = [];
@@ -186,11 +188,18 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
     if (!orderedDots.length) {
       return undefined;
     }
+
+    let completionTimeout: number | null = null;
+
     const interval = window.setInterval(() => {
       if (lastActivatedIndexRef.current >= orderedDots.length - 1) {
         window.clearInterval(interval);
+        completionTimeout = window.setTimeout(() => {
+          setLoopIteration((prev) => prev + 1);
+        }, LOOP_RESET_DELAY_MS);
         return;
       }
+
       for (let i = 0; i < DOTS_PER_TICK; i += 1) {
         if (lastActivatedIndexRef.current >= orderedDots.length - 1) break;
         lastActivatedIndexRef.current += 1;
@@ -198,8 +207,14 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
           performance.now();
       }
     }, animationDelayMs);
-    return () => window.clearInterval(interval);
-  }, [orderedDots, animationDelayMs]);
+
+    return () => {
+      window.clearInterval(interval);
+      if (completionTimeout) {
+        window.clearTimeout(completionTimeout);
+      }
+    };
+  }, [orderedDots, animationDelayMs, loopIteration]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

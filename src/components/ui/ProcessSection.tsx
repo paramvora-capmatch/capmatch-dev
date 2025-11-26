@@ -143,7 +143,7 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
         </div>
         <h3
           className={cn(
-            "text-3xl md:text-4xl font-bold mb-5 leading-tight",
+            "text-3xl md:text-4xl mb-5 leading-tight",
             isDark ? "text-white" : "text-gray-900"
           )}
         >
@@ -230,8 +230,8 @@ export const ProcessSection: React.FC = () => {
         }}
         viewport={{ once: true, amount: 0.2 }}
       >
-        <h2 className={cn("text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight text-center", isDark ? "text-white" : "text-gray-900")}>
-          <span className="text-blue-500">AI</span>-Powered, <span className="text-green-500">Borrower</span>-Controlled
+        <h2 className={cn("text-4xl md:text-5xl lg:text-6xl mb-6 leading-tight text-center", isDark ? "text-white" : "text-gray-900")}>
+          <span className="text-blue-500">AI</span>-Powered, <span className="text-blue-500">Borrower</span>-Controlled
         </h2>
         <p className={cn("text-lg md:text-xl max-w-3xl mx-auto", isDark ? "text-gray-300" : "text-black")}>
           CapMatch delivers superior lender matching through our top-down project acquisition approach, featuring AI-based processing and industry-leading lender matching capabilities that outperform everything else in the market.
