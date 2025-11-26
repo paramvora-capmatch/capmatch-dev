@@ -70,7 +70,7 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
   const isDark = theme === 'dark';
   const ref = useRef(null);
   const isInView = useInView(ref, {
-    once: false,
+    once: true,
     amount: 0.3,
     margin: "-10% 0px -10% 0px",
   });
