@@ -26,9 +26,9 @@ import {
 // ... (useEffect hooks, handlers - no changes here) ...
 
 const HERO_WATERFALL_STEPS: DotWaterfallStep[] = [
-  { label: "Senior Debt", width: 10, height: 8, startX: 0, color: "#38bdf8" },
-  { label: "Mezzanine", width: 8, height: 6, startX: 5, color: "#3b82f6" },
-  { label: "Equity", width: 8, height: 6, startX: 10, color: "#22d3ee" },
+  { label: "Senior Debt", width: 40, height: 90, startX: 0, color: "#2563eb" },
+  { label: "Mezzanine", width: 40, height: 45, startX: 40, color: "#2563eb" },
+  { label: "Equity", width: 20, height: 15, startX: 80, color: "#2563eb" },
 ];
 
 export default function HomePage() {
@@ -199,7 +199,7 @@ export default function HomePage() {
                       }}
                       transition={{ duration: 0.6 }}
                       className={cn(
-                        "text-4xl sm:text-5xl lg:text-6xl font-normal leading-tight",
+                        "text-5xl sm:text-6xl lg:text-7xl font-normal leading-tight",
                         isDark ? "text-white" : "text-gray-900"
                       )}
                     >
@@ -251,7 +251,7 @@ export default function HomePage() {
                     <Button
                       variant="primary"
                       size="lg"
-                      className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 shadow-lg"
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-8 shadow-lg"
                       onClick={handleScrollToLenderMatching}
                     >
                       Lender Matching
@@ -263,8 +263,8 @@ export default function HomePage() {
                       className={cn(
                         "rounded-full shadow-md",
                         isDark
-                          ? "border-gray-600 !text-blue-400 hover:bg-gray-800 hover:border-gray-500"
-                          : "border-gray-300 !text-blue-600 hover:bg-gray-100 hover:border-gray-400"
+                          ? "border-blue-500 !text-blue-600 hover:bg-gray-800 hover:border-blue-400"
+                          : "border-blue-300 !text-blue-600 hover:bg-blue-50 hover:border-blue-400"
                       )}
                     >
                       Access Deal Room

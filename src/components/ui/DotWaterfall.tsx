@@ -1,12 +1,6 @@
 "use client";
 
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  PointerEvent as ReactPointerEvent,
-} from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/utils/cn";
 
 export type DotWaterfallStep = {
@@ -30,11 +24,12 @@ type DotRenderData = {
   stepIndex: number;
 };
 
-type TooltipState = {
-  x: number;
-  y: number;
+type StepLabelMeta = {
   label: string;
-} | null;
+  left: number;
+  width: number;
+  top: number;
+};
 
 export type DotWaterfallProps = {
   steps: DotWaterfallStep[];
@@ -44,16 +39,10 @@ export type DotWaterfallProps = {
 };
 
 const DEFAULT_ANIMATION_DELAY = 15;
-
-const lightenHexColor = (hex: string, amount = 0.2) => {
-  const normalized = hex.replace("#", "");
-  if (normalized.length !== 6) return hex;
-  const num = parseInt(normalized, 16);
-  const r = Math.min(255, Math.max(0, ((num >> 16) & 0xff) + 255 * amount));
-  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + 255 * amount));
-  const b = Math.min(255, Math.max(0, (num & 0xff) + 255 * amount));
-  return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, 1)`;
-};
+const DOTS_PER_ROW_MULTIPLIER = 1.5;
+const DOTS_PER_TICK = 15;
+const MAX_VERTICAL_PADDING = 36;
+const LABEL_OFFSET_PX = 28;
 
 export const DotWaterfall: React.FC<DotWaterfallProps> = ({
   steps,
@@ -64,32 +53,24 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  const [hoveredStep, setHoveredStep] = useState<number | null>(null);
-  const [tooltip, setTooltip] = useState<TooltipState>(null);
   const animationFrameRef = useRef<number | null>(null);
   const dotRenderDataRef = useRef<DotRenderData[]>([]);
   const activationTimesRef = useRef<number[]>([]);
   const lastActivatedIndexRef = useRef(-1);
-
-  const cumulativeHeights = useMemo(() => {
-    const acc: number[] = [];
-    let running = 0;
-    steps.forEach((step) => {
-      acc.push(running);
-      running += step.height;
-    });
-    return acc;
-  }, [steps]);
+  const [stepLabels, setStepLabels] = useState<StepLabelMeta[]>([]);
 
   const orderedDots: DotDefinition[] = useMemo(() => {
     const defs: DotDefinition[] = [];
     steps.forEach((step, stepIndex) => {
-      const startY = cumulativeHeights[stepIndex] ?? 0;
       for (let row = 0; row < step.height; row += 1) {
-        for (let col = 0; col < step.width; col += 1) {
+        for (
+          let col = 0;
+          col < step.width * DOTS_PER_ROW_MULTIPLIER;
+          col += 1
+        ) {
           defs.push({
-            gridX: step.startX + col,
-            gridY: startY + row,
+            gridX: step.startX * DOTS_PER_ROW_MULTIPLIER + col,
+            gridY: row,
             stepIndex,
           });
         }
@@ -108,20 +89,80 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
     });
 
     return sorted;
-  }, [steps, cumulativeHeights]);
+  }, [steps]);
 
   const gridWidth = useMemo(() => {
     if (!steps.length) return 0;
     return steps.reduce(
-      (max, step) => Math.max(max, step.startX + step.width),
+      (max, step) =>
+        Math.max(
+          max,
+          (step.startX + step.width) * DOTS_PER_ROW_MULTIPLIER
+        ),
       0
     );
   }, [steps]);
 
-  const gridHeight = useMemo(
-    () => steps.reduce((sum, step) => sum + step.height, 0),
-    [steps]
-  );
+  const gridHeight = useMemo(() => {
+    if (!steps.length) return 0;
+    return steps.reduce((max, step) => Math.max(max, step.height), 0);
+  }, [steps]);
+
+  const layoutInfo = useMemo(() => {
+    if (
+      !gridWidth ||
+      !gridHeight ||
+      !dimensions.width ||
+      !dimensions.height
+    ) {
+      return null;
+    }
+
+    const cellSize =
+      Math.min(
+        dimensions.width / (gridWidth + 0.5),
+        dimensions.height / (gridHeight + 0.05)
+      ) || 0;
+
+    if (!cellSize) return null;
+
+    const horizPad = Math.max(
+      8,
+      (dimensions.width - gridWidth * cellSize) / 2
+    );
+    const overflow = Math.max(0, dimensions.height - gridHeight * cellSize);
+    const vertPad = Math.min(MAX_VERTICAL_PADDING, overflow / 2);
+
+    return { cellSize, horizPad, vertPad };
+  }, [gridWidth, gridHeight, dimensions]);
+
+  useEffect(() => {
+    if (!layoutInfo) {
+      setStepLabels([]);
+      return;
+    }
+
+    setStepLabels(
+      steps.map((step) => {
+        const usableWidth = step.width * DOTS_PER_ROW_MULTIPLIER;
+        const startX = step.startX * DOTS_PER_ROW_MULTIPLIER;
+        const left = layoutInfo.horizPad + startX * layoutInfo.cellSize;
+        const width = usableWidth * layoutInfo.cellSize;
+        const top =
+          dimensions.height -
+          layoutInfo.vertPad -
+          step.height * layoutInfo.cellSize -
+          LABEL_OFFSET_PX;
+
+        return {
+          label: step.label,
+          left,
+          width,
+          top: Math.max(8, top),
+        };
+      })
+    );
+  }, [layoutInfo, steps, dimensions.height]);
 
   useEffect(() => {
     const element = wrapperRef.current;
@@ -150,9 +191,12 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
         window.clearInterval(interval);
         return;
       }
-      lastActivatedIndexRef.current += 1;
-      activationTimesRef.current[lastActivatedIndexRef.current] =
-        performance.now();
+      for (let i = 0; i < DOTS_PER_TICK; i += 1) {
+        if (lastActivatedIndexRef.current >= orderedDots.length - 1) break;
+        lastActivatedIndexRef.current += 1;
+        activationTimesRef.current[lastActivatedIndexRef.current] =
+          performance.now();
+      }
     }, animationDelayMs);
     return () => window.clearInterval(interval);
   }, [orderedDots, animationDelayMs]);
@@ -182,20 +226,20 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
 
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!gridWidth || !gridHeight || !dimensions.width || !dimensions.height) {
+      if (
+        !gridWidth ||
+        !gridHeight ||
+        !dimensions.width ||
+        !dimensions.height ||
+        !layoutInfo
+      ) {
         animationFrameRef.current = requestAnimationFrame(render);
         return;
       }
 
       const now = performance.now();
-      const cellSize =
-        Math.min(
-          dimensions.width / (gridWidth + 0.5),
-          dimensions.height / (gridHeight + 0.5)
-        ) || 0;
+      const { cellSize, horizPad, vertPad } = layoutInfo;
       const baseRadius = Math.max(2, cellSize * 0.4 - dotGapPx);
-      const horizPad = (dimensions.width - gridWidth * cellSize) / 2;
-      const vertPad = (dimensions.height - gridHeight * cellSize) / 2;
 
       dotRenderDataRef.current = orderedDots.map((dot, index) => {
         const centerX = horizPad + (dot.gridX + 0.5) * cellSize;
@@ -225,15 +269,11 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
         if (scale <= 0) return;
 
         const stepColor = steps[dot.stepIndex]?.color ?? "#2563eb";
-        const isHovered = hoveredStep === dot.stepIndex;
-        const fillColor = isHovered
-          ? lightenHexColor(stepColor, 0.35)
-          : stepColor;
 
         ctx.beginPath();
         ctx.arc(dot.centerX, dot.centerY, dot.radius * scale, 0, Math.PI * 2);
-        ctx.fillStyle = fillColor;
-        ctx.globalAlpha = isHovered ? 0.95 : 0.8;
+        ctx.fillStyle = stepColor;
+        ctx.globalAlpha = 0.9;
         ctx.fill();
         ctx.globalAlpha = 1;
       });
@@ -252,55 +292,10 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
     dotGapPx,
     gridHeight,
     gridWidth,
-    hoveredStep,
     steps,
     dimensions,
+    layoutInfo,
   ]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handlePointerMove = (event: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      const hit = dotRenderDataRef.current.find((dot) => {
-        const dx = dot.centerX - x;
-        const dy = dot.centerY - y;
-        return Math.sqrt(dx * dx + dy * dy) <= dot.radius;
-      });
-
-      if (hit) {
-        setHoveredStep(hit.stepIndex);
-        const label = steps[hit.stepIndex]?.label ?? "";
-        setTooltip({ x, y, label });
-      } else {
-        setHoveredStep(null);
-        setTooltip(null);
-      }
-    };
-
-    const handlePointerLeave = () => {
-      setHoveredStep(null);
-      setTooltip(null);
-    };
-
-    canvas.addEventListener("pointermove", handlePointerMove);
-    canvas.addEventListener("pointerleave", handlePointerLeave);
-
-    return () => {
-      canvas.removeEventListener("pointermove", handlePointerMove);
-      canvas.removeEventListener("pointerleave", handlePointerLeave);
-    };
-  }, [steps]);
-
-  const handleWrapperPointerLeave = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
-      setHoveredStep(null);
-      setTooltip(null);
-    }
-  };
 
   return (
     <div
@@ -309,7 +304,6 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
         "relative h-full w-full rounded-3xl border border-white/10 bg-slate-900/60 backdrop-blur-sm overflow-hidden",
         className
       )}
-      onPointerLeave={handleWrapperPointerLeave}
     >
       <canvas
         ref={canvasRef}
@@ -317,23 +311,19 @@ export const DotWaterfall: React.FC<DotWaterfallProps> = ({
         aria-label="Capital distribution waterfall animation"
         className="h-full w-full"
       />
-      {tooltip && (
+      {stepLabels.map((label) => (
         <div
-          className="pointer-events-none absolute rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-slate-900 shadow-lg"
+          key={label.label}
+          className="pointer-events-none absolute text-[13px] font-semibold uppercase tracking-[0.25em] text-slate-900"
           style={{
-            left: Math.min(
-              Math.max(tooltip.x + 12, 8),
-              Math.max(8, dimensions.width - 80)
-            ),
-            top: Math.min(
-              Math.max(tooltip.y - 32, 8),
-              Math.max(8, dimensions.height - 32)
-            ),
+            left: `${label.left}px`,
+            width: `${label.width}px`,
+            top: `${label.top}px`,
           }}
         >
-          {tooltip.label}
+          <div className="text-center">{label.label}</div>
         </div>
-      )}
+      ))}
     </div>
   );
 };

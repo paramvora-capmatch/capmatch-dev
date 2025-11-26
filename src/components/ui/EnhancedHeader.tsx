@@ -5,7 +5,7 @@ import React, { useState, useEffect, MutableRefObject } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogIn, Menu, X, Sun, Moon } from 'lucide-react';
+import { LogIn, Menu, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from './Button';
 import { cn } from '@/utils/cn';
@@ -25,7 +25,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
   logoHidden = false
 }) => {
   const router = useRouter();
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -103,7 +103,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.onerror = null;
-                  target.outerHTML = `<span class=\"font-bold text-lg text-blue-400\">CapMatch</span>`;
+                  target.outerHTML = `<span class=\"font-bold text-lg text-blue-400 hero-font\">CapMatch</span>`;
                 }}
               />
             </div>
@@ -112,7 +112,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
               animate={{ opacity: textVisible ? 1 : 0 }}
               transition={{ duration: 0.6 }}
               className={cn(
-                "ml-3 transition-all duration-300 font-bold flex items-center",
+                "ml-3 transition-all duration-300 font-bold flex items-center hero-font",
                 isDark ? "text-white" : "text-gray-900",
                 scrolled ? "text-lg" : "text-2xl drop-shadow-sm"
               )}
@@ -151,20 +151,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
             </Link>
           </nav>
 
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={toggleTheme}
-              className={cn(
-                "p-2 rounded-full transition-colors",
-                isDark 
-                  ? "text-gray-300 hover:text-white hover:bg-gray-800" 
-                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-              )}
-              aria-label="Toggle theme"
-            >
-              {isDark ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-
+          <div className="flex items-center">
             <Button
               variant="primary"
               size="sm"
@@ -231,16 +218,6 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
               >
                 Process
               </Link>
-              <button
-                onClick={toggleTheme}
-                className={cn(
-                  "py-2 text-sm font-medium text-left flex items-center space-x-2",
-                  isDark ? "text-gray-300 hover:text-white" : "text-gray-700 hover:text-gray-900"
-                )}
-              >
-                {isDark ? <Sun size={18} /> : <Moon size={18} />}
-                <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
-              </button>
               <Button
                 variant="primary"
                 size="sm"
