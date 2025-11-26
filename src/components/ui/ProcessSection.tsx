@@ -6,6 +6,7 @@ import { motion, useInView } from "framer-motion";
 import { Search, BrainCircuit, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { ProcessGraphics } from "./ProcessGraphics";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface ProcessStepData {
   id: string;
@@ -64,6 +65,8 @@ const processStepsContent: ProcessStepData[] = [
 const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
   step,
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const ref = useRef(null);
   const isInView = useInView(ref, {
     once: false,
@@ -112,13 +115,16 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
       )}
       variants={textVariants}
     >
-      <div className="mb-5 inline-flex items-center justify-center p-3 bg-blue-600/25 rounded-full border-2 border-blue-500 w-20 h-20 shadow-lg">
+      <div className={cn(
+        "mb-5 inline-flex items-center justify-center p-3 rounded-full border-2 w-20 h-20 shadow-lg",
+        isDark ? "bg-blue-600/25 border-blue-500" : "bg-blue-100 border-blue-400"
+      )}>
         {step.icon}
       </div>
-      <h3 className="text-3xl md:text-4xl font-bold text-white mb-5 leading-tight">
+      <h3 className={cn("text-3xl md:text-4xl font-bold mb-5 leading-tight", isDark ? "text-white" : "text-gray-900")}>
         {step.title}
       </h3>
-      <p className="text-lg md:text-xl text-gray-300 leading-relaxed">
+      <p className={cn("text-lg md:text-xl leading-relaxed", isDark ? "text-gray-300" : "text-gray-600")}>
         {step.description}
       </p>
     </motion.div>
@@ -157,6 +163,8 @@ const StepComponent: React.FC<{ step: ProcessStepData; index: number }> = ({
 };
 
 export const ProcessSection: React.FC = () => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const sectionRef = useRef(null);
   const titleInView = useInView(sectionRef, { once: true, amount: 0.2 });
 
@@ -164,7 +172,10 @@ export const ProcessSection: React.FC = () => {
     <div
       ref={sectionRef}
       id="process-section"
-      className="bg-gray-900 text-gray-100 overflow-hidden"
+      className={cn(
+        "min-h-screen overflow-hidden relative flex flex-col justify-center transition-colors duration-300",
+        isDark ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"
+      )}
     >
       {/* Enhanced title section with better spacing */}
       <motion.div
@@ -180,12 +191,11 @@ export const ProcessSection: React.FC = () => {
             : {}
         }
       >
-        <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
-          Funding, from <span className="text-blue-400">Months</span> to{" "}
-          <span className="text-green-400">Minutes</span>.
+        <h2 className={cn("text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight text-center", isDark ? "text-white" : "text-gray-900")}>
+          <span className="text-blue-500">AI</span>-Powered, <span className="text-green-500">Borrower</span>-Controlled
         </h2>
-        <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
-          CapMatch&apos;s intelligent platform automates and accelerates every step of your commercial real estate financing.
+        <p className={cn("text-lg md:text-xl max-w-3xl mx-auto", isDark ? "text-gray-300" : "text-gray-600")}>
+          CapMatch delivers superior lender matching through our top-down project acquisition approach, featuring AI-based processing and industry-leading lender matching capabilities that outperform everything else in the market.
         </p>
       </motion.div>
 

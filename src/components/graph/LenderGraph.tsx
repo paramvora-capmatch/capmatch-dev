@@ -6,6 +6,7 @@ import type React from "react";
 import { useRef, useEffect, useState } from "react";
 import type { LenderProfile } from "../../types/lender";
 import LenderDetailCard from "../lender-detail-card";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const filterKeys = ['asset_types', 'deal_types', 'capital_types', 'debt_ranges', 'locations'];
 
@@ -59,29 +60,42 @@ function getLenderColor(
     lenderFromContext: LenderProfile,
     formDataForGraphDisplay: Partial<LenderFilters> | undefined,
     graphConsidersNodeActive: boolean, // If graph's UI filters make this node "active"
-    filtersAreAppliedOnPage: boolean // If ANY filter is applied on the page (from props)
+    filtersAreAppliedOnPage: boolean, // If ANY filter is applied on the page (from props)
+    theme: 'light' | 'dark' = 'dark' // Theme parameter
   ): string {
   
-  // If no filters are applied on the page at all, all nodes are uniform gray.
+  // If no filters are applied on the page at all, all nodes are uniform gray
   if (!filtersAreAppliedOnPage) {
-    return "hsl(220, 10%, 70%)"; // Uniform gray
+    return theme === 'dark' ? "hsl(220, 15%, 45%)" : "hsl(220, 10%, 70%)"; // Gray adapted to theme
   }
 
   // If page has filters, but this specific node isn't considered active by graph's UI filters
   if (!graphConsidersNodeActive) {
-    return "hsl(220, 10%, 70%)"; // Default gray for nodes not matching current graph UI selection
+    return theme === 'dark' ? "hsl(220, 15%, 45%)" : "hsl(220, 10%, 70%)"; // Default gray adapted to theme
   }
   
   // Otherwise (filters are applied on page AND graph considers this node active),
   // color is based on the authoritative match_score from the context.
+  // Colors optimized for both dark and light backgrounds
   const scoreFromContext = lenderFromContext.match_score || 0;
-  if (scoreFromContext === 1) return "hsl(0, 100%, 50%)"; 
-  if (scoreFromContext > 0.8) return "hsl(0, 90%, 60%)";  
-  if (scoreFromContext > 0.6) return "hsl(20, 80%, 65%)"; 
-  if (scoreFromContext > 0.4) return "hsl(30, 70%, 70%)"; 
-  if (scoreFromContext > 0.2) return "hsl(40, 60%, 70%)"; 
   
-  return "hsl(220, 10%, 70%)"; // Default gray for very low context scores even if "active"
+  if (theme === 'dark') {
+    // Dark mode: brighter, more saturated colors
+    if (scoreFromContext === 1) return "hsl(142, 90%, 45%)"; // Very bright green for perfect match
+    if (scoreFromContext > 0.8) return "hsl(142, 75%, 50%)"; // Bright green
+    if (scoreFromContext > 0.6) return "hsl(180, 75%, 45%)"; // Teal/cyan
+    if (scoreFromContext > 0.4) return "hsl(200, 85%, 50%)"; // Blue
+    if (scoreFromContext > 0.2) return "hsl(210, 75%, 55%)"; // Light blue
+  } else {
+    // Light mode: darker, more saturated colors for contrast against white
+    if (scoreFromContext === 1) return "hsl(142, 85%, 35%)"; // Deep green for perfect match
+    if (scoreFromContext > 0.8) return "hsl(142, 70%, 40%)"; // Rich green
+    if (scoreFromContext > 0.6) return "hsl(180, 70%, 35%)"; // Deep teal
+    if (scoreFromContext > 0.4) return "hsl(200, 80%, 40%)"; // Deep blue
+    if (scoreFromContext > 0.2) return "hsl(210, 70%, 45%)"; // Medium blue
+  }
+  
+  return theme === 'dark' ? "hsl(220, 15%, 45%)" : "hsl(220, 10%, 70%)"; // Default gray for very low scores
 }
 
 interface LenderGraphProps {
@@ -99,6 +113,8 @@ export default function LenderGraph({
   allFiltersSelected = false, 
   onLenderClick,
 }: LenderGraphProps) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedLender, setSelectedLender] = useState<LenderProfile | null>(null);
@@ -175,7 +191,7 @@ export default function LenderGraph({
                           ? 8 + scoreFromContext * 8  // Active nodes scale with context score
                           : 6;                        // Inactive or default nodes are smaller
       
-      const color = getLenderColor(lender, formData, isVisuallyActiveInGraph, filtersApplied);
+      const color = getLenderColor(lender, formData, isVisuallyActiveInGraph, filtersApplied, isDark ? 'dark' : 'light');
       
       let distanceFactor;
       if (filtersApplied && isVisuallyActiveInGraph) {
@@ -225,9 +241,9 @@ export default function LenderGraph({
       const activePositions: Array<{ x: number, y: number, color: string, score: number }> = [];
       const maxRadius = Math.min(canvasSize.width, canvasSize.height) * 0.45;
 
-      // Concentric circles (background)
-      ctx.strokeStyle = "rgba(200, 200, 230, 0.1)";
-      ctx.lineWidth = 0.4;
+      // Concentric circles (background) - adapt to theme
+      ctx.strokeStyle = isDark ? "rgba(100, 130, 200, 0.15)" : "rgba(100, 130, 200, 0.2)";
+      ctx.lineWidth = 0.5;
       for (let i = 0; i < 5; i++) {
         ctx.beginPath();
         ctx.arc(centerPoint.x, centerPoint.y, (maxRadius / 5) * (i + 1) + (Math.sin(time / 2000 + i) * 3), 0, 2 * Math.PI);
@@ -252,11 +268,19 @@ export default function LenderGraph({
             ctx.moveTo(pos1.x, pos1.y);
             ctx.lineTo(pos2.x, pos2.y);
             
-            // Make brighter, more solid lines for higher average scores
-            const opacity = 0.1 + (avgScore * 0.4);
-            const lightness = 60 + (avgScore * 20);
+            // Much brighter lines for 100% matches, dimmer for others - adapt to theme
+            let opacity, hue, lightness;
+            if (avgScore === 1) {
+              opacity = isDark ? 0.6 : 0.7;
+              hue = 142;
+              lightness = isDark ? 45 : 35; // Darker for light mode contrast
+            } else {
+              opacity = isDark ? (0.1 + (avgScore * 0.3)) : (0.25 + (avgScore * 0.35));
+              hue = 200 - (avgScore * 60);
+              lightness = isDark ? (50 + (avgScore * 10)) : (35 + (avgScore * 12)); // Darker for light mode
+            }
             
-            ctx.strokeStyle = `hsla(220, 80%, ${lightness}%, ${opacity})`;
+            ctx.strokeStyle = `hsla(${hue}, 80%, ${lightness}%, ${opacity})`;
             ctx.lineWidth = 0.5 + avgScore;
             ctx.stroke();
         }
@@ -275,11 +299,27 @@ export default function LenderGraph({
         // Draw connecting lines only if page filters are applied AND node is visually active in graph
         if (filtersApplied && isVisuallyActiveInGraph) {
           let gradient;
-          // Color lines based on context score
-          if (scoreFromContext === 1) { gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); gradient.addColorStop(0, "rgba(255, 0, 0, 0.45)"); gradient.addColorStop(1, "rgba(255, 0, 0, 0.2)");
-          } else if (scoreFromContext > 0.8) { gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); gradient.addColorStop(0, "rgba(255, 60, 60, 0.35)"); gradient.addColorStop(1, "rgba(255, 60, 60, 0.12)");
-          } else if (scoreFromContext > 0.6) { gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); gradient.addColorStop(0, "rgba(255, 120, 60, 0.25)"); gradient.addColorStop(1, "rgba(255, 120, 60, 0.08)");
-          } else { gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); gradient.addColorStop(0, "rgba(180, 190, 210, 0.12)"); gradient.addColorStop(1, "rgba(180, 190, 210, 0.04)");
+          // Color lines based on context score - optimized for both themes
+          if (scoreFromContext === 1) { 
+            gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); 
+            // Dark mode: bright green, Light mode: darker green for contrast
+            gradient.addColorStop(0, isDark ? "rgba(34, 197, 94, 0.75)" : "rgba(22, 163, 74, 0.7)"); 
+            gradient.addColorStop(1, isDark ? "rgba(34, 197, 94, 0.35)" : "rgba(22, 163, 74, 0.45)");
+          } else if (scoreFromContext > 0.8) { 
+            gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); 
+            // Dark mode: teal, Light mode: darker teal
+            gradient.addColorStop(0, isDark ? "rgba(45, 212, 191, 0.35)" : "rgba(20, 184, 166, 0.5)"); 
+            gradient.addColorStop(1, isDark ? "rgba(45, 212, 191, 0.12)" : "rgba(20, 184, 166, 0.3)");
+          } else if (scoreFromContext > 0.6) { 
+            gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); 
+            // Dark mode: blue, Light mode: darker blue
+            gradient.addColorStop(0, isDark ? "rgba(56, 189, 248, 0.25)" : "rgba(37, 99, 235, 0.4)"); 
+            gradient.addColorStop(1, isDark ? "rgba(56, 189, 248, 0.08)" : "rgba(37, 99, 235, 0.25)");
+          } else { 
+            gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); 
+            // Dark mode: light gray, Light mode: darker gray
+            gradient.addColorStop(0, isDark ? "rgba(148, 163, 184, 0.12)" : "rgba(100, 116, 139, 0.3)"); 
+            gradient.addColorStop(1, isDark ? "rgba(148, 163, 184, 0.04)" : "rgba(100, 116, 139, 0.15)");
           }
           ctx.beginPath();
           ctx.moveTo(centerPoint.x, centerPoint.y);
@@ -314,27 +354,28 @@ export default function LenderGraph({
         ctx.fill();
 
         if (hoveredLenderId === lender_id) {
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+          ctx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.8)" : "rgba(59, 130, 246, 0.9)";
           ctx.lineWidth = 2;
           ctx.stroke();
           addParticles(pos.x, pos.y, pos.color, 1, 1.2);
         }
 
-        // Highlight selected/hovered
+        // Highlight selected/hovered - theme-aware
         if (selectedLender?.lender_id === lender_id) {
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.82)"; 
+          ctx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.82)" : "rgba(59, 130, 246, 0.95)"; 
           ctx.lineWidth = 1.9; ctx.stroke();
         } else if (hoveredLenderId === lender_id) {
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.52)";
+          ctx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.52)" : "rgba(59, 130, 246, 0.7)";
           ctx.lineWidth = 1.3; ctx.stroke();
         }
 
-        // Node initial (text)
+        // Node initial (text) - theme-aware
         // Show initials only if filters are applied AND node is visually active AND has a decent score
         if (filtersApplied && isVisuallyActiveInGraph && finalRadius > 9 && scoreFromContext > 0.22) { 
           const lenderDetails = lenders.find(l => l.lender_id === lender_id);
           const initial = lenderDetails?.name.charAt(0).toUpperCase() || "L";
-          ctx.fillStyle = "rgba(255, 255, 255, 0.78)"; 
+          // White text for dark mode, white text for light mode (on colored nodes)
+          ctx.fillStyle = "rgba(255, 255, 255, 0.95)"; 
           ctx.font = `bold ${Math.floor(finalRadius * 0.78)}px Arial, sans-serif`; 
           ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.fillText(initial, pos.x, pos.y + 0.5); 
@@ -344,7 +385,7 @@ export default function LenderGraph({
     };
     animationRef.current = requestAnimationFrame(animate);
     return () => { cancelAnimationFrame(animationRef.current); };
-  }, [lenders, canvasSize, selectedLender, hoveredLenderId, centerPoint, filtersApplied, formData]);
+  }, [lenders, canvasSize, selectedLender, hoveredLenderId, centerPoint, filtersApplied, formData, isDark]);
 
   // Mouse event handlers (handleMouseMove, handleMouseLeave, handleMouseDown, handleMouseUp, handleLenderClick)
   // remain largely the same as your provided "working older version",
@@ -372,61 +413,59 @@ export default function LenderGraph({
     }
     
     canvas.style.cursor = foundLender ? "pointer" : "default";
-    setHoveredLenderId(foundLender ? foundLender.lender_id : null);
+    
+    // Use requestAnimationFrame to avoid setState during render
+    requestAnimationFrame(() => {
+      setHoveredLenderId(foundLender ? foundLender.lender_id : null);
 
-    if (foundLender) {
-      const containerRect = containerRef.current?.getBoundingClientRect();
-      if (containerRect) {
-        const relativeX = e.clientX - containerRect.left;
-        const relativeY = e.clientY - containerRect.top;
-        const cardWidth = 320; const cardHeight = 380; 
-        let cardX = relativeX + 20; let cardY = relativeY - 20;
+      if (foundLender) {
+        const containerRect = containerRef.current?.getBoundingClientRect();
+        if (containerRect) {
+          const relativeX = e.clientX - containerRect.left;
+          const relativeY = e.clientY - containerRect.top;
+          const cardWidth = 320; const cardHeight = 380; 
+          let cardX = relativeX + 20; let cardY = relativeY - 20;
 
-        if (cardX + cardWidth > canvasSize.width -10) cardX = relativeX - cardWidth - 20;
-        if (cardY + cardHeight > canvasSize.height -10) cardY = canvasSize.height - cardHeight -10;
-        if (cardY < 10) cardY = 10; 
-        
-        cardX = Math.max(5, Math.min(cardX, canvasSize.width - cardWidth - 5));
-        cardY = Math.max(5, Math.min(cardY, canvasSize.height - cardHeight - 5));
-        cardPositionRef.current = { x: cardX, y: cardY };
-        
-        if (allFiltersSelected && foundLender.match_score > 0) { 
-          setSelectedLender(foundLender);
-          if (onLenderClick) onLenderClick(foundLender);
-        } else if (foundLender.match_score > 0) { 
-          setShowIncompleteFiltersCard(true);
-          setSelectedLender(null); 
-        } else { 
-          setShowIncompleteFiltersCard(false);
-          setSelectedLender(null);
+          if (cardX + cardWidth > canvasSize.width -10) cardX = relativeX - cardWidth - 20;
+          if (cardY + cardHeight > canvasSize.height -10) cardY = canvasSize.height - cardHeight -10;
+          if (cardY < 10) cardY = 10; 
+          
+          cardX = Math.max(5, Math.min(cardX, canvasSize.width - cardWidth - 5));
+          cardY = Math.max(5, Math.min(cardY, canvasSize.height - cardHeight - 5));
+          cardPositionRef.current = { x: cardX, y: cardY };
+          
+          if (allFiltersSelected && foundLender.match_score > 0) { 
+            setSelectedLender(foundLender);
+            if (onLenderClick) onLenderClick(foundLender);
+          } else if (foundLender.match_score > 0) { 
+            setShowIncompleteFiltersCard(true);
+            setSelectedLender(null); 
+          } else { 
+            setShowIncompleteFiltersCard(false);
+            setSelectedLender(null);
+          }
         }
+      } else {
+        setShowIncompleteFiltersCard(false);
+        setSelectedLender(null);
       }
-    } else {
-      setShowIncompleteFiltersCard(false);
-      if (!isMouseDown) {
-        const card = document.getElementById(`lender-card-${selectedLender?.lender_id}`);
-        if (card && e.target !== card && !card.contains(e.target as Node)) {
-            //setSelectedLender(null); // Potentially too aggressive
-        } else if (!card) {
-             //setSelectedLender(null); // If no card was shown
-        }
-      }
-    }
+    });
   }
 
   function handleMouseLeave(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (selectedLender && containerRef.current) {
-        const cardElement = document.querySelector(`[id^="lender-card-"]`); 
-        if (cardElement && cardElement.contains(e.relatedTarget as Node)) {
-            return;
-        }
+    const cardElement = document.querySelector(`[id^="lender-card-"]`);
+    // Only keep card if mouse is moving to the card itself
+    if (cardElement && cardElement.contains(e.relatedTarget as Node)) {
+      return;
     }
-    setHoveredLenderId(null);
-    setShowIncompleteFiltersCard(false);
-    if (!isMouseDown) {
-      // if (onLenderClick) onLenderClick(null); // Don't clear on mouse leave from canvas
-    }
-    if (canvasRef.current) canvasRef.current.style.cursor = "default";
+    // Clear everything when leaving canvas
+    requestAnimationFrame(() => {
+      setHoveredLenderId(null);
+      setShowIncompleteFiltersCard(false);
+      setSelectedLender(null);
+      if (onLenderClick) onLenderClick(null);
+      if (canvasRef.current) canvasRef.current.style.cursor = "default";
+    });
   }
 
   function handleMouseDown() { setIsMouseDown(true); }
@@ -473,7 +512,7 @@ export default function LenderGraph({
 
   const incompleteFiltersTooltip = (
     <div
-      className="absolute z-20 p-3 bg-gray-700 text-white text-xs rounded-md shadow-xl pointer-events-none ring-1 ring-gray-600"
+      className="absolute z-20 p-3 bg-gray-800 text-gray-200 text-xs rounded-md shadow-xl pointer-events-none ring-1 ring-gray-600"
       style={{
         top: cardPositionRef.current.y - 10, 
         left: cardPositionRef.current.x + 10,
@@ -509,17 +548,20 @@ export default function LenderGraph({
               left: cardPositionRef.current.x,
             }}
             onMouseLeave={(e) => {
-                 if (canvasRef.current && e.relatedTarget !== canvasRef.current && !canvasRef.current.contains(e.relatedTarget as Node)) {
-                    // setSelectedLender(null); // Do not clear on mouse leave from card
-                    // if (onLenderClick) onLenderClick(null);
-                 }
+              // If mouse leaves card and doesn't go to canvas, hide the card
+              if (canvasRef.current && e.relatedTarget !== canvasRef.current && !canvasRef.current.contains(e.relatedTarget as Node)) {
+                requestAnimationFrame(() => {
+                  setSelectedLender(null);
+                  if (onLenderClick) onLenderClick(null);
+                });
+              }
             }}
           >
             <LenderDetailCard
               lender={selectedLender}
               formData={formData}
               onClose={() => {setSelectedLender(null); if (onLenderClick) onLenderClick(null);}}
-              color={getLenderColor(selectedLender, formData, true, filtersApplied)}
+              color={getLenderColor(selectedLender, formData, true, filtersApplied, isDark ? 'dark' : 'light')}
             />
           </div>
         )}
