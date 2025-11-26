@@ -17,9 +17,19 @@ import { ArrowRight } from "lucide-react";
 import { ProcessSection } from "../components/ui/ProcessSection";
 import { cn } from "@/utils/cn";
 import { useTheme } from "@/contexts/ThemeContext";
+import {
+  DotWaterfall,
+  DotWaterfallStep,
+} from "@/components/ui/DotWaterfall";
 
 // ... (initialFilters, HomePage component setup - no changes here) ...
 // ... (useEffect hooks, handlers - no changes here) ...
+
+const HERO_WATERFALL_STEPS: DotWaterfallStep[] = [
+  { label: "Senior Debt", width: 10, height: 8, startX: 0, color: "#38bdf8" },
+  { label: "Mezzanine", width: 8, height: 6, startX: 5, color: "#3b82f6" },
+  { label: "Equity", width: 8, height: 6, startX: 10, color: "#22d3ee" },
+];
 
 export default function HomePage() {
   const router = useRouter();
@@ -150,7 +160,7 @@ export default function HomePage() {
   ), [isDark]);
 
   const heroSectionClasses = useMemo(() => cn(
-    "relative overflow-hidden transition-colors duration-300",
+    "relative overflow-hidden transition-colors duration-300 hero-font",
     isDark ? "bg-gray-900" : "bg-white"
   ), [isDark]);
 
@@ -165,93 +175,126 @@ export default function HomePage() {
       <EnhancedHeader scrolled={scrolled} textVisible={true} />
 
       <main className={mainClasses}>
-        <section
-          className={heroSectionClasses}
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {/* Hero content with fade in-fade out */}
-          <motion.div 
-            className="container mx-auto px-4 max-w-5xl text-center relative z-20"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+        <section className={heroSectionClasses}>
+          <motion.div
+            className="container mx-auto max-w-6xl px-6 lg:px-8 py-20 lg:py-32"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <motion.div className="mb-8">
-              <div className="overflow-hidden">
+            <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)] items-center">
+              <motion.div
+                className="text-left space-y-8"
+                initial={{ opacity: 0, x: -40 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+              >
+                <div className="space-y-4">
+                  <div className="overflow-hidden">
+                    <motion.h1
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{
+                        opacity: textAnimation.part1Visible ? 1 : 0,
+                        y: textAnimation.part1Visible ? 0 : 20,
+                      }}
+                      transition={{ duration: 0.6 }}
+                      className={cn(
+                        "text-4xl sm:text-5xl lg:text-6xl font-normal leading-tight",
+                        isDark ? "text-white" : "text-gray-900"
+                      )}
+                    >
+                      CRE Funding
+                    </motion.h1>
+                  </div>
+                  <div className="overflow-hidden">
+                    <motion.p
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{
+                        opacity: textAnimation.part2Visible ? 1 : 0,
+                        y: textAnimation.part2Visible ? 0 : 20,
+                      }}
+                      transition={{ duration: 0.6, delay: 0.1 }}
+                      className={cn(
+                        "text-4xl sm:text-5xl lg:text-6xl font-normal leading-tight",
+                        isDark ? "text-white" : "text-gray-900"
+                      )}
+                    >
+                      From <span className="text-blue-500">Months</span> to{" "}
+                      <span className="text-green-500">Minutes</span>
+                    </motion.p>
+                  </div>
+                  <div className="overflow-hidden">
+                    <motion.p
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{
+                        opacity: textAnimation.part3Visible ? 1 : 0,
+                        y: textAnimation.part3Visible ? 0 : 20,
+                      }}
+                      transition={{ duration: 0.6, delay: 0.2 }}
+                      className={cn(
+                        "text-lg md:text-xl max-w-2xl",
+                        isDark ? "text-gray-300" : "text-gray-600"
+                      )}
+                    >
+                      CapMatch&apos;s intelligent platform automates and
+                      accelerates every step of your commercial real estate
+                      financing.
+                    </motion.p>
+                  </div>
+                </div>
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{
-                    opacity: textAnimation.part1Visible ? 1 : 0,
-                    y: textAnimation.part1Visible ? 0 : 20,
-                  }}
-                  transition={{ duration: 0.6 }}
-                  className={cn("text-5xl md:text-6xl lg:text-7xl font-bold leading-tight", isDark ? "text-white" : "text-gray-900")}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: textAnimation.part3Visible ? 1 : 0 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
                 >
-                  CRE Funding
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 shadow-lg"
+                      onClick={handleScrollToLenderMatching}
+                    >
+                      Lender Matching
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={handleAccessDealRoom}
+                      className={cn(
+                        "rounded-full shadow-md",
+                        isDark
+                          ? "border-gray-600 !text-blue-400 hover:bg-gray-800 hover:border-gray-500"
+                          : "border-gray-300 !text-blue-600 hover:bg-gray-100 hover:border-gray-400"
+                      )}
+                    >
+                      Access Deal Room
+                    </Button>
+                  </div>
                 </motion.div>
-              </div>
-              <div className="overflow-hidden mt-2">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{
-                    opacity: textAnimation.part2Visible ? 1 : 0,
-                    y: textAnimation.part2Visible ? 0 : 20,
-                  }}
-                  transition={{ duration: 0.6 }}
-                  className={cn("text-5xl md:text-6xl lg:text-7xl font-bold leading-tight", isDark ? "text-white" : "text-gray-900")}
-                >
-                  From <span className="text-blue-500">Months</span> to <span className="text-green-500">Minutes</span>
-                </motion.div>
-              </div>
-              <div className="overflow-hidden mt-6">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{
-                    opacity: textAnimation.part3Visible ? 1 : 0,
-                    y: textAnimation.part3Visible ? 0 : 20,
-                  }}
-                  transition={{ duration: 0.6 }}
-                  className={cn("text-lg md:text-xl max-w-3xl mx-auto", isDark ? "text-gray-300" : "text-gray-600")}
-                >
-                  CapMatch&apos;s intelligent platform automates and accelerates every step of your commercial real estate financing.
-                </motion.div>
-              </div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: textAnimation.part3Visible ? 1 : 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 shadow-lg"
-                  onClick={handleScrollToLenderMatching}
-                >
-                  Lender Matching
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={handleAccessDealRoom}
+              </motion.div>
+
+              <motion.div
+                className="relative w-full h-[360px] sm:h-[420px] lg:h-[520px]"
+                initial={{ opacity: 0, x: 40 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+              >
+                <DotWaterfall
+                  steps={HERO_WATERFALL_STEPS}
                   className={cn(
-                    "rounded-full shadow-md",
-                    isDark 
-                      ? "border-gray-600 !text-blue-400 hover:bg-gray-800 hover:border-gray-500"
-                      : "border-gray-300 !text-blue-600 hover:bg-gray-100 hover:border-gray-400"
+                    "shadow-2xl",
+                    isDark
+                      ? "bg-slate-900/80 border-slate-800"
+                      : "bg-white border-blue-100"
                   )}
-                >
-                  Access Deal Room
-                </Button>
-              </div>
-            </motion.div>
+                />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-6 pb-5 text-[11px] font-medium uppercase tracking-[0.2em] text-white/80">
+                  <span>Senior Debt</span>
+                  <span>Mezzanine</span>
+                  <span>Equity</span>
+                </div>
+              </motion.div>
+            </div>
           </motion.div>
         </section>
 
