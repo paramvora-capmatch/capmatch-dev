@@ -155,18 +155,18 @@ export default function HomePage() {
   ), [isDark]);
 
   const mainClasses = useMemo(() => cn(
-    "flex-grow transition-colors duration-300",
-    isDark ? "bg-gray-900" : "bg-white"
+    "flex-grow transition-colors duration-300 pattern-background",
+    isDark ? "bg-gray-900 pattern-background-dark" : "bg-white pattern-background-light"
   ), [isDark]);
 
   const heroSectionClasses = useMemo(() => cn(
-    "relative overflow-hidden transition-colors duration-300 hero-font",
-    isDark ? "bg-gray-900" : "bg-white"
+    "relative overflow-hidden transition-colors duration-300 hero-font pattern-background",
+    isDark ? "bg-gray-900 pattern-background-dark" : "bg-white pattern-background-light"
   ), [isDark]);
 
   const lenderMatchingSectionClasses = useMemo(() => cn(
-    "min-h-screen py-16 relative flex items-center transition-colors duration-300",
-    isDark ? "bg-gray-900" : "bg-white"
+    "min-h-screen py-16 relative flex items-center transition-colors duration-300 pattern-background",
+    isDark ? "bg-gray-900 pattern-background-dark" : "bg-white pattern-background-light"
   ), [isDark]);
 
   return (

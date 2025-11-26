@@ -173,8 +173,10 @@ export const ProcessSection: React.FC = () => {
       ref={sectionRef}
       id="process-section"
       className={cn(
-        "min-h-screen overflow-hidden relative flex flex-col justify-center transition-colors duration-300",
-        isDark ? "bg-gray-900 text-gray-100" : "bg-white text-gray-900"
+        "min-h-screen overflow-hidden relative flex flex-col justify-center transition-colors duration-300 pattern-background",
+        isDark
+          ? "bg-gray-900 text-gray-100 pattern-background-dark"
+          : "bg-white text-gray-900 pattern-background-light"
       )}
     >
       {/* Enhanced title section with better spacing */}

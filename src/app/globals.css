@@ -185,6 +185,59 @@
   font-family: var(--font-hero) !important;
 }
 
+.pattern-background,
+.hero-pattern {
+  position: relative;
+  isolation: isolate;
+}
+
+.pattern-background::before,
+.hero-pattern::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.pattern-background > *,
+.hero-pattern > * {
+  position: relative;
+  z-index: 1;
+}
+
+.pattern-background-light::before,
+.hero-pattern-light::before {
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      rgba(15, 23, 42, 0.05) 0 1px,
+      transparent 1px 5px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      rgba(15, 23, 42, 0.05) 0 1px,
+      transparent 1px 5px
+    );
+}
+
+.pattern-background-dark::before,
+.hero-pattern-dark::before {
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      rgba(241, 245, 249, 0.08) 0 1px,
+      transparent 1px 18px
+    ),
+    repeating-linear-gradient(
+      45deg,
+      rgba(241, 245, 249, 0.05) 0 1px,
+      transparent 1px 18px
+    );
+}
+
 body, p, span, div, a, button, input, textarea, select, label, li, td, th, h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-sans);
 }
