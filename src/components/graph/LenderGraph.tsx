@@ -9,6 +9,7 @@ import LenderDetailCard from "../lender-detail-card";
 import { useTheme } from "@/contexts/ThemeContext";
 
 const filterKeys = ['asset_types', 'deal_types', 'capital_types', 'debt_ranges', 'locations'];
+const WATERFALL_BLUE = "#2563eb";
 
 // This function calculates a score for a lender based *only* on the graph's current formData.
 // It helps decide if a node appears "matched" by the graph's current UI filters.
@@ -81,18 +82,18 @@ function getLenderColor(
   
   if (theme === 'dark') {
     // Dark mode: brighter, more saturated colors
-    if (scoreFromContext === 1) return "hsl(142, 90%, 45%)"; // Very bright green for perfect match
-    if (scoreFromContext > 0.8) return "hsl(142, 75%, 50%)"; // Bright green
-    if (scoreFromContext > 0.6) return "hsl(180, 75%, 45%)"; // Teal/cyan
-    if (scoreFromContext > 0.4) return "hsl(200, 85%, 50%)"; // Blue
-    if (scoreFromContext > 0.2) return "hsl(210, 75%, 55%)"; // Light blue
+    if (scoreFromContext === 1) return WATERFALL_BLUE; // Align with DotWaterfall blue
+    if (scoreFromContext > 0.8) return "hsl(222, 85%, 62%)"; // Bright blue
+    if (scoreFromContext > 0.6) return "hsl(210, 75%, 55%)"; // Vibrant cyan
+    if (scoreFromContext > 0.4) return "hsl(204, 85%, 60%)"; // Lighter blue
+    if (scoreFromContext > 0.2) return "hsl(210, 70%, 65%)"; // Soft blue
   } else {
     // Light mode: darker, more saturated colors for contrast against white
-    if (scoreFromContext === 1) return "hsl(142, 85%, 35%)"; // Deep green for perfect match
-    if (scoreFromContext > 0.8) return "hsl(142, 70%, 40%)"; // Rich green
-    if (scoreFromContext > 0.6) return "hsl(180, 70%, 35%)"; // Deep teal
-    if (scoreFromContext > 0.4) return "hsl(200, 80%, 40%)"; // Deep blue
-    if (scoreFromContext > 0.2) return "hsl(210, 70%, 45%)"; // Medium blue
+    if (scoreFromContext === 1) return WATERFALL_BLUE; // Align with DotWaterfall blue
+    if (scoreFromContext > 0.8) return "hsl(222, 80%, 48%)"; // Rich blue
+    if (scoreFromContext > 0.6) return "hsl(210, 70%, 45%)"; // Deep teal
+    if (scoreFromContext > 0.4) return "hsl(204, 78%, 48%)"; // Deep blue
+    if (scoreFromContext > 0.2) return "hsl(210, 65%, 52%)"; // Medium blue
   }
   
   return theme === 'dark' ? "hsl(220, 15%, 45%)" : "hsl(220, 10%, 70%)"; // Default gray for very low scores
@@ -268,19 +269,15 @@ export default function LenderGraph({
             ctx.moveTo(pos1.x, pos1.y);
             ctx.lineTo(pos2.x, pos2.y);
             
-            // Much brighter lines for 100% matches, dimmer for others - adapt to theme
-            let opacity, hue, lightness;
-            if (avgScore === 1) {
-              opacity = isDark ? 0.6 : 0.7;
-              hue = 142;
-              lightness = isDark ? 45 : 35; // Darker for light mode contrast
-            } else {
-              opacity = isDark ? (0.1 + (avgScore * 0.3)) : (0.25 + (avgScore * 0.35));
-              hue = 200 - (avgScore * 60);
-              lightness = isDark ? (50 + (avgScore * 10)) : (35 + (avgScore * 12)); // Darker for light mode
-            }
-            
-            ctx.strokeStyle = `hsla(${hue}, 80%, ${lightness}%, ${opacity})`;
+            // Much brighter lines for stronger matches, all in blue family
+            const baseHue = 222;
+            const hue = baseHue;
+            const baseLightnessDark = 45;
+            const baseLightnessLight = 35;
+            const lightnessBoost = avgScore * 20;
+            const lightness = (isDark ? baseLightnessDark : baseLightnessLight) + lightnessBoost;
+            const opacity = isDark ? (0.18 + avgScore * 0.35) : (0.3 + avgScore * 0.4);
+            ctx.strokeStyle = `hsla(${hue}, 85%, ${lightness}%, ${opacity})`;
             ctx.lineWidth = 0.5 + avgScore;
             ctx.stroke();
         }
@@ -302,19 +299,19 @@ export default function LenderGraph({
           // Color lines based on context score - optimized for both themes
           if (scoreFromContext === 1) { 
             gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); 
-            // Dark mode: bright green, Light mode: darker green for contrast
-            gradient.addColorStop(0, isDark ? "rgba(34, 197, 94, 0.75)" : "rgba(22, 163, 74, 0.7)"); 
-            gradient.addColorStop(1, isDark ? "rgba(34, 197, 94, 0.35)" : "rgba(22, 163, 74, 0.45)");
+            // Dark mode: bright blue, Light mode: darker blue for contrast
+            gradient.addColorStop(0, isDark ? "rgba(37, 99, 235, 0.85)" : "rgba(37, 99, 235, 0.8)"); 
+            gradient.addColorStop(1, isDark ? "rgba(37, 99, 235, 0.4)" : "rgba(37, 99, 235, 0.5)");
           } else if (scoreFromContext > 0.8) { 
             gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); 
-            // Dark mode: teal, Light mode: darker teal
-            gradient.addColorStop(0, isDark ? "rgba(45, 212, 191, 0.35)" : "rgba(20, 184, 166, 0.5)"); 
-            gradient.addColorStop(1, isDark ? "rgba(45, 212, 191, 0.12)" : "rgba(20, 184, 166, 0.3)");
+            // Dark mode: vivid blue, Light mode: slightly darker for contrast
+            gradient.addColorStop(0, isDark ? "rgba(59, 130, 246, 0.45)" : "rgba(29, 78, 216, 0.55)"); 
+            gradient.addColorStop(1, isDark ? "rgba(59, 130, 246, 0.15)" : "rgba(29, 78, 216, 0.35)");
           } else if (scoreFromContext > 0.6) { 
             gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); 
-            // Dark mode: blue, Light mode: darker blue
-            gradient.addColorStop(0, isDark ? "rgba(56, 189, 248, 0.25)" : "rgba(37, 99, 235, 0.4)"); 
-            gradient.addColorStop(1, isDark ? "rgba(56, 189, 248, 0.08)" : "rgba(37, 99, 235, 0.25)");
+            // Dark mode: softer blue, Light mode: muted blue
+            gradient.addColorStop(0, isDark ? "rgba(96, 165, 250, 0.3)" : "rgba(96, 165, 250, 0.45)"); 
+            gradient.addColorStop(1, isDark ? "rgba(96, 165, 250, 0.1)" : "rgba(96, 165, 250, 0.25)");
           } else { 
             gradient = ctx.createLinearGradient(centerPoint.x, centerPoint.y, pos.x, pos.y); 
             // Dark mode: light gray, Light mode: darker gray
