@@ -69,7 +69,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!textAnimation.part3Visible) return;
-    const timeout = setTimeout(() => setDotWaterfallVisible(true), 2100);
+    const timeout = setTimeout(() => setDotWaterfallVisible(true), 2000);
     return () => clearTimeout(timeout);
   }, [textAnimation.part3Visible]);
 
