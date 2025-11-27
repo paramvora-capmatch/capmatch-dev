@@ -1,0 +1,16 @@
+# Ignore worker directories - they deploy separately to Cloud Run
+workers/
+
+# Ignore Supabase functions - they deploy via Supabase CLI
+supabase/functions/
+
+# Ignore scripts and docs - not needed for Vercel build
+scripts/
+docs/
+
+# Ignore test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+

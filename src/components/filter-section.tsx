@@ -1,32 +1,28 @@
 // components/filter-section.tsx
 'use client';
 
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import AssetTypeFilter from './filters/AssetTypeFilter';
 import DealTypeFilter from './filters/DealTypeFilter';
 import CapitalTypeFilter from './filters/CapitalTypeFilter';
 import DebtRangeFilter from './filters/DebtRangeFilter';
 import LocationFilter from './filters/LocationFilter';
-import { LenderFilters } from '../contexts/LenderContext'; // Ensure this path is correct
+import { LenderFilters } from '../contexts/LenderContext';
 
 interface FilterSectionProps {
-  formData: LenderFilters; // Use the specific LenderFilters type
-  onChange: (newData: Partial<LenderFilters>) => void; // This is from page.tsx
-  filterType: keyof LenderFilters; // Constrain filterType to keys of LenderFilters
+  formData: LenderFilters;
+  onChange: (newData: Partial<LenderFilters>) => void;
+  filterType: keyof LenderFilters;
 }
 
-const FilterSection: React.FC<FilterSectionProps> = ({
+const FilterSection: React.FC<FilterSectionProps> = memo(({
   formData,
-  onChange, // This is the setFilters function from useLenders, via handleFilterChange in page.tsx
+  onChange,
   filterType
 }) => {
-
-  // This is the crucial wrapper.
-  // It takes the specific value from a child filter (e.g., asset_types array)
-  // and calls the main onChange (setFilters) with the correct partial update.
-  const handleIndividualFilterChange = (value: string[]) => {
+  const handleIndividualFilterChange = useCallback((value: string[]) => {
     onChange({ [filterType]: value });
-  };
+  }, [onChange, filterType]);
 
   const renderFilterComponent = () => {
     switch (filterType) {
@@ -73,12 +69,12 @@ const FilterSection: React.FC<FilterSectionProps> = ({
   };
 
   return (
-    // Removed the outer div, styling is handled by parent in page.tsx
-    // className="space-y-3 transition-all duration-200 ease-in-out"
-    <> 
+    <>
       {renderFilterComponent()}
     </>
   );
-};
+});
+
+FilterSection.displayName = 'FilterSection';
 
 export default FilterSection;

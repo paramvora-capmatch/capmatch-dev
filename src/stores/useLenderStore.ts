@@ -5,6 +5,57 @@ import { calculateMatchScores } from '@/utils/lenderUtils';
 import { LenderProfile } from '@/types/lender';
 import { storageService } from '@/lib/storage';
 
+/**
+ * Ensures at least 1-2 lenders always appear as green dots (high match score)
+ * by boosting the top lenders' scores if they're below the green threshold.
+ * Only applies when filters are active.
+ */
+function ensureMinimumGreenDots(
+  lenders: LenderProfile[], 
+  filters: LenderFilters
+): LenderProfile[] {
+  // Only apply if filters are actually selected
+  const hasActiveFilters = 
+    filters.asset_types.length > 0 ||
+    filters.deal_types.length > 0 ||
+    filters.capital_types.length > 0 ||
+    filters.debt_ranges.length > 0 ||
+    filters.locations.length > 0;
+
+  if (!hasActiveFilters) {
+    return lenders; // Don't boost when no filters are applied
+  }
+
+  // Check how many lenders already have green scores (>0.6)
+  const greenLenders = lenders.filter(l => (l.match_score || 0) > 0.6);
+  
+  // If we already have 2+ green lenders, no need to boost
+  if (greenLenders.length >= 2) {
+    return lenders;
+  }
+
+  // Sort lenders by current score (highest first)
+  const sorted = [...lenders].sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+  
+  // Boost the top 1-2 lenders to ensure they appear green
+  const targetCount = greenLenders.length === 0 ? 2 : 1; // Boost 2 if none green, 1 if one green
+  const minGreenScore = 0.7; // Score threshold for green appearance
+  
+  return lenders.map(lender => {
+    const lenderIndex = sorted.findIndex(s => s.lender_id === lender.lender_id);
+    
+    // If this lender is in the top positions and needs boosting
+    if (lenderIndex < targetCount && (lender.match_score || 0) < minGreenScore) {
+      return {
+        ...lender,
+        match_score: minGreenScore + (targetCount - lenderIndex) * 0.05 // Slight variation: 0.7, 0.75
+      };
+    }
+    
+    return lender;
+  });
+}
+
 export interface LenderFilters {
   asset_types: string[];
   deal_types: string[];
@@ -52,9 +103,10 @@ export const useLenderStore = create<LenderState & LenderActions>((set, get) => 
     try {
       const lenderData = await getLenders();
       const scoredLenders = calculateMatchScores(lenderData, get().filters);
+      const boostedLenders = ensureMinimumGreenDots(scoredLenders, get().filters);
       set({ 
         lenders: lenderData, 
-        filteredLenders: scoredLenders.sort((a, b) => b.match_score - a.match_score), 
+        filteredLenders: boostedLenders.sort((a, b) => b.match_score - a.match_score), 
         isLoading: false 
       });
     } catch (error) {
@@ -67,9 +119,10 @@ export const useLenderStore = create<LenderState & LenderActions>((set, get) => 
     set((state) => {
       const updatedFilters = { ...state.filters, ...newFilters };
       const scoredLenders = calculateMatchScores(state.lenders, updatedFilters);
+      const boostedLenders = ensureMinimumGreenDots(scoredLenders, updatedFilters);
       return { 
         filters: updatedFilters,
-        filteredLenders: scoredLenders.sort((a, b) => b.match_score - a.match_score)
+        filteredLenders: boostedLenders.sort((a, b) => b.match_score - a.match_score)
       };
     });
   },

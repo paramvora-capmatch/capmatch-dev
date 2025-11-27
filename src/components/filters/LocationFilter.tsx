@@ -1,15 +1,16 @@
 // components/filters/LocationFilter.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, memo, useCallback } from "react";
 import { Info } from "lucide-react";
+import { cn } from "@/utils/cn";
 
 interface LocationFilterProps {
   value: string[];
   onChange: (newValue: string[]) => void;
 }
 
-const LocationFilter: React.FC<LocationFilterProps> = ({ value, onChange }) => {
+const LocationFilter: React.FC<LocationFilterProps> = memo(({ value, onChange }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const locationOptions = [
@@ -22,22 +23,37 @@ const LocationFilter: React.FC<LocationFilterProps> = ({ value, onChange }) => {
     "Other",
   ];
 
+  const handleToggle = useCallback((option: string) => {
+    const newValue = value.includes(option)
+      ? value.filter((v) => v !== option)
+      : [...value, option];
+    onChange(newValue);
+  }, [value, onChange]);
+
+  const handleMouseEnter = useCallback(() => {
+    setShowTooltip(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setShowTooltip(false);
+  }, []);
+
   return (
     <div className="mb-3">
       <div className="flex items-center mb-2">
-        <h3 className="font-semibold text-sm">Locations</h3>
+        <h3 className="font-semibold text-sm text-gray-800">Locations</h3>
         <div className="relative ml-2">
           <button
             type="button"
-            className="text-gray-400 hover:text-gray-600 focus:outline-none"
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
+            className="focus:outline-none text-gray-400 hover:text-gray-600"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             aria-label="Location Information"
           >
             <Info size={16} />
           </button>
           {showTooltip && (
-            <div className="absolute z-10 w-64 p-2 mt-2 text-xs bg-white rounded-md shadow-lg border border-gray-200 -translate-x-1/2 left-1/2">
+            <div className="absolute z-10 w-64 p-2 mt-2 text-xs rounded-md shadow-lg -translate-x-1/2 left-1/2 bg-white text-gray-800 border border-gray-200">
               Select the geographic region(s) of your project. Many lenders
               focus on specific regions.
             </div>
@@ -49,17 +65,13 @@ const LocationFilter: React.FC<LocationFilterProps> = ({ value, onChange }) => {
           <button
             key={option}
             type="button"
-            className={`px-3 py-1.5 text-sm rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+            className={cn(
+              "px-3 py-1.5 text-sm rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-offset-white",
               value.includes(option)
-                ? "bg-blue-600 text-white hover:bg-blue-700"
+                ? "bg-blue-500 text-white hover:bg-blue-600"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-            onClick={() => {
-              const newValue = value.includes(option)
-                ? value.filter((v) => v !== option)
-                : [...value, option];
-              onChange(newValue);
-            }}
+            )}
+            onClick={() => handleToggle(option)}
           >
             {option}
           </button>
@@ -67,6 +79,8 @@ const LocationFilter: React.FC<LocationFilterProps> = ({ value, onChange }) => {
       </div>
     </div>
   );
-};
+});
+
+LocationFilter.displayName = 'LocationFilter';
 
 export default LocationFilter;
