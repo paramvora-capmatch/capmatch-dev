@@ -5,11 +5,10 @@ import React, { useState, useEffect, MutableRefObject } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogIn, Menu, X, Sun, Moon } from 'lucide-react';
+import { LogIn, Menu, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from './Button';
 import { cn } from '@/utils/cn';
-import { useTheme } from '@/contexts/ThemeContext';
 
 interface EnhancedHeaderProps {
   scrolled: boolean;
@@ -25,7 +24,6 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
   logoHidden = false
 }) => {
   const router = useRouter();
-  const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -60,19 +58,13 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
     }
   };
 
-  const isDark = theme === 'dark';
-  
   return (
     <motion.header
       className={cn(
         "fixed top-0 left-0 right-0 z-30 transition-all duration-300",
         scrolled
-          ? isDark 
-            ? "bg-gray-900/95 backdrop-blur-sm shadow-lg shadow-black/20 py-3"
-            : "bg-white/95 backdrop-blur-sm shadow-lg shadow-gray-200/20 py-3"
-          : isDark
-            ? "bg-transparent py-5"
-            : "bg-transparent py-5"
+          ? "bg-white/95 backdrop-blur-sm shadow-lg shadow-gray-200/20 py-3"
+          : "bg-transparent py-5"
       )}
     >
       <div className="container mx-auto flex justify-between items-center px-4 h-16">
@@ -112,8 +104,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
               animate={{ opacity: textVisible ? 1 : 0 }}
               transition={{ duration: 0.6 }}
               className={cn(
-                "ml-3 transition-all duration-300 font-bold flex items-center",
-                isDark ? "text-white" : "text-gray-900",
+                "ml-3 transition-all duration-300 font-bold flex items-center text-gray-900",
                 scrolled ? "text-lg" : "text-2xl drop-shadow-sm"
               )}
             >
@@ -133,9 +124,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
               onClick={(e) => { e.preventDefault(); document.getElementById('lender-matching-section')?.scrollIntoView({ behavior: 'smooth' });}}
               className={cn(
               "text-sm font-medium transition-colors",
-              isDark 
-                ? scrolled ? "text-gray-300 hover:text-blue-400" : "text-gray-200 hover:text-blue-400"
-                : scrolled ? "text-gray-700 hover:text-blue-600" : "text-gray-800 hover:text-blue-600"
+              scrolled ? "text-gray-700 hover:text-blue-600" : "text-gray-800 hover:text-blue-600"
             )}>
               <span className="font-semibold">Lender Matching</span>
             </Link>
@@ -143,28 +132,13 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
               onClick={(e) => { e.preventDefault(); document.getElementById('process-section')?.scrollIntoView({ behavior: 'smooth' });}}
               className={cn(
               "text-sm font-medium transition-colors",
-              isDark 
-                ? scrolled ? "text-gray-300 hover:text-blue-400" : "text-gray-200 hover:text-blue-400"
-                : scrolled ? "text-gray-700 hover:text-blue-600" : "text-gray-800 hover:text-blue-600"
+              scrolled ? "text-gray-700 hover:text-blue-600" : "text-gray-800 hover:text-blue-600"
             )}>
               Process
             </Link>
           </nav>
 
           <div className="flex items-center space-x-4">
-            <button
-              onClick={toggleTheme}
-              className={cn(
-                "p-2 rounded-full transition-colors",
-                isDark 
-                  ? "text-gray-300 hover:text-white hover:bg-gray-800" 
-                  : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-              )}
-              aria-label="Toggle theme"
-            >
-              {isDark ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-
             <Button
               variant="primary"
               size="sm"
@@ -184,10 +158,7 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
-          className={cn(
-            "md:hidden p-2 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded transition-colors",
-            isDark ? "text-white" : "text-gray-900"
-          )}
+          className="md:hidden p-2 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 rounded transition-colors text-gray-900"
           onClick={toggleMobileMenu}
           aria-label="Toggle mobile menu"
           aria-expanded={mobileMenuOpen}
@@ -202,45 +173,24 @@ export const EnhancedHeader: React.FC<EnhancedHeaderProps> = ({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.3 }}
-          className={cn(
-            "md:hidden backdrop-blur-sm border-t shadow-lg absolute top-full left-0 right-0",
-            isDark 
-              ? "bg-gray-900/95 border-gray-700"
-              : "bg-white/95 border-gray-200"
-          )}
+          className="md:hidden backdrop-blur-sm border-t shadow-lg absolute top-full left-0 right-0 bg-white/95 border-gray-200"
         >
           <div className="container mx-auto py-4 px-4">
             <nav className="flex flex-col space-y-4">
                <Link
                 href="/#lender-matching-section"
-                className={cn(
-                  "py-2 text-sm font-medium block",
-                  isDark ? "text-gray-300 hover:text-blue-400" : "text-gray-700 hover:text-blue-600"
-                )}
+                className="py-2 text-sm font-medium block text-gray-700 hover:text-blue-600"
                 onClick={() => handleNav('#lender-matching-section', true)}
               >
                 <span className="font-semibold">Lender Matching</span>
               </Link>
               <Link
                 href="/#process-section"
-                className={cn(
-                  "py-2 text-sm font-medium block",
-                  isDark ? "text-gray-300 hover:text-blue-400" : "text-gray-700 hover:text-blue-600"
-                )}
+                className="py-2 text-sm font-medium block text-gray-700 hover:text-blue-600"
                 onClick={() => handleNav('#process-section', true)}
               >
                 Process
               </Link>
-              <button
-                onClick={toggleTheme}
-                className={cn(
-                  "py-2 text-sm font-medium text-left flex items-center space-x-2",
-                  isDark ? "text-gray-300 hover:text-white" : "text-gray-700 hover:text-gray-900"
-                )}
-              >
-                {isDark ? <Sun size={18} /> : <Moon size={18} />}
-                <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
-              </button>
               <Button
                 variant="primary"
                 size="sm"

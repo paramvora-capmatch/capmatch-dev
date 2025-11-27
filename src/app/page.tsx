@@ -16,19 +16,16 @@ import { Button } from "@/components/ui/Button";
 import { ArrowRight } from "lucide-react";
 import { ProcessSection } from "../components/ui/ProcessSection";
 import { cn } from "@/utils/cn";
-import { useTheme } from "@/contexts/ThemeContext";
 
 // ... (initialFilters, HomePage component setup - no changes here) ...
 // ... (useEffect hooks, handlers - no changes here) ...
 
 export default function HomePage() {
   const router = useRouter();
-  const { theme } = useTheme();
   const { filteredLenders, filters, setFilters, selectLender, loadLenders } =
     useLenders();
 
   const [scrolled, setScrolled] = useState(false);
-  const isDark = theme === 'dark';
   const [textAnimation, setTextAnimation] = useState({
     part1Visible: false,
     part2Visible: false,
@@ -140,31 +137,48 @@ export default function HomePage() {
 
   // Memoized className strings
   const containerClasses = useMemo(() => cn(
-    "min-h-screen flex flex-col transition-colors duration-300",
-    isDark ? "bg-gray-900" : "bg-white"
-  ), [isDark]);
+    "min-h-screen flex flex-col transition-colors duration-300 relative z-10"
+  ), []);
 
   const mainClasses = useMemo(() => cn(
-    "flex-grow transition-colors duration-300",
-    isDark ? "bg-gray-900" : "bg-white"
-  ), [isDark]);
+    "flex-grow transition-colors duration-300 relative z-10"
+  ), []);
 
   const heroSectionClasses = useMemo(() => cn(
-    "relative overflow-hidden transition-colors duration-300",
-    isDark ? "bg-gray-900" : "bg-white"
-  ), [isDark]);
+    "relative overflow-hidden transition-colors duration-300"
+  ), []);
 
   const lenderMatchingSectionClasses = useMemo(() => cn(
-    "min-h-screen py-16 relative flex items-center transition-colors duration-300",
-    isDark ? "bg-gray-900" : "bg-white"
-  ), [isDark]);
+    "min-h-screen py-16 relative flex items-center transition-colors duration-300"
+  ), []);
 
   return (
-    <div className={containerClasses}>
+    <div 
+      className={containerClasses}
+      style={{
+        backgroundColor: '#ffffff',
+        backgroundImage: `
+          repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 10px,
+            rgba(209, 213, 219, 0.097) 10px,
+            rgba(209, 213, 219, 0.097) 11px
+          ),
+          repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 10px,
+            rgba(209, 213, 219, 0.097) 10px,
+            rgba(209, 213, 219, 0.097) 11px
+          )
+        `,
+      }}
+    >
       {/* Always render header so target ref exists for animation; keep logo hidden until handoff */}
       <EnhancedHeader scrolled={scrolled} textVisible={true} />
 
-      <main className={mainClasses}>
+      <main className={mainClasses} style={{ backgroundColor: 'transparent' }}>
         <section
           className={heroSectionClasses}
           style={{
@@ -172,6 +186,7 @@ export default function HomePage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            backgroundColor: 'transparent',
           }}
         >
           {/* Hero content with fade in-fade out */}
@@ -191,7 +206,7 @@ export default function HomePage() {
                     y: textAnimation.part1Visible ? 0 : 20,
                   }}
                   transition={{ duration: 0.6 }}
-                  className={cn("text-5xl md:text-6xl lg:text-7xl font-bold leading-tight", isDark ? "text-white" : "text-gray-900")}
+                  className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-gray-900"
                 >
                   CRE Funding
                 </motion.div>
@@ -204,9 +219,9 @@ export default function HomePage() {
                     y: textAnimation.part2Visible ? 0 : 20,
                   }}
                   transition={{ duration: 0.6 }}
-                  className={cn("text-5xl md:text-6xl lg:text-7xl font-bold leading-tight", isDark ? "text-white" : "text-gray-900")}
+                  className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-gray-900"
                 >
-                  From <span className="text-blue-500">Months</span> to <span className="text-green-500">Minutes</span>
+                  From <span className="text-blue-500">Months</span> to <span className="text-blue-500">Minutes</span>
                 </motion.div>
               </div>
               <div className="overflow-hidden mt-6">
@@ -217,7 +232,7 @@ export default function HomePage() {
                     y: textAnimation.part3Visible ? 0 : 20,
                   }}
                   transition={{ duration: 0.6 }}
-                  className={cn("text-lg md:text-xl max-w-3xl mx-auto", isDark ? "text-gray-300" : "text-gray-600")}
+                  className="text-lg md:text-xl max-w-3xl mx-auto text-gray-600"
                 >
                   CapMatch&apos;s intelligent platform automates and accelerates every step of your commercial real estate financing.
                 </motion.div>
@@ -232,7 +247,8 @@ export default function HomePage() {
                 <Button
                   variant="primary"
                   size="lg"
-                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 shadow-lg"
+                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8"
+                  style={{ boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
                   onClick={handleScrollToLenderMatching}
                 >
                   Lender Matching
@@ -241,12 +257,8 @@ export default function HomePage() {
                   variant="outline"
                   size="lg"
                   onClick={handleAccessDealRoom}
-                  className={cn(
-                    "rounded-full shadow-md",
-                    isDark 
-                      ? "border-gray-600 !text-blue-400 hover:bg-gray-800 hover:border-gray-500"
-                      : "border-gray-300 !text-blue-600 hover:bg-gray-100 hover:border-gray-400"
-                  )}
+                  className="rounded-full border-gray-300 !text-blue-600 hover:bg-gray-100 hover:border-gray-400 bg-white"
+                  style={{ boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
                 >
                   Access Deal Room
                 </Button>
@@ -258,6 +270,7 @@ export default function HomePage() {
         <section 
           id="lender-matching-section" 
           className={lenderMatchingSectionClasses}
+          style={{ backgroundColor: 'transparent' }}
         >
           <div className="container mx-auto px-4 w-full">
             <motion.div 
@@ -268,11 +281,11 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
             >
               <div className="flex items-center justify-center mb-4">
-                <h2 className={cn("text-4xl md:text-5xl font-bold", isDark ? "text-white" : "text-gray-900")}>
+                <h2 className="text-4xl md:text-5xl font-bold text-gray-900">
                   Lender Matching
                 </h2>
               </div>
-              <p className={cn("text-lg max-w-3xl mx-auto", isDark ? "text-gray-400" : "text-gray-600")}>
+              <p className="text-lg max-w-3xl mx-auto text-gray-600">
                 Select your project criteria below to visualize matching lenders
                 in real-time.
               </p>
@@ -291,10 +304,10 @@ export default function HomePage() {
                 transition={{ duration: 0.6, ease: "easeOut" }}
               >
                 {/* Filter card container */}
-                <div className={cn(
-                  "border rounded-xl p-6 flex-grow flex flex-col transition-colors duration-300",
-                  isDark ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-200"
-                )}>
+                <div 
+                  className="border rounded-xl p-6 flex-grow flex flex-col transition-colors duration-300 bg-white border-gray-200"
+                  style={{ boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}
+                >
                   <div className="flex-grow flex flex-col justify-between space-y-4">
                     <FilterSection
                       formData={filters}
@@ -322,45 +335,42 @@ export default function HomePage() {
                       filterType="debt_ranges"
                     />
                   </div>
-                  <div className={cn("mt-6 pt-6 border-t text-center transition-colors duration-300", isDark ? "border-gray-700" : "border-gray-200")}>
+                  <div className="mt-6 pt-6 border-t text-center transition-colors duration-300 border-gray-200">
                     {allFilterCategoriesSelected && topLenders.length > 0 && (
                       <>
                         <Button
                           variant="primary"
                           rightIcon={<ArrowRight size={16} />}
                           onClick={handleContactLendersClick}
-                          className="shadow-xl bg-green-500 hover:bg-green-600 text-white rounded-full px-8 py-3 text-lg font-medium transition-transform hover:scale-105"
+                          className="shadow-xl text-white rounded-full px-8 py-3 text-lg font-medium transition-transform hover:scale-105"
+                          style={{ backgroundColor: '#10b981' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#059669'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#10b981'}
                         >
                           Contact Your Top {topLenders.length} Lender
                           {topLenders.length > 1 ? "s" : ""}
                         </Button>
-                        <p className={cn("text-xs mt-2", isDark ? "text-gray-500" : "text-gray-500")}>
+                        <p className="text-xs mt-2 text-gray-500">
                           Sign in to connect and share your project.
                         </p>
                       </>
                     )}
                     {allFilterCategoriesSelected && topLenders.length === 0 && (
-                      <div className={cn(
-                        "p-4 border rounded-lg",
-                        isDark ? "bg-amber-900/30 border-amber-700" : "bg-amber-50 border-amber-200"
-                      )}>
-                        <p className={cn("font-medium", isDark ? "text-amber-400" : "text-amber-700")}>
+                      <div className="p-4 border rounded-lg bg-amber-50 border-amber-200">
+                        <p className="font-medium text-amber-700">
                           No exact matches found.
                         </p>
-                        <p className={cn("text-sm", isDark ? "text-amber-500" : "text-amber-600")}>
+                        <p className="text-sm text-amber-600">
                           Try broadening your filters.
                         </p>
                       </div>
                     )}
                     {!allFilterCategoriesSelected && (
-                      <div className={cn(
-                        "p-4 border rounded-lg",
-                        isDark ? "bg-blue-900/30 border-blue-700" : "bg-blue-50 border-blue-200"
-                      )}>
-                        <p className={cn("font-medium", isDark ? "text-blue-300" : "text-blue-700")}>
+                      <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
+                        <p className="font-medium text-blue-700">
                           Select filters in all categories above
                         </p>
-                        <p className={cn("text-sm", isDark ? "text-blue-400" : "text-blue-600")}>
+                        <p className="text-sm text-blue-600">
                           to see matches and connect.
                         </p>
                       </div>
@@ -370,10 +380,7 @@ export default function HomePage() {
               </motion.div>
 
               <motion.div
-                className={cn(
-                  "w-full lg:w-1/2 h-[75vh] min-h-[600px] relative border rounded-xl overflow-hidden transition-colors duration-300",
-                  isDark ? "bg-gray-800/30 border-gray-700" : "bg-gray-100 border-gray-200"
-                )}
+                className="w-full lg:w-1/2 h-[75vh] min-h-[600px] relative overflow-hidden transition-colors duration-300"
                 initial={{ opacity: 0, x: 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: "-100px" }}
