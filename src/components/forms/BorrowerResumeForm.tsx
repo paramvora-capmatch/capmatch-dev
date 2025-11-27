@@ -46,8 +46,10 @@ import {
 import { BorrowerResumeContent } from "../../lib/project-queries";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
 import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
+import { useAutofill } from "@/hooks/useAutofill";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
+import { BorrowerResumeVersionHistory } from "./BorrowerResumeVersionHistory";
 import { BorrowerResumeView } from "./BorrowerResumeView";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -178,6 +180,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     isSaving,
     save,
     isRemoteUpdate,
+    reload: reloadBorrowerResume,
   } = useProjectBorrowerResumeRealtime(projectId);
   // Principals removed from new schema - kept as empty array for form compatibility
   const principals: Principal[] = [];
@@ -216,10 +219,16 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   const [unlockedFields, setUnlockedFields] = useState<Set<string>>(new Set()); // Fields explicitly unlocked even when section is locked
 
   // Autofill state
-  const [isAutofilling, setIsAutofilling] = useState(false);
-  const [showSparkles, setShowSparkles] = useState(false);
+  const { isAutofilling, showSparkles, handleAutofill: startAutofill } = useAutofill(projectId, {
+    context: "borrower",
+  });
   const [showAutofillSuccess, setShowAutofillSuccess] = useState(false);
   const [autofillAnimationKey, setAutofillAnimationKey] = useState(0);
+
+  const handleVersionRollbackSuccess = useCallback(async () => {
+    await reloadBorrowerResume();
+    setIsEditing(false);
+  }, [reloadBorrowerResume, setIsEditing]);
 
   // Helper function to check if a field is locked
   const isFieldLocked = useCallback((fieldId: string, sectionId?: string): boolean => {
@@ -416,45 +425,31 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
   // Handle autofill button click
   const handleAutofill = useCallback(async () => {
-    // Trigger sparkle animation
-    setShowSparkles(true);
-    setIsAutofilling(true);
-    
-    // Simulate processing time (2-3 seconds)
-    await new Promise(resolve => setTimeout(resolve, 2500));
-    
-    // Hide sparkles after animation
-    setTimeout(() => setShowSparkles(false), 500);
-    setIsAutofilling(false);
-    
-    // Trigger success animation in resume view (only if in view mode and expanded)
     const newKey = autofillAnimationKey + 1;
-    
-    if (!isEditing && !collapsed) {
-      // Update both key and state together to prevent double animation
+
+    const showSuccess = () => {
       setAutofillAnimationKey(newKey);
       setShowAutofillSuccess(true);
-      
-      // Auto-hide success animation after animation completes
       setTimeout(() => {
         setShowAutofillSuccess(false);
       }, 4000);
+    };
+
+    if (!isEditing && !collapsed) {
+      showSuccess();
     } else if (!isEditing && collapsed) {
-      // If collapsed, expand it first, then show animation
       setCollapsed(false);
-      // Wait for expand animation, then show success
       setTimeout(() => {
-        setAutofillAnimationKey(newKey);
-        setShowAutofillSuccess(true);
-        setTimeout(() => {
-          setShowAutofillSuccess(false);
-        }, 4000);
-      }, 350); // Wait for collapse animation to complete
+        showSuccess();
+      }, 350);
     }
-    
-    // TODO: Implement actual autofill logic when backend is ready
-    console.log('Autofill Borrower Resume clicked - will extract data from documents');
-  }, [isEditing, collapsed, autofillAnimationKey]);
+
+    try {
+      await startAutofill();
+    } catch (error) {
+      console.error("Borrower autofill failed:", error);
+    }
+  }, [isEditing, collapsed, autofillAnimationKey, startAutofill]);
 
   // Initialize form once on first load (avoid resetting on each store update)
   // Don't reset formData if user is editing (preserves their work in progress)
@@ -1636,8 +1631,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
             disabled={isAutofilling}
             className={cn(
               "group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-hidden",
-              isAutofilling 
-                ? "border-blue-400 bg-blue-50 text-blue-700" 
+              isAutofilling
+                ? "border-blue-400 bg-blue-50 text-blue-700"
                 : "border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 hover:border-blue-400 text-blue-700 hover:text-blue-800 shadow-sm hover:shadow-md"
             )}
           >
@@ -1685,6 +1680,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
               </div>
             )}
           </Button>
+          <BorrowerResumeVersionHistory
+            projectId={projectId}
+            onRollbackSuccess={handleVersionRollbackSuccess}
+          />
           {/* Edit button */}
           <Button
             variant="outline"

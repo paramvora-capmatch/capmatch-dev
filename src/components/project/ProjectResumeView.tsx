@@ -348,6 +348,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
         } catch {}
     }, [collapsed, project?.id]);
 
+  const handleVersionHistoryOpen = useCallback(() => {
+    setCollapsed(false);
+  }, []);
+
     // handleAutofill is now provided by the useAutofill hook
 
     return (
@@ -447,6 +451,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                         onRollbackSuccess={() => {
                           onVersionChange?.();
                         }}
+                      onOpen={handleVersionHistoryOpen}
                       />
                     </div>
                 </div>
