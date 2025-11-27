@@ -278,7 +278,7 @@ export default function LenderGraph({
           ctx.beginPath();
           ctx.moveTo(centerPoint.x, centerPoint.y);
           ctx.lineTo(pos.x, pos.y);
-          ctx.strokeStyle = "rgba(134, 153, 178, 0.3375)";
+          ctx.strokeStyle = pos.color;
           ctx.lineWidth = 0.4 + scoreFromContext * 0.5; 
           ctx.stroke();
 

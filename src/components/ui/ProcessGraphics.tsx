@@ -414,7 +414,9 @@ const AnimatedConnectionLine: React.FC<{
   color: string,
   particleColor?: string,
   delay?: number,
-  numParticles?: number
+  numParticles?: number,
+  startRadius?: number,
+  endRadius?: number,
 }> = ({ 
   startX, 
   startY, 
@@ -423,8 +425,20 @@ const AnimatedConnectionLine: React.FC<{
   color, 
   particleColor, 
   delay = 0,
-  numParticles = 3
+  numParticles = 3,
+  startRadius = 0,
+  endRadius = 0,
 }) => {
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const length = Math.max(Math.hypot(dx, dy), 0.0001);
+  const ux = dx / length;
+  const uy = dy / length;
+  const adjustedStartX = startX + ux * startRadius;
+  const adjustedStartY = startY + uy * startRadius;
+  const adjustedEndX = endX - ux * endRadius;
+  const adjustedEndY = endY - uy * endRadius;
+
   // Create an array of particles with staggered delays
   const particles = Array.from({ length: numParticles }, (_, i) => ({
     id: `p-${startX}-${startY}-${endX}-${endY}-${i}`,
@@ -437,10 +451,10 @@ const AnimatedConnectionLine: React.FC<{
     <>
       {/* The main connection line */}
       <motion.line
-        x1={startX}
-        y1={startY}
-        x2={endX}
-        y2={endY}
+        x1={adjustedStartX}
+        y1={adjustedStartY}
+        x2={adjustedEndX}
+        y2={adjustedEndY}
         stroke={color}
         strokeWidth="1.5"
         strokeOpacity="0.7"
@@ -454,10 +468,10 @@ const AnimatedConnectionLine: React.FC<{
       {particles.map((particle) => (
         <FlowingParticle
           key={particle.id}
-          startX={startX}
-          startY={startY}
-          endX={endX}
-          endY={endY}
+          startX={adjustedStartX}
+          startY={adjustedStartY}
+          endX={adjustedEndX}
+          endY={adjustedEndY}
           color={particleColor || color}
           size={2}
           delay={particle.delay}
@@ -479,20 +493,12 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
-          <radialGradient id="bgGradient" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stopColor="rgba(249, 250, 251, 0.7)" />
-            <stop offset="100%" stopColor="rgba(255, 255, 255, 0.95)" />
-          </radialGradient>
-          
           {/* Glow filter for better visual effects */}
           <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
-        
-        {/* Background with radial gradient */}
-        <rect width="500" height="400" fill="url(#bgGradient)" />
         
         {/* Grid lines for visual interest */}
         <g opacity="0.05">
@@ -599,7 +605,9 @@ const LenderMatchingGraphic: React.FC = () => {
                    COLORS.VERY_LIGHT_GREEN : 
                    COLORS.VERY_LIGHT_BLUE}
             particleColor={node.color}
-            delay={node.delay + 0.2} 
+            delay={node.delay + 0.2}
+            startRadius={30}
+            endRadius={50}
             numParticles={Math.floor(Math.random() * 2) + 2}
           />
         </React.Fragment>
@@ -676,7 +684,9 @@ const ProjectResumeGraphic: React.FC = () => {
                    COLORS.VERY_LIGHT_GREEN : 
                    COLORS.VERY_LIGHT_BLUE}
             particleColor={node.color}
-            delay={node.delay + 0.2} 
+            delay={node.delay + 0.2}
+            startRadius={30}
+            endRadius={50}
             numParticles={Math.floor(Math.random() * 2) + 2}
           />
         </React.Fragment>
@@ -758,7 +768,9 @@ const OfferingMemorandumGraphic: React.FC = () => {
                    COLORS.VERY_LIGHT_GREEN : 
                    COLORS.VERY_LIGHT_BLUE}
             particleColor={node.color}
-            delay={node.delay + 0.2} 
+            delay={node.delay + 0.2}
+            startRadius={30}
+            endRadius={50}
             numParticles={Math.floor(Math.random() * 2) + 2}
           />
         </React.Fragment>
