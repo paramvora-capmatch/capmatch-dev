@@ -4,6 +4,7 @@
 import React, { useRef } from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { Users, FileText, BarChart3, Zap, Search, Eye, Link2, CheckSquare, FileJson, FileSpreadsheet, Database, BrainCircuit, Shuffle } from 'lucide-react';
+import { cn } from '@/utils/cn';
 
 // Enhanced color palette with proper opacity values
 const COLORS = {
@@ -172,7 +173,7 @@ const CentralIcon: React.FC<{
           y={y - size/2}
           width={size}
           height={size}
-          style={{ color: COLORS.WHITE }}
+          className="process-graphic-icon"
         >
           <div className="w-full h-full flex items-center justify-center">
             <Icon size={size * 0.6} />
@@ -180,14 +181,14 @@ const CentralIcon: React.FC<{
         </foreignObject>
       </motion.g>
       
-      {/* Label */}
+      {/* Label - will be styled via CSS class */}
       {label && (
         <motion.text
           x={x}
           y={y + size + 20}
           textAnchor="middle"
           fontSize="14"
-          fill={COLORS.SOFT_WHITE}
+          className="process-graphic-label"
           fontWeight="600"
           variants={labelVariants}
           custom={delay + 0.5}
@@ -266,7 +267,7 @@ const NodeIcon: React.FC<{
           y={y - size/2}
           width={size}
           height={size}
-          style={{ color: COLORS.WHITE }}
+          className="process-graphic-icon"
         >
           <div className="w-full h-full flex items-center justify-center">
             <Icon size={size * 0.6} />
@@ -274,14 +275,14 @@ const NodeIcon: React.FC<{
         </foreignObject>
       </motion.g>
       
-      {/* Label */}
+      {/* Label - will be styled via CSS class */}
       {label && (
         <motion.text
           x={x}
           y={y + size + 15}
           textAnchor="middle"
           fontSize="12"
-          fill={COLORS.SOFT_WHITE}
+          className="process-graphic-label"
           fontWeight="500"
           variants={labelVariants}
           custom={delay + 0.4}
@@ -479,8 +480,8 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
       >
         <defs>
           <radialGradient id="bgGradient" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stopColor={COLORS.BG_GRADIENT_START} />
-            <stop offset="100%" stopColor={COLORS.BG_GRADIENT_END} />
+            <stop offset="0%" stopColor="rgba(249, 250, 251, 0.7)" />
+            <stop offset="100%" stopColor="rgba(255, 255, 255, 0.95)" />
           </radialGradient>
           
           {/* Glow filter for better visual effects */}
@@ -494,7 +495,7 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
         <rect width="500" height="400" fill="url(#bgGradient)" />
         
         {/* Grid lines for visual interest */}
-        <g opacity="0.1">
+        <g opacity="0.05">
           {Array.from({ length: 20 }).map((_, i) => (
             <line 
               key={`grid-h-${i}`} 
@@ -502,7 +503,7 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
               y1={i * 20} 
               x2="500" 
               y2={i * 20} 
-              stroke={COLORS.GRID_LINE} 
+              stroke="rgba(156, 163, 175, 0.15)" 
               strokeWidth="1" 
             />
           ))}
@@ -513,7 +514,7 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
               y1="0" 
               x2={i * 20} 
               y2="400" 
-              stroke={COLORS.GRID_LINE} 
+              stroke="rgba(156, 163, 175, 0.15)" 
               strokeWidth="1" 
             />
           ))}

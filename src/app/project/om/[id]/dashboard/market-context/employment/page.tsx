@@ -144,7 +144,7 @@ export default function EmploymentPage() {
                 {majorEmployers.map((employer, index) => {
                   const employees = employer.employees ?? 0;
                   return (
-                  <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
+                    <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-4 px-4">
                       <div>
                         <p className="font-medium text-gray-800">{employer.name ?? null}</p>
@@ -182,7 +182,8 @@ export default function EmploymentPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -202,7 +203,7 @@ export default function EmploymentPage() {
                 const employeeTotal = totalEmployees || 1;
                 const widthPercent = (employees / employeeTotal) * 100;
                 return (
-                <div key={index} className="space-y-2">
+                  <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">{employer.name}</span>
                     <span className="text-sm text-gray-500">{employer.employees.toLocaleString()}</span>
@@ -214,7 +215,8 @@ export default function EmploymentPage() {
                     />
                   </div>
                 </div>
-              ))}
+                );
+              })}
               
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex justify-between items-center">

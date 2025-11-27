@@ -66,46 +66,75 @@ export default function OMDashboardPage() {
 
 	// Extract values from OM data
 	const content = omData.content || {};
+	const scenarioDataAll = content.scenarioData || {};
+	const marketContextDetails = content.marketContextDetails || {};
+	const supplyAnalysis = marketContextDetails.supplyAnalysis || {};
+
+	// "Real" flat OM structure - these are the field IDs created by autofill
 	const loanAmount = getOMValue(content, "loanAmountRequested") || 0;
 	const ltv = getOMValue(content, "ltv") || 0;
 	const totalUnits = getOMValue(content, "totalResidentialUnits") || 0;
 	const grossBuildingArea = getOMValue(content, "grossBuildingArea") || 0;
 	const parkingRatio = getOMValue(content, "parkingRatio") || 0;
-	const affordableUnits = getOMValue(content, "affordableUnitsNumber") || 0;
-	const irr = getOMValue(content, "irr") || 0; // This might not exist, will need to calculate or get from scenarios
-	const equityMultiple = getOMValue(content, "equityMultiple") || 0; // Same
+	const affordableUnits =
+		getOMValue(content, "affordableUnitsNumber") || 0;
+	const popGrowth201020 =
+		getOMValue(content, "popGrowth201020") || 0;
+	const projGrowth202429 =
+		getOMValue(content, "projGrowth202429") || 0;
 
-	// For now, use mock data for scenarios until we have scenario data in OM
-	// TODO: Add scenario data to OM table
+	// Scenario-specific metrics
+	const activeScenarioData =
+		(scenarioDataAll[scenario] as any) ||
+		(scenarioDataAll.base as any) || {
+			ltv: 0,
+			irr: 0,
+			equityMultiple: 0,
+			loanAmount,
+		};
+
+	const data = {
+		loanAmount: activeScenarioData.loanAmount ?? loanAmount,
+		ltv: activeScenarioData.ltv ?? ltv,
+		irr: activeScenarioData.irr ?? 0,
+		equityMultiple: activeScenarioData.equityMultiple ?? 0,
+	};
+
+	// Normalized scenario set for UI (used in "Returns by Scenario" cards)
 	const scenarioData = {
 		downside: {
-			irr: "12.5",
-			equityMultiple: "1.8x",
-			loanAmount: loanAmount,
-			ltv: ltv,
+			irr: scenarioDataAll.downside?.irr ?? data.irr,
+			equityMultiple:
+				scenarioDataAll.downside?.equityMultiple ?? data.equityMultiple,
+			loanAmount: scenarioDataAll.downside?.loanAmount ?? data.loanAmount,
+			ltv: scenarioDataAll.downside?.ltv ?? data.ltv,
 		},
 		base: {
-			irr: "18.5",
-			equityMultiple: "2.1x",
-			loanAmount: loanAmount,
-			ltv: ltv,
+			irr: scenarioDataAll.base?.irr ?? data.irr,
+			equityMultiple:
+				scenarioDataAll.base?.equityMultiple ?? data.equityMultiple,
+			loanAmount: scenarioDataAll.base?.loanAmount ?? data.loanAmount,
+			ltv: scenarioDataAll.base?.ltv ?? data.ltv,
 		},
 		upside: {
-			irr: "24.2",
-			equityMultiple: "2.5x",
-			loanAmount: loanAmount,
-			ltv: ltv,
+			irr: scenarioDataAll.upside?.irr ?? data.irr,
+			equityMultiple:
+				scenarioDataAll.upside?.equityMultiple ?? data.equityMultiple,
+			loanAmount: scenarioDataAll.upside?.loanAmount ?? data.loanAmount,
+			ltv: scenarioDataAll.upside?.ltv ?? data.ltv,
 		},
-	};
-	const data = scenarioData[scenario];
+	} as const;
 
-	// Mock timeline data for now - TODO: extract from OM
-	const timelineData = [
-		{ phase: "Land Acquisition", status: "completed" },
-		{ phase: "Entitlements", status: "completed" },
-		{ phase: "Construction", status: "current" },
-		{ phase: "Stabilization", status: "pending" },
-	];
+	// Timeline preview – use milestones from dealSnapshotDetails if available, otherwise fallback
+	const dealSnapshotDetails = content.dealSnapshotDetails || {};
+	const timelineData =
+		(dealSnapshotDetails.milestones as { phase: string; status: string }[]) ??
+		[
+			{ phase: "Land Acquisition", status: "completed" },
+			{ phase: "Entitlements", status: "completed" },
+			{ phase: "Construction", status: "current" },
+			{ phase: "Stabilization", status: "pending" },
+		];
 	const quadrants = [
 		{
 			id: "deal-snapshot",
@@ -181,7 +210,11 @@ export default function OMDashboardPage() {
 						<MetricCard label="Total Units" value={totalUnits} />
 						<MetricCard
 							label="Gross Building Area"
-							value={`${grossBuildingArea.toLocaleString()} SF`}
+							value={
+								grossBuildingArea
+									? `${grossBuildingArea.toLocaleString()} SF`
+									: null
+							}
 						/>
 					</div>
 					<div className="mt-3">
@@ -193,7 +226,7 @@ export default function OMDashboardPage() {
 							<div className="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded hover:bg-gray-100 transition-colors duration-200">
 								<div className="text-center">
 									<div className="text-xl font-bold text-green-600">
-										{parkingRatio.toFixed(2)}x
+										{parkingRatio ? `${parkingRatio.toFixed(2)}x` : "-"}
 									</div>
 									<div className="text-xs text-gray-500">
 										Parking Ratio
@@ -201,7 +234,7 @@ export default function OMDashboardPage() {
 								</div>
 								<div className="text-center">
 									<div className="text-xl font-bold text-blue-600">
-										{affordableUnits}
+										{affordableUnits || "-"}
 									</div>
 									<div className="text-xs text-gray-500">
 										Workforce Units
@@ -225,13 +258,13 @@ export default function OMDashboardPage() {
 					<div className="grid grid-cols-2 gap-3">
 						<MetricCard
 							label="Population Growth"
-							value={getOMValue(content, "popGrowth201020") || 0}
+							value={popGrowth201020 || 0}
 							format="percent"
 							change={0.4}
 						/>
 						<MetricCard
 							label="Job Growth"
-							value={getOMValue(content, "projGrowth202429") || 0}
+							value={projGrowth202429 || 0}
 							format="percent"
 							change={0.6}
 						/>
@@ -249,13 +282,21 @@ export default function OMDashboardPage() {
 							<div className="grid grid-cols-2 gap-2">
 								<div className="text-sm">
 									<span className="text-gray-500">U/C:</span>
-									<span className="font-medium ml-1">-</span>
+									<span className="font-medium ml-1">
+										{typeof supplyAnalysis.underConstruction === "number"
+											? supplyAnalysis.underConstruction.toLocaleString()
+											: "-"}
+									</span>
 								</div>
 								<div className="text-sm">
 									<span className="text-gray-500">
 										Pipeline:
 									</span>
-									<span className="font-medium ml-1">-</span>
+									<span className="font-medium ml-1">
+										{typeof supplyAnalysis.planned24Months === "number"
+											? supplyAnalysis.planned24Months.toLocaleString()
+											: "-"}
+									</span>
 								</div>
 							</div>
 						</div>
@@ -280,7 +321,13 @@ export default function OMDashboardPage() {
 						/>
 						<MetricCard
 							label="Equity Multiple"
-							value={`${data.equityMultiple}x`}
+							value={
+								data.equityMultiple
+									? `${data.equityMultiple.toFixed
+											? data.equityMultiple.toFixed(2)
+											: data.equityMultiple}x`
+									: null
+							}
 						/>
 					</div>
 					<div className="mt-3">

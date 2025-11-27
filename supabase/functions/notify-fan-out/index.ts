@@ -232,7 +232,7 @@ async function handleChatMessage(
           const { error } = await supabaseAdmin.from("notifications").insert({
               user_id: userId,
               event_id: event.id,
-              title: `${senderName} mentioned you in ${threadDescriptor}`,
+              title: `${senderName} mentioned you in ${threadLabel} - ${projectName}`,
               body: fullContent,
               link_url: `/project/workspace/${projectId}?tab=chat&thread=${event.thread_id}`,
               payload: { ...threadPayloadBase, type: "mention" },

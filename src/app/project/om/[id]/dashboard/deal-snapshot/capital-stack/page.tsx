@@ -186,7 +186,6 @@ export default function CapitalStackPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-3">
               <div className="p-3 bg-blue-50 rounded-lg">
                 <p className="text-sm text-gray-600">Loan Type</p>
