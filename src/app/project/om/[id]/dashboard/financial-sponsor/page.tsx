@@ -59,7 +59,7 @@ export default function FinancialSponsorPage() {
                     <div className="space-y-2">
                         <p className="text-xs text-gray-500 uppercase tracking-wider">Sources</p>
                         <div className="space-y-1">
-                            {sources.slice(0, 2).map((source) => (
+                            {sources.slice(0, 2).map((source: { type?: string | null; amount?: number | null }) => (
                                 <div key={source.type} className="flex justify-between text-sm">
                                     <span>{source.type}</span>
                                     <span className="font-medium">
@@ -72,7 +72,7 @@ export default function FinancialSponsorPage() {
                     <div className="space-y-2 pt-2 border-t">
                         <p className="text-xs text-gray-500 uppercase tracking-wider">Uses</p>
                         <div className="space-y-1">
-                            {uses.slice(0, 3).map((use) => (
+                            {uses.slice(0, 3).map((use: { type?: string | null; amount?: number | null }) => (
                                 <div key={use.type} className="flex justify-between text-sm">
                                     <span>{use.type}</span>
                                     <span className="font-medium">
@@ -135,7 +135,7 @@ export default function FinancialSponsorPage() {
                     <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2">Recent Performance</p>
                         <div className="space-y-2">
-                            {sponsorDeals.slice(0, 3).map((deal, idx) => (
+                            {sponsorDeals.slice(0, 3).map((deal: { project?: string | null; irr?: number | null }, idx: number) => (
                                 <div key={deal.project ?? idx} className="flex justify-between items-center text-xs">
                                     <span className="truncate flex-1">{deal.project ?? null}</span>
                                     <span className="font-medium text-green-600 ml-2">

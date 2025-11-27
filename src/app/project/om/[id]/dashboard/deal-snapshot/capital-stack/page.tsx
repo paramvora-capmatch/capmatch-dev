@@ -37,12 +37,12 @@ export default function CapitalStackPage() {
 
   if (!project) return <div>Project not found</div>;
 
-  const sourcesChartData = sources.map((source) => ({
+  const sourcesChartData = sources.map((source: { type?: string | null; percentage?: number | null }) => ({
     name: source.type ?? null,
     value: source.percentage ?? 0,
   }));
 
-  const usesChartData = uses.map((use) => ({
+  const usesChartData = uses.map((use: { type?: string | null; percentage?: number | null }) => ({
     name: use.type ?? null,
     value: use.percentage ?? 0,
   }));
@@ -105,7 +105,7 @@ export default function CapitalStackPage() {
           </div>
 
           <div className="space-y-3">
-            {sources.map((source, idx) => (
+            {sources.map((source: { type?: string | null; rate?: string | null; contribution?: string | null; amount?: number | null; percentage?: number | null }, idx: number) => (
               <div
                 key={idx}
                 className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
@@ -154,7 +154,7 @@ export default function CapitalStackPage() {
           </div>
 
           <div className="space-y-3">
-            {uses.map((use, idx) => (
+            {uses.map((use: { type?: string | null; timing?: string | null; amount?: number | null; percentage?: number | null }, idx: number) => (
               <div
                 key={idx}
                 className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"

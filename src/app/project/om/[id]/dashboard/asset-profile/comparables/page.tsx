@@ -17,11 +17,11 @@ export default function ComparablesPage() {
     return Number.isNaN(parsed) ? null : parsed;
   };
 
-  const average = (items: typeof comparableDetails, accessor: (item: any) => number | null) => {
+  const average = (items: typeof comparableDetails, accessor: (item: typeof comparableDetails[number]) => number | null) => {
     if (!items.length) return null;
-    const values = items.map(accessor).filter((value): value is number => value != null);
+    const values = items.map(accessor).filter((value: number | null): value is number => value != null);
     if (!values.length) return null;
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
+    return values.reduce((sum: number, value: number) => sum + value, 0) / values.length;
   };
 
   const avgRentPSF = average(comparableDetails, (comp) => parseNumeric(comp.avgRent));
@@ -144,7 +144,7 @@ export default function ComparablesPage() {
                 </tr>
               </thead>
               <tbody>
-                {comparableDetails.map((comp, index) => (
+                {comparableDetails.map((comp: typeof comparableDetails[number], index: number) => (
                   <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-4 px-4">
                       <div>
@@ -196,7 +196,7 @@ export default function ComparablesPage() {
               <div>
                 <h4 className="font-semibold text-gray-800 mb-3">Rent per Square Foot Comparison</h4>
                 <div className="space-y-3">
-                  {comparableDetails.map((comp, index) => {
+                  {comparableDetails.map((comp: typeof comparableDetails[number], index: number) => {
                     const rentPSF = parseNumeric(comp.avgRent);
                     const isAboveAvg =
                       avgRentPSF != null && rentPSF != null
@@ -238,7 +238,7 @@ export default function ComparablesPage() {
               <div>
                 <h4 className="font-semibold text-gray-800 mb-3">Cap Rate Analysis</h4>
                 <div className="space-y-3">
-                  {comparableDetails.map((comp, index) => {
+                  {comparableDetails.map((comp: typeof comparableDetails[number], index: number) => {
                     const capRate = parseNumeric(comp.lastSale?.capRate);
                     const isBelowAvg =
                       avgCapRate != null && capRate != null

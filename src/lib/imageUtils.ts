@@ -108,10 +108,10 @@ export async function loadProjectImages(
             });
 
           const images = (await Promise.all(imagePromises)).filter(
-            (img): img is ImageData => img !== null
+            (img): img is NonNullable<typeof img> => img !== null
           );
 
-          allImages.push(...images);
+          allImages.push(...(images as ImageData[]));
         }
       } catch (err) {
         console.error(`Error loading images from ${folder.path}:`, err);
@@ -188,10 +188,10 @@ export async function loadProjectImages(
                   });
 
                 const images = (await Promise.all(imagePromises)).filter(
-                  (img): img is ImageData => img !== null
+                  (img): img is NonNullable<typeof img> => img !== null
                 );
 
-                allImages.push(...images);
+                allImages.push(...(images as ImageData[]));
               }
             } catch (err) {
               console.error(`Error loading images from ${basePath}/${category}:`, err);

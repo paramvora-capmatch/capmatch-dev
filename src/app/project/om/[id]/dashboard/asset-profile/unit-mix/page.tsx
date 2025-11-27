@@ -6,28 +6,35 @@ import { Home, DollarSign, Users } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 
+type UnitMixUnit = {
+  count?: number | null;
+  avgSF?: number | null;
+  rentRange?: string | null;
+  deposit?: string | null;
+};
+
 export default function UnitMixPage() {
   const { content } = useOmContent();
   const assetProfileDetails = content?.assetProfileDetails ?? null;
   const unitMixDetails = assetProfileDetails?.unitMixDetails ?? {};
-  const unitEntries = Object.entries(unitMixDetails);
+  const unitEntries = Object.entries(unitMixDetails) as [string, UnitMixUnit][];
   const totalUnits = unitEntries.reduce(
-    (sum, [, unit]) => sum + (unit.count ?? 0),
+    (sum: number, [, unit]: [string, UnitMixUnit]) => sum + (unit.count ?? 0),
     0
   );
 
   const totalRentableSF = unitEntries.reduce(
-    (sum, [, unit]) => sum + ((unit.count ?? 0) * (unit.avgSF ?? 0)),
+    (sum: number, [, unit]: [string, UnitMixUnit]) => sum + ((unit.count ?? 0) * (unit.avgSF ?? 0)),
     0
   );
 
   const blendedAverageRent =
     totalUnits > 0
-      ? unitEntries.reduce((sum, [, unit]) => {
+      ? unitEntries.reduce((sum: number, [, unit]: [string, UnitMixUnit]) => {
           const rentRange = unit.rentRange ?? "0";
           const [low, high] = rentRange
             .split("-")
-            .map((r) => parseFloat(r.replace(/[^\d.]/g, "")) || 0);
+            .map((r: string) => parseFloat(r.replace(/[^\d.]/g, "")) || 0);
           const avg = (low + high) / 2;
           return sum + avg * (unit.count ?? 0);
         }, 0) / totalUnits
@@ -78,7 +85,7 @@ export default function UnitMixPage() {
   const detailedUnitMix = assetProfileDetails?.detailedUnitMix ?? [];
   const pieSegments =
     totalUnits > 0
-      ? unitEntries.map(([type, unit]) => {
+      ? unitEntries.map(([type, unit]: [string, UnitMixUnit]) => {
           const segment = calculatePieChartSegment(unit.count ?? 0, totalUnits, currentAngle);
           currentAngle += ((unit.count ?? 0) / totalUnits) * 360;
           return { type, unit, ...segment };
@@ -159,7 +166,7 @@ export default function UnitMixPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-            {unitEntries.map(([type, unit]) => (
+            {unitEntries.map(([type, unit]: [string, UnitMixUnit]) => (
                 <div key={type} className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-semibold text-gray-800">{getUnitTypeLabel(type)}</h4>
@@ -170,7 +177,7 @@ export default function UnitMixPage() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-500">Average SF</p>
-                      <p className="font-medium text-gray-800">{unit.avgSF.toLocaleString()} SF</p>
+                      <p className="font-medium text-gray-800">{(unit.avgSF ?? 0).toLocaleString()} SF</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Rent Range</p>
@@ -227,7 +234,7 @@ export default function UnitMixPage() {
                   </div>
                   <div className="text-right">
                     <span className="text-sm font-semibold text-gray-800">{segment.percentage}%</span>
-                    <span className="text-xs text-gray-500 ml-1">({segment.unit.count} units)</span>
+                    <span className="text-xs text-gray-500 ml-1">({(segment.unit as UnitMixUnit).count} units)</span>
                   </div>
                 </div>
               ))}
@@ -246,9 +253,9 @@ export default function UnitMixPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Rent per Square Foot</h4>
               <div className="space-y-2">
-                {unitEntries.map(([type, unit]) => {
-                  const avgRent = unit.rentRange.split('-').map(r => parseFloat(r.replace(/[^\d]/g, ''))).reduce((a, b) => a + b) / 2;
-                  const rentPSF = avgRent / unit.avgSF;
+                {unitEntries.map(([type, unit]: [string, UnitMixUnit]) => {
+                  const avgRent = (unit.rentRange ?? '0').split('-').map((r: string) => parseFloat(r.replace(/[^\d]/g, ''))).reduce((a: number, b: number) => a + b, 0) / 2;
+                  const rentPSF = avgRent / (unit.avgSF ?? 1);
                   return (
                     <div key={type} className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">{getUnitTypeLabel(type)}</span>
@@ -262,7 +269,7 @@ export default function UnitMixPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Deposit Requirements</h4>
               <div className="space-y-2">
-                {unitEntries.map(([type, unit]) => (
+                {unitEntries.map(([type, unit]: [string, UnitMixUnit]) => (
                   <div key={type} className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">{getUnitTypeLabel(type)}</span>
                     <Badge variant="outline" className="border-gray-200">{unit.deposit}</Badge>
@@ -310,12 +317,12 @@ export default function UnitMixPage() {
                 </tr>
               </thead>
               <tbody>
-                {detailedUnitMix.map((plan) => (
+                {detailedUnitMix.map((plan: { code?: string | null; type?: string | null; units?: number | null; avgSF?: number | null }) => (
                   <tr key={plan.code} className="border-b border-gray-50">
                     <td className="py-3 px-2 font-medium text-gray-800">{plan.code}</td>
                     <td className="py-3 px-2 text-gray-600">{plan.type}</td>
                     <td className="py-3 px-2 text-gray-600">{plan.units}</td>
-                    <td className="py-3 px-2 text-gray-600">{plan.avgSF.toLocaleString()} SF</td>
+                    <td className="py-3 px-2 text-gray-600">{(plan.avgSF ?? 0).toLocaleString()} SF</td>
                   </tr>
                 ))}
               </tbody>
