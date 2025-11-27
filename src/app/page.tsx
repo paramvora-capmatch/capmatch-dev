@@ -206,7 +206,7 @@ export default function HomePage() {
                     y: textAnimation.part1Visible ? 0 : 20,
                   }}
                   transition={{ duration: 0.6 }}
-                  className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-gray-900"
+                  className="text-5xl md:text-6xl lg:text-7xl leading-tight text-gray-900"
                 >
                   CRE Funding
                 </motion.div>
@@ -219,7 +219,7 @@ export default function HomePage() {
                     y: textAnimation.part2Visible ? 0 : 20,
                   }}
                   transition={{ duration: 0.6 }}
-                  className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-gray-900"
+                  className="text-5xl md:text-6xl lg:text-7xl leading-tight text-gray-900"
                 >
                   From <span className="text-blue-500">Months</span> to <span className="text-blue-500">Minutes</span>
                 </motion.div>
