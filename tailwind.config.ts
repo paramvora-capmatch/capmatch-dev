@@ -19,7 +19,7 @@ module.exports = {
       },
       extend: {
         fontFamily: {
-          sans: ['var(--font-sans)', 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+          sans: ['TASA Orbiter', 'var(--font-sans)', 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
         },
         colors: {
           primary: { // Define primary color

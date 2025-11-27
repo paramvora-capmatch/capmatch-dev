@@ -4,7 +4,6 @@
 import React, { useRef } from 'react';
 import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { Users, FileText, BarChart3, Zap, Search, Eye, Link2, CheckSquare, FileJson, FileSpreadsheet, Database, BrainCircuit, Shuffle } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/utils/cn';
 
 // Enhanced color palette with proper opacity values
@@ -472,9 +471,6 @@ const AnimatedConnectionLine: React.FC<{
 
 // Enhanced container with better sizing and backdrop
 const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  
   return (
     <div className="w-full h-full flex items-center justify-center overflow-hidden">
       <svg 
@@ -484,8 +480,8 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
       >
         <defs>
           <radialGradient id="bgGradient" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stopColor={isDark ? COLORS.BG_GRADIENT_START : "rgba(249, 250, 251, 0.7)"} />
-            <stop offset="100%" stopColor={isDark ? COLORS.BG_GRADIENT_END : "rgba(255, 255, 255, 0.95)"} />
+            <stop offset="0%" stopColor="rgba(249, 250, 251, 0.7)" />
+            <stop offset="100%" stopColor="rgba(255, 255, 255, 0.95)" />
           </radialGradient>
           
           {/* Glow filter for better visual effects */}
@@ -498,8 +494,8 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
         {/* Background with radial gradient */}
         <rect width="500" height="400" fill="url(#bgGradient)" />
         
-        {/* Grid lines for visual interest - theme-aware */}
-        <g opacity={isDark ? "0.1" : "0.05"}>
+        {/* Grid lines for visual interest */}
+        <g opacity="0.05">
           {Array.from({ length: 20 }).map((_, i) => (
             <line 
               key={`grid-h-${i}`} 
@@ -507,7 +503,7 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
               y1={i * 20} 
               x2="500" 
               y2={i * 20} 
-              stroke={isDark ? COLORS.GRID_LINE : "rgba(156, 163, 175, 0.15)"} 
+              stroke="rgba(156, 163, 175, 0.15)" 
               strokeWidth="1" 
             />
           ))}
@@ -518,7 +514,7 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
               y1="0" 
               x2={i * 20} 
               y2="400" 
-              stroke={isDark ? COLORS.GRID_LINE : "rgba(156, 163, 175, 0.15)"} 
+              stroke="rgba(156, 163, 175, 0.15)" 
               strokeWidth="1" 
             />
           ))}
