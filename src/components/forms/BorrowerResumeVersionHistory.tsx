@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  MouseEvent,
+} from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
@@ -11,16 +18,20 @@ import {
   GitCompare,
   Loader2,
 } from "lucide-react";
-import { formatDate, flattenResumeContent, getFieldLabel, stringifyValue } from "../shared/resumeVersionUtils";
+import {
+  formatDate,
+  flattenResumeContent,
+  getFieldLabel,
+  stringifyValue,
+} from "../shared/resumeVersionUtils";
 
-interface ResumeVersionHistoryProps {
+interface BorrowerVersionHistoryProps {
   projectId: string;
-  resourceId?: string | null;
   onRollbackSuccess?: () => void;
   onOpen?: () => void;
 }
 
-interface ResumeVersionRow {
+interface BorrowerVersionRow {
   id: string;
   version_number: number | null;
   created_at: string;
@@ -29,24 +40,16 @@ interface ResumeVersionRow {
   creatorDisplayName: string;
 }
 
-interface CreatorProfile {
-  id: string;
-  full_name?: string | null;
-  email?: string | null;
-}
+const flattenRows = (rows: BorrowerVersionRow[]) => rows;
 
-export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
+export const BorrowerResumeVersionHistory: React.FC<BorrowerVersionHistoryProps> = ({
   projectId,
-  resourceId,
   onRollbackSuccess,
   onOpen,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [versions, setVersions] = useState<ResumeVersionRow[]>([]);
-  const [resource, setResource] = useState<{
-    id: string;
-    current_version_id: string | null;
-  } | null>(null);
+  const [versions, setVersions] = useState<BorrowerVersionRow[]>([]);
+  const [resource, setResource] = useState<{ id: string; current_version_id: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmRollback, setConfirmRollback] = useState<string | null>(null);
@@ -63,51 +66,26 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
     setError(null);
 
     try {
-      let resolvedResourceId = resourceId;
-      let currentVersionPointer: string | null = null;
-
-      if (resolvedResourceId) {
-        const { data, error: fetchError } = await supabase
-          .from("resources")
-          .select("id, current_version_id")
-          .eq("id", resolvedResourceId)
-          .single();
-        if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
-        if (data) {
-          currentVersionPointer = data.current_version_id;
-          resolvedResourceId = data.id;
-        }
-      } else {
-        const { data, error: fetchError } = await supabase
-          .from("resources")
-          .select("id, current_version_id")
-          .eq("project_id", projectId)
-          .eq("resource_type", "PROJECT_RESUME")
-          .maybeSingle();
-        if (fetchError) throw fetchError;
-        if (data) {
-          resolvedResourceId = data.id;
-          currentVersionPointer = data.current_version_id;
-        }
-      }
-
-      if (!resolvedResourceId) {
-        throw new Error("Project resume resource not found.");
-      }
+      const { data: resourceData, error: resourceError } = await supabase
+        .from("resources")
+        .select("id, current_version_id")
+        .eq("project_id", projectId)
+        .eq("resource_type", "BORROWER_RESUME")
+        .maybeSingle();
+      if (resourceError) throw resourceError;
+      if (!resourceData) throw new Error("Borrower resume resource not found.");
 
       const { data: versionRows, error: versionsError } = await supabase
-        .from("project_resumes")
+        .from("borrower_resumes")
         .select("id, version_number, created_at, created_by, status")
         .eq("project_id", projectId)
         .order("version_number", { ascending: false });
-
       if (versionsError) throw versionsError;
 
       const creatorIds = Array.from(
         new Set((versionRows ?? []).map((v) => v.created_by).filter(Boolean))
       );
-
-      let creatorProfiles: CreatorProfile[] = [];
+      let creatorProfiles: { id: string; full_name?: string | null; email?: string | null }[] = [];
       if (creatorIds.length > 0) {
         const { data: profiles, error: profileError } = await supabase
           .from("profiles")
@@ -117,9 +95,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
         creatorProfiles = profiles || [];
       }
 
-      const creatorMap = new Map(
-        creatorProfiles.map((profile) => [profile.id, profile])
-      );
+      const creatorMap = new Map(creatorProfiles.map((profile) => [profile.id, profile]));
 
       const decorated = (versionRows ?? []).map((version) => ({
         ...version,
@@ -130,18 +106,17 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
       }));
 
       setResource({
-        id: resolvedResourceId,
-        current_version_id: currentVersionPointer,
+        id: resourceData.id,
+        current_version_id: resourceData.current_version_id,
       });
       setVersions(decorated);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to load resume versions";
+      const message = err instanceof Error ? err.message : "Failed to load borrower versions";
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, resourceId]);
+  }, [projectId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -151,10 +126,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setConfirmRollback(null);
       }
@@ -171,7 +143,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
   const handleRollback = useCallback(
     async (versionId: string) => {
       if (!resource?.id) {
-        setError("Cannot rollback without a resume resource.");
+        setError("Cannot rollback without a borrower resume resource.");
         return;
       }
 
@@ -179,7 +151,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
       setError(null);
       try {
         const { error: rollbackError } = await supabase.rpc(
-          "rollback_project_resume_version",
+          "rollback_borrower_resume_version",
           {
             p_resource_id: resource.id,
             p_resume_id: versionId,
@@ -191,8 +163,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
         await fetchVersions();
         onRollbackSuccess?.();
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to rollback version";
+        const message = err instanceof Error ? err.message : "Failed to rollback version";
         setError(message);
       } finally {
         setIsRollingBack(false);
@@ -202,10 +173,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
   );
 
   const currentVersionLabel = useMemo(
-    () =>
-      currentVersion?.version_number
-        ? `v${currentVersion.version_number}`
-        : "Current version",
+    () => (currentVersion?.version_number ? `v${currentVersion.version_number}` : "Current version"),
     [currentVersion]
   );
 
@@ -228,7 +196,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
         onMouseDown={(event) => {
           event.stopPropagation();
         }}
-        title="Resume versions"
+        title="Borrower resume versions"
       >
         <History className="h-4 w-4" />
         Versions
@@ -238,12 +206,8 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
         <div className="absolute right-0 mt-2 w-[320px] bg-white border border-gray-200 rounded-lg shadow-lg z-40">
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-900">
-                Version History
-              </h3>
-              <span className="text-xs text-gray-500">
-                {currentVersionLabel}
-              </span>
+              <h3 className="text-sm font-semibold text-gray-900">Version History</h3>
+              <span className="text-xs text-gray-500">{currentVersionLabel}</span>
             </div>
 
             {error && (
@@ -259,34 +223,24 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
             ) : (
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {versions.length === 0 ? (
-                  <div className="text-xs text-gray-500">
-                    No versions found yet
-                  </div>
+                  <div className="text-xs text-gray-500">No versions found yet</div>
                 ) : (
                   versions.map((version) => {
-                    const isActive =
-                      version.id === (resource?.current_version_id ?? null);
-                    const status =
-                      version.status || (isActive ? "active" : "superseded");
+                    const isActive = version.id === resource?.current_version_id;
+                    const status = version.status || (isActive ? "active" : "superseded");
                     return (
                       <div
                         key={version.id}
                         className={`p-3 rounded border ${
-                          isActive
-                            ? "border-blue-200 bg-blue-50"
-                            : "border-gray-200 bg-gray-50"
+                          isActive ? "border-blue-200 bg-blue-50" : "border-gray-200 bg-gray-50"
                         }`}
                       >
                         {confirmRollback === version.id ? (
                           <div className="space-y-2 text-center">
                             <p className="text-sm font-medium text-gray-900">
-                              Rollback to v
-                              {version.version_number ?? version.id.slice(0, 4)}
-                              ?
+                              Rollback to v{version.version_number ?? version.id.slice(0, 4)}?
                             </p>
-                            <p className="text-xs text-gray-600">
-                              {formatDate(version.created_at)}
-                            </p>
+                            <p className="text-xs text-gray-600">{formatDate(version.created_at)}</p>
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
@@ -331,9 +285,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
                               <p className="text-xs text-gray-600 mt-1">
                                 {formatDate(version.created_at)}
                               </p>
-                              <p className="text-xs text-gray-500">
-                                {version.creatorDisplayName}
-                              </p>
+                              <p className="text-xs text-gray-500">{version.creatorDisplayName}</p>
                             </div>
 
                             <div className="flex gap-1">
@@ -353,19 +305,16 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
                               )}
                               {currentVersionId &&
                                 version.id !== currentVersionId && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    setComparePair([
-                                      version.id,
-                                      currentVersionId,
-                                    ]);
-                                    onOpen?.();
-                                  }}
-                                  title={`Compare to ${currentVersionLabel}`}
-                                >
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      setComparePair([version.id, currentVersionId]);
+                                      onOpen?.();
+                                    }}
+                                    title={`Compare to ${currentVersionLabel}`}
+                                  >
                                     <GitCompare className="h-4 w-4 mr-1" />
                                     Compare
                                   </Button>
@@ -383,26 +332,26 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
         </div>
       )}
 
-      {comparePair && (
-        <ResumeVersionDiffModal
+      {comparePair ? (
+        <BorrowerResumeVersionDiffModal
           isOpen={!!comparePair}
           versionIdA={comparePair[0]}
           versionIdB={comparePair[1]}
           onClose={() => setComparePair(null)}
         />
-      )}
+      ) : null}
     </div>
   );
 };
 
-interface ResumeVersionDiffModalProps {
+interface BorrowerResumeVersionDiffModalProps {
   versionIdA: string;
   versionIdB: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
+const BorrowerResumeVersionDiffModal: React.FC<BorrowerResumeVersionDiffModalProps> = ({
   versionIdA,
   versionIdB,
   isOpen,
@@ -429,12 +378,10 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
       setError(null);
       try {
         const { data, error: versionError } = await supabase
-          .from("project_resumes")
+          .from("borrower_resumes")
           .select("id, version_number, content")
           .in("id", [versionIdA, versionIdB]);
-
         if (versionError) throw versionError;
-
         if (!data || data.length < 2) {
           throw new Error("Could not load both versions for comparison.");
         }
@@ -449,18 +396,13 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
         }
 
         setTitle(
-          `Compare v${left.version_number ?? "—"} vs v${
-            right.version_number ?? "—"
-          }`
+          `Compare v${left.version_number ?? "—"} vs v${right.version_number ?? "—"}`
         );
 
         const leftFlat = flattenResumeContent(left.content);
         const rightFlat = flattenResumeContent(right.content);
 
-        const keys = Array.from(
-          new Set([...Object.keys(leftFlat), ...Object.keys(rightFlat)])
-        );
-
+        const keys = Array.from(new Set([...Object.keys(leftFlat), ...Object.keys(rightFlat)]));
         const rows = keys
           .map((key) => {
             const before = stringifyValue(leftFlat[key]);
@@ -481,15 +423,11 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
         }[];
 
         if (!cancelled) {
-          setDiffRows(
-            rows.sort((a, b) => a.label.localeCompare(b.label))
-          );
+          setDiffRows(rows.sort((a, b) => a.label.localeCompare(b.label)));
         }
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Failed to compare versions."
-          );
+          setError(err instanceof Error ? err.message : "Failed to compare versions.");
         }
       } finally {
         if (!cancelled) {
@@ -506,12 +444,7 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
   }, [isOpen, versionIdA, versionIdB]);
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={title}
-      size="xl"
-    >
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="xl">
       {error && (
         <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded p-3 mb-3">
           {error}
@@ -525,15 +458,11 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
       ) : (
         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
           {diffRows.length === 0 ? (
-            <p className="text-sm text-gray-600">
-              No differences detected between these versions.
-            </p>
+            <p className="text-sm text-gray-600">No differences detected between these versions.</p>
           ) : (
             diffRows.map((row) => (
               <div key={row.fieldId} className="border-b last:border-b-0 pb-3">
-                <p className="text-xs text-gray-500 uppercase tracking-wide">
-                  {row.label}
-                </p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">{row.label}</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="bg-gray-50 border border-gray-200 rounded p-2 text-gray-700">
                     <p className="text-[10px] text-gray-400 mb-1">Before</p>
