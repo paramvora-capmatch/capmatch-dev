@@ -1,6 +1,5 @@
 'use client';
 
-import { assetProfileDetails } from '@/services/mockOMData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -13,8 +12,30 @@ import {
 } from 'lucide-react';
 import { LucideIcon } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
+import { useOmContent } from '@/hooks/useOmContent';
 
 export default function AmenitiesPage() {
+  const { content } = useOmContent();
+  const assetProfileDetails = content?.assetProfileDetails ?? null;
+  const amenityDetails = assetProfileDetails?.amenityDetails ?? [];
+  const commercialSpaces = assetProfileDetails?.commercialSpaces ?? [];
+
+  const totalAmenitySF =
+    amenityDetails.length > 0
+      ? amenityDetails.reduce((sum, amenity) => {
+          const numeric = parseInt(
+            (amenity.size ?? '').replace(/[^\d]/g, ''),
+            10
+          );
+          return sum + (Number.isNaN(numeric) ? 0 : numeric);
+        }, 0)
+      : null;
+
+  const avgAmenitySize =
+    totalAmenitySF != null && amenityDetails.length > 0
+      ? Math.round(totalAmenitySF / amenityDetails.length)
+      : null;
+
   const getAmenityIcon = (name: string): LucideIcon => {
     const iconMap: { [key: string]: LucideIcon } = {
       'Resort-Style Pool': Waves,
@@ -58,7 +79,9 @@ export default function AmenitiesPage() {
             <h3 className="text-lg font-semibold text-gray-800">Total Amenities</h3>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{assetProfileDetails.amenityDetails.length}</p>
+            <p className="text-3xl font-bold text-blue-600">
+              {amenityDetails.length > 0 ? amenityDetails.length : null}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Unique amenity spaces</p>
           </CardContent>
         </Card>
@@ -68,7 +91,11 @@ export default function AmenitiesPage() {
             <h3 className="text-lg font-semibold text-gray-800">Total SF</h3>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">{totalAmenitySF.toLocaleString()} SF</p>
+            <p className="text-3xl font-bold text-green-600">
+              {totalAmenitySF !== null
+                ? `${totalAmenitySF.toLocaleString()} SF`
+                : null}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Combined amenity space</p>
           </CardContent>
         </Card>
@@ -79,7 +106,9 @@ export default function AmenitiesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {Math.round(totalAmenitySF / assetProfileDetails.amenityDetails.length).toLocaleString()} SF
+              {avgAmenitySize !== null
+                ? `${avgAmenitySize.toLocaleString()} SF`
+                : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per amenity space</p>
           </CardContent>
@@ -88,7 +117,7 @@ export default function AmenitiesPage() {
 
       {/* Amenities Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {assetProfileDetails.amenityDetails.map((amenity, index) => {
+        {amenityDetails.map((amenity, index) => {
           const IconComponent = getAmenityIcon(amenity.name);
           const amenityColor = getAmenityColor(index);
           
@@ -103,7 +132,7 @@ export default function AmenitiesPage() {
                     <h3 className="text-lg font-medium text-gray-800">{amenity.name}</h3>
                   </div>
                   <Badge variant="outline" className="text-xs border-gray-200">
-                    {amenity.size}
+                    {amenity.size ?? null}
                   </Badge>
                 </div>
               </CardHeader>
@@ -135,17 +164,17 @@ export default function AmenitiesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {assetProfileDetails.commercialSpaces.map((space, index) => (
+            {commercialSpaces.map((space, index) => (
               <div key={space.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">{space.name}</p>
-                  <p className="text-xs text-gray-500">{space.use}</p>
+                  <p className="text-sm font-semibold text-gray-800">{space.name ?? null}</p>
+                  <p className="text-xs text-gray-500">{space.use ?? null}</p>
                 </div>
                 <div className="text-right">
                   <Badge variant="outline" className="border-gray-200 mb-1">
-                    {space.size}
+                    {space.size ?? null}
                   </Badge>
-                  <div className="text-xs text-gray-500">{space.status}</div>
+                  <div className="text-xs text-gray-500">{space.status ?? null}</div>
                 </div>
               </div>
             ))}

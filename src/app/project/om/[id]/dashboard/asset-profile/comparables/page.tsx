@@ -1,45 +1,60 @@
 'use client';
 
-import { assetProfileDetails } from '@/services/mockOMData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Building2, DollarSign, BarChart3 } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
+import { useOmContent } from '@/hooks/useOmContent';
 
 export default function ComparablesPage() {
-  const getDistanceColor = (distance: string) => {
-    const dist = parseFloat(distance);
+  const { content } = useOmContent();
+  const assetProfileDetails = content?.assetProfileDetails ?? null;
+  const comparableDetails = assetProfileDetails?.comparableDetails ?? [];
+
+  const parseNumeric = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = parseFloat(value.replace(/[^\d.]/g, ''));
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+
+  const average = (items: typeof comparableDetails, accessor: (item: any) => number | null) => {
+    if (!items.length) return null;
+    const values = items.map(accessor).filter((value): value is number => value != null);
+    if (!values.length) return null;
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  };
+
+  const avgRentPSF = average(comparableDetails, (comp) => parseNumeric(comp.avgRent));
+  const avgCapRate = average(comparableDetails, (comp) => parseNumeric(comp.lastSale?.capRate));
+  const avgDistance = average(comparableDetails, (comp) => parseNumeric(comp.distance));
+  const comparablesCount = comparableDetails.length;
+
+  const getDistanceColor = (distance: string | undefined) => {
+    const dist = parseFloat(distance ?? '');
+    if (Number.isNaN(dist)) return 'bg-gray-100 text-gray-800';
     if (dist <= 0.5) return 'bg-green-100 text-green-800';
     if (dist <= 1.0) return 'bg-blue-100 text-blue-800';
     if (dist <= 2.0) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
 
-  const getOccupancyColor = (occupancy: string) => {
-    const occ = parseFloat(occupancy);
+  const getOccupancyColor = (occupancy: string | undefined) => {
+    const occ = parseFloat(occupancy ?? '');
+    if (Number.isNaN(occ)) return 'bg-gray-100 text-gray-800';
     if (occ >= 95) return 'bg-green-100 text-green-800';
     if (occ >= 90) return 'bg-blue-100 text-blue-800';
     if (occ >= 85) return 'bg-green-100 text-green-800';
     return 'bg-red-100 text-red-800';
   };
 
-  const getCapRateColor = (capRate: string) => {
-    const cap = parseFloat(capRate);
+  const getCapRateColor = (capRate: string | undefined) => {
+    const cap = parseFloat(capRate ?? '');
+    if (Number.isNaN(cap)) return 'bg-gray-100 text-gray-800';
     if (cap <= 4.5) return 'bg-green-100 text-green-800';
     if (cap <= 5.5) return 'bg-blue-100 text-blue-800';
     if (cap <= 6.5) return 'bg-green-100 text-green-800';
     return 'bg-red-100 text-red-800';
   };
-
-  const avgRentPSF = assetProfileDetails.comparableDetails.reduce(
-    (sum, comp) => sum + parseFloat(comp.avgRent.replace(/[^\d.]/g, '')), 
-    0
-  ) / assetProfileDetails.comparableDetails.length;
-
-  const avgCapRate = assetProfileDetails.comparableDetails.reduce(
-    (sum, comp) => sum + parseFloat(comp.lastSale.capRate.replace(/[^\d.]/g, '')), 
-    0
-  ) / assetProfileDetails.comparableDetails.length;
 
   useOMPageHeader({
     subtitle: "Market comps showcasing rents, occupancy, pricing, and scale.",
@@ -58,7 +73,9 @@ export default function ComparablesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{assetProfileDetails.comparableDetails.length}</p>
+            <p className="text-3xl font-bold text-blue-600">
+              {comparablesCount > 0 ? comparablesCount : null}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Properties analyzed</p>
           </CardContent>
         </Card>
@@ -71,7 +88,9 @@ export default function ComparablesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">${avgRentPSF.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-green-600">
+              {avgRentPSF != null ? `$${avgRentPSF.toFixed(2)}` : null}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Market average</p>
           </CardContent>
         </Card>
@@ -84,7 +103,9 @@ export default function ComparablesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{avgCapRate.toFixed(1)}%</p>
+            <p className="text-3xl font-bold text-blue-600">
+              {avgCapRate != null ? `${avgCapRate.toFixed(1)}%` : null}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Market average</p>
           </CardContent>
         </Card>
@@ -95,7 +116,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {(assetProfileDetails.comparableDetails.reduce((sum, comp) => sum + parseFloat(comp.distance.replace(/[^\d.]/g, '')), 0) / assetProfileDetails.comparableDetails.length).toFixed(1)} mi
+              {avgDistance != null ? `${avgDistance.toFixed(1)} mi` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
           </CardContent>
@@ -123,7 +144,7 @@ export default function ComparablesPage() {
                 </tr>
               </thead>
               <tbody>
-                {assetProfileDetails.comparableDetails.map((comp, index) => (
+                {comparableDetails.map((comp, index) => (
                   <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-4 px-4">
                       <div>
@@ -175,14 +196,17 @@ export default function ComparablesPage() {
               <div>
                 <h4 className="font-semibold text-gray-800 mb-3">Rent per Square Foot Comparison</h4>
                 <div className="space-y-3">
-                  {assetProfileDetails.comparableDetails.map((comp, index) => {
-                    const rentPSF = parseFloat(comp.avgRent.replace(/[^\d.]/g, ''));
-                    const isAboveAvg = rentPSF > avgRentPSF;
+                  {comparableDetails.map((comp, index) => {
+                    const rentPSF = parseNumeric(comp.avgRent);
+                    const isAboveAvg =
+                      avgRentPSF != null && rentPSF != null
+                        ? rentPSF > avgRentPSF
+                        : false;
                     return (
                       <div key={index} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{comp.name}</span>
+                        <span className="text-sm text-gray-600">{comp.name ?? null}</span>
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-800">{comp.avgRent}</span>
+                          <span className="text-sm font-medium text-gray-800">{comp.avgRent ?? null}</span>
                           <Badge variant={isAboveAvg ? "default" : "secondary"}>
                             {isAboveAvg ? "Above" : "Below"} Avg
                           </Badge>
@@ -196,7 +220,9 @@ export default function ComparablesPage() {
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Market Average</span>
-                  <Badge className="bg-blue-100 text-blue-800">${avgRentPSF.toFixed(2)}</Badge>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {avgRentPSF != null ? `$${avgRentPSF.toFixed(2)}` : null}
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -212,14 +238,17 @@ export default function ComparablesPage() {
               <div>
                 <h4 className="font-semibold text-gray-800 mb-3">Cap Rate Analysis</h4>
                 <div className="space-y-3">
-                  {assetProfileDetails.comparableDetails.map((comp, index) => {
-                    const capRate = parseFloat(comp.lastSale.capRate.replace(/[^\d.]/g, ''));
-                    const isBelowAvg = capRate < avgCapRate;
+                  {comparableDetails.map((comp, index) => {
+                    const capRate = parseNumeric(comp.lastSale?.capRate);
+                    const isBelowAvg =
+                      avgCapRate != null && capRate != null
+                        ? capRate < avgCapRate
+                        : false;
                     return (
                       <div key={index} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{comp.name}</span>
+                        <span className="text-sm text-gray-600">{comp.name ?? null}</span>
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-800">{comp.lastSale.capRate}</span>
+                          <span className="text-sm font-medium text-gray-800">{comp.lastSale?.capRate ?? null}</span>
                           <Badge variant={isBelowAvg ? "default" : "secondary"}>
                             {isBelowAvg ? "Lower" : "Higher"} Risk
                           </Badge>
@@ -233,7 +262,9 @@ export default function ComparablesPage() {
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Market Average</span>
-                  <Badge className="bg-blue-100 text-blue-800">{avgCapRate.toFixed(1)}%</Badge>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {avgCapRate != null ? `${avgCapRate.toFixed(1)}%` : null}
+                  </Badge>
                 </div>
               </div>
             </div>

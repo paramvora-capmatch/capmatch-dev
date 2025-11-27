@@ -1,27 +1,40 @@
 'use client';
 
-import { assetProfileDetails } from '@/services/mockOMData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Home, DollarSign, Users } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
+import { useOmContent } from '@/hooks/useOmContent';
 
 export default function UnitMixPage() {
-  const totalUnits = Object.values(assetProfileDetails.unitMixDetails).reduce(
-    (sum, unit) => sum + unit.count, 
+  const { content } = useOmContent();
+  const assetProfileDetails = content?.assetProfileDetails ?? null;
+  const unitMixDetails = assetProfileDetails?.unitMixDetails ?? {};
+  const unitEntries = Object.entries(unitMixDetails);
+  const totalUnits = unitEntries.reduce(
+    (sum, [, unit]) => sum + (unit.count ?? 0),
     0
   );
 
-  const totalRentableSF = Object.values(assetProfileDetails.unitMixDetails).reduce(
-    (sum, unit) => sum + (unit.count * unit.avgSF), 
+  const totalRentableSF = unitEntries.reduce(
+    (sum, [, unit]) => sum + ((unit.count ?? 0) * (unit.avgSF ?? 0)),
     0
   );
 
-  const blendedAverageRent = Object.values(assetProfileDetails.unitMixDetails).reduce((sum, unit) => {
-    const [low, high] = unit.rentRange.split('-').map(r => parseFloat(r.replace(/[^\d.]/g, '')));
-    const avg = (low + high) / 2;
-    return sum + avg * unit.count;
-  }, 0) / totalUnits;
+  const blendedAverageRent =
+    totalUnits > 0
+      ? unitEntries.reduce((sum, [, unit]) => {
+          const rentRange = unit.rentRange ?? "0";
+          const [low, high] = rentRange
+            .split("-")
+            .map((r) => parseFloat(r.replace(/[^\d.]/g, "")) || 0);
+          const avg = (low + high) / 2;
+          return sum + avg * (unit.count ?? 0);
+        }, 0) / totalUnits
+      : 0;
+  const blendedAverageRentDisplay =
+    totalUnits > 0 ? Math.round(blendedAverageRent) : null;
+  const avgSF = totalUnits > 0 ? Math.round(totalRentableSF / totalUnits) : null;
 
   const getUnitTypeColor = (type: string) => {
     const colors: { [key: string]: string } = {
@@ -62,11 +75,15 @@ export default function UnitMixPage() {
   };
 
   let currentAngle = 0;
-  const pieSegments = Object.entries(assetProfileDetails.unitMixDetails).map(([type, unit]) => {
-    const segment = calculatePieChartSegment(unit.count, totalUnits, currentAngle);
-    currentAngle += (unit.count / totalUnits) * 360;
-    return { type, unit, ...segment };
-  });
+  const detailedUnitMix = assetProfileDetails?.detailedUnitMix ?? [];
+  const pieSegments =
+    totalUnits > 0
+      ? unitEntries.map(([type, unit]) => {
+          const segment = calculatePieChartSegment(unit.count ?? 0, totalUnits, currentAngle);
+          currentAngle += ((unit.count ?? 0) / totalUnits) * 360;
+          return { type, unit, ...segment };
+        })
+      : [];
 
   useOMPageHeader({
     subtitle: "Distribution of unit types, sizes, rents, and pricing insights.",
@@ -112,7 +129,9 @@ export default function UnitMixPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              ${Math.round(blendedAverageRent).toLocaleString()}
+              {blendedAverageRentDisplay != null
+                ? `$${blendedAverageRentDisplay.toLocaleString()}`
+                : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per unit average</p>
           </CardContent>
@@ -124,7 +143,7 @@ export default function UnitMixPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {Math.round(totalRentableSF / totalUnits)}
+              {avgSF ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per unit average</p>
           </CardContent>
@@ -140,7 +159,7 @@ export default function UnitMixPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(assetProfileDetails.unitMixDetails).map(([type, unit]) => (
+            {unitEntries.map(([type, unit]) => (
                 <div key={type} className="bg-gray-50 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-semibold text-gray-800">{getUnitTypeLabel(type)}</h4>
@@ -163,7 +182,11 @@ export default function UnitMixPage() {
                     </div>
                     <div>
                       <p className="text-gray-500">Percentage</p>
-                      <p className="font-medium text-gray-800">{Math.round((unit.count / totalUnits) * 100)}%</p>
+                      <p className="font-medium text-gray-800">
+                        {totalUnits > 0
+                          ? `${Math.round(((unit.count ?? 0) / totalUnits) * 100)}%`
+                          : null}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -223,7 +246,7 @@ export default function UnitMixPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Rent per Square Foot</h4>
               <div className="space-y-2">
-                {Object.entries(assetProfileDetails.unitMixDetails).map(([type, unit]) => {
+                {unitEntries.map(([type, unit]) => {
                   const avgRent = unit.rentRange.split('-').map(r => parseFloat(r.replace(/[^\d]/g, ''))).reduce((a, b) => a + b) / 2;
                   const rentPSF = avgRent / unit.avgSF;
                   return (
@@ -239,7 +262,7 @@ export default function UnitMixPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Deposit Requirements</h4>
               <div className="space-y-2">
-                {Object.entries(assetProfileDetails.unitMixDetails).map(([type, unit]) => (
+                {unitEntries.map(([type, unit]) => (
                   <div key={type} className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">{getUnitTypeLabel(type)}</span>
                     <Badge variant="outline" className="border-gray-200">{unit.deposit}</Badge>
@@ -287,7 +310,7 @@ export default function UnitMixPage() {
                 </tr>
               </thead>
               <tbody>
-                {assetProfileDetails.detailedUnitMix.map((plan) => (
+                {detailedUnitMix.map((plan) => (
                   <tr key={plan.code} className="border-b border-gray-50">
                     <td className="py-3 px-2 font-medium text-gray-800">{plan.code}</td>
                     <td className="py-3 px-2 text-gray-600">{plan.type}</td>

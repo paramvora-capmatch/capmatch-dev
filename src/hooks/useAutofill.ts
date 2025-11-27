@@ -2,28 +2,58 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
+type AutofillContext = 'project' | 'borrower';
+
 interface AutofillState {
   projectId: string;
   startTime: string; // ISO timestamp
   isProcessing: boolean;
+  context: AutofillContext;
 }
 
-const AUTOFILL_STORAGE_KEY = 'capmatch_autofill_state';
+const AUTOFILL_STATE_KEY_BASE = 'capmatch_autofill_state';
+const getAutofillStateKey = (context: AutofillContext) => `${AUTOFILL_STATE_KEY_BASE}_${context}`;
 const POLL_INTERVAL = 2000; // Poll every 2 seconds
 const MAX_POLL_TIME = 300000; // Max 5 minutes
 
 interface UseAutofillOptions {
   projectAddress?: string;
+  context?: AutofillContext;
 }
+
+const getResumeTable = (context: AutofillContext) =>
+  context === "borrower" ? "borrower_resumes" : "project_resumes";
+
+const documentPathMatchesContext = (context: AutofillContext, path?: string) => {
+  if (!path) return false;
+  const normalized = path.toLowerCase();
+  const patterns =
+    context === "borrower"
+      ? ["borrower-docs", "borrower_docs"]
+      : ["project-docs", "project_docs"];
+  return patterns.some((pattern) => normalized.includes(pattern));
+};
+
+const getEndpointPath = (context: AutofillContext) =>
+  context === "borrower"
+    ? "/api/v1/borrower-resumes/analyze"
+    : "/api/v1/projects/analyze";
+
+const getChannelName = (context: AutofillContext, projectId: string) =>
+  `autofill-${context}-${projectId}`;
 
 export const useAutofill = (projectId: string, options?: UseAutofillOptions) => {
   const [isAutofilling, setIsAutofilling] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<string | null>(null);
+  const context: AutofillContext = options?.context ?? "project";
+  const resumeTable = getResumeTable(context);
+  const storageKey = getAutofillStateKey(context);
+  const endpointPath = getEndpointPath(context);
 
   const clearAutofillState = useCallback(() => {
-    localStorage.removeItem(AUTOFILL_STORAGE_KEY);
+    localStorage.removeItem(storageKey);
     setIsAutofilling(false);
     setShowSparkles(false);
     startTimeRef.current = null;
@@ -31,7 +61,7 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
-  }, []);
+  }, [storageKey]);
 
   const checkCompletion = useCallback(async (
     projectId: string,
@@ -40,7 +70,7 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
     try {
       // Check if a new project_resumes row was created after the start time
       const { data, error } = await supabase
-        .from('project_resumes')
+        .from(resumeTable)
         .select('id, created_at')
         .eq('project_id', projectId)
         .gte('created_at', startTime)
@@ -69,7 +99,7 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
       console.error('Error in checkCompletion:', error);
       return false;
     }
-  }, []);
+  }, [resumeTable]);
 
   const startPolling = useCallback((
     projectId: string,
@@ -106,13 +136,13 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
   useEffect(() => {
     // Subscribe to project_resumes changes for this project
     const channel = supabase
-      .channel(`autofill-${projectId}`)
+      .channel(getChannelName(context, projectId))
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'project_resumes',
+          table: resumeTable,
           filter: `project_id=eq.${projectId}`,
         },
         (payload) => {
@@ -135,11 +165,15 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
 
     // Load persisted state on mount
     try {
-      const stored = localStorage.getItem(AUTOFILL_STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         const state: AutofillState = JSON.parse(stored);
         // Only restore if it's for this project and not too old
-        if (state.projectId === projectId && state.isProcessing) {
+        if (
+          state.projectId === projectId &&
+          state.isProcessing &&
+          state.context === context
+        ) {
           const startTime = new Date(state.startTime);
           const now = new Date();
           const elapsed = now.getTime() - startTime.getTime();
@@ -151,7 +185,7 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
             startPolling(projectId, state.startTime);
           } else {
             // Clean up stale state
-            localStorage.removeItem(AUTOFILL_STORAGE_KEY);
+            localStorage.removeItem(storageKey);
           }
         }
       }
@@ -162,7 +196,7 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [projectId, startPolling]);
+  }, [projectId, startPolling, context, resumeTable, storageKey]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -187,8 +221,11 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
 
       if (filesError) throw filesError;
 
+      const documentLabel = context === "borrower" ? "borrower documents" : "documents";
       if (!resources || resources.length === 0) {
-        alert("No documents found to autofill from. Please upload documents first.");
+        alert(
+          `No ${documentLabel} found to autofill from. Please upload ${documentLabel} first.`
+        );
         setIsAutofilling(false);
         setShowSparkles(false);
         return;
@@ -205,7 +242,17 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
 
       if (versionsError) throw versionsError;
 
-      const documentPaths = versions?.map(v => v.storage_path) || [];
+      const documentPaths =
+        versions
+          ?.map((v) => v.storage_path)
+          .filter((path) => documentPathMatchesContext(context, path)) || [];
+
+      if (documentPaths.length === 0) {
+        alert(`No ${documentLabel} were matched for autofill.`);
+        setIsAutofilling(false);
+        setShowSparkles(false);
+        return;
+      }
 
       // 4. Format project address
       const projectAddress = options?.projectAddress || "2300 Hickory St | Dallas TX, 75215";
@@ -222,10 +269,11 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
         projectId,
         startTime: requestStartTime,
         isProcessing: true,
+        context,
       };
-      localStorage.setItem(AUTOFILL_STORAGE_KEY, JSON.stringify(autofillState));
+      localStorage.setItem(storageKey, JSON.stringify(autofillState));
 
-      const response = await fetch(`${backendUrl}/api/v1/projects/analyze`, {
+      const response = await fetch(`${backendUrl}${endpointPath}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -250,7 +298,15 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
       alert("Failed to start autofill process.");
       clearAutofillState();
     }
-  }, [projectId, options?.projectAddress, startPolling, clearAutofillState]);
+  }, [
+    projectId,
+    options?.projectAddress,
+    startPolling,
+    clearAutofillState,
+    context,
+    storageKey,
+    endpointPath,
+  ]);
 
   return {
     isAutofilling,

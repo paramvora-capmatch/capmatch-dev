@@ -70,6 +70,7 @@ interface EnhancedProjectFormProps {
 	onAskAI?: (fieldId: string) => void; // Add onAskAI prop
 	onFormDataChange?: (formData: ProjectProfile) => void; // Add onFormDataChange prop
 	initialFocusFieldId?: string; // NEW: scroll/focus this field on mount/update
+	onVersionChange?: () => void;
 }
 
 const assetTypeOptions = [
@@ -918,10 +919,11 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	onAskAI,
 	onFormDataChange,
 	initialFocusFieldId, // NEW
+	onVersionChange,
 }) => {
 	const router = useRouter();
 	const { updateProject } = useProjects();
-	const { activeOrg } = useAuthStore();
+	const { activeOrg, user } = useAuthStore();
 
 	// Form state initialized from existingProject prop
 	const [formData, setFormData] = useState<ProjectProfile>(() => ({
@@ -929,6 +931,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}));
 	const [formSaved, setFormSaved] = useState(false); // State for save button feedback
 	const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+	const versionSnapshotSentRef = useRef(false);
 
 	// Metadata state for tracking sources and warnings
 	const [fieldMetadata, setFieldMetadata] = useState<
@@ -962,6 +965,64 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		formData.id,
 		{ projectAddress }
 	);
+
+	const snapshotProjectResume = useCallback(
+		async ({ keepAlive = false } = {}) => {
+			if (!formData.id) {
+				return;
+			}
+
+			const payload = JSON.stringify({
+				projectId: formData.id,
+				userId: user?.id ?? null,
+			});
+			const endpoint = "/api/project-resume/save-version";
+
+			if (
+				keepAlive &&
+				typeof window !== "undefined" &&
+				typeof navigator !== "undefined" &&
+				typeof navigator.sendBeacon === "function"
+			) {
+				const blob = new Blob([payload], {
+					type: "application/json",
+				});
+				navigator.sendBeacon(endpoint, blob);
+				return;
+			}
+
+			const response = await fetch(endpoint, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: payload,
+			});
+
+			if (!response.ok) {
+				throw new Error("Failed to persist resume version");
+			}
+		},
+		[formData.id, user?.id]
+	);
+
+	useEffect(() => {
+		if (typeof window === "undefined") {
+			return;
+		}
+
+		const handleBeforeUnload = () => {
+			if (versionSnapshotSentRef.current) {
+				return;
+			}
+			versionSnapshotSentRef.current = true;
+			void snapshotProjectResume({ keepAlive: true });
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+		};
+	}, [snapshotProjectResume]);
 
 	// Lock state management
 	// Initialize lockedFields from existingProject._lockedFields
@@ -1746,6 +1807,20 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			};
 			await updateProject(formData.id, dataToSave);
 			console.log("Project changes manually saved.");
+
+			try {
+				await snapshotProjectResume();
+			} catch (snapshotError) {
+				console.error(
+					"[EnhancedProjectForm] Failed to snapshot resume version:",
+					snapshotError
+				);
+			} finally {
+				versionSnapshotSentRef.current = false;
+			}
+
+			onVersionChange?.();
+
 			if (onComplete) {
 				// Pass the current formData state which reflects the latest changes
 				onComplete(dataToSave);
@@ -1757,7 +1832,14 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			// Reset saved indicator after a short delay
 			setTimeout(() => setFormSaved(false), 2000);
 		}
-	}, [formData, fieldMetadata, updateProject, onComplete]);
+	}, [
+		formData,
+		fieldMetadata,
+		updateProject,
+		onComplete,
+		snapshotProjectResume,
+		onVersionChange,
+	]);
 
 	// handleAutofill is now provided by the useAutofill hook
 

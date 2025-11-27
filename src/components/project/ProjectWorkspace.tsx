@@ -118,6 +118,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [currentFormData, setCurrentFormData] = useState<ProjectProfile | null>(
     null
   );
+  const [resumeRefreshKey, setResumeRefreshKey] = useState(0);
   const [isProjectResumeRemoteUpdate, setIsProjectResumeRemoteUpdate] = useState(false);
   const projectResumeChannelRef = useRef<RealtimeChannel | null>(null);
   const isLocalProjectSaveRef = useRef(false);
@@ -212,6 +213,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     };
     loadOrgData();
   }, [activeProject?.owner_org_id, loadOrg]);
+
+  const handleResumeVersionChange = useCallback(async () => {
+    try {
+      await loadUserProjects();
+      const updatedProject = getProject(projectId);
+      if (updatedProject) {
+        setActiveProject(updatedProject);
+        setResumeRefreshKey((prev) => prev + 1);
+      }
+    } catch (error) {
+      console.error(
+        "[ProjectWorkspace] Failed to refresh project after version change:",
+        error
+      );
+    }
+  }, [projectId, setActiveProject, loadUserProjects, getProject]);
 
   // useEffect for loading and setting active project
   useEffect(() => {
@@ -648,6 +665,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   >
                     <div className="p-4">
                       <EnhancedProjectForm
+                        key={`enhanced-form-${resumeRefreshKey}`}
                         existingProject={activeProject}
                         onComplete={() => setIsEditing(false)}
                         onAskAI={(fieldId) => {
@@ -658,6 +676,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                           setTimeout(() => setShouldExpandChat(false), 100);
                         }}
                         onFormDataChange={setCurrentFormData}
+                        onVersionChange={handleResumeVersionChange}
                       />
                     </div>
                   </motion.div>
@@ -683,8 +702,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       transition={{ duration: 0.3, delay: 0.5 }}
                     >
                       <ProjectResumeView
+                        key={`resume-view-${resumeRefreshKey}`}
                         project={activeProject}
                         onEdit={() => setIsEditing(true)}
+                        onVersionChange={handleResumeVersionChange}
                       />
                     </motion.div>
                   </>

@@ -317,8 +317,8 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
   // 1. Check for a pointer in the 'resources' table
   const { data: resource } = await supabase
     .from('resources')
-    .select('current_version_id')
-    .eq('type', 'PROJECT_RESUME')
+    .select('id, current_version_id')
+    .eq('resource_type', 'PROJECT_RESUME')
     .eq('project_id', projectId)
     .maybeSingle();
 
@@ -428,6 +428,9 @@ export const getProjectWithResume = async (projectId: string): Promise<ProjectPr
       
       // Add metadata container
       _metadata,
+
+      // Resource pointer helpers
+      projectResumeResourceId: resource?.id ?? null,
     } as ProjectProfile;
 };
 
@@ -710,11 +713,31 @@ export const saveProjectResume = async (
 export const getProjectBorrowerResume = async (
   projectId: string
 ): Promise<BorrowerResumeContent | null> => {
-  const { data, error } = await supabase
-    .from('borrower_resumes')
-    .select('content')
+  const { data: resource, error: resourceError } = await supabase
+    .from('resources')
+    .select('current_version_id')
     .eq('project_id', projectId)
+    .eq('resource_type', 'BORROWER_RESUME')
     .maybeSingle();
+
+  if (resourceError && resourceError.code !== 'PGRST116') {
+    console.warn('[getProjectBorrowerResume] Failed to fetch borrower resume pointer:', resourceError);
+  }
+
+  let query = supabase
+    .from('borrower_resumes')
+    .select('content');
+
+  if (resource?.current_version_id) {
+    query = query.eq('id', resource.current_version_id);
+  } else {
+    query = query
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error && error.code !== 'PGRST116') {
     throw new Error(`Failed to load borrower resume: ${error.message}`);
@@ -727,21 +750,54 @@ export const saveProjectBorrowerResume = async (
   projectId: string,
   content: Partial<BorrowerResumeContent>
 ): Promise<void> => {
-  const existing = await getProjectBorrowerResume(projectId);
-  const mergedContent = { ...(existing || {}), ...content } as any;
+  const mergedContent = content as any;
 
-  const { error } = await supabase
+  const { data: resource, error: resourceError } = await supabase
+    .from('resources')
+    .select('id, current_version_id')
+    .eq('project_id', projectId)
+    .eq('resource_type', 'BORROWER_RESUME')
+    .maybeSingle();
+
+  if (resourceError && resourceError.code !== 'PGRST116') {
+    console.warn("[saveProjectBorrowerResume] Failed to read resource pointer:", resourceError);
+  }
+
+  if (resource?.current_version_id) {
+    const { error } = await supabase
+      .from('borrower_resumes')
+      .update({ content: mergedContent })
+      .eq('id', resource.current_version_id);
+
+    if (error) {
+      throw new Error(`Failed to update borrower resume: ${error.message}`);
+    }
+
+    return;
+  }
+
+  const { data: inserted, error: insertError } = await supabase
     .from('borrower_resumes')
-    .upsert(
-      {
-        project_id: projectId,
-        content: mergedContent,
-      },
-      { onConflict: 'project_id' }
-    );
+    .insert({
+      project_id: projectId,
+      content: mergedContent,
+    })
+    .select('id')
+    .single();
 
-  if (error) {
-    throw new Error(`Failed to save borrower resume: ${error.message}`);
+  if (insertError) {
+    throw new Error(`Failed to create borrower resume: ${insertError.message}`);
+  }
+
+  if (resource?.id) {
+    const { error: pointerError } = await supabase
+      .from('resources')
+      .update({ current_version_id: inserted.id })
+      .eq('id', resource.id);
+
+    if (pointerError) {
+      console.warn("[saveProjectBorrowerResume] Failed to update resource pointer:", pointerError);
+    }
   }
 };
 

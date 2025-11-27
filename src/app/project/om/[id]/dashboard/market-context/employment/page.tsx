@@ -1,45 +1,64 @@
 'use client';
 
-import { marketContextDetails } from '@/services/mockOMData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, TrendingUp, MapPin, Users } from 'lucide-react';
 import EmploymentMap from '@/components/om/EmploymentMap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
+import { useOmContent } from '@/hooks/useOmContent';
 
 export default function EmploymentPage() {
-  const getGrowthColor = (growth: string) => {
-    const growthNum = parseInt(growth.replace(/[^\d-]/g, ''));
+  const { content } = useOmContent();
+  const marketContextDetails = content?.marketContextDetails ?? null;
+  const majorEmployers = marketContextDetails?.majorEmployers ?? [];
+
+  const getGrowthColor = (growth?: string | null) => {
+    const value = (growth ?? '0').replace(/[^\d-]/g, '');
+    const growthNum = parseInt(value);
+    if (Number.isNaN(growthNum)) return 'bg-gray-100 text-gray-800';
     if (growthNum >= 10) return 'bg-green-100 text-green-800';
     if (growthNum >= 5) return 'bg-blue-100 text-blue-800';
     if (growthNum >= 0) return 'bg-green-100 text-green-800';
     return 'bg-red-100 text-red-800';
   };
 
-  const getDistanceColor = (distance: string) => {
-    const dist = parseFloat(distance);
+  const getDistanceColor = (distance?: string | null) => {
+    const dist = parseFloat(distance ?? '');
+    if (Number.isNaN(dist)) return 'bg-gray-100 text-gray-800';
     if (dist <= 1.5) return 'bg-green-100 text-green-800';
     if (dist <= 3.0) return 'bg-blue-100 text-blue-800';
     if (dist <= 5.0) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
 
-  const getEmployeeSizeColor = (employees: number) => {
-    if (employees >= 10000) return 'bg-blue-100 text-blue-800';
-    if (employees >= 5000) return 'bg-blue-100 text-blue-800';
-    if (employees >= 2000) return 'bg-green-100 text-green-800';
+  const getEmployeeSizeColor = (employees?: number | null) => {
+    const value = employees ?? 0;
+    if (value >= 10000) return 'bg-blue-100 text-blue-800';
+    if (value >= 5000) return 'bg-blue-100 text-blue-800';
+    if (value >= 2000) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
 
-  const totalEmployees = marketContextDetails.majorEmployers.reduce(
-    (sum, employer) => sum + employer.employees, 
+  const totalEmployees = majorEmployers.reduce(
+    (sum, employer) => sum + (employer.employees ?? 0),
     0
   );
 
-  const avgGrowth = marketContextDetails.majorEmployers.reduce(
-    (sum, employer) => sum + parseInt(employer.growth.replace(/[^\d-]/g, '')), 
-    0
-  ) / marketContextDetails.majorEmployers.length;
+  const avgGrowth =
+    majorEmployers.length > 0
+      ? majorEmployers.reduce((sum, employer) => {
+          const growthValue = employer.growth ?? '0';
+          return sum + parseInt(growthValue.replace(/[^\d-]/g, ''));
+        }, 0) / majorEmployers.length
+      : null;
+
+  const avgDistance =
+    majorEmployers.length > 0
+      ? majorEmployers.reduce((sum, employer) => {
+          const distanceValue = employer.distance ?? '0';
+          return sum + parseFloat(distanceValue.replace(/[^\d.]/g, ''));
+        }, 0) / majorEmployers.length
+      : null;
 
   useOMPageHeader({
     subtitle: "Job base composition, employer proximity, and growth trends.",
@@ -58,7 +77,7 @@ export default function EmploymentPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{marketContextDetails.majorEmployers.length}</p>
+            <p className="text-3xl font-bold text-blue-600">{majorEmployers.length}</p>
             <p className="text-sm text-gray-500 mt-1">Companies analyzed</p>
           </CardContent>
         </Card>
@@ -84,7 +103,9 @@ export default function EmploymentPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">+{avgGrowth.toFixed(1)}%</p>
+            <p className="text-3xl font-bold text-blue-600">
+              {avgGrowth != null ? `+${avgGrowth.toFixed(1)}%` : null}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Annual average</p>
           </CardContent>
         </Card>
@@ -95,7 +116,7 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {(marketContextDetails.majorEmployers.reduce((sum, employer) => sum + parseFloat(employer.distance.replace(/[^\d.]/g, '')), 0) / marketContextDetails.majorEmployers.length).toFixed(1)} mi
+              {avgDistance != null ? `${avgDistance.toFixed(1)} mi` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
           </CardContent>
@@ -120,36 +141,40 @@ export default function EmploymentPage() {
                 </tr>
               </thead>
               <tbody>
-                {marketContextDetails.majorEmployers.map((employer, index) => (
+                {majorEmployers.map((employer, index) => {
+                  const employees = employer.employees ?? 0;
+                  return (
                   <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-4 px-4">
                       <div>
-                        <p className="font-medium text-gray-800">{employer.name}</p>
-                        <p className="text-sm text-gray-500">{employer.employees.toLocaleString()} employees</p>
+                        <p className="font-medium text-gray-800">{employer.name ?? null}</p>
+                        <p className="text-sm text-gray-500">
+                          {employees.toLocaleString()} employees
+                        </p>
                       </div>
                     </td>
                     <td className="py-4 px-4">
-                      <Badge className={getEmployeeSizeColor(employer.employees)}>
-                        {employer.employees.toLocaleString()}
+                      <Badge className={getEmployeeSizeColor(employees)}>
+                        {employees.toLocaleString()}
                       </Badge>
                     </td>
                     <td className="py-4 px-4">
                       <Badge className={getGrowthColor(employer.growth)}>
                         <TrendingUp className="h-3 w-3 mr-1" />
-                        {employer.growth}
+                        {employer.growth ?? null}
                       </Badge>
                     </td>
                     <td className="py-4 px-4">
                       <Badge className={getDistanceColor(employer.distance)}>
                         <MapPin className="h-3 w-3 mr-1" />
-                        {employer.distance}
+                        {employer.distance ?? null}
                       </Badge>
                     </td>
                     <td className="py-4 px-4">
                       <div className="text-sm">
-                        {employer.employees >= 10000 ? (
+                        {employees >= 10000 ? (
                           <Badge className="bg-blue-100 text-blue-800">Major</Badge>
-                        ) : employer.employees >= 5000 ? (
+                        ) : employees >= 5000 ? (
                           <Badge className="bg-blue-100 text-blue-800">Significant</Badge>
                         ) : (
                           <Badge className="bg-green-100 text-green-800">Moderate</Badge>
@@ -172,7 +197,11 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {marketContextDetails.majorEmployers.map((employer, index) => (
+              {majorEmployers.map((employer, index) => {
+                const employees = employer.employees ?? 0;
+                const employeeTotal = totalEmployees || 1;
+                const widthPercent = (employees / employeeTotal) * 100;
+                return (
                 <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">{employer.name}</span>
@@ -181,7 +210,7 @@ export default function EmploymentPage() {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="h-2 rounded-full bg-blue-500"
-                      style={{ width: `${(employer.employees / totalEmployees) * 100}%` }}
+                      style={{ width: `${widthPercent}%` }}
                     />
                   </div>
                 </div>
@@ -203,7 +232,7 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {marketContextDetails.majorEmployers.map((employer, index) => (
+              {majorEmployers.map((employer, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-800">{employer.name}</p>

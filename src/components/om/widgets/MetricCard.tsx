@@ -6,7 +6,7 @@ import { DataSourceTooltip } from '@/components/om/DataSourceTooltip';
 
 interface MetricCardProps {
     label: string;
-    value: string | number;
+    value: string | number | null;
     change?: number;
     format?: 'currency' | 'percent' | 'number';
     size?: 'sm' | 'md' | 'lg';
@@ -24,6 +24,10 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     dataSourceFields
 }) => {
     const formattedValue = () => {
+        if (value === null) {
+            return null;
+        }
+
         if (typeof value === 'number') {
             switch (format) {
                 case 'currency':

@@ -583,7 +583,7 @@ export async function createProjectWithResumeAndStorage(
     // Step 2: Create project resume
     supabaseAdmin
       .from("project_resumes")
-      .insert({ project_id: project.id, content: {} })
+      .insert({ project_id: project.id, content: {}, created_by: options.creator_id })
       .then(({ error }) => {
         if (error) {
           throw new Error(`Project resume creation failed: ${error.message}`);

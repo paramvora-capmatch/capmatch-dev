@@ -57,6 +57,33 @@ export const useProjectBorrowerResumeRealtime = (
   useEffect(() => {
     if (!projectId || !user?.id) return;
 
+    const handleChange = async (payload: any) => {
+      // Ignore our own updates
+      if (isLocalSaveRef.current) {
+        isLocalSaveRef.current = false;
+        return;
+      }
+
+      setIsRemoteUpdate(true);
+      
+      if (remoteUpdateTimeoutRef.current) {
+        clearTimeout(remoteUpdateTimeoutRef.current);
+      }
+
+      try {
+        const latest = await getProjectBorrowerResume(projectId);
+        if (latest) {
+          setContent(latest);
+          remoteUpdateTimeoutRef.current = setTimeout(() => {
+            setIsRemoteUpdate(false);
+          }, 3000);
+        }
+      } catch (err) {
+        console.error('[useProjectBorrowerResumeRealtime] Failed to reload after remote update:', err);
+        setIsRemoteUpdate(false);
+      }
+    };
+
     const channel = supabase
       .channel(`borrower-resume-${projectId}`)
       .on(
@@ -67,36 +94,17 @@ export const useProjectBorrowerResumeRealtime = (
           table: 'borrower_resumes',
           filter: `project_id=eq.${projectId}`
         },
-        async (payload) => {
-          // Ignore our own updates
-          if (isLocalSaveRef.current) {
-            isLocalSaveRef.current = false;
-            return;
-          }
-
-          setIsRemoteUpdate(true);
-          
-          // Clear any existing timeout
-          if (remoteUpdateTimeoutRef.current) {
-            clearTimeout(remoteUpdateTimeoutRef.current);
-          }
-          
-          // Fetch the latest content from server
-          try {
-            const latest = await getProjectBorrowerResume(projectId);
-            if (latest) {
-              setContent(latest);
-              
-              // Reset remote update flag after 3 seconds
-              remoteUpdateTimeoutRef.current = setTimeout(() => {
-                setIsRemoteUpdate(false);
-              }, 3000);
-            }
-          } catch (err) {
-            console.error('[useProjectBorrowerResumeRealtime] Failed to reload after remote update:', err);
-            setIsRemoteUpdate(false);
-          }
-        }
+        handleChange
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'borrower_resumes',
+          filter: `project_id=eq.${projectId}`
+        },
+        handleChange
       )
       .subscribe();
 

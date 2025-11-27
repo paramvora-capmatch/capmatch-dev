@@ -230,17 +230,14 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		getProject: (id) => get().projects.find((p) => p.id === id) || null,
 
 		setActiveProject: async (project) => {
-			const { activeProject } = get();
-			if (project?.id === activeProject?.id) return;
-
 			set({ activeProject: project });
-      
-      // When a project becomes active, load its permissions
-      if (project) {
-        usePermissionStore.getState().loadPermissionsForProject(project.id);
-      } else {
-        usePermissionStore.getState().resetPermissions();
-      }
+
+			// When a project becomes active, load its permissions
+			if (project) {
+				usePermissionStore.getState().loadPermissionsForProject(project.id);
+			} else {
+				usePermissionStore.getState().resetPermissions();
+			}
 		},
 
 		createProject: async (projectData: Partial<ProjectProfile>) => {

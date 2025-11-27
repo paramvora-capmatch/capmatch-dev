@@ -1,12 +1,19 @@
 "use client";
 
-import { dealSnapshotDetails } from "@/services/mockOMData";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Percent, Clock, Shield, FileText, Sparkles } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
+import { useOmContent } from "@/hooks/useOmContent";
 
 export default function KeyTermsPage() {
+  const { content } = useOmContent();
+  const dealSnapshotDetails = content?.dealSnapshotDetails ?? null;
+  const keyTerms = dealSnapshotDetails?.keyTerms ?? null;
+  const covenants = keyTerms?.covenants ?? null;
+  const lenderReserves = keyTerms?.lenderReserves ?? null;
+  const specialPrograms = dealSnapshotDetails?.specialPrograms ?? [];
+
 
   useOMPageHeader({
     subtitle: "Quick read on rate, term, recourse, and covenant highlights.",
@@ -29,37 +36,37 @@ export default function KeyTermsPage() {
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
               <p className="text-xs font-medium text-blue-600">Loan Type</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.loanType}
+                {keyTerms?.loanType ?? null}
               </p>
             </div>
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-green-200 hover:border-green-400 transition-colors">
               <p className="text-xs font-medium text-green-600">Interest Rate</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.rate}
+                {keyTerms?.rate ?? null}
               </p>
             </div>
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
               <p className="text-xs font-medium text-blue-600">Floor Rate</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.floor}
+                {keyTerms?.floor ?? null}
               </p>
             </div>
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
               <p className="text-xs font-medium text-red-600">Term</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.term}
+                {keyTerms?.term ?? null}
               </p>
             </div>
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
               <p className="text-xs font-medium text-blue-600">Extensions</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.extension}
+                {keyTerms?.extension ?? null}
               </p>
             </div>
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
               <p className="text-xs font-medium text-red-600">Recourse</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.recourse}
+                {keyTerms?.recourse ?? null}
               </p>
             </div>
           </div>
@@ -79,15 +86,15 @@ export default function KeyTermsPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
                 <span className="text-sm text-gray-700 font-medium">Origination Fee</span>
-                <Badge className="bg-red-100 text-red-800 border-2 border-red-300 font-semibold text-sm px-3 py-1">
-                  {dealSnapshotDetails.keyTerms.origination}
-                </Badge>
+                  <Badge className="bg-red-100 text-red-800 border-2 border-red-300 font-semibold text-sm px-3 py-1">
+                    {keyTerms?.origination ?? null}
+                  </Badge>
               </div>
               <div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
                 <span className="text-sm text-gray-700 font-medium">Exit Fee</span>
-                <Badge className="bg-red-100 text-red-800 border-2 border-red-300 font-semibold text-sm px-3 py-1">
-                  {dealSnapshotDetails.keyTerms.exitFee}
-                </Badge>
+                  <Badge className="bg-red-100 text-red-800 border-2 border-red-300 font-semibold text-sm px-3 py-1">
+                    {keyTerms?.exitFee ?? null}
+                  </Badge>
               </div>
             </div>
           </CardContent>
@@ -106,21 +113,21 @@ export default function KeyTermsPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
                 <span className="text-sm text-gray-700 font-medium">Interest Reserve</span>
-                <Badge className="bg-blue-100 text-blue-800 border-2 border-blue-300 font-semibold text-sm px-3 py-1">
-                  {dealSnapshotDetails.keyTerms.lenderReserves.interest}
-                </Badge>
+                  <Badge className="bg-blue-100 text-blue-800 border-2 border-blue-300 font-semibold text-sm px-3 py-1">
+                    {lenderReserves?.interest ?? null}
+                  </Badge>
               </div>
               <div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
                 <span className="text-sm text-gray-700 font-medium">Tax & Insurance</span>
-                <Badge className="bg-blue-100 text-blue-800 border-2 border-blue-300 font-semibold text-sm px-3 py-1">
-                  {dealSnapshotDetails.keyTerms.lenderReserves.taxInsurance}
-                </Badge>
+                  <Badge className="bg-blue-100 text-blue-800 border-2 border-blue-300 font-semibold text-sm px-3 py-1">
+                    {lenderReserves?.taxInsurance ?? null}
+                  </Badge>
               </div>
               <div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-green-200 hover:border-green-400 transition-colors">
                 <span className="text-sm text-gray-700 font-medium">CapEx Reserve</span>
-                <Badge className="bg-green-100 text-green-800 border-2 border-green-300 font-semibold text-sm px-3 py-1">
-                  {dealSnapshotDetails.keyTerms.lenderReserves.capEx}
-                </Badge>
+                  <Badge className="bg-green-100 text-green-800 border-2 border-green-300 font-semibold text-sm px-3 py-1">
+                    {lenderReserves?.capEx ?? null}
+                  </Badge>
               </div>
             </div>
           </CardContent>
@@ -142,25 +149,25 @@ export default function KeyTermsPage() {
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
               <p className="text-xs font-medium text-blue-600">Minimum DSCR</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.covenants.minDSCR}
+                {covenants?.minDSCR ?? null}
               </p>
             </div>
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
               <p className="text-xs font-medium text-blue-600">Maximum LTV</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.covenants.maxLTV}
+                {covenants?.maxLTV ?? null}
               </p>
             </div>
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-blue-200 hover:border-blue-400 transition-colors">
               <p className="text-xs font-medium text-blue-600">Minimum Liquidity</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.covenants.minLiquidity}
+                {covenants?.minLiquidity ?? null}
               </p>
             </div>
             <div className="space-y-2 p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
               <p className="text-xs font-medium text-red-600">Completion Guaranty</p>
               <p className="font-bold text-xl text-gray-900">
-                {dealSnapshotDetails.keyTerms.covenants.completionGuaranty}
+                {covenants?.completionGuaranty ?? null}
               </p>
             </div>
           </div>
@@ -179,9 +186,9 @@ export default function KeyTermsPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-3">
-            {dealSnapshotDetails.specialPrograms.map((program, index) => (
+            {specialPrograms.map((program, index) => (
               <div 
-                key={program.name} 
+                key={program?.name ?? index} 
                 className={`flex items-start justify-between rounded-lg p-5 bg-white border-2 transition-all hover:shadow-md ${
                   index === 0 
                     ? 'border-green-300'
@@ -198,7 +205,7 @@ export default function KeyTermsPage() {
                       ? 'text-blue-900'
                       : 'text-red-900'
                   }`}>
-                    {program.name}
+                    {program?.name ?? null}
                   </h4>
                   <p className={`text-sm mt-1 ${
                     index === 0 
@@ -207,7 +214,7 @@ export default function KeyTermsPage() {
                       ? 'text-blue-700'
                       : 'text-red-700'
                   }`}>
-                    {program.description}
+                    {program?.description ?? null}
                   </p>
                 </div>
                 <Badge className={`whitespace-nowrap border-2 font-semibold text-sm px-3 py-1 ${

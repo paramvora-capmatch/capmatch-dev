@@ -4,6 +4,7 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { Button } from '../ui/Button';
+import { ResumeVersionHistory } from './ResumeVersionHistory';
 import { Edit, MapPin, DollarSign, BarChart3, AlertCircle, ChevronDown, Building2, Calculator, TrendingUp, CheckCircle, Calendar, Map, Users, FileText, Home, Briefcase, Percent, Clock, Award, Sparkles, Loader2 } from 'lucide-react';
 import { KeyValueDisplay } from '../om/KeyValueDisplay'; // Reusing this component
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,6 +17,7 @@ import { useAutofill } from '@/hooks/useAutofill';
 interface ProjectResumeViewProps {
   project: ProjectProfile;
   onEdit: () => void;
+  onVersionChange?: () => void;
 }
 
 const formatCurrency = (amount: number | null | undefined): string => {
@@ -310,7 +312,11 @@ const getFieldLabel = (field: { fieldId: string; description: string }): string 
     return desc || field.fieldId;
 };
 
-export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, onEdit }) => {
+export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
+  project,
+  onEdit,
+  onVersionChange,
+}) => {
     const completeness = project.completenessPercent ?? 0;
     const progressColor = completeness >= 100 ? 'bg-green-600' : 'bg-blue-600';
     const router = useRouter();
@@ -346,17 +352,8 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
 
     return (
         <div
-            className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30 cursor-pointer"
+            className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30"
             aria-expanded={!collapsed}
-            role="button"
-            tabIndex={0}
-            onClick={() => setCollapsed((v) => !v)}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setCollapsed((v) => !v);
-                }
-            }}
         >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
             
@@ -443,6 +440,15 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                             </div>
                         )}
                     </Button>
+                    <div className="ml-2">
+                      <ResumeVersionHistory
+                        projectId={project.id}
+                        resourceId={project.projectResumeResourceId ?? null}
+                        onRollbackSuccess={() => {
+                          onVersionChange?.();
+                        }}
+                      />
+                    </div>
                 </div>
                 <div />
             </div>

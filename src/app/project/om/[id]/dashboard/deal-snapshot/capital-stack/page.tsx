@@ -5,12 +5,12 @@ import React from 'react';
 import { useParams } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { useOMDashboard } from '@/contexts/OMDashboardContext';
-import { capitalStackData } from '@/services/mockOMData';
 import { MetricCard } from '@/components/om/widgets/MetricCard';
 import { MiniChart } from '@/components/om/widgets/MiniChart';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
+import { useOmContent } from '@/hooks/useOmContent';
 
 export default function CapitalStackPage() {
   const params = useParams();
@@ -18,7 +18,16 @@ export default function CapitalStackPage() {
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
   const { scenario } = useOMDashboard();
-  const data = capitalStackData[scenario];
+  const { content } = useOmContent();
+  const capitalStackData = content?.capitalStackData ?? null;
+  const data = capitalStackData?.[scenario] ?? null;
+  const sources = data?.sources ?? [];
+  const uses = data?.uses ?? [];
+  const primaryDebt = sources[0] ?? null;
+  const formatPercent = (value: number | null | undefined) =>
+    value != null ? `${value}%` : null;
+  const formatMillions = (value: number | null | undefined) =>
+    value != null ? `$${(value / 1_000_000).toFixed(1)}M` : null;
 
   useOMPageHeader({
     subtitle: project
@@ -28,14 +37,14 @@ export default function CapitalStackPage() {
 
   if (!project) return <div>Project not found</div>;
 
-  const sourcesChartData = data.sources.map((source) => ({
-    name: source.type,
-    value: source.percentage,
+  const sourcesChartData = sources.map((source) => ({
+    name: source.type ?? null,
+    value: source.percentage ?? 0,
   }));
 
-  const usesChartData = data.uses.map((use) => ({
-    name: use.type,
-    value: use.percentage,
+  const usesChartData = uses.map((use) => ({
+    name: use.type ?? null,
+    value: use.percentage ?? 0,
   }));
 
   return (
@@ -51,21 +60,21 @@ export default function CapitalStackPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <MetricCard
           label="Total Capitalization"
-          value={data.totalCapitalization}
+          value={data?.totalCapitalization ?? null}
           format="currency"
           size="lg"
           dataSourceFields={['total capitalization', 'loan amount requested', 'sponsor equity']}
         />
         <MetricCard
           label="Loan to Cost"
-          value={data.sources[0].percentage}
+          value={primaryDebt?.percentage ?? null}
           format="percent"
           size="lg"
           dataSourceFields={['loan to cost', 'ltv']}
         />
         <MetricCard
           label="Equity Contribution"
-          value={100 - data.sources[0].percentage}
+          value={primaryDebt?.percentage != null ? 100 - primaryDebt.percentage : null}
           format="percent"
           size="lg"
           dataSourceFields={['equity contribution', 'sponsor equity']}
@@ -96,7 +105,7 @@ export default function CapitalStackPage() {
           </div>
 
           <div className="space-y-3">
-            {data.sources.map((source, idx) => (
+            {sources.map((source, idx) => (
               <div
                 key={idx}
                 className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
@@ -114,9 +123,9 @@ export default function CapitalStackPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-gray-800">
-                    ${(source.amount / 1000000).toFixed(1)}M
+                    {formatMillions(source.amount)}
                   </p>
-                  <p className="text-sm text-gray-600">{source.percentage}%</p>
+                  <p className="text-sm text-gray-600">{formatPercent(source.percentage)}</p>
                 </div>
               </div>
             ))}
@@ -145,7 +154,7 @@ export default function CapitalStackPage() {
           </div>
 
           <div className="space-y-3">
-            {data.uses.map((use, idx) => (
+            {uses.map((use, idx) => (
               <div
                 key={idx}
                 className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
@@ -156,9 +165,9 @@ export default function CapitalStackPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-gray-800">
-                    ${(use.amount / 1000000).toFixed(1)}M
+                    {formatMillions(use.amount)}
                   </p>
-                  <p className="text-sm text-gray-600">{use.percentage}%</p>
+                  <p className="text-sm text-gray-600">{formatPercent(use.percentage)}</p>
                 </div>
               </div>
             ))}
@@ -177,64 +186,65 @@ export default function CapitalStackPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="space-y-3">
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-600">Loan Type</p>
-              <p className="font-medium text-gray-800">
-                {data.debtTerms.loanType}
-              </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-3">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-gray-600">Loan Type</p>
+                <p className="font-medium text-gray-800">
+                  {data?.debtTerms?.loanType ?? null}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-gray-600">Lender</p>
+                <p className="font-medium text-gray-800">
+                  {data?.debtTerms?.lender ?? null}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-gray-600">Rate</p>
+                <p className="font-medium text-gray-800">{data?.debtTerms?.rate ?? null}</p>
+              </div>
             </div>
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-600">Lender</p>
-              <p className="font-medium text-gray-800">
-                {data.debtTerms.lender}
-              </p>
-            </div>
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-600">Rate</p>
-              <p className="font-medium text-gray-800">{data.debtTerms.rate}</p>
-            </div>
-          </div>
 
-          <div className="space-y-3">
-            <div className="p-3 bg-green-50 rounded-lg">
-              <p className="text-sm text-gray-600">Floor Rate</p>
-              <p className="font-medium text-gray-800">
-                {data.debtTerms.floor}
-              </p>
+            <div className="space-y-3">
+              <div className="p-3 bg-green-50 rounded-lg">
+                <p className="text-sm text-gray-600">Floor Rate</p>
+                <p className="font-medium text-gray-800">
+                  {data?.debtTerms?.floor ?? null}
+                </p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg">
+                <p className="text-sm text-gray-600">Term</p>
+                <p className="font-medium text-gray-800">{data?.debtTerms?.term ?? null}</p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg">
+                <p className="text-sm text-gray-600">Extensions</p>
+                <p className="font-medium text-gray-800">
+                  {data?.debtTerms?.extension ?? null}
+                </p>
+              </div>
             </div>
-            <div className="p-3 bg-green-50 rounded-lg">
-              <p className="text-sm text-gray-600">Term</p>
-              <p className="font-medium text-gray-800">{data.debtTerms.term}</p>
-            </div>
-            <div className="p-3 bg-green-50 rounded-lg">
-              <p className="text-sm text-gray-600">Extensions</p>
-              <p className="font-medium text-gray-800">
-                {data.debtTerms.extension}
-              </p>
-            </div>
-          </div>
 
-          <div className="space-y-3">
-            <div className="p-3 bg-red-50 rounded-lg">
-              <p className="text-sm text-gray-600">Recourse</p>
-              <p className="font-medium text-gray-800">
-                {data.debtTerms.recourse}
-              </p>
+            <div className="space-y-3">
+              <div className="p-3 bg-red-50 rounded-lg">
+                <p className="text-sm text-gray-600">Recourse</p>
+                <p className="font-medium text-gray-800">
+                  {data?.debtTerms?.recourse ?? null}
+                </p>
+              </div>
+              <div className="p-3 bg-red-50 rounded-lg">
+                <p className="text-sm text-gray-600">Origination Fee</p>
+                <p className="font-medium text-gray-800">
+                  {data?.debtTerms?.origination ?? null}
+                </p>
+              </div>
+              <div className="p-3 bg-red-50 rounded-lg">
+                <p className="text-sm text-gray-600">Exit Fee</p>
+                <p className="font-medium text-gray-800">
+                  {data?.debtTerms?.exitFee ?? null}
+                </p>
+              </div>
             </div>
-            <div className="p-3 bg-red-50 rounded-lg">
-              <p className="text-sm text-gray-600">Origination Fee</p>
-              <p className="font-medium text-gray-800">
-                {data.debtTerms.origination}
-              </p>
-            </div>
-            <div className="p-3 bg-red-50 rounded-lg">
-              <p className="text-sm text-gray-600">Exit Fee</p>
-              <p className="font-medium text-gray-800">
-                {data.debtTerms.exitFee}
-              </p>
-            </div>
-          </div>
           </div>
 
           {/* Reserves */}
@@ -246,19 +256,19 @@ export default function CapitalStackPage() {
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600">Interest Reserve</p>
               <p className="font-medium text-gray-800">
-                {data.debtTerms.reserves.interest}
+                {data?.debtTerms?.reserves?.interest ?? null}
               </p>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600">Tax & Insurance</p>
               <p className="font-medium text-gray-800">
-                {data.debtTerms.reserves.taxInsurance}
+                {data?.debtTerms?.reserves?.taxInsurance ?? null}
               </p>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600">CapEx Reserve</p>
               <p className="font-medium text-gray-800">
-                {data.debtTerms.reserves.capEx}
+                {data?.debtTerms?.reserves?.capEx ?? null}
               </p>
             </div>
           </div>
