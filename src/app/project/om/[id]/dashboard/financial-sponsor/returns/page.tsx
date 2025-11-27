@@ -63,7 +63,6 @@ export default function ReturnsPage() {
             </p>
             <p className="text-sm text-gray-500 mt-1">Projected IRR</p>
             <div className="mt-2">
-            <div className="mt-2">
               <Badge className="bg-green-100 text-green-800">
                 {upsideScenario?.multiple != null ? `${upsideScenario.multiple}x Multiple` : null}
               </Badge>
@@ -86,7 +85,6 @@ export default function ReturnsPage() {
             </p>
             <p className="text-sm text-gray-500 mt-1">Projected IRR</p>
             <div className="mt-2">
-            <div className="mt-2">
               <Badge className="bg-blue-100 text-blue-800">
                 {baseScenario?.multiple != null ? `${baseScenario.multiple}x Multiple` : null}
               </Badge>
@@ -108,7 +106,6 @@ export default function ReturnsPage() {
               {downsideScenario?.irr != null ? `${downsideScenario.irr}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Projected IRR</p>
-            <div className="mt-2">
             <div className="mt-2">
               <Badge className="bg-red-100 text-red-800">
                 {downsideScenario?.multiple != null ? `${downsideScenario.multiple}x Multiple` : null}

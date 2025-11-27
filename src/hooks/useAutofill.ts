@@ -1,6 +1,7 @@
 // src/hooks/useAutofill.ts
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { useProjects } from '@/hooks/useProjects';
 
 type AutofillContext = 'project' | 'borrower';
 
@@ -47,6 +48,7 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
   const [showSparkles, setShowSparkles] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<string | null>(null);
+  const { loadUserProjects } = useProjects();
   const context: AutofillContext = options?.context ?? "project";
   const resumeTable = getResumeTable(context);
   const storageKey = getAutofillStateKey(context);
@@ -126,11 +128,15 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
       
       if (isComplete) {
         clearAutofillState();
-        // Reload to show updated data
-        window.location.reload();
+        // Refresh project data so completion % and OM readiness update without full reload
+        try {
+          await loadUserProjects();
+        } catch (err) {
+          console.error('Failed to refresh projects after autofill completion:', err);
+        }
       }
     }, POLL_INTERVAL);
-  }, [checkCompletion, clearAutofillState]);
+  }, [checkCompletion, clearAutofillState, loadUserProjects]);
 
   // Set up realtime subscription to detect when other users trigger autofill
   useEffect(() => {

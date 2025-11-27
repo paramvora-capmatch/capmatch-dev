@@ -22,7 +22,7 @@ export default function AmenitiesPage() {
 
   const totalAmenitySF =
     amenityDetails.length > 0
-      ? amenityDetails.reduce((sum, amenity) => {
+      ? amenityDetails.reduce((sum: number, amenity: { size?: string | null }) => {
           const numeric = parseInt(
             (amenity.size ?? '').replace(/[^\d]/g, ''),
             10
@@ -59,11 +59,6 @@ export default function AmenitiesPage() {
     ];
     return colors[index % colors.length];
   };
-
-  const totalAmenitySF = assetProfileDetails.amenityDetails.reduce(
-    (sum, amenity) => sum + parseInt(amenity.size.replace(/[^\d]/g, '')), 
-    0
-  );
 
   useOMPageHeader({
     subtitle: "Inventory of onsite amenities and experiential highlights.",
@@ -117,7 +112,7 @@ export default function AmenitiesPage() {
 
       {/* Amenities Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {amenityDetails.map((amenity, index) => {
+        {amenityDetails.map((amenity: { name?: string | null; size?: string | null; description?: string | null }, index: number) => {
           const IconComponent = getAmenityIcon(amenity.name);
           const amenityColor = getAmenityColor(index);
           
@@ -164,7 +159,7 @@ export default function AmenitiesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {commercialSpaces.map((space, index) => (
+            {commercialSpaces.map((space: { name?: string | null; use?: string | null; size?: string | null; status?: string | null }, index: number) => (
               <div key={space.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
                   <p className="text-sm font-semibold text-gray-800">{space.name ?? null}</p>

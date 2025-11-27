@@ -1069,7 +1069,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				lockedSet
 			);
 		}
-	}, [existingProject._lockedFields]);
+	}, [existingProject._lockedFields, lockedFields]);
 
 	// Initialize lockedSections from existingProject._lockedSections
 	const [lockedSections, setLockedSections] = useState<Set<string>>(() => {
@@ -1114,7 +1114,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				lockedSet
 			);
 		}
-	}, [existingProject._lockedSections]);
+	}, [existingProject._lockedSections, lockedSections]);
 
 	// Helper function to check if a field is locked
 	const isFieldLocked = useCallback(
@@ -1377,7 +1377,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				</button>
 			);
 		},
-		[isFieldLocked, toggleFieldLock]
+		[isFieldDisabled, toggleFieldLock]
 	);
 
 	// Helper function to render field label with Ask AI and Lock buttons
@@ -1778,7 +1778,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				return nextFormData;
 			});
 		},
-		[onFormDataChange, fieldMetadata]
+		[onFormDataChange]
 	);
 
 	// Handle form submission (manual save via button)
@@ -1835,6 +1835,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}, [
 		formData,
 		fieldMetadata,
+		lockedFields,
+		lockedSections,
 		updateProject,
 		onComplete,
 		snapshotProjectResume,
@@ -5750,7 +5752,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			handleInputChange,
 			onAskAI,
 			lockedSections,
-			isFieldLocked,
+			isFieldDisabled,
 			renderFieldLabel,
 			toggleSectionLock,
 			activeOrg?.id,
