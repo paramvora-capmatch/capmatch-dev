@@ -479,20 +479,12 @@ const GraphicContainer: React.FC<{ children: React.ReactNode }> = ({ children })
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
-          <radialGradient id="bgGradient" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stopColor="rgba(249, 250, 251, 0.7)" />
-            <stop offset="100%" stopColor="rgba(255, 255, 255, 0.95)" />
-          </radialGradient>
-          
           {/* Glow filter for better visual effects */}
           <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
-        
-        {/* Background with radial gradient */}
-        <rect width="500" height="400" fill="url(#bgGradient)" />
         
         {/* Grid lines for visual interest */}
         <g opacity="0.05">
