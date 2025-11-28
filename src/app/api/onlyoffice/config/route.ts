@@ -136,14 +136,69 @@ export async function POST(request: NextRequest) {
 
     // Use the resource name for the title, and version ID for the key
     const fileName = resource.name;
-    const fileType = fileName.split(".").pop() || "";
+    
+    // Extract file type - try multiple sources
+    let fileType = "";
+    
+    // First, try to get extension from resource name
+    const nameParts = fileName.split(".");
+    if (nameParts.length > 1 && nameParts[nameParts.length - 1].length <= 5) {
+      fileType = nameParts[nameParts.length - 1].toLowerCase();
+    }
+    
+    // If not found, extract from storage path (format: v{number}_{filename})
+    if (!fileType) {
+      const storagePathParts = filePath.split("/");
+      const storageFileName = storagePathParts[storagePathParts.length - 1];
+      const match = storageFileName.match(/v\d+_(.+)$/);
+      if (match && match[1]) {
+        const extension = match[1].split(".").pop();
+        if (extension && extension !== match[1] && extension.length <= 5) {
+          fileType = extension.toLowerCase();
+        }
+      }
+    }
+    
+    // Final fallback: extract from storage path directly
+    if (!fileType) {
+      const pathParts = filePath.split(".");
+      if (pathParts.length > 1) {
+        const extension = pathParts[pathParts.length - 1].toLowerCase();
+        if (extension.length <= 5 && !extension.includes("/")) {
+          fileType = extension;
+        }
+      }
+    }
+    
+    // OnlyOffice supported file types
+    const supportedFileTypes = ['docx', 'xlsx', 'pptx', 'pdf', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp'];
+    
+    // Validate file type
+    if (!fileType || fileType.length === 0) {
+      throw new Error(`Could not determine file type for document: ${fileName}. Storage path: ${filePath}`);
+    }
+    
+    if (!supportedFileTypes.includes(fileType)) {
+      throw new Error(
+        `Unsupported file type for OnlyOffice: ${fileType}. Supported types: ${supportedFileTypes.join(', ')}`
+      );
+    }
+    
+    const normalizedFileType = fileType;
 
     const documentTypeMap: { [key: string]: string } = {
       docx: "word",
+      doc: "word",
+      odt: "word",
       xlsx: "cell",
+      xls: "cell",
+      ods: "cell",
       pptx: "slide",
+      ppt: "slide",
+      odp: "slide",
+      pdf: "word", // PDFs are handled as word documents in OnlyOffice
     };
-    const documentType = documentTypeMap[fileType] || "word";
+    const documentType = documentTypeMap[normalizedFileType] || "word";
 
     // Callback URL now includes the logical resource ID
     const callbackUrl = `${internalServerUrl}?resourceId=${encodeURIComponent(
@@ -168,7 +223,7 @@ export async function POST(request: NextRequest) {
 
     const config = {
       document: {
-        fileType: fileType,
+        fileType: normalizedFileType,
         key: documentKey,
         title: fileName,
         url: documentUrl,
