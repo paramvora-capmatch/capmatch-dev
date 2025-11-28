@@ -586,7 +586,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                             {/* Residential Unit Mix */}
                                             {(() => {
                                                 const unitMix = getFieldValue(project, 'residentialUnitMix');
-                                                if (!hasValue(unitMix)) return null;
+                                                if (!hasValue(unitMix) || !Array.isArray(unitMix)) return null;
                                                 
                                                 return (
                                                     <div className="mt-4">
@@ -622,7 +622,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                             {/* Commercial Space Mix */}
                                             {(() => {
                                                 const spaceMix = getFieldValue(project, 'commercialSpaceMix');
-                                                if (!hasValue(spaceMix)) return null;
+                                                if (!hasValue(spaceMix) || !Array.isArray(spaceMix)) return null;
                                                 
                                                 return (
                                                     <div className="mt-4">
@@ -865,7 +865,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                             {/* Rent Comps */}
                                             {(() => {
                                                 const rentComps = getFieldValue(project, 'rentComps');
-                                                if (!hasValue(rentComps)) return null;
+                                                if (!hasValue(rentComps) || !Array.isArray(rentComps)) return null;
                                                 
                                                 return (
                                                     <div className="mt-4">
