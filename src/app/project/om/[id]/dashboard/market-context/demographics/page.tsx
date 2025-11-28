@@ -43,21 +43,6 @@ export default function DemographicsPage() {
     return 'bg-gray-100 text-gray-800';
   };
 
-  const getGrowthColor = (growth: string) => {
-    const growthNum = parseFloat(growth);
-    if (growthNum >= 15) return 'bg-green-100 text-green-800';
-    if (growthNum >= 10) return 'bg-blue-100 text-blue-800';
-    if (growthNum >= 5) return 'bg-green-100 text-green-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  const getIncomeTier = (income: number) => {
-    if (income >= 80000) return 'bg-green-100 text-green-800';
-    if (income >= 60000) return 'bg-blue-100 text-blue-800';
-    if (income >= 40000) return 'bg-green-100 text-green-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
   useOMPageHeader({
     subtitle: "Population make-up, income bands, and growth across key radii.",
   });

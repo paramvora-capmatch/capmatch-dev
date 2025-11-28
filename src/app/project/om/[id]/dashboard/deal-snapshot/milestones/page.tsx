@@ -38,7 +38,7 @@ export default function MilestonesPage() {
   };
 
   const totalDuration = milestones.reduce(
-    (sum, milestone) => sum + (milestone.duration ?? 0),
+    (sum: number, milestone: { duration?: number | null }) => sum + (milestone.duration ?? 0),
     0
   );
 
@@ -55,7 +55,7 @@ export default function MilestonesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {milestones.map((milestone, index) => (
+            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => (
               <div key={index} className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
                   {getStatusIcon(milestone.status ?? 'upcoming')}
@@ -87,10 +87,10 @@ export default function MilestonesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {milestones.map((milestone, index) => {
+            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => {
               const previousDuration = milestones
                 .slice(0, index)
-                .reduce((sum, m) => sum + (m.duration ?? 0), 0);
+                .reduce((sum: number, m: { duration?: number | null }) => sum + (m.duration ?? 0), 0);
               const startPercentage = totalDuration > 0 ? (previousDuration / totalDuration) * 100 : 0;
               const duration = milestone.duration ?? 0;
               const widthPercentage = totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
@@ -150,7 +150,7 @@ export default function MilestonesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {milestones.filter((m) => m.status === 'completed').length}
+              {milestones.filter((m: { status?: string | null }) => m.status === 'completed').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones completed</p>
           </CardContent>
@@ -162,7 +162,7 @@ export default function MilestonesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {milestones.filter((m) => m.status === 'upcoming').length}
+              {milestones.filter((m: { status?: string | null }) => m.status === 'upcoming').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones pending</p>
           </CardContent>

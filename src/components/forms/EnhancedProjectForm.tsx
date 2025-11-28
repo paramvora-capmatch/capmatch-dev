@@ -517,7 +517,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 			setSelected(new Set());
 		} else {
 			// Select all
-			setSelected(new Set(images));
+			setSelected(new Set(images.map(img => img.fileName)));
 		}
 	};
 

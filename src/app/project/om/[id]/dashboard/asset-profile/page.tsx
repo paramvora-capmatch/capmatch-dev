@@ -29,7 +29,7 @@ export default function AssetProfilePage() {
   const amenityDetails = assetProfileDetails?.amenityDetails ?? [];
   const totalAmenitySF =
     amenityDetails.length > 0
-      ? amenityDetails.reduce((sum, amenity) => {
+      ? amenityDetails.reduce((sum: number, amenity: { size?: string | null }) => {
           const numeric = parseInt(
             (amenity.size ?? '').replace(/[^\d]/g, ''),
             10
@@ -41,7 +41,7 @@ export default function AssetProfilePage() {
 
   const avgCompRentPSF =
     marketComps.length > 0
-      ? (marketComps.reduce((sum, comp) => sum + (comp.rentPSF ?? 0), 0) / marketComps.length).toFixed(2)
+      ? (marketComps.reduce((sum: number, comp: { rentPSF?: number | null }) => sum + (comp.rentPSF ?? 0), 0) / marketComps.length).toFixed(2)
       : null;
 
   useOMPageHeader({
@@ -52,7 +52,7 @@ export default function AssetProfilePage() {
   
   if (!project) return <div>Project not found</div>;
   
-  const amenityLabels = amenityDetails.map((a) => a.name);
+  const amenityLabels = amenityDetails.map((a: { name?: string | null }) => a.name);
   const quadrants = [
     {
       id: 'site-zoning',
@@ -97,7 +97,7 @@ export default function AssetProfilePage() {
       metrics: (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            {amenityLabels.slice(0, 6).map((amenity) => (
+            {amenityLabels.slice(0, 6).map((amenity: string | null | undefined) => (
               <div key={amenity} className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded text-center">
                 {amenity}
               </div>
@@ -141,11 +141,11 @@ export default function AssetProfilePage() {
         <div className="space-y-3">
           <MiniChart
             type="bar"
-            data={unitMixData.map((u) => ({ value: u.avgRent }))}
+            data={unitMixData.map((u: { avgRent?: number | null }) => ({ value: u.avgRent }))}
             height={80}
           />
           <div className="space-y-2">
-            {unitMixData.slice(0, 3).map((unit) => (
+            {unitMixData.slice(0, 3).map((unit: { type?: string | null; units?: number | null; avgRent?: number | null }) => (
               <div key={unit.type} className="flex justify-between text-sm">
                 <span className="text-gray-600">{unit.type}</span>
                 <span className="text-gray-600">{unit.units} units</span>
@@ -173,7 +173,7 @@ export default function AssetProfilePage() {
       metrics: (
         <div className="space-y-3">
           <div className="space-y-2">
-            {marketComps.slice(0, 3).map((comp) => (
+            {marketComps.slice(0, 3).map((comp: { name?: string | null; units?: number | null; yearBuilt?: string | null; rentPSF?: number | null; capRate?: string | null }) => (
               <div key={comp.name} className="p-2 bg-gray-50 rounded">
                 <div className="flex justify-between items-start">
                   <div>

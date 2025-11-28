@@ -36,7 +36,7 @@ export default function SupplyDemandPage() {
   const maxUnits =
     deliveryByQuarter.length > 0
       ? Math.max(
-          ...deliveryByQuarter.map((q) => q.units ?? 0)
+          ...deliveryByQuarter.map((q: { units?: number | null }) => q.units ?? 0)
         )
       : 0;
   const parseOccupancyPercent = (value?: string | null) => {
@@ -227,7 +227,7 @@ export default function SupplyDemandPage() {
           <div className="space-y-6">
             {/* Histogram Bars */}
             <div className="flex items-end justify-between space-x-4 h-48">
-              {deliveryByQuarter.map((quarter, index) => {
+              {deliveryByQuarter.map((quarter: { quarter?: string | null; units?: number | null }, index: number) => {
                   const safeMaxUnits = maxUnits || 1;
                   const barHeight = ((quarter.units ?? 0) / safeMaxUnits) * 100;
                   return (
@@ -237,7 +237,7 @@ export default function SupplyDemandPage() {
                     >
                       {/* Value Label above Bar */}
                       <div className="text-sm font-medium text-gray-700 mb-2">
-                        {quarter.units.toLocaleString()}
+                        {(quarter.units ?? 0).toLocaleString()}
                       </div>
 
                       {/* Bar */}
@@ -273,7 +273,7 @@ export default function SupplyDemandPage() {
                   </span>
                   <Badge className="bg-blue-100 text-blue-800">
                     {deliveryByQuarter
-                      .reduce((sum, q) => sum + (q.units ?? 0), 0)
+                      .reduce((sum: number, q: { units?: number | null }) => sum + (q.units ?? 0), 0)
                       .toLocaleString()}{" "}
                     units
                   </Badge>

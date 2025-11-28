@@ -212,7 +212,7 @@ export default function SponsorProfilePage() {
         <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {principals.map(
-              (principal, index) => (
+              (principal: { name?: string | null; role?: string | null; experience?: string | null; bio?: string | null; education?: string | null; specialties?: string[] | null; achievements?: string[] | null }, index: number) => (
                 <div
                   key={index}
                   className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-100 hover:shadow-lg transition-all duration-300"
@@ -220,7 +220,7 @@ export default function SponsorProfilePage() {
                   <div className="flex items-start mb-6">
                     <div className="mr-4 flex-shrink-0">
                       <PlaceholderImage
-                        name={principal.name}
+                        name={principal.name ?? ''}
                         size={80}
                         color={index === 0 ? "3B82F6" : "10B981"}
                       />
@@ -260,7 +260,7 @@ export default function SponsorProfilePage() {
                         Specialties
                       </h5>
                       <div className="flex flex-wrap gap-2">
-                        {(principal.specialties ?? []).map((specialty, idx) => (
+                        {(principal.specialties ?? []).map((specialty: string, idx: number) => (
                           <Badge
                             key={idx}
                             variant="outline"
@@ -277,7 +277,7 @@ export default function SponsorProfilePage() {
                         Key Achievements
                       </h5>
                       <div className="space-y-2">
-                        {(principal.achievements ?? []).map((achievement, idx) => (
+                        {(principal.achievements ?? []).map((achievement: string, idx: number) => (
                           <div key={idx} className="flex items-center">
                             <Star className="h-3 w-3 text-green-500 mr-2" />
                             <span className="text-sm text-gray-600">
@@ -332,7 +332,7 @@ export default function SponsorProfilePage() {
                 </tr>
               </thead>
               <tbody>
-                {trackRecord.map((project, index) => {
+                {trackRecord.map((project: { project?: string | null; year?: number | null; units?: number | null; irr?: string | number | null; market?: string | null; type?: string | null }, index: number) => {
                   const irrValue = getIrrValue(project.irr);
                   return (
                     <tr
@@ -403,7 +403,7 @@ export default function SponsorProfilePage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {references.map((reference, index) => (
+            {references.map((reference: { firm?: string | null; relationship?: string | null; years?: string | null; contact?: string | null }, index: number) => (
                 <div
                   key={index}
                   className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-100 hover:shadow-lg transition-all duration-300"

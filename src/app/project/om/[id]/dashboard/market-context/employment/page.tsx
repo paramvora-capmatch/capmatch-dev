@@ -40,13 +40,13 @@ export default function EmploymentPage() {
   };
 
   const totalEmployees = majorEmployers.reduce(
-    (sum, employer) => sum + (employer.employees ?? 0),
+    (sum: number, employer: { employees?: number | null }) => sum + (employer.employees ?? 0),
     0
   );
 
   const avgGrowth =
     majorEmployers.length > 0
-      ? majorEmployers.reduce((sum, employer) => {
+      ? majorEmployers.reduce((sum: number, employer: { growth?: string | null }) => {
           const growthValue = employer.growth ?? '0';
           return sum + parseInt(growthValue.replace(/[^\d-]/g, ''));
         }, 0) / majorEmployers.length
@@ -54,7 +54,7 @@ export default function EmploymentPage() {
 
   const avgDistance =
     majorEmployers.length > 0
-      ? majorEmployers.reduce((sum, employer) => {
+      ? majorEmployers.reduce((sum: number, employer: { distance?: string | null }) => {
           const distanceValue = employer.distance ?? '0';
           return sum + parseFloat(distanceValue.replace(/[^\d.]/g, ''));
         }, 0) / majorEmployers.length
@@ -141,7 +141,7 @@ export default function EmploymentPage() {
                 </tr>
               </thead>
               <tbody>
-                {majorEmployers.map((employer, index) => {
+                {majorEmployers.map((employer: { name?: string | null; employees?: number | null; growth?: string | null; distance?: string | null }, index: number) => {
                   const employees = employer.employees ?? 0;
                   return (
                     <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
@@ -198,7 +198,7 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {majorEmployers.map((employer, index) => {
+              {majorEmployers.map((employer: { name?: string | null; employees?: number | null; growth?: string | null }, index: number) => {
                 const employees = employer.employees ?? 0;
                 const employeeTotal = totalEmployees || 1;
                 const widthPercent = (employees / employeeTotal) * 100;
@@ -206,7 +206,7 @@ export default function EmploymentPage() {
                   <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">{employer.name}</span>
-                    <span className="text-sm text-gray-500">{employer.employees.toLocaleString()}</span>
+                    <span className="text-sm text-gray-500">{(employer.employees ?? 0).toLocaleString()}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
@@ -234,11 +234,11 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {majorEmployers.map((employer, index) => (
+              {majorEmployers.map((employer: { name?: string | null; employees?: number | null; growth?: string | null }, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-800">{employer.name}</p>
-                    <p className="text-sm text-gray-500">{employer.employees.toLocaleString()} employees</p>
+                    <p className="text-sm text-gray-500">{(employer.employees ?? 0).toLocaleString()} employees</p>
                   </div>
                   <div className="text-right">
                     <Badge className={getGrowthColor(employer.growth)}>

@@ -146,7 +146,7 @@ export default function DealSnapshotPage() {
             metrics: (
                 <div className="space-y-3">
                     <div className="space-y-2">
-                        {dealSnapshotDetails?.milestones?.slice(0, 3).map((milestone, idx) => (
+                        {dealSnapshotDetails?.milestones?.slice(0, 3).map((milestone: { phase?: string | null; date?: string | null; status?: string | null }, idx: number) => (
                             <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                                 <span className="text-sm">{milestone.phase ?? null}</span>
                                 <div className="flex items-center space-x-2">
@@ -175,11 +175,11 @@ export default function DealSnapshotPage() {
                 <div className="space-y-3">
                     <div className="space-y-2">
                         {(() => {
-                            const medium = (dealSnapshotDetails?.riskMatrix?.medium ?? []).map((item) => ({
+                            const medium = (dealSnapshotDetails?.riskMatrix?.medium ?? []).map((item: { risk?: string | null; mitigation?: string | null }) => ({
                                 ...item,
                                 level: 'Medium',
                             }));
-                            const low = (dealSnapshotDetails?.riskMatrix?.low ?? []).map((item) => ({
+                            const low = (dealSnapshotDetails?.riskMatrix?.low ?? []).map((item: { risk?: string | null; mitigation?: string | null }) => ({
                                 ...item,
                                 level: 'Low',
                             }));

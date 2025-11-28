@@ -186,7 +186,7 @@ export default function KeyTermsPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-3">
-            {specialPrograms.map((program, index) => (
+            {specialPrograms.map((program: { name?: string | null; description?: string | null }, index: number) => (
               <div 
                 key={program?.name ?? index} 
                 className={`flex items-start justify-between rounded-lg p-5 bg-white border-2 transition-all hover:shadow-md ${
