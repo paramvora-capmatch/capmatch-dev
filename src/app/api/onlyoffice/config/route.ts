@@ -148,14 +148,79 @@ export async function POST(request: NextRequest) {
     };
     
     const fileName = extractOriginalFilename(filePath);
-    const fileType = fileName.split(".").pop() || "";
+    
+    // Extract file type - try multiple sources
+    let fileType = "";
+    
+    // First, try to get extension from extracted filename
+    const nameParts = fileName.split(".");
+    if (nameParts.length > 1 && nameParts[nameParts.length - 1].length <= 5) {
+      fileType = nameParts[nameParts.length - 1].toLowerCase();
+    }
+    
+    // If not found, extract from storage path (format: v{number}_user{userId}_{filename} or v{number}_{filename})
+    if (!fileType) {
+      const storagePathParts = filePath.split("/");
+      const storageFileName = storagePathParts[storagePathParts.length - 1];
+      // Try new format first (with user ID)
+      const newFormatMatch = storageFileName.match(/^v\d+_user[^_]+_(.+)$/);
+      if (newFormatMatch && newFormatMatch[1]) {
+        const extension = newFormatMatch[1].split(".").pop();
+        if (extension && extension !== newFormatMatch[1] && extension.length <= 5) {
+          fileType = extension.toLowerCase();
+        }
+      } else {
+        // Try old format (without user ID)
+        const oldFormatMatch = storageFileName.match(/^v\d+_(.+)$/);
+        if (oldFormatMatch && oldFormatMatch[1]) {
+          const extension = oldFormatMatch[1].split(".").pop();
+          if (extension && extension !== oldFormatMatch[1] && extension.length <= 5) {
+            fileType = extension.toLowerCase();
+          }
+        }
+      }
+    }
+    
+    // Final fallback: extract from storage path directly
+    if (!fileType) {
+      const pathParts = filePath.split(".");
+      if (pathParts.length > 1) {
+        const extension = pathParts[pathParts.length - 1].toLowerCase();
+        if (extension.length <= 5 && !extension.includes("/")) {
+          fileType = extension;
+        }
+      }
+    }
+    
+    // OnlyOffice supported file types
+    const supportedFileTypes = ['docx', 'xlsx', 'pptx', 'pdf', 'doc', 'xls', 'ppt', 'odt', 'ods', 'odp'];
+    
+    // Validate file type
+    if (!fileType || fileType.length === 0) {
+      throw new Error(`Could not determine file type for document: ${fileName}. Storage path: ${filePath}`);
+    }
+    
+    if (!supportedFileTypes.includes(fileType)) {
+      throw new Error(
+        `Unsupported file type for OnlyOffice: ${fileType}. Supported types: ${supportedFileTypes.join(', ')}`
+      );
+    }
+    
+    const normalizedFileType = fileType;
 
     const documentTypeMap: { [key: string]: string } = {
       docx: "word",
+      doc: "word",
+      odt: "word",
       xlsx: "cell",
+      xls: "cell",
+      ods: "cell",
       pptx: "slide",
+      ppt: "slide",
+      odp: "slide",
+      pdf: "word", // PDFs are handled as word documents in OnlyOffice
     };
-    const documentType = documentTypeMap[fileType] || "word";
+    const documentType = documentTypeMap[normalizedFileType] || "word";
 
     // Callback URL now includes the logical resource ID
     const callbackUrl = `${internalServerUrl}?resourceId=${encodeURIComponent(
@@ -180,7 +245,7 @@ export async function POST(request: NextRequest) {
 
     const config = {
       document: {
-        fileType: fileType,
+        fileType: normalizedFileType,
         key: documentKey,
         title: fileName,
         url: documentUrl,
