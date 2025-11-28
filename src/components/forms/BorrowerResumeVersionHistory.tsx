@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  MouseEvent,
 } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "../ui/Button";
@@ -125,7 +124,7 @@ export const BorrowerResumeVersionHistory: React.FC<BorrowerVersionHistoryProps>
   }, [isOpen, fetchVersions]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: globalThis.MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setConfirmRollback(null);

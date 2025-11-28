@@ -236,9 +236,21 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 	orgId,
 	disabled = false,
 }) => {
-	const [siteImages, setSiteImages] = useState<Array<{fileName: string; source: 'main_folder' | 'artifacts'; storagePath: string; documentName?: string}>>([]);
+	const [siteImages, setSiteImages] = useState<
+		Array<{
+			fileName: string;
+			source: "main_folder" | "artifacts";
+			storagePath: string;
+			documentName?: string;
+		}>
+	>([]);
 	const [architecturalDiagrams, setArchitecturalDiagrams] = useState<
-		Array<{fileName: string; source: 'main_folder' | 'artifacts'; storagePath: string; documentName?: string}>
+		Array<{
+			fileName: string;
+			source: "main_folder" | "artifacts";
+			storagePath: string;
+			documentName?: string;
+		}>
 	>([]);
 	const [uploadingSite, setUploadingSite] = useState(false);
 	const [uploadingDiagrams, setUploadingDiagrams] = useState(false);
@@ -257,33 +269,33 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		setLoading(true);
 		try {
 			// Import loadProjectImages function
-			const { loadProjectImages } = await import('@/lib/imageUtils');
-			
+			const { loadProjectImages } = await import("@/lib/imageUtils");
+
 			// Load all images (from main folders and artifacts, excluding "other" category)
 			const allImages = await loadProjectImages(projectId, orgId, true); // true = exclude "other"
-			
+
 			// Separate by category
 			const siteImagesList = allImages
-				.filter(img => img.category === 'site_images')
-				.map(img => ({
+				.filter((img) => img.category === "site_images")
+				.map((img) => ({
 					fileName: img.name,
 					source: img.source,
 					storagePath: img.storagePath,
 					documentName: img.documentName,
 				}));
-			
+
 			const diagramsList = allImages
-				.filter(img => img.category === 'architectural_diagrams')
-				.map(img => ({
+				.filter((img) => img.category === "architectural_diagrams")
+				.map((img) => ({
 					fileName: img.name,
 					source: img.source,
 					storagePath: img.storagePath,
 					documentName: img.documentName,
 				}));
-			
+
 			setSiteImages(siteImagesList);
 			setArchitecturalDiagrams(diagramsList);
-			
+
 			// Generate signed URLs for all images
 			const urlMap: Record<string, string> = {};
 			for (const img of allImages) {
@@ -347,11 +359,14 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					alert(`Failed to upload ${file.name}`);
 				} else {
 					const filePath = `${projectId}/${folder}/${file.name}`;
-					setImages((prev) => [...prev, {
-						fileName: file.name,
-						source: 'main_folder',
-						storagePath: filePath,
-					}]);
+					setImages((prev) => [
+						...prev,
+						{
+							fileName: file.name,
+							source: "main_folder",
+							storagePath: filePath,
+						},
+					]);
 					// Generate signed URL for the newly uploaded file
 					const { data: urlData } = await supabase.storage
 						.from(orgId)
@@ -406,10 +421,16 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		setDeleting(true);
 		try {
 			// Get storage paths for the selected files
-			const filePaths = fileNames.map((fileName) => {
-				const image = images.find(img => img.fileName === fileName);
-				return image ? image.storagePath : `${projectId}/${folder}/${fileName}`;
-			}).filter(Boolean) as string[];
+			const filePaths = fileNames
+				.map((fileName) => {
+					const image = images.find(
+						(img) => img.fileName === fileName
+					);
+					return image
+						? image.storagePath
+						: `${projectId}/${folder}/${fileName}`;
+				})
+				.filter(Boolean) as string[];
 
 			console.log(
 				`[ProjectMediaUpload] Attempting to delete files from bucket "${orgId}":`,
@@ -517,7 +538,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 			setSelected(new Set());
 		} else {
 			// Select all
-			setSelected(new Set(images.map(img => img.fileName)));
+			setSelected(new Set(images.map((img) => img.fileName)));
 		}
 	};
 
@@ -604,7 +625,9 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
 						{siteImages.map((image) => {
 							const imageUrl = getImageUrl(image.storagePath);
-							const isSelected = selectedSiteImages.has(image.fileName);
+							const isSelected = selectedSiteImages.has(
+								image.fileName
+							);
 							return (
 								<div
 									key={image.storagePath}
@@ -639,17 +662,19 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 											/>
 										</div>
 									)}
-									{image.source === 'artifacts' && image.documentName && (
-										<div className="absolute top-2 right-2 z-10 group/tooltip">
-											<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
-											<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
-												<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
-													From: {image.documentName}
-													<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+									{image.source === "artifacts" &&
+										image.documentName && (
+											<div className="absolute top-2 right-2 z-10 group/tooltip">
+												<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
+												<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+													<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+														From:{" "}
+														{image.documentName}
+														<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+													</div>
 												</div>
 											</div>
-										</div>
-									)}
+										)}
 									{imageUrl ? (
 										<div className="relative w-full h-32 rounded-lg overflow-hidden">
 											<Image
@@ -766,7 +791,9 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
 						{architecturalDiagrams.map((image) => {
 							const imageUrl = getImageUrl(image.storagePath);
-							const isSelected = selectedDiagrams.has(image.fileName);
+							const isSelected = selectedDiagrams.has(
+								image.fileName
+							);
 							const isPdf = image.fileName.match(/\.pdf$/i);
 							return (
 								<div
@@ -802,17 +829,19 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 											/>
 										</div>
 									)}
-									{image.source === 'artifacts' && image.documentName && (
-										<div className="absolute top-2 right-2 z-10 group/tooltip">
-											<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
-											<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
-												<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
-													From: {image.documentName}
-													<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+									{image.source === "artifacts" &&
+										image.documentName && (
+											<div className="absolute top-2 right-2 z-10 group/tooltip">
+												<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
+												<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+													<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+														From:{" "}
+														{image.documentName}
+														<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+													</div>
 												</div>
 											</div>
-										</div>
-									)}
+										)}
 									{isPdf ? (
 										<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
 											<FileText className="h-8 w-8 text-gray-400" />
@@ -965,6 +994,34 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		formData.id,
 		{ projectAddress }
 	);
+
+	// State for showing autofill completion notification
+	const [showAutofillNotification, setShowAutofillNotification] =
+		useState(false);
+
+	// Listen for autofill completion event
+	useEffect(() => {
+		const handleAutofillCompleted = (event: CustomEvent) => {
+			if (event.detail.projectId === formData.id) {
+				setShowAutofillNotification(true);
+				// Auto-hide after 10 seconds
+				setTimeout(() => {
+					setShowAutofillNotification(false);
+				}, 10000);
+			}
+		};
+
+		window.addEventListener(
+			"autofill-completed",
+			handleAutofillCompleted as EventListener
+		);
+		return () => {
+			window.removeEventListener(
+				"autofill-completed",
+				handleAutofillCompleted as EventListener
+			);
+		};
+	}, [formData.id]);
 
 	const snapshotProjectResume = useCallback(
 		async ({ keepAlive = false } = {}) => {
@@ -1159,6 +1216,24 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				return warning;
 			}
 			return null;
+		},
+		[fieldMetadata]
+	);
+
+	// Helper function to get field sources
+	const getFieldSources = useCallback(
+		(fieldId: string): string[] => {
+			const meta = fieldMetadata[fieldId];
+			if (meta) {
+				// Prefer sources array if available, fallback to source string
+				if (meta.sources && meta.sources.length > 0) {
+					return meta.sources;
+				}
+				if (meta.source) {
+					return [meta.source];
+				}
+			}
+			return [];
 		},
 		[fieldMetadata]
 	);
@@ -1387,36 +1462,86 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			sectionId: string,
 			labelText: string,
 			required: boolean = false,
-			showWarning: boolean = true // Default to true - always check for warnings
+			showWarning: boolean = true, // Default to true - always check for warnings
+			showSource: boolean = true // Default to true - always show sources
 		) => {
 			// Always check for warnings (unless explicitly disabled)
 			const warning = showWarning ? getFieldWarning(fieldId) : null;
+			const sources = showSource ? getFieldSources(fieldId) : [];
+
 			return (
-				<label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2 relative group/field">
-					<span>
-						{labelText}
-						{required && (
-							<span className="text-red-500 ml-1">*</span>
-						)}
-					</span>
-					<FieldHelpTooltip fieldId={fieldId} />
-					{warning && <FieldWarning message={warning} />}
-					{/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
-					<div className="ml-auto flex items-center gap-1">
-						<button
-							type="button"
-							onClick={() => (onAskAI || (() => {}))(fieldId)}
-							className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
-							title="Ask AI for help with this field"
-						>
-							Ask AI
-						</button>
-						{renderFieldLockButton(fieldId, sectionId)}
-					</div>
-				</label>
+				<div className="mb-1">
+					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field">
+						<span>
+							{labelText}
+							{required && (
+								<span className="text-red-500 ml-1">*</span>
+							)}
+						</span>
+						<FieldHelpTooltip fieldId={fieldId} />
+						{warning && <FieldWarning message={warning} />}
+						{/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
+						<div className="ml-auto flex items-center gap-1">
+							<button
+								type="button"
+								onClick={() => (onAskAI || (() => {}))(fieldId)}
+								className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
+								title="Ask AI for help with this field"
+							>
+								Ask AI
+							</button>
+							{renderFieldLockButton(fieldId, sectionId)}
+						</div>
+					</label>
+					{/* Display sources below the label */}
+					{sources.length > 0 && (
+						<div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
+							{sources.map((source, idx) => {
+								const isCensus =
+									source === "Census API" ||
+									source.toLowerCase().includes("census");
+								const isDocument =
+									!isCensus &&
+									(source
+										.toLowerCase()
+										.includes("document") ||
+										source.endsWith(".pdf") ||
+										source.endsWith(".xlsx") ||
+										source.endsWith(".docx") ||
+										source.endsWith(".pptx"));
+
+								return (
+									<span
+										key={idx}
+										className={cn(
+											"inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border",
+											isCensus
+												? "text-blue-600 bg-blue-50 border-blue-200"
+												: isDocument
+												? "text-gray-600 bg-gray-50 border-gray-200"
+												: "text-gray-600 bg-gray-50 border-gray-200"
+										)}
+										title={`Data source: ${source}`}
+									>
+										{isCensus ? (
+											<Globe className="h-3 w-3" />
+										) : isDocument ? (
+											<FileText className="h-3 w-3" />
+										) : (
+											<Info className="h-3 w-3" />
+										)}
+										<span className="truncate max-w-[120px]">
+											{source}
+										</span>
+									</span>
+								);
+							})}
+						</div>
+					)}
+				</div>
 			);
 		},
-		[onAskAI, renderFieldLockButton, getFieldWarning]
+		[onAskAI, renderFieldLockButton, getFieldWarning, getFieldSources]
 	);
 
 	// Update local form state if the existingProject prop changes externally
@@ -5845,6 +5970,53 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				</div>
 			</div>
 			<div className="p-6">
+				{/* Autofill Completion Notification */}
+				<AnimatePresence>
+					{showAutofillNotification && (
+						<motion.div
+							initial={{ opacity: 0, y: -20 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -20 }}
+							className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm"
+						>
+							<div className="flex items-start justify-between">
+								<div className="flex items-start gap-3 flex-1">
+									<Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+									<div className="flex-1">
+										<h3 className="text-sm font-semibold text-blue-900 mb-1">
+											Autofill Complete! 🔒 Lock Fields to
+											Prevent Overwrites
+										</h3>
+										<p className="text-sm text-blue-700 mb-2">
+											Some fields like project names,
+											descriptions, and custom values may
+											be overwritten by AI in future
+											autofills. Lock these fields using
+											the lock icon (🔒) next to each
+											field to protect your manual edits.
+										</p>
+										<p className="text-xs text-blue-600">
+											💡 Tip: Fields with dropdown options
+											are automatically validated, but
+											free-text fields should be locked if
+											you want to preserve your exact
+											wording.
+										</p>
+									</div>
+								</div>
+								<button
+									onClick={() =>
+										setShowAutofillNotification(false)
+									}
+									className="ml-4 text-blue-600 hover:text-blue-800 flex-shrink-0"
+									aria-label="Dismiss notification"
+								>
+									<X className="h-5 w-5" />
+								</button>
+							</div>
+						</motion.div>
+					)}
+				</AnimatePresence>
 				<FormWizard
 					steps={steps}
 					onComplete={handleFormSubmit}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
@@ -150,7 +150,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
   }, [isOpen, fetchVersions]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: globalThis.MouseEvent) => {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)

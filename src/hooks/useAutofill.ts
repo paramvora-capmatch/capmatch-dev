@@ -131,12 +131,20 @@ export const useAutofill = (projectId: string, options?: UseAutofillOptions) => 
         // Refresh project data so completion % and OM readiness update without full reload
         try {
           await loadUserProjects();
+          
+          // Show notification encouraging field locking for non-deterministic fields
+          // This will be handled by the component using this hook
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('autofill-completed', {
+              detail: { projectId, context }
+            }));
+          }
         } catch (err) {
           console.error('Failed to refresh projects after autofill completion:', err);
         }
       }
     }, POLL_INTERVAL);
-  }, [checkCompletion, clearAutofillState, loadUserProjects]);
+  }, [checkCompletion, clearAutofillState, loadUserProjects, context]);
 
   // Set up realtime subscription to detect when other users trigger autofill
   useEffect(() => {
