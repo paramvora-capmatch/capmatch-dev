@@ -10,22 +10,38 @@ Comprehensive TypeScript seed script that creates a complete account setup for t
 - ✅ **Documents** (uploads from `../../CapMatch-Extra/SoGood/`)
 - ✅ **Chat messages** (realistic conversations referencing documents across multiple threads)
 
+**Supports both Local Development and Production environments!**
+
 ## Usage
 
-### Basic Usage
+### Local Development
 
 ```bash
-# Seed complete Hoque account setup
+# Seed complete Hoque account setup (local)
 npx tsx scripts/seed-hoque-project.ts
 ```
 
 **Note**: Use `npx tsx` (not `npx tsc`). The `tsx` command runs TypeScript files directly.
 
+### Production
+
+```bash
+# Seed complete Hoque account setup (production)
+npx tsx scripts/seed-hoque-project.ts --prod
+```
+
+⚠️ **WARNING**: Production mode will create real users and data in your production database!
+- The script will wait 5 seconds before proceeding (press Ctrl+C to cancel)
+- Make sure you have backups before running
+
 ### Cleanup
 
 ```bash
-# Remove all seeded accounts and data
+# Remove all seeded accounts and data (local)
 npx tsx scripts/seed-hoque-project.ts cleanup
+
+# Remove all seeded accounts and data (production)
+npx tsx scripts/seed-hoque-project.ts --prod cleanup
 ```
 
 This will delete:
@@ -36,13 +52,65 @@ This will delete:
 
 ## Prerequisites
 
+### Local Development
+
 1. **Environment Variables**: Make sure your `.env.local` has:
    ```bash
    NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321  # or your Supabase URL
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ```
 
-2. **Documents (Optional)**: The script looks for documents in these locations (in order):
+### Production
+
+1. **Create `.env.production` file** in the project root:
+   ```bash
+   # Option 1: Copy from example file (if available)
+   cp .env.production.example .env.production
+   
+   # Option 2: Create manually
+   touch .env.production
+   ```
+
+2. **Fill in your production credentials** in `.env.production`:
+   ```bash
+   # Production Supabase URL
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+   SUPABASE_URL=https://your-project-ref.supabase.co
+   
+   # Production Service Role Key (get from Supabase Dashboard)
+   SUPABASE_SERVICE_ROLE_KEY=your-production-service-role-key-here
+   
+   # Optional: For OnlyOffice integration
+   NEXT_PUBLIC_SITE_URL=https://your-production-domain.com
+   ONLYOFFICE_CALLBACK_URL=https://your-production-domain.com
+   ONLYOFFICE_SUPABASE_URL=https://your-project-ref.supabase.co
+   ```
+   
+   **Template format** - Create `.env.production` with:
+   ```bash
+   NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+   SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=your-production-service-role-key-here
+   ```
+   
+   Then replace `YOUR_PROJECT_REF` and `your-production-service-role-key-here` with your actual values.
+
+   ⚠️ **IMPORTANT**: 
+   - Never commit `.env.production` to git (it should be in `.gitignore`)
+   - Keep your production service role key secure
+   - Make sure you have backups before seeding production
+
+3. **Getting Production Credentials**:
+   - Go to your Supabase Dashboard: https://supabase.com/dashboard
+   - Select your **production project**
+   - Go to **Settings** → **API**
+   - Copy:
+     - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+     - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY`
+
+### Documents (Optional)
+
+The script looks for documents in these locations (in order):
    - `../../CapMatch-Extra/SoGood/` (primary location)
    - `../CapMatch-Extra/SoGood/`
    - `../SampleLoanPackage/SoGood/`
@@ -142,6 +210,21 @@ The original `seed-hoque-project.sql` only seeded project and borrower resumes t
 - Better error handling and progress logging
 - Comprehensive cleanup functionality
 
+## Local vs Production Modes
+
+The script supports two modes:
+
+**Local Mode** (default):
+- Uses `.env.local` for environment variables
+- Creates data in your local/development Supabase instance
+- Safe for testing and development
+
+**Production Mode** (`--prod` flag):
+- Uses `.env.production` for environment variables
+- Creates data in your production Supabase instance
+- Includes safety warnings and 5-second delay before proceeding
+- Validates that URLs are production URLs (not localhost)
+
 ## Notes
 
 - The script is idempotent - you can run it multiple times safely (will reuse existing accounts)
@@ -149,6 +232,7 @@ The original `seed-hoque-project.sql` only seeded project and borrower resumes t
 - Chat messages reference documents if they were uploaded
 - All seeded users have default password: `password123` (change in production!)
 - The advisor account is created first, then the project is assigned to it
+- Production mode validates URLs to prevent accidental localhost usage
 
 ## Troubleshooting
 
@@ -182,5 +266,29 @@ If accounts already exist from a previous seed run, the script will:
 
 To start fresh, run cleanup first:
 ```bash
+# Local cleanup
 npx tsx scripts/seed-hoque-project.ts cleanup
+
+# Production cleanup
+npx tsx scripts/seed-hoque-project.ts --prod cleanup
 ```
+
+### Production URL Validation Error
+
+**Problem**: Getting error about localhost in production mode.
+
+**Solution**: Make sure your `.env.production` file has a production URL (starts with `https://`):
+```bash
+# ❌ Wrong (local development URL)
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+
+# ✅ Correct (production URL)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+```
+
+### Missing .env.production File
+
+If you see a warning about `.env.production` not being found:
+1. Copy the template: `cp scripts/.env.production.template .env.production`
+2. Fill in your production credentials
+3. Run the script again with `--prod` flag

@@ -1,7 +1,7 @@
 // scripts/seed-hoque-project.ts
 // Comprehensive seed script for the Hoque (SoGood Apartments) project
 // Creates complete account setup: advisor, borrower, team members, project, resumes, documents, and chat messages
-// Run with: npx tsx scripts/seed-hoque-project.ts [cleanup]
+// Run with: npx tsx scripts/seed-hoque-project.ts [--prod] [cleanup]
 
 import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
@@ -10,24 +10,75 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { ProjectResumeContent } from '../src/lib/project-queries';
 
-// Load environment variables
-config({ path: resolve(process.cwd(), '.env.local') });
-config({ path: resolve(process.cwd(), '.env') });
+// Parse command line arguments
+const args = process.argv.slice(2);
+const isProduction = args.includes('--prod') || args.includes('--production');
+const isCleanup = args.includes('cleanup') || args.includes('--cleanup') || args.includes('-c');
+
+// Load environment variables based on mode
+if (isProduction) {
+  console.log('🌐 Production mode enabled\n');
+  // Load production env file first (highest priority)
+  config({ path: resolve(process.cwd(), '.env.production') });
+  // Also load .env.local and .env as fallbacks
+  config({ path: resolve(process.cwd(), '.env.local') });
+  config({ path: resolve(process.cwd(), '.env') });
+  
+  // Warn if production env file doesn't exist
+  const prodEnvPath = resolve(process.cwd(), '.env.production');
+  if (!existsSync(prodEnvPath)) {
+    console.warn('⚠️  WARNING: .env.production file not found!');
+    console.warn('   Create .env.production with production credentials.');
+    console.warn('   See README-seed-hoque.md for template.\n');
+  }
+  
+  // Additional production warnings
+  if (!isCleanup) {
+    console.log('⚠️  WARNING: This will create real users and data in PRODUCTION!');
+    console.log('⚠️  Make sure you have backups before proceeding.\n');
+  }
+} else {
+  // Local development mode
+  config({ path: resolve(process.cwd(), '.env.local') });
+  config({ path: resolve(process.cwd(), '.env') });
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Validation
 if (!supabaseUrl) {
+  const envFile = isProduction ? '.env.production' : '.env.local';
   console.error('\n❌ Missing SUPABASE_URL environment variable');
-  console.error('   Please set NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL in .env.local');
-  process.exit(1);
-}
-if (!serviceRoleKey) {
-  console.error('\n❌ Missing SUPABASE_SERVICE_ROLE_KEY environment variable');
-  console.error('   Please add SUPABASE_SERVICE_ROLE_KEY to .env.local');
+  console.error(`   Please set NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL in ${envFile}`);
   process.exit(1);
 }
 
+if (!serviceRoleKey) {
+  const envFile = isProduction ? '.env.production' : '.env.local';
+  console.error('\n❌ Missing SUPABASE_SERVICE_ROLE_KEY environment variable');
+  console.error(`   Please add SUPABASE_SERVICE_ROLE_KEY to ${envFile}`);
+  process.exit(1);
+}
+
+// Additional validation for production
+if (isProduction) {
+  // Validate that we're not accidentally using localhost in production
+  if (supabaseUrl.includes('localhost') || supabaseUrl.includes('127.0.0.1')) {
+    console.error('\n❌ ERROR: Production mode detected but Supabase URL is localhost!');
+    console.error(`   Current URL: ${supabaseUrl}`);
+    console.error('   Production URLs should start with https://');
+    process.exit(1);
+  }
+  
+  if (!supabaseUrl.startsWith('https://')) {
+    console.error('\n❌ ERROR: Production Supabase URL must start with https://');
+    console.error(`   Current URL: ${supabaseUrl}`);
+    process.exit(1);
+  }
+}
+
+// Initialize Supabase client
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
   auth: {
     autoRefreshToken: false,
@@ -1699,31 +1750,54 @@ async function cleanupHoqueAccounts(): Promise<void> {
 // CLI HANDLING
 // ============================================================================
 
-if (require.main === module) {
-  const args = process.argv.slice(2);
-  const command = args[0];
-
-  if (command === 'cleanup' || command === '--cleanup' || command === '-c') {
-    cleanupHoqueAccounts()
-      .then(() => {
-        console.log('\n✨ Cleanup done!');
-        process.exit(0);
-      })
-      .catch((error) => {
-        console.error('Fatal error:', error);
-        process.exit(1);
-      });
-  } else {
-    seedHoqueProject()
-      .then(() => {
-        console.log('\n✨ Done!');
-        process.exit(0);
-      })
-      .catch((error) => {
-        console.error('Fatal error:', error);
-        process.exit(1);
-      });
+async function main() {
+  // Production confirmation
+  if (isProduction && !isCleanup) {
+    console.log('⚠️  PRODUCTION MODE DETECTED');
+    console.log(`   Database: ${supabaseUrl}`);
+    console.log(`   Service Role Key: ${serviceRoleKey.substring(0, 20)}...`);
+    console.log('\n⚠️  This will create real users and data in PRODUCTION!');
+    console.log('⚠️  Make sure you have backups before proceeding.');
+    console.log('\nPress Ctrl+C to cancel, or wait 5 seconds to proceed...\n');
+    
+    // Wait 5 seconds for user to cancel
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('Proceeding with production seed...\n');
   }
+
+  if (isCleanup) {
+    if (isProduction) {
+      console.log('⚠️  PRODUCTION CLEANUP MODE');
+      console.log(`   Database: ${supabaseUrl}`);
+      console.log('⚠️  This will DELETE all Hoque accounts and data from PRODUCTION!');
+      console.log('\nPress Ctrl+C to cancel, or wait 5 seconds to proceed...\n');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      console.log('Proceeding with production cleanup...\n');
+    }
+    
+    await cleanupHoqueAccounts();
+    console.log('\n✨ Cleanup done!');
+  } else {
+    await seedHoqueProject();
+    console.log('\n✨ Done!');
+    if (isProduction) {
+      console.log('\n📝 Next steps:');
+      console.log('   1. Change user passwords (default is "password123")');
+      console.log('   2. Verify data in Supabase Dashboard');
+      console.log('   3. Test login with created accounts');
+    }
+  }
+}
+
+if (require.main === module) {
+  main()
+    .then(() => {
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('Fatal error:', error);
+      process.exit(1);
+    });
 }
 
 export { seedHoqueProject, cleanupHoqueAccounts };
