@@ -6,7 +6,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve } from 'path';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { ProjectResumeContent } from '../src/lib/project-queries';
 
@@ -669,6 +669,13 @@ async function uploadDocumentToProject(
       });
 
     if (uploadError) {
+      // Check if it's a file size error
+      if (uploadError.message?.includes('exceeded the maximum allowed size') || 
+          uploadError.statusCode === '413') {
+        console.warn(`[seed] ⚠️  Skipping document ${fileName}: file size exceeds maximum allowed size`);
+        await supabaseAdmin.from('resources').delete().eq('id', resourceId);
+        return null;
+      }
       console.error(`[seed] Failed to upload file to storage:`, uploadError);
       await supabaseAdmin.from('resources').delete().eq('id', resourceId);
       return null;
@@ -751,6 +758,161 @@ async function uploadDocumentToProject(
     console.error(`[seed] Exception uploading document ${fileName}:`, err);
     return null;
   }
+}
+
+async function seedImages(
+  projectId: string,
+  orgId: string
+): Promise<void> {
+  console.log(`[seed] Seeding images for SoGood Apartments...`);
+
+  // Try to find images in common locations
+  const possibleBasePaths = [
+    resolve(process.cwd(), '../../CapMatch-Extra/SoGood/images'),
+    resolve(process.cwd(), '../CapMatch-Extra/SoGood/images'),
+    resolve(process.cwd(), '../SampleLoanPackage/SoGood/images'),
+    resolve(process.cwd(), './hoque-docs/images'),
+    resolve(process.cwd(), '../hoque-docs/images'),
+  ];
+
+  let basePath: string | null = null;
+  for (const path of possibleBasePaths) {
+    if (existsSync(path)) {
+      basePath = path;
+      console.log(`[seed] Found images directory: ${basePath}`);
+      break;
+    }
+  }
+
+  if (!basePath) {
+    console.log(`[seed] ⚠️  No images directory found. Skipping image upload.`);
+    console.log(`[seed]    To upload images, place them in one of:`);
+    possibleBasePaths.forEach(p => console.log(`[seed]    - ${p}`));
+    return;
+  }
+
+  // Ensure storage folders exist (create .keep files if needed)
+  const keepBlob = new Blob(['keep'], { type: 'text/plain;charset=UTF-8' });
+  await supabaseAdmin.storage
+    .from(orgId)
+    .upload(`${projectId}/site-images/.keep`, keepBlob, { upsert: true });
+  await supabaseAdmin.storage
+    .from(orgId)
+    .upload(`${projectId}/architectural-diagrams/.keep`, keepBlob, { upsert: true });
+
+  // Upload architectural diagrams
+  const diagramsPath = join(basePath, 'architectural_diagrams');
+  if (existsSync(diagramsPath)) {
+    console.log(`[seed] Uploading architectural diagrams...`);
+    const diagramFiles = readdirSync(diagramsPath).filter(f => 
+      f.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)
+    );
+
+    let uploadedCount = 0;
+    for (const fileName of diagramFiles) {
+      const filePath = join(diagramsPath, fileName);
+      const fileBuffer = readFileSync(filePath);
+
+      // Determine content type from file extension
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      const contentTypeMap: Record<string, string> = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'webp': 'image/webp',
+        'pdf': 'application/pdf',
+      };
+      const contentType = contentTypeMap[ext || ''];
+      
+      if (!contentType) {
+        console.warn(`[seed] ⚠️  Skipping diagram ${fileName}: unsupported file type (${ext || 'unknown'})`);
+        continue;
+      }
+
+      const storagePath = `${projectId}/architectural-diagrams/${fileName}`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(orgId)
+        .upload(storagePath, fileBuffer, {
+          contentType,
+          cacheControl: '3600',
+          upsert: true, // Overwrite if exists
+        });
+
+      if (uploadError) {
+        console.error(`[seed] ❌ Failed to upload diagram ${fileName}:`, uploadError.message);
+      } else {
+        console.log(`[seed] ✅ Uploaded diagram: ${fileName}`);
+        uploadedCount++;
+      }
+    }
+
+    if (uploadedCount > 0) {
+      console.log(`[seed] ✅ Uploaded ${uploadedCount} architectural diagram(s)`);
+    } else if (diagramFiles.length > 0) {
+      console.log(`[seed] ⚠️  No diagrams were uploaded (check errors above)`);
+    }
+  } else {
+    console.log(`[seed] ⚠️  Architectural diagrams folder not found: ${diagramsPath}`);
+  }
+
+  // Upload site images
+  const siteImagesPath = join(basePath, 'site_images');
+  if (existsSync(siteImagesPath)) {
+    console.log(`[seed] Uploading site images...`);
+    const imageFiles = readdirSync(siteImagesPath).filter(f => 
+      f.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)
+    );
+
+    let uploadedCount = 0;
+    for (const fileName of imageFiles) {
+      const filePath = join(siteImagesPath, fileName);
+      const fileBuffer = readFileSync(filePath);
+
+      // Determine content type from file extension
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      const contentTypeMap: Record<string, string> = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'webp': 'image/webp',
+        'pdf': 'application/pdf',
+      };
+      const contentType = contentTypeMap[ext || ''];
+      
+      if (!contentType) {
+        console.warn(`[seed] ⚠️  Skipping site image ${fileName}: unsupported file type (${ext || 'unknown'})`);
+        continue;
+      }
+
+      const storagePath = `${projectId}/site-images/${fileName}`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(orgId)
+        .upload(storagePath, fileBuffer, {
+          contentType,
+          cacheControl: '3600',
+          upsert: true, // Overwrite if exists
+        });
+
+      if (uploadError) {
+        console.error(`[seed] ❌ Failed to upload site image ${fileName}:`, uploadError.message);
+      } else {
+        console.log(`[seed] ✅ Uploaded site image: ${fileName}`);
+        uploadedCount++;
+      }
+    }
+
+    if (uploadedCount > 0) {
+      console.log(`[seed] ✅ Uploaded ${uploadedCount} site image(s)`);
+    } else if (imageFiles.length > 0) {
+      console.log(`[seed] ⚠️  No site images were uploaded (check errors above)`);
+    }
+  } else {
+    console.log(`[seed] ⚠️  Site images folder not found: ${siteImagesPath}`);
+  }
+
+  console.log(`[seed] ✅ Image seeding complete`);
 }
 
 async function createChatMessage(
@@ -1046,7 +1208,34 @@ async function seedDocuments(
     return documents;
   }
 
+  // Check existing documents in the project to avoid re-uploading
+  const { data: existingDocs } = await supabaseAdmin
+    .from('resources')
+    .select('name')
+    .eq('project_id', projectId)
+    .eq('resource_type', 'FILE');
+
+  const existingDocNames = new Set(existingDocs?.map(d => d.name) || []);
+
   for (const doc of documentPaths) {
+    // Skip if document already exists
+    if (existingDocNames.has(doc.name)) {
+      console.log(`[seed] ⏭️  Document already exists, skipping: ${doc.name}`);
+      // Still add to documents map for chat message references
+      const { data: existingResource } = await supabaseAdmin
+        .from('resources')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('resource_type', 'FILE')
+        .eq('name', doc.name)
+        .maybeSingle();
+      
+      if (existingResource) {
+        documents[doc.name] = existingResource.id;
+      }
+      continue;
+    }
+
     const filePath = join(basePath, doc.file);
     if (existsSync(filePath)) {
       const resourceId = await uploadDocumentToProject(
@@ -1107,6 +1296,18 @@ async function seedChatMessages(
   }
 
   const threadId = generalThread.id;
+  
+  // Check if messages already exist in General thread (idempotency check)
+  const { data: existingMessages, count: messageCount } = await supabaseAdmin
+    .from('chat_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('thread_id', threadId);
+
+  let shouldSeedGeneralMessages = true;
+  if (messageCount && messageCount > 0) {
+    console.log(`[seed] ⏭️  General thread already has ${messageCount} message(s), skipping message seeding`);
+    shouldSeedGeneralMessages = false;
+  }
   
   // Get document IDs for references
   const loanPackageId = documents['Loan Request Package'];
@@ -1202,79 +1403,151 @@ async function seedChatMessages(
     },
   ];
 
-  // Create messages with slight delays to simulate real conversation timing
-  for (const message of messages) {
-    await createChatMessage(threadId, message.userId, message.content, message.resourceIds);
-    // Small delay to space out messages
-    await new Promise(resolve => setTimeout(resolve, 100));
+  // Create messages with slight delays to simulate real conversation timing (only if not already seeded)
+  if (shouldSeedGeneralMessages) {
+    for (const message of messages) {
+      await createChatMessage(threadId, message.userId, message.content, message.resourceIds);
+      // Small delay to space out messages
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   }
 
   // Create additional threads for specific topics
   if (memberIds.length > 0) {
-    const constructionThreadId = await createThread(
-      projectId,
-      'Construction & Timeline',
-      [advisorId, borrowerId, ...memberIds]
-    );
+    // Check if Construction thread exists and has messages
+    let { data: existingConstructionThread } = await supabaseAdmin
+      .from('chat_threads')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('topic', 'Construction & Timeline')
+      .maybeSingle();
+
+    let constructionThreadId: string | null = null;
+    
+    if (existingConstructionThread) {
+      constructionThreadId = existingConstructionThread.id;
+      
+      // Ensure participants are added
+      const allParticipantIds = [advisorId, borrowerId, ...memberIds];
+      for (const userId of allParticipantIds) {
+        await supabaseAdmin
+          .from('chat_thread_participants')
+          .upsert(
+            { thread_id: constructionThreadId, user_id: userId },
+            { onConflict: 'thread_id,user_id' }
+          );
+      }
+    } else {
+      constructionThreadId = await createThread(
+        projectId,
+        'Construction & Timeline',
+        [advisorId, borrowerId, ...memberIds]
+      );
+    }
 
     if (constructionThreadId) {
-      const constructionMessages = [
-        {
-          userId: borrowerId,
-          content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Building B - Concept Drawings](doc:${conceptDrawingsId || ''}) show the full scope - 6-story podium with structured parking.`,
-          resourceIds: conceptDrawingsId ? [conceptDrawingsId] : [],
-        },
-        {
-          userId: advisorId,
-          content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan - SoGood Tracts](doc:${sitePlanId || ''}) shows good site access - that should help with construction logistics.`,
-          resourceIds: sitePlanId ? [sitePlanId] : [],
-        },
-        {
-          userId: borrowerId,
-          content: `Yes, we'll provide monthly draw requests and progress photos. Our GC has experience with lender reporting requirements. The site is well-positioned with access from both Hickory St and Ferris St, which helps with material delivery and staging.`,
-          resourceIds: [],
-        },
-      ];
+      // Check if messages already exist
+      const { count: constructionMessageCount } = await supabaseAdmin
+        .from('chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('thread_id', constructionThreadId);
 
-      for (const message of constructionMessages) {
-        await createChatMessage(constructionThreadId, message.userId, message.content, message.resourceIds);
-        await new Promise(resolve => setTimeout(resolve, 100));
+      if (!constructionMessageCount || constructionMessageCount === 0) {
+        const constructionMessages = [
+          {
+            userId: borrowerId,
+            content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Building B - Concept Drawings](doc:${conceptDrawingsId || ''}) show the full scope - 6-story podium with structured parking.`,
+            resourceIds: conceptDrawingsId ? [conceptDrawingsId] : [],
+          },
+          {
+            userId: advisorId,
+            content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan - SoGood Tracts](doc:${sitePlanId || ''}) shows good site access - that should help with construction logistics.`,
+            resourceIds: sitePlanId ? [sitePlanId] : [],
+          },
+          {
+            userId: borrowerId,
+            content: `Yes, we'll provide monthly draw requests and progress photos. Our GC has experience with lender reporting requirements. The site is well-positioned with access from both Hickory St and Ferris St, which helps with material delivery and staging.`,
+            resourceIds: [],
+          },
+        ];
+
+        for (const message of constructionMessages) {
+          await createChatMessage(constructionThreadId, message.userId, message.content, message.resourceIds);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } else {
+        console.log(`[seed] ⏭️  Construction & Timeline thread already has ${constructionMessageCount} message(s), skipping`);
       }
     }
 
-    const financingThreadId = await createThread(
-      projectId,
-      'Financing & Lender Outreach',
-      [advisorId, borrowerId, ...memberIds]
-    );
+    // Check if Financing thread exists and has messages
+    let { data: existingFinancingThread } = await supabaseAdmin
+      .from('chat_threads')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('topic', 'Financing & Lender Outreach')
+      .maybeSingle();
+
+    let financingThreadId: string | null = null;
+    
+    if (existingFinancingThread) {
+      financingThreadId = existingFinancingThread.id;
+      
+      // Ensure participants are added
+      const allParticipantIds = [advisorId, borrowerId, ...memberIds];
+      for (const userId of allParticipantIds) {
+        await supabaseAdmin
+          .from('chat_thread_participants')
+          .upsert(
+            { thread_id: financingThreadId, user_id: userId },
+            { onConflict: 'thread_id,user_id' }
+          );
+      }
+    } else {
+      financingThreadId = await createThread(
+        projectId,
+        'Financing & Lender Outreach',
+        [advisorId, borrowerId, ...memberIds]
+      );
+    }
 
     if (financingThreadId) {
-      const financingMessages = [
-        {
-          userId: advisorId,
-          content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Loan Request Package](doc:${loanPackageId || ''}) is comprehensive - I'll use this for initial outreach. Target list coming next week.`,
-          resourceIds: loanPackageId ? [loanPackageId] : [],
-        },
-        {
-          userId: borrowerId,
-          content: `Thanks! We have existing relationships with Frost Bank and Citi Community Capital. Should we prioritize those or cast a wider net? The @[PFC Memorandum - SoGood](doc:${pfcMemoId || ''}) details the tax exemption structure which should be attractive to lenders.`,
-          resourceIds: pfcMemoId ? [pfcMemoId] : [],
-        },
-        {
-          userId: advisorId,
-          content: `Let's leverage those relationships but also expand. Given the deal size ($18M) and structure, there are several regional banks and specialty lenders who'd be competitive. The PFC structure is a key selling point - having that tax exemption executed removes a lot of execution risk. I'll coordinate initial outreach and prioritize lenders familiar with PFC deals.`,
-          resourceIds: [],
-        },
-        {
-          userId: borrowerId,
-          content: `Sounds good. The @[Building B - Pro Forma](doc:${proFormaId || ''}) shows strong returns - 17.5% base case IRR with multiple exit scenarios. That should help with lender underwriting.`,
-          resourceIds: proFormaId ? [proFormaId] : [],
-        },
-      ];
+      // Check if messages already exist
+      const { count: financingMessageCount } = await supabaseAdmin
+        .from('chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('thread_id', financingThreadId);
 
-      for (const message of financingMessages) {
-        await createChatMessage(financingThreadId, message.userId, message.content, message.resourceIds);
-        await new Promise(resolve => setTimeout(resolve, 100));
+      if (!financingMessageCount || financingMessageCount === 0) {
+        const financingMessages = [
+          {
+            userId: advisorId,
+            content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Loan Request Package](doc:${loanPackageId || ''}) is comprehensive - I'll use this for initial outreach. Target list coming next week.`,
+            resourceIds: loanPackageId ? [loanPackageId] : [],
+          },
+          {
+            userId: borrowerId,
+            content: `Thanks! We have existing relationships with Frost Bank and Citi Community Capital. Should we prioritize those or cast a wider net? The @[PFC Memorandum - SoGood](doc:${pfcMemoId || ''}) details the tax exemption structure which should be attractive to lenders.`,
+            resourceIds: pfcMemoId ? [pfcMemoId] : [],
+          },
+          {
+            userId: advisorId,
+            content: `Let's leverage those relationships but also expand. Given the deal size ($18M) and structure, there are several regional banks and specialty lenders who'd be competitive. The PFC structure is a key selling point - having that tax exemption executed removes a lot of execution risk. I'll coordinate initial outreach and prioritize lenders familiar with PFC deals.`,
+            resourceIds: [],
+          },
+          {
+            userId: borrowerId,
+            content: `Sounds good. The @[Building B - Pro Forma](doc:${proFormaId || ''}) shows strong returns - 17.5% base case IRR with multiple exit scenarios. That should help with lender underwriting.`,
+            resourceIds: proFormaId ? [proFormaId] : [],
+          },
+        ];
+
+        for (const message of financingMessages) {
+          await createChatMessage(financingThreadId, message.userId, message.content, message.resourceIds);
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } else {
+        console.log(`[seed] ⏭️  Financing & Lender Outreach thread already has ${financingMessageCount} message(s), skipping`);
       }
     }
   }
@@ -1321,15 +1594,25 @@ async function createProject(
       return null;
     }
 
-    // 3. Create storage folder
-    const { error: storageError } = await supabaseAdmin.storage
-      .from(ownerOrgId)
-      .upload(`${projectId}/.placeholder`, new Blob([''], { type: 'text/plain' }), {
-        contentType: 'text/plain;charset=UTF-8',
-      });
+    // 3. Create storage folders (including image folders)
+    const keepBlob = new Blob(['keep'], { type: 'text/plain;charset=UTF-8' });
+    const storageFolders = [
+      `${projectId}/.placeholder`,
+      `${projectId}/site-images/.keep`,
+      `${projectId}/architectural-diagrams/.keep`,
+    ];
 
-    if (storageError && !storageError.message?.toLowerCase().includes('already exists')) {
-      console.warn(`[seed] Warning: Storage folder creation failed (non-critical):`, storageError.message);
+    for (const folderPath of storageFolders) {
+      const { error: storageError } = await supabaseAdmin.storage
+        .from(ownerOrgId)
+        .upload(folderPath, keepBlob, {
+          contentType: 'text/plain;charset=UTF-8',
+          upsert: true,
+        });
+
+      if (storageError && !storageError.message?.toLowerCase().includes('already exists')) {
+        console.warn(`[seed] Warning: Storage folder creation failed for ${folderPath}:`, storageError.message);
+      }
     }
 
     // 4. Create PROJECT_RESUME resource
@@ -1445,14 +1728,38 @@ async function seedTeamMembers(projectId: string, orgId: string, ownerId: string
   const memberIds: string[] = [];
 
   for (const member of memberEmails) {
-    const userId = await createMemberUser(member.email, 'password', member.name, orgId);
+    // Check if user already exists
+    const { data: existingUser } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('email', member.email)
+      .maybeSingle();
+
+    let userId: string | null = null;
+
+    if (existingUser) {
+      console.log(`[seed] ⏭️  Team member already exists: ${member.email} (${existingUser.id})`);
+      userId = existingUser.id;
+    } else {
+      userId = await createMemberUser(member.email, 'password', member.name, orgId);
+    }
+
     if (userId) {
       memberIds.push(userId);
       
-      // Grant project access
-      await grantMemberProjectAccess(projectId, userId, ownerId);
+      // Grant project access (idempotent - upsert)
+      const { data: existingGrant } = await supabaseAdmin
+        .from('project_access_grants')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!existingGrant) {
+        await grantMemberProjectAccess(projectId, userId, ownerId);
+      }
       
-      // Add to General chat thread
+      // Add to General chat thread (idempotent - upsert)
       const { data: generalThread } = await supabaseAdmin
         .from('chat_threads')
         .select('id')
@@ -1483,39 +1790,83 @@ async function seedHoqueProject(): Promise<void> {
   console.log('🌱 Starting Hoque (SoGood Apartments) complete account seed...\n');
 
   try {
-    // Step 1: Create advisor account and org
-    console.log('📋 Step 1: Creating advisor account (Cody Field)...');
+    // Step 1: Create or get advisor account and org
+    console.log('📋 Step 1: Creating/finding advisor account (Cody Field)...');
     const advisorInfo = await createAdvisorAccount();
     if (!advisorInfo) {
-      console.error('[seed] ❌ Failed to create advisor account');
+      console.error('[seed] ❌ Failed to create/find advisor account');
       return;
     }
     const { userId: advisorId, orgId: advisorOrgId } = advisorInfo;
 
-    // Step 2: Create Hoque borrower account and org
-    console.log('\n📋 Step 2: Creating Hoque borrower account...');
+    // Step 2: Create or get Hoque borrower account and org
+    console.log('\n📋 Step 2: Creating/finding Hoque borrower account...');
     const borrowerInfo = await createHoqueBorrowerAccount();
     if (!borrowerInfo) {
-      console.error('[seed] ❌ Failed to create borrower account');
+      console.error('[seed] ❌ Failed to create/find borrower account');
       return;
     }
     const { userId: borrowerId, orgId: borrowerOrgId } = borrowerInfo;
 
-    // Step 3: Create SoGood Apartments project
-    console.log('\n📋 Step 3: Creating SoGood Apartments project...');
-    const projectId = await createProject(
-      borrowerOrgId,
-      HOQUE_PROJECT_NAME,
-      advisorId,
-      borrowerId
-    );
+    // Step 3: Find or create SoGood Apartments project
+    console.log('\n📋 Step 3: Finding/creating SoGood Apartments project...');
+    let projectId: string | null = null;
+    
+    // Check if project already exists
+    const { data: existingProject } = await supabaseAdmin
+      .from('projects')
+      .select('id, assigned_advisor_id')
+      .eq('name', HOQUE_PROJECT_NAME)
+      .eq('owner_org_id', borrowerOrgId)
+      .maybeSingle();
 
-    if (!projectId) {
-      console.error('[seed] ❌ Failed to create project');
-      return;
+    if (existingProject) {
+      console.log(`[seed] ⏭️  Project already exists: ${existingProject.id}`);
+      projectId = existingProject.id;
+
+      // Ensure advisor is assigned if not already
+      if (!existingProject.assigned_advisor_id || existingProject.assigned_advisor_id !== advisorId) {
+        await supabaseAdmin
+          .from('projects')
+          .update({ assigned_advisor_id: advisorId })
+          .eq('id', projectId);
+        console.log(`[seed] ✅ Updated project to assign advisor`);
+      }
+
+      // Ensure storage folders exist (including image folders)
+      const keepBlob = new Blob(['keep'], { type: 'text/plain;charset=UTF-8' });
+      const storageFolders = [
+        `${projectId}/site-images/.keep`,
+        `${projectId}/architectural-diagrams/.keep`,
+      ];
+
+      for (const folderPath of storageFolders) {
+        const { error: storageError } = await supabaseAdmin.storage
+          .from(borrowerOrgId)
+          .upload(folderPath, keepBlob, {
+            contentType: 'text/plain;charset=UTF-8',
+            upsert: true,
+          });
+
+        if (storageError && !storageError.message?.toLowerCase().includes('already exists')) {
+          // Non-critical - folders might already exist
+        }
+      }
+    } else {
+      projectId = await createProject(
+        borrowerOrgId,
+        HOQUE_PROJECT_NAME,
+        advisorId,
+        borrowerId
+      );
+
+      if (!projectId) {
+        console.error('[seed] ❌ Failed to create project');
+        return;
+      }
     }
 
-    // Grant advisor permissions
+    // Grant advisor permissions (idempotent)
     const { error: permError } = await supabaseAdmin.rpc('grant_advisor_project_permissions', {
       p_project_id: projectId,
       p_advisor_id: advisorId,
@@ -1526,21 +1877,25 @@ async function seedHoqueProject(): Promise<void> {
       console.warn(`[seed] Warning: Failed to grant advisor permissions:`, permError.message);
     }
 
-    // Step 4: Seed project and borrower resumes
+    // Step 4: Seed project and borrower resumes (idempotent - upsert)
     console.log('\n📋 Step 4: Seeding project and borrower resumes...');
     await seedProjectResume(projectId);
     await seedBorrowerResume(projectId);
 
-    // Step 5: Seed documents
+    // Step 5: Seed documents (idempotent - skips existing)
     console.log('\n📋 Step 5: Seeding documents...');
     const documents = await seedDocuments(projectId, borrowerOrgId, borrowerId);
 
-    // Step 6: Seed team members
-    console.log('\n📋 Step 6: Seeding team members...');
+    // Step 6: Seed images (idempotent - skips existing)
+    console.log('\n📋 Step 6: Seeding images...');
+    await seedImages(projectId, borrowerOrgId);
+
+    // Step 7: Seed team members (idempotent - skips existing)
+    console.log('\n📋 Step 7: Seeding team members...');
     const memberIds = await seedTeamMembers(projectId, borrowerOrgId, borrowerId);
 
-    // Step 7: Seed chat messages
-    console.log('\n📋 Step 7: Seeding chat messages...');
+    // Step 8: Seed chat messages (idempotent - checks existing)
+    console.log('\n📋 Step 8: Seeding chat messages...');
     await seedChatMessages(projectId, advisorId, borrowerId, memberIds, documents);
 
     // Summary
@@ -1552,6 +1907,7 @@ async function seedHoqueProject(): Promise<void> {
     console.log(`   Project Resume: ✅ Seeded (100% complete)`);
     console.log(`   Borrower Resume: ✅ Seeded (100% complete)`);
     console.log(`   Documents: ✅ ${Object.keys(documents).length} documents`);
+    console.log(`   Images: ✅ Seeded in site-images and architectural-diagrams folders`);
     console.log(`   Team Members: ✅ ${memberIds.length} members`);
     console.log(`   Chat Messages: ✅ Seeded in General and topic threads`);
     console.log('\n🎉 The Hoque account is now fully seeded with realistic data!');
