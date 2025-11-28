@@ -835,14 +835,12 @@ BEGIN
   -- Ensure borrower root resources exist for this project
   PERFORM public.ensure_project_borrower_roots(v_target_project_id);
 
-  -- Ensure an OM root resource exists for this project
-  INSERT INTO public.resources (org_id, project_id, parent_id, resource_type, name)
-  VALUES (v_project.owner_org_id, v_project.id, NULL, 'OM', v_project.name || ' OM')
-  ON CONFLICT DO NOTHING;
-
-  -- Insert OM snapshot row linked to this project
+  -- Insert/update OM row for this project (single row per project, no versioning)
   INSERT INTO public.om (project_id, content)
-  VALUES (v_target_project_id, v_om_content);
+  VALUES (v_target_project_id, v_om_content)
+  ON CONFLICT (project_id) DO UPDATE SET
+    content = EXCLUDED.content,
+    updated_at = now();
 
   RAISE NOTICE '✅ Hoque data (resume + borrower + OM) seeded for project "%" (%).', v_project.name, v_target_project_id;
 END $$;

@@ -1,7 +1,7 @@
 // src/components/documents/DocumentPreviewModal.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
@@ -11,6 +11,7 @@ import { ShareModal } from "./ShareModal";
 import { useDocumentManagement, DocumentFile } from "@/hooks/useDocumentManagement";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { usePermissions } from "@/hooks/usePermissions";
+import { extractOriginalFilename } from "@/utils/documentUtils";
 import { Loader2, Download, Edit, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 
@@ -51,82 +52,93 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   
   const isEditableInOffice = resource && /\.(docx|xlsx|pptx|pdf)$/i.test(resource.name);
 
-  useEffect(() => {
-    const fetchResourceDetails = async () => {
-      if (!resourceId) return;
-      setIsLoading(true);
-      setError(null);
+  const fetchResourceDetails = useCallback(async () => {
+    if (!resourceId) return;
+    setIsLoading(true);
+    setError(null);
 
-      console.log('[DocumentPreviewModal] Fetching resource details for:', resourceId);
+    console.log('[DocumentPreviewModal] Fetching resource details for:', resourceId);
 
-      try {
-        // First, get the resource
-        const { data, error } = await supabase
-          .from("resources")
-          .select("*")
-          .eq("id", resourceId)
-          .single();
-        
-        if (error) {
-          console.error('[DocumentPreviewModal] Error fetching resource:', error);
-          throw new Error(`Failed to fetch resource: ${error.message}`);
-        }
-
-        if (!data) {
-          throw new Error("Resource not found");
-        }
-
-        console.log('[DocumentPreviewModal] Resource data:', data);
-
-        // If there's no current_version_id, this resource has no versions yet
-        if (!data.current_version_id) {
-          throw new Error("This document has no versions. It may not have been uploaded correctly.");
-        }
-
-        // Now fetch the current version separately
-        const { data: currentVersion, error: versionError } = await supabase
-          .from("document_versions")
-          .select("*")
-          .eq("id", data.current_version_id)
-          .single();
-
-        if (versionError) {
-          console.error('[DocumentPreviewModal] Error fetching version:', versionError);
-          throw new Error(`Failed to fetch document version: ${versionError.message}`);
-        }
-        
-        if (!currentVersion) {
-          throw new Error("Document version not found");
-        }
-
-        console.log('[DocumentPreviewModal] Current version:', currentVersion);
-
-        const formattedResource: ResourceDetails = {
-          id: data.id,
-          name: data.name,
-          org_id: data.org_id,
-          project_id: data.project_id,
-          storage_path: currentVersion.storage_path,
-          created_at: data.created_at,
-          updated_at: currentVersion.created_at,
-          resource_id: data.id,
-          metadata: currentVersion.metadata,
-          size: (currentVersion.metadata?.size as number) || 0,
-          version_number: currentVersion.version_number,
-          type: (currentVersion.metadata?.mimeType as string) || 'unknown',
-        };
-
-        console.log('[DocumentPreviewModal] Formatted resource:', formattedResource);
-        setResource(formattedResource);
-      } catch (err) {
-        console.error('[DocumentPreviewModal] Error in fetchResourceDetails:', err);
-        setError(err instanceof Error ? err.message : "Failed to load document details.");
-      } finally {
-        setIsLoading(false);
+    try {
+      // First, get the resource
+      const { data, error } = await supabase
+        .from("resources")
+        .select("*")
+        .eq("id", resourceId)
+        .single();
+      
+      if (error) {
+        console.error('[DocumentPreviewModal] Error fetching resource:', error);
+        throw new Error(`Failed to fetch resource: ${error.message}`);
       }
-    };
-    fetchResourceDetails();
+
+      if (!data) {
+        throw new Error("Resource not found");
+      }
+
+      console.log('[DocumentPreviewModal] Resource data:', data);
+
+      // If there's no current_version_id, this resource has no versions yet
+      if (!data.current_version_id) {
+        throw new Error("This document has no versions. It may not have been uploaded correctly.");
+      }
+
+      // Now fetch the current version separately
+      const { data: currentVersion, error: versionError } = await supabase
+        .from("document_versions")
+        .select("*")
+        .eq("id", data.current_version_id)
+        .single();
+
+      if (versionError) {
+        console.error('[DocumentPreviewModal] Error fetching version:', versionError);
+        throw new Error(`Failed to fetch document version: ${versionError.message}`);
+      }
+      
+      if (!currentVersion) {
+        throw new Error("Document version not found");
+      }
+
+      console.log('[DocumentPreviewModal] Current version:', currentVersion);
+
+      // Extract original filename from storage path if resource.name contains version prefix
+      const displayName = data.name.includes('_user') || data.name.match(/^v\d+_/)
+        ? extractOriginalFilename(currentVersion.storage_path)
+        : data.name;
+
+      const formattedResource: ResourceDetails = {
+        id: data.id,
+        name: displayName,
+        org_id: data.org_id,
+        project_id: data.project_id,
+        storage_path: currentVersion.storage_path,
+        created_at: data.created_at,
+        updated_at: currentVersion.created_at,
+        resource_id: data.id,
+        metadata: currentVersion.metadata,
+        size: (currentVersion.metadata?.size as number) || 0,
+        version_number: currentVersion.version_number,
+        type: (currentVersion.metadata?.mimeType as string) || 'unknown',
+      };
+
+      console.log('[DocumentPreviewModal] Formatted resource:', formattedResource);
+      setResource(formattedResource);
+    } catch (err) {
+      console.error('[DocumentPreviewModal] Error in fetchResourceDetails:', err);
+      setError(err instanceof Error ? err.message : "Failed to load document details.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [resourceId]);
+
+  useEffect(() => {
+    fetchResourceDetails();
+  }, [fetchResourceDetails]);
+
+  const handleRollbackSuccess = useCallback(() => {
+    // Refresh the document instead of closing the modal
+    fetchResourceDetails();
+  }, [fetchResourceDetails]);
   
   const handleDelete = async () => {
     if (!resource) return;
@@ -163,7 +175,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
               <VersionHistoryDropdown 
                 key={`versions-${resourceId}-${openVersionsDefault}`}
                 resourceId={resourceId} 
-                onRollbackSuccess={onClose} 
+                onRollbackSuccess={handleRollbackSuccess} 
                 defaultOpen={openVersionsDefault} 
               />
             )}

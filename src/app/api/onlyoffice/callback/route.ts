@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
         );
 
       // 3. Construct the new storage path with the correct subdirectory
-      const newStoragePath = `${resource.project_id}/${storageSubdir}/${resourceId}/v${newVersion.version_number}_${resource.name}`;
+      const newStoragePath = `${resource.project_id}/${storageSubdir}/${resourceId}/v${newVersion.version_number}_user${userId}_${resource.name}`;
 
       // Download the updated document from OnlyOffice server
       console.log(

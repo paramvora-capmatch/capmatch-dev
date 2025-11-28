@@ -792,7 +792,7 @@ async function uploadDocumentToProject(
 
     // Build storage path
     const storageSubdir = rootResourceType === 'BORROWER_DOCS_ROOT' ? 'borrower-docs' : 'project-docs';
-    const finalStoragePath = `${projectId}/${storageSubdir}/${resourceId}/v${version.version_number}_${fileName}`;
+    const finalStoragePath = `${projectId}/${storageSubdir}/${resourceId}/v${version.version_number}_user${uploadedById}_${fileName}`;
 
     // Read file from filesystem
     if (!existsSync(filePath)) {

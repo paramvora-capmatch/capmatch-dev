@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { extractOriginalFilename } from "@/utils/documentUtils";
 
 export interface DocumentFile {
   id: string;
@@ -157,10 +158,16 @@ export const useDocumentManagement = ({
             : null;
 
           if (currentVersion) {
+            // Extract original filename from storage path if resource.name contains version prefix
+            // Otherwise use resource.name (which should be the clean filename)
+            const displayName = resource.name.includes('_user') || resource.name.match(/^v\d+_/)
+              ? extractOriginalFilename(currentVersion.storage_path)
+              : resource.name;
+            
             filesList.push({
               id: currentVersion.id,
               resource_id: resource.id,
-              name: resource.name,
+              name: displayName,
               size: (currentVersion.metadata?.size as number) || 0,
               storage_path: currentVersion.storage_path,
               type: (currentVersion.metadata?.mimeType as string) || "application/octet-stream",
@@ -271,7 +278,7 @@ export const useDocumentManagement = ({
         }
 
         const fileFolder = `${projectId}/${STORAGE_SUBDIR[context]}/${resourceId}`;
-        finalStoragePath = `${fileFolder}/v${version.version_number}_${file.name}`;
+        finalStoragePath = `${fileFolder}/v${version.version_number}_user${user.id}_${file.name}`;
 
         const { error: uploadError } = await supabase.storage
           .from(targetOrgId)

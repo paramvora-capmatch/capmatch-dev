@@ -55,11 +55,13 @@ function buildStoragePath(
   resourceId: string,
   versionNumber: number,
   fileName: string,
-  context: "borrower" | "project"
+  context: "borrower" | "project",
+  userId?: string | null
 ) {
   const safeName = fileName.replace(/\\/g, "");
   const base = context === "borrower" ? BORROWER_DOCS_SUBDIR : PROJECT_DOCS_SUBDIR;
-  return `${projectId}/${base}/${resourceId}/v${versionNumber}_${safeName}`;
+  const userSuffix = userId ? `_user${userId}` : "";
+  return `${projectId}/${base}/${resourceId}/v${versionNumber}${userSuffix}_${safeName}`;
 }
 
 async function ensureStorageFolders(
@@ -416,7 +418,8 @@ export async function cloneBorrowerDocuments({
         newResource.id,
         resolvedVersion.version_number,
         file.name,
-        "borrower"
+        "borrower",
+        version.created_by
       );
 
       if (version.storage_path) {

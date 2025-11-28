@@ -134,8 +134,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Use the resource name for the title, and version ID for the key
-    const fileName = resource.name;
+    // Extract the original filename from storage path to avoid showing version/user prefixes
+    // The resource.name might contain version prefix, so we extract from storage_path
+    const extractOriginalFilename = (storagePath: string): string => {
+      if (!storagePath) return resource.name;
+      const filename = storagePath.split('/').pop() || storagePath;
+      // Match patterns: v{version}_user{userId}_{filename} or v{version}_{filename}
+      const newFormatMatch = filename.match(/^v\d+_user[^_]+_(.+)$/);
+      if (newFormatMatch) return newFormatMatch[1];
+      const oldFormatMatch = filename.match(/^v\d+_(.+)$/);
+      if (oldFormatMatch) return oldFormatMatch[1];
+      return filename;
+    };
+    
+    const fileName = extractOriginalFilename(filePath);
     const fileType = fileName.split(".").pop() || "";
 
     const documentTypeMap: { [key: string]: string } = {

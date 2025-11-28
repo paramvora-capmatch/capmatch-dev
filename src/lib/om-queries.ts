@@ -3,87 +3,42 @@ import { supabase } from "../lib/supabaseClient";
 import { ungroupFromSections, isGroupedFormat } from "./section-grouping";
 
 /**
- * Fetches the latest OM data for a project from the database
+ * Fetches the OM data for a project from the database.
+ * Since OM is now a single row per project (no versioning), we fetch directly by project_id.
  */
 export async function getLatestOM(projectId: string) {
   try {
-    // Get the OM resource to find the current version
-    const { data: resource, error: resourceError } = await supabase
-      .from("resources")
-      .select("current_version_id")
+    // Fetch the single OM row for this project
+    const { data, error } = await supabase
+      .from("om")
+      .select("*")
       .eq("project_id", projectId)
-      .eq("resource_type", "OM")
-      .single();
+      .maybeSingle();
 
-    if (resourceError && resourceError.code !== "PGRST116") {
-      // PGRST116 is "not found" - that's okay, we'll fetch latest by date
-      console.error("Error fetching OM resource:", resourceError);
+    if (error) {
+      if (error.code === "PGRST116") {
+        // No OM data exists yet
+        return null;
+      }
+      throw error;
     }
 
-    let omData;
-
-    if (resource?.current_version_id) {
-      // Fetch by current_version_id (points to latest OM row)
-      const { data, error } = await supabase
-        .from("om")
-        .select("*")
-        .eq("id", resource.current_version_id)
-        .single();
-
-      if (error) {
-        console.error("Error fetching OM by version ID:", error);
-        // Fallback to latest by date
-        const { data: latestData, error: latestError } = await supabase
-          .from("om")
-          .select("*")
-          .eq("project_id", projectId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
-
-        if (latestError) {
-          throw latestError;
-        }
-        omData = latestData;
-      } else {
-        omData = data;
-      }
-    } else {
-      // No resource pointer, fetch latest by date
-      const { data, error } = await supabase
-        .from("om")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error) {
-        if (error.code === "PGRST116") {
-          // No OM data exists yet
-          return null;
-        }
-        throw error;
-      }
-      omData = data;
-    }
-
-    if (!omData) {
+    if (!data) {
       return null;
     }
 
     // Process the content - ungroup if needed
-    let content = omData.content || {};
+    let content = data.content || {};
     if (isGroupedFormat(content)) {
       content = ungroupFromSections(content);
     }
 
     return {
-      id: omData.id,
-      project_id: omData.project_id,
+      id: data.id,
+      project_id: data.project_id,
       content: content,
-      created_at: omData.created_at,
-      updated_at: omData.updated_at,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
     };
   } catch (error) {
     console.error("Error fetching OM data:", error);

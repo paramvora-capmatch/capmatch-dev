@@ -17,9 +17,15 @@ interface Version {
   id: string;
   version_number: number;
   created_at: string;
-  created_by: string;
+  created_by: string | null;
   status: string;
   metadata?: { size?: number };
+}
+
+interface UserInfo {
+  id: string;
+  email: string | null;
+  full_name: string | null;
 }
 
 interface VersionHistoryDropdownProps {
@@ -70,6 +76,8 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
     top: number;
     left: number;
   } | null>(null);
+  const [userInfoMap, setUserInfoMap] = useState<Map<string, UserInfo>>(new Map());
+  const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
 
   // Sync isOpen state when defaultOpen prop changes
   useEffect(() => {
@@ -83,6 +91,16 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
     setError(null);
 
     try {
+      // First, get the resource's current_version_id to determine which version is actually active
+      const { data: resource, error: resourceError } = await supabase
+        .from("resources")
+        .select("current_version_id")
+        .eq("id", resourceId)
+        .single();
+
+      if (resourceError) throw resourceError;
+      setCurrentVersionId(resource?.current_version_id || null);
+
       const { data: versionsData, error: versionError } = await supabase
         .from("document_versions")
         .select("id, version_number, created_at, created_by, status, metadata")
@@ -92,6 +110,30 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
       if (versionError) throw versionError;
 
       setVersions(versionsData || []);
+
+      // Fetch user information for all creators
+      const userIds = [...new Set((versionsData || [])
+        .map(v => v.created_by)
+        .filter((id): id is string => Boolean(id)))];
+
+      if (userIds.length > 0) {
+        const { data: userData, error: userError } = await supabase.functions.invoke(
+          'get-user-data',
+          {
+            body: { userIds },
+          }
+        );
+
+        if (!userError && Array.isArray(userData)) {
+          const userMap = new Map<string, UserInfo>();
+          userData.forEach((user: UserInfo) => {
+            userMap.set(user.id, user);
+          });
+          setUserInfoMap(userMap);
+        } else if (userError) {
+          console.error("Error fetching user data:", userError);
+        }
+      }
     } catch (err) {
       console.error("Error fetching versions:", err);
       setError(
@@ -183,8 +225,8 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
       const clickedOutsideDropdown = dropdownRef.current && !dropdownRef.current.contains(clickTarget);
       const clickedOutsideTrigger = triggerRef.current ? !triggerRef.current.contains(clickTarget) : true;
       if (clickedOutsideDropdown && clickedOutsideTrigger) {
-        // In inline mode, allow closing; caller may unmount component
-        if (!hideTrigger) setIsOpen(false);
+        // Always close when clicking outside, regardless of hideTrigger
+        setIsOpen(false);
         setConfirmRollback(null);
       }
     };
@@ -195,7 +237,7 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
-  }, [isOpen, hideTrigger]);
+  }, [isOpen]);
 
   const handleRollback = async (versionId: string) => {
     setIsRollingBack(true);
@@ -209,8 +251,9 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
 
       if (error) throw error;
 
-      // Refresh versions
+      // Refresh versions and current version ID
       setVersions([]); // Clear current versions to show loading state
+      setCurrentVersionId(null); // Clear current version ID
       await fetchVersions();
       setConfirmRollback(null);
 
@@ -227,7 +270,10 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
     }
   };
 
-  const currentVersion = versions.find((v) => v.status === "active");
+  // Use current_version_id from resource as source of truth, not status field
+  const currentVersion = currentVersionId 
+    ? versions.find((v) => v.id === currentVersionId)
+    : null;
 
   return (
     <div ref={dropdownRef} className="relative">
@@ -283,7 +329,7 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         className={`relative p-3 rounded border ${
-                          version.status === "active"
+                          version.id === currentVersionId
                             ? "bg-blue-50 border-blue-200"
                             : "bg-gray-50 border-gray-200"
                         }`}
@@ -329,16 +375,21 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
                                 <span className="font-medium text-sm text-gray-900">
                                   v{version.version_number}
                                 </span>
-                                {version.status === "active" && (
+                                {version.id === currentVersionId && (
                                   <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                                 )}
-                                {version.status === "superseded" && (
+                                {version.id !== currentVersionId && (
                                   <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
                                 )}
                               </div>
                               <p className="text-xs text-gray-600 mt-1">
                                 {formatDate(version.created_at)}
                               </p>
+                              {version.created_by && userInfoMap.has(version.created_by) && (
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  Created by {userInfoMap.get(version.created_by)?.full_name || userInfoMap.get(version.created_by)?.email || 'Unknown User'}
+                                </p>
+                              )}
                               {version.metadata?.size && (
                                 <p className="text-xs text-gray-500">
                                   {formatFileSize(version.metadata.size)}
@@ -347,7 +398,7 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
                             </div>
 
                             <div className="flex gap-1">
-                              {version.status !== "active" && (
+                              {version.id !== currentVersionId && (
                                 <Button
                                   size="sm"
                                   variant="outline"
