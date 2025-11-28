@@ -142,7 +142,7 @@ async function handleDocumentUpload(
     return jsonResponse({ inserted: 0, reason: "already_notified" });
   }
 
-  const notificationPayload = buildDocumentPayload(event);
+  const notificationPayload = await buildDocumentPayload(supabaseAdmin, event);
   const rows = recipientsToInsert.map((userId) => ({
     user_id: userId,
     event_id: event.id,
@@ -404,12 +404,13 @@ async function fetchExistingRecipients(
   return existing;
 }
 
-function buildDocumentPayload(event: DomainEventRow) {
+async function buildDocumentPayload(supabaseAdmin: SupabaseClient, event: DomainEventRow) {
   const fileName = (event.payload?.fileName as string | undefined) ?? "A new file";
+  const projectName = await getProjectName(supabaseAdmin, event.project_id);
   const linkUrl = event.resource_id ? `/project/workspace/${event.project_id}?resourceId=${event.resource_id}` : `/project/workspace/${event.project_id}`;
   return {
-    title: "Document uploaded",
-    body: `New file "${fileName}" was uploaded to this project.`,
+    title: `Document uploaded - ${projectName}`,
+    body: `New file **"${fileName}"** was uploaded to **${projectName}**.`,
     link_url: linkUrl,
   };
 }
