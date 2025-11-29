@@ -339,6 +339,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     router,
     loadOrg,
     loadUserProjects,
+    user?.role,
   ]);
 
   // Subscribe to realtime changes for project resume
