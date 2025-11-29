@@ -368,7 +368,6 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
         }
         
         // TODO: Implement actual autofill logic when backend is ready
-        console.log('Autofill Resume clicked - will extract data from documents');
     };
 
     return (

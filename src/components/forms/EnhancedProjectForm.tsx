@@ -355,7 +355,6 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
     setDeleting(true);
     try {
       const filePaths = fileNames.map(fileName => `${projectId}/${folder}/${fileName}`);
-      console.log(`[ProjectMediaUpload] Attempting to delete files from bucket "${orgId}":`, filePaths);
       
       const { data, error } = await supabase.storage.from(orgId).remove(filePaths);
 
@@ -366,8 +365,6 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
         setDeleting(false);
         return; // Don't update state if deletion failed
       }
-
-      console.log(`[ProjectMediaUpload] Deletion API response:`, data);
 
       // Verify deletion by listing the folder after a short delay
       await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds for storage propagation
@@ -380,7 +377,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
       let deletionVerified = true;
       
       if (listError) {
-        console.warn("[ProjectMediaUpload] Could not verify deletion (will proceed optimistically):", listError);
+        // Could not verify deletion, proceeding optimistically
       } else if (remainingFiles) {
         const remainingNames = new Set(remainingFiles.map(f => f.name));
         const stillExist = fileNames.filter(name => remainingNames.has(name));
@@ -390,8 +387,6 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
           console.error(`[ProjectMediaUpload] This indicates deletion may have failed. Check RLS policies and permissions.`);
           alert(`Failed to delete files: ${stillExist.join(', ')}\n\nThis may be a permissions issue. Check the browser console for details.`);
           deletionVerified = false;
-        } else {
-          console.log(`[ProjectMediaUpload] ✓ Verification: All ${fileNames.length} file(s) successfully deleted.`);
         }
       }
 
@@ -421,14 +416,9 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
         setTimeout(async () => {
           await loadImages();
         }, 300);
-        
-        console.log(`[ProjectMediaUpload] ✓ Successfully deleted ${fileNames.length} file(s) and updated UI.`);
       } else {
-        console.error(`[ProjectMediaUpload] ✗ Deletion verification failed - files were not removed from storage.`);
         // Don't reload if deletion failed - this would bring back the files
       }
-      
-      console.log(`[ProjectMediaUpload] Successfully deleted ${fileNames.length} file(s) and reloaded images.`);
     } catch (error) {
       console.error("[ProjectMediaUpload] Exception during deletion:", error);
       alert(`Failed to delete files: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1149,9 +1139,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
       //    This prevents saving if the component re-renders without data changes.
       if (JSON.stringify(formData) !== JSON.stringify(existingProject)) {
         try {
-          console.log(
-            `[ProjectForm] Auto-saving project: ${formData.projectName}`
-          );
           // 4. Call the updateProject action from the store with the latest form data.
           await updateProject(formData.id, formData);
         } catch (error) {
@@ -1193,7 +1180,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
     try {
       setFormSaved(true); // Indicate loading/saving
       await updateProject(formData.id, formData);
-      console.log("Project changes manually saved.");
       if (onComplete) {
         // Pass the current formData state which reflects the latest changes
         onComplete(formData);
@@ -1221,7 +1207,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
     setIsAutofilling(false);
     
     // TODO: Implement actual autofill logic when backend is ready
-    console.log('Autofill Resume clicked - will extract data from documents');
   }, []);
 
   // --- Define Steps for FormWizard ---

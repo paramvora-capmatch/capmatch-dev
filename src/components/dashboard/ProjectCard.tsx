@@ -73,7 +73,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
       const { currentOrg: currentOrgState } = useOrgStore.getState();
       // Only load if we haven't loaded this org yet
       if (currentOrgState?.id !== project.owner_org_id) {
-        console.log(`[ProjectCard] Loading org data for: ${project.owner_org_id}`);
         await loadOrg(project.owner_org_id);
       }
     };
@@ -90,27 +89,17 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
       }
       // Wait for org to be loaded and check ownership
       if (!currentOrg || !isOwner || currentOrg.id !== project.owner_org_id || !project.id) {
-        console.log('[ProjectCard] Skipping member fetch:', {
-          hasCurrentOrg: !!currentOrg,
-          isOwner,
-          orgId: currentOrg?.id,
-          projectOrgId: project.owner_org_id,
-          projectId: project.id
-        });
         setProjectMembers([]);
         return;
       }
 
       // Don't fetch if org is still loading or orgMembers not yet populated
       if (orgLoading) {
-        console.log('[ProjectCard] Waiting for org to load...');
         return;
       }
 
       setIsLoadingMembers(true);
       try {
-        console.log('[ProjectCard] Fetching project members for project:', project.id, 'owned by org:', project.owner_org_id);
-        
         // Get all users who have been granted access to this project
         // As an owner, we should be able to see all grants for projects in our org
         const { data: grants, error: grantsError } = await supabase
@@ -126,27 +115,19 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           return;
         }
 
-        console.log('[ProjectCard] Found grants:', grants?.length || 0, grants);
-        console.log('[ProjectCard] Org members available:', orgMembers?.length || 0, orgMembers);
-
         // Collect all user IDs from grants - these are ALL members with explicit project access
         const userIdsFromGrants = new Set<string>(grants?.map(g => g.user_id) || []);
-        console.log('[ProjectCard] User IDs from grants:', Array.from(userIdsFromGrants));
         
         // Also include all org owners (they have implicit access even if not in grants)
         // This ensures owners are shown even if they don't have explicit grants
         orgMembers
           .filter(m => m.role === 'owner')
           .forEach(m => {
-            console.log('[ProjectCard] Adding org owner:', m.user_id);
             userIdsFromGrants.add(m.user_id);
           });
         
-        console.log('[ProjectCard] Total unique user IDs after adding owners:', userIdsFromGrants.size, Array.from(userIdsFromGrants));
-        
         // Add assigned advisor if exists
         if (project.assignedAdvisorUserId) {
-          console.log('[ProjectCard] Adding assigned advisor:', project.assignedAdvisorUserId);
           userIdsFromGrants.add(project.assignedAdvisorUserId);
         }
 
@@ -164,8 +145,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           );
 
           if (!basicDataError && memberBasicData) {
-            console.log('[ProjectCard] Fetched user data:', memberBasicData?.length || 0, memberBasicData);
-            
             // Create a map for easy lookup
             const basicById = new Map(
               (memberBasicData || []).map((u: { id: string; email: string | null; full_name: string | null }) => [u.id, u])
@@ -182,14 +161,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               })
               .filter(m => m.userId); // Filter out any invalid entries
 
-            console.log('[ProjectCard] Setting project members:', membersData);
             setProjectMembers(membersData);
           } else {
             console.error('[ProjectCard] Failed to fetch member data via edge function:', basicDataError);
             setProjectMembers([]);
           }
         } else {
-          console.log('[ProjectCard] No members found');
           setProjectMembers([]);
         }
       } catch (err) {
@@ -240,7 +217,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     setIsDeleting(true);
     try {
       await deleteProject(project.id);
-      console.log("Project deleted successfully");
       setIsDeleteModalOpen(false);
     } catch (error) {
       console.error("Failed to delete project", error);

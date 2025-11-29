@@ -197,9 +197,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       const { currentOrg } = useOrgStore.getState();
       // Only load if we haven't loaded this org yet
       if (currentOrg?.id !== activeProject.owner_org_id) {
-        console.log(
-          `[ProjectWorkspace] Loading org data for: ${activeProject.owner_org_id}`
-        );
         await loadOrg(activeProject.owner_org_id);
       }
     };

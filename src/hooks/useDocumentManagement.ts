@@ -96,8 +96,6 @@ export const useDocumentManagement = ({
 
       const parentId = folderId || root.id;
 
-      console.log('[DocumentManagement] Using parent ID:', parentId);
-
       // First, get all resources (files and folders)
       const { data: resources, error: resourcesError } = await supabase
         .from("resources")
@@ -110,8 +108,6 @@ export const useDocumentManagement = ({
         console.error('[DocumentManagement] Resources query error:', resourcesError);
         throw new Error(`Failed to fetch resources: ${resourcesError.message || JSON.stringify(resourcesError)}`);
       }
-      
-      console.log('[DocumentManagement] Resources fetched:', resources?.length || 0);
 
       const filesList: DocumentFile[] = [];
       const foldersList: DocumentFolder[] = [];
@@ -120,8 +116,6 @@ export const useDocumentManagement = ({
       const fileResourceIds = resources
         ?.filter((r) => r.resource_type === "FILE")
         .map((r) => r.id);
-      
-      console.log('[DocumentManagement] File resource IDs:', fileResourceIds);
 
       const versionsMap = new Map();
       if (fileResourceIds && fileResourceIds.length > 0) {
@@ -135,7 +129,6 @@ export const useDocumentManagement = ({
           console.error("Error fetching versions:", versionsError);
           throw new Error(`Failed to fetch document versions: ${versionsError.message || JSON.stringify(versionsError)}`);
         } else {
-          console.log('[DocumentManagement] Versions fetched:', versions?.length || 0);
           versions?.forEach((v) => versionsMap.set(v.id, v));
         }
       }
@@ -169,15 +162,10 @@ export const useDocumentManagement = ({
               updated_at: resource.updated_at,
               metadata: currentVersion.metadata || {},
             });
-          } else {
-            console.warn(
-              `[DocumentManagement] File resource ${resource.id} has no current version`
-            );
           }
         }
       });
 
-      console.log('[DocumentManagement] Processed:', { files: filesList.length, folders: foldersList.length });
       setFiles(filesList);
       setFolders(foldersList);
     } catch (err) {
@@ -320,7 +308,6 @@ export const useDocumentManagement = ({
             resourceId,
           });
         } else {
-          console.log("[useDocumentManagement] Logged document_uploaded event:", eventId);
           if (eventId) {
             const { error: notifyError } = await supabase.functions.invoke(
               "notify-fan-out",

@@ -17,14 +17,11 @@ import {
   AlertCircle,
 } from "lucide-react";
 import {
-  BorrowerProfile, // Used for demo mode mapping
   ProjectProfile,
   ProjectStatus,
   BorrowerResume,
 } from "../../../../types/enhanced-types";
-import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
 import { DocumentManager } from "@/components/documents/DocumentManager";
-import { storageService } from "@/lib/storage";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "../../../../../lib/supabaseClient";
 import { getProjectWithResume } from "@/lib/project-queries";
@@ -171,12 +168,6 @@ export default function AdvisorProjectDetailPage() {
         return;
       }
 
-      if (user.isDemo) {
-        setCopyOptions([]);
-        setCopySourceProjectId("");
-        return;
-      }
-
       setIsCopyOptionsLoading(true);
       try {
         const { data: projectRows, error: projectError } = await supabase
@@ -247,56 +238,6 @@ export default function AdvisorProjectDetailPage() {
         return;
       }
 
-      if (user.isDemo) {
-        try {
-          const allProfiles = await storageService.getItem<BorrowerProfile[]>(
-            "borrowerProfiles"
-          );
-          const searchOrgId =
-            ownerOrgIdOverride ?? project?.owner_org_id ?? null;
-
-          if (!searchOrgId) {
-            setBorrowerResume(null);
-            return;
-          }
-
-          const profile = allProfiles?.find(
-            (p) => p.entityId === searchOrgId
-          );
-
-          if (!profile) {
-            setBorrowerResume(null);
-            return;
-          }
-
-          setBorrowerResume({
-            id: `resume-${profile.id}`,
-            org_id: searchOrgId,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            content: {
-              fullLegalName: profile.fullLegalName,
-              primaryEntityName: profile.primaryEntityName,
-              contactEmail: profile.contactEmail,
-              contactPhone: profile.contactPhone,
-              yearsCREExperienceRange: profile.yearsCREExperienceRange,
-              assetClassesExperience: profile.assetClassesExperience,
-              geographicMarketsExperience: profile.geographicMarketsExperience,
-              creditScoreRange: profile.creditScoreRange,
-              netWorthRange: profile.netWorthRange,
-              liquidityRange: profile.liquidityRange,
-              bankruptcyHistory: profile.bankruptcyHistory,
-              foreclosureHistory: profile.foreclosureHistory,
-              litigationHistory: profile.litigationHistory,
-            },
-          });
-        } catch (error) {
-          console.warn("Error loading demo borrower resume:", error);
-          setBorrowerResume(null);
-        }
-        return;
-      }
-
       try {
         const { data, error } = await supabase
           .from("borrower_resumes")
@@ -322,11 +263,6 @@ export default function AdvisorProjectDetailPage() {
 
     if (!copyOptions.some((option) => option.value === copySourceProjectId)) {
       setCopyError("Selected project is no longer available.");
-      return;
-    }
-
-    if (user.isDemo) {
-      setCopyError("Copying borrower resumes is not supported in demo mode.");
       return;
     }
 
@@ -393,9 +329,7 @@ export default function AdvisorProjectDetailPage() {
           (foundProject.projectStatus as ProjectStatus) || "Info Gathering"
         );
 
-        if (!user?.isDemo) {
-          void loadPermissionsForProject(foundProject.id);
-        }
+        void loadPermissionsForProject(foundProject.id);
 
         // 2. Load owner org name
         if (foundProject.owner_org_id) {
@@ -615,21 +549,14 @@ export default function AdvisorProjectDetailPage() {
         if (project) {
           const updatedContent = { ...project, projectStatus: newStatus };
 
-          if (user?.isDemo) {
-            console.log(
-              "Demo mode: Project status would be updated to",
-              newStatus
-            );
-          } else {
-            const { error } = await supabase
-              .from("project_resumes")
-              .update({
-                content: updatedContent,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("project_id", project.id);
-            if (error) throw error;
-          }
+          const { error } = await supabase
+            .from("project_resumes")
+            .update({
+              content: updatedContent,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("project_id", project.id);
+          if (error) throw error;
         }
 
         console.log("Project status updated successfully");
@@ -670,17 +597,6 @@ export default function AdvisorProjectDetailPage() {
     [activeThreadId, user, newMessage]
   );
 
-  const generateFeedback = useCallback(async () => {
-    if (!project || !user || !user.id) return;
-
-    try {
-      const feedback = await generateProjectFeedback(project.id, project);
-      await handleSendMessage(`[AI Feedback Suggestion]: ${feedback}`, true);
-      console.log("Feedback generated and sent");
-    } catch (error) {
-      console.error("Error generating feedback:", error);
-    }
-  }, [project, user, handleSendMessage]);
 
   // Render functions for sections
   const renderProjectDetails = useCallback(() => {
@@ -922,22 +838,13 @@ export default function AdvisorProjectDetailPage() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   disabled={!activeThreadId || isSending}
                 />
-                <div className="flex flex-col space-y-2">
-                  <Button
-                    onClick={() => handleSendMessage()}
-                    disabled={!newMessage.trim() || !activeThreadId || isSending}
-                    leftIcon={<Send size={16} />}
-                  >
-                    Send
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={generateFeedback}
-                    disabled={!activeThreadId || isSending}
-                  >
-                    Generate Feedback
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => handleSendMessage()}
+                  disabled={!newMessage.trim() || !activeThreadId || isSending}
+                  leftIcon={<Send size={16} />}
+                >
+                  Send
+                </Button>
               </div>
             </>
           ) : (
@@ -956,7 +863,6 @@ export default function AdvisorProjectDetailPage() {
     newMessage,
     user, // Changed from borrowerResume as sender is from profiles
     handleSendMessage,
-    generateFeedback,
     threads,
     activeThreadId,
     isLoadingMessages,
