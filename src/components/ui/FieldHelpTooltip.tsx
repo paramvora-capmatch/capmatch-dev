@@ -8,12 +8,22 @@ import {
 	getFieldMetadata,
 	FieldMetadata,
 } from "@/lib/project-resume-field-metadata";
+import {
+	SourceMetadata,
+	formatSourceForDisplay,
+} from "@/types/source-metadata";
 
 interface FieldHelpTooltipProps {
 	fieldId: string;
 	className?: string;
 	iconSize?: number;
 	placement?: "top" | "bottom" | "left" | "right";
+	fieldMetadata?: {
+		sources?: SourceMetadata[];
+		warnings?: string[];
+		value?: any;
+		original_value?: any;
+	};
 }
 
 export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
@@ -21,11 +31,15 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 	className,
 	iconSize = 16,
 	placement = "top",
+	fieldMetadata: apiMetadata,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [position, setPosition] = useState({ top: 0, left: 0 });
 	const triggerRef = useRef<HTMLDivElement>(null);
-	const metadata = getFieldMetadata(fieldId);
+	const staticMetadata = getFieldMetadata(fieldId);
+	
+	// Use static metadata for description and field type, but API metadata for sources
+	const metadata = staticMetadata;
 
 	useEffect(() => {
 		if (isOpen && triggerRef.current) {
@@ -75,8 +89,9 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 		}
 	}, [isOpen, placement]);
 
-	if (!metadata) {
-		return null; // Don't show tooltip if metadata doesn't exist
+	// Show tooltip if we have either static metadata or API metadata
+	if (!metadata && !apiMetadata) {
+		return null; // Don't show tooltip if no metadata exists
 	}
 
 	const handleMouseEnter = () => {
@@ -248,67 +263,103 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 								onMouseLeave={() => setIsOpen(false)}
 							>
 								<div className="p-4">
-									{/* Field Type Badge */}
-									<div className="flex items-center justify-between mb-2">
-										<span
-											className={cn(
-												"text-xs font-semibold px-2 py-0.5 rounded",
-												metadata.fieldType === "derived"
-													? "bg-purple-100 text-purple-700"
-													: "bg-blue-100 text-blue-700"
-											)}
-										>
-											{metadata.fieldType === "derived"
-												? "Derived"
-												: "Direct"}
-										</span>
-										{metadata.dataType && (
-											<span className="text-xs text-gray-500">
-												{metadata.dataType}
+									{/* Field Type Badge - Only show if we have static metadata */}
+									{metadata && (
+										<div className="flex items-center justify-between mb-2">
+											<span
+												className={cn(
+													"text-xs font-semibold px-2 py-0.5 rounded",
+													metadata.fieldType === "derived"
+														? "bg-purple-100 text-purple-700"
+														: "bg-blue-100 text-blue-700"
+												)}
+											>
+												{metadata.fieldType === "derived"
+													? "Derived"
+													: "Direct"}
 											</span>
-										)}
-									</div>
+											{metadata.dataType && (
+												<span className="text-xs text-gray-500">
+													{metadata.dataType}
+												</span>
+											)}
+										</div>
+									)}
 
-									{/* Description */}
-									<p className="text-sm text-gray-800 mb-3 leading-relaxed">
-										{metadata.description}
-									</p>
+									{/* Description - Only show if we have static metadata */}
+									{metadata && (
+										<p className="text-sm text-gray-800 mb-3 leading-relaxed">
+											{metadata.description}
+										</p>
+									)}
 
-									{/* Divider */}
-									<div className="border-t border-gray-200 my-3" />
+									{/* Divider will be shown with sources section if sources exist */}
 
-									{/* Sources */}
-									<div className="space-y-2">
-										<div>
-											<p className="text-xs font-semibold text-gray-700 mb-0.5">
-												Primary Source:
+									{/* Sources - Only show if we have API metadata with sources */}
+									{(() => {
+										// Get sources from API metadata - must be SourceMetadata format
+										const sources: SourceMetadata[] = [];
+										
+										if (apiMetadata) {
+											// Check sources array (only format now - no source field)
+											if (apiMetadata.sources !== undefined && apiMetadata.sources !== null) {
+												if (Array.isArray(apiMetadata.sources)) {
+													// Filter valid SourceMetadata objects
+													apiMetadata.sources.forEach((src: any) => {
+														if (src && typeof src === "object" && src !== null && "type" in src) {
+															sources.push(src as SourceMetadata);
+														}
+													});
+												}
+											}
+										}
+										
+										// Filter out "User Input" only if there are other non-user-input sources
+										const nonUserInputSources = sources.filter(s => {
+											// Ensure s is a valid SourceMetadata object with type property
+											return s && typeof s === "object" && "type" in s && s.type !== "user_input";
+										});
+										const filteredSources = nonUserInputSources.length > 0 
+											? nonUserInputSources  // If we have non-user-input sources, only show those
+											: sources;  // Otherwise show all sources (including user_input if it's the only one)
+										
+										// Only render if we have sources to show
+										if (filteredSources.length === 0) {
+											return null;
+										}
+										
+										return (
+											<>
+												{(metadata || (apiMetadata && apiMetadata.warnings && apiMetadata.warnings.length > 0)) && (
+													<div className="border-t border-gray-200 my-3" />
+												)}
+												<div>
+													<p className="text-xs font-semibold text-gray-700 mb-1">
+														Source(s):
+													</p>
+													<div className="space-y-1">
+														{filteredSources.map((source, idx) => (
+															<p key={idx} className="text-xs text-gray-600">
+																{formatSourceForDisplay(source)}
+															</p>
+														))}
+													</div>
+												</div>
+											</>
+										);
+									})()}
+
+									{/* Expected Value - Only show if we have static metadata */}
+									{metadata && (
+										<div className="mt-3 pt-3 border-t border-gray-200">
+											<p className="text-xs font-semibold text-gray-700 mb-1">
+												Expected Value:
 											</p>
-											<p className="text-xs text-gray-600">
-												{metadata.primarySource}
+											<p className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
+												{metadata.expectedValue}
 											</p>
 										</div>
-										{metadata.backupSource &&
-											metadata.backupSource !== "N/A" && (
-												<div>
-													<p className="text-xs font-semibold text-gray-700 mb-0.5">
-														Backup Source:
-													</p>
-													<p className="text-xs text-gray-600">
-														{metadata.backupSource}
-													</p>
-												</div>
-											)}
-									</div>
-
-									{/* Expected Value */}
-									<div className="mt-3 pt-3 border-t border-gray-200">
-										<p className="text-xs font-semibold text-gray-700 mb-1">
-											Expected Value:
-										</p>
-										<p className="text-xs text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
-											{metadata.expectedValue}
-										</p>
-									</div>
+									)}
 								</div>
 
 								{/* Arrow pointer */}
@@ -342,7 +393,7 @@ export const FieldWithTooltip: React.FC<FieldWithTooltipProps> = ({
 }) => {
 	return (
 		<div className={cn("relative", className)}>
-			<label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+			<label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
 				<span>
 					{label}
 					{required && <span className="text-red-500 ml-1">*</span>}

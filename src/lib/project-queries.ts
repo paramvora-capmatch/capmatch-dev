@@ -561,15 +561,39 @@ export const getProjectsWithResumes = async (projectIds: string[]): Promise<Proj
       // Process rich data format
       for (const key in rawContent) {
         const item = rawContent[key];
-        if (item && typeof item === 'object' && 'source' in item && 'value' in item) {
-          (flatContent as any)[key] = item.value;
-          metadata[key] = {
-            value: item.value,
-            source: item.source || null,
-            original_source: item.source || null,
-            original_value: item.original_value !== undefined ? item.original_value : item.value, // Use original_value if available, fallback to value
-            warnings: item.warnings || []
-          };
+        if (item && typeof item === 'object' && 'value' in item) {
+          // Handle both 'source' (legacy) and 'sources' (new format)
+          const hasSource = 'source' in item;
+          const hasSources = 'sources' in item;
+          
+          if (hasSource || hasSources) {
+            (flatContent as any)[key] = item.value;
+            
+            // Convert sources array to source string for metadata (for backward compatibility)
+            let sourceValue: string | null = null;
+            if (hasSources && Array.isArray(item.sources) && item.sources.length > 0) {
+              // Use first source's name if available
+              const firstSource = item.sources[0];
+              if (typeof firstSource === 'object' && firstSource.name) {
+                sourceValue = firstSource.name;
+              } else if (typeof firstSource === 'string') {
+                sourceValue = firstSource;
+              }
+            } else if (hasSource) {
+              sourceValue = typeof item.source === 'string' ? item.source : null;
+            }
+            
+            metadata[key] = {
+              value: item.value,
+              source: sourceValue,
+              sources: hasSources && Array.isArray(item.sources) ? item.sources : (hasSource ? [item.source] : []),
+              original_source: sourceValue,
+              original_value: item.original_value !== undefined ? item.original_value : item.value, // Use original_value if available, fallback to value
+              warnings: item.warnings || []
+            };
+          } else {
+            (flatContent as any)[key] = item;
+          }
         } else {
           (flatContent as any)[key] = item;
         }
@@ -793,7 +817,7 @@ export const getProjectBorrowerResume = async (
 
   let query = supabase
     .from('borrower_resumes')
-    .select('content');
+    .select('content, locked_fields, locked_sections');
 
   if (resource?.current_version_id) {
     query = query.eq('id', resource.current_version_id);
@@ -810,14 +834,144 @@ export const getProjectBorrowerResume = async (
     throw new Error(`Failed to load borrower resume: ${error.message}`);
   }
 
-  return data?.content || null;
+  if (!data) return null;
+
+  // Attach locked_fields and locked_sections to the content object as _lockedFields and _lockedSections
+  const content = data.content || {};
+  (content as any)._lockedFields = data.locked_fields || {};
+  (content as any)._lockedSections = data.locked_sections || {};
+
+  return content as BorrowerResumeContent;
 };
+
+// Helper to map borrower resume fields to sections
+const BORROWER_FIELD_TO_SECTION: Record<string, string> = {
+  // section_1: basic-info
+  fullLegalName: "section_1",
+  primaryEntityName: "section_1",
+  primaryEntityStructure: "section_1",
+  contactEmail: "section_1",
+  contactPhone: "section_1",
+  contactAddress: "section_1",
+  // section_2: experience
+  yearsCREExperienceRange: "section_2",
+  assetClassesExperience: "section_2",
+  geographicMarketsExperience: "section_2",
+  totalDealValueClosedRange: "section_2",
+  existingLenderRelationships: "section_2",
+  bioNarrative: "section_2",
+  // section_3: borrower-financials
+  creditScoreRange: "section_3",
+  netWorthRange: "section_3",
+  liquidityRange: "section_3",
+  bankruptcyHistory: "section_3",
+  foreclosureHistory: "section_3",
+  litigationHistory: "section_3",
+  // section_4: online-presence
+  linkedinUrl: "section_4",
+  websiteUrl: "section_4",
+  // section_5: principals (handled separately as array)
+  principals: "section_5",
+};
+
+// Helper to convert flat content to section-wise format
+function convertToSectionWise(flatContent: any): any {
+  const sectionWise: any = {};
+  
+  for (const [fieldId, fieldValue] of Object.entries(flatContent)) {
+    if (fieldId.startsWith("section_") || fieldId === "_metadata") {
+      // Already section-wise or metadata, keep as-is
+      sectionWise[fieldId] = fieldValue;
+      continue;
+    }
+    
+    const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
+    if (sectionId) {
+      if (!sectionWise[sectionId]) {
+        sectionWise[sectionId] = {};
+      }
+      sectionWise[sectionId][fieldId] = fieldValue;
+    } else {
+      // Unknown field - put in section_other
+      if (!sectionWise["section_other"]) {
+        sectionWise["section_other"] = {};
+      }
+      sectionWise["section_other"][fieldId] = fieldValue;
+    }
+  }
+  
+  return sectionWise;
+}
+
+// Helper to merge flat updates into section-wise structure
+function mergeIntoSectionWise(existingSectionWise: any, flatUpdates: any): any {
+  const merged = existingSectionWise ? { ...existingSectionWise } : {};
+  
+  for (const [fieldId, fieldValue] of Object.entries(flatUpdates)) {
+    if (fieldId.startsWith("section_") || fieldId === "_metadata") {
+      // Already section-wise or metadata, merge directly
+      if (typeof fieldValue === "object" && fieldValue !== null && !Array.isArray(fieldValue)) {
+        merged[fieldId] = { ...(merged[fieldId] || {}), ...fieldValue };
+      } else {
+        merged[fieldId] = fieldValue;
+      }
+      continue;
+    }
+    
+    const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
+    if (sectionId) {
+      if (!merged[sectionId]) {
+        merged[sectionId] = {};
+      }
+      merged[sectionId][fieldId] = fieldValue;
+    } else {
+      // Unknown field - put in section_other
+      if (!merged["section_other"]) {
+        merged["section_other"] = {};
+      }
+      merged["section_other"][fieldId] = fieldValue;
+    }
+  }
+  
+  return merged;
+}
 
 export const saveProjectBorrowerResume = async (
   projectId: string,
-  content: Partial<BorrowerResumeContent>
+  content: Partial<BorrowerResumeContent>,
+  lockedFields?: Record<string, boolean>,
+  lockedSections?: Record<string, boolean>
 ): Promise<void> => {
-  const mergedContent = content as any;
+  // First, get existing content to check if it's section-wise
+  const { data: existingResume } = await supabase
+    .from('borrower_resumes')
+    .select('content')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  
+  const existingContent = existingResume?.content || {};
+  const isExistingSectionWise = Object.keys(existingContent).some(
+    (key) => key.startsWith("section_")
+  );
+  
+  let contentToSave: any;
+  if (isExistingSectionWise) {
+    // Merge flat updates into existing section-wise structure
+    contentToSave = mergeIntoSectionWise(existingContent, content as any);
+  } else {
+    // Convert to section-wise format
+    const mergedContent = { ...existingContent, ...(content as any) };
+    contentToSave = convertToSectionWise(mergedContent);
+  }
+  
+  // Extract _lockedFields and _lockedSections from content if present
+  const lockedFieldsToSave = lockedFields || (content as any)._lockedFields || {};
+  const lockedSectionsToSave = lockedSections || (content as any)._lockedSections || {};
+  
+  // Remove _lockedFields and _lockedSections from content before saving (they're stored in separate columns)
+  const { _lockedFields, _lockedSections, ...finalContentToSave } = contentToSave;
 
   const { data: resource, error: resourceError } = await supabase
     .from('resources')
@@ -833,7 +987,11 @@ export const saveProjectBorrowerResume = async (
   if (resource?.current_version_id) {
     const { error } = await supabase
       .from('borrower_resumes')
-      .update({ content: mergedContent })
+      .update({ 
+        content: finalContentToSave,
+        locked_fields: lockedFieldsToSave,
+        locked_sections: lockedSectionsToSave,
+      })
       .eq('id', resource.current_version_id);
 
     if (error) {
@@ -847,7 +1005,9 @@ export const saveProjectBorrowerResume = async (
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
-      content: mergedContent,
+      content: finalContentToSave,
+      locked_fields: lockedFieldsToSave,
+      locked_sections: lockedSectionsToSave,
     })
     .select('id')
     .single();

@@ -1,247 +1,142 @@
 // src/services/mockProjectFieldExtraction.ts
 /**
  * Mock API service for project field extraction
- * Returns field values in the same format as the backend extraction API
- * This simulates what the backend would return after extracting data from documents
+ * Returns field values in section-wise format matching backend API
  */
 
-export interface ExtractedFieldValue {
-  value: any;
-  source?: string | null;
-  warnings?: string[];
-}
+import { SourceMetadata } from '@/types/source-metadata';
 
-export interface ProjectFieldExtractionResponse {
-  [fieldId: string]: ExtractedFieldValue | any;
+/**
+ * Section-wise field extraction response structure
+ * Each section contains fields with their extraction data
+ */
+export interface SectionWiseExtractionResponse {
+  [sectionId: string]: {
+    [fieldId: string]: {
+      value: any;
+      sources: SourceMetadata[];
+      warnings: string[];
+      original_value?: any;
+    };
+  };
 }
 
 /**
- * Mock extraction API that returns all project fields with realistic values
- * Based on SoGood Apartments project data
+ * Helper function to convert source string to SourceMetadata
+ */
+function createSourceMetadata(source: string): SourceMetadata {
+  const normalized = source.toLowerCase();
+  
+  // User Input
+  if (normalized === "user input" || normalized === "user_input") {
+    return { type: "user_input" };
+  }
+  
+  // Derived sources (calculations, extractions)
+  const derivedPatterns = [
+    "extract from address", "sum of", "nrsf / units", "spaces / units",
+    "loan / value", "loan / tdc", "noi /", "egi -", "trended /", "untrended /",
+    "geo-calc", "stress calc"
+  ];
+  if (derivedPatterns.some(pattern => normalized.includes(pattern))) {
+    return {
+      type: "derived",
+      name: source,
+      derivation: source,
+    };
+  }
+  
+  // External APIs
+  const externalPatterns = ["api", "walk score", "census acs", "us treasury", "nps cert", "cdfi fund", "city gis"];
+  if (externalPatterns.some(pattern => normalized.includes(pattern))) {
+    return {
+      type: "external",
+      name: source,
+    };
+  }
+  
+  // Document sources (default)
+  return {
+    type: "document",
+    name: source,
+  };
+}
+
+/**
+ * Mock extraction API for project resumes
+ * Returns project field values with realistic data in section-wise format
+ * Uses structured SourceMetadata format
  */
 export const extractProjectFields = async (
   projectId: string,
   documentPaths?: string[]
-): Promise<ProjectFieldExtractionResponse> => {
+): Promise<SectionWiseExtractionResponse> => {
   // Simulate API delay
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  // Return comprehensive field extraction results
-  // Format matches backend: { fieldId: { value, source, warnings } } or flat { fieldId: value }
-  // Fields with "User Input" source are left empty (null/empty string) as they can't be filled by AI
-  const rawFields: ProjectFieldExtractionResponse = {
-    // Section 1: Project Identification & Basic Info
-    projectName: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    assetType: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    projectStatus: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    propertyAddressStreet: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    propertyAddressCity: {
-      value: "Dallas",
-      source: "Extract from Address",
-      warnings: [],
-    },
-    propertyAddressState: {
-      value: "TX",
-      source: "Extract from Address",
-      warnings: [],
-    },
-    propertyAddressZip: {
-      value: "75215",
-      source: "Extract from Address",
-      warnings: [],
-    },
-    propertyAddressCounty: {
-      value: "Dallas County",
-      source: "Title Commitment",
-      warnings: [],
-    },
-    parcelNumber: {
-      value: "R-12345-67890, R-12345-67891",
-      source: "ALTA Survey",
-      warnings: [],
-    },
-    zoningDesignation: {
-      value: "MU-3",
-      source: "Zoning Letter",
-      warnings: [],
-    },
-    currentZoning: {
-      value: "MU-3",
-      source: "Zoneomics API",
-      warnings: [],
-    },
-    expectedZoningChanges: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    projectType: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    primaryAssetClass: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    constructionType: {
-      value: "Ground-Up",
-      source: "Arch Plans",
-      warnings: [],
-    },
-    projectPhase: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    groundbreakingDate: {
-      value: "2025-08-01",
-      source: "Construction Schedule",
-      warnings: [],
-    },
-    completionDate: {
-      value: "2027-09-30",
-      source: "Construction Schedule",
-      warnings: [],
-    },
-    totalDevelopmentCost: {
-      value: 29807800,
-      source: "Sum of Budget",
-      warnings: [],
-    },
-    loanAmountRequested: {
-      value: 18000000,
-      source: "Sources & Uses",
-      warnings: [],
-    },
-    loanType: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    requestedLoanTerm: {
-      value: "2 years",
-      source: "Term Sheet",
-      warnings: [],
-    },
-    masterPlanName: {
-      value: "SoGood Master Planned Development",
-      source: "Marketing Brochure",
-      warnings: [],
-    },
-    phaseNumber: {
-      value: "Building B",
-      source: "Site Plan",
-      warnings: [],
-    },
-    syndicationStatus: {
-      value: "Committed",
-      source: "Equity Commitment",
-      warnings: [],
-    },
-    guarantorNames: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    projectDescription: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
+  // Helper to create field data
+  const createField = (value: any, source: string, warnings: string[] = []): {
+    value: any;
+    sources: SourceMetadata[];
+    warnings: string[];
+    original_value: any;
+  } => ({
+    value,
+    sources: [createSourceMetadata(source)],
+    warnings,
+    original_value: value,
+  });
 
-    // Section 2: Property Specifications
-    totalResidentialUnits: {
-      value: 116,
-      source: "Sum of Unit Mix",
-      warnings: [],
+  // Return project field extraction results in section-wise format
+  // Format: { section_1: { fieldId: { value, sources, warnings, original_value } } }
+  const sectionWiseFields: SectionWiseExtractionResponse = {
+    section_1: {
+      // Basic Info - Project Identification
+      projectName: createField(null, "User Input"),
+      assetType: createField(null, "User Input"),
+      projectStatus: createField(null, "User Input"),
+      propertyAddressStreet: createField(null, "User Input"),
+      propertyAddressCity: createField("Dallas", "Extract from Address"),
+      propertyAddressState: createField("TX", "Extract from Address"),
+      propertyAddressZip: createField("75215", "Extract from Address"),
+      propertyAddressCounty: createField("Dallas County", "Title Commitment"),
+      parcelNumber: createField("R-12345-67890, R-12345-67891", "ALTA Survey"),
+      zoningDesignation: createField("MU-3", "Zoning Letter"),
+      currentZoning: createField("MU-3", "Zoneomics API"),
+      expectedZoningChanges: createField(null, "User Input"),
+      projectType: createField(null, "User Input"),
+      primaryAssetClass: createField(null, "User Input"),
+      constructionType: createField("Ground-Up", "Arch Plans"),
+      projectPhase: createField(null, "User Input"),
+      groundbreakingDate: createField("2025-08-01", "Construction Schedule"),
+      completionDate: createField("2027-09-30", "Construction Schedule"),
+      totalDevelopmentCost: createField(29807800, "Sum of Budget"),
+      loanAmountRequested: createField(18000000, "Sources & Uses"),
+      loanType: createField(null, "User Input"),
+      requestedLoanTerm: createField("2 years", "Term Sheet"),
+      masterPlanName: createField("SoGood Master Planned Development", "Marketing Brochure"),
+      phaseNumber: createField("Building B", "Site Plan"),
+      syndicationStatus: createField("Committed", "Equity Commitment"),
+      guarantorNames: createField(null, "User Input"),
+      projectDescription: createField(null, "User Input"),
     },
-    totalResidentialNRSF: {
-      value: 59520,
-      source: "Sum of Unit SF",
-      warnings: [],
-    },
-    averageUnitSize: {
-      value: 513,
-      source: "NRSF / Units",
-      warnings: [],
-    },
-    totalCommercialGRSF: {
-      value: 49569,
-      source: "Arch Plans",
-      warnings: [],
-    },
-    grossBuildingArea: {
-      value: 127406,
-      source: "Arch Plans",
-      warnings: [],
-    },
-    numberOfStories: {
-      value: 6,
-      source: "Elevations",
-      warnings: [],
-    },
-    buildingType: {
-      value: "Mid-rise",
-      source: "Arch Plans",
-      warnings: [],
-    },
-    parkingSpaces: {
-      value: 180,
-      source: "Site Plan",
-      warnings: [],
-    },
-    parkingRatio: {
-      value: 1.55,
-      source: "Spaces / Units",
-      warnings: [],
-    },
-    parkingType: {
-      value: "Structured",
-      source: "Site Plan",
-      warnings: [],
-    },
-    amenityList: {
-      value: ["Pool", "Gym", "Coworking", "Rooftop Deck"],
-      source: "Arch Plans",
-      warnings: [],
-    },
-    amenitySF: {
-      value: 8500,
-      source: "Sum of Areas",
-      warnings: [],
-    },
-    adaCompliantUnitsPercent: {
-      value: 5.0,
-      source: "Arch Plans",
-      warnings: [],
-    },
-    leedSustainabilityRating: {
-      value: "Pending",
-      source: "Arch Plans",
-      warnings: [],
-    },
-
-    // Section 2.1: Residential Unit Mix
-    residentialUnitMix: {
-      value: [
+    section_2: {
+      // Property Specifications
+      totalResidentialUnits: createField(116, "Sum of Unit Mix"),
+      totalResidentialNRSF: createField(59520, "Sum of Unit SF"),
+      averageUnitSize: createField(513, "NRSF / Units"),
+      totalCommercialGRSF: createField(49569, "Arch Plans"),
+      grossBuildingArea: createField(127406, "Arch Plans"),
+      numberOfStories: createField(6, "Elevations"),
+      buildingType: createField("Mid-rise", "Arch Plans"),
+      parkingSpaces: createField(180, "Site Plan"),
+      parkingRatio: createField(1.55, "Spaces / Units"),
+      parkingType: createField("Structured", "Site Plan"),
+      amenityList: createField(["Pool", "Gym", "Coworking", "Rooftop Deck"], "Arch Plans"),
+      amenitySF: createField(8500, "Sum of Areas"),
+      adaCompliantUnitsPercent: createField(5.0, "Arch Plans"),
+      leedSustainabilityRating: createField("Pending", "Arch Plans"),
+      residentialUnitMix: createField([
         {
           unitType: "Studio S1",
           unitCount: 12,
@@ -278,14 +173,8 @@ export const extractProjectFields = async (
           amiTargetPercent: 80,
           rentBumpSchedule: "$2.22 to $2.56",
         },
-      ],
-      source: "Arch Plans",
-      warnings: [],
-    },
-
-    // Section 2.2: Commercial Space Mix
-    commercialSpaceMix: {
-      value: [
+      ], "Arch Plans"),
+      commercialSpaceMix: createField([
         {
           spaceType: "Retail",
           squareFootage: 19669,
@@ -302,468 +191,107 @@ export const extractProjectFields = async (
           annualRent: null,
           tiAllowance: null,
         },
-      ],
-      source: "Arch Plans",
-      warnings: [],
-    },
-
-    // Section 3.1: Development Budget
-    landAcquisition: {
-      value: 3500000,
-      source: "Purchase Agmt",
-      warnings: [],
-    },
-    baseConstruction: {
-      value: 18500000,
-      source: "Budget",
-      warnings: [],
-    },
-    contingency: {
-      value: 925000,
-      source: "Budget",
-      warnings: [],
-    },
-    ffe: {
-      value: 450000,
-      source: "Budget",
-      warnings: [],
-    },
-    constructionFees: {
-      value: 1200000,
-      source: "Budget",
-      warnings: [],
-    },
-    aeFees: {
-      value: 850000,
-      source: "Budget",
-      warnings: [],
-    },
-    thirdPartyReports: {
-      value: 125000,
-      source: "Budget",
-      warnings: [],
-    },
-    legalAndOrg: {
-      value: 200000,
-      source: "Budget",
-      warnings: [],
-    },
-    titleAndRecording: {
-      value: 75000,
-      source: "Budget",
-      warnings: [],
-    },
-    taxesDuringConstruction: {
-      value: 150000,
-      source: "Budget",
-      warnings: [],
-    },
-    workingCapital: {
-      value: 300000,
-      source: "Budget",
-      warnings: [],
-    },
-    developerFee: {
-      value: 1192312,
-      source: "Budget",
-      warnings: [],
-    },
-    pfcStructuringFee: {
-      value: 250000,
-      source: "Budget",
-      warnings: [],
-    },
-    loanFees: {
-      value: 360000,
-      source: "Budget",
-      warnings: [],
-    },
-    interestReserve: {
-      value: 1800000,
-      source: "Budget",
-      warnings: [],
-    },
-    relocationCosts: {
-      value: 0,
-      source: "Relocation Plan",
-      warnings: [],
-    },
-    syndicationCosts: {
-      value: 238000,
-      source: "Equity Commit",
-      warnings: [],
-    },
-    enviroRemediation: {
-      value: 0,
-      source: "Phase II ESA",
-      warnings: [],
-    },
-
-    // Section 3.2: Sources of Funds
-    seniorLoanAmount: {
-      value: 18000000,
-      source: "Sources & Uses",
-      warnings: [],
-    },
-    sponsorEquity: {
-      value: 11807800,
-      source: "Sources & Uses",
-      warnings: [],
-    },
-    taxCreditEquity: {
-      value: 0,
-      source: "Equity Commit",
-      warnings: [],
-    },
-    gapFinancing: {
-      value: 0,
-      source: "Sources & Uses",
-      warnings: [],
-    },
-
-    // Section 3.3: Loan Terms
-    interestRate: {
-      value: 6.5,
-      source: "Term Sheet",
-      warnings: [],
-    },
-    underwritingRate: {
-      value: 8.5,
-      source: "Term Sheet",
-      warnings: [],
-    },
-    amortization: {
-      value: "IO",
-      source: "Term Sheet",
-      warnings: [],
-    },
-    prepaymentTerms: {
-      value: "No prepayment penalty after year 1",
-      source: "Term Sheet",
-      warnings: [],
-    },
-    recourse: {
-      value: "Full Recourse",
-      source: "Term Sheet",
-      warnings: [],
-    },
-    permTakeoutPlanned: {
-      value: true,
-      source: "Term Sheet",
-      warnings: [],
-    },
-    allInRate: {
-      value: 7.2,
-      source: "Term Sheet",
-      warnings: [],
-    },
-
-    // Legacy Financial Fields
-    targetLtvPercent: {
-      value: 43.7,
-      source: "Loan / Value",
-      warnings: [],
-    },
-    targetLtcPercent: {
-      value: 60.4,
-      source: "Loan / TDC",
-      warnings: [],
-    },
-    amortizationYears: {
-      value: 30,
-      source: "Term Sheet",
-      warnings: [],
-    },
-    interestOnlyPeriodMonths: {
-      value: 24,
-      source: "Term Sheet",
-      warnings: [],
-    },
-    interestRateType: {
-      value: "Fixed",
-      source: "Term Sheet",
-      warnings: [],
-    },
-    targetCloseDate: {
-      value: "2024-12-15",
-      source: "Term Sheet",
-      warnings: [],
-    },
-    useOfProceeds: {
-      value: "Construction financing for ground-up development of 116-unit mixed-use project",
-      source: "Term Sheet",
-      warnings: [],
-    },
-    recoursePreference: {
-      value: "Full Recourse",
-      source: "Term Sheet",
-      warnings: [],
-    },
-    purchasePrice: {
-      value: 3500000,
-      source: "Purchase Agmt",
-      warnings: [],
-    },
-    totalProjectCost: {
-      value: 29807800,
-      source: "Sum of Budget",
-      warnings: [],
-    },
-    capexBudget: {
-      value: 450000,
-      source: "Budget",
-      warnings: [],
-    },
-    propertyNoiT12: {
-      value: 0,
-      source: "N/A - New Construction",
-      warnings: [],
-    },
-    stabilizedNoiProjected: {
-      value: 2268000,
-      source: "Proforma",
-      warnings: [],
-    },
-    exitStrategy: {
-      value: "Hold for long-term cash flow, potential sale after stabilization at 5-7 year mark",
-      source: "Business Plan",
-      warnings: [],
-    },
-    businessPlanSummary: {
-      value: "Develop and operate a high-quality mixed-use property in the rapidly growing Deep Ellum submarket. Target market-rate and affordable units (80% AMI) with strong retail and office components. Projected stabilization within 18 months of first occupancy.",
-      source: "Business Plan",
-      warnings: [],
-    },
-    marketOverviewSummary: {
-      value: "Deep Ellum/Farmers Market submarket is experiencing strong population growth (12.5% 2010-2020, 8.3% projected 2024-2029) with high renter occupancy (68.5%). The area benefits from proximity to downtown Dallas employment centers, excellent walkability (Walk Score 85), and upcoming infrastructure improvements including DART Rail Extension.",
-      source: "Market Study",
-      warnings: [],
-    },
-    equityCommittedPercent: {
-      value: 39.6,
-      source: "Equity Commit",
-      warnings: [],
-    },
-    internalAdvisorNotes: {
-      value: "Strong sponsor with proven track record. Project benefits from tax abatement and affordable housing incentives. Market fundamentals are solid with strong absorption projections.",
-      source: "Advisor Notes",
-      warnings: [],
-    },
-
-    // Section 3.5: Operating Expenses
-    realEstateTaxes: {
-      value: 450000,
-      source: "Proforma",
-      warnings: [],
-    },
-    insurance: {
-      value: 125000,
-      source: "Proforma",
-      warnings: [],
-    },
-    utilities: {
-      value: 180000,
-      source: "Proforma",
-      warnings: [],
-    },
-    repairsAndMaintenance: {
-      value: 95000,
-      source: "Proforma",
-      warnings: [],
-    },
-    managementFee: {
-      value: 113400,
-      source: "Proforma",
-      warnings: [],
-    },
-    generalAndAdmin: {
-      value: 75000,
-      source: "Proforma",
-      warnings: [],
-    },
-    payroll: {
-      value: 120000,
-      source: "Proforma",
-      warnings: [],
-    },
-    reserves: {
-      value: 29000,
-      source: "Proforma",
-      warnings: [],
-    },
-    marketingLeasing: {
-      value: 68040,
-      source: "Proforma",
-      warnings: [],
-    },
-    serviceCoordination: {
-      value: 0,
-      source: "Proforma",
-      warnings: [],
-    },
-
-    // Section 3.6: Investment Metrics
-    noiYear1: {
-      value: 2268000,
-      source: "EGI - Total Exp",
-      warnings: [],
-    },
-    yieldOnCost: {
-      value: 7.6,
-      source: "NOI / TDC",
-      warnings: [],
-    },
-    capRate: {
-      value: 5.5,
-      source: "Appraisal",
-      warnings: [],
-    },
-    stabilizedValue: {
-      value: 41200000,
-      source: "NOI / Cap Rate",
-      warnings: [],
-    },
-    ltv: {
-      value: 43.7,
-      source: "Loan / Value",
-      warnings: [],
-    },
-    debtYield: {
-      value: 12.6,
-      source: "NOI / Loan",
-      warnings: [],
-    },
-    dscr: {
-      value: 1.25,
-      source: "NOI / Debt Svc",
-      warnings: [],
-    },
-    trendedNOIYear1: {
-      value: 2313360,
-      source: "Proforma",
-      warnings: [],
-    },
-    untrendedNOIYear1: {
-      value: 2222640,
-      source: "Proforma",
-      warnings: [],
-    },
-    trendedYield: {
-      value: 7.76,
-      source: "Trended / TDC",
-      warnings: [],
-    },
-    untrendedYield: {
-      value: 7.45,
-      source: "Untrended / TDC",
-      warnings: [],
-    },
-    inflationAssumption: {
-      value: 2.0,
-      source: "Proforma",
-      warnings: [],
-    },
-    dscrStressTest: {
-      value: 1.08,
-      source: "Stress Calc",
-      warnings: [],
-    },
-    portfolioLTV: {
-      value: 65.0,
-      source: "Sponsor FS",
-      warnings: [],
-    },
-
-    // Section 4: Market Context
-    submarketName: {
-      value: "Deep Ellum / Farmers Market",
-      source: "Market Study",
-      warnings: [],
-    },
-    distanceToCBD: {
-      value: 1.2,
-      source: "Geo-calc",
-      warnings: [],
-    },
-    distanceToEmployment: {
-      value: "0.5 miles to Downtown Dallas",
-      source: "Market Study",
-      warnings: [],
-    },
-    distanceToTransit: {
-      value: 0.3,
-      source: "Geo-calc",
-      warnings: [],
-    },
-    walkabilityScore: {
-      value: 85,
-      source: "Walk Score",
-      warnings: [],
-    },
-    population3Mi: {
-      value: 125000,
-      source: "Census ACS",
-      warnings: [],
-    },
-    popGrowth201020: {
-      value: 12.5,
-      source: "Census ACS",
-      warnings: [],
-    },
-    projGrowth202429: {
-      value: 8.3,
-      source: "Census ACS",
-      warnings: [],
-    },
-    medianHHIncome: {
-      value: 62500,
-      source: "Census ACS",
-      warnings: [],
-    },
-    renterOccupiedPercent: {
-      value: 68.5,
-      source: "Census ACS",
-      warnings: [],
-    },
-    bachelorsDegreePercent: {
-      value: 42.3,
-      source: "Census ACS",
-      warnings: [],
-    },
-    absorptionRate: {
-      value: 12,
-      source: "Market Study",
-      warnings: [],
-    },
-    penetrationRate: {
-      value: 2.1,
-      source: "Market Study",
-      warnings: [],
-    },
-    northStarComp: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    infrastructureProject: {
-      value: "DART Rail Extension",
-      source: "Market Study",
-      warnings: [],
-    },
-    projectBudget: {
-      value: 250000000,
-      source: "Market Study",
-      warnings: [],
-    },
-    infraCompletion: {
-      value: "2026",
-      source: "Market Study",
-      warnings: [],
-    },
-
-    // Section 4.3: Rent Comps
-    rentComps: {
-      value: [
+      ], "Arch Plans"),
+    },
+    section_3: {
+      // Development Budget & Financial Details
+      landAcquisition: createField(3500000, "Purchase Agmt"),
+      baseConstruction: createField(18500000, "Budget"),
+      contingency: createField(925000, "Budget"),
+      ffe: createField(450000, "Budget"),
+      constructionFees: createField(1200000, "Budget"),
+      aeFees: createField(850000, "Budget"),
+      thirdPartyReports: createField(125000, "Budget"),
+      legalAndOrg: createField(200000, "Budget"),
+      titleAndRecording: createField(75000, "Budget"),
+      taxesDuringConstruction: createField(150000, "Budget"),
+      workingCapital: createField(300000, "Budget"),
+      developerFee: createField(1192312, "Budget"),
+      pfcStructuringFee: createField(250000, "Budget"),
+      loanFees: createField(360000, "Budget"),
+      interestReserve: createField(1800000, "Budget"),
+      relocationCosts: createField(0, "Relocation Plan"),
+      syndicationCosts: createField(238000, "Equity Commit"),
+      enviroRemediation: createField(0, "Phase II ESA"),
+      // Sources of Funds
+      seniorLoanAmount: createField(18000000, "Sources & Uses"),
+      sponsorEquity: createField(11807800, "Sources & Uses"),
+      taxCreditEquity: createField(0, "Equity Commit"),
+      gapFinancing: createField(0, "Sources & Uses"),
+      // Loan Terms
+      interestRate: createField(6.5, "Term Sheet"),
+      underwritingRate: createField(8.5, "Term Sheet"),
+      amortization: createField("IO", "Term Sheet"),
+      prepaymentTerms: createField("No prepayment penalty after year 1", "Term Sheet"),
+      recourse: createField("Full Recourse", "Term Sheet"),
+      permTakeoutPlanned: createField(true, "Term Sheet"),
+      allInRate: createField(7.2, "Term Sheet"),
+      // Legacy Financial Fields
+      targetLtvPercent: createField(43.7, "Loan / Value"),
+      targetLtcPercent: createField(60.4, "Loan / TDC"),
+      amortizationYears: createField(30, "Term Sheet"),
+      interestOnlyPeriodMonths: createField(24, "Term Sheet"),
+      interestRateType: createField("Fixed", "Term Sheet"),
+      targetCloseDate: createField("2024-12-15", "Term Sheet"),
+      useOfProceeds: createField("Construction financing for ground-up development of 116-unit mixed-use project", "Term Sheet"),
+      recoursePreference: createField("Full Recourse", "Term Sheet"),
+      purchasePrice: createField(3500000, "Purchase Agmt"),
+      totalProjectCost: createField(29807800, "Sum of Budget"),
+      capexBudget: createField(450000, "Budget"),
+      propertyNoiT12: createField(0, "N/A - New Construction"),
+      stabilizedNoiProjected: createField(2268000, "Proforma"),
+      exitStrategy: createField("Hold for long-term cash flow, potential sale after stabilization at 5-7 year mark", "Business Plan"),
+      businessPlanSummary: createField("Develop and operate a high-quality mixed-use property in the rapidly growing Deep Ellum submarket. Target market-rate and affordable units (80% AMI) with strong retail and office components. Projected stabilization within 18 months of first occupancy.", "Business Plan"),
+      marketOverviewSummary: createField("Deep Ellum/Farmers Market submarket is experiencing strong population growth (12.5% 2010-2020, 8.3% projected 2024-2029) with high renter occupancy (68.5%). The area benefits from proximity to downtown Dallas employment centers, excellent walkability (Walk Score 85), and upcoming infrastructure improvements including DART Rail Extension.", "Market Study"),
+      equityCommittedPercent: createField(39.6, "Equity Commit"),
+      internalAdvisorNotes: createField("Strong sponsor with proven track record. Project benefits from tax abatement and affordable housing incentives. Market fundamentals are solid with strong absorption projections.", "Advisor Notes"),
+      // Operating Expenses
+      realEstateTaxes: createField(450000, "Proforma"),
+      insurance: createField(125000, "Proforma"),
+      utilities: createField(180000, "Proforma"),
+      repairsAndMaintenance: createField(95000, "Proforma"),
+      managementFee: createField(113400, "Proforma"),
+      generalAndAdmin: createField(75000, "Proforma"),
+      payroll: createField(120000, "Proforma"),
+      reserves: createField(29000, "Proforma"),
+      marketingLeasing: createField(68040, "Proforma"),
+      serviceCoordination: createField(0, "Proforma"),
+      // Investment Metrics
+      noiYear1: createField(2268000, "EGI - Total Exp"),
+      yieldOnCost: createField(7.6, "NOI / TDC"),
+      capRate: createField(5.5, "Appraisal"),
+      stabilizedValue: createField(41200000, "NOI / Cap Rate"),
+      ltv: createField(43.7, "Loan / Value"),
+      debtYield: createField(12.6, "NOI / Loan"),
+      dscr: createField(1.25, "NOI / Debt Svc"),
+      trendedNOIYear1: createField(2313360, "Proforma"),
+      untrendedNOIYear1: createField(2222640, "Proforma"),
+      trendedYield: createField(7.76, "Trended / TDC"),
+      untrendedYield: createField(7.45, "Untrended / TDC"),
+      inflationAssumption: createField(2.0, "Proforma"),
+      dscrStressTest: createField(1.08, "Stress Calc"),
+      portfolioLTV: createField(65.0, "Sponsor FS"),
+    },
+    section_4: {
+      // Market Context
+      submarketName: createField("Deep Ellum / Farmers Market", "Market Study"),
+      distanceToCBD: createField(1.2, "Geo-calc"),
+      distanceToEmployment: createField("0.5 miles to Downtown Dallas", "Market Study"),
+      distanceToTransit: createField(0.3, "Geo-calc"),
+      walkabilityScore: createField(85, "Walk Score"),
+      population3Mi: createField(125000, "Census ACS"),
+      popGrowth201020: createField(12.5, "Census ACS"),
+      projGrowth202429: createField(8.3, "Census ACS"),
+      medianHHIncome: createField(62500, "Census ACS"),
+      renterOccupiedPercent: createField(68.5, "Census ACS"),
+      bachelorsDegreePercent: createField(42.3, "Census ACS"),
+      absorptionRate: createField(12, "Market Study"),
+      penetrationRate: createField(2.1, "Market Study"),
+      northStarComp: createField(null, "User Input"),
+      infrastructureProject: createField("DART Rail Extension", "Market Study"),
+      projectBudget: createField(250000000, "Market Study"),
+      infraCompletion: createField("2026", "Market Study"),
+      rentComps: createField([
         {
           propertyName: "The Alexan Deep Ellum",
           address: "2800 Commerce St, Dallas, TX 75226",
@@ -786,14 +314,8 @@ export const extractProjectFields = async (
           rentPSF: 3.55,
           concessions: "None",
         },
-      ],
-      source: "Market Study",
-      warnings: [],
-    },
-
-    // Section 4.4: Sale Comps
-    saleComps: {
-      value: [
+      ], "Market Study"),
+      saleComps: createField([
         {
           propertyName: "The Alexan Deep Ellum",
           salePricePerUnit: 355000,
@@ -806,316 +328,83 @@ export const extractProjectFields = async (
           capRate: 5.4,
           saleDate: "2023-09-20",
         },
-      ],
-      source: "Appraisal",
-      warnings: [],
+      ], "Appraisal"),
     },
-
-    // Section 5: Special Considerations
-    opportunityZone: {
-      value: false,
-      source: "US Treasury",
-      warnings: [],
+    section_5: {
+      // Special Considerations
+      opportunityZone: createField(false, "US Treasury"),
+      affordableHousing: createField(true, "Reg Agreement"),
+      affordableUnitsNumber: createField(58, "Reg Agreement"),
+      amiTargetPercent: createField(80, "Reg Agreement"),
+      taxExemption: createField(true, "Incentive Agmt"),
+      exemptionStructure: createField("PFC", "Incentive Agmt"),
+      sponsoringEntity: createField("SoGood MMD", "Incentive Agmt"),
+      structuringFee: createField(250000, "Budget"),
+      exemptionTerm: createField(15, "Incentive Agmt"),
+      incentiveStacking: createField(["LIHTC", "Section 8"], "Incentive Agmt"),
+      tifDistrict: createField(false, "City GIS"),
+      taxAbatement: createField(true, "Incentive Agmt"),
+      paceFinancing: createField(null, "User Input"),
+      historicTaxCredits: createField(false, "NPS Cert"),
+      newMarketsCredits: createField(false, "CDFI Fund"),
+      relocationPlan: createField("N/A", "Relocation Plan"),
+      seismicPMLRisk: createField("2.5% PML", "Eng Report"),
     },
-    affordableHousing: {
-      value: true,
-      source: "Reg Agreement",
-      warnings: [],
-    },
-    affordableUnitsNumber: {
-      value: 58,
-      source: "Reg Agreement",
-      warnings: [],
-    },
-    amiTargetPercent: {
-      value: 80,
-      source: "Reg Agreement",
-      warnings: [],
-    },
-    taxExemption: {
-      value: true,
-      source: "Incentive Agmt",
-      warnings: [],
-    },
-    exemptionStructure: {
-      value: "PFC",
-      source: "Incentive Agmt",
-      warnings: [],
-    },
-    sponsoringEntity: {
-      value: "SoGood MMD",
-      source: "Incentive Agmt",
-      warnings: [],
-    },
-    structuringFee: {
-      value: 250000,
-      source: "Budget",
-      warnings: [],
-    },
-    exemptionTerm: {
-      value: 15,
-      source: "Incentive Agmt",
-      warnings: [],
-    },
-    incentiveStacking: {
-      value: ["LIHTC", "Section 8"],
-      source: "Incentive Agmt",
-      warnings: [],
-    },
-    tifDistrict: {
-      value: false,
-      source: "City GIS",
-      warnings: [],
-    },
-    taxAbatement: {
-      value: true,
-      source: "Incentive Agmt",
-      warnings: [],
-    },
-    paceFinancing: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    historicTaxCredits: {
-      value: false,
-      source: "NPS Cert",
-      warnings: [],
-    },
-    newMarketsCredits: {
-      value: false,
-      source: "CDFI Fund",
-      warnings: [],
-    },
-    relocationPlan: {
-      value: "N/A",
-      source: "Relocation Plan",
-      warnings: [],
-    },
-    seismicPMLRisk: {
-      value: "2.5% PML",
-      source: "Eng Report",
-      warnings: [],
-    },
-
-    // Section 6: Timeline & Milestones
-    landAcqClose: {
-      value: "2024-12-15",
-      source: "Settlement Stmt",
-      warnings: [],
-    },
-    entitlements: {
-      value: "Approved",
-      source: "Zoning Letter",
-      warnings: [],
-    },
-    finalPlans: {
-      value: "Approved",
-      source: "Arch Contract",
-      warnings: [],
-    },
-    permitsIssued: {
-      value: "Issued",
-      source: "Building Permits",
-      warnings: [],
-    },
-    verticalStart: {
-      value: "2025-10-01",
-      source: "Schedule",
-      warnings: [],
-    },
-    substantialComp: {
-      value: "2027-08-15",
-      source: "Schedule",
-      warnings: [],
-    },
-    firstOccupancy: {
-      value: "2027-10-15",
-      source: "Schedule",
-      warnings: [],
-    },
-    stabilization: {
-      value: "2028-03-31",
-      source: "Proforma",
-      warnings: [],
-    },
-    preLeasedSF: {
-      value: 19669,
-      source: "Lease Agmt",
-      warnings: [],
-    },
-    drawSchedule: {
-      value: [
+    section_6: {
+      // Timeline & Milestones
+      landAcqClose: createField("2024-12-15", "Settlement Stmt"),
+      entitlements: createField("Approved", "Zoning Letter"),
+      finalPlans: createField("Approved", "Arch Contract"),
+      permitsIssued: createField("Issued", "Building Permits"),
+      verticalStart: createField("2025-10-01", "Schedule"),
+      substantialComp: createField("2027-08-15", "Schedule"),
+      firstOccupancy: createField("2027-10-15", "Schedule"),
+      stabilization: createField("2028-03-31", "Proforma"),
+      preLeasedSF: createField(19669, "Lease Agmt"),
+      drawSchedule: createField([
         { drawNumber: 1, percentComplete: 10, amount: 1800000 },
         { drawNumber: 2, percentComplete: 25, amount: 2700000 },
         { drawNumber: 3, percentComplete: 50, amount: 3600000 },
         { drawNumber: 4, percentComplete: 75, amount: 3600000 },
         { drawNumber: 5, percentComplete: 100, amount: 6300000 },
-      ],
-      source: "Const Contract",
-      warnings: [],
+      ], "Const Contract"),
+      absorptionProjection: createField(12, "Market Study"),
+      opDeficitEscrow: createField(650000, "6 Mos OpEx"),
+      leaseUpEscrow: createField(1300000, "6-12 Mos"),
     },
-    absorptionProjection: {
-      value: 12,
-      source: "Market Study",
-      warnings: [],
+    section_7: {
+      // Site & Context
+      totalSiteAcreage: createField(2.85, "ALTA Survey"),
+      currentSiteStatus: createField("Vacant", "Phase I ESA"),
+      topography: createField("Flat", "Survey"),
+      environmental: createField("Clean", "Phase I ESA"),
+      utilities: createField("Available", "Civil Plans"),
+      utilityCapacity: createField("Water: 500 GPM available, Sewer: 600 GPM capacity", "Civil Plans"),
+      geotechSoilsRep: createField("Suitable bearing capacity, no special foundation requirements", "Soils Report"),
+      floodZone: createField("Zone X", "ALTA Survey"),
+      siteAccess: createField("Primary access from Hickory St, secondary from Commerce St", "Civil Plans"),
+      proximityShopping: createField("0.2 miles to Deep Ellum retail district", "Market Study"),
+      proximityRestaurants: createField("0.1 miles to multiple restaurants and cafes", "Market Study"),
+      proximityParks: createField("0.3 miles to Farmers Market Park", "Market Study"),
+      proximitySchools: createField("0.5 miles to elementary school, 1.2 miles to high school", "Market Study"),
+      proximityHospitals: createField("1.5 miles to Baylor University Medical Center", "Market Study"),
+      topEmployers: createField("Downtown Dallas (0.5 mi), Deep Ellum tech companies (0.3 mi)", "Market Study"),
     },
-    opDeficitEscrow: {
-      value: 650000,
-      source: "6 Mos OpEx",
-      warnings: [],
-    },
-    leaseUpEscrow: {
-      value: 1300000,
-      source: "6-12 Mos",
-      warnings: [],
-    },
-
-    // Section 7: Site & Context
-    totalSiteAcreage: {
-      value: 2.85,
-      source: "ALTA Survey",
-      warnings: [],
-    },
-    currentSiteStatus: {
-      value: "Vacant",
-      source: "Phase I ESA",
-      warnings: [],
-    },
-    topography: {
-      value: "Flat",
-      source: "Survey",
-      warnings: [],
-    },
-    environmental: {
-      value: "Clean",
-      source: "Phase I ESA",
-      warnings: [],
-    },
-    utilities: {
-      value: "Available",
-      source: "Civil Plans",
-      warnings: [],
-    },
-    utilityCapacity: {
-      value: "Water: 500 GPM available, Sewer: 600 GPM capacity",
-      source: "Civil Plans",
-      warnings: [],
-    },
-    geotechSoilsRep: {
-      value: "Suitable bearing capacity, no special foundation requirements",
-      source: "Soils Report",
-      warnings: [],
-    },
-    floodZone: {
-      value: "Zone X",
-      source: "ALTA Survey",
-      warnings: [],
-    },
-    siteAccess: {
-      value: "Primary access from Hickory St, secondary from Commerce St",
-      source: "Civil Plans",
-      warnings: [],
-    },
-    proximityShopping: {
-      value: "0.2 miles to Deep Ellum retail district",
-      source: "Market Study",
-      warnings: [],
-    },
-    proximityRestaurants: {
-      value: "0.1 miles to multiple restaurants and cafes",
-      source: "Market Study",
-      warnings: [],
-    },
-    proximityParks: {
-      value: "0.3 miles to Farmers Market Park",
-      source: "Market Study",
-      warnings: [],
-    },
-    proximitySchools: {
-      value: "0.5 miles to elementary school, 1.2 miles to high school",
-      source: "Market Study",
-      warnings: [],
-    },
-    proximityHospitals: {
-      value: "1.5 miles to Baylor University Medical Center",
-      source: "Market Study",
-      warnings: [],
-    },
-    topEmployers: {
-      value: "Downtown Dallas (0.5 mi), Deep Ellum tech companies (0.3 mi)",
-      source: "Market Study",
-      warnings: [],
-    },
-
-    // Section 8: Sponsor Information
-    sponsorEntityName: {
-      value: "Hoque Global",
-      source: "Org Chart",
-      warnings: [],
-    },
-    sponsorStructure: {
-      value: "General Partner",
-      source: "Org Chart",
-      warnings: [],
-    },
-    equityPartner: {
-      value: "ACARA",
-      source: "Org Chart",
-      warnings: [],
-    },
-    contactInfo: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    sponsorExpScore: {
-      value: 8,
-      source: "Prior Units",
-      warnings: [],
-    },
-    priorDevelopments: {
-      value: null, // User Input - leave empty
-      source: "User Input",
-      warnings: [],
-    },
-    netWorth: {
-      value: 45000000,
-      source: "Financials",
-      warnings: [],
-    },
-    guarantorLiquidity: {
-      value: 2500000,
-      source: "Guarantor FS",
-      warnings: [],
-    },
-    portfolioDSCR: {
-      value: 1.35,
-      source: "Sponsor FS",
-      warnings: [],
+    section_8: {
+      // Sponsor Information
+      sponsorEntityName: createField("Hoque Global", "Org Chart"),
+      sponsorStructure: createField("General Partner", "Org Chart"),
+      equityPartner: createField("ACARA", "Org Chart"),
+      contactInfo: createField(null, "User Input"),
+      sponsorExpScore: createField(8, "Prior Units"),
+      priorDevelopments: createField(null, "User Input"),
+      netWorth: createField(45000000, "Financials"),
+      guarantorLiquidity: createField(2500000, "Guarantor FS"),
+      portfolioDSCR: createField(1.35, "Sponsor FS"),
     },
   };
   
-  // Filter out fields with "User Input" source - set their values to null/empty
-  const filteredFields: ProjectFieldExtractionResponse = {};
-  for (const [key, fieldData] of Object.entries(rawFields)) {
-    if (fieldData && typeof fieldData === "object" && "source" in fieldData) {
-      const normalizedSource = fieldData.source?.toLowerCase() || "";
-      if (normalizedSource === "user input" || normalizedSource === "user_input") {
-        // Set value to null for User Input fields
-        filteredFields[key] = {
-          ...fieldData,
-          value: null,
-        };
-      } else {
-        filteredFields[key] = fieldData;
-      }
-    } else {
-      filteredFields[key] = fieldData;
-    }
-  }
-  
-  return filteredFields;
+  return sectionWiseFields;
 };
 
 /**
@@ -1125,15 +414,15 @@ export const extractProjectFieldsBySection = async (
   projectId: string,
   sectionId: string,
   documentPaths?: string[]
-): Promise<ProjectFieldExtractionResponse> => {
+): Promise<SectionWiseExtractionResponse> => {
   // Simulate API delay
   await new Promise((resolve) => setTimeout(resolve, 800));
 
   // Get all fields
   const allFields = await extractProjectFields(projectId, documentPaths);
 
-  // Filter by section (simplified - in real implementation, would use section mapping)
-  // For now, return all fields
-  return allFields;
+  // Return only the requested section
+  return {
+    [sectionId]: allFields[sectionId] || {},
+  };
 };
-

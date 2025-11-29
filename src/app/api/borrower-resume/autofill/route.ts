@@ -50,36 +50,50 @@ export async function POST(request: Request) {
 				// Add a delay to simulate processing time and allow animation to play
 				await new Promise((resolve) => setTimeout(resolve, 2000));
 
-				// Extract fields using mock service
+				// Extract fields using mock service (now returns section-wise format)
 				const extractedFields = await extractBorrowerFields(
 					project_id,
 					document_paths
 				);
 
-				// Convert extracted fields to the format expected by save function
-				const resumeData: any = {};
-				const metadata: any = {};
+				// Keep section-wise structure - don't flatten
+				// Format: { section_1: { fieldId: { value, sources, warnings, original_value } } }
+				// Convert to database format (still section-wise, but ensure all fields have proper structure)
+				const finalContent: any = {};
 
-				for (const [fieldId, fieldData] of Object.entries(
+				// Iterate through sections
+				for (const [sectionId, sectionFields] of Object.entries(
 					extractedFields
 				)) {
-					if (
-						fieldData &&
-						typeof fieldData === "object" &&
-						"value" in fieldData
-					) {
-						// Rich format with metadata
-						resumeData[fieldId] = fieldData.value;
-						metadata[fieldId] = {
-							value: fieldData.value,
-							source: fieldData.source || null,
-							original_source: fieldData.source || null,
-							original_value: fieldData.value,
-							warnings: fieldData.warnings || [],
-						};
-					} else {
-						// Flat format
-						resumeData[fieldId] = fieldData;
+					finalContent[sectionId] = {};
+
+					// Iterate through fields in each section
+					for (const [fieldId, fieldData] of Object.entries(
+						sectionFields
+					)) {
+						if (
+							fieldData &&
+							typeof fieldData === "object" &&
+							"value" in fieldData
+						) {
+							// Rich format with metadata - ensure sources is always an array
+							const sources = Array.isArray(fieldData.sources)
+								? fieldData.sources
+								: fieldData.sources
+								? [fieldData.sources]
+								: [];
+
+							finalContent[sectionId][fieldId] = {
+								value: fieldData.value,
+								sources: sources, // Only sources array, no source field
+								warnings: fieldData.warnings || [],
+								original_value:
+									fieldData.original_value ?? fieldData.value,
+							};
+						} else {
+							// Flat format (shouldn't happen with new schema, but handle gracefully)
+							finalContent[sectionId][fieldId] = fieldData;
+						}
 					}
 				}
 
@@ -99,24 +113,7 @@ export async function POST(request: Request) {
 					);
 				}
 
-				// Prepare final content (merge with metadata structure)
-				const finalContent: any = {};
-				for (const key in resumeData) {
-					if (key === "_metadata") continue;
-
-					const currentValue = resumeData[key];
-					const meta = metadata[key];
-
-					if (meta) {
-						finalContent[key] = {
-							value: currentValue,
-							source: meta.source,
-							warnings: meta.warnings,
-						};
-					} else {
-						finalContent[key] = currentValue;
-					}
-				}
+				// finalContent is already in section-wise format, ready to save
 
 				if (resource?.current_version_id) {
 					// Update existing resume

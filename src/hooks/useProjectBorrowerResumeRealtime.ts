@@ -15,9 +15,11 @@ interface UseProjectBorrowerResumeRealtimeResult {
   error: string | null;
   setLocalContent: (content: BorrowerResumeContent | null) => void;
   reload: () => Promise<void>;
-  save: (updates: Partial<BorrowerResumeContent>) => Promise<void>;
+  save: (updates: Partial<BorrowerResumeContent>, lockedFields?: Record<string, boolean>, lockedSections?: Record<string, boolean>) => Promise<void>;
   lastUpdatedBy: string | null;
   isRemoteUpdate: boolean;
+  lockedFields: Record<string, boolean>;
+  lockedSections: Record<string, boolean>;
 }
 
 export const useProjectBorrowerResumeRealtime = (
@@ -30,6 +32,8 @@ export const useProjectBorrowerResumeRealtime = (
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedBy, setLastUpdatedBy] = useState<string | null>(null);
   const [isRemoteUpdate, setIsRemoteUpdate] = useState(false);
+  const [lockedFields, setLockedFields] = useState<Record<string, boolean>>({});
+  const [lockedSections, setLockedSections] = useState<Record<string, boolean>>({});
   
   const channelRef = useRef<RealtimeChannel | null>(null);
   const isLocalSaveRef = useRef(false);
@@ -46,6 +50,13 @@ export const useProjectBorrowerResumeRealtime = (
     try {
       const result = await getProjectBorrowerResume(projectId);
       setContent(result);
+      // Extract locked fields and sections from the result
+      if (result) {
+        const lockedFieldsData = (result as any)._lockedFields || {};
+        const lockedSectionsData = (result as any)._lockedSections || {};
+        setLockedFields(lockedFieldsData);
+        setLockedSections(lockedSectionsData);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load borrower resume");
     } finally {
@@ -125,7 +136,11 @@ export const useProjectBorrowerResumeRealtime = (
   }, [load]);
 
   const save = useCallback(
-    async (updates: Partial<BorrowerResumeContent>) => {
+    async (
+      updates: Partial<BorrowerResumeContent>,
+      lockedFieldsToSave?: Record<string, boolean>,
+      lockedSectionsToSave?: Record<string, boolean>
+    ) => {
       if (!projectId) {
         throw new Error("Project ID is required to save borrower resume");
       }
@@ -139,8 +154,20 @@ export const useProjectBorrowerResumeRealtime = (
         const latest = await getProjectBorrowerResume(projectId);
         const mergedContent = { ...(latest || {}), ...updates } as any;
         
-        await saveProjectBorrowerResume(projectId, mergedContent);
+        // Use provided locked fields/sections or current state
+        const fieldsToSave = lockedFieldsToSave !== undefined ? lockedFieldsToSave : lockedFields;
+        const sectionsToSave = lockedSectionsToSave !== undefined ? lockedSectionsToSave : lockedSections;
+        
+        await saveProjectBorrowerResume(projectId, mergedContent, fieldsToSave, sectionsToSave);
         setContent(mergedContent);
+        
+        // Update local state if locked fields/sections were provided
+        if (lockedFieldsToSave !== undefined) {
+          setLockedFields(lockedFieldsToSave);
+        }
+        if (lockedSectionsToSave !== undefined) {
+          setLockedSections(lockedSectionsToSave);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to save borrower resume";
         setError(message);
@@ -153,7 +180,7 @@ export const useProjectBorrowerResumeRealtime = (
         }, 1000);
       }
     },
-    [projectId]
+    [projectId, lockedFields, lockedSections]
   );
 
   return {
@@ -166,6 +193,8 @@ export const useProjectBorrowerResumeRealtime = (
     save,
     lastUpdatedBy,
     isRemoteUpdate,
+    lockedFields,
+    lockedSections,
   };
 };
 

@@ -45,8 +45,8 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
     }
   };
 
-  // Apply background color based on autofill status
-  const containerBgClass = isAutofilled
+  // Apply background color based on autofill status or locked (disabled) state
+  const containerBgClass = isAutofilled || disabled
     ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
     : "bg-blue-50 p-3 rounded-lg border border-blue-200";
 

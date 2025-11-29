@@ -44,126 +44,138 @@ export async function POST(request: Request) {
 		// Check if we should use mock data
 		if (useMockData()) {
 			console.log("[API] Using mock data for project-resume autofill");
-			
+
 			// Use mock data - extract fields and save directly
 			try {
 				// Add a delay to simulate processing time and allow animation to play
-				await new Promise(resolve => setTimeout(resolve, 2000));
-				
-				// Extract fields using mock service
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+
+				// Extract fields using mock service (now returns section-wise format)
 				const extractedFields = await extractProjectFields(
 					project_id,
 					document_paths
 				);
 
-				// Convert extracted fields to the format expected by save function
-				const resumeData: any = {};
-				const metadata: any = {};
+				// Keep section-wise structure - don't flatten
+				// Format: { section_1: { fieldId: { value, sources, warnings, original_value } } }
+				// Convert to database format (still section-wise, but ensure all fields have proper structure)
+				const finalContent: any = {};
 
-				for (const [fieldId, fieldData] of Object.entries(
+				// Iterate through sections
+				for (const [sectionId, sectionFields] of Object.entries(
 					extractedFields
 				)) {
-					if (
-						fieldData &&
-						typeof fieldData === "object" &&
-						"value" in fieldData
-					) {
-						// Rich format with metadata
-						resumeData[fieldId] = fieldData.value;
-						metadata[fieldId] = {
-							value: fieldData.value,
-							source: fieldData.source || null,
-							original_source: fieldData.source || null,
-							original_value: fieldData.value,
-							warnings: fieldData.warnings || [],
-						};
-					} else {
-						// Flat format
-						resumeData[fieldId] = fieldData;
-					}
-				}
+					finalContent[sectionId] = {};
 
-				// Find the latest existing row for this project
-				const { data: existing } = await supabaseAdmin
-					.from('project_resumes')
-					.select('id, content')
-					.eq('project_id', project_id)
-					.order('created_at', { ascending: false })
-					.limit(1)
-					.maybeSingle();
+					// Iterate through fields in each section
+					for (const [fieldId, fieldData] of Object.entries(
+						sectionFields
+					)) {
+						if (
+							fieldData &&
+							typeof fieldData === "object" &&
+							"value" in fieldData
+						) {
+							// Rich format with metadata - ensure sources is always an array
+							const sources = Array.isArray(fieldData.sources)
+								? fieldData.sources
+								: fieldData.sources
+								? [fieldData.sources]
+								: [];
 
-				// Extract metadata and prepare final content
-				const finalContent: any = {};
-				
-				// Iterate over fields to construct the JSONB object
-				for (const key in resumeData) {
-					if (key === '_metadata') continue; // Skip metadata container
-					
-					const currentValue = resumeData[key];
-					const meta = metadata[key];
-					
-					if (meta) {
-						// If we have metadata, save the full structure
-						finalContent[key] = {
-							value: currentValue,
-							source: meta.source,
-							warnings: meta.warnings
-						};
-					} else {
-						// Check if existing content has rich format for this field
-						const existingItem = existing?.content?.[key];
-						if (existingItem && typeof existingItem === 'object' && 'source' in existingItem) {
-							// Preserve existing metadata structure if no new metadata provided
-							finalContent[key] = {
-								value: currentValue,
-								source: existingItem.source,
-								warnings: existingItem.warnings || []
+							finalContent[sectionId][fieldId] = {
+								value: fieldData.value,
+								sources: sources, // Only sources array, no source field
+								warnings: fieldData.warnings || [],
+								original_value:
+									fieldData.original_value ?? fieldData.value,
 							};
 						} else {
-							// Save flat value if no metadata exists
-							finalContent[key] = currentValue;
+							// Flat format (shouldn't happen with new schema, but handle gracefully)
+							finalContent[sectionId][fieldId] = fieldData;
 						}
 					}
 				}
 
-				if (existing) {
-					// Update in Place: Modify the current version directly
-					const mergedContent = { ...existing.content, ...finalContent };
-					
+				// Check for existing resource pointer
+				const { data: resource, error: resourceError } =
+					await supabaseAdmin
+						.from("resources")
+						.select("id, current_version_id")
+						.eq("project_id", project_id)
+						.eq("resource_type", "PROJECT_RESUME")
+						.maybeSingle();
+
+				if (resourceError && resourceError.code !== "PGRST116") {
+					console.warn(
+						"[saveProjectResume] Failed to read resource pointer:",
+						resourceError
+					);
+				}
+
+				// finalContent is already in section-wise format, ready to save
+
+				if (resource?.current_version_id) {
+					// Update existing resume
 					const { error } = await supabaseAdmin
-						.from('project_resumes')
-						.update({ content: mergedContent as any })
-						.eq('id', existing.id);
+						.from("project_resumes")
+						.update({ content: finalContent })
+						.eq("id", resource.current_version_id);
 
 					if (error) {
-						throw new Error(`Failed to update project resume: ${error.message}`);
+						throw new Error(
+							`Failed to update project resume: ${error.message}`
+						);
 					}
 				} else {
-					// Insert New: Brand new project resume
-					const { data: newResume, error } = await supabaseAdmin
-						.from('project_resumes')
-						.insert({ 
-							project_id, 
-							content: finalContent as any 
-						})
-						.select('id')
-						.single();
+					// Insert new resume
+					const { data: inserted, error: insertError } =
+						await supabaseAdmin
+							.from("project_resumes")
+							.insert({
+								project_id,
+								content: finalContent,
+							})
+							.select("id")
+							.single();
 
-					if (error) {
-						throw new Error(`Failed to create project resume: ${error.message}`);
+					if (insertError) {
+						throw new Error(
+							`Failed to create project resume: ${insertError.message}`
+						);
 					}
 
-					// Update/create the resource pointer
-					const { error: resourceError } = await supabaseAdmin
-						.from('resources')
-						.upsert({
-							project_id,
-							resource_type: 'PROJECT_RESUME',
-							current_version_id: newResume.id
-						}, { onConflict: 'project_id,resource_type' });
-						
-					if (resourceError) {
-						console.warn('Failed to update resource pointer:', resourceError.message);
+					// Update/create resource pointer
+					if (resource?.id) {
+						const { error: pointerError } = await supabaseAdmin
+							.from("resources")
+							.update({ current_version_id: inserted.id })
+							.eq("id", resource.id);
+
+						if (pointerError) {
+							console.warn(
+								"[saveProjectResume] Failed to update resource pointer:",
+								pointerError
+							);
+						}
+					} else {
+						const { error: resourceError } = await supabaseAdmin
+							.from("resources")
+							.upsert(
+								{
+									project_id,
+									resource_type: "PROJECT_RESUME",
+									current_version_id: inserted.id,
+								},
+								{ onConflict: "project_id,resource_type" }
+							);
+
+						if (resourceError) {
+							console.warn(
+								"[saveProjectResume] Failed to create resource pointer:",
+								resourceError
+							);
+						}
 					}
 				}
 

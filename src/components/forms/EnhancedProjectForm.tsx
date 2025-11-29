@@ -970,15 +970,44 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		return existingProject._metadata || {};
 	});
 
-	// Debug: Log metadata when it changes
+	// Sync fieldMetadata when existingProject._metadata changes (e.g., after autofill)
 	useEffect(() => {
-		if (Object.keys(fieldMetadata).length > 0) {
+		const newMetadata = existingProject._metadata || {};
+		// Only update if different to avoid unnecessary re-renders
+		if (JSON.stringify(newMetadata) !== JSON.stringify(fieldMetadata)) {
+			// Validate and filter sources to ensure they're valid SourceMetadata objects
+			const validatedMetadata: Record<string, FieldMetadata> = {};
+			for (const [key, meta] of Object.entries(newMetadata)) {
+				if (meta && typeof meta === "object") {
+					const validatedMeta: any = { ...meta };
+					
+					// Validate and filter sources array
+					if (meta.sources && Array.isArray(meta.sources)) {
+						validatedMeta.sources = meta.sources.filter((src: any) =>
+							src && typeof src === "object" && src !== null && "type" in src
+						);
+					}
+					
+					// Validate single source
+					if (meta.source) {
+						if (typeof meta.source === "object" && meta.source !== null && "type" in meta.source) {
+							validatedMeta.source = meta.source;
+						} else {
+							validatedMeta.source = null;
+						}
+					}
+					
+					validatedMetadata[key] = validatedMeta as FieldMetadata;
+				}
+			}
+			
+			setFieldMetadata(validatedMetadata);
 			console.log(
-				"[EnhancedProjectForm] Field metadata loaded:",
-				fieldMetadata
+				"[EnhancedProjectForm] Field metadata synced from existingProject:",
+				validatedMetadata
 			);
 		}
-	}, [fieldMetadata]);
+	}, [existingProject._metadata, fieldMetadata]);
 
 	// Use the shared autofill hook
 	const projectAddress =
@@ -1003,12 +1032,15 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	// Listen for autofill completion event
 	useEffect(() => {
 		const handleAutofillCompleted = (event: CustomEvent) => {
-			if (event.detail.projectId === formData.id) {
+			if (event.detail.projectId === formData.id && event.detail.context === "project") {
 				setShowAutofillNotification(true);
 				// Auto-hide after 10 seconds
 				setTimeout(() => {
 					setShowAutofillNotification(false);
 				}, 10000);
+				// Trigger a re-evaluation of locked fields by forcing a state update
+				// The locking logic in the useEffect below will run when existingProject updates
+				// This ensures fields are locked even if the parent hasn't reloaded yet
 			}
 		};
 
@@ -1251,21 +1283,153 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[]
 	);
 
+	// Lock autofilled fields after existingProject is updated (which happens after autofill)
+	useEffect(() => {
+		if (!existingProject) return;
+
+		// Lock all fields that are autofilled (have a source that's not "User Input")
+		setLockedFields((prev) => {
+			const next = new Set(prev);
+			const metadata = existingProject._metadata || {};
+			let hasChanges = false;
+			
+			// Check all fields in metadata
+			Object.keys(metadata).forEach((fieldId) => {
+				const meta = metadata[fieldId];
+				if (!meta) return;
+				
+				// Check both single source and sources array
+				const source = meta.source;
+				const sources = meta.sources;
+				
+				// Determine if this field is autofilled
+				let isAutofilled = false;
+				
+				// Check single source first
+				if (source) {
+					// Handle SourceMetadata object format
+					if (typeof source === "object" && source !== null && "type" in source) {
+						isAutofilled = source.type !== "user_input";
+					} else if (typeof source === "string") {
+						// Handle legacy string format
+						const normalizedSource = normalizeSource(source);
+						const isUserInput = normalizedSource.toLowerCase() === "user input" || 
+											source.toLowerCase() === "user_input";
+						isAutofilled = !isUserInput;
+					}
+				}
+				
+				// If not autofilled from single source, check sources array
+				if (!isAutofilled && sources && Array.isArray(sources) && sources.length > 0) {
+					// Check if any source is not user_input
+					isAutofilled = sources.some((src: any) => {
+						if (typeof src === "object" && src !== null && "type" in src) {
+							return src.type !== "user_input";
+						} else if (typeof src === "string") {
+							const normalizedSource = normalizeSource(src);
+							return normalizedSource.toLowerCase() !== "user input" && 
+								   src.toLowerCase() !== "user_input";
+						}
+						return false;
+					});
+				}
+				
+				// Check if field has a valid value in formData or existingProject
+				const fieldValue = formData[fieldId as keyof typeof formData] ?? 
+								   existingProject[fieldId as keyof typeof existingProject];
+				const hasValidValue = isValidFieldValue(fieldValue);
+				
+				// If field has a valid value and source is not User Input, lock it
+				if (isAutofilled && hasValidValue) {
+					if (!next.has(fieldId)) {
+						next.add(fieldId);
+						hasChanges = true;
+					}
+				}
+			});
+			
+			// Also check fieldMetadata for any additional fields that might have been autofilled
+			// This handles cases where metadata might be in fieldMetadata but not in existingProject._metadata
+			Object.keys(fieldMetadata).forEach((fieldId) => {
+				// Skip if already locked
+				if (next.has(fieldId)) return;
+				
+				const meta = fieldMetadata[fieldId];
+				if (!meta) return;
+				
+				const source = meta.source || meta.sources?.[0];
+				if (!source) return;
+				
+				let isAutofilled = false;
+				if (typeof source === "object" && source !== null && "type" in source) {
+					isAutofilled = source.type !== "user_input";
+				} else if (typeof source === "string") {
+					const normalizedSource = normalizeSource(source);
+					const isUserInput = normalizedSource.toLowerCase() === "user input" || 
+									   source.toLowerCase() === "user_input";
+					isAutofilled = !isUserInput;
+				}
+				
+				if (isAutofilled) {
+					const fieldValue = formData[fieldId as keyof typeof formData] ?? 
+									   existingProject[fieldId as keyof typeof existingProject];
+					if (isValidFieldValue(fieldValue)) {
+						next.add(fieldId);
+						hasChanges = true;
+					}
+				}
+			});
+			
+			// Save locked fields to database if there are changes
+			if (hasChanges) {
+				const lockedFieldsObj: Record<string, boolean> = {};
+				next.forEach((fieldId) => {
+					lockedFieldsObj[fieldId] = true;
+				});
+				
+				const lockedSectionsObj: Record<string, boolean> = {};
+				lockedSections.forEach((sectionId) => {
+					lockedSectionsObj[sectionId] = true;
+				});
+				
+				// Save locked fields asynchronously
+				const dataToSave = {
+					...formData,
+					_metadata: fieldMetadata,
+					_lockedFields: lockedFieldsObj,
+					_lockedSections: lockedSectionsObj,
+				};
+				updateProject(formData.id, dataToSave).catch((err) => {
+					console.error("Failed to save locked fields:", err);
+				});
+			}
+			
+			return next;
+		});
+	}, [existingProject, formData, isValidFieldValue, fieldMetadata, lockedSections, updateProject]);
+
 	// Helper function to check if a field is autofilled (has source that's not User Input AND has valid value)
 	const isFieldAutofilled = useCallback(
 		(fieldId: string): boolean => {
 			const meta = fieldMetadata[fieldId];
 			if (!meta) return false;
 
-			// Check if source exists and is not User Input (normalized)
+			// Check if source exists and is not User Input
 			const source = meta.source || meta.sources?.[0];
 			if (!source) return false;
 			
-			// Normalize source to check against "User Input"
-			const normalizedSource = normalizeSource(source);
-			const isUserInput = normalizedSource.toLowerCase() === "user input" || 
-			                   source.toLowerCase() === "user_input" ||
-			                   source.toLowerCase() === "user input";
+			// Handle SourceMetadata object format
+			let isUserInput = false;
+			if (typeof source === "object" && source !== null && "type" in source) {
+				// SourceMetadata object format
+				isUserInput = source.type === "user_input";
+			} else if (typeof source === "string") {
+				// Legacy string format - normalize and check
+				const normalizedSource = normalizeSource(source);
+				isUserInput = normalizedSource.toLowerCase() === "user input" || 
+				             source.toLowerCase() === "user_input" ||
+				             source.toLowerCase() === "user input";
+			}
 			
 			// If source is "User Input", it can't be autofilled by AI
 			if (isUserInput) return false;
@@ -1523,18 +1687,16 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 
 	// Helper function to render field label with Ask AI and Lock buttons
-	const renderFieldLabel = useCallback(
-		(
-			fieldId: string,
-			sectionId: string,
-			labelText: string,
-			required: boolean = false,
-			showWarning: boolean = true, // Default to true - always check for warnings
-			showSource: boolean = true // Default to true - always show sources
-		) => {
-			// Always check for warnings (unless explicitly disabled)
-			const warning = showWarning ? getFieldWarning(fieldId) : null;
-			const sources = showSource ? getFieldSources(fieldId) : [];
+		const renderFieldLabel = useCallback(
+			(
+				fieldId: string,
+				sectionId: string,
+				labelText: string,
+				required: boolean = false,
+				showWarning: boolean = true // Default to true - always check for warnings
+			) => {
+				// Always check for warnings (unless explicitly disabled)
+				const warning = showWarning ? getFieldWarning(fieldId) : null;
 
 			return (
 				<div className="mb-1">
@@ -1547,6 +1709,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						</span>
 						<FieldHelpTooltip
 							fieldId={fieldId}
+							fieldMetadata={fieldMetadata[fieldId]}
 						/>
 						{warning && <FieldWarning message={warning} />}
 						{/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
@@ -1562,66 +1725,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							{renderFieldLockButton(fieldId, sectionId)}
 						</div>
 					</label>
-					{/* Display sources below the label */}
-					{sources.length > 0 && (
-						<div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
-							{sources.map((source, idx) => {
-								const normalizedSource = normalizeSource(source);
-								const isCensus =
-									normalizedSource === "Census API" ||
-									normalizedSource.toLowerCase().includes("census");
-								const isDocument =
-									!isCensus &&
-									(normalizedSource
-										.toLowerCase()
-										.includes("document") ||
-										normalizedSource.endsWith(".pdf") ||
-										normalizedSource.endsWith(".xlsx") ||
-										normalizedSource.endsWith(".docx") ||
-										normalizedSource.endsWith(".pptx"));
-								const isDerived =
-									normalizedSource.toLowerCase().includes("derived") ||
-									normalizedSource.includes("/") ||
-									normalizedSource.includes("Sum of") ||
-									normalizedSource.includes("Calc") ||
-									normalizedSource.includes("% of");
-
-								return (
-									<span
-										key={idx}
-										className={cn(
-											"inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border",
-											isCensus
-												? "text-blue-600 bg-blue-50 border-blue-200"
-												: isDocument
-												? "text-gray-600 bg-gray-50 border-gray-200"
-												: isDerived
-												? "text-purple-600 bg-purple-50 border-purple-200"
-												: "text-gray-600 bg-gray-50 border-gray-200"
-										)}
-										title={`Data source: ${normalizedSource}`}
-									>
-										{isCensus ? (
-											<Globe className="h-3 w-3" />
-										) : isDocument ? (
-											<FileText className="h-3 w-3" />
-										) : isDerived ? (
-											<Calculator className="h-3 w-3" />
-										) : (
-											<Info className="h-3 w-3" />
-										)}
-										<span className="truncate max-w-[120px]">
-											{normalizedSource}
-										</span>
-									</span>
-								);
-							})}
-						</div>
-					)}
 				</div>
 			);
 		},
-		[onAskAI, renderFieldLockButton, getFieldWarning, getFieldSources]
+		[onAskAI, renderFieldLockButton, getFieldWarning]
 	);
 
 	// Update local form state if the existingProject prop changes externally
@@ -2176,7 +2283,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"projectName",
 													"basic-info"
 												) &&
-													"bg-gray-50 cursor-not-allowed opacity-75"
+													"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 											)}
 											data-field-id="projectName"
 											data-field-type="input"
@@ -2233,7 +2340,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"propertyAddressStreet",
 														"basic-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="propertyAddressStreet"
 												data-field-type="input"
@@ -2285,7 +2392,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 															"propertyAddressCity",
 															"basic-info"
 														) &&
-															"bg-gray-50 cursor-not-allowed opacity-75"
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 													)}
 													data-field-id="propertyAddressCity"
 													data-field-type="input"
@@ -2336,7 +2443,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 															"propertyAddressState",
 															"basic-info"
 														) &&
-															"bg-gray-50 cursor-not-allowed opacity-75"
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 													)}
 													data-field-id="propertyAddressState"
 													data-field-type="select"
@@ -2389,7 +2496,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 															"propertyAddressZip",
 															"basic-info"
 														) &&
-															"bg-gray-50 cursor-not-allowed opacity-75"
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 													)}
 													data-field-id="propertyAddressZip"
 													data-field-type="input"
@@ -2440,7 +2547,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"propertyAddressCounty",
 														"basic-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="propertyAddressCounty"
 												data-field-type="input"
@@ -2592,7 +2699,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"projectDescription",
 														"basic-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												required
 											/>
@@ -2690,7 +2797,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"loanAmountRequested",
 														"loan-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="loanAmountRequested"
 												data-field-type="number"
@@ -2792,7 +2899,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"targetLtvPercent",
 														"loan-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="targetLtvPercent"
 												data-field-type="number"
@@ -2846,7 +2953,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"targetLtcPercent",
 														"loan-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="targetLtcPercent"
 												data-field-type="number"
@@ -2902,7 +3009,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"amortizationYears",
 														"loan-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="amortizationYears"
 												data-field-type="number"
@@ -2956,7 +3063,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"interestOnlyPeriodMonths",
 														"loan-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="interestOnlyPeriodMonths"
 												data-field-type="number"
@@ -3054,7 +3161,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"targetCloseDate",
 														"loan-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="targetCloseDate"
 												data-field-type="date"
@@ -3154,7 +3261,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"useOfProceeds",
 													"loan-info"
 												) &&
-													"bg-gray-50 cursor-not-allowed opacity-75"
+													"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 											)}
 											required
 										/>
@@ -3250,7 +3357,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"purchasePrice",
 														"financials"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="purchasePrice"
 												data-field-type="number"
@@ -3304,7 +3411,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"totalProjectCost",
 														"financials"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="totalProjectCost"
 												data-field-type="number"
@@ -3360,7 +3467,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"capexBudget",
 														"financials"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="capexBudget"
 												data-field-type="number"
@@ -3414,7 +3521,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"equityCommittedPercent",
 														"financials"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="equityCommittedPercent"
 												data-field-type="number"
@@ -3470,7 +3577,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"propertyNoiT12",
 														"financials"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="propertyNoiT12"
 												data-field-type="number"
@@ -3524,7 +3631,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"stabilizedNoiProjected",
 														"financials"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="stabilizedNoiProjected"
 												data-field-type="number"
@@ -3627,7 +3734,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"businessPlanSummary",
 													"financials"
 												) &&
-													"bg-gray-50 cursor-not-allowed opacity-75"
+													"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 											)}
 										/>
 									</div>
@@ -3677,7 +3784,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"marketOverviewSummary",
 													"financials"
 												) &&
-													"bg-gray-50 cursor-not-allowed opacity-75"
+													"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 											)}
 										/>
 									</div>
@@ -3772,7 +3879,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"totalResidentialUnits",
 														"property-specs"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="totalResidentialUnits"
 												data-field-type="number"
@@ -3823,7 +3930,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"totalResidentialNRSF",
 														"property-specs"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="totalResidentialNRSF"
 												data-field-type="number"
@@ -3876,7 +3983,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"totalCommercialGRSF",
 														"property-specs"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="totalCommercialGRSF"
 												data-field-type="number"
@@ -3927,7 +4034,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"grossBuildingArea",
 														"property-specs"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="grossBuildingArea"
 												data-field-type="number"
@@ -3980,7 +4087,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"numberOfStories",
 														"property-specs"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="numberOfStories"
 												data-field-type="number"
@@ -4031,7 +4138,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"parkingSpaces",
 														"property-specs"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="parkingSpaces"
 												data-field-type="number"
@@ -4132,7 +4239,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"landAcquisition",
 														"dev-budget"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="landAcquisition"
 												data-field-type="number"
@@ -4185,7 +4292,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"baseConstruction",
 														"dev-budget"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="baseConstruction"
 												data-field-type="number"
@@ -4240,7 +4347,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"contingency",
 														"dev-budget"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="contingency"
 												data-field-type="number"
@@ -4292,7 +4399,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"ffe",
 														"dev-budget"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="ffe"
 												data-field-type="number"
@@ -4346,7 +4453,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"aeFees",
 														"dev-budget"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="aeFees"
 												data-field-type="number"
@@ -4399,7 +4506,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"developerFee",
 														"dev-budget"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="developerFee"
 												data-field-type="number"
@@ -4454,7 +4561,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"interestReserve",
 														"dev-budget"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="interestReserve"
 												data-field-type="number"
@@ -4507,7 +4614,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"workingCapital",
 														"dev-budget"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="workingCapital"
 												data-field-type="number"
@@ -4600,7 +4707,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"submarketName",
 														"market-context"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="submarketName"
 												data-field-type="input"
@@ -4655,7 +4762,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"walkabilityScore",
 														"market-context"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="walkabilityScore"
 												data-field-type="number"
@@ -4710,7 +4817,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"population3Mi",
 														"market-context"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="population3Mi"
 												data-field-type="number"
@@ -4763,7 +4870,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"medianHHIncome",
 														"market-context"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="medianHHIncome"
 												data-field-type="number"
@@ -4820,7 +4927,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"renterOccupiedPercent",
 														"market-context"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="renterOccupiedPercent"
 												data-field-type="number"
@@ -4873,7 +4980,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"popGrowth201020",
 														"market-context"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="popGrowth201020"
 												data-field-type="number"
@@ -5069,7 +5176,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																"affordableUnitsNumber",
 																"special-considerations"
 															) &&
-																"bg-gray-50 cursor-not-allowed opacity-75"
+																"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 														)}
 														data-field-id="affordableUnitsNumber"
 														data-field-type="number"
@@ -5123,7 +5230,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																"amiTargetPercent",
 																"special-considerations"
 															) &&
-																"bg-gray-50 cursor-not-allowed opacity-75"
+																"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 														)}
 														data-field-id="amiTargetPercent"
 														data-field-type="number"
@@ -5303,7 +5410,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"groundbreakingDate",
 														"timeline"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="groundbreakingDate"
 												data-field-type="date"
@@ -5348,7 +5455,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"completionDate",
 														"timeline"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="completionDate"
 												data-field-type="date"
@@ -5395,7 +5502,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"firstOccupancy",
 														"timeline"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="firstOccupancy"
 												data-field-type="date"
@@ -5440,7 +5547,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"stabilization",
 														"timeline"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="stabilization"
 												data-field-type="date"
@@ -5639,7 +5746,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"totalSiteAcreage",
 														"site-context"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="totalSiteAcreage"
 												data-field-type="number"
@@ -5732,7 +5839,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"siteAccess",
 														"site-context"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="siteAccess"
 												data-field-type="input"
@@ -5777,7 +5884,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"proximityShopping",
 														"site-context"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="proximityShopping"
 												data-field-type="input"
@@ -5870,7 +5977,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"sponsorEntityName",
 														"sponsor-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="sponsorEntityName"
 												data-field-type="input"
@@ -5915,7 +6022,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"sponsorStructure",
 														"sponsor-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="sponsorStructure"
 												data-field-type="input"
@@ -5962,7 +6069,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"equityPartner",
 														"sponsor-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="equityPartner"
 												data-field-type="input"
@@ -6007,7 +6114,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"contactInfo",
 														"sponsor-info"
 													) &&
-														"bg-gray-50 cursor-not-allowed opacity-75"
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="contactInfo"
 												data-field-type="textarea"
