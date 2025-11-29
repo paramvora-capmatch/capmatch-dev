@@ -166,28 +166,66 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 			try {
 				// RLS will only return projects the user has been granted access to.
-				// We perform a join to fetch the resource IDs for key project resources.
-				const { data, error } = await supabase
+				// First, fetch projects without the resources join to avoid RLS issues
+				const { data: projectsData, error: projectsError } = await supabase
 					.from("projects")
-					.select(`
-            *,
-            resources (
-              id,
-              resource_type
-            )
-          `);
+					.select("*");
 
-				if (error) {
-					console.error("[ProjectStore] ❌ Projects query failed:", error);
-					throw error;
+				if (projectsError) {
+					const errorMessage = projectsError instanceof Error 
+						? projectsError.message 
+						: typeof projectsError === 'object' && projectsError !== null
+							? JSON.stringify(projectsError)
+							: String(projectsError) || "Unknown error";
+					
+					console.error("[ProjectStore] ❌ Projects query failed:", {
+						message: errorMessage,
+						error: projectsError,
+						code: (projectsError as any)?.code,
+						details: (projectsError as any)?.details,
+						hint: (projectsError as any)?.hint,
+					});
+					throw new Error(`Failed to load projects: ${errorMessage}`);
 				}
+
+				// Then fetch resources separately for each project to avoid RLS join issues
+				const projectIds = projectsData?.map((p: any) => p.id) || [];
+				let resourcesMap: Record<string, any[]> = {};
+				
+				if (projectIds.length > 0) {
+					const { data: resourcesData, error: resourcesError } = await supabase
+						.from("resources")
+						.select("id, project_id, resource_type")
+						.in("project_id", projectIds)
+						.in("resource_type", ["PROJECT_DOCS_ROOT", "PROJECT_RESUME"]);
+
+					if (resourcesError) {
+						console.warn("[ProjectStore] ⚠️ Failed to fetch resources (non-fatal):", resourcesError);
+						// Continue without resources - this is non-fatal
+					} else {
+						// Group resources by project_id
+						resourcesMap = (resourcesData || []).reduce((acc: Record<string, any[]>, resource: any) => {
+							if (!acc[resource.project_id]) {
+								acc[resource.project_id] = [];
+							}
+							acc[resource.project_id].push(resource);
+							return acc;
+						}, {});
+					}
+				}
+
+				// Combine projects with their resources
+				const data = projectsData?.map((project: any) => ({
+					...project,
+					resources: resourcesMap[project.id] || [],
+				})) || [];
 				
 
-				// Get project IDs for the new query function
-				const projectIds = data?.map((project: any) => project.id) || [];
+				// Get project IDs for the new query function (reuse the same variable)
+				const projectIdsForResumes = data?.map((project: any) => project.id) || [];
 				
 				// Use the new query function to get projects with resume content
-				const userProjects = await getProjectsWithResumes(projectIds);
+				const userProjects = await getProjectsWithResumes(projectIdsForResumes);
 
 				// Add resource IDs to each project
 				const projectsWithResources = userProjects.map((project: any) => {
@@ -222,7 +260,18 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 				set({ projects: projectsWithProgress, isLoading: false });
 			} catch (error) {
-				console.error("[ProjectStore] Failed to load projects:", error);
+				const errorMessage = error instanceof Error 
+					? error.message 
+					: typeof error === 'object' && error !== null
+						? JSON.stringify(error)
+						: String(error) || "Unknown error";
+				
+				console.error("[ProjectStore] Failed to load projects:", {
+					message: errorMessage,
+					error: error,
+					user: user?.id,
+					userRole: user?.role,
+				});
 				set({ projects: [], isLoading: false });
 			}
 		},
