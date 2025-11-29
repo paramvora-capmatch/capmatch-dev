@@ -30,7 +30,7 @@ interface EnrichedParticipant {
   created_at: string;
   userName: string;
   userEmail: string;
-  userRole: 'owner' | 'member' | 'advisor' | 'project_manager';
+  userRole: 'owner' | 'member' | 'advisor';
   isAdvisor: boolean;
 }
 
@@ -438,7 +438,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
                     <div className="space-y-2">
                       {availableMembers.map((member) => {
                         const isSelected = selectedMembersToAdd.includes(member.user_id);
-                        const normalizedRole = member.role === "project_manager" ? "member" : member.role;
+                        const normalizedRole = member.role;
                         const isOwner = normalizedRole === "owner";
                         const isAdvisor = normalizedRole === "advisor";
 

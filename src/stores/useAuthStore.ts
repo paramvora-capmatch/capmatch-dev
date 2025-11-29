@@ -21,7 +21,7 @@ interface AuthState {
   // RBAC additions - updated for new schema
   activeOrg: Org | null;
   orgMemberships: OrgMember[];
-  currentOrgRole: "owner" | "project_manager" | "member" | null;
+  currentOrgRole: "owner" | "member" | null;
 }
 
 interface AuthActions {
@@ -68,18 +68,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
   init: () => {
     if (authListenerInitialized) {
-      console.log("[AuthStore] Listener already initialized, skipping setup.");
       return () => {}; // Return no-op, don't re-initialize
     }
 
     authListenerInitialized = true;
-    console.log(
-      "[AuthStore] 🚀 Initializing auth listener for the first time."
-    );
 
     // Immediately check for existing session - SYNCHRONOUSLY start this
     const checkInitialSession = async () => {
-      console.log("[AuthStore] 🔍 Checking for existing session...");
 
       try {
         const {
@@ -95,10 +90,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         }
 
         if (session?.user) {
-          console.log(
-            "[AuthStore] 📋 Found existing session for:",
-            session.user.email
-          );
           const authUser = session.user;
 
           const { data: profile, error: profileError } = await supabase
@@ -136,15 +127,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             ) {
               get().loadOrgMemberships();
             }
-
-            console.log(
-              `[AuthStore] ✅ Initial session restored: ${enhancedUser.email} (${enhancedUser.role})`
-            );
-            console.log("[AuthStore] 🔍 Debug - User object:", enhancedUser);
           } else {
-            console.warn(
-              "[AuthStore] Profile not found during initial session. Attempting onboarding for existing user."
-            );
 
             try {
               const userEmail = authUser.email;
@@ -228,7 +211,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             }
           }
         } else {
-          console.log("[AuthStore] ℹ️ No existing session found.");
           set({ isLoading: false });
         }
       } catch (e) {
@@ -245,19 +227,14 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       } = supabase.auth.onAuthStateChange(
         async (event: string, session: Session | null) => {
           // Added type annotations
-          console.log(`[AuthStore] 📡 Auth event received: ${event}`);
 
           // Ignore INITIAL_SESSION since we handle it above
           if (event === "INITIAL_SESSION") {
-            console.log(
-              "[AuthStore] ⏭️ Ignoring INITIAL_SESSION event (handled manually)"
-            );
             return;
           }
 
           // Don't show loading spinner for token refresh
           if (event === "TOKEN_REFRESHED") {
-            console.log("[AuthStore] 🔄 Token refreshed silently");
             return;
           }
 
@@ -270,14 +247,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           if (event === "SIGNED_IN" && !isAlreadyAuthenticated) {
             // This is a fresh login, show loading
             set({ isLoading: true, justLoggedIn: true });
-            console.log(
-              "[AuthStore] 🔒 Fresh login detected, setting loading and justLoggedIn state"
-            );
           } else if (event === "SIGNED_IN" && isAlreadyAuthenticated) {
             // User is already logged in, this is just a session revalidation (e.g., tab switch)
-            console.log(
-              "[AuthStore] ✓ Session revalidation (user already authenticated)"
-            );
             return; // Don't process this event, user is already set up
           } else if (event === "SIGNED_OUT") {
             set({ isLoading: true });
@@ -338,12 +309,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 ) {
                   get().loadOrgMemberships();
                 }
-
-                console.log(
-                  `[AuthStore] ✅ User authenticated via ${event}: ${enhancedUser.email}`
-                );
               } else {
-                console.warn("[AuthStore] Profile not found. Attempting onboarding for existing user (e.g., Google sign-in)");
                 try {
                   const userEmail = authUser.email;
                   const fullName = authUser.user_metadata?.name || "New User";
@@ -421,25 +387,21 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 orgMemberships: [],
                 currentOrgRole: null,
               });
-              console.log("[AuthStore] 👋 User signed out");
             }
           } catch (e) {
             console.error("[AuthStore] Error in auth state change handler:", e);
             set({ user: null, isAuthenticated: false, isDemo: false });
           } finally {
             set({ isLoading: false });
-            console.log("[AuthStore] ✅ Auth event processed");
           }
         }
       );
 
       authSubscription = subscription;
-      console.log("[AuthStore] 🎧 Auth listener registered");
     });
 
     // Return cleanup function
     return () => {
-      console.log("[AuthStore] 🧹 Cleaning up auth listener");
       if (authSubscription) {
         authSubscription.unsubscribe();
         authSubscription = null;
@@ -461,7 +423,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       ];
 
       if (demoAccounts.includes(email) && password === "password123") {
-        console.log(`[Auth] 🎭 Using demo account: ${email}`);
 
         // Note: Demo data seeding is now handled by Supabase seed scripts, not localStorage
         // The mockData structure has been updated to match JSONB content types
@@ -502,7 +463,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       } else if (demoAccounts.includes(email) && password !== "password123") {
         throw new Error("Invalid password for demo account.");
       } else {
-        console.log(`[Auth] 🔐 Signing in with Supabase: ${email}`);
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -512,7 +472,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           // If credentials are invalid, attempt onboarding as a new user.
           // If the email already exists (e.g., different auth method), onboarding will fail and we surface invalid credentials.
           const message = (error as any)?.message || String(error);
-          console.warn("[Auth] Sign-in failed, attempting onboarding fallback:", message);
           try {
             const { data: onboardData, error: onboardError } = await supabase.functions.invoke(
               "onboard-borrower",
@@ -585,7 +544,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
   signUp: async (email, password) => {
     try {
-      console.log(`[Auth] 📝 Signing up via Edge Function: ${email}`);
 
       // We are now calling our custom Edge Function
       const { data, error } = await supabase.functions.invoke(
@@ -607,7 +565,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       // After a successful sign-up via edge function, the user is created
       // but is not yet logged in on the client. We now sign them in.
       if (data?.user) {
-        console.log("[Auth] ✅ Sign-up successful, now signing in...");
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -629,7 +586,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
   logout: async () => {
     set({ isLoading: true });
-    console.log("[AuthStore] 🚪 Logout initiated");
 
     try {
       const { error } = await supabase.auth.signOut();
@@ -659,20 +615,13 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   // RBAC methods
   loadOrgMemberships: async () => {
     const { user } = get();
-    console.log("[AuthStore] 🔍 DEBUG - Starting loadOrgMemberships");
-    console.log(
-      "[AuthStore] 🔍 DEBUG - User:",
-      user ? { id: user.id, email: user.email, role: user.role } : "null"
-    );
 
     if (!user || !user.id) {
-      console.log("[AuthStore] ❌ No user or user ID found");
       return;
     }
 
     try {
       // Load org memberships for all roles
-      console.log("[AuthStore] 🔍 DEBUG - Querying org_members table...");
       const { data: memberships, error } = await supabase
         .from("org_members")
         .select(
@@ -689,20 +638,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       }
 
       const orgMemberships = memberships || [];
-      console.log(
-        "[AuthStore] 🔍 DEBUG - Raw memberships from DB:",
-        orgMemberships.length
-      );
-      if (orgMemberships.length > 0) {
-        console.log(
-          "[AuthStore] 🔍 DEBUG - Sample membership:",
-          orgMemberships[0]
-        );
-      }
 
       // If no memberships found, leave state empty (user may need to accept an invite)
       if (orgMemberships.length === 0) {
-        console.log("[AuthStore] ❌ No memberships found for user");
         set({ orgMemberships: [], activeOrg: null, currentOrgRole: null });
         return;
       }
@@ -712,22 +650,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       const activeOrg = (firstMembership.orgs as Org) || null; // Added type assertion
       const currentOrgRole = (firstMembership.role as OrgMemberRole) || null;
 
-      console.log(
-        "[AuthStore] 🔍 DEBUG - Setting active org:",
-        activeOrg ? { id: activeOrg.id, name: activeOrg.name } : "null"
-      );
-      console.log(
-        "[AuthStore] 🔍 DEBUG - Setting current org role:",
-        currentOrgRole
-      );
-
       set({
         orgMemberships,
         activeOrg,
         currentOrgRole,
       });
-
-      console.log("[AuthStore] ✅ Org memberships loaded successfully");
     } catch (error) {
       console.error("[AuthStore] ❌ Error loading org memberships:", error);
     }

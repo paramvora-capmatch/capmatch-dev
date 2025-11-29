@@ -3,7 +3,7 @@
 // Core Schema Types - Updated to match new schema
 export type AppRole = "borrower" | "lender" | "advisor";
 export type OrgType = "borrower" | "lender" | "advisor";
-export type OrgMemberRole = "owner" | "project_manager" | "member";
+export type OrgMemberRole = "owner" | "member";
 export type InviteStatus = "pending" | "accepted" | "cancelled" | "expired";
 
 // Legacy types for backward compatibility
@@ -72,7 +72,7 @@ export interface Org {
 export interface OrgMember {
   org_id: string;
   user_id: string;
-  role: OrgMemberRole; // 'owner', 'project_manager', or 'member'
+  role: OrgMemberRole; // 'owner' or 'member'
   created_at: string;
   // Additional properties added by the org store
   userName?: string;
