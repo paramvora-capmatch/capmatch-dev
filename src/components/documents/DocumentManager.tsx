@@ -93,14 +93,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     return resourceId;
   }, [resourceId]);
 
-  console.log("[DocumentManager] Props:", {
-    projectId,
-    resourceId,
-    actualResourceId,
-    title,
-    context,
-  });
-
   const inferredContext: "project" | "borrower" =
     context || (projectId ? "project" : "borrower");
 
@@ -294,10 +286,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     if (window.confirm(`Are you sure you want to delete "${file.name}"?`)) {
       try {
         // deleteFile expects the resource ID, not the version ID
-        console.log("[DocumentManager] Deleting file:", {
-          resourceId: file.resource_id,
-          name: file.name,
-        });
         await deleteFile(file.resource_id);
         await refresh(); // Refresh the list after deletion
       } catch (error) {
@@ -324,11 +312,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     try {
       // downloadFile might expect either version ID or resource ID - check the implementation
       // For now, use the version ID since we're downloading a specific version
-      console.log("[DocumentManager] Downloading file:", {
-        versionId: file.id,
-        resourceId: file.resource_id,
-        name: file.name,
-      });
       await downloadFile(file.resource_id);
     } catch (error) {
       console.error("[DocumentManager] Download error", error);
