@@ -22,7 +22,7 @@ interface SnapshotRequestBody {
 }
 
 export async function POST(request: Request) {
-  console.log("[API] Project resume save-version called");
+  console.log("[API] Borrower resume save-version called");
   const rawBody = await request.text();
   let payload: SnapshotRequestBody = {};
   if (rawBody) {
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   }
 
   const { projectId, userId } = payload;
-  console.log("[API] Saving version for project:", projectId, "user:", userId);
+  console.log("[API] Saving borrower resume version for project:", projectId, "user:", userId);
   if (!projectId) {
     return NextResponse.json(
       { error: "projectId is required" },
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     .from("resources")
     .select("id, current_version_id")
     .eq("project_id", projectId)
-    .eq("resource_type", "PROJECT_RESUME")
+    .eq("resource_type", "BORROWER_RESUME")
     .maybeSingle();
 
   if (resourceError) {
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
   if (!resource?.id) {
     return NextResponse.json(
-      { error: "Project resume resource not found" },
+      { error: "Borrower resume resource not found" },
       { status: 404 }
     );
   }
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
 
   if (resource.current_version_id) {
     const { data, error: resumeError } = await supabaseAdmin
-      .from("project_resumes")
+      .from("borrower_resumes")
       .select("content, locked_fields, locked_sections")
       .eq("id", resource.current_version_id)
       .maybeSingle();
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
   if (!resumeRow) {
     const { data, error: latestError } = await supabaseAdmin
-      .from("project_resumes")
+      .from("borrower_resumes")
       .select("content, locked_fields, locked_sections")
       .eq("project_id", projectId)
       .order("created_at", { ascending: false })
@@ -113,12 +113,12 @@ export async function POST(request: Request) {
   }
 
   await supabaseAdmin
-    .from("project_resumes")
+    .from("borrower_resumes")
     .update({ status: "superseded" })
     .eq("project_id", projectId);
 
   const { data: inserted, error: insertError } = await supabaseAdmin
-    .from("project_resumes")
+    .from("borrower_resumes")
     .insert({
       project_id: projectId,
       content: resumeRow.content || {},
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
     );
   }
 
-  console.log("[API] Successfully saved project resume version:", {
+  console.log("[API] Successfully saved borrower resume version:", {
     versionId: inserted.id,
     versionNumber: inserted.version_number,
     projectId,

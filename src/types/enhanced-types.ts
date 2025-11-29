@@ -328,6 +328,8 @@ export interface ProjectProfile {
 	// Extended fields from ProjectResumeContent (for type safety)
 	parcelNumber?: string;
 	zoningDesignation?: string;
+	currentZoning?: string;
+	expectedZoningChanges?: string;
 	projectType?: string;
 	primaryAssetClass?: string;
 	constructionType?: string;
@@ -337,6 +339,8 @@ export interface ProjectProfile {
 	requestedLoanTerm?: string;
 	masterPlanName?: string;
 	phaseNumber?: string;
+	syndicationStatus?: string;
+	guarantorNames?: string;
 	totalResidentialUnits?: number;
 	totalResidentialNRSF?: number;
 	averageUnitSize?: number;
@@ -349,6 +353,8 @@ export interface ProjectProfile {
 	parkingType?: string;
 	amenityList?: string[];
 	amenitySF?: number;
+	adaCompliantUnitsPercent?: number;
+	leedSustainabilityRating?: string;
 	residentialUnitMix?: Array<{
 		unitType: string;
 		unitCount: number;
@@ -356,6 +362,10 @@ export interface ProjectProfile {
 		monthlyRent?: number;
 		totalSF?: number;
 		percentOfTotal?: number;
+		affordabilityStatus?: string;
+		affordableUnitsCount?: number;
+		amiTargetPercent?: number;
+		rentBumpSchedule?: string;
 	}>;
 	commercialSpaceMix?: Array<{
 		spaceType: string;
@@ -363,6 +373,7 @@ export interface ProjectProfile {
 		tenant?: string;
 		leaseTerm?: string;
 		annualRent?: number;
+		tiAllowance?: number;
 	}>;
 	landAcquisition?: number;
 	baseConstruction?: number;
@@ -379,14 +390,20 @@ export interface ProjectProfile {
 	pfcStructuringFee?: number;
 	loanFees?: number;
 	interestReserve?: number;
+	relocationCosts?: number;
+	syndicationCosts?: number;
+	enviroRemediation?: number;
 	seniorLoanAmount?: number;
 	sponsorEquity?: number;
+	taxCreditEquity?: number;
+	gapFinancing?: number;
 	interestRate?: number;
 	underwritingRate?: number;
 	amortization?: string;
 	prepaymentTerms?: string;
 	recourse?: string;
 	permTakeoutPlanned?: boolean;
+	allInRate?: number;
 	realEstateTaxes?: number;
 	insurance?: number;
 	utilities?: number;
@@ -395,6 +412,8 @@ export interface ProjectProfile {
 	generalAndAdmin?: number;
 	payroll?: number;
 	reserves?: number;
+	marketingLeasing?: number;
+	serviceCoordination?: number;
 	noiYear1?: number;
 	yieldOnCost?: number;
 	capRate?: number;
@@ -402,6 +421,13 @@ export interface ProjectProfile {
 	ltv?: number;
 	debtYield?: number;
 	dscr?: number;
+	trendedNOIYear1?: number;
+	untrendedNOIYear1?: number;
+	trendedYield?: number;
+	untrendedYield?: number;
+	inflationAssumption?: number;
+	dscrStressTest?: number;
+	portfolioLTV?: number;
 	submarketName?: string;
 	distanceToCBD?: number;
 	distanceToEmployment?: string;
@@ -413,6 +439,12 @@ export interface ProjectProfile {
 	medianHHIncome?: number;
 	renterOccupiedPercent?: number;
 	bachelorsDegreePercent?: number;
+	absorptionRate?: number;
+	penetrationRate?: number;
+	northStarComp?: string;
+	infrastructureProject?: string;
+	projectBudget?: number;
+	infraCompletion?: string;
 	rentComps?: Array<{
 		propertyName: string;
 		address?: string;
@@ -422,6 +454,13 @@ export interface ProjectProfile {
 		occupancyPercent?: number;
 		avgRentMonth?: number;
 		rentPSF?: number;
+		concessions?: string;
+	}>;
+	saleComps?: Array<{
+		propertyName: string;
+		salePricePerUnit?: number;
+		capRate?: number;
+		saleDate?: string;
 	}>;
 	opportunityZone?: boolean;
 	affordableHousing?: boolean;
@@ -433,28 +472,54 @@ export interface ProjectProfile {
 	paceFinancing?: boolean;
 	historicTaxCredits?: boolean;
 	newMarketsCredits?: boolean;
+	exemptionStructure?: string;
+	sponsoringEntity?: string;
+	structuringFee?: number;
+	exemptionTerm?: number;
+	incentiveStacking?: string[];
+	relocationPlan?: string;
+	seismicPMLRisk?: string;
 	landAcqClose?: string;
 	entitlements?: string;
 	finalPlans?: string;
 	permitsIssued?: string;
 	verticalStart?: string;
+	substantialComp?: string;
 	firstOccupancy?: string;
 	stabilization?: string;
 	preLeasedSF?: number;
+	drawSchedule?: Array<{
+		drawNumber: number;
+		percentComplete?: number;
+		amount?: number;
+	}>;
+	absorptionProjection?: number;
+	opDeficitEscrow?: number;
+	leaseUpEscrow?: number;
 	totalSiteAcreage?: number;
 	currentSiteStatus?: string;
 	topography?: string;
 	environmental?: string;
+	utilities?: string;
+	utilityCapacity?: string;
+	geotechSoilsRep?: string;
+	floodZone?: string;
 	siteAccess?: string;
 	proximityShopping?: string;
 	proximityRestaurants?: string;
 	proximityParks?: string;
 	proximitySchools?: string;
 	proximityHospitals?: string;
+	topEmployers?: string;
 	sponsorEntityName?: string;
 	sponsorStructure?: string;
 	equityPartner?: string;
 	contactInfo?: string;
+	sponsorExpScore?: number;
+	priorDevelopments?: number;
+	netWorth?: number;
+	guarantorLiquidity?: number;
+	portfolioDSCR?: number;
 
 	// Metadata container for rich data (value + source + warnings)
 	_metadata?: Record<string, FieldMetadata>;

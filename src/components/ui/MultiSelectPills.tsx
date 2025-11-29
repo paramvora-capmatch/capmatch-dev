@@ -13,6 +13,7 @@ interface MultiSelectPillsProps {
   buttonClassName?: string;
   gridCols?: string;
   disabled?: boolean;
+  isAutofilled?: boolean; // Add autofill status prop
 }
 
 export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
@@ -25,6 +26,7 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
   buttonClassName = "text-xs md:text-sm",
   gridCols = "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
   disabled = false,
+  isAutofilled = false,
 }) => {
   const handleClick = (option: string) => {
     if (disabled) return;
@@ -38,6 +40,11 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
     }
   };
 
+  // Apply background color based on autofill status
+  const containerBgClass = isAutofilled
+    ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
+    : "bg-blue-50 p-3 rounded-lg border border-blue-200";
+
   return (
     <div className={cn("w-full", className)}>
       {label && (
@@ -45,7 +52,7 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
           {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
-      <div className={`grid ${gridCols} gap-2`}>
+      <div className={cn(`grid ${gridCols} gap-2`, containerBgClass)}>
         {options.map((option) => {
           const isSelected = selectedValues.includes(option);
           return (

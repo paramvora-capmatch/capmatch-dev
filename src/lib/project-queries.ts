@@ -23,6 +23,8 @@ export interface ProjectResumeContent {
   propertyAddressZip?: string;
   parcelNumber?: string;
   zoningDesignation?: string;
+  currentZoning?: string;
+  expectedZoningChanges?: string; // None, Variance, PUD
   projectType?: string; // Multi-select: Mixed-Use, Retail, Office, etc.
   primaryAssetClass?: string;
   constructionType?: string; // Ground-Up, Renovation, Adaptive Reuse
@@ -34,6 +36,8 @@ export interface ProjectResumeContent {
   requestedLoanTerm?: string; // e.g., "2 years"
   masterPlanName?: string;
   phaseNumber?: string;
+  syndicationStatus?: string; // Committed, In Process, TBD
+  guarantorNames?: string; // Multiple comma-separated
   projectDescription?: string;
   projectPhase?: string;
   
@@ -50,6 +54,8 @@ export interface ProjectResumeContent {
   parkingType?: string; // Surface, Structured, Underground
   amenityList?: string[]; // Array of amenities
   amenitySF?: number;
+  adaCompliantUnitsPercent?: number; // Percentage
+  leedSustainabilityRating?: string; // Certified, Pending, None
   
   // Section 2.1: Residential Unit Mix (stored as array)
   residentialUnitMix?: Array<{
@@ -59,6 +65,10 @@ export interface ProjectResumeContent {
     monthlyRent?: number;
     totalSF?: number; // Derived: Count * SF
     percentOfTotal?: number; // Derived: Count / Total Units
+    affordabilityStatus?: string; // Market Rate, Affordable @ 60% AMI, etc.
+    affordableUnitsCount?: number; // Per row
+    amiTargetPercent?: number; // Per row, e.g., 60% AMI
+    rentBumpSchedule?: string; // e.g., "$2.13 to $2.46"
   }>;
   
   // Section 2.2: Commercial Space Mix (stored as array)
@@ -68,6 +78,7 @@ export interface ProjectResumeContent {
     tenant?: string;
     leaseTerm?: string;
     annualRent?: number;
+    tiAllowance?: number; // TI Allowance per tenant
   }>;
   
   // Section 3: Financial Details - Development Budget
@@ -86,10 +97,15 @@ export interface ProjectResumeContent {
   pfcStructuringFee?: number;
   loanFees?: number;
   interestReserve?: number;
+  relocationCosts?: number;
+  syndicationCosts?: number;
+  enviroRemediation?: number; // Environmental remediation
   
   // Section 3.2: Sources of Funds
   seniorLoanAmount?: number;
   sponsorEquity?: number;
+  taxCreditEquity?: number;
+  gapFinancing?: number; // e.g., TIF grants
   
   // Section 3.3: Loan Terms
   interestRate?: number; // Percentage
@@ -98,6 +114,7 @@ export interface ProjectResumeContent {
   prepaymentTerms?: string;
   recourse?: string; // Full, Partial, Non
   permTakeoutPlanned?: boolean;
+  allInRate?: number; // Percentage - includes origination/MIP
   
   // Section 3.5: Operating Expenses (Proforma Year 1)
   realEstateTaxes?: number;
@@ -108,6 +125,8 @@ export interface ProjectResumeContent {
   generalAndAdmin?: number;
   payroll?: number;
   reserves?: number;
+  marketingLeasing?: number; // For lease-up
+  serviceCoordination?: number; // Specific to supportive housing
   
   // Section 3.6: Investment Metrics
   noiYear1?: number; // Derived: EGI - Total Exp
@@ -117,6 +136,13 @@ export interface ProjectResumeContent {
   ltv?: number; // Derived: Loan / Value
   debtYield?: number; // Derived: NOI / Loan
   dscr?: number; // Derived: NOI / Debt Svc
+  trendedNOIYear1?: number; // With inflation
+  untrendedNOIYear1?: number; // Base case
+  trendedYield?: number; // Derived: Trended NOI / TDC
+  untrendedYield?: number; // Derived: Untrended NOI / TDC
+  inflationAssumption?: number; // Percentage
+  dscrStressTest?: number; // Calculated at Rate + 2%
+  portfolioLTV?: number; // For sponsor, max 75%
   
   // Financial fields (existing/legacy)
   targetLtvPercent?: number;
@@ -149,6 +175,12 @@ export interface ProjectResumeContent {
   medianHHIncome?: number; // Currency
   renterOccupiedPercent?: number; // Percentage
   bachelorsDegreePercent?: number; // Percentage
+  absorptionRate?: number; // Units/month
+  penetrationRate?: number; // Percentage - Eligible HH / Units
+  northStarComp?: string; // Borrower-selected top comp
+  infrastructureProject?: string; // e.g., "New Rail Line"
+  projectBudget?: number; // Currency
+  infraCompletion?: string; // Date (Year)
   
   // Section 4.3: Rent Comps (stored as array)
   rentComps?: Array<{
@@ -160,6 +192,15 @@ export interface ProjectResumeContent {
     occupancyPercent?: number;
     avgRentMonth?: number;
     rentPSF?: number; // Derived: Rent / Size
+    concessions?: string; // e.g., "1 month free"
+  }>;
+  
+  // Section 4.4: Sale Comps (stored as array)
+  saleComps?: Array<{
+    propertyName: string;
+    salePricePerUnit?: number;
+    capRate?: number; // Percentage
+    saleDate?: string; // Date
   }>;
   
   // Section 5: Special Considerations
@@ -173,6 +214,13 @@ export interface ProjectResumeContent {
   paceFinancing?: boolean;
   historicTaxCredits?: boolean;
   newMarketsCredits?: boolean;
+  exemptionStructure?: string; // PFC, MMD, PILOT
+  sponsoringEntity?: string; // e.g., "SoGood MMD"
+  structuringFee?: number; // Currency
+  exemptionTerm?: number; // Years
+  incentiveStacking?: string[]; // LIHTC, Section 8, HOME
+  relocationPlan?: string; // Complete, In Process, N/A
+  seismicPMLRisk?: string; // % PML; required in seismic zones
   
   // Section 6: Timeline & Milestones
   landAcqClose?: string; // Date
@@ -180,27 +228,46 @@ export interface ProjectResumeContent {
   finalPlans?: string; // Approved/Pending
   permitsIssued?: string; // Issued/Pending
   verticalStart?: string; // Date
+  substantialComp?: string; // Date
   firstOccupancy?: string; // Date
   stabilization?: string; // Date
   preLeasedSF?: number;
+  drawSchedule?: Array<{
+    drawNumber: number;
+    percentComplete?: number;
+    amount?: number;
+  }>;
+  absorptionProjection?: number; // Units/Month forecast
+  opDeficitEscrow?: number; // 6 Mos OpEx for lease-up shortfalls
+  leaseUpEscrow?: number; // 6-12 Mos calculated coverage
   
   // Section 7: Site & Context
   totalSiteAcreage?: number; // Decimal
   currentSiteStatus?: string; // Vacant/Existing
   topography?: string; // Flat/Sloped
   environmental?: string; // Clean/Remediation
+  utilities?: string; // Available/None (dropdown)
+  utilityCapacity?: string; // e.g., "Water: 500 GPM available"
+  geotechSoilsRep?: string; // Findings summary; bearing capacity
+  floodZone?: string; // e.g., "Zone AE"
   siteAccess?: string; // Text
   proximityShopping?: string; // Text
   proximityRestaurants?: string; // Text
   proximityParks?: string; // Text
   proximitySchools?: string; // Text
   proximityHospitals?: string; // Text
+  topEmployers?: string; // Distance to key jobs
   
   // Section 8: Sponsor Information
   sponsorEntityName?: string;
   sponsorStructure?: string; // GP/LP
   equityPartner?: string;
   contactInfo?: string;
+  sponsorExpScore?: number; // 0-10 scale based on track record
+  priorDevelopments?: number; // # of multifamily units completed
+  netWorth?: number; // Currency - Audited
+  guarantorLiquidity?: number; // Currency - ≥10% of loan
+  portfolioDSCR?: number; // Min 1.20x; overall sponsor health
   
   // Progress tracking (stored in JSONB, similar to borrower resume)
   completenessPercent?: number;

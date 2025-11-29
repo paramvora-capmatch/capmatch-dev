@@ -56,6 +56,7 @@ import {
   BORROWER_REQUIRED_FIELDS,
   computeBorrowerCompletion,
 } from "@/utils/resumeCompletion";
+import { normalizeSource } from "@/utils/sourceNormalizer";
 
 interface BorrowerResumeFormProps {
   projectId: string;
@@ -206,6 +207,21 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   >({ principalRoleDefault: "Key Principal" });
   // Persist principals inside JSONB content via formData.principals
   const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
+  
+  // Metadata state for tracking sources and warnings (similar to EnhancedProjectForm)
+  const [fieldMetadata, setFieldMetadata] = useState<
+    Record<
+      string,
+      {
+        source?: string | null;
+        sources?: string[];
+        warnings?: string[];
+        value?: any;
+        original_value?: any;
+        original_source?: string | null;
+      }
+    >
+  >({});
   const [showCompletionPercent, setShowCompletionPercent] = useState(true);
   const completionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -466,6 +482,71 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     }
   }, [isEditing, collapsed, autofillAnimationKey, startAutofill]);
 
+  // Helper function to check if a field value is valid (not null, empty, or invalid)
+  const isValidFieldValue = useCallback(
+    (value: any): boolean => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === "string" && value.trim() === "") return false;
+      if (Array.isArray(value) && value.length === 0) return false;
+      if (typeof value === "object" && Object.keys(value).length === 0) return false;
+      return true;
+    },
+    []
+  );
+
+  // Helper function to check if a field is autofilled (has source that's not user_input AND has valid value)
+  const isFieldAutofilled = useCallback(
+    (fieldId: string): boolean => {
+      const meta = fieldMetadata[fieldId];
+      if (!meta) return false;
+
+      // Check if source exists and is not User Input (normalized)
+      const source = meta.source || meta.sources?.[0];
+      if (!source) return false;
+      
+      // Normalize source to check against "User Input"
+      const normalizedSource = normalizeSource(source);
+      const isUserInput = normalizedSource.toLowerCase() === "user input" || 
+                         source.toLowerCase() === "user_input" ||
+                         source.toLowerCase() === "user input";
+      
+      // If source is "User Input", it can't be autofilled by AI
+      if (isUserInput) return false;
+
+      // Check if field has a valid value
+      const fieldValue = formData[fieldId as keyof typeof formData];
+      const hasValidValue = isValidFieldValue(fieldValue);
+
+      // Field is autofilled only if it has both a valid source AND a valid value
+      return hasValidValue;
+    },
+    [fieldMetadata, formData, isValidFieldValue]
+  );
+
+  // Helper function to get field styling classes based on autofill status
+  const getFieldStylingClasses = useCallback(
+    (fieldId: string, baseClasses?: string): string => {
+      const isAutofilled = isFieldAutofilled(fieldId);
+
+      if (isAutofilled) {
+        // Green styling for autofilled fields - matches View OM button (emerald-600/700)
+        return cn(
+          baseClasses,
+          "border-emerald-500 bg-emerald-50 focus:ring-emerald-500 focus:border-emerald-600",
+          "hover:border-emerald-600 transition-colors"
+        );
+      } else {
+        // Blue styling for user input fields - matches send button (blue-600)
+        return cn(
+          baseClasses,
+          "border-blue-600 bg-blue-50 focus:ring-blue-600 focus:border-blue-600",
+          "hover:border-blue-700 transition-colors"
+        );
+      }
+    },
+    [isFieldAutofilled]
+  );
+
   // Initialize form once on first load (avoid resetting on each store update)
   // Don't reset formData if user is editing (preserves their work in progress)
   useEffect(() => {
@@ -475,15 +556,39 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     }
     
     const defaultData: Partial<BorrowerResumeContent> = {};
-    const initialData = borrowerResume
-      ? { ...defaultData, ...borrowerResume }
-      : { ...defaultData };
+    const extractedData: Partial<BorrowerResumeContent> = {};
+    const extractedMetadata: typeof fieldMetadata = {};
+
+    // Extract data and metadata from borrowerResume
+    if (borrowerResume) {
+      for (const [key, value] of Object.entries(borrowerResume)) {
+        if (key === "_metadata") continue;
+        
+        // Check if value is in rich format { value, source, warnings }
+        if (value && typeof value === "object" && "value" in value && "source" in value) {
+          extractedData[key as keyof BorrowerResumeContent] = value.value;
+          extractedMetadata[key] = {
+            source: value.source,
+            warnings: value.warnings || [],
+            value: value.value,
+            original_value: value.value,
+            original_source: value.source,
+          };
+        } else {
+          // Flat format - just the value
+          extractedData[key as keyof BorrowerResumeContent] = value;
+        }
+      }
+    }
+
+    const initialData = { ...defaultData, ...extractedData };
     const snapshotKey = JSON.stringify(initialData);
     if (snapshotKey === lastInitializedSnapshot.current) {
       return;
     }
     lastInitializedSnapshot.current = snapshotKey;
     setFormData(initialData);
+    setFieldMetadata(extractedMetadata);
   }, [borrowerResume, user?.email, projectId, isEditing]);
 
   const lastEmittedSnapshot = useRef<string | null>(null);
@@ -577,7 +682,129 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
   // Input change handlers
   const handleInputChange = useCallback(
     (field: keyof BorrowerResumeContent, value: any) => {
-      setFormData((prev) => ({ ...prev, [field]: value }));
+      setFormData((prev) => {
+        const nextFormData = { ...prev, [field]: value };
+
+        // Update metadata to track source changes immediately
+        setFieldMetadata((prevMeta) => {
+          const currentMeta = prevMeta[field as string];
+          if (!currentMeta) {
+            // No metadata tracking for this field - create new entry
+            const newMeta: Record<string, any> = {
+              ...prevMeta,
+              [field as string]: {
+                value: value,
+                source: "user_input",
+                original_value: value,
+                warnings: [],
+              },
+            };
+            return newMeta;
+          }
+
+          // Check if value actually changed from the original AI extraction
+          const hasOriginalValue =
+            currentMeta.original_value !== undefined &&
+            currentMeta.original_value !== null;
+          const isChanged =
+            hasOriginalValue &&
+            JSON.stringify(value) !==
+              JSON.stringify(currentMeta.original_value);
+          const updatedMeta = { ...currentMeta };
+
+          // Always update the value, but preserve original_value
+          updatedMeta.value = value;
+          updatedMeta.original_value =
+            currentMeta.original_value !== undefined
+              ? currentMeta.original_value
+              : value;
+
+          // IMMEDIATELY update source to user_input when user types (regardless of whether it changed)
+          const wasUserInput = normalizeSource(currentMeta.source || "").toLowerCase() === "user input" ||
+                                currentMeta.source === "user_input";
+          
+          if (!wasUserInput) {
+            // Field was autofilled - mark as user input immediately
+            updatedMeta.source = "user_input";
+            
+            // Preserve original_source if not set
+            if (!updatedMeta.original_source && currentMeta.source) {
+              updatedMeta.original_source = currentMeta.source;
+            }
+
+            // Add divergence warning if value changed from original
+            if (isChanged && hasOriginalValue) {
+              const existingWarnings = currentMeta.warnings || [];
+              const divergenceWarnings: string[] = [];
+
+              const originalValueStr =
+                typeof currentMeta.original_value === "object"
+                  ? JSON.stringify(currentMeta.original_value)
+                  : String(currentMeta.original_value);
+              const currentValueStr =
+                typeof value === "object"
+                  ? JSON.stringify(value)
+                  : String(value);
+
+              if (currentMeta.original_source === "knowledge_base" || 
+                  (currentMeta.source && currentMeta.source.toLowerCase().includes("census"))) {
+                divergenceWarnings.push(
+                  `Value differs from market data (original: ${originalValueStr}, current: ${currentValueStr})`
+                );
+              } else if (currentMeta.original_source === "document" || 
+                         (currentMeta.source && (
+                           currentMeta.source.toLowerCase().includes("document") ||
+                           currentMeta.source.endsWith(".pdf") ||
+                           currentMeta.source.endsWith(".xlsx") ||
+                           currentMeta.source.endsWith(".docx")
+                         ))) {
+                divergenceWarnings.push(
+                  `Value differs from extracted document data (original: ${originalValueStr}, current: ${currentValueStr})`
+                );
+              } else if (currentMeta.source && currentMeta.source !== "user_input") {
+                divergenceWarnings.push(
+                  `Value changed from original (original: ${originalValueStr}, current: ${currentValueStr})`
+                );
+              }
+
+              updatedMeta.warnings = [...existingWarnings];
+              divergenceWarnings.forEach((warning) => {
+                if (!updatedMeta.warnings.includes(warning)) {
+                  updatedMeta.warnings.push(warning);
+                }
+              });
+            } else {
+              // User is typing but hasn't changed from original yet - still mark as user_input
+              updatedMeta.warnings = currentMeta.warnings || [];
+            }
+          } else if (!isChanged && hasOriginalValue) {
+            // User typed back the original value - revert to original state
+            updatedMeta.source =
+              currentMeta.original_source || "user_input";
+            const originalWarnings = currentMeta.warnings || [];
+            updatedMeta.warnings = originalWarnings.filter(
+              (w) =>
+                !w.includes("differs from") &&
+                !w.includes("Value differs") &&
+                !w.includes("Value changed from original")
+            );
+          } else {
+            // Already user input or no original value
+            updatedMeta.source = "user_input";
+            updatedMeta.warnings = currentMeta.warnings || [];
+            if (updatedMeta.original_value === undefined) {
+              updatedMeta.original_value = value;
+            }
+          }
+
+          return {
+            ...prevMeta,
+            [field as string]: updatedMeta,
+          };
+        });
+
+        return nextFormData;
+      });
     },
     []
   );
@@ -713,7 +940,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       required
                       disabled={!isEditing || isFieldLocked("fullLegalName", "basic-info")}
                       className={cn(
-                        isFieldLocked("fullLegalName", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        isFieldLocked("fullLegalName", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75",
+                        !isFieldLocked("fullLegalName", "basic-info") && isEditing && getFieldStylingClasses("fullLegalName")
                       )}
                     />
                   </div>
@@ -740,7 +968,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       required
                       disabled={!isEditing || isFieldLocked("primaryEntityName", "basic-info")}
                       className={cn(
-                        isFieldLocked("primaryEntityName", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        isFieldLocked("primaryEntityName", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75",
+                        !isFieldLocked("primaryEntityName", "basic-info") && isEditing && getFieldStylingClasses("primaryEntityName")
                       )}
                     />
                   </div>
@@ -769,6 +998,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         )
                       }
                       disabled={!isEditing || isFieldLocked("primaryEntityStructure", "basic-info")}
+                      isAutofilled={isFieldAutofilled("primaryEntityStructure")}
                     />
                   </div>
                 </AskAIButton>
@@ -793,7 +1023,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("contactEmail", e.target.value)
                       }
                       required
-                      disabled
+                      disabled={!isEditing || isFieldLocked("contactEmail", "basic-info")}
+                      className={cn(
+                        isFieldLocked("contactEmail", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75",
+                        !isFieldLocked("contactEmail", "basic-info") && isEditing && getFieldStylingClasses("contactEmail")
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -819,7 +1053,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       required
                       disabled={!isEditing || isFieldLocked("contactPhone", "basic-info")}
                       className={cn(
-                        isFieldLocked("contactPhone", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        isFieldLocked("contactPhone", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75",
+                        !isFieldLocked("contactPhone", "basic-info") && isEditing && getFieldStylingClasses("contactPhone")
                       )}
                     />
                   </div>
@@ -846,7 +1081,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       required
                       disabled={!isEditing || isFieldLocked("contactAddress", "basic-info")}
                       className={cn(
-                        isFieldLocked("contactAddress", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        isFieldLocked("contactAddress", "basic-info") && "bg-gray-50 cursor-not-allowed opacity-75",
+                        !isFieldLocked("contactAddress", "basic-info") && isEditing && getFieldStylingClasses("contactAddress")
                       )}
                     />
                   </div>
@@ -914,6 +1150,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         )
                       }
                       disabled={!isEditing || isFieldLocked("yearsCREExperienceRange", "experience")}
+                      isAutofilled={isFieldAutofilled("yearsCREExperienceRange")}
                     />
                   </div>
                 </AskAIButton>
@@ -938,6 +1175,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("assetClassesExperience", v)
                       }
                       disabled={!isEditing}
+                      isAutofilled={isFieldAutofilled("assetClassesExperience")}
                     />
                   </div>
                 </AskAIButton>
@@ -961,6 +1199,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("geographicMarketsExperience", v)
                       }
                       disabled={!isEditing}
+                      isAutofilled={isFieldAutofilled("geographicMarketsExperience")}
                     />
                   </div>
                 </AskAIButton>
@@ -987,6 +1226,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         )
                       }
                       disabled={!isEditing}
+                      isAutofilled={isFieldAutofilled("totalDealValueClosedRange")}
                     />
                   </div>
                 </AskAIButton>
@@ -1013,6 +1253,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         )
                       }
                       disabled={!isEditing}
+                      className={cn(
+                        isEditing && getFieldStylingClasses("existingLenderRelationships")
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -1035,7 +1278,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("bioNarrative", e.target.value)
                       }
                       disabled={!isEditing}
-                      className="w-full h-24 border border-gray-300 rounded-md p-2 disabled:bg-gray-50 disabled:cursor-not-allowed focus:ring-blue-500 focus:border-blue-500"
+                      className={cn(
+                        "w-full h-24 rounded-md p-2 disabled:bg-gray-50 disabled:cursor-not-allowed",
+                        isEditing ? getFieldStylingClasses("bioNarrative") : "border border-gray-300"
+                      )}
                     />
                   </div>
                 </AskAIButton>
@@ -1099,6 +1345,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("creditScoreRange", v as CreditScoreRange)
                       }
                       disabled={!isEditing || isFieldLocked("creditScoreRange", "borrower-financials")}
+                      isAutofilled={isFieldAutofilled("creditScoreRange")}
                     />
                   </div>
                 </AskAIButton>
@@ -1122,6 +1369,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("netWorthRange", v as NetWorthRange)
                       }
                       disabled={!isEditing}
+                      isAutofilled={isFieldAutofilled("netWorthRange")}
                     />
                   </div>
                 </AskAIButton>
@@ -1145,6 +1393,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                         handleInputChange("liquidityRange", v as LiquidityRange)
                       }
                       disabled={!isEditing}
+                      isAutofilled={isFieldAutofilled("liquidityRange")}
                     />
                   </div>
                 </AskAIButton>
@@ -1301,7 +1550,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       }
                       disabled={!isEditing || isFieldLocked("linkedinUrl", "online-presence")}
                       className={cn(
-                        isFieldLocked("linkedinUrl", "online-presence") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        isFieldLocked("linkedinUrl", "online-presence") && "bg-gray-50 cursor-not-allowed opacity-75",
+                        !isFieldLocked("linkedinUrl", "online-presence") && isEditing && getFieldStylingClasses("linkedinUrl")
                       )}
                     />
                   </div>
@@ -1327,7 +1577,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
                       }
                       disabled={!isEditing || isFieldLocked("websiteUrl", "online-presence")}
                       className={cn(
-                        isFieldLocked("websiteUrl", "online-presence") && "bg-gray-50 cursor-not-allowed opacity-75"
+                        isFieldLocked("websiteUrl", "online-presence") && "bg-gray-50 cursor-not-allowed opacity-75",
+                        !isFieldLocked("websiteUrl", "online-presence") && isEditing && getFieldStylingClasses("websiteUrl")
                       )}
                     />
                   </div>
