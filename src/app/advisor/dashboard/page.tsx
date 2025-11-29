@@ -12,7 +12,6 @@ import { Button } from "../../../components/ui/Button";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 import { Users } from "lucide-react";
-import { getAdvisorById } from "../../../../lib/enhancedMockApiService";
 import {
   Advisor,
   ProjectProfile,
@@ -57,53 +56,137 @@ export default function AdvisorDashboardPage() {
       try {
         let assignedProjects: ProjectProfile[] = [];
 
-        if (user.isDemo) {
-          // --- DEMO MODE ---
-          console.log("[AdvisorDashboard] Loading data for DEMO advisor.");
+        // Load advisor data from Supabase
+        console.log(
+          "[AdvisorDashboard] Loading data for advisor from Supabase."
+        );
 
-          const advisorProfile = await getAdvisorById(user.email);
-          if (advisorProfile) setAdvisor(advisorProfile);
+        const advisorProfile: Advisor = {
+          id: user.id || user.email,
+          userId: user.email,
+          name: user.name || user.email,
+          email: user.email,
+          title: "Capital Advisor",
+          phone: "",
+          bio: "An experienced Capital Advisor at CapMatch.",
+          avatar: "",
+          specialties: [],
+          yearsExperience: 10,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setAdvisor(advisorProfile);
 
-          const allProjects = await storageService.getItem<ProjectProfile[]>(
-            "projects"
-          );
-          if (allProjects) {
-            assignedProjects = allProjects.filter(
-              (p) => p.assignedAdvisorUserId === user.email
-            );
-          }
-        } else {
-          // --- REAL USER MODE ---
-          console.log(
-            "[AdvisorDashboard] Loading data for REAL advisor from Supabase."
-          );
+        const { data: projectsData, error: projectsError } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("assigned_advisor_id", user.id);
 
-          const realAdvisorProfile: Advisor = {
-            id: user.id || user.email,
-            userId: user.email,
-            name: user.name || user.email,
-            email: user.email,
-            title: "Capital Advisor",
-            phone: "",
-            bio: "An experienced Capital Advisor at CapMatch.",
-            avatar: "",
-            specialties: [],
-            yearsExperience: 10,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          setAdvisor(realAdvisorProfile);
+        if (projectsError) throw projectsError;
 
-          const { data: projectsData, error: projectsError } = await supabase
-            .from("projects")
-            .select("*")
-            .eq("assigned_advisor_id", user.id);
+        if (projectsData) {
+          const projectIds = projectsData.map((p) => p.id);
+          assignedProjects = await getProjectsWithResumes(projectIds);
 
-          if (projectsError) throw projectsError;
+          if (assignedProjects.length > 0) {
+            const ownerOrgIds = Array.from(
+              new Set(
+                assignedProjects.map((p) => p.owner_org_id).filter(Boolean)
+              )
+            ) as string[];
 
-          if (projectsData) {
-            const projectIds = projectsData.map((p) => p.id);
-            assignedProjects = await getProjectsWithResumes(projectIds);
+            if (ownerOrgIds.length > 0) {
+              // Step 1: Find the owner's user_id for each org
+              const { data: owners, error: ownersError } = await supabase
+                .from("org_members")
+                .select("org_id, user_id")
+                .in("org_id", ownerOrgIds)
+                .eq("role", "owner");
+
+              if (ownersError) throw ownersError;
+            }
+
+            if (assignedProjects.length > 0) {
+              // Fetch borrower resumes to get fullLegalName for each project
+              const projectIds = assignedProjects.map((p) => p.id);
+              console.log('[AdvisorDashboard] Fetching borrower resumes for projects:', projectIds);
+              
+              // Fetch borrower resumes - get the latest active one for each project
+              const { data: borrowerResumes, error: borrowerResumesError } = await supabase
+                .from("borrower_resumes")
+                .select("project_id, content, status, created_at")
+                .in("project_id", projectIds)
+                .eq("status", "active")
+                .order("created_at", { ascending: false });
+
+              if (borrowerResumesError) {
+                console.error('[AdvisorDashboard] Failed to fetch borrower resumes:', borrowerResumesError);
+                // Continue without borrower data - non-fatal
+              } else {
+                console.log('[AdvisorDashboard] Fetched borrower resumes:', borrowerResumes?.length || 0);
+
+                // Create a map from project_id -> borrower resume (only keep the latest for each project)
+                const projectToBorrowerResume = new Map<string, any>();
+                (borrowerResumes || []).forEach((br: any) => {
+                  // Only keep the first (latest) resume for each project since we ordered by created_at DESC
+                  if (!projectToBorrowerResume.has(br.project_id)) {
+                    projectToBorrowerResume.set(br.project_id, br.content);
+                  }
+                });
+
+                // Create a map from org_id -> borrower fullLegalName
+                // Map by org_id so we can look it up in ProjectCard using project.owner_org_id
+                const borrowerMap: Record<string, { name: string; email: string }> = {};
+                
+                assignedProjects.forEach((project) => {
+                  if (!project.owner_org_id || !project.id) return;
+                  
+                  const borrowerResumeContent = projectToBorrowerResume.get(project.id);
+                  if (!borrowerResumeContent) {
+                    console.log(`[AdvisorDashboard] No borrower resume found for project ${project.id}`);
+                    return;
+                  }
+                  
+                  // Extract fullLegalName - handle both flat and rich data formats
+                  let fullLegalName: string | undefined;
+                  if (borrowerResumeContent.fullLegalName) {
+                    if (typeof borrowerResumeContent.fullLegalName === 'object' && 'value' in borrowerResumeContent.fullLegalName) {
+                      // Rich data format
+                      fullLegalName = borrowerResumeContent.fullLegalName.value;
+                    } else if (typeof borrowerResumeContent.fullLegalName === 'string') {
+                      // Flat format
+                      fullLegalName = borrowerResumeContent.fullLegalName;
+                    }
+                  }
+                  
+                  // Only add to map if fullLegalName exists and is not empty
+                  if (fullLegalName && typeof fullLegalName === 'string' && fullLegalName.trim()) {
+                    // Use org_id as key - if multiple projects share the same org, use the first one found
+                    if (!borrowerMap[project.owner_org_id]) {
+                      // Extract contactEmail similarly
+                      let contactEmail = '';
+                      if (borrowerResumeContent.contactEmail) {
+                        if (typeof borrowerResumeContent.contactEmail === 'object' && 'value' in borrowerResumeContent.contactEmail) {
+                          contactEmail = borrowerResumeContent.contactEmail.value || '';
+                        } else if (typeof borrowerResumeContent.contactEmail === 'string') {
+                          contactEmail = borrowerResumeContent.contactEmail;
+                        }
+                      }
+                      
+                      borrowerMap[project.owner_org_id] = {
+                        name: fullLegalName.trim(),
+                        email: contactEmail,
+                      };
+                    }
+                  } else {
+                    console.log(`[AdvisorDashboard] No fullLegalName found for project ${project.id} (or it's empty)`);
+                  }
+                });
+                
+                console.log('[AdvisorDashboard] Borrower data map (from resumes):', borrowerMap);
+                setBorrowerData(borrowerMap);
+              }
+            }
 
             if (assignedProjects.length > 0) {
               // Fetch borrower resumes to get fullLegalName for each project

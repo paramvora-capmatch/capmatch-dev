@@ -9,7 +9,7 @@ import { Footer } from "../components/ui/Footer";
 import FilterSection from "../components/filter-section";
 import LenderGraph from "../components/graph/LenderGraph";
 import { useLenders } from "../hooks/useLenders";
-import { LenderFilters } from "../contexts/LenderContext";
+import { LenderFilters } from "@/stores/useLenderStore";
 
 import { LenderProfile } from "@/types/lender";
 import { Button } from "@/components/ui/Button";

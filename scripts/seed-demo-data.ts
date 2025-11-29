@@ -956,7 +956,7 @@ async function cleanupDemoData() {
 
   try {
     const advisorEmail = 'cody.field@capmatch.com';
-    const borrowerEmail = 'borrower@org.com';
+    const borrowerEmail = 'param.vora@capmatch.com';
 
     // Step 1: Find and delete demo projects
     console.log('📋 Step 1: Deleting demo projects...');
@@ -1139,7 +1139,7 @@ async function cleanupDemoData() {
 
     // Step 4: Delete member users and additional owner
     console.log('\n📋 Step 4: Deleting member users and additional owner...');
-    const memberEmails = ['sarah.johnson@org.com', 'mike.chen@org.com', 'owner2@org.com'];
+    const memberEmails = ['aryan.jain@capmatch.com', 'sarthak.karandikar@capmatch.com', 'kabeer.merchant@capmatch.com'];
     
     for (const email of memberEmails) {
       try {
@@ -1247,11 +1247,11 @@ async function seedDemoData() {
       return;
     }
 
-    // Step 2: Create Borrower (borrower@org.com)
+    // Step 2: Create Borrower (param.vora@capmatch.com)
     console.log('\n📋 Step 2: Creating borrower...');
-    const borrowerEmail = 'borrower@org.com';
+    const borrowerEmail = 'param.vora@capmatch.com';
     const borrowerPassword = 'password';
-    const borrowerName = 'John Smith';
+    const borrowerName = 'Param Vora';
 
     // Check if borrower already exists
     const { data: existingBorrower } = await supabaseAdmin
@@ -1308,9 +1308,9 @@ async function seedDemoData() {
 
     // Step 2.5: Create another owner
     console.log('\n📋 Step 2.5: Creating additional owner...');
-    const owner2Email = 'owner2@org.com';
+    const owner2Email = 'kabeer.merchant@capmatch.com';
     const owner2Password = 'password';
-    const owner2Name = 'Jane Doe';
+    const owner2Name = 'Kabeer Merchant';
     const owner2Id = await createOwnerUser(owner2Email, owner2Password, owner2Name, borrowerOrgId);
 
     if (!owner2Id) {
@@ -1468,9 +1468,9 @@ async function seedDemoData() {
 
     // Step 9: Create member users
     console.log('\n📋 Step 9: Creating member users...');
-    const member1Email = 'sarah.johnson@org.com';
+    const member1Email = 'aryan.jain@capmatch.com';
     const member1Password = 'password';
-    const member1Name = 'Sarah Johnson';
+    const member1Name = 'Aryan Jain';
     const member1Id = await createMemberUser(member1Email, member1Password, member1Name, borrowerOrgId);
 
     if (!member1Id) {
@@ -1478,9 +1478,9 @@ async function seedDemoData() {
       return;
     }
 
-    const member2Email = 'mike.chen@org.com';
+    const member2Email = 'sarthak.karandikar@capmatch.com';
     const member2Password = 'password';
-    const member2Name = 'Mike Chen';
+    const member2Name = 'Sarthak Karandikar';
     const member2Id = await createMemberUser(member2Email, member2Password, member2Name, borrowerOrgId);
 
     if (!member2Id) {
@@ -1522,21 +1522,21 @@ async function seedDemoData() {
       await createChatMessage(
         completeThread.id,
         borrowerUserId,
-        `Welcome to the project, @[Sarah Johnson](user:${member1Id})! I've uploaded the key documents we have so far. Please review the @[Appraisal Summary Report.pdf](doc:${appraisalId}) when you have a chance.`,
+        `Welcome to the project, @[Aryan Jain](user:${member1Id})! I've uploaded the key documents we have so far. Please review the @[Appraisal Summary Report.pdf](doc:${appraisalId}) when you have a chance.`,
         appraisalId ? [appraisalId] : []
       );
 
       await createChatMessage(
         completeThread.id,
         member1Id,
-        `Thanks @[John Smith](user:${borrowerUserId})! I'll review everything this afternoon. What's our timeline looking like for lender submissions?`,
+        `Thanks @[Param Vora](user:${borrowerUserId})! I'll review everything this afternoon. What's our timeline looking like for lender submissions?`,
         []
       );
 
       await createChatMessage(
         completeThread.id,
         advisorUserId,
-        `Hi team! @[John Smith](user:${borrowerUserId}), thanks for getting the documents uploaded. @[Sarah Johnson](user:${member1Id}), we're targeting initial lender outreach in about 2 weeks. The @[Appraisal Summary Report.pdf](doc:${appraisalId}) shows strong fundamentals - $75M purchase price with stabilized NOI around $4M.`,
+        `Hi team! @[Param Vora](user:${borrowerUserId}), thanks for getting the documents uploaded. @[Aryan Jain](user:${member1Id}), we're targeting initial lender outreach in about 2 weeks. The @[Appraisal Summary Report.pdf](doc:${appraisalId}) shows strong fundamentals - $75M purchase price with stabilized NOI around $4M.`,
         appraisalId ? [appraisalId] : []
       );
 
@@ -1551,14 +1551,14 @@ async function seedDemoData() {
       await createChatMessage(
         completeThread.id,
         borrowerUserId,
-        `Good catch, @[Sarah Johnson](user:${member1Id}). We're planning to renew those at market rates, which should actually improve NOI. The current rents are slightly below market.`,
+        `Good catch, @[Aryan Jain](user:${member1Id}). We're planning to renew those at market rates, which should actually improve NOI. The current rents are slightly below market.`,
         []
       );
 
       await createChatMessage(
         completeThread.id,
         advisorUserId,
-        `That's a great point. @[Sarah Johnson](user:${member1Id}), can you update the pro forma to reflect the renewal assumptions? Also, let's make sure the @[Operating Statement 2024.pdf](doc:${operatingStmtId}) aligns with what we're seeing in the rent roll.`,
+        `That's a great point. @[Aryan Jain](user:${member1Id}), can you update the pro forma to reflect the renewal assumptions? Also, let's make sure the @[Operating Statement 2024.pdf](doc:${operatingStmtId}) aligns with what we're seeing in the rent roll.`,
         operatingStmtId ? [operatingStmtId] : []
       );
 
@@ -1573,7 +1573,7 @@ async function seedDemoData() {
       await createChatMessage(
         completeThread.id,
         advisorUserId,
-        `Yes, definitely include it. Most lenders will want to see it, and having a clean report is a positive. @[John Smith](user:${borrowerUserId}), do we have the architectural drawings ready? Those are typically requested early in the process.`,
+        `Yes, definitely include it. Most lenders will want to see it, and having a clean report is a positive. @[Param Vora](user:${borrowerUserId}), do we have the architectural drawings ready? Those are typically requested early in the process.`,
         []
       );
 
@@ -1587,7 +1587,7 @@ async function seedDemoData() {
       await createChatMessage(
         completeThread.id,
         advisorUserId,
-        `Let's get the pro forma updated first, then we can start soft outreach. I have a few lenders in mind who would be a good fit for this deal size and asset type. @[Sarah Johnson](user:${member1Id}), can you have the updated pro forma ready by Friday?`,
+        `Let's get the pro forma updated first, then we can start soft outreach. I have a few lenders in mind who would be a good fit for this deal size and asset type. @[Aryan Jain](user:${member1Id}), can you have the updated pro forma ready by Friday?`,
         []
       );
 
@@ -1611,21 +1611,21 @@ async function seedDemoData() {
       await createChatMessage(
         partialThread.id,
         borrowerUserId,
-        `Hi @[Mike Chen](user:${member2Id}), welcome to the Warehouse Development project. This is a ground-up development in Dallas. I've started uploading the initial documents - the @[Appraisal Report.pdf](doc:${appraisalId}) is ready for review.`,
+        `Hi @[Sarthak Karandikar](user:${member2Id}), welcome to the Warehouse Development project. This is a ground-up development in Dallas. I've started uploading the initial documents - the @[Appraisal Report.pdf](doc:${appraisalId}) is ready for review.`,
         appraisalId ? [appraisalId] : []
       );
 
       await createChatMessage(
         partialThread.id,
         member2Id,
-        `Thanks @[John Smith](user:${borrowerUserId})! I'll dive into the appraisal today. This is a pre-development deal, right? Do we have stabilized NOI projections or is this all pro forma?`,
+        `Thanks @[Param Vora](user:${borrowerUserId})! I'll dive into the appraisal today. This is a pre-development deal, right? Do we have stabilized NOI projections or is this all pro forma?`,
         []
       );
 
       await createChatMessage(
         partialThread.id,
         advisorUserId,
-        `Hi team! Yes @[Mike Chen](user:${member2Id}), this is pre-development. We're projecting stabilized NOI around $800K once fully leased. The @[Appraisal Report.pdf](doc:${appraisalId}) should have the market analysis and comparable properties.`,
+        `Hi team! Yes @[Sarthak Karandikar](user:${member2Id}), this is pre-development. We're projecting stabilized NOI around $800K once fully leased. The @[Appraisal Report.pdf](doc:${appraisalId}) should have the market analysis and comparable properties.`,
         appraisalId ? [appraisalId] : []
       );
 
@@ -1647,7 +1647,7 @@ async function seedDemoData() {
       await createChatMessage(
         partialThread.id,
         advisorUserId,
-        `Yes, $8/sqft is in line with the market. @[Mike Chen](user:${member2Id}), can you verify the expense assumptions? We want to make sure we're being conservative on operating expenses.`,
+        `Yes, $8/sqft is in line with the market. @[Sarthak Karandikar](user:${member2Id}), can you verify the expense assumptions? We want to make sure we're being conservative on operating expenses.`,
         []
       );
 
@@ -1677,14 +1677,14 @@ async function seedDemoData() {
       await createChatMessage(
         partialThread.id,
         advisorUserId,
-        `Good. @[John Smith](user:${borrowerUserId}), do we have the construction budget finalized? That's going to be critical for the loan application.`,
+        `Good. @[Param Vora](user:${borrowerUserId}), do we have the construction budget finalized? That's going to be critical for the loan application.`,
         []
       );
 
       await createChatMessage(
         partialThread.id,
         borrowerUserId,
-        `We're still finalizing a few items with the contractor, but we should have it locked in by next week. @[Mike Chen](user:${member2Id}), I've uploaded the @[Commercial Loan Application Packet.pdf](doc:${loanAppId}) - can you review and let me know if we're missing anything?`,
+        `We're still finalizing a few items with the contractor, but we should have it locked in by next week. @[Sarthak Karandikar](user:${member2Id}), I've uploaded the @[Commercial Loan Application Packet.pdf](doc:${loanAppId}) - can you review and let me know if we're missing anything?`,
         loanAppId ? [loanAppId] : []
       );
 
@@ -1698,7 +1698,7 @@ async function seedDemoData() {
       await createChatMessage(
         partialThread.id,
         advisorUserId,
-        `For construction loans, lenders typically want 25-30% equity, contractor financials, and a detailed construction budget. @[John Smith](user:${borrowerUserId}), what's our target LTC?`,
+        `For construction loans, lenders typically want 25-30% equity, contractor financials, and a detailed construction budget. @[Param Vora](user:${borrowerUserId}), what's our target LTC?`,
         []
       );
 
@@ -1712,7 +1712,7 @@ async function seedDemoData() {
       await createChatMessage(
         partialThread.id,
         advisorUserId,
-        `That's reasonable. @[Mike Chen](user:${member2Id}), once you've reviewed the application packet, let's schedule a call to discuss the lender strategy. I have a few construction lenders who specialize in industrial properties.`,
+        `That's reasonable. @[Sarthak Karandikar](user:${member2Id}), once you've reviewed the application packet, let's schedule a call to discuss the lender strategy. I have a few construction lenders who specialize in industrial properties.`,
         []
       );
 

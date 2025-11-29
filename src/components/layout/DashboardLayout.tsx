@@ -81,7 +81,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     try {
       setOpenDropdown(null);
       await logout();
-      console.log("Signed out successfully.");
       router.push("/login");
     } catch {
       console.error("Logout failed. Please try again.");

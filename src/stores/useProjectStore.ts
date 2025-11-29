@@ -394,7 +394,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					},
 				});
 			} catch (error) {
-				console.warn('[ProjectStore] Failed to save initial completenessPercent:', error);
 				// Non-fatal - project is created, just progress not saved
 			}
 
@@ -473,7 +472,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				});
 				if (error) throw error;
 
-				console.log(`[ProjectStore] Updated project ${id} via edge function.`);
 				return finalUpdatedProject;
 			} catch (error) {
 				console.error(
@@ -537,13 +535,9 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 							// If error is "not found", the prefix doesn't exist - skip it
 							if (error.message?.includes("not found")) {
 								hasMore = false;
-								continue;
-							}
-							console.warn(
-								`[ProjectStore] Error listing files in ${currentPrefix}:`,
-								error
-							);
-							hasMore = false;
+							continue;
+						}
+						hasMore = false;
 							continue;
 						}
 
@@ -585,18 +579,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			// Delete all storage files for this project
 			try {
 				const projectPrefix = `${id}/`;
-				console.log(
-					`[ProjectStore] Starting storage cleanup for project ${id} in bucket ${bucketId} with prefix ${projectPrefix}`
-				);
 				
 				const filesToDelete = await listAllFilesRecursively(
 					bucketId,
 					projectPrefix
-				);
-
-				console.log(
-					`[ProjectStore] Found ${filesToDelete.length} storage files to delete for project ${id}`,
-					filesToDelete.length > 0 ? `(sample: ${filesToDelete.slice(0, 3).join(', ')})` : ''
 				);
 
 				if (filesToDelete.length > 0) {
@@ -607,10 +593,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					for (let i = 0; i < filesToDelete.length; i += chunkSize) {
 						const chunk = filesToDelete.slice(i, i + chunkSize);
 						const chunkNum = Math.floor(i / chunkSize) + 1;
-						
-						console.log(
-							`[ProjectStore] Deleting chunk ${chunkNum} (${chunk.length} files)...`
-						);
 						
 						const { error: storageError } = await supabase.storage
 							.from(bucketId)
@@ -624,15 +606,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 							// Continue with next chunk even if one fails
 						} else {
 							deletedCount += chunk.length;
-							console.log(
-								`[ProjectStore] Successfully deleted chunk ${chunkNum} (${chunk.length} files)`
-							);
 						}
 					}
-					
-					console.log(
-						`[ProjectStore] Completed deletion: ${deletedCount} of ${filesToDelete.length} files deleted for project ${id}`
-					);
 					
 					// Verify deletion by listing the folder again
 					const { data: remainingFiles, error: verifyError } = await supabase.storage
@@ -640,23 +615,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						.list(projectPrefix, { limit: 10 });
 					
 					if (verifyError) {
-						console.log(
-							`[ProjectStore] Verification: Could not list folder (likely deleted): ${verifyError.message}`
-						);
+						// Could not list folder (likely deleted)
 					} else if (remainingFiles && remainingFiles.length > 0) {
-						console.warn(
-							`[ProjectStore] WARNING: ${remainingFiles.length} items still remain in folder after deletion`,
-							remainingFiles.map(f => f.name)
-						);
-					} else {
-						console.log(
-							`[ProjectStore] Verification: Folder is now empty (all files deleted successfully)`
-						);
+						// Some items still remain after deletion
 					}
-				} else {
-					console.log(
-						`[ProjectStore] No storage files found for project ${id} - folder may already be empty or not exist`
-					);
 				}
 			} catch (storageErr) {
 				console.error(
@@ -696,9 +658,6 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 
 	// Reset project state on logout
 	if (!currentUser && prevUser) {
-		console.log(
-			"[ProjectStore Subscription] User logged out. Resetting state."
-		);
 		useProjectStore.getState().resetProjectState();
 		return;
 	}
@@ -709,9 +668,6 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 		currentUser.role !== "borrower" &&
 		!authState.isLoading
 	) {
-		console.log(
-			"[ProjectStore Subscription] Non-borrower logged in. Resetting state."
-		);
 		useProjectStore.getState().resetProjectState();
 	}
 });

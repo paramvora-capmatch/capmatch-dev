@@ -48,13 +48,6 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    console.log("[OnlyOffice Callback] Request body received:", {
-      status: body.status,
-      hasToken: !!body.token,
-      hasUrl: !!body.url,
-      tokenLength: (body.token as string)?.length || 0,
-    });
-
     let decoded: { actions?: Array<{ userid?: string }> } | undefined;
 
     // Verify JWT from OnlyOffice
@@ -63,7 +56,6 @@ export async function POST(request: NextRequest) {
         decoded = jwt.verify(body.token as string, jwtSecret) as
           | { actions?: Array<{ userid?: string }> }
           | undefined;
-        console.log("[OnlyOffice Callback] Token verified successfully.");
       } catch (err) {
         console.error("[OnlyOffice Callback] JWT verification failed:", {
           error: err instanceof Error ? err.message : String(err),
@@ -111,12 +103,6 @@ export async function POST(request: NextRequest) {
       }
 
       // Document is ready for saving
-      console.log(`[OnlyOffice Callback] Document ready for saving`, {
-        resourceId,
-        status,
-        hasUrl: !!url,
-      });
-
       if (!url) {
         console.error("No URL provided in callback for saving.");
         return NextResponse.json(
@@ -124,11 +110,6 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-
-      // Log the save request for debugging
-      console.log(
-        `[OnlyOffice Callback] Save triggered for resource ${resourceId} by user ${userId}`
-      );
 
       // --- VERSIONING LOGIC ---
 
@@ -142,10 +123,6 @@ export async function POST(request: NextRequest) {
         throw new Error(
           `Failed to find resource ${resourceId}: ${resourceError.message}`
         );
-      console.log("[OnlyOffice Callback] Resource found:", {
-        resourceId,
-        resourceName: resource.name,
-      });
 
       // Determine which subdirectory to use by checking the previous version's storage path
       // or by tracing up the parent chain to find the root type
@@ -215,10 +192,6 @@ export async function POST(request: NextRequest) {
         throw new Error(
           `Failed to create new version record: ${versionError.message}`
         );
-      console.log("[OnlyOffice Callback] New version created:", {
-        versionId: newVersion.id,
-        versionNumber: newVersion.version_number,
-      });
 
       // Mark all previous versions as superseded
       const { error: supersedError } = await supabase
@@ -235,9 +208,6 @@ export async function POST(request: NextRequest) {
       const newStoragePath = `${resource.project_id}/${storageSubdir}/${resourceId}/v${newVersion.version_number}_user${userId}_${resource.name}`;
 
       // Download the updated document from OnlyOffice server
-      console.log(
-        `[OnlyOffice Callback] Downloading file from OnlyOffice at: ${url}`
-      );
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(
@@ -254,14 +224,8 @@ export async function POST(request: NextRequest) {
         mimeType: contentType,
         downloadedAt: new Date().toISOString(),
       };
-      console.log(
-        `[OnlyOffice Callback] File metadata - Size: ${metadata.size} bytes, Type: ${metadata.mimeType}`
-      );
 
       // 4. Upload the new version to Supabase Storage
-      console.log(
-        `[OnlyOffice Callback] Uploading to storage at path: ${newStoragePath}`
-      );
       const { error: uploadError } = await supabase.storage
         .from(resource.org_id) // bucketId is the org_id
         .upload(newStoragePath, fileBuffer, {
@@ -273,9 +237,6 @@ export async function POST(request: NextRequest) {
           `Failed to upload new version to Storage: ${uploadError.message}`
         );
       }
-      console.log(
-        `[OnlyOffice Callback] Successfully uploaded to ${newStoragePath}`
-      );
 
       // 5. Update the version record with the final storage path
       const { error: updateVersionError } = await supabase
@@ -307,17 +268,11 @@ export async function POST(request: NextRequest) {
           `Failed to set current version: ${updateResourceError.message}`
         );
 
-      console.log(
-        `Successfully saved new version ${newVersion.version_number} for resource ${resourceId} at ${newStoragePath}`
-      );
       return NextResponse.json({ error: 0 });
     }
 
     // For all other statuses (0, 1, 3, 4, 7), we don't need to do anything.
     // Just acknowledge the callback with success.
-    console.log(
-      `[OnlyOffice Callback] Acknowledging status ${status}. No save action taken.`
-    );
     return NextResponse.json({ error: 0 });
   } catch (error) {
     console.error("Error processing OnlyOffice callback:", error);

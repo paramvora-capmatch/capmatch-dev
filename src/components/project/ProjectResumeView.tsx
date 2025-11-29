@@ -391,7 +391,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleAutofill}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAutofill();
+                        }}
                         disabled={isAutofilling}
                         className={cn(
                             "group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-hidden text-base",

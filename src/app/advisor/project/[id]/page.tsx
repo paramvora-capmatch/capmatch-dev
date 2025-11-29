@@ -113,7 +113,6 @@ export default function AdvisorProjectWorkspacePage() {
 
   const breadcrumb = useMemo(() => {
     const projectName = activeProject?.projectName || "Project";
-
     return (
       <nav className="flex items-center space-x-2 text-base mb-2">
         <button
@@ -155,7 +154,7 @@ export default function AdvisorProjectWorkspacePage() {
         <p>Project ID is missing.</p>
       </DashboardLayout>
     );
-  }
+  }, [activeProject?.projectName, handleBack, isBorrowerEditing, router, handleBorrowerEditingChange]);
 
   return (
     <RoleBasedRoute roles={["advisor"]}>

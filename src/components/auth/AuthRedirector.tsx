@@ -22,7 +22,6 @@ export const AuthRedirector = () => {
 
     const performRedirect = () => {
       if (!user) return;
-      console.log(`[AuthRedirector] Redirecting user with role: ${user.role}`);
       switch (user.role) {
         case "borrower":
           router.replace("/dashboard");

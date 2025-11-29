@@ -127,10 +127,6 @@ export async function POST(request: NextRequest) {
       if (localPattern.test(documentUrl)) {
         const newBaseUrl = new URL(onlyofficeSupabaseUrl).origin;
         documentUrl = documentUrl.replace(localPattern, newBaseUrl);
-        console.log(
-          "[OnlyOffice Config] Rewrote Supabase URL for Docker access:",
-          documentUrl
-        );
       }
     }
 
@@ -237,12 +233,6 @@ export async function POST(request: NextRequest) {
       documentVersion.version_number
     }_${Date.now()}`;
 
-    console.log("[OnlyOffice Config] Document key generated:", {
-      resourceId: resource.id,
-      versionNumber: documentVersion.version_number,
-      documentKey,
-    });
-
     const config = {
       document: {
         fileType: normalizedFileType,
@@ -270,9 +260,6 @@ export async function POST(request: NextRequest) {
 
     const token = jwt.sign(config, jwtSecret);
     const finalConfig = { ...config, token };
-
-    console.log("[OnlyOffice Config] Document URL:", documentUrl);
-    console.log("[OnlyOffice Config] Callback URL:", callbackUrl);
 
     return NextResponse.json(finalConfig);
   } catch (error: unknown) {

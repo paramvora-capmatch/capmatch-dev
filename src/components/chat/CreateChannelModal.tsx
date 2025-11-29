@@ -7,7 +7,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { AttachableDocument } from "../../stores/useChatStore";
 import { cn } from "../../utils/cn";
 
-type MemberRole = "owner" | "member" | "advisor" | "project_manager";
+type MemberRole = "owner" | "member" | "advisor";
 
 interface MemberOption {
   value: string;
@@ -65,7 +65,6 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
       owner: 0,
       advisor: 1,
       member: 2,
-      project_manager: 2,
     };
 
     return [...memberOptions].sort((a, b) => {
@@ -87,10 +86,8 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
         .filter(
           (option) =>
             option.role === "owner" ||
-            option.role === "advisor" ||
-            option.role === "project_manager" // treat project managers as members (no auto select)
+            option.role === "advisor"
         )
-        .filter((option) => option.role === "owner" || option.role === "advisor")
         .map((option) => option.value)
     );
 
@@ -195,8 +192,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
                 <div className="space-y-2">
                   {prioritizedMemberOptions.map((option) => {
                     const isSelected = selectedMemberIds.has(option.value);
-                    const normalizedRole =
-                      option.role === "project_manager" ? "member" : option.role;
+                    const normalizedRole = option.role;
                     const roleStyles =
                       normalizedRole === "owner"
                         ? "bg-amber-100 text-amber-800 border border-amber-200"

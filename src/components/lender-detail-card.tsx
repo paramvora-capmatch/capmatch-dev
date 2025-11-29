@@ -6,7 +6,7 @@ import { X } from 'lucide-react';
 import { Button } from "./ui/Button";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import type { LenderProfile } from "../types/lender";
-import { LenderFilters } from "@/contexts/LenderContext";
+import { LenderFilters } from "@/stores/useLenderStore";
 import { cn } from "@/utils/cn";
 
 interface LenderDetailCardProps {
