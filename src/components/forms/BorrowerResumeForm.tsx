@@ -515,7 +515,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				</div>
 			);
 		},
-		[onAskAI, renderFieldLockButton]
+		[onAskAI, renderFieldLockButton, fieldMetadata]
 	);
 
 	// Handle autofill button click
@@ -2778,6 +2778,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			isFieldLocked,
 			renderFieldLabel,
 			toggleSectionLock,
+			getFieldStylingClasses,
+			isFieldAutofilled,
 		]
 	);
 

@@ -63,6 +63,7 @@ import {
 } from "../../types/enhanced-types";
 import { PROJECT_REQUIRED_FIELDS } from "@/utils/resumeCompletion";
 import { normalizeSource } from "@/utils/sourceNormalizer";
+import { SourceMetadata } from "@/types/source-metadata";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -980,27 +981,35 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			for (const [key, meta] of Object.entries(newMetadata)) {
 				if (meta && typeof meta === "object") {
 					const validatedMeta: any = { ...meta };
-					
+
 					// Validate and filter sources array
 					if (meta.sources && Array.isArray(meta.sources)) {
-						validatedMeta.sources = meta.sources.filter((src: any) =>
-							src && typeof src === "object" && src !== null && "type" in src
+						validatedMeta.sources = meta.sources.filter(
+							(src: any) =>
+								src &&
+								typeof src === "object" &&
+								src !== null &&
+								"type" in src
 						);
 					}
-					
+
 					// Validate single source
 					if (meta.source) {
-						if (typeof meta.source === "object" && meta.source !== null && "type" in meta.source) {
+						if (
+							typeof meta.source === "object" &&
+							meta.source !== null &&
+							"type" in meta.source
+						) {
 							validatedMeta.source = meta.source;
 						} else {
 							validatedMeta.source = null;
 						}
 					}
-					
+
 					validatedMetadata[key] = validatedMeta as FieldMetadata;
 				}
 			}
-			
+
 			setFieldMetadata(validatedMetadata);
 			console.log(
 				"[EnhancedProjectForm] Field metadata synced from existingProject:",
@@ -1032,7 +1041,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	// Listen for autofill completion event
 	useEffect(() => {
 		const handleAutofillCompleted = (event: CustomEvent) => {
-			if (event.detail.projectId === formData.id && event.detail.context === "project") {
+			if (
+				event.detail.projectId === formData.id &&
+				event.detail.context === "project"
+			) {
 				setShowAutofillNotification(true);
 				// Auto-hide after 10 seconds
 				setTimeout(() => {
@@ -1272,16 +1284,14 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 
 	// Helper function to check if a field value is valid (not null, empty, or invalid)
-	const isValidFieldValue = useCallback(
-		(value: any): boolean => {
-			if (value === null || value === undefined) return false;
-			if (typeof value === "string" && value.trim() === "") return false;
-			if (Array.isArray(value) && value.length === 0) return false;
-			if (typeof value === "object" && Object.keys(value).length === 0) return false;
-			return true;
-		},
-		[]
-	);
+	const isValidFieldValue = useCallback((value: any): boolean => {
+		if (value === null || value === undefined) return false;
+		if (typeof value === "string" && value.trim() === "") return false;
+		if (Array.isArray(value) && value.length === 0) return false;
+		if (typeof value === "object" && Object.keys(value).length === 0)
+			return false;
+		return true;
+	}, []);
 
 	// Lock autofilled fields after existingProject is updated (which happens after autofill)
 	useEffect(() => {
@@ -1292,53 +1302,56 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const next = new Set(prev);
 			const metadata = existingProject._metadata || {};
 			let hasChanges = false;
-			
+
 			// Check all fields in metadata
 			Object.keys(metadata).forEach((fieldId) => {
 				const meta = metadata[fieldId];
 				if (!meta) return;
-				
+
 				// Check both single source and sources array
-				const source = meta.source;
 				const sources = meta.sources;
-				
+
 				// Determine if this field is autofilled
 				let isAutofilled = false;
-				
-				// Check single source first
-				if (source) {
-					// Handle SourceMetadata object format
-					if (typeof source === "object" && source !== null && "type" in source) {
-						isAutofilled = source.type !== "user_input";
-					} else if (typeof source === "string") {
-						// Handle legacy string format
-						const normalizedSource = normalizeSource(source);
-						const isUserInput = normalizedSource.toLowerCase() === "user input" || 
-											source.toLowerCase() === "user_input";
-						isAutofilled = !isUserInput;
-					}
-				}
-				
-				// If not autofilled from single source, check sources array
-				if (!isAutofilled && sources && Array.isArray(sources) && sources.length > 0) {
+
+				// Check sources array first (can contain SourceMetadata objects)
+				if (sources && Array.isArray(sources) && sources.length > 0) {
 					// Check if any source is not user_input
 					isAutofilled = sources.some((src: any) => {
-						if (typeof src === "object" && src !== null && "type" in src) {
+						if (
+							typeof src === "object" &&
+							src !== null &&
+							"type" in src
+						) {
 							return src.type !== "user_input";
 						} else if (typeof src === "string") {
 							const normalizedSource = normalizeSource(src);
-							return normalizedSource.toLowerCase() !== "user input" && 
-								   src.toLowerCase() !== "user_input";
+							return (
+								normalizedSource.toLowerCase() !==
+									"user input" &&
+								src.toLowerCase() !== "user_input"
+							);
 						}
 						return false;
 					});
 				}
-				
+
+				// If not autofilled from sources array, check legacy source field (string)
+				if (!isAutofilled && meta.source) {
+					// Handle legacy string format
+					const normalizedSource = normalizeSource(meta.source);
+					const isUserInput =
+						normalizedSource.toLowerCase() === "user input" ||
+						meta.source.toLowerCase() === "user_input";
+					isAutofilled = !isUserInput;
+				}
+
 				// Check if field has a valid value in formData or existingProject
-				const fieldValue = formData[fieldId as keyof typeof formData] ?? 
-								   existingProject[fieldId as keyof typeof existingProject];
+				const fieldValue =
+					formData[fieldId as keyof typeof formData] ??
+					existingProject[fieldId as keyof typeof existingProject];
 				const hasValidValue = isValidFieldValue(fieldValue);
-				
+
 				// If field has a valid value and source is not User Input, lock it
 				if (isAutofilled && hasValidValue) {
 					if (!next.has(fieldId)) {
@@ -1347,51 +1360,75 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					}
 				}
 			});
-			
+
 			// Also check fieldMetadata for any additional fields that might have been autofilled
 			// This handles cases where metadata might be in fieldMetadata but not in existingProject._metadata
 			Object.keys(fieldMetadata).forEach((fieldId) => {
 				// Skip if already locked
 				if (next.has(fieldId)) return;
-				
+
 				const meta = fieldMetadata[fieldId];
 				if (!meta) return;
-				
-				const source = meta.source || meta.sources?.[0];
-				if (!source) return;
-				
+
+				// Check sources array first (can contain SourceMetadata objects)
+				const sources = meta.sources;
 				let isAutofilled = false;
-				if (typeof source === "object" && source !== null && "type" in source) {
-					isAutofilled = source.type !== "user_input";
-				} else if (typeof source === "string") {
-					const normalizedSource = normalizeSource(source);
-					const isUserInput = normalizedSource.toLowerCase() === "user input" || 
-									   source.toLowerCase() === "user_input";
+
+				if (sources && Array.isArray(sources) && sources.length > 0) {
+					// Check if any source is not user_input
+					isAutofilled = sources.some((src: any) => {
+						if (
+							typeof src === "object" &&
+							src !== null &&
+							"type" in src
+						) {
+							return src.type !== "user_input";
+						} else if (typeof src === "string") {
+							const normalizedSource = normalizeSource(src);
+							return (
+								normalizedSource.toLowerCase() !==
+									"user input" &&
+								src.toLowerCase() !== "user_input"
+							);
+						}
+						return false;
+					});
+				}
+
+				// If not autofilled from sources array, check legacy source field (string)
+				if (!isAutofilled && meta.source) {
+					const normalizedSource = normalizeSource(meta.source);
+					const isUserInput =
+						normalizedSource.toLowerCase() === "user input" ||
+						meta.source.toLowerCase() === "user_input";
 					isAutofilled = !isUserInput;
 				}
-				
+
 				if (isAutofilled) {
-					const fieldValue = formData[fieldId as keyof typeof formData] ?? 
-									   existingProject[fieldId as keyof typeof existingProject];
+					const fieldValue =
+						formData[fieldId as keyof typeof formData] ??
+						existingProject[
+							fieldId as keyof typeof existingProject
+						];
 					if (isValidFieldValue(fieldValue)) {
 						next.add(fieldId);
 						hasChanges = true;
 					}
 				}
 			});
-			
+
 			// Save locked fields to database if there are changes
 			if (hasChanges) {
 				const lockedFieldsObj: Record<string, boolean> = {};
 				next.forEach((fieldId) => {
 					lockedFieldsObj[fieldId] = true;
 				});
-				
+
 				const lockedSectionsObj: Record<string, boolean> = {};
 				lockedSections.forEach((sectionId) => {
 					lockedSectionsObj[sectionId] = true;
 				});
-				
+
 				// Save locked fields asynchronously
 				const dataToSave = {
 					...formData,
@@ -1403,10 +1440,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					console.error("Failed to save locked fields:", err);
 				});
 			}
-			
+
 			return next;
 		});
-	}, [existingProject, formData, isValidFieldValue, fieldMetadata, lockedSections, updateProject]);
+	}, [
+		existingProject,
+		formData,
+		isValidFieldValue,
+		fieldMetadata,
+		lockedSections,
+		updateProject,
+	]);
 
 	// Helper function to check if a field is autofilled (has source that's not User Input AND has valid value)
 	const isFieldAutofilled = useCallback(
@@ -1414,23 +1458,45 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const meta = fieldMetadata[fieldId];
 			if (!meta) return false;
 
-			// Check if source exists and is not User Input
-			const source = meta.source || meta.sources?.[0];
-			if (!source) return false;
-			
-			// Handle SourceMetadata object format
+			// Check sources array first (can contain SourceMetadata objects)
+			const sources = meta.sources;
 			let isUserInput = false;
-			if (typeof source === "object" && source !== null && "type" in source) {
-				// SourceMetadata object format
-				isUserInput = source.type === "user_input";
-			} else if (typeof source === "string") {
-				// Legacy string format - normalize and check
-				const normalizedSource = normalizeSource(source);
-				isUserInput = normalizedSource.toLowerCase() === "user input" || 
-				             source.toLowerCase() === "user_input" ||
-				             source.toLowerCase() === "user input";
+
+			if (sources && Array.isArray(sources) && sources.length > 0) {
+				// Check if all sources are user_input
+				const allUserInput = sources.every((src: any) => {
+					if (
+						typeof src === "object" &&
+						src !== null &&
+						"type" in src
+					) {
+						return src.type === "user_input";
+					} else if (typeof src === "string") {
+						const normalizedSource = normalizeSource(src);
+						return (
+							normalizedSource.toLowerCase() === "user input" ||
+							src.toLowerCase() === "user_input"
+						);
+					}
+					return false;
+				});
+				isUserInput = allUserInput;
 			}
-			
+
+			// If no sources array, check legacy source field (string)
+			if (!sources || sources.length === 0) {
+				if (meta.source) {
+					// Legacy string format - normalize and check
+					const normalizedSource = normalizeSource(meta.source);
+					isUserInput =
+						normalizedSource.toLowerCase() === "user input" ||
+						meta.source.toLowerCase() === "user_input";
+				} else {
+					// No source at all, not autofilled
+					return false;
+				}
+			}
+
 			// If source is "User Input", it can't be autofilled by AI
 			if (isUserInput) return false;
 
@@ -1687,16 +1753,16 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 
 	// Helper function to render field label with Ask AI and Lock buttons
-		const renderFieldLabel = useCallback(
-			(
-				fieldId: string,
-				sectionId: string,
-				labelText: string,
-				required: boolean = false,
-				showWarning: boolean = true // Default to true - always check for warnings
-			) => {
-				// Always check for warnings (unless explicitly disabled)
-				const warning = showWarning ? getFieldWarning(fieldId) : null;
+	const renderFieldLabel = useCallback(
+		(
+			fieldId: string,
+			sectionId: string,
+			labelText: string,
+			required: boolean = false,
+			showWarning: boolean = true // Default to true - always check for warnings
+		) => {
+			// Always check for warnings (unless explicitly disabled)
+			const warning = showWarning ? getFieldWarning(fieldId) : null;
 
 			return (
 				<div className="mb-1">
@@ -1709,7 +1775,47 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						</span>
 						<FieldHelpTooltip
 							fieldId={fieldId}
-							fieldMetadata={fieldMetadata[fieldId]}
+							fieldMetadata={
+								fieldMetadata[fieldId]
+									? {
+											sources: fieldMetadata[fieldId]
+												.sources
+												? fieldMetadata[
+														fieldId
+												  ].sources!.map(
+														(
+															src
+														): SourceMetadata => {
+															if (
+																typeof src ===
+																	"object" &&
+																src !== null &&
+																"type" in src
+															) {
+																return src as SourceMetadata;
+															} else {
+																// Convert string to SourceMetadata
+																return {
+																	type: "document",
+																	name:
+																		typeof src ===
+																		"string"
+																			? src
+																			: undefined,
+																};
+															}
+														}
+												  )
+												: undefined,
+											warnings:
+												fieldMetadata[fieldId].warnings,
+											value: fieldMetadata[fieldId].value,
+											original_value:
+												fieldMetadata[fieldId]
+													.original_value,
+									  }
+									: undefined
+							}
 						/>
 						{warning && <FieldWarning message={warning} />}
 						{/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
@@ -1728,7 +1834,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				</div>
 			);
 		},
-		[onAskAI, renderFieldLockButton, getFieldWarning]
+		[onAskAI, renderFieldLockButton, getFieldWarning, fieldMetadata]
 	);
 
 	// Update local form state if the existingProject prop changes externally
@@ -2007,18 +2113,28 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 					// IMMEDIATELY update source to user_input when user types (regardless of whether it changed)
 					// This ensures color changes to blue instantly
-					const wasUserInput = normalizeSource(currentMeta.source || "").toLowerCase() === "user input" ||
-					                      currentMeta.source === "user_input";
-					
+					const wasUserInput =
+						normalizeSource(
+							currentMeta.source || ""
+						).toLowerCase() === "user input" ||
+						currentMeta.source === "user_input";
+
 					if (!wasUserInput) {
 						// Field was autofilled - mark as user input immediately
 						updatedMeta.source = "user_input";
-						
+
 						// Preserve original_source if not set
-						if (!updatedMeta.original_source && currentMeta.source) {
+						if (
+							!updatedMeta.original_source &&
+							currentMeta.source
+						) {
 							// Normalize source to original_source format
-							const sourceLower = currentMeta.source.toLowerCase();
-							if (sourceLower.includes("census") || sourceLower.includes("knowledge")) {
+							const sourceLower =
+								currentMeta.source.toLowerCase();
+							if (
+								sourceLower.includes("census") ||
+								sourceLower.includes("knowledge")
+							) {
 								updatedMeta.original_source = "knowledge_base";
 							} else if (
 								sourceLower.includes("document") ||
@@ -2047,22 +2163,34 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									? JSON.stringify(value)
 									: String(value);
 
-							if (currentMeta.original_source === "knowledge_base" || 
-							    (currentMeta.source && currentMeta.source.toLowerCase().includes("census"))) {
+							if (
+								currentMeta.original_source ===
+									"knowledge_base" ||
+								(currentMeta.source &&
+									currentMeta.source
+										.toLowerCase()
+										.includes("census"))
+							) {
 								divergenceWarnings.push(
 									`Value differs from market data (original: ${originalValueStr}, current: ${currentValueStr})`
 								);
-							} else if (currentMeta.original_source === "document" || 
-							           (currentMeta.source && (
-							             currentMeta.source.toLowerCase().includes("document") ||
-							             currentMeta.source.endsWith(".pdf") ||
-							             currentMeta.source.endsWith(".xlsx") ||
-							             currentMeta.source.endsWith(".docx")
-							           ))) {
+							} else if (
+								currentMeta.original_source === "document" ||
+								(currentMeta.source &&
+									(currentMeta.source
+										.toLowerCase()
+										.includes("document") ||
+										currentMeta.source.endsWith(".pdf") ||
+										currentMeta.source.endsWith(".xlsx") ||
+										currentMeta.source.endsWith(".docx")))
+							) {
 								divergenceWarnings.push(
 									`Value differs from extracted document data (original: ${originalValueStr}, current: ${currentValueStr})`
 								);
-							} else if (currentMeta.source && currentMeta.source !== "user_input") {
+							} else if (
+								currentMeta.source &&
+								currentMeta.source !== "user_input"
+							) {
 								divergenceWarnings.push(
 									`Value changed from original (original: ${originalValueStr}, current: ${currentValueStr})`
 								);
@@ -2176,7 +2304,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			// Only create a new version if form content actually changed
 			const contentChanged = hasFormContentChanged();
 			if (contentChanged) {
-				console.log("[EnhancedProjectForm] Form content changed, creating new version");
+				console.log(
+					"[EnhancedProjectForm] Form content changed, creating new version"
+				);
 				try {
 					await snapshotProjectResume();
 				} catch (snapshotError) {
@@ -2189,7 +2319,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				}
 				onVersionChange?.();
 			} else {
-				console.log("[EnhancedProjectForm] No form content changes detected, skipping version creation");
+				console.log(
+					"[EnhancedProjectForm] No form content changes detected, skipping version creation"
+				);
 			}
 
 			if (onComplete) {
@@ -2291,7 +2423,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												"basic-info"
 											)}
 											className={cn(
-												getFieldStylingClasses("projectName"),
+												getFieldStylingClasses(
+													"projectName"
+												),
 												isFieldDisabled(
 													"projectName",
 													"basic-info"
@@ -2618,7 +2752,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"assetType",
 													"basic-info"
 												)}
-												isAutofilled={isFieldAutofilled("assetType")}
+												isAutofilled={isFieldAutofilled(
+													"assetType"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -2662,7 +2798,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"projectPhase",
 													"basic-info"
 												)}
-												isAutofilled={isFieldAutofilled("projectPhase")}
+												isAutofilled={isFieldAutofilled(
+													"projectPhase"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -2706,7 +2844,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"basic-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("projectDescription"),
+													getFieldStylingClasses(
+														"projectDescription"
+													),
 													"w-full h-24 px-4 py-2 rounded-md focus:outline-none focus:ring-2",
 													isFieldDisabled(
 														"projectDescription",
@@ -2805,7 +2945,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"loan-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("loanAmountRequested"),
+													getFieldStylingClasses(
+														"loanAmountRequested"
+													),
 													isFieldDisabled(
 														"loanAmountRequested",
 														"loan-info"
@@ -2862,7 +3004,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"loan-info"
 												)}
 												gridCols="grid-cols-2 md:grid-cols-3"
-												isAutofilled={isFieldAutofilled("loanType")}
+												isAutofilled={isFieldAutofilled(
+													"loanType"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -2907,7 +3051,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"loan-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("targetLtvPercent"),
+													getFieldStylingClasses(
+														"targetLtvPercent"
+													),
 													isFieldDisabled(
 														"targetLtvPercent",
 														"loan-info"
@@ -2961,7 +3107,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"loan-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("targetLtcPercent"),
+													getFieldStylingClasses(
+														"targetLtcPercent"
+													),
 													isFieldDisabled(
 														"targetLtcPercent",
 														"loan-info"
@@ -3017,7 +3165,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"loan-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("amortizationYears"),
+													getFieldStylingClasses(
+														"amortizationYears"
+													),
 													isFieldDisabled(
 														"amortizationYears",
 														"loan-info"
@@ -3071,7 +3221,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"loan-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("interestOnlyPeriodMonths"),
+													getFieldStylingClasses(
+														"interestOnlyPeriodMonths"
+													),
 													isFieldDisabled(
 														"interestOnlyPeriodMonths",
 														"loan-info"
@@ -3133,7 +3285,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"interestRateType",
 													"loan-info"
 												)}
-												isAutofilled={isFieldAutofilled("interestRateType")}
+												isAutofilled={isFieldAutofilled(
+													"interestRateType"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -3169,7 +3323,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"loan-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("targetCloseDate"),
+													getFieldStylingClasses(
+														"targetCloseDate"
+													),
 													isFieldDisabled(
 														"targetCloseDate",
 														"loan-info"
@@ -3227,7 +3383,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												"recoursePreference",
 												"loan-info"
 											)}
-											isAutofilled={isFieldAutofilled("recoursePreference")}
+											isAutofilled={isFieldAutofilled(
+												"recoursePreference"
+											)}
 										/>
 									</div>
 								</AskAIButton>
@@ -3269,7 +3427,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											)}
 											className={cn(
 												"w-full h-24 px-4 py-2 rounded-md border focus:outline-none focus:ring-2 transition-colors",
-												getFieldStylingClasses("useOfProceeds"),
+												getFieldStylingClasses(
+													"useOfProceeds"
+												),
 												isFieldDisabled(
 													"useOfProceeds",
 													"loan-info"
@@ -3365,7 +3525,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"financials"
 												)}
 												className={cn(
-													getFieldStylingClasses("purchasePrice"),
+													getFieldStylingClasses(
+														"purchasePrice"
+													),
 													isFieldDisabled(
 														"purchasePrice",
 														"financials"
@@ -3419,7 +3581,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"financials"
 												)}
 												className={cn(
-													getFieldStylingClasses("totalProjectCost"),
+													getFieldStylingClasses(
+														"totalProjectCost"
+													),
 													isFieldDisabled(
 														"totalProjectCost",
 														"financials"
@@ -3475,7 +3639,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"financials"
 												)}
 												className={cn(
-													getFieldStylingClasses("capexBudget"),
+													getFieldStylingClasses(
+														"capexBudget"
+													),
 													isFieldDisabled(
 														"capexBudget",
 														"financials"
@@ -3529,7 +3695,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"financials"
 												)}
 												className={cn(
-													getFieldStylingClasses("equityCommittedPercent"),
+													getFieldStylingClasses(
+														"equityCommittedPercent"
+													),
 													isFieldDisabled(
 														"equityCommittedPercent",
 														"financials"
@@ -3585,7 +3753,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"financials"
 												)}
 												className={cn(
-													getFieldStylingClasses("propertyNoiT12"),
+													getFieldStylingClasses(
+														"propertyNoiT12"
+													),
 													isFieldDisabled(
 														"propertyNoiT12",
 														"financials"
@@ -3639,7 +3809,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"financials"
 												)}
 												className={cn(
-													getFieldStylingClasses("stabilizedNoiProjected"),
+													getFieldStylingClasses(
+														"stabilizedNoiProjected"
+													),
 													isFieldDisabled(
 														"stabilizedNoiProjected",
 														"financials"
@@ -3697,7 +3869,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												"exitStrategy",
 												"financials"
 											)}
-											isAutofilled={isFieldAutofilled("exitStrategy")}
+											isAutofilled={isFieldAutofilled(
+												"exitStrategy"
+											)}
 										/>
 									</div>
 								</AskAIButton>
@@ -3742,7 +3916,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											)}
 											className={cn(
 												"w-full h-24 px-4 py-2 rounded-md border focus:outline-none focus:ring-2 transition-colors",
-												getFieldStylingClasses("businessPlanSummary"),
+												getFieldStylingClasses(
+													"businessPlanSummary"
+												),
 												isFieldDisabled(
 													"businessPlanSummary",
 													"financials"
@@ -3792,7 +3968,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											)}
 											className={cn(
 												"w-full h-24 px-4 py-2 rounded-md border focus:outline-none focus:ring-2 transition-colors",
-												getFieldStylingClasses("marketOverviewSummary"),
+												getFieldStylingClasses(
+													"marketOverviewSummary"
+												),
 												isFieldDisabled(
 													"marketOverviewSummary",
 													"financials"
@@ -3887,7 +4065,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"property-specs"
 												)}
 												className={cn(
-													getFieldStylingClasses("totalResidentialUnits"),
+													getFieldStylingClasses(
+														"totalResidentialUnits"
+													),
 													isFieldDisabled(
 														"totalResidentialUnits",
 														"property-specs"
@@ -3938,7 +4118,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"property-specs"
 												)}
 												className={cn(
-													getFieldStylingClasses("totalResidentialNRSF"),
+													getFieldStylingClasses(
+														"totalResidentialNRSF"
+													),
 													isFieldDisabled(
 														"totalResidentialNRSF",
 														"property-specs"
@@ -3991,7 +4173,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"property-specs"
 												)}
 												className={cn(
-													getFieldStylingClasses("totalCommercialGRSF"),
+													getFieldStylingClasses(
+														"totalCommercialGRSF"
+													),
 													isFieldDisabled(
 														"totalCommercialGRSF",
 														"property-specs"
@@ -4042,7 +4226,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"property-specs"
 												)}
 												className={cn(
-													getFieldStylingClasses("grossBuildingArea"),
+													getFieldStylingClasses(
+														"grossBuildingArea"
+													),
 													isFieldDisabled(
 														"grossBuildingArea",
 														"property-specs"
@@ -4095,7 +4281,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"property-specs"
 												)}
 												className={cn(
-													getFieldStylingClasses("numberOfStories"),
+													getFieldStylingClasses(
+														"numberOfStories"
+													),
 													isFieldDisabled(
 														"numberOfStories",
 														"property-specs"
@@ -4146,7 +4334,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"property-specs"
 												)}
 												className={cn(
-													getFieldStylingClasses("parkingSpaces"),
+													getFieldStylingClasses(
+														"parkingSpaces"
+													),
 													isFieldDisabled(
 														"parkingSpaces",
 														"property-specs"
@@ -4247,7 +4437,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"dev-budget"
 												)}
 												className={cn(
-													getFieldStylingClasses("landAcquisition"),
+													getFieldStylingClasses(
+														"landAcquisition"
+													),
 													isFieldDisabled(
 														"landAcquisition",
 														"dev-budget"
@@ -4300,7 +4492,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"dev-budget"
 												)}
 												className={cn(
-													getFieldStylingClasses("baseConstruction"),
+													getFieldStylingClasses(
+														"baseConstruction"
+													),
 													isFieldDisabled(
 														"baseConstruction",
 														"dev-budget"
@@ -4355,7 +4549,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"dev-budget"
 												)}
 												className={cn(
-													getFieldStylingClasses("contingency"),
+													getFieldStylingClasses(
+														"contingency"
+													),
 													isFieldDisabled(
 														"contingency",
 														"dev-budget"
@@ -4407,7 +4603,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"dev-budget"
 												)}
 												className={cn(
-													getFieldStylingClasses("ffe"),
+													getFieldStylingClasses(
+														"ffe"
+													),
 													isFieldDisabled(
 														"ffe",
 														"dev-budget"
@@ -4461,7 +4659,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"dev-budget"
 												)}
 												className={cn(
-													getFieldStylingClasses("aeFees"),
+													getFieldStylingClasses(
+														"aeFees"
+													),
 													isFieldDisabled(
 														"aeFees",
 														"dev-budget"
@@ -4514,7 +4714,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"dev-budget"
 												)}
 												className={cn(
-													getFieldStylingClasses("developerFee"),
+													getFieldStylingClasses(
+														"developerFee"
+													),
 													isFieldDisabled(
 														"developerFee",
 														"dev-budget"
@@ -4569,7 +4771,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"dev-budget"
 												)}
 												className={cn(
-													getFieldStylingClasses("interestReserve"),
+													getFieldStylingClasses(
+														"interestReserve"
+													),
 													isFieldDisabled(
 														"interestReserve",
 														"dev-budget"
@@ -4622,7 +4826,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"dev-budget"
 												)}
 												className={cn(
-													getFieldStylingClasses("workingCapital"),
+													getFieldStylingClasses(
+														"workingCapital"
+													),
 													isFieldDisabled(
 														"workingCapital",
 														"dev-budget"
@@ -4715,7 +4921,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"market-context"
 												)}
 												className={cn(
-													getFieldStylingClasses("submarketName"),
+													getFieldStylingClasses(
+														"submarketName"
+													),
 													isFieldDisabled(
 														"submarketName",
 														"market-context"
@@ -4770,7 +4978,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"market-context"
 												)}
 												className={cn(
-													getFieldStylingClasses("walkabilityScore"),
+													getFieldStylingClasses(
+														"walkabilityScore"
+													),
 													isFieldDisabled(
 														"walkabilityScore",
 														"market-context"
@@ -4825,7 +5035,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"market-context"
 												)}
 												className={cn(
-													getFieldStylingClasses("population3Mi"),
+													getFieldStylingClasses(
+														"population3Mi"
+													),
 													isFieldDisabled(
 														"population3Mi",
 														"market-context"
@@ -4878,7 +5090,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"market-context"
 												)}
 												className={cn(
-													getFieldStylingClasses("medianHHIncome"),
+													getFieldStylingClasses(
+														"medianHHIncome"
+													),
 													isFieldDisabled(
 														"medianHHIncome",
 														"market-context"
@@ -4935,7 +5149,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"market-context"
 												)}
 												className={cn(
-													getFieldStylingClasses("renterOccupiedPercent"),
+													getFieldStylingClasses(
+														"renterOccupiedPercent"
+													),
 													isFieldDisabled(
 														"renterOccupiedPercent",
 														"market-context"
@@ -4988,7 +5204,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"market-context"
 												)}
 												className={cn(
-													getFieldStylingClasses("popGrowth201020"),
+													getFieldStylingClasses(
+														"popGrowth201020"
+													),
 													isFieldDisabled(
 														"popGrowth201020",
 														"market-context"
@@ -5094,7 +5312,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"opportunityZone",
 													"special-considerations"
 												)}
-												isAutofilled={isFieldAutofilled("opportunityZone")}
+												isAutofilled={isFieldAutofilled(
+													"opportunityZone"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -5135,7 +5355,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"affordableHousing",
 													"special-considerations"
 												)}
-												isAutofilled={isFieldAutofilled("affordableHousing")}
+												isAutofilled={isFieldAutofilled(
+													"affordableHousing"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -5184,7 +5406,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 															"special-considerations"
 														)}
 														className={cn(
-															getFieldStylingClasses("affordableUnitsNumber"),
+															getFieldStylingClasses(
+																"affordableUnitsNumber"
+															),
 															isFieldDisabled(
 																"affordableUnitsNumber",
 																"special-considerations"
@@ -5238,7 +5462,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 															"special-considerations"
 														)}
 														className={cn(
-															getFieldStylingClasses("amiTargetPercent"),
+															getFieldStylingClasses(
+																"amiTargetPercent"
+															),
 															isFieldDisabled(
 																"amiTargetPercent",
 																"special-considerations"
@@ -5292,7 +5518,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"taxExemption",
 													"special-considerations"
 												)}
-												isAutofilled={isFieldAutofilled("taxExemption")}
+												isAutofilled={isFieldAutofilled(
+													"taxExemption"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -5333,7 +5561,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"taxAbatement",
 													"special-considerations"
 												)}
-												isAutofilled={isFieldAutofilled("taxAbatement")}
+												isAutofilled={isFieldAutofilled(
+													"taxAbatement"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -5418,7 +5648,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"timeline"
 												)}
 												className={cn(
-													getFieldStylingClasses("groundbreakingDate"),
+													getFieldStylingClasses(
+														"groundbreakingDate"
+													),
 													isFieldDisabled(
 														"groundbreakingDate",
 														"timeline"
@@ -5463,7 +5695,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"timeline"
 												)}
 												className={cn(
-													getFieldStylingClasses("completionDate"),
+													getFieldStylingClasses(
+														"completionDate"
+													),
 													isFieldDisabled(
 														"completionDate",
 														"timeline"
@@ -5510,7 +5744,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"timeline"
 												)}
 												className={cn(
-													getFieldStylingClasses("firstOccupancy"),
+													getFieldStylingClasses(
+														"firstOccupancy"
+													),
 													isFieldDisabled(
 														"firstOccupancy",
 														"timeline"
@@ -5555,7 +5791,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"timeline"
 												)}
 												className={cn(
-													getFieldStylingClasses("stabilization"),
+													getFieldStylingClasses(
+														"stabilization"
+													),
 													isFieldDisabled(
 														"stabilization",
 														"timeline"
@@ -5615,7 +5853,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"entitlements",
 													"timeline"
 												)}
-												isAutofilled={isFieldAutofilled("entitlements")}
+												isAutofilled={isFieldAutofilled(
+													"entitlements"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -5661,7 +5901,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"permitsIssued",
 													"timeline"
 												)}
-												isAutofilled={isFieldAutofilled("permitsIssued")}
+												isAutofilled={isFieldAutofilled(
+													"permitsIssued"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -5754,7 +5996,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"site-context"
 												)}
 												className={cn(
-													getFieldStylingClasses("totalSiteAcreage"),
+													getFieldStylingClasses(
+														"totalSiteAcreage"
+													),
 													isFieldDisabled(
 														"totalSiteAcreage",
 														"site-context"
@@ -5809,7 +6053,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"currentSiteStatus",
 													"site-context"
 												)}
-												isAutofilled={isFieldAutofilled("currentSiteStatus")}
+												isAutofilled={isFieldAutofilled(
+													"currentSiteStatus"
+												)}
 											/>
 										</div>
 									</AskAIButton>
@@ -5847,7 +6093,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"site-context"
 												)}
 												className={cn(
-													getFieldStylingClasses("siteAccess"),
+													getFieldStylingClasses(
+														"siteAccess"
+													),
 													isFieldDisabled(
 														"siteAccess",
 														"site-context"
@@ -5892,7 +6140,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"site-context"
 												)}
 												className={cn(
-													getFieldStylingClasses("proximityShopping"),
+													getFieldStylingClasses(
+														"proximityShopping"
+													),
 													isFieldDisabled(
 														"proximityShopping",
 														"site-context"
@@ -5985,7 +6235,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"sponsor-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("sponsorEntityName"),
+													getFieldStylingClasses(
+														"sponsorEntityName"
+													),
 													isFieldDisabled(
 														"sponsorEntityName",
 														"sponsor-info"
@@ -6030,7 +6282,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"sponsor-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("sponsorStructure"),
+													getFieldStylingClasses(
+														"sponsorStructure"
+													),
 													isFieldDisabled(
 														"sponsorStructure",
 														"sponsor-info"
@@ -6077,7 +6331,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"sponsor-info"
 												)}
 												className={cn(
-													getFieldStylingClasses("equityPartner"),
+													getFieldStylingClasses(
+														"equityPartner"
+													),
 													isFieldDisabled(
 														"equityPartner",
 														"sponsor-info"
@@ -6122,7 +6378,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												)}
 												className={cn(
 													"w-full h-20 px-4 py-2 rounded-md border focus:outline-none focus:ring-2 transition-colors",
-													getFieldStylingClasses("contactInfo"),
+													getFieldStylingClasses(
+														"contactInfo"
+													),
 													isFieldDisabled(
 														"contactInfo",
 														"sponsor-info"
