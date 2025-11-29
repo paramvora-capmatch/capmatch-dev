@@ -86,7 +86,7 @@ const FIELD_TO_SECTION: Record<string, string> = {
   "permTakeoutPlanned": "loan-info",
   "realEstateTaxes": "financials",
   "insurance": "financials",
-  "utilities": "financials",
+  "utilitiesCosts": "financials",
   "repairsMaint": "financials",
   "managementFee": "financials",
   "generalAdmin": "financials",

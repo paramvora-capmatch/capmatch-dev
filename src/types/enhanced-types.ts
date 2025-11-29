@@ -406,7 +406,7 @@ export interface ProjectProfile {
 	allInRate?: number;
 	realEstateTaxes?: number;
 	insurance?: number;
-	utilities?: number;
+	utilitiesCosts?: number;
 	repairsAndMaintenance?: number;
 	managementFee?: number;
 	generalAndAdmin?: number;

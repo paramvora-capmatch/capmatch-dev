@@ -414,7 +414,7 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
           />
           <KeyValueDisplay
             label="Utilities"
-            value={formatCurrency(project.utilities)}
+            value={formatCurrency(project.utilitiesCosts)}
           />
           <KeyValueDisplay
             label="Repairs & Maintenance"

@@ -769,8 +769,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
               updatedMeta.warnings = [...existingWarnings];
               divergenceWarnings.forEach((warning) => {
-                if (!updatedMeta.warnings.includes(warning)) {
-                  updatedMeta.warnings.push(warning);
+                if (!updatedMeta.warnings?.includes(warning)) {
+                  updatedMeta.warnings = [...(updatedMeta.warnings || []), warning];
                 }
               });
             } else {
@@ -1826,6 +1826,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
       isFieldLocked,
       renderFieldLabel,
       toggleSectionLock,
+      getFieldStylingClasses,
+      isFieldAutofilled,
     ]
   );
 

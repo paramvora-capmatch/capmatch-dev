@@ -561,7 +561,7 @@ export const extractProjectFields = async (
       source: "Proforma",
       warnings: [],
     },
-    utilities: {
+    utilitiesCosts: {
       value: 180000,
       source: "Proforma",
       warnings: [],

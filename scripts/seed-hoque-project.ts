@@ -427,7 +427,7 @@ async function callOnboardBorrower(
 async function createAdvisorAccount(): Promise<{ userId: string; orgId: string } | null> {
   console.log('[seed] Setting up advisor account (Cody Field)...');
   
-  const advisorEmail = 'cody@capmatch.com';
+  const advisorEmail = 'cody.field@capmatch.com';
   const advisorPassword = 'password123';
   const advisorName = 'Cody Field';
 
@@ -1901,7 +1901,7 @@ async function seedHoqueProject(): Promise<void> {
     // Summary
     console.log('\n✅ Hoque (SoGood Apartments) complete account seed completed successfully!');
     console.log('\n📊 Summary:');
-    console.log(`   Advisor: cody@capmatch.com (password: password123)`);
+    console.log(`   Advisor: cody.field@capmatch.com (password: password123)`);
     console.log(`   Borrower: info@hoqueglobal.com (password: password123)`);
     console.log(`   Project: ${HOQUE_PROJECT_NAME} (${projectId})`);
     console.log(`   Project Resume: ✅ Seeded (100% complete)`);
@@ -1930,7 +1930,7 @@ async function cleanupHoqueAccounts(): Promise<void> {
 
   try {
     const borrowerEmail = 'info@hoqueglobal.com';
-    const advisorEmail = 'cody@capmatch.com';
+    const advisorEmail = 'cody.field@capmatch.com';
     const teamMemberEmails = [
       'joel.heikenfeld@acara.com',
       'mike.hoque@hoqueglobal.com',

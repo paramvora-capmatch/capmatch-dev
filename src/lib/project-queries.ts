@@ -119,7 +119,7 @@ export interface ProjectResumeContent {
   // Section 3.5: Operating Expenses (Proforma Year 1)
   realEstateTaxes?: number;
   insurance?: number;
-  utilities?: number;
+  utilitiesCosts?: number;
   repairsAndMaintenance?: number;
   managementFee?: number;
   generalAndAdmin?: number;
