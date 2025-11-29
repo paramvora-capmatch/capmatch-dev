@@ -8,8 +8,11 @@
  * Check if mock data should be used instead of backend API
  * Reads from NEXT_PUBLIC_USE_MOCK_DATA environment variable
  * Defaults to false (use real backend)
+ * 
+ * Note: Named shouldUseMockData (not useMockData) to avoid React hooks linting rules
+ * since this is used in API routes, not React components.
  */
-export const useMockData = (): boolean => {
+export const shouldUseMockData = (): boolean => {
   if (typeof window === 'undefined') {
     // Server-side: read from process.env
     return process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';

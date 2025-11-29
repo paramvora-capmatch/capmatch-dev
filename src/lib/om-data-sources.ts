@@ -72,7 +72,7 @@ export const dataSourceMap: Record<string, DataSource> = {
   'perm takeout planned': { primary: 'Document [Term Sheet]', backup: 'User Input' },
   'real estate taxes': { primary: 'Document [Proforma]', backup: 'External [Tax Assessor]' },
   'insurance': { primary: 'Document [Proforma]', backup: 'User Input' },
-  'utilities': { primary: 'Document [Proforma]', backup: 'User Input' },
+  'utilities costs': { primary: 'Document [Proforma]', backup: 'User Input' },
   'repairs & maint': { primary: 'Document [Proforma]', backup: 'User Input' },
   'management fee': { primary: 'Document [Proforma]', backup: 'Derived [3-5% EGI]' },
   'general & admin': { primary: 'Document [Proforma]', backup: 'User Input' },

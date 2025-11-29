@@ -53,8 +53,20 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [comparePair, setComparePair] = useState<[string, string] | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const prevIsOpenRef = useRef(false);
 
-  const currentVersionId = resource?.current_version_id ?? null;
+  const currentVersionId = useMemo(() => {
+    // Priority 1: Explicit current version pointer from resource
+    if (resource?.current_version_id) return resource.current_version_id;
+
+    // Priority 2: Version marked as 'active'
+    const active = versions.find((v) => v.status === "active");
+    if (active) return active.id;
+
+    // Priority 3: Latest version (first in the list as it's sorted desc)
+    return versions.length > 0 ? versions[0].id : null;
+  }, [resource, versions]);
+
   const currentVersion = versions.find((v) => v.id === currentVersionId);
 
   const fetchVersions = useCallback(async () => {
@@ -109,12 +121,47 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 
       let creatorProfiles: CreatorProfile[] = [];
       if (creatorIds.length > 0) {
-        const { data: profiles, error: profileError } = await supabase
-          .from("profiles")
-          .select("id, full_name, email")
-          .in("id", creatorIds);
-        if (profileError) throw profileError;
-        creatorProfiles = profiles || [];
+        // Use edge function to fetch user data (bypasses RLS, works for advisors)
+        try {
+          const { data: profiles, error: profileError } = await supabase.functions.invoke(
+            'get-user-data',
+            {
+              body: { userIds: creatorIds },
+            }
+          );
+
+          if (profileError) {
+            console.error('[ResumeVersionHistory] Failed to fetch creator profiles via edge function:', profileError);
+            // Fall back to direct query as a backup (may not work for advisors)
+            const { data: directProfiles, error: directError } = await supabase
+              .from("profiles")
+              .select("id, full_name, email")
+              .in("id", creatorIds);
+            if (!directError && directProfiles) {
+              creatorProfiles = directProfiles;
+            }
+          } else if (profiles && Array.isArray(profiles)) {
+            creatorProfiles = profiles.map((p: { id: string; full_name?: string | null; email?: string | null }) => ({
+              id: p.id,
+              full_name: p.full_name,
+              email: p.email,
+            }));
+          }
+        } catch (err) {
+          console.error('[ResumeVersionHistory] Error fetching creator profiles:', err);
+          // Fall back to direct query
+          try {
+            const { data: directProfiles, error: directError } = await supabase
+              .from("profiles")
+              .select("id, full_name, email")
+              .in("id", creatorIds);
+            if (!directError && directProfiles) {
+              creatorProfiles = directProfiles;
+            }
+          } catch (fallbackErr) {
+            console.error('[ResumeVersionHistory] Fallback profile fetch also failed:', fallbackErr);
+          }
+        }
       }
 
       const creatorMap = new Map(
@@ -148,6 +195,21 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
       void fetchVersions();
     }
   }, [isOpen, fetchVersions]);
+
+  // Call onOpen callback when modal opens (after state update completes)
+  useEffect(() => {
+    const wasOpen = prevIsOpenRef.current;
+    const isOpening = isOpen && !wasOpen;
+    
+    if (isOpening && onOpen) {
+      // Use setTimeout to defer to next tick, ensuring state updates have completed
+      setTimeout(() => {
+        onOpen();
+      }, 0);
+    }
+    
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, onOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: globalThis.MouseEvent) => {
@@ -214,24 +276,18 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
       <Button
         variant="outline"
         size="sm"
-        className="flex items-center gap-1"
+        className="group flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
         onClick={(event) => {
           event.stopPropagation();
-          setIsOpen((prev) => {
-            const next = !prev;
-            if (!prev) {
-              onOpen?.();
-            }
-            return next;
-          });
+          setIsOpen((prev) => !prev);
         }}
         onMouseDown={(event) => {
           event.stopPropagation();
         }}
         title="Resume versions"
       >
-        <History className="h-4 w-4" />
-        Versions
+        <History className="h-5 w-5 text-gray-600 flex-shrink-0" />
+        <span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">Versions</span>
       </Button>
 
       {isOpen && (
@@ -264,15 +320,23 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
                   </div>
                 ) : (
                   versions.map((version) => {
+                    // Determine if this is the current version
+                    // First check if it matches the current_version_id, otherwise check if it's the first/latest version
+                    const isCurrentVersion = version.id === currentVersionId;
                     const isActive =
-                      version.id === (resource?.current_version_id ?? null);
+                      isCurrentVersion || version.status === "active";
                     const status =
                       version.status || (isActive ? "active" : "superseded");
+                    
+                    // Show buttons on all versions except the current one
+                    // If currentVersionId is null, we'll show buttons on all versions (safer than hiding them all)
+                    const shouldShowButtons = !isCurrentVersion;
+                    
                     return (
                       <div
                         key={version.id}
                         className={`p-3 rounded border ${
-                          isActive
+                          isCurrentVersion
                             ? "border-blue-200 bg-blue-50"
                             : "border-gray-200 bg-gray-50"
                         }`}
@@ -337,7 +401,8 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
                             </div>
 
                             <div className="flex gap-1">
-                              {!isActive && (
+                              {/* Restore button: show on all versions except current */}
+                              {shouldShowButtons && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -351,8 +416,8 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
                                   Restore
                                 </Button>
                               )}
-                              {currentVersionId &&
-                                version.id !== currentVersionId && (
+                              {/* Compare button: show on all versions except current (only if we have a current version to compare against) */}
+                              {shouldShowButtons && currentVersionId && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -366,10 +431,10 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
                                   }}
                                   title={`Compare to ${currentVersionLabel}`}
                                 >
-                                    <GitCompare className="h-4 w-4 mr-1" />
-                                    Compare
-                                  </Button>
-                                )}
+                                  <GitCompare className="h-4 w-4 mr-1" />
+                                  Compare
+                                </Button>
+                              )}
                             </div>
                           </div>
                         )}

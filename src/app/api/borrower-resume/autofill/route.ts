@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { useMockData, getBackendUrl } from "@/lib/apiConfig";
+import { shouldUseMockData, getBackendUrl } from "@/lib/apiConfig";
 import { extractBorrowerFields } from "@/services/mockBorrowerFieldExtraction";
 import { createClient } from "@supabase/supabase-js";
 
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 		}
 
 		// Check if we should use mock data
-		if (useMockData()) {
+		if (shouldUseMockData()) {
 			console.log("[API] Using mock data for borrower-resume autofill");
 
 			// Use mock data - extract fields and save directly

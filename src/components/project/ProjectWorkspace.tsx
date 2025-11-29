@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
+import { useProjectStore } from "@/stores/useProjectStore";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
@@ -198,9 +199,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [pathname, router, searchParams, setBorrowerEditing]);
 
   // Load org data when we have a project
+  // Note: Advisors may not have access to borrower orgs, so we handle errors gracefully
   useEffect(() => {
     const loadOrgData = async () => {
       if (!activeProject?.owner_org_id) return;
+
+      // Skip org loading for advisors - they don't need org member data
+      if (user?.role === "advisor") {
+        console.log(`[ProjectWorkspace] Skipping org load for advisor user`);
+        return;
+      }
 
       const { currentOrg } = useOrgStore.getState();
       // Only load if we haven't loaded this org yet
@@ -208,11 +216,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         console.log(
           `[ProjectWorkspace] Loading org data for: ${activeProject.owner_org_id}`
         );
-        await loadOrg(activeProject.owner_org_id);
+        try {
+          await loadOrg(activeProject.owner_org_id);
+        } catch (error) {
+          // Log but don't throw - org loading is optional for some users
+          console.warn(`[ProjectWorkspace] Failed to load org (non-fatal):`, error);
+        }
       }
     };
     loadOrgData();
-  }, [activeProject?.owner_org_id, loadOrg]);
+  }, [activeProject?.owner_org_id, loadOrg, user?.role]);
 
   const handleResumeVersionChange = useCallback(async () => {
     try {
@@ -242,13 +255,71 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
       // Only check for project existence after initial loading is complete
       if (!activeProject || activeProject.id !== projectId) {
-        const projectData = getProject(projectId);
+        let projectData = getProject(projectId);
+        
+        // If project not in store, try loading all user projects first
+        if (!projectData) {
+          console.log(`[ProjectWorkspace] Project ${projectId} not in store, loading user projects...`);
+          try {
+            await loadUserProjects();
+            projectData = getProject(projectId);
+          } catch (error) {
+            console.error("[ProjectWorkspace] Failed to load user projects:", error);
+          }
+        }
+
+        // If still not found, try fetching directly from database
+        if (!projectData) {
+          console.log(`[ProjectWorkspace] Project ${projectId} still not found, fetching directly...`);
+          try {
+            const fetchedProject = await getProjectWithResume(projectId);
+            
+            // Also fetch resources for the project
+            const { data: resourcesData } = await supabase
+              .from("resources")
+              .select("id, resource_type")
+              .eq("project_id", projectId);
+            
+            const projectDocsResource = resourcesData?.find((r: any) => r.resource_type === 'PROJECT_DOCS_ROOT');
+            const projectResumeResource = resourcesData?.find((r: any) => r.resource_type === 'PROJECT_RESUME');
+            
+            // Add resource IDs to the project
+            const projectWithResources = {
+              ...fetchedProject,
+              projectDocsResourceId: projectDocsResource?.id || null,
+              projectResumeResourceId: projectResumeResource?.id || fetchedProject.projectResumeResourceId || null,
+            };
+            
+            // Add the project to the store so it's available for other components
+            const { projects } = useProjectStore.getState();
+            // Only add if not already in the store
+            if (!projects.find((p) => p.id === projectId)) {
+              useProjectStore.setState({
+                projects: [...projects, projectWithResources],
+              });
+            }
+            
+            projectData = projectWithResources;
+            console.log(`[ProjectWorkspace] Successfully fetched and added project ${projectId} to store`);
+          } catch (error) {
+            console.error(`[ProjectWorkspace] Failed to fetch project ${projectId}:`, error);
+            // Only redirect if we're confident the project doesn't exist
+            router.push("/dashboard");
+            return;
+          }
+        }
+
         if (projectData) {
           setActiveProject(projectData);
 
-          // Load org data for permission checks
-          if (projectData.owner_org_id) {
-            await loadOrg(projectData.owner_org_id);
+          // Load org data for permission checks (skip for advisors)
+          if (projectData.owner_org_id && user?.role !== "advisor") {
+            try {
+              await loadOrg(projectData.owner_org_id);
+            } catch (error) {
+              // Log but don't throw - org loading is optional for some users
+              console.warn(`[ProjectWorkspace] Failed to load org (non-fatal):`, error);
+            }
           }
         } else {
           // Only show error if we're confident the project doesn't exist
@@ -267,6 +338,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     isInitialLoading,
     router,
     loadOrg,
+    loadUserProjects,
+    user?.role,
   ]);
 
   // Subscribe to realtime changes for project resume

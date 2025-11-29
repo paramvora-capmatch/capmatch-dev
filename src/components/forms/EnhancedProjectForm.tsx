@@ -2016,7 +2016,20 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						
 						// Preserve original_source if not set
 						if (!updatedMeta.original_source && currentMeta.source) {
-							updatedMeta.original_source = currentMeta.source;
+							// Normalize source to original_source format
+							const sourceLower = currentMeta.source.toLowerCase();
+							if (sourceLower.includes("census") || sourceLower.includes("knowledge")) {
+								updatedMeta.original_source = "knowledge_base";
+							} else if (
+								sourceLower.includes("document") ||
+								currentMeta.source.endsWith(".pdf") ||
+								currentMeta.source.endsWith(".xlsx") ||
+								currentMeta.source.endsWith(".docx")
+							) {
+								updatedMeta.original_source = "document";
+							} else {
+								updatedMeta.original_source = null;
+							}
 						}
 
 						// Add divergence warning if value changed from original
@@ -6193,6 +6206,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			renderFieldLabel,
 			toggleSectionLock,
 			activeOrg?.id,
+			getFieldStylingClasses,
+			isFieldAutofilled,
 		]
 	);
 	return (

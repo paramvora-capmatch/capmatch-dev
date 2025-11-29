@@ -5,7 +5,7 @@
 DO $$
 DECLARE
   v_user_id UUID;
-  v_email TEXT := 'cody@capmatch.com';
+  v_email TEXT := 'cody.field@capmatch.com';
   v_name TEXT := 'Cody Field';
   v_org_name TEXT := 'CapMatch Advisors';
   v_org_id UUID;

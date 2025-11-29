@@ -88,6 +88,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     }
   };
 
+  // Determine dashboard link based on user role
+  const dashboardLink = useMemo(() => {
+    if (!user) return "/dashboard";
+    switch (user.role) {
+      case "advisor":
+        return "/advisor/dashboard";
+      case "lender":
+        return "/lender/dashboard";
+      case "borrower":
+      default:
+        return "/dashboard";
+    }
+  }, [user]);
+
   return (
     <>
     <div className="flex h-screen bg-gray-200">
@@ -99,7 +113,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <header className="bg-white shadow-sm sticky top-0 z-10 flex-shrink-0">
           <div className={`py-4 ${headerPaddingClass} flex items-center justify-between`}>
             <div className="flex items-center space-x-3">
-              <Link href="/dashboard">
+              <Link href={dashboardLink}>
                 <Image
                   src="/CapMatchLogo.png"
                   alt="CapMatch"
