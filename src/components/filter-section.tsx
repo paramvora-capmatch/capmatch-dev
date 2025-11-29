@@ -7,7 +7,7 @@ import DealTypeFilter from './filters/DealTypeFilter';
 import CapitalTypeFilter from './filters/CapitalTypeFilter';
 import DebtRangeFilter from './filters/DebtRangeFilter';
 import LocationFilter from './filters/LocationFilter';
-import { LenderFilters } from '../contexts/LenderContext';
+import { LenderFilters } from '@/stores/useLenderStore';
 
 interface FilterSectionProps {
   formData: LenderFilters;

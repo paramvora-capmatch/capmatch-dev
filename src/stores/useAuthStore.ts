@@ -1,7 +1,6 @@
 // src/stores/useAuthStore.ts
 import { create } from "zustand";
 import { supabase } from "../../lib/supabaseClient";
-import { storageService } from "@/lib/storage";
 import {
   EnhancedUser,
   // New schema types

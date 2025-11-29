@@ -1,7 +1,7 @@
 // src/components/graph/LenderGraph.tsx
 'use client';
 
-import { LenderFilters } from "@/contexts/LenderContext";
+import { LenderFilters } from "@/stores/useLenderStore";
 import type React from "react";
 import { useRef, useEffect, useState } from "react";
 import type { LenderProfile } from "../../types/lender";
