@@ -453,7 +453,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
     }
     
     // TODO: Implement actual autofill logic when backend is ready
-    console.log('Autofill Borrower Resume clicked - will extract data from documents');
   }, [isEditing, collapsed, autofillAnimationKey]);
 
   // Initialize form once on first load (avoid resetting on each store update)
@@ -640,7 +639,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
   // handleRemovePrincipal removed as it's not used
   const handleRemovePrincipal = useCallback(async (id: string) => {
-    console.warn("Principals are no longer supported in the new schema");
+    // Principals are no longer supported in the new schema
   }, []);
 
   // FormWizard Steps definition (useMemo)

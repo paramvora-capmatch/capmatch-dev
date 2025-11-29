@@ -81,8 +81,5 @@ async clear(): Promise<void> {
 // Factory function
 export function createStorageService(useEncryption: boolean = false, prefix: string = 'capmatch_'): StorageService {
   // Encryption is not yet implemented. If needed in the future, implement with 'secure-ls' package.
-  if (useEncryption) {
-    console.warn("Encryption requested but not implemented. Using LocalStorage fallback.");
-  }
   return new LocalStorageService(prefix);
 }

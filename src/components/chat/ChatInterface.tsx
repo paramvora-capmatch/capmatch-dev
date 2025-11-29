@@ -147,7 +147,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const hasOwnerPermissions = useMemo(() => {
     if (!activeProject?.owner_org_id || !currentOrg) return false;
     const canManage = isOwner && currentOrg.id === activeProject.owner_org_id;
-    console.log(`[ChatInterface] Has owner permissions: ${canManage}, isOwner: ${isOwner}, currentOrg: ${currentOrg?.id}, projectOwner: ${activeProject.owner_org_id}`);
     return canManage;
   }, [isOwner, currentOrg, activeProject]);
 
@@ -466,7 +465,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     const uniqueParticipants = Array.from(new Set(allowedParticipants));
     if (uniqueParticipants.length === 0) {
-      console.warn('No eligible participants for the new thread');
       return;
     }
 

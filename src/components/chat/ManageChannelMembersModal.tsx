@@ -321,7 +321,6 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
             }
           }
 
-          console.log('[ManageChannelMembersModal] After add: Enriched participants:', enriched);
           setEnrichedParticipants(enriched);
           previousParticipantIdsRef.current = new Set((participantsData || []).map((p: any) => p.user_id));
         }
