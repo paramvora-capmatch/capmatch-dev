@@ -22,7 +22,6 @@ import {
   ProjectStatus,
   BorrowerResume,
 } from "../../../../types/enhanced-types";
-import { generateProjectFeedback } from "../../../../../lib/enhancedMockApiService";
 import { DocumentManager } from "@/components/documents/DocumentManager";
 import { storageService } from "@/lib/storage";
 import { RealtimeChannel } from "@supabase/supabase-js";
@@ -670,17 +669,6 @@ export default function AdvisorProjectDetailPage() {
     [activeThreadId, user, newMessage]
   );
 
-  const generateFeedback = useCallback(async () => {
-    if (!project || !user || !user.id) return;
-
-    try {
-      const feedback = await generateProjectFeedback(project.id, project);
-      await handleSendMessage(`[AI Feedback Suggestion]: ${feedback}`, true);
-      console.log("Feedback generated and sent");
-    } catch (error) {
-      console.error("Error generating feedback:", error);
-    }
-  }, [project, user, handleSendMessage]);
 
   // Render functions for sections
   const renderProjectDetails = useCallback(() => {
@@ -922,22 +910,13 @@ export default function AdvisorProjectDetailPage() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   disabled={!activeThreadId || isSending}
                 />
-                <div className="flex flex-col space-y-2">
-                  <Button
-                    onClick={() => handleSendMessage()}
-                    disabled={!newMessage.trim() || !activeThreadId || isSending}
-                    leftIcon={<Send size={16} />}
-                  >
-                    Send
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={generateFeedback}
-                    disabled={!activeThreadId || isSending}
-                  >
-                    Generate Feedback
-                  </Button>
-                </div>
+                <Button
+                  onClick={() => handleSendMessage()}
+                  disabled={!newMessage.trim() || !activeThreadId || isSending}
+                  leftIcon={<Send size={16} />}
+                >
+                  Send
+                </Button>
               </div>
             </>
           ) : (
@@ -956,7 +935,6 @@ export default function AdvisorProjectDetailPage() {
     newMessage,
     user, // Changed from borrowerResume as sender is from profiles
     handleSendMessage,
-    generateFeedback,
     threads,
     activeThreadId,
     isLoadingMessages,

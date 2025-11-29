@@ -12,7 +12,6 @@ import { Button } from "../../../components/ui/Button";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 import { Users } from "lucide-react";
-import { getAdvisorById } from "../../../../lib/enhancedMockApiService";
 import {
   Advisor,
   ProjectProfile,
@@ -61,8 +60,22 @@ export default function AdvisorDashboardPage() {
           // --- DEMO MODE ---
           console.log("[AdvisorDashboard] Loading data for DEMO advisor.");
 
-          const advisorProfile = await getAdvisorById(user.email);
-          if (advisorProfile) setAdvisor(advisorProfile);
+          // Use user data directly for demo mode
+          const demoAdvisorProfile: Advisor = {
+            id: user.id || user.email,
+            userId: user.email,
+            name: user.name || user.email,
+            email: user.email,
+            title: "Capital Advisor",
+            phone: "",
+            bio: "An experienced Capital Advisor at CapMatch.",
+            avatar: "",
+            specialties: [],
+            yearsExperience: 10,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          setAdvisor(demoAdvisorProfile);
 
           const allProjects = await storageService.getItem<ProjectProfile[]>(
             "projects"
