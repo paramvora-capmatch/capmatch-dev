@@ -154,7 +154,7 @@ export default function AdvisorProjectWorkspacePage() {
         <p>Project ID is missing.</p>
       </DashboardLayout>
     );
-  }, [activeProject?.projectName, handleBack, isBorrowerEditing, router, handleBorrowerEditingChange]);
+  }
 
   return (
     <RoleBasedRoute roles={["advisor"]}>
