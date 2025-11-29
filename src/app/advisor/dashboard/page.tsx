@@ -56,116 +56,85 @@ export default function AdvisorDashboardPage() {
       try {
         let assignedProjects: ProjectProfile[] = [];
 
-        if (user.isDemo) {
-          // --- DEMO MODE ---
-          console.log("[AdvisorDashboard] Loading data for DEMO advisor.");
+        // Load advisor data from Supabase
+        console.log(
+          "[AdvisorDashboard] Loading data for advisor from Supabase."
+        );
 
-          // Use user data directly for demo mode
-          const demoAdvisorProfile: Advisor = {
-            id: user.id || user.email,
-            userId: user.email,
-            name: user.name || user.email,
-            email: user.email,
-            title: "Capital Advisor",
-            phone: "",
-            bio: "An experienced Capital Advisor at CapMatch.",
-            avatar: "",
-            specialties: [],
-            yearsExperience: 10,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          setAdvisor(demoAdvisorProfile);
+        const advisorProfile: Advisor = {
+          id: user.id || user.email,
+          userId: user.email,
+          name: user.name || user.email,
+          email: user.email,
+          title: "Capital Advisor",
+          phone: "",
+          bio: "An experienced Capital Advisor at CapMatch.",
+          avatar: "",
+          specialties: [],
+          yearsExperience: 10,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setAdvisor(advisorProfile);
 
-          const allProjects = await storageService.getItem<ProjectProfile[]>(
-            "projects"
-          );
-          if (allProjects) {
-            assignedProjects = allProjects.filter(
-              (p) => p.assignedAdvisorUserId === user.email
-            );
-          }
-        } else {
-          // --- REAL USER MODE ---
-          console.log(
-            "[AdvisorDashboard] Loading data for REAL advisor from Supabase."
-          );
+        const { data: projectsData, error: projectsError } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("assigned_advisor_id", user.id);
 
-          const realAdvisorProfile: Advisor = {
-            id: user.id || user.email,
-            userId: user.email,
-            name: user.name || user.email,
-            email: user.email,
-            title: "Capital Advisor",
-            phone: "",
-            bio: "An experienced Capital Advisor at CapMatch.",
-            avatar: "",
-            specialties: [],
-            yearsExperience: 10,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          setAdvisor(realAdvisorProfile);
+        if (projectsError) throw projectsError;
 
-          const { data: projectsData, error: projectsError } = await supabase
-            .from("projects")
-            .select("*")
-            .eq("assigned_advisor_id", user.id);
+        if (projectsData) {
+          const projectIds = projectsData.map((p) => p.id);
+          assignedProjects = await getProjectsWithResumes(projectIds);
 
-          if (projectsError) throw projectsError;
+          if (assignedProjects.length > 0) {
+            const ownerOrgIds = Array.from(
+              new Set(
+                assignedProjects.map((p) => p.owner_org_id).filter(Boolean)
+              )
+            ) as string[];
 
-          if (projectsData) {
-            const projectIds = projectsData.map((p) => p.id);
-            assignedProjects = await getProjectsWithResumes(projectIds);
+            if (ownerOrgIds.length > 0) {
+              // Step 1: Find the owner's user_id for each org
+              const { data: owners, error: ownersError } = await supabase
+                .from("org_members")
+                .select("org_id, user_id")
+                .in("org_id", ownerOrgIds)
+                .eq("role", "owner");
 
-            if (assignedProjects.length > 0) {
-              const ownerOrgIds = Array.from(
-                new Set(
-                  assignedProjects.map((p) => p.owner_org_id).filter(Boolean)
-                )
-              ) as string[];
+              if (ownersError) throw ownersError;
 
-              if (ownerOrgIds.length > 0) {
-                // Step 1: Find the owner's user_id for each org
-                const { data: owners, error: ownersError } = await supabase
-                  .from("org_members")
-                  .select("org_id, user_id")
-                  .in("org_id", ownerOrgIds)
-                  .eq("role", "owner");
-
-                if (ownersError) throw ownersError;
-
-                const userIds = owners?.map((o) => o.user_id) || [];
-                const orgToUserMap =
-                  owners?.reduce((acc, o) => {
-                    if (o.org_id) {
-                      acc[o.org_id] = o.user_id;
-                    }
-                    return acc;
-                  }, {} as Record<string, string>) || {};
-
-                // Step 2: Fetch profiles for those user_ids
-                const { data: profiles, error: profilesError } = await supabase
-                  .from("profiles")
-                  .select("id, full_name, email")
-                  .in("id", userIds);
-
-                if (profilesError) throw profilesError;
-
-                // Step 3: Create a map from org_id -> profile info
-                const borrowerMap = ownerOrgIds.reduce((acc, orgId) => {
-                  const userId = orgToUserMap[orgId as string];
-                  const profile = profiles.find((p) => p.id === userId);
-                  if (profile) {
-                    acc[orgId] = {
-                      name: profile.full_name || profile.email,
-                      email: profile.email,
-                    };
+              const userIds = owners?.map((o) => o.user_id) || [];
+              const orgToUserMap =
+                owners?.reduce((acc, o) => {
+                  if (o.org_id) {
+                    acc[o.org_id] = o.user_id;
                   }
                   return acc;
-                }, {} as Record<string, { name: string; email: string }>);
-                setBorrowerData(borrowerMap);
-              }
+                }, {} as Record<string, string>) || {};
+
+              // Step 2: Fetch profiles for those user_ids
+              const { data: profiles, error: profilesError } = await supabase
+                .from("profiles")
+                .select("id, full_name, email")
+                .in("id", userIds);
+
+              if (profilesError) throw profilesError;
+
+              // Step 3: Create a map from org_id -> profile info
+              const borrowerMap = ownerOrgIds.reduce((acc, orgId) => {
+                const userId = orgToUserMap[orgId as string];
+                const profile = profiles.find((p) => p.id === userId);
+                if (profile) {
+                  acc[orgId] = {
+                    name: profile.full_name || profile.email,
+                    email: profile.email,
+                  };
+                }
+                return acc;
+              }, {} as Record<string, { name: string; email: string }>);
+              setBorrowerData(borrowerMap);
             }
           }
         }

@@ -15,7 +15,6 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   loginSource: "direct" | "lenderline";
-  isDemo: boolean;
   justLoggedIn: boolean;
   // RBAC additions - updated for new schema
   activeOrg: Org | null;
@@ -55,7 +54,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   isAuthenticated: false,
   isLoading: true,
   loginSource: "direct",
-  isDemo: false,
   justLoggedIn: false,
   // RBAC additions - updated for new schema
   activeOrg: null,
@@ -107,14 +105,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
               loginSource,
               lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
               name: profile.full_name || authUser.user_metadata.name,
-              isDemo: false,
             };
 
             set({
               user: enhancedUser,
               isAuthenticated: true,
               loginSource,
-              isDemo: false,
               isLoading: false,
             });
 
@@ -174,14 +170,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   loginSource,
                   lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
                   name: profileAfter.full_name || authUser.user_metadata.name,
-                  isDemo: false,
                 };
 
                 set({
                   user: enhancedUser,
                   isAuthenticated: true,
                   loginSource,
-                  isDemo: false,
                   isLoading: false,
                 });
 
@@ -290,14 +284,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   loginSource: oauthLoginSource, // Used oauthLoginSource
                   lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
                   name: profile.full_name || authUser.user_metadata.name,
-                  isDemo: false,
                 };
 
                 set({
                   user: enhancedUser,
                   isAuthenticated: true,
                   loginSource: oauthLoginSource, // Used oauthLoginSource
-                  isDemo: false,
                 });
 
                 // Load org memberships for borrower/lender users
@@ -348,14 +340,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                       loginSource: oauthLoginSource, // Used oauthLoginSource
                       lastLogin: new Date(authUser.last_sign_in_at || Date.now()),
                       name: profileAfter.full_name || authUser.user_metadata.name,
-                      isDemo: false,
                     };
 
                     set({
                       user: enhancedUser,
                       isAuthenticated: true,
                       loginSource: oauthLoginSource, // Used oauthLoginSource
-                      isDemo: false,
                     });
 
                     if (
@@ -379,7 +369,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 user: null,
                 isAuthenticated: false,
                 loginSource: "direct",
-                isDemo: false,
                 justLoggedIn: false,
                 // Clear RBAC data
                 activeOrg: null,
@@ -389,7 +378,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             }
           } catch (e) {
             console.error("[AuthStore] Error in auth state change handler:", e);
-            set({ user: null, isAuthenticated: false, isDemo: false });
+            set({ user: null, isAuthenticated: false });
           } finally {
             set({ isLoading: false });
           }
@@ -413,59 +402,10 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     set({ isLoading: true });
 
     try {
-      const demoAccounts = [
-        "borrower1@example.com",
-        "borrower2@example.com",
-        "advisor1@capmatch.com",
-        "admin@capmatch.com",
-        "lender1@example.com",
-      ];
-
-      if (demoAccounts.includes(email) && password === "password123") {
-
-        // Note: Demo data seeding is now handled by Supabase seed scripts, not localStorage
-        // The mockData structure has been updated to match JSONB content types
-        // if (email.startsWith("borrower")) {
-        //   // Legacy localStorage seeding code - no longer used
-        // }
-
-        const demoUserIds: { [key: string]: string } = {
-          "borrower1@example.com": "00000000-0000-0000-0000-000000000001",
-          "borrower2@example.com": "00000000-0000-0000-0000-000000000002",
-          "advisor1@capmatch.com": "00000000-0000-0000-0000-000000000003",
-          "admin@capmatch.com": "00000000-0000-0000-0000-000000000004",
-          "lender1@example.com": "00000000-0000-0000-0000-000000000005",
-        };
-
-        let role: EnhancedUser["role"] = "borrower";
-        if (email.includes("admin@capmatch.com")) role = "advisor";
-        else if (email.includes("advisor")) role = "advisor";
-        else if (email.includes("lender")) role = "lender";
-
-        const newUser: EnhancedUser = {
-          id: demoUserIds[email] || `demo-user-${email}`,
-          email,
-          lastLogin: new Date(),
-          role,
-          loginSource: source,
-          isDemo: true,
-        };
-
-        set({
-          user: newUser,
-          isAuthenticated: true,
-          loginSource: source,
-          isDemo: true,
-          isLoading: false,
-          justLoggedIn: true,
-        });
-      } else if (demoAccounts.includes(email) && password !== "password123") {
-        throw new Error("Invalid password for demo account.");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
         if (error) {
           // If credentials are invalid, attempt onboarding as a new user.
@@ -513,7 +453,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           }
         }
         // If no error, auth listener will handle state update
-      }
     } catch (error) {
       console.error("[Auth] ❌ Sign in failed:", error);
       set({ isLoading: false });
@@ -606,7 +545,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       return {
         user: updatedUser,
         loginSource: updatedUser.loginSource || state.loginSource,
-        isDemo: state.isDemo,
       };
     });
   },
