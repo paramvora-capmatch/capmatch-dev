@@ -9,8 +9,6 @@ import {
   OrgMemberRole,
   OrgMember,
 } from "@/types/enhanced-types";
-// Note: Mock data is now used by seed scripts, not localStorage seeding
-// import { demoBorrowerResume, completeProjectResume, partialProjectResume } from "../../lib/mockData";
 import { Session } from "@supabase/supabase-js"; // Import Session type
 
 interface AuthState {
