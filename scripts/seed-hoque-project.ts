@@ -519,12 +519,18 @@ async function createAdvisorAccount(): Promise<{ userId: string; orgId: string }
   return { userId: advisorUserId, orgId: advisorOrgId };
 }
 
+/**
+ * Get or create the borrower account (param.vora@capmatch.com)
+ * This account is shared between the Hoque seed script and the demo seed script.
+ * Both scripts can run together - they create different projects in the same account.
+ */
 async function getOrCreateDemoBorrowerAccount(): Promise<{ userId: string; orgId: string } | null> {
-  console.log('[seed] Getting or creating demo borrower account (borrower@org.com)...');
+  console.log('[seed] Getting or creating borrower account (param.vora@capmatch.com)...');
+  console.log('[seed] Note: This account is shared with seed-demo-data.ts');
   
-  const borrowerEmail = 'borrower@org.com';
+  const borrowerEmail = 'param.vora@capmatch.com';
   const borrowerPassword = 'password';
-  const borrowerName = 'John Smith';
+  const borrowerName = 'Param Vora';
 
   // Check if borrower already exists
   const { data: existingProfile } = await supabaseAdmin
@@ -1570,12 +1576,12 @@ async function createProject(
 
 async function seedTeamMembers(projectId: string, orgId: string, ownerId: string): Promise<string[]> {
   console.log(`[seed] Seeding team members for SoGood Apartments...`);
+  console.log(`[seed] Note: Using same member accounts as seed-demo-data.ts for compatibility`);
 
   const memberEmails = [
-    { email: 'joel.heikenfeld@acara.com', name: 'Joel Heikenfeld', role: 'ACARA Managing Director' },
-    { email: 'mike.hoque@hoqueglobal.com', name: 'Mike Hoque', role: 'Hoque Global CEO' },
-    { email: 'sarah.martinez@hoqueglobal.com', name: 'Sarah Martinez', role: 'Project Manager' },
-    { email: 'david.kim@acara.com', name: 'David Kim', role: 'Financial Analyst' },
+    { email: 'aryan.jain@capmatch.com', name: 'Aryan Jain', role: 'Team Member' },
+    { email: 'sarthak.karandikar@capmatch.com', name: 'Sarthak Karandikar', role: 'Team Member' },
+    { email: 'kabeer.merchant@capmatch.com', name: 'Kabeer Merchant', role: 'Team Member' },
   ];
 
   const memberIds: string[] = [];
@@ -1617,9 +1623,12 @@ async function seedTeamMembers(projectId: string, orgId: string, ownerId: string
 
 async function seedHoqueProject(): Promise<void> {
   console.log('🌱 Starting Hoque (SoGood Apartments) complete account seed...\n');
+  console.log('📝 Note: This script uses the same borrower and advisor accounts as seed-demo-data.ts');
+  console.log('📝 Both scripts can be run together - they create different projects in the same accounts\n');
 
   try {
     // Step 1: Create advisor account and org
+    // Note: Uses same advisor as demo script (cody.field@capmatch.com)
     console.log('📋 Step 1: Creating advisor account (Cody Field)...');
     const advisorInfo = await createAdvisorAccount();
     if (!advisorInfo) {
@@ -1628,11 +1637,12 @@ async function seedHoqueProject(): Promise<void> {
     }
     const { userId: advisorId, orgId: advisorOrgId } = advisorInfo;
 
-    // Step 2: Get or create demo borrower account (borrower@org.com)
-    console.log('\n📋 Step 2: Getting/creating demo borrower account (borrower@org.com)...');
+    // Step 2: Get or create borrower account (param.vora@capmatch.com)
+    // This uses the same account as the demo script, so both scripts can work together
+    console.log('\n📋 Step 2: Getting/creating borrower account (param.vora@capmatch.com)...');
     const borrowerInfo = await getOrCreateDemoBorrowerAccount();
     if (!borrowerInfo) {
-      console.error('[seed] ❌ Failed to get/create demo borrower account');
+      console.error('[seed] ❌ Failed to get/create borrower account');
       return;
     }
     const { userId: borrowerId, orgId: borrowerOrgId } = borrowerInfo;
@@ -1715,7 +1725,7 @@ async function seedHoqueProject(): Promise<void> {
     console.log('\n✅ Hoque (SoGood Apartments) complete account seed completed successfully!');
     console.log('\n📊 Summary:');
     console.log(`   Advisor: cody.field@capmatch.com (password: password)`);
-    console.log(`   Project Owner: borrower@org.com (password: password)`);
+    console.log(`   Project Owner: param.vora@capmatch.com (password: password)`);
     console.log(`   Hoque Global Member: info@hoqueglobal.com (password: password)`);
     console.log(`   Project: ${HOQUE_PROJECT_NAME} (${projectId})`);
     console.log(`   Project Resume: ✅ Seeded (100% complete)`);
@@ -1724,7 +1734,7 @@ async function seedHoqueProject(): Promise<void> {
     console.log(`   Documents: ✅ ${Object.keys(documents).length} documents`);
     console.log(`   Team Members: ✅ ${memberIds.length} members`);
     console.log(`   Chat Messages: ✅ Seeded in General and topic threads`);
-    console.log('\n🎉 The Hoque project is now fully seeded in the demo borrower account!');
+    console.log('\n🎉 The Hoque project is now fully seeded in the borrower account!');
   } catch (error) {
     console.error('\n❌ Seed script failed:', error);
     if (error instanceof Error) {
@@ -1743,17 +1753,17 @@ async function cleanupHoqueAccounts(): Promise<void> {
   console.log('🧹 Starting Hoque project cleanup...\n');
 
   try {
-    const demoBorrowerEmail = 'borrower@org.com';
+    const borrowerEmail = 'param.vora@capmatch.com';
     const hoqueGlobalEmail = 'info@hoqueglobal.com';
     const advisorEmail = 'cody.field@capmatch.com';
     const teamMemberEmails = [
-      'joel.heikenfeld@acara.com',
-      'mike.hoque@hoqueglobal.com',
-      'sarah.martinez@hoqueglobal.com',
-      'david.kim@acara.com',
+      'aryan.jain@capmatch.com',
+      'sarthak.karandikar@capmatch.com',
+      'kabeer.merchant@capmatch.com',
     ];
 
     // Step 1: Find and delete SoGood Apartments project
+    // Note: This only deletes the Hoque project, not the demo projects
     console.log('📋 Step 1: Deleting SoGood Apartments project...');
     const { data: projects } = await supabaseAdmin
       .from('projects')
@@ -1806,39 +1816,22 @@ async function cleanupHoqueAccounts(): Promise<void> {
       await supabaseAdmin.from('projects').delete().in('id', projectIds);
       console.log(`[cleanup] ✅ Deleted ${projects.length} project(s)`);
       
-      // Note: We do NOT delete the demo borrower account (borrower@org.com) or its org
-      // as it's used for demo purposes and may have other projects
+      // Note: We do NOT delete the borrower account (param.vora@capmatch.com) or its org
+      // as it's shared with the demo script and may have other projects
     } else {
       console.log('[cleanup] No SoGood Apartments projects found');
     }
 
-    // Step 3: Delete team member users
-    console.log('\n📋 Step 3: Deleting team member users...');
+    // Step 3: Skip team member cleanup (team members are shared with demo script)
+    // Note: We do NOT delete team member accounts as they're shared with the demo script
+    console.log('\n📋 Step 3: Skipping team member cleanup...');
+    console.log(`[cleanup] ⚠️  Preserving team member accounts - shared with demo script:`);
     for (const email of teamMemberEmails) {
-      try {
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .eq('email', email)
-          .maybeSingle();
-
-        if (profile) {
-          // Delete project access, permissions, etc.
-          await supabaseAdmin.from('project_access_grants').delete().eq('user_id', profile.id);
-          await supabaseAdmin.from('permissions').delete().eq('user_id', profile.id);
-          await supabaseAdmin.from('org_members').delete().eq('user_id', profile.id);
-          await supabaseAdmin.from('chat_thread_participants').delete().eq('user_id', profile.id);
-          
-          // Delete user
-          await supabaseAdmin.auth.admin.deleteUser(profile.id);
-          console.log(`[cleanup] ✅ Deleted team member: ${email}`);
-        }
-      } catch (err) {
-        console.warn(`[cleanup] Could not delete team member ${email}:`, err);
-      }
+      console.log(`[cleanup]   - ${email}`);
     }
+    console.log(`[cleanup] Note: Only Hoque project access will be removed (project deletion handles this)`);
 
-    // Step 4: Delete Hoque Global member (but keep demo borrower account)
+    // Step 4: Delete Hoque Global member (but keep borrower account - shared with demo script)
     console.log('\n📋 Step 4: Deleting Hoque Global member...');
     try {
       const { data: hoqueProfile } = await supabaseAdmin
@@ -1880,44 +1873,15 @@ async function cleanupHoqueAccounts(): Promise<void> {
       console.warn(`[cleanup] Could not delete Hoque Global member:`, err);
     }
 
-    // Step 5: Delete advisor user (but keep advisor org if it has other members)
-    console.log('\n📋 Step 5: Cleaning up advisor account...');
-    try {
-      const { data: advisorProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id, active_org_id')
-        .eq('email', advisorEmail)
-        .maybeSingle();
-
-      if (advisorProfile) {
-        // Check if advisor org has other members
-        const { data: orgMembers } = await supabaseAdmin
-          .from('org_members')
-          .select('user_id')
-          .eq('org_id', advisorProfile.active_org_id);
-
-        // Only delete org if Cody is the only member
-        if (orgMembers && orgMembers.length <= 1 && advisorProfile.active_org_id) {
-          await supabaseAdmin.from('org_members').delete().eq('org_id', advisorProfile.active_org_id);
-          await supabaseAdmin.from('orgs').delete().eq('id', advisorProfile.active_org_id);
-          console.log(`[cleanup] ✅ Deleted advisor org: ${advisorProfile.active_org_id}`);
-        } else {
-          // Just remove Cody from the org
-          await supabaseAdmin.from('org_members').delete()
-            .eq('org_id', advisorProfile.active_org_id)
-            .eq('user_id', advisorProfile.id);
-          console.log(`[cleanup] ✅ Removed advisor from org (org has other members)`);
-        }
-
-        await supabaseAdmin.auth.admin.deleteUser(advisorProfile.id);
-        console.log(`[cleanup] ✅ Deleted advisor: ${advisorEmail}`);
-      }
-    } catch (err) {
-      console.warn(`[cleanup] Could not delete advisor:`, err);
-    }
+    // Step 5: Skip advisor cleanup (advisor is shared with demo script)
+    // Note: We do NOT delete the advisor account (cody.field@capmatch.com) or its org
+    // as it's shared with the demo script and may be used by other projects
+    console.log('\n📋 Step 5: Skipping advisor cleanup...');
+    console.log(`[cleanup] ⚠️  Preserving advisor account (${advisorEmail}) - shared with demo script`);
 
     console.log('\n✅ Hoque project cleanup completed!');
-    console.log('🌱 Note: Demo borrower account (borrower@org.com) was NOT deleted.');
+    console.log('🌱 Note: Borrower account (param.vora@capmatch.com) was NOT deleted.');
+    console.log('🌱 Note: This account is shared with the demo script, so it is preserved.');
     console.log('🌱 You can now run the seed script again for a fresh start.');
   } catch (error) {
     console.error('\n❌ Cleanup failed:', error);

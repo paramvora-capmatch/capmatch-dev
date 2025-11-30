@@ -280,9 +280,15 @@ async function createProject(
     console.log(`[seed] ✅ Created project record: ${projectId}`);
 
     // 2. Create empty project resume (will be updated later)
+    // Note: With versioning, we need to include status and created_by
     const { error: resumeError } = await supabaseAdmin
       .from('project_resumes')
-      .insert({ project_id: projectId, content: {} });
+      .insert({
+        project_id: projectId,
+        content: {},
+        status: 'active',
+        created_by: creatorId,
+      });
 
     if (resumeError) {
       console.error(`[seed] Failed to create project resume:`, resumeError);
@@ -407,7 +413,8 @@ async function createProject(
 
 async function updateProjectResume(
   projectId: string,
-  resumeContent: ProjectResumeContent
+  resumeContent: ProjectResumeContent,
+  createdById: string
 ): Promise<boolean> {
   console.log(`[seed] Updating project resume for project: ${projectId}...`);
 
@@ -420,18 +427,26 @@ async function updateProjectResume(
     completenessPercent,
   };
 
+  // Mark any existing active resumes as superseded (project resumes now support versioning)
+  await supabaseAdmin
+    .from('project_resumes')
+    .update({ status: 'superseded' })
+    .eq('project_id', projectId)
+    .eq('status', 'active');
+
+  // Insert new resume with versioning fields
+  // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('project_resumes')
-    .upsert(
-      {
-        project_id: projectId,
-        content: resumeWithProgress as any,
-      },
-      { onConflict: 'project_id' }
-    );
+    .insert({
+      project_id: projectId,
+      content: resumeWithProgress as any,
+      status: 'active',
+      created_by: createdById,
+    });
 
   if (error) {
-    console.error(`[seed] Failed to update project resume:`, error);
+    console.error(`[seed] Failed to insert project resume:`, error);
     return false;
   }
 
@@ -439,8 +454,21 @@ async function updateProjectResume(
   return true;
 }
 
-async function updateBorrowerResume(projectId: string, resumeContent: typeof demoBorrowerResume): Promise<boolean> {
+async function updateBorrowerResume(
+  projectId: string,
+  resumeContent: typeof demoBorrowerResume,
+  createdById: string
+): Promise<boolean> {
   console.log(`[seed] Updating borrower resume for project: ${projectId}...`);
+
+  // Ensure borrower root resources exist
+  const { error: rootError } = await supabaseAdmin.rpc('ensure_project_borrower_roots', {
+    p_project_id: projectId,
+  });
+
+  if (rootError) {
+    console.warn(`[seed] Warning: Failed to ensure borrower root resources:`, rootError.message);
+  }
 
   // Ensure completenessPercent is set to 100 for complete projects
   // The calculation logic only counts booleans when true, but we want to show 100% for complete data
@@ -449,18 +477,26 @@ async function updateBorrowerResume(projectId: string, resumeContent: typeof dem
     completenessPercent: 100, // Explicitly set to 100% since all fields are filled
   };
 
+  // Mark any existing active resumes as superseded (borrower resumes now support versioning)
+  await supabaseAdmin
+    .from('borrower_resumes')
+    .update({ status: 'superseded' })
+    .eq('project_id', projectId)
+    .eq('status', 'active');
+
+  // Insert new resume with versioning fields
+  // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
-    .upsert(
-      {
-        project_id: projectId,
-        content: borrowerResumeWithProgress as any,
-      },
-      { onConflict: 'project_id' }
-    );
+    .insert({
+      project_id: projectId,
+      content: borrowerResumeWithProgress as any,
+      status: 'active',
+      created_by: createdById,
+    });
 
   if (error) {
-    console.error(`[seed] Failed to update borrower resume:`, error);
+    console.error(`[seed] Failed to insert borrower resume:`, error);
     return false;
   }
 
@@ -923,20 +959,26 @@ async function deleteDefaultProject(orgId: string): Promise<boolean> {
     .eq('name', 'My First Project');
 
   if (fetchError) {
-    console.error(`[seed] Failed to fetch default project:`, fetchError);
-    return false;
+    console.warn(`[seed] Could not fetch default project (non-critical):`, fetchError.message);
+    return true; // Continue anyway
   }
 
   if (projects && projects.length > 0) {
     const projectId = projects[0].id;
+    
+    // Try to delete the project - this may fail if it has root resources
+    // In that case, we'll just skip it (non-critical)
     const { error: deleteError } = await supabaseAdmin
       .from('projects')
       .delete()
       .eq('id', projectId);
 
     if (deleteError) {
-      console.error(`[seed] Failed to delete default project:`, deleteError);
-      return false;
+      // This is expected with the new schema - projects with root resources can't be deleted directly
+      // We'll just skip it (non-critical)
+      console.log(`[seed] ⚠️  Could not delete default project (may have root resources): ${deleteError.message}`);
+      console.log(`[seed]    This is non-critical - continuing with seed...`);
+      return true; // Continue anyway
     }
 
     console.log(`[seed] ✅ Deleted default project`);
@@ -1339,11 +1381,11 @@ async function seedDemoData() {
     }
 
     // Update project resume with complete data
-    await updateProjectResume(completeProjectId, completeProjectResume);
+    await updateProjectResume(completeProjectId, completeProjectResume, borrowerUserId);
     await assignAdvisorToProject(completeProjectId, advisorUserId);
 
     // Update borrower resume for complete project
-    await updateBorrowerResume(completeProjectId, demoBorrowerResume);
+    await updateBorrowerResume(completeProjectId, demoBorrowerResume, borrowerUserId);
 
     // Step 6: Create partial project (Warehouse Development)
     console.log('\n📋 Step 6: Creating partial project...');
@@ -1360,11 +1402,11 @@ async function seedDemoData() {
     }
 
     // Update project resume with partial data
-    await updateProjectResume(partialProjectId, partialProjectResume);
+    await updateProjectResume(partialProjectId, partialProjectResume, borrowerUserId);
     await assignAdvisorToProject(partialProjectId, advisorUserId);
 
     // Update borrower resume for partial project
-    await updateBorrowerResume(partialProjectId, demoBorrowerResume);
+    await updateBorrowerResume(partialProjectId, demoBorrowerResume, borrowerUserId);
 
     // Step 7: Upload documents to complete project
     console.log('\n📋 Step 7: Uploading documents to complete project...');
