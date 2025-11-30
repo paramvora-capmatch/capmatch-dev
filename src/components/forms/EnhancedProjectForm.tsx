@@ -1002,6 +1002,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [formSaved, setFormSaved] = useState(false); // State for save button feedback
 	const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 	const versionSnapshotSentRef = useRef(false);
+	const hasInitializedFormDataRef = useRef(false);
 
 	// Metadata state for tracking sources and warnings
 	const [fieldMetadata, setFieldMetadata] = useState<
@@ -2031,12 +2032,21 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				Object.keys(metadata)
 			);
 		}
+		// Note: Don't call onFormDataChange here - it's only for user-initiated changes
+		// Calling it on prop changes would cause a render loop
+	}, [existingProject]);
 
-		// Defer parent notification to avoid updating during render
-		setTimeout(() => {
-			onFormDataChange?.(existingProject);
-		}, 0);
-	}, [existingProject, onFormDataChange]);
+	// Initialize parent form data only once on mount to avoid render loops
+	useEffect(() => {
+		if (!hasInitializedFormDataRef.current && onFormDataChange) {
+			hasInitializedFormDataRef.current = true;
+			// Use setTimeout to defer the call and avoid updating during render
+			setTimeout(() => {
+				onFormDataChange(existingProject);
+			}, 0);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []); // Empty deps - intentionally only run once on mount with initial values
 
 	// NEW: Focus/scroll to a specific field if requested
 	useEffect(() => {
@@ -8114,8 +8124,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No unit mix data
-														available. Click "Add
-														Row" to add a new entry.
+														available. Click &quot;Add
+														Row&quot; to add a new entry.
 													</td>
 												</tr>
 											)}
@@ -8403,8 +8413,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No commercial space data
-														available. Click "Add
-														Row" to add a new entry.
+														available. Click &quot;Add
+														Row&quot; to add a new entry.
 													</td>
 												</tr>
 											)}
@@ -11317,8 +11327,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No rent comps data
-														available. Click "Add
-														Row" to add a new entry.
+														available. Click &quot;Add
+														Row&quot; to add a new entry.
 													</td>
 												</tr>
 											)}
@@ -11534,8 +11544,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No sale comps data
-														available. Click "Add
-														Row" to add a new entry.
+														available. Click &quot;Add
+														Row&quot; to add a new entry.
 													</td>
 												</tr>
 											)}
@@ -13390,8 +13400,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No draw schedule data
-														available. Click "Add
-														Row" to add a new entry.
+														available. Click &quot;Add
+														Row&quot; to add a new entry.
 													</td>
 												</tr>
 											)}
@@ -15193,6 +15203,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			activeOrg?.id,
 			getFieldStylingClasses,
 			isFieldAutofilled,
+			handleTableRowAdd,
+			handleTableRowDelete,
+			handleTableRowUpdate,
 		]
 	);
 	return (
