@@ -519,12 +519,18 @@ async function createAdvisorAccount(): Promise<{ userId: string; orgId: string }
   return { userId: advisorUserId, orgId: advisorOrgId };
 }
 
+/**
+ * Get or create the borrower account (param.vora@capmatch.com)
+ * This account is shared between the Hoque seed script and the demo seed script.
+ * Both scripts can run together - they create different projects in the same account.
+ */
 async function getOrCreateDemoBorrowerAccount(): Promise<{ userId: string; orgId: string } | null> {
-  console.log('[seed] Getting or creating demo borrower account (borrower@org.com)...');
+  console.log('[seed] Getting or creating borrower account (param.vora@capmatch.com)...');
+  console.log('[seed] Note: This account is shared with seed-demo-data.ts');
   
-  const borrowerEmail = 'borrower@org.com';
+  const borrowerEmail = 'param.vora@capmatch.com';
   const borrowerPassword = 'password';
-  const borrowerName = 'John Smith';
+  const borrowerName = 'Param Vora';
 
   // Check if borrower already exists
   const { data: existingProfile } = await supabaseAdmin
@@ -1140,7 +1146,7 @@ async function seedDocuments(
 
   // Map actual file names to meaningful document names
   const documentPaths = [
-    // Project documents
+    // Project documents - from context/SoGood and docs/so-good-apartments
     { file: 'Northmarq Hoque Loan Request Package - SoGood - 5.6.25.pdf', name: 'Loan Request Package', type: 'PROJECT_DOCS_ROOT' as const },
     { file: 'SoGood 2021_05_18_SoGood.pdf', name: 'SoGood Master Plan - Concept', type: 'PROJECT_DOCS_ROOT' as const },
     { file: 'Concept Combined (1).pdf', name: 'Building B - Concept Drawings', type: 'PROJECT_DOCS_ROOT' as const },
@@ -1148,10 +1154,42 @@ async function seedDocuments(
     { file: 'SoGood Building B - Pro Forma.xlsx', name: 'Building B - Pro Forma', type: 'PROJECT_DOCS_ROOT' as const },
     { file: 'SGCMMD - PFC Memorandum (SoGood) 4874-2859-9225 v.2.pdf', name: 'PFC Memorandum - SoGood', type: 'PROJECT_DOCS_ROOT' as const },
     { file: 'HB 2071 Summary.pdf', name: 'HB 2071 Summary - PFC Legislation', type: 'PROJECT_DOCS_ROOT' as const },
+    
+    // Additional documents from docs/so-good-apartments
+    { file: 'alta_survey.pdf', name: 'ALTA Survey', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'appraisal_summary.pdf', name: 'Appraisal Summary', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'architectural_plan_abstract.pdf', name: 'Architectural Plan Abstract', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'construction_draw_schedule.xlsx', name: 'Construction Draw Schedule', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'construction_schedule.pdf', name: 'Construction Schedule', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'development_budget.xlsx', name: 'Development Budget', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'geotechnical_report.pdf', name: 'Geotechnical Report', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'images.pdf', name: 'Project Images', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'incentive_agreement.docx', name: 'Incentive Agreement', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'market_study.pdf', name: 'Market Study', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'operating_proforma.xlsx', name: 'Operating Pro Forma', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'phase_1_esa.pdf', name: 'Phase 1 ESA', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'purchase_and_sale_agreement.docx', name: 'Purchase and Sale Agreement', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'regulatory_agreement.docx', name: 'Regulatory Agreement', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'relocation_plan.docx', name: 'Relocation Plan', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'rent_comp_survey.pdf', name: 'Rent Comp Survey', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'rent_roll.xlsx', name: 'Rent Roll', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'sales_comparables.xlsx', name: 'Sales Comparables', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'site_plan_abstract.pdf', name: 'Site Plan Abstract', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'sources_uses.xlsx', name: 'Sources & Uses', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'sponsor_financials.xlsx', name: 'Sponsor Financials', type: 'BORROWER_DOCS_ROOT' as const },
+    { file: 'sponsor_org_chart.docx', name: 'Sponsor Org Chart', type: 'BORROWER_DOCS_ROOT' as const },
+    { file: 'term_sheet.docx', name: 'Term Sheet', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'title_commitment.docx', name: 'Title Commitment', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'utility_letter.docx', name: 'Utility Letter', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'zoning_verification_letter.docx', name: 'Zoning Verification Letter', type: 'PROJECT_DOCS_ROOT' as const },
   ];
 
-  // Try to find documents in common locations (prioritize CapMatch-Extra)
+  // Try to find documents in common locations (prioritize context/SoGood and docs/so-good-apartments)
   const possibleBasePaths = [
+    resolve(process.cwd(), '../../context/SoGood'),
+    resolve(process.cwd(), '../context/SoGood'),
+    resolve(process.cwd(), './docs/so-good-apartments'),
+    resolve(process.cwd(), '../docs/so-good-apartments'),
     resolve(process.cwd(), '../../CapMatch-Extra/SoGood'),
     resolve(process.cwd(), '../CapMatch-Extra/SoGood'),
     resolve(process.cwd(), '../SampleLoanPackage/SoGood'),
@@ -1159,25 +1197,38 @@ async function seedDocuments(
     resolve(process.cwd(), '../hoque-docs'),
   ];
 
-  let basePath: string | null = null;
+  // Check multiple base paths - documents might be in different locations
+  const foundBasePaths: string[] = [];
   for (const path of possibleBasePaths) {
     if (existsSync(path)) {
-      basePath = path;
-      console.log(`[seed] Found document directory: ${basePath}`);
-      break;
+      foundBasePaths.push(path);
+      console.log(`[seed] Found document directory: ${path}`);
     }
   }
 
-  if (!basePath) {
+  if (foundBasePaths.length === 0) {
     console.log(`[seed] ⚠️  No document directory found. Skipping document upload.`);
     console.log(`[seed]    To upload documents, place them in one of:`);
     possibleBasePaths.forEach(p => console.log(`[seed]    - ${p}`));
     return documents;
   }
 
+  // Try to find each document in any of the found base paths
   for (const doc of documentPaths) {
-    const filePath = join(basePath, doc.file);
-    if (existsSync(filePath)) {
+    let filePath: string | null = null;
+    let foundInPath: string | null = null;
+    
+    // Check each found base path for this document
+    for (const basePath of foundBasePaths) {
+      const testPath = join(basePath, doc.file);
+      if (existsSync(testPath)) {
+        filePath = testPath;
+        foundInPath = basePath;
+        break;
+      }
+    }
+    
+    if (filePath && foundInPath) {
       // Extract file extension from the actual file path
       const fileExtension = doc.file.split('.').pop()?.toLowerCase();
       // Append extension to the display name so edit button logic works correctly
@@ -1197,7 +1248,7 @@ async function seedDocuments(
         documents[doc.name] = resourceId;
       }
     } else {
-      console.log(`[seed] ⚠️  Document not found: ${doc.file}`);
+      console.log(`[seed] ⚠️  Document not found in any directory: ${doc.file}`);
     }
   }
 
@@ -1570,12 +1621,12 @@ async function createProject(
 
 async function seedTeamMembers(projectId: string, orgId: string, ownerId: string): Promise<string[]> {
   console.log(`[seed] Seeding team members for SoGood Apartments...`);
+  console.log(`[seed] Note: Using same member accounts as seed-demo-data.ts for compatibility`);
 
   const memberEmails = [
-    { email: 'joel.heikenfeld@acara.com', name: 'Joel Heikenfeld', role: 'ACARA Managing Director' },
-    { email: 'mike.hoque@hoqueglobal.com', name: 'Mike Hoque', role: 'Hoque Global CEO' },
-    { email: 'sarah.martinez@hoqueglobal.com', name: 'Sarah Martinez', role: 'Project Manager' },
-    { email: 'david.kim@acara.com', name: 'David Kim', role: 'Financial Analyst' },
+    { email: 'aryan.jain@capmatch.com', name: 'Aryan Jain', role: 'Team Member' },
+    { email: 'sarthak.karandikar@capmatch.com', name: 'Sarthak Karandikar', role: 'Team Member' },
+    { email: 'kabeer.merchant@capmatch.com', name: 'Kabeer Merchant', role: 'Team Member' },
   ];
 
   const memberIds: string[] = [];
@@ -1617,9 +1668,12 @@ async function seedTeamMembers(projectId: string, orgId: string, ownerId: string
 
 async function seedHoqueProject(): Promise<void> {
   console.log('🌱 Starting Hoque (SoGood Apartments) complete account seed...\n');
+  console.log('📝 Note: This script uses the same borrower and advisor accounts as seed-demo-data.ts');
+  console.log('📝 Both scripts can be run together - they create different projects in the same accounts\n');
 
   try {
     // Step 1: Create advisor account and org
+    // Note: Uses same advisor as demo script (cody.field@capmatch.com)
     console.log('📋 Step 1: Creating advisor account (Cody Field)...');
     const advisorInfo = await createAdvisorAccount();
     if (!advisorInfo) {
@@ -1628,11 +1682,12 @@ async function seedHoqueProject(): Promise<void> {
     }
     const { userId: advisorId, orgId: advisorOrgId } = advisorInfo;
 
-    // Step 2: Get or create demo borrower account (borrower@org.com)
-    console.log('\n📋 Step 2: Getting/creating demo borrower account (borrower@org.com)...');
+    // Step 2: Get or create borrower account (param.vora@capmatch.com)
+    // This uses the same account as the demo script, so both scripts can work together
+    console.log('\n📋 Step 2: Getting/creating borrower account (param.vora@capmatch.com)...');
     const borrowerInfo = await getOrCreateDemoBorrowerAccount();
     if (!borrowerInfo) {
-      console.error('[seed] ❌ Failed to get/create demo borrower account');
+      console.error('[seed] ❌ Failed to get/create borrower account');
       return;
     }
     const { userId: borrowerId, orgId: borrowerOrgId } = borrowerInfo;
@@ -1715,7 +1770,7 @@ async function seedHoqueProject(): Promise<void> {
     console.log('\n✅ Hoque (SoGood Apartments) complete account seed completed successfully!');
     console.log('\n📊 Summary:');
     console.log(`   Advisor: cody.field@capmatch.com (password: password)`);
-    console.log(`   Project Owner: borrower@org.com (password: password)`);
+    console.log(`   Project Owner: param.vora@capmatch.com (password: password)`);
     console.log(`   Hoque Global Member: info@hoqueglobal.com (password: password)`);
     console.log(`   Project: ${HOQUE_PROJECT_NAME} (${projectId})`);
     console.log(`   Project Resume: ✅ Seeded (100% complete)`);
@@ -1724,7 +1779,7 @@ async function seedHoqueProject(): Promise<void> {
     console.log(`   Documents: ✅ ${Object.keys(documents).length} documents`);
     console.log(`   Team Members: ✅ ${memberIds.length} members`);
     console.log(`   Chat Messages: ✅ Seeded in General and topic threads`);
-    console.log('\n🎉 The Hoque project is now fully seeded in the demo borrower account!');
+    console.log('\n🎉 The Hoque project is now fully seeded in the borrower account!');
   } catch (error) {
     console.error('\n❌ Seed script failed:', error);
     if (error instanceof Error) {
@@ -1743,17 +1798,17 @@ async function cleanupHoqueAccounts(): Promise<void> {
   console.log('🧹 Starting Hoque project cleanup...\n');
 
   try {
-    const demoBorrowerEmail = 'borrower@org.com';
+    const borrowerEmail = 'param.vora@capmatch.com';
     const hoqueGlobalEmail = 'info@hoqueglobal.com';
     const advisorEmail = 'cody.field@capmatch.com';
     const teamMemberEmails = [
-      'joel.heikenfeld@acara.com',
-      'mike.hoque@hoqueglobal.com',
-      'sarah.martinez@hoqueglobal.com',
-      'david.kim@acara.com',
+      'aryan.jain@capmatch.com',
+      'sarthak.karandikar@capmatch.com',
+      'kabeer.merchant@capmatch.com',
     ];
 
     // Step 1: Find and delete SoGood Apartments project
+    // Note: This only deletes the Hoque project, not the demo projects
     console.log('📋 Step 1: Deleting SoGood Apartments project...');
     const { data: projects } = await supabaseAdmin
       .from('projects')
@@ -1806,39 +1861,22 @@ async function cleanupHoqueAccounts(): Promise<void> {
       await supabaseAdmin.from('projects').delete().in('id', projectIds);
       console.log(`[cleanup] ✅ Deleted ${projects.length} project(s)`);
       
-      // Note: We do NOT delete the demo borrower account (borrower@org.com) or its org
-      // as it's used for demo purposes and may have other projects
+      // Note: We do NOT delete the borrower account (param.vora@capmatch.com) or its org
+      // as it's shared with the demo script and may have other projects
     } else {
       console.log('[cleanup] No SoGood Apartments projects found');
     }
 
-    // Step 3: Delete team member users
-    console.log('\n📋 Step 3: Deleting team member users...');
+    // Step 3: Skip team member cleanup (team members are shared with demo script)
+    // Note: We do NOT delete team member accounts as they're shared with the demo script
+    console.log('\n📋 Step 3: Skipping team member cleanup...');
+    console.log(`[cleanup] ⚠️  Preserving team member accounts - shared with demo script:`);
     for (const email of teamMemberEmails) {
-      try {
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .eq('email', email)
-          .maybeSingle();
-
-        if (profile) {
-          // Delete project access, permissions, etc.
-          await supabaseAdmin.from('project_access_grants').delete().eq('user_id', profile.id);
-          await supabaseAdmin.from('permissions').delete().eq('user_id', profile.id);
-          await supabaseAdmin.from('org_members').delete().eq('user_id', profile.id);
-          await supabaseAdmin.from('chat_thread_participants').delete().eq('user_id', profile.id);
-          
-          // Delete user
-          await supabaseAdmin.auth.admin.deleteUser(profile.id);
-          console.log(`[cleanup] ✅ Deleted team member: ${email}`);
-        }
-      } catch (err) {
-        console.warn(`[cleanup] Could not delete team member ${email}:`, err);
-      }
+      console.log(`[cleanup]   - ${email}`);
     }
+    console.log(`[cleanup] Note: Only Hoque project access will be removed (project deletion handles this)`);
 
-    // Step 4: Delete Hoque Global member (but keep demo borrower account)
+    // Step 4: Delete Hoque Global member (but keep borrower account - shared with demo script)
     console.log('\n📋 Step 4: Deleting Hoque Global member...');
     try {
       const { data: hoqueProfile } = await supabaseAdmin
@@ -1880,44 +1918,15 @@ async function cleanupHoqueAccounts(): Promise<void> {
       console.warn(`[cleanup] Could not delete Hoque Global member:`, err);
     }
 
-    // Step 5: Delete advisor user (but keep advisor org if it has other members)
-    console.log('\n📋 Step 5: Cleaning up advisor account...');
-    try {
-      const { data: advisorProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id, active_org_id')
-        .eq('email', advisorEmail)
-        .maybeSingle();
-
-      if (advisorProfile) {
-        // Check if advisor org has other members
-        const { data: orgMembers } = await supabaseAdmin
-          .from('org_members')
-          .select('user_id')
-          .eq('org_id', advisorProfile.active_org_id);
-
-        // Only delete org if Cody is the only member
-        if (orgMembers && orgMembers.length <= 1 && advisorProfile.active_org_id) {
-          await supabaseAdmin.from('org_members').delete().eq('org_id', advisorProfile.active_org_id);
-          await supabaseAdmin.from('orgs').delete().eq('id', advisorProfile.active_org_id);
-          console.log(`[cleanup] ✅ Deleted advisor org: ${advisorProfile.active_org_id}`);
-        } else {
-          // Just remove Cody from the org
-          await supabaseAdmin.from('org_members').delete()
-            .eq('org_id', advisorProfile.active_org_id)
-            .eq('user_id', advisorProfile.id);
-          console.log(`[cleanup] ✅ Removed advisor from org (org has other members)`);
-        }
-
-        await supabaseAdmin.auth.admin.deleteUser(advisorProfile.id);
-        console.log(`[cleanup] ✅ Deleted advisor: ${advisorEmail}`);
-      }
-    } catch (err) {
-      console.warn(`[cleanup] Could not delete advisor:`, err);
-    }
+    // Step 5: Skip advisor cleanup (advisor is shared with demo script)
+    // Note: We do NOT delete the advisor account (cody.field@capmatch.com) or its org
+    // as it's shared with the demo script and may be used by other projects
+    console.log('\n📋 Step 5: Skipping advisor cleanup...');
+    console.log(`[cleanup] ⚠️  Preserving advisor account (${advisorEmail}) - shared with demo script`);
 
     console.log('\n✅ Hoque project cleanup completed!');
-    console.log('🌱 Note: Demo borrower account (borrower@org.com) was NOT deleted.');
+    console.log('🌱 Note: Borrower account (param.vora@capmatch.com) was NOT deleted.');
+    console.log('🌱 Note: This account is shared with the demo script, so it is preserved.');
     console.log('🌱 You can now run the seed script again for a fresh start.');
   } catch (error) {
     console.error('\n❌ Cleanup failed:', error);

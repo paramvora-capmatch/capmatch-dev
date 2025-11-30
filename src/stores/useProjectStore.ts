@@ -628,7 +628,128 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// Continue with project deletion even if storage cleanup fails
 			}
 
+			// Delete related data before deleting the project
+			// With the new schema, we need to delete child resources first, then let cascade delete handle root resources
+			try {
+				// 1. Delete chat data
+				const { data: threads } = await supabase
+					.from("chat_threads")
+					.select("id")
+					.eq("project_id", id);
+
+				if (threads && threads.length > 0) {
+					const threadIds = threads.map((t) => t.id);
+					await supabase
+						.from("chat_thread_participants")
+						.delete()
+						.in("thread_id", threadIds);
+					await supabase
+						.from("chat_threads")
+						.delete()
+						.eq("project_id", id);
+				}
+
+				// 2. Delete child resources and permissions
+				// Note: Root resources (PROJECT_RESUME, PROJECT_DOCS_ROOT, BORROWER_RESUME, BORROWER_DOCS_ROOT, OM)
+				// cannot be deleted directly due to database trigger. They will be cascade deleted when the project is deleted.
+				const { data: resources } = await supabase
+					.from("resources")
+					.select("id, resource_type, parent_id")
+					.eq("project_id", id);
+
+				if (resources && resources.length > 0) {
+					// Separate root resources from child resources
+					const rootResourceTypes = [
+						"PROJECT_RESUME",
+						"PROJECT_DOCS_ROOT",
+						"BORROWER_RESUME",
+						"BORROWER_DOCS_ROOT",
+						"OM",
+					];
+					
+					// Child resources are those that have a parent_id (nested under root resources)
+					// Root resources (with parent_id = null) will be cascade deleted when project is deleted
+					const childResources = resources.filter(
+						(r) => r.parent_id !== null && !rootResourceTypes.includes(r.resource_type)
+					);
+					const rootResources = resources.filter(
+						(r) => r.parent_id === null || rootResourceTypes.includes(r.resource_type)
+					);
+					
+					const allResourceIds = resources.map((r) => r.id);
+					const childResourceIds = childResources.map((r) => r.id);
+					const rootResourceIds = rootResources.map((r) => r.id);
+
+					console.log(
+						`[ProjectStore] Deleting resources for project ${id}: ${childResourceIds.length} child resources, ${rootResourceIds.length} root resources (will cascade)`
+					);
+
+					// Delete permissions for all resources (including root)
+					// Permissions will be cascade deleted, but we delete them explicitly to be safe
+					if (allResourceIds.length > 0) {
+						await supabase
+							.from("permissions")
+							.delete()
+							.in("resource_id", allResourceIds);
+					}
+
+					// Only delete child resources (non-root resources with parent_id)
+					// Root resources will be cascade deleted when project is deleted
+					// DO NOT attempt to delete root resources - they are protected by database trigger
+					if (childResourceIds.length > 0) {
+						const { error: childDeleteError } = await supabase
+							.from("resources")
+							.delete()
+							.in("id", childResourceIds);
+						
+						if (childDeleteError) {
+							console.error(
+								`[ProjectStore] Error deleting child resources:`,
+								childDeleteError
+							);
+							// Continue anyway - try to delete project which will cascade delete everything
+						}
+					}
+					
+					// Explicitly skip root resources - they will be cascade deleted
+					if (rootResourceIds.length > 0) {
+						console.log(
+							`[ProjectStore] Skipping ${rootResourceIds.length} root resources - will be cascade deleted with project`
+						);
+					}
+				}
+
+				// 3. Delete resumes (these have ON DELETE CASCADE, but we delete explicitly)
+				await supabase
+					.from("project_resumes")
+					.delete()
+					.eq("project_id", id);
+				await supabase
+					.from("borrower_resumes")
+					.delete()
+					.eq("project_id", id);
+
+				// 4. Delete OM data (if exists, has ON DELETE CASCADE)
+				await supabase.from("om").delete().eq("project_id", id);
+
+				// 5. Delete project access grants (has ON DELETE CASCADE)
+				await supabase
+					.from("project_access_grants")
+					.delete()
+					.eq("project_id", id);
+			} catch (relatedDataError) {
+				console.error(
+					`[ProjectStore] Error deleting related data for project ${id}:`,
+					relatedDataError
+				);
+				// Continue with project deletion attempt even if some related data deletion fails
+			}
+
 			// Now delete the project from the database
+			// This will cascade delete ALL resources (including root resources) via foreign key constraints
+			// The cascade delete trigger should allow root resource deletion when the project is deleted
+			// Note: If this fails with "Cannot delete root resource types", the trigger may need to be updated
+			// to properly detect cascade deletes in the same transaction
 			const { error } = await supabase
 				.from("projects")
 				.delete()
@@ -638,6 +759,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					`[ProjectStore] Failed to delete project ${id}:`,
 					error
 				);
+				// If the error is about root resources, it means the cascade delete trigger
+				// is not properly detecting the cascade. This might require a database fix.
+				if (error.message?.includes("Cannot delete root resource types")) {
+					console.error(
+						`[ProjectStore] Cascade delete trigger issue: Root resources should be automatically deleted when project is deleted. This may require a database migration fix.`
+					);
+				}
 				return false;
 			}
 			set((state) => ({
