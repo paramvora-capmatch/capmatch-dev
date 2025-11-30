@@ -131,7 +131,10 @@ export const extractProjectFields = async (
 			zoningDesignation: createField("MU-3", "Zoning Letter"),
 			currentZoning: createField("MU-3", "Zoneomics API"),
 			expectedZoningChanges: createField(null, "User Input"),
-			projectType: createField(null, "User Input"),
+			projectType: createField(
+				["Multifamily", "Mixed-Use"],
+				"User Input"
+			),
 			primaryAssetClass: createField(null, "User Input"),
 			constructionType: createField("Ground-Up", "Arch Plans"),
 			projectPhase: createField(null, "User Input"),
@@ -144,12 +147,20 @@ export const extractProjectFields = async (
 			loanAmountRequested: createField(18000000, "Sources & Uses"),
 			loanType: createField(null, "User Input"),
 			requestedLoanTerm: createField("2 years", "Term Sheet"),
+			requestedTerm: createField("3 Years + 1 Year Ext", "Term Sheet"),
 			masterPlanName: createField(
 				"SoGood Master Planned Development",
 				"Marketing Brochure"
 			),
 			phaseNumber: createField("Building B", "Site Plan"),
+			dealStatus: createField("Pre-Submission", "User Input"),
 			syndicationStatus: createField("Committed", "Equity Commitment"),
+			sponsorExperience: createField("Seasoned (3+)", "Track Record"),
+			borrowerNetWorth: createField(45000000, "Personal FS"),
+			ltvStressMax: createField(50.0, "User Input"),
+			dscrStressMin: createField(1.1, "User Input"),
+			prepaymentPremium: createField("Yield Maint", "Term Sheet"),
+			expectedHoldPeriod: createField(5, "Inv. Memo"),
 			guarantorNames: createField(null, "User Input"),
 			projectDescription: createField(null, "User Input"),
 		},
@@ -170,8 +181,21 @@ export const extractProjectFields = async (
 				"Arch Plans"
 			),
 			amenitySF: createField(8500, "Sum of Areas"),
+			buildingEfficiency: createField(82.0, "NRSF/GBA"),
+			studioCount: createField(12, "Arch Plans"),
+			oneBedCount: createField(46, "Arch Plans"),
+			twoBedCount: createField(58, "Arch Plans"),
+			threeBedCount: createField(0, "Arch Plans"),
+			furnishedUnits: createField(false, "User Input"),
+			lossToLease: createField(5.0, "Rent Roll"),
 			adaCompliantUnitsPercent: createField(5.0, "Arch Plans"),
+			adaCompliantPercent: createField(5.0, "Arch Plans"),
+			hvacSystem: createField("Central", "MEP Plans"),
+			roofTypeAge: createField("TPO, 2 years old", "Eng. Report"),
+			solarCapacity: createField(0, "Arch Plans"),
+			evChargingStations: createField(8, "Site Plan"),
 			leedSustainabilityRating: createField("Pending", "Arch Plans"),
+			leedGreenRating: createField("Pending", "Specs"),
 			residentialUnitMix: createField(
 				[
 					{
@@ -308,7 +332,7 @@ export const extractProjectFields = async (
 			// Operating Expenses
 			realEstateTaxes: createField(450000, "Proforma"),
 			insurance: createField(125000, "Proforma"),
-			utilities: createField(180000, "Proforma"),
+			utilitiesCosts: createField(180000, "Proforma"),
 			repairsAndMaintenance: createField(95000, "Proforma"),
 			managementFee: createField(113400, "Proforma"),
 			generalAndAdmin: createField(75000, "Proforma"),
@@ -331,6 +355,7 @@ export const extractProjectFields = async (
 			inflationAssumption: createField(2.0, "Proforma"),
 			dscrStressTest: createField(1.08, "Stress Calc"),
 			portfolioLTV: createField(65.0, "Sponsor FS"),
+			portfolioDSCR: createField(1.35, "Sponsor FS"),
 		},
 		section_4: {
 			// Market Context
@@ -351,13 +376,28 @@ export const extractProjectFields = async (
 			medianHHIncome: createField(62500, "Census ACS"),
 			renterOccupiedPercent: createField(68.5, "Census ACS"),
 			bachelorsDegreePercent: createField(42.3, "Census ACS"),
+			msaName: createField("Dallas-Fort Worth-Arlington, TX", "Geo"),
+			unemploymentRate: createField(3.5, "BLS"),
+			largestEmployer: createField("Downtown Dallas", "Market Study"),
+			employerConcentration: createField(15.0, "Market Study"),
+			submarketAbsorption: createField(500, "CoStar"),
+			supplyPipeline: createField(1200, "CoStar"),
+			monthsOfSupply: createField(8.5, "Supply/Absorp"),
+			captureRate: createField(2.1, "Subj Units/Demand"),
+			marketConcessions: createField("1 Month Free", "CoStar"),
 			absorptionRate: createField(12, "Market Study"),
 			penetrationRate: createField(2.1, "Market Study"),
-			northStarComp: createField(null, "User Input"),
+			northStarComp: createField("The Alexan Deep Ellum", "User Input"),
 			infrastructureProject: createField(
 				"DART Rail Extension",
 				"Market Study"
 			),
+			infrastructureCatalyst: createField(
+				"New Light Rail Station",
+				"Market Study"
+			),
+			broadbandSpeed: createField("Fiber 1Gbps Available", "FCC Map"),
+			crimeRiskLevel: createField("Low", "Crime Data"),
 			projectBudget: createField(250000000, "Market Study"),
 			infraCompletion: createField("2026", "Market Study"),
 			rentComps: createField(
@@ -460,6 +500,11 @@ export const extractProjectFields = async (
 			topography: createField("Flat", "Survey"),
 			environmental: createField("Clean", "Phase I ESA"),
 			utilities: createField("Available", "Civil Plans"),
+			buildableAcreage: createField(2.3, "ALTA Survey"),
+			allowableFAR: createField(3.5, "Zoning Letter"),
+			farUtilizedPercent: createField(85.0, "GBA/Land Area"),
+			densityBonus: createField(true, "Zoning"),
+			soilConditions: createField("Expansive Clay, req Piles", "Geotech"),
 			utilityCapacity: createField(
 				"Water: 500 GPM available, Sewer: 600 GPM capacity",
 				"Civil Plans"
@@ -469,6 +514,18 @@ export const extractProjectFields = async (
 				"Soils Report"
 			),
 			floodZone: createField("Zone X", "ALTA Survey"),
+			wetlandsPresent: createField(false, "Env Report"),
+			seismicRisk: createField("Low", "Eng Report"),
+			phaseIESAFinding: createField("Clean", "Phase I ESA"),
+			utilityAvailability: createField("All Available", "Will Serve"),
+			easements: createField(
+				"Utility easement on north side",
+				"Title/ALTA"
+			),
+			accessPoints: createField("1 Curb Cut on Main St", "Civil Plans"),
+			adjacentLandUse: createField("Mixed-Use", "Zoning"),
+			noiseFactors: createField(["Highway"], "Env Report"),
+			viewCorridors: createField(["Skyline"], "User Input"),
 			siteAccess: createField(
 				"Primary access from Hickory St, secondary from Commerce St",
 				"Civil Plans"

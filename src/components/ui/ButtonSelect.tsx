@@ -20,7 +20,8 @@ interface ButtonSelectProps {
   buttonClassName?: string;
   gridCols?: string;
   disabled?: boolean;
-  isAutofilled?: boolean; // Add autofill status prop
+  isAutofilled?: boolean; // Deprecated: use isLocked instead
+  isLocked?: boolean; // Use lock status for color coding (green = locked, blue = unlocked)
 }
 
 export const ButtonSelect: React.FC<ButtonSelectProps> = ({
@@ -33,7 +34,8 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   buttonClassName = "text-xs md:text-sm",
   gridCols = "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
   disabled = false,
-  isAutofilled = false,
+  isAutofilled = false, // Deprecated
+  isLocked,
 }) => {
   // Handler that checks if onSelect exists before calling it
   const handleClick = (option: string) => {
@@ -45,8 +47,10 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
     }
   };
 
-  // Apply background color based on autofill status or locked (disabled) state
-  const containerBgClass = isAutofilled || disabled
+  // Apply background color based on lock status (green = locked, blue = unlocked)
+  // Fall back to isAutofilled for backward compatibility
+  const isLockedState = isLocked !== undefined ? isLocked : (isAutofilled || disabled);
+  const containerBgClass = isLockedState
     ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
     : "bg-blue-50 p-3 rounded-lg border border-blue-200";
 
