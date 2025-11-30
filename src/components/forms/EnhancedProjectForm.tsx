@@ -1393,8 +1393,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				const hasValidValue = isValidFieldValue(fieldValue);
 
 				// If field has a valid value and source is not User Input, lock it
+				// But don't re-lock if user explicitly unlocked it
 				if (isAutofilled && hasValidValue) {
-					if (!next.has(fieldId)) {
+					if (!next.has(fieldId) && !unlockedFields.has(fieldId)) {
 						next.add(fieldId);
 						hasChanges = true;
 					}
@@ -1450,7 +1451,11 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						existingProject[
 							fieldId as keyof typeof existingProject
 						];
-					if (isValidFieldValue(fieldValue)) {
+					// Don't re-lock if user explicitly unlocked it
+					if (
+						isValidFieldValue(fieldValue) &&
+						!unlockedFields.has(fieldId)
+					) {
 						next.add(fieldId);
 						hasChanges = true;
 					}
@@ -1489,6 +1494,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isValidFieldValue,
 		fieldMetadata,
 		lockedSections,
+		unlockedFields,
 		updateProject,
 	]);
 
@@ -1550,21 +1556,263 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[fieldMetadata, formData, isValidFieldValue]
 	);
 
-	// Helper function to get field styling classes based on autofill status
+	// Helper function to get sectionId from fieldId
+	const getSectionIdFromFieldId = useCallback(
+		(fieldId: string): string | undefined => {
+			const sectionFieldMap: Record<string, string[]> = {
+				"basic-info": [
+					"projectName",
+					"propertyAddressStreet",
+					"propertyAddressCity",
+					"propertyAddressState",
+					"propertyAddressZip",
+					"propertyAddressCounty",
+					"assetType",
+					"projectType",
+					"parcelNumber",
+					"zoningDesignation",
+					"expectedZoningChanges",
+					"constructionType",
+					"dealStatus",
+					"requestedTerm",
+					"prepaymentPremium",
+					"expectedHoldPeriod",
+					"syndicationStatus",
+					"sponsorExperience",
+					"borrowerNetWorth",
+					"ltvStressMax",
+					"dscrStressMin",
+					"totalDevelopmentCost",
+					"projectPhase",
+					"projectDescription",
+				],
+				"loan-info": [
+					"loanAmountRequested",
+					"loanType",
+					"targetLtvPercent",
+					"targetLtcPercent",
+					"amortizationYears",
+					"interestOnlyPeriodMonths",
+					"interestRateType",
+					"targetCloseDate",
+					"recoursePreference",
+					"useOfProceeds",
+				],
+				financials: [
+					"purchasePrice",
+					"totalProjectCost",
+					"capexBudget",
+					"equityCommittedPercent",
+					"propertyNoiT12",
+					"stabilizedNoiProjected",
+					"exitStrategy",
+					"businessPlanSummary",
+					"marketOverviewSummary",
+					"realEstateTaxes",
+					"insurance",
+					"utilitiesCosts",
+					"repairsAndMaintenance",
+					"managementFee",
+					"generalAndAdmin",
+					"payroll",
+					"reserves",
+					"marketingLeasing",
+					"serviceCoordination",
+					"noiYear1",
+					"yieldOnCost",
+					"capRate",
+					"stabilizedValue",
+					"ltv",
+					"debtYield",
+					"dscr",
+					"dscrStressTest",
+					"inflationAssumption",
+					"portfolioLTV",
+					"trendedNOIYear1",
+					"untrendedNOIYear1",
+					"trendedYield",
+					"untrendedYield",
+					"portfolioDSCR",
+				],
+				"property-specs": [
+					"totalResidentialUnits",
+					"totalResidentialNRSF",
+					"averageUnitSize",
+					"totalCommercialGRSF",
+					"grossBuildingArea",
+					"numberOfStories",
+					"parkingSpaces",
+					"parkingRatio",
+					"buildingEfficiency",
+					"buildingType",
+					"studioCount",
+					"oneBedCount",
+					"twoBedCount",
+					"threeBedCount",
+					"furnishedUnits",
+					"lossToLease",
+					"hvacSystem",
+					"roofTypeAge",
+					"solarCapacity",
+					"evChargingStations",
+					"leedGreenRating",
+					"adaCompliantPercent",
+					"amenityList",
+					"residentialUnitMix",
+					"commercialSpaceMix",
+				],
+				"dev-budget": [
+					"landAcquisition",
+					"baseConstruction",
+					"contingency",
+					"ffe",
+					"aeFees",
+					"constructionFees",
+					"thirdPartyReports",
+					"legalAndOrg",
+					"titleAndRecording",
+					"taxesDuringConstruction",
+					"loanFees",
+					"developerFee",
+					"interestReserve",
+					"workingCapital",
+					"relocationCosts",
+					"syndicationCosts",
+					"enviroRemediation",
+					"pfcStructuringFee",
+					"seniorLoanAmount",
+					"sponsorEquity",
+					"taxCreditEquity",
+					"gapFinancing",
+					"interestRate",
+					"underwritingRate",
+					"amortization",
+					"prepaymentTerms",
+					"recourse",
+					"permTakeoutPlanned",
+					"allInRate",
+				],
+				"market-context": [
+					"submarketName",
+					"walkabilityScore",
+					"population3Mi",
+					"medianHHIncome",
+					"renterOccupiedPercent",
+					"popGrowth201020",
+					"msaName",
+					"projGrowth202429",
+					"unemploymentRate",
+					"largestEmployer",
+					"employerConcentration",
+					"submarketAbsorption",
+					"supplyPipeline",
+					"monthsOfSupply",
+					"captureRate",
+					"marketConcessions",
+					"infrastructureCatalyst",
+					"broadbandSpeed",
+					"crimeRiskLevel",
+					"northStarComp",
+					"rentComps",
+					"saleComps",
+				],
+				"special-considerations": [
+					"opportunityZone",
+					"affordableHousing",
+					"affordableUnitsNumber",
+					"amiTargetPercent",
+					"taxExemption",
+					"taxAbatement",
+					"exemptionStructure",
+					"sponsoringEntity",
+					"exemptionTerm",
+					"relocationPlan",
+					"seismicPMLRisk",
+					"incentiveStacking",
+					"tifDistrict",
+					"paceFinancing",
+					"historicTaxCredits",
+					"newMarketsCredits",
+				],
+				timeline: [
+					"groundbreakingDate",
+					"completionDate",
+					"firstOccupancy",
+					"stabilization",
+					"entitlements",
+					"permitsIssued",
+					"landAcqClose",
+					"finalPlans",
+					"verticalStart",
+					"substantialComp",
+					"preLeasedSF",
+					"absorptionProjection",
+					"opDeficitEscrow",
+					"leaseUpEscrow",
+					"drawSchedule",
+				],
+				"site-context": [
+					"totalSiteAcreage",
+					"currentSiteStatus",
+					"siteAccess",
+					"proximityShopping",
+					"buildableAcreage",
+					"allowableFAR",
+					"farUtilizedPercent",
+					"densityBonus",
+					"soilConditions",
+					"wetlandsPresent",
+					"seismicRisk",
+					"phaseIESAFinding",
+					"utilityAvailability",
+					"easements",
+					"accessPoints",
+					"adjacentLandUse",
+					"noiseFactors",
+					"viewCorridors",
+					"topography",
+					"floodZone",
+				],
+				"sponsor-info": [
+					"sponsorEntityName",
+					"sponsorStructure",
+					"equityPartner",
+					"contactInfo",
+					"sponsorExpScore",
+					"priorDevelopments",
+					"netWorth",
+					"guarantorLiquidity",
+					"portfolioDSCR",
+				],
+			};
+
+			for (const [sectionId, fieldIds] of Object.entries(
+				sectionFieldMap
+			)) {
+				if (fieldIds.includes(fieldId)) {
+					return sectionId;
+				}
+			}
+			return undefined;
+		},
+		[]
+	);
+
+	// Helper function to get field styling classes based on lock status
 	const getFieldStylingClasses = useCallback(
 		(fieldId: string, baseClasses?: string): string => {
-			const isAutofilled = isFieldAutofilled(fieldId);
-			const isDisabled = false; // We'll check this separately
+			const sectionId = getSectionIdFromFieldId(fieldId);
+			const isLocked = isFieldLocked(fieldId, sectionId);
 
-			if (isAutofilled) {
-				// Green styling for autofilled fields - matches View OM button (emerald-600/700)
+			if (isLocked) {
+				// Green styling for locked fields - matches View OM button (emerald-600/700)
 				return cn(
 					baseClasses,
 					"border-emerald-500 bg-emerald-50 focus:ring-emerald-500 focus:border-emerald-600",
 					"hover:border-emerald-600 transition-colors"
 				);
 			} else {
-				// Blue styling for user input fields - matches send button (blue-600)
+				// Blue styling for unlocked fields - matches send button (blue-600)
 				return cn(
 					baseClasses,
 					"border-blue-600 bg-blue-50 focus:ring-blue-600 focus:border-blue-600",
@@ -1572,7 +1820,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				);
 			}
 		},
-		[isFieldAutofilled]
+		[isFieldLocked, getSectionIdFromFieldId]
 	);
 
 	// Helper function to check if a table field is autofilled
@@ -1583,20 +1831,21 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[isFieldAutofilled]
 	);
 
-	// Helper function to get table row styling classes based on autofill status
+	// Helper function to get table row styling classes based on lock status
 	const getTableRowStylingClasses = useCallback(
 		(tableFieldId: string): string => {
-			const isAutofilled = isTableFieldAutofilled(tableFieldId);
+			const sectionId = getSectionIdFromFieldId(tableFieldId);
+			const isLocked = isFieldLocked(tableFieldId, sectionId);
 
-			if (isAutofilled) {
-				// Green background for autofilled table rows
+			if (isLocked) {
+				// Green background for locked table rows
 				return "bg-emerald-50/30 hover:bg-emerald-50/50";
 			} else {
-				// Blue background for user input table rows
+				// Blue background for unlocked table rows
 				return "bg-blue-50/30 hover:bg-blue-50/50";
 			}
 		},
-		[isTableFieldAutofilled]
+		[isFieldLocked, getSectionIdFromFieldId]
 	);
 
 	// Toggle lock for a single field
