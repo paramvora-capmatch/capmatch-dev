@@ -548,7 +548,6 @@ export interface ProjectProfile {
 	farUtilizedPercent?: number;
 	densityBonus?: boolean;
 	soilConditions?: string;
-	floodZone?: string;
 	wetlandsPresent?: boolean;
 	seismicRisk?: string;
 	phaseIESAFinding?: string;

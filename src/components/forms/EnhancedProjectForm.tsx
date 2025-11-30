@@ -1575,6 +1575,30 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[isFieldAutofilled]
 	);
 
+	// Helper function to check if a table field is autofilled
+	const isTableFieldAutofilled = useCallback(
+		(tableFieldId: string): boolean => {
+			return isFieldAutofilled(tableFieldId);
+		},
+		[isFieldAutofilled]
+	);
+
+	// Helper function to get table row styling classes based on autofill status
+	const getTableRowStylingClasses = useCallback(
+		(tableFieldId: string): string => {
+			const isAutofilled = isTableFieldAutofilled(tableFieldId);
+
+			if (isAutofilled) {
+				// Green background for autofilled table rows
+				return "bg-emerald-50/30 hover:bg-emerald-50/50";
+			} else {
+				// Blue background for user input table rows
+				return "bg-blue-50/30 hover:bg-blue-50/50";
+			}
+		},
+		[isTableFieldAutofilled]
+	);
+
 	// Toggle lock for a single field
 	const toggleFieldLock = useCallback(
 		(fieldId: string, sectionId?: string) => {
@@ -2239,7 +2263,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const handleInputChange = useCallback(
 		(
 			field: keyof ProjectProfile,
-			value: string | number | boolean | null
+			value: string | number | boolean | string[] | null
 		) => {
 			setFormData((prev) => {
 				const nextFormData = {
@@ -7811,37 +7835,50 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							{/* Residential Unit Mix Table */}
 							<div className="pt-4">
 								<div className="flex items-center justify-between mb-3">
-									<h3 className="text-md font-medium text-gray-800 flex items-center">
-										<Info className="h-4 w-4 mr-2 text-blue-600" />
+									<h3 className="text-md font-medium text-gray-800 flex items-center gap-2">
+										<Info className="h-4 w-4 text-blue-600" />
 										Residential Unit Mix
+										{isFieldAutofilled(
+											"residentialUnitMix"
+										) && (
+											<div title="Autofilled field">
+												<Lock className="h-4 w-4 text-emerald-600" />
+											</div>
+										)}
 									</h3>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() =>
-											handleTableRowAdd(
-												"residentialUnitMix",
-												{
-													unitType: "",
-													unitCount: 0,
-													avgSF: 0,
-													monthlyRent: 0,
-													affordabilityStatus: "",
-													amiTargetPercent: null,
-													rentBumpSchedule: "",
-												}
-											)
-										}
-										disabled={isFieldDisabled(
+									<div className="flex items-center gap-2">
+										{renderFieldLockButton(
 											"residentialUnitMix",
 											"property-specs"
 										)}
-										className="flex items-center gap-1"
-									>
-										<Plus className="h-4 w-4" />
-										Add Row
-									</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												handleTableRowAdd(
+													"residentialUnitMix",
+													{
+														unitType: "",
+														unitCount: 0,
+														avgSF: 0,
+														monthlyRent: 0,
+														affordabilityStatus: "",
+														amiTargetPercent: null,
+														rentBumpSchedule: "",
+													}
+												)
+											}
+											disabled={isFieldDisabled(
+												"residentialUnitMix",
+												"property-specs"
+											)}
+											className="flex items-center gap-1"
+										>
+											<Plus className="h-4 w-4" />
+											Add Row
+										</Button>
+									</div>
 								</div>
 								<div className="overflow-x-auto">
 									<table className="min-w-full border-collapse border border-gray-300">
@@ -7887,7 +7924,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														unit: any,
 														index: number
 													) => (
-														<tr key={index}>
+														<tr
+															key={index}
+															className={getTableRowStylingClasses(
+																"residentialUnitMix"
+															)}
+														>
 															<td className="border border-gray-300 px-3 py-2">
 																<Input
 																	type="text"
@@ -7911,7 +7953,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"residentialUnitMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -7943,7 +7995,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"residentialUnitMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -7975,7 +8037,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"residentialUnitMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8007,7 +8079,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"residentialUnitMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8033,7 +8115,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"residentialUnitMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8065,7 +8157,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"residentialUnitMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8091,7 +8193,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"residentialUnitMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8124,8 +8236,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No unit mix data
-														available. Click &quot;Add
-														Row&quot; to add a new entry.
+														available. Click
+														&quot;Add Row&quot; to
+														add a new entry.
 													</td>
 												</tr>
 											)}
@@ -8136,36 +8249,49 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							{/* Commercial Space Mix Table */}
 							<div className="pt-4">
 								<div className="flex items-center justify-between mb-3">
-									<h3 className="text-md font-medium text-gray-800 flex items-center">
-										<Info className="h-4 w-4 mr-2 text-blue-600" />
+									<h3 className="text-md font-medium text-gray-800 flex items-center gap-2">
+										<Info className="h-4 w-4 text-blue-600" />
 										Commercial Space Mix
+										{isFieldAutofilled(
+											"commercialSpaceMix"
+										) && (
+											<div title="Autofilled field">
+												<Lock className="h-4 w-4 text-emerald-600" />
+											</div>
+										)}
 									</h3>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() =>
-											handleTableRowAdd(
-												"commercialSpaceMix",
-												{
-													spaceType: "",
-													squareFootage: 0,
-													tenant: "",
-													leaseTerm: "",
-													annualRent: 0,
-													tiAllowance: 0,
-												}
-											)
-										}
-										disabled={isFieldDisabled(
+									<div className="flex items-center gap-2">
+										{renderFieldLockButton(
 											"commercialSpaceMix",
 											"property-specs"
 										)}
-										className="flex items-center gap-1"
-									>
-										<Plus className="h-4 w-4" />
-										Add Row
-									</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												handleTableRowAdd(
+													"commercialSpaceMix",
+													{
+														spaceType: "",
+														squareFootage: 0,
+														tenant: "",
+														leaseTerm: "",
+														annualRent: 0,
+														tiAllowance: 0,
+													}
+												)
+											}
+											disabled={isFieldDisabled(
+												"commercialSpaceMix",
+												"property-specs"
+											)}
+											className="flex items-center gap-1"
+										>
+											<Plus className="h-4 w-4" />
+											Add Row
+										</Button>
+									</div>
 								</div>
 								<div className="overflow-x-auto">
 									<table className="min-w-full border-collapse border border-gray-300">
@@ -8208,7 +8334,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														space: any,
 														index: number
 													) => (
-														<tr key={index}>
+														<tr
+															key={index}
+															className={getTableRowStylingClasses(
+																"commercialSpaceMix"
+															)}
+														>
 															<td className="border border-gray-300 px-3 py-2">
 																<Input
 																	type="text"
@@ -8232,7 +8363,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"commercialSpaceMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"commercialSpaceMix"
+																		),
+																		isFieldDisabled(
+																			"commercialSpaceMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8264,7 +8405,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"commercialSpaceMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"commercialSpaceMix"
+																		),
+																		isFieldDisabled(
+																			"commercialSpaceMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8290,7 +8441,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"commercialSpaceMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"commercialSpaceMix"
+																		),
+																		isFieldDisabled(
+																			"commercialSpaceMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8316,7 +8477,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"commercialSpaceMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"commercialSpaceMix"
+																		),
+																		isFieldDisabled(
+																			"commercialSpaceMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8348,7 +8519,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"commercialSpaceMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"commercialSpaceMix"
+																		),
+																		isFieldDisabled(
+																			"commercialSpaceMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8380,7 +8561,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"commercialSpaceMix",
 																		"property-specs"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"commercialSpaceMix"
+																		),
+																		isFieldDisabled(
+																			"commercialSpaceMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -8413,8 +8604,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No commercial space data
-														available. Click &quot;Add
-														Row&quot; to add a new entry.
+														available. Click
+														&quot;Add Row&quot; to
+														add a new entry.
 													</td>
 												</tr>
 											)}
@@ -10948,36 +11140,47 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							{/* Rent Comps Table */}
 							<div className="pt-4">
 								<div className="flex items-center justify-between mb-3">
-									<h3 className="text-md font-medium text-gray-800 flex items-center">
-										<Info className="h-4 w-4 mr-2 text-blue-600" />
+									<h3 className="text-md font-medium text-gray-800 flex items-center gap-2">
+										<Info className="h-4 w-4 text-blue-600" />
 										Rent Comps
+										{isFieldAutofilled("rentComps") && (
+											<div title="Autofilled field">
+												<Lock className="h-4 w-4 text-emerald-600" />
+											</div>
+										)}
 									</h3>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() =>
-											handleTableRowAdd("rentComps", {
-												propertyName: "",
-												address: "",
-												distance: 0,
-												yearBuilt: 0,
-												totalUnits: 0,
-												occupancyPercent: 0,
-												avgRentMonth: 0,
-												rentPSF: 0,
-												concessions: "",
-											})
-										}
-										disabled={isFieldDisabled(
+									<div className="flex items-center gap-2">
+										{renderFieldLockButton(
 											"rentComps",
 											"market-context"
 										)}
-										className="flex items-center gap-1"
-									>
-										<Plus className="h-4 w-4" />
-										Add Row
-									</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												handleTableRowAdd("rentComps", {
+													propertyName: "",
+													address: "",
+													distance: 0,
+													yearBuilt: 0,
+													totalUnits: 0,
+													occupancyPercent: 0,
+													avgRentMonth: 0,
+													rentPSF: 0,
+													concessions: "",
+												})
+											}
+											disabled={isFieldDisabled(
+												"rentComps",
+												"market-context"
+											)}
+											className="flex items-center gap-1"
+										>
+											<Plus className="h-4 w-4" />
+											Add Row
+										</Button>
+									</div>
 								</div>
 								<div className="overflow-x-auto">
 									<table className="min-w-full border-collapse border border-gray-300">
@@ -11026,7 +11229,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														comp: any,
 														index: number
 													) => (
-														<tr key={index}>
+														<tr
+															key={index}
+															className={getTableRowStylingClasses(
+																"rentComps"
+															)}
+														>
 															<td className="border border-gray-300 px-3 py-2">
 																<Input
 																	type="text"
@@ -11050,7 +11258,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"rentComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"rentComps"
+																		),
+																		isFieldDisabled(
+																			"rentComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11076,7 +11294,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"rentComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"rentComps"
+																		),
+																		isFieldDisabled(
+																			"rentComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11108,7 +11336,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"rentComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"rentComps"
+																		),
+																		isFieldDisabled(
+																			"rentComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11140,7 +11378,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"rentComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"rentComps"
+																		),
+																		isFieldDisabled(
+																			"rentComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11172,7 +11420,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"rentComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"rentComps"
+																		),
+																		isFieldDisabled(
+																			"rentComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11204,7 +11462,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"rentComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"rentComps"
+																		),
+																		isFieldDisabled(
+																			"rentComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11236,7 +11504,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"rentComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"rentComps"
+																		),
+																		isFieldDisabled(
+																			"rentComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11268,7 +11546,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"rentComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"rentComps"
+																		),
+																		isFieldDisabled(
+																			"rentComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11294,7 +11582,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"rentComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"rentComps"
+																		),
+																		isFieldDisabled(
+																			"rentComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11327,8 +11625,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No rent comps data
-														available. Click &quot;Add
-														Row&quot; to add a new entry.
+														available. Click
+														&quot;Add Row&quot; to
+														add a new entry.
 													</td>
 												</tr>
 											)}
@@ -11339,31 +11638,42 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							{/* Sale Comps Table */}
 							<div className="pt-4">
 								<div className="flex items-center justify-between mb-3">
-									<h3 className="text-md font-medium text-gray-800 flex items-center">
-										<Info className="h-4 w-4 mr-2 text-blue-600" />
+									<h3 className="text-md font-medium text-gray-800 flex items-center gap-2">
+										<Info className="h-4 w-4 text-blue-600" />
 										Sale Comps
+										{isFieldAutofilled("saleComps") && (
+											<div title="Autofilled field">
+												<Lock className="h-4 w-4 text-emerald-600" />
+											</div>
+										)}
 									</h3>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() =>
-											handleTableRowAdd("saleComps", {
-												propertyName: "",
-												salePricePerUnit: 0,
-												capRate: 0,
-												saleDate: "",
-											})
-										}
-										disabled={isFieldDisabled(
+									<div className="flex items-center gap-2">
+										{renderFieldLockButton(
 											"saleComps",
 											"market-context"
 										)}
-										className="flex items-center gap-1"
-									>
-										<Plus className="h-4 w-4" />
-										Add Row
-									</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												handleTableRowAdd("saleComps", {
+													propertyName: "",
+													salePricePerUnit: 0,
+													capRate: 0,
+													saleDate: "",
+												})
+											}
+											disabled={isFieldDisabled(
+												"saleComps",
+												"market-context"
+											)}
+											className="flex items-center gap-1"
+										>
+											<Plus className="h-4 w-4" />
+											Add Row
+										</Button>
+									</div>
 								</div>
 								<div className="overflow-x-auto">
 									<table className="min-w-full border-collapse border border-gray-300">
@@ -11397,7 +11707,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														comp: any,
 														index: number
 													) => (
-														<tr key={index}>
+														<tr
+															key={index}
+															className={getTableRowStylingClasses(
+																"saleComps"
+															)}
+														>
 															<td className="border border-gray-300 px-3 py-2">
 																<Input
 																	type="text"
@@ -11421,7 +11736,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"saleComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"saleComps"
+																		),
+																		isFieldDisabled(
+																			"saleComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11453,7 +11778,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"saleComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"saleComps"
+																		),
+																		isFieldDisabled(
+																			"saleComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11485,7 +11820,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"saleComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"saleComps"
+																		),
+																		isFieldDisabled(
+																			"saleComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11511,7 +11856,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"saleComps",
 																		"market-context"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"saleComps"
+																		),
+																		isFieldDisabled(
+																			"saleComps",
+																			"market-context"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -11544,8 +11899,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No sale comps data
-														available. Click &quot;Add
-														Row&quot; to add a new entry.
+														available. Click
+														&quot;Add Row&quot; to
+														add a new entry.
 													</td>
 												</tr>
 											)}
@@ -13217,30 +13573,44 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							{/* Draw Schedule Table */}
 							<div className="pt-4">
 								<div className="flex items-center justify-between mb-3">
-									<h3 className="text-md font-medium text-gray-800 flex items-center">
-										<Info className="h-4 w-4 mr-2 text-blue-600" />
+									<h3 className="text-md font-medium text-gray-800 flex items-center gap-2">
+										<Info className="h-4 w-4 text-blue-600" />
 										Draw Schedule
+										{isFieldAutofilled("drawSchedule") && (
+											<div title="Autofilled field">
+												<Lock className="h-4 w-4 text-emerald-600" />
+											</div>
+										)}
 									</h3>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() =>
-											handleTableRowAdd("drawSchedule", {
-												drawNumber: 0,
-												percentComplete: 0,
-												amount: 0,
-											})
-										}
-										disabled={isFieldDisabled(
+									<div className="flex items-center gap-2">
+										{renderFieldLockButton(
 											"drawSchedule",
 											"timeline"
 										)}
-										className="flex items-center gap-1"
-									>
-										<Plus className="h-4 w-4" />
-										Add Row
-									</Button>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() =>
+												handleTableRowAdd(
+													"drawSchedule",
+													{
+														drawNumber: 0,
+														percentComplete: 0,
+														amount: 0,
+													}
+												)
+											}
+											disabled={isFieldDisabled(
+												"drawSchedule",
+												"timeline"
+											)}
+											className="flex items-center gap-1"
+										>
+											<Plus className="h-4 w-4" />
+											Add Row
+										</Button>
+									</div>
 								</div>
 								<div className="overflow-x-auto">
 									<table className="min-w-full border-collapse border border-gray-300">
@@ -13273,7 +13643,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														draw: any,
 														index: number
 													) => (
-														<tr key={index}>
+														<tr
+															key={index}
+															className={getTableRowStylingClasses(
+																"drawSchedule"
+															)}
+														>
 															<td className="border border-gray-300 px-3 py-2">
 																<Input
 																	type="number"
@@ -13303,7 +13678,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"drawSchedule",
 																		"timeline"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"drawSchedule"
+																		),
+																		isFieldDisabled(
+																			"drawSchedule",
+																			"timeline"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -13335,7 +13720,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"drawSchedule",
 																		"timeline"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"drawSchedule"
+																		),
+																		isFieldDisabled(
+																			"drawSchedule",
+																			"timeline"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -13367,7 +13762,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																		"drawSchedule",
 																		"timeline"
 																	)}
-																	className="w-full"
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"drawSchedule"
+																		),
+																		isFieldDisabled(
+																			"drawSchedule",
+																			"timeline"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
 																/>
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
@@ -13400,8 +13805,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
 													>
 														No draw schedule data
-														available. Click &quot;Add
-														Row&quot; to add a new entry.
+														available. Click
+														&quot;Add Row&quot; to
+														add a new entry.
 													</td>
 												</tr>
 											)}
@@ -15201,6 +15607,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			renderFieldLabel,
 			toggleSectionLock,
 			activeOrg?.id,
+			getTableRowStylingClasses,
+			renderFieldLockButton,
 			getFieldStylingClasses,
 			isFieldAutofilled,
 			handleTableRowAdd,
