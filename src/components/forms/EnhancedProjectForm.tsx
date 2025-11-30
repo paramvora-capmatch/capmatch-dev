@@ -1737,10 +1737,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			"property-specs": [
 				"totalResidentialUnits",
 				"totalResidentialNRSF",
+				"averageUnitSize",
 				"totalCommercialGRSF",
 				"grossBuildingArea",
 				"numberOfStories",
 				"parkingSpaces",
+				"parkingRatio",
 				"buildingEfficiency",
 				"buildingType",
 				"studioCount",
@@ -1765,6 +1767,12 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"contingency",
 				"ffe",
 				"aeFees",
+				"constructionFees",
+				"thirdPartyReports",
+				"legalAndOrg",
+				"titleAndRecording",
+				"taxesDuringConstruction",
+				"loanFees",
 				"developerFee",
 				"interestReserve",
 				"workingCapital",
@@ -6736,6 +6744,59 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										</div>
 									</AskAIButton>
 								</FormGroup>
+								<FormGroup>
+									<AskAIButton
+										id="averageUnitSize"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"averageUnitSize",
+												"property-specs",
+												"Avg Unit Size",
+												false
+											)}
+											<Input
+												id="averageUnitSize"
+												type="number"
+												label={null}
+												value={
+													formData.averageUnitSize?.toString() ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"averageUnitSize",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 513"
+												disabled={isFieldDisabled(
+													"averageUnitSize",
+													"property-specs"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"averageUnitSize"
+													),
+													isFieldDisabled(
+														"averageUnitSize",
+														"property-specs"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="averageUnitSize"
+												data-field-type="number"
+												data-field-section="property-specs"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
 							</div>
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 								<FormGroup>
@@ -6946,6 +7007,60 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="parkingSpaces"
+												data-field-type="number"
+												data-field-section="property-specs"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+								<FormGroup>
+									<AskAIButton
+										id="parkingRatio"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"parkingRatio",
+												"property-specs",
+												"Parking Ratio",
+												false
+											)}
+											<Input
+												id="parkingRatio"
+												type="number"
+												step="0.01"
+												label={null}
+												value={
+													formData.parkingRatio?.toString() ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"parkingRatio",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 1.55"
+												disabled={isFieldDisabled(
+													"parkingRatio",
+													"property-specs"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"parkingRatio"
+													),
+													isFieldDisabled(
+														"parkingRatio",
+														"property-specs"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="parkingRatio"
 												data-field-type="number"
 												data-field-section="property-specs"
 											/>
@@ -7862,8 +7977,11 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														unitType: "",
 														unitCount: 0,
 														avgSF: 0,
+														totalSF: 0,
 														monthlyRent: 0,
+														percentOfTotal: null,
 														affordabilityStatus: "",
+														affordableUnitsCount: 0,
 														amiTargetPercent: null,
 														rentBumpSchedule: "",
 													}
@@ -7894,10 +8012,19 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													Avg SF
 												</th>
 												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Total SF
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
 													Monthly Rent
 												</th>
 												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													% of Total Units
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
 													Affordability Status
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Affordable Units Count
 												</th>
 												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
 													AMI Target %
@@ -8054,6 +8181,48 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																<Input
 																	type="number"
 																	value={
+																		unit.totalSF?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"totalSF",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
 																		unit.monthlyRent?.toString() ||
 																		""
 																	}
@@ -8094,6 +8263,49 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 															</td>
 															<td className="border border-gray-300 px-3 py-2">
 																<Input
+																	type="number"
+																	step="0.01"
+																	value={
+																		unit.percentOfTotal?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"percentOfTotal",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: null
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
 																	type="text"
 																	value={
 																		unit.affordabilityStatus ||
@@ -8109,6 +8321,48 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																			e
 																				.target
 																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className={cn(
+																		"w-full",
+																		getFieldStylingClasses(
+																			"residentialUnitMix"
+																		),
+																		isFieldDisabled(
+																			"residentialUnitMix",
+																			"property-specs"
+																		) &&
+																			"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+																	)}
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		unit.affordableUnitsCount?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"affordableUnitsCount",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
 																		)
 																	}
 																	disabled={isFieldDisabled(
@@ -8932,6 +9186,341 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
 												)}
 												data-field-id="aeFees"
+												data-field-type="number"
+												data-field-section="dev-budget"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+								<FormGroup>
+									<AskAIButton
+										id="constructionFees"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"constructionFees",
+												"dev-budget",
+												"Construction Fees",
+												false
+											)}
+											<Input
+												id="constructionFees"
+												type="number"
+												label={null}
+												value={
+													(
+														formData as any
+													).constructionFees?.toString() ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"constructionFees",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 174000"
+												disabled={isFieldDisabled(
+													"constructionFees",
+													"dev-budget"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"constructionFees"
+													),
+													isFieldDisabled(
+														"constructionFees",
+														"dev-budget"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="constructionFees"
+												data-field-type="number"
+												data-field-section="dev-budget"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								<FormGroup>
+									<AskAIButton
+										id="thirdPartyReports"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"thirdPartyReports",
+												"dev-budget",
+												"Third Party Reports",
+												false
+											)}
+											<Input
+												id="thirdPartyReports"
+												type="number"
+												label={null}
+												value={
+													(
+														formData as any
+													).thirdPartyReports?.toString() ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"thirdPartyReports",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 50000"
+												disabled={isFieldDisabled(
+													"thirdPartyReports",
+													"dev-budget"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"thirdPartyReports"
+													),
+													isFieldDisabled(
+														"thirdPartyReports",
+														"dev-budget"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="thirdPartyReports"
+												data-field-type="number"
+												data-field-section="dev-budget"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+								<FormGroup>
+									<AskAIButton
+										id="legalAndOrg"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"legalAndOrg",
+												"dev-budget",
+												"Legal & Org",
+												false
+											)}
+											<Input
+												id="legalAndOrg"
+												type="number"
+												label={null}
+												value={
+													(
+														formData as any
+													).legalAndOrg?.toString() ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"legalAndOrg",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 50000"
+												disabled={isFieldDisabled(
+													"legalAndOrg",
+													"dev-budget"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"legalAndOrg"
+													),
+													isFieldDisabled(
+														"legalAndOrg",
+														"dev-budget"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="legalAndOrg"
+												data-field-type="number"
+												data-field-section="dev-budget"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								<FormGroup>
+									<AskAIButton
+										id="titleAndRecording"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"titleAndRecording",
+												"dev-budget",
+												"Title & Recording",
+												false
+											)}
+											<Input
+												id="titleAndRecording"
+												type="number"
+												label={null}
+												value={
+													(
+														formData as any
+													).titleAndRecording?.toString() ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"titleAndRecording",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 75000"
+												disabled={isFieldDisabled(
+													"titleAndRecording",
+													"dev-budget"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"titleAndRecording"
+													),
+													isFieldDisabled(
+														"titleAndRecording",
+														"dev-budget"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="titleAndRecording"
+												data-field-type="number"
+												data-field-section="dev-budget"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+								<FormGroup>
+									<AskAIButton
+										id="taxesDuringConstruction"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"taxesDuringConstruction",
+												"dev-budget",
+												"Taxes During Const.",
+												false
+											)}
+											<Input
+												id="taxesDuringConstruction"
+												type="number"
+												label={null}
+												value={
+													(
+														formData as any
+													).taxesDuringConstruction?.toString() ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"taxesDuringConstruction",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 20000"
+												disabled={isFieldDisabled(
+													"taxesDuringConstruction",
+													"dev-budget"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"taxesDuringConstruction"
+													),
+													isFieldDisabled(
+														"taxesDuringConstruction",
+														"dev-budget"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="taxesDuringConstruction"
+												data-field-type="number"
+												data-field-section="dev-budget"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								<FormGroup>
+									<AskAIButton
+										id="loanFees"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"loanFees",
+												"dev-budget",
+												"Loan Fees",
+												false
+											)}
+											<Input
+												id="loanFees"
+												type="number"
+												label={null}
+												value={
+													(
+														formData as any
+													).loanFees?.toString() || ""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"loanFees",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 360000"
+												disabled={isFieldDisabled(
+													"loanFees",
+													"dev-budget"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"loanFees"
+													),
+													isFieldDisabled(
+														"loanFees",
+														"dev-budget"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="loanFees"
 												data-field-type="number"
 												data-field-section="dev-budget"
 											/>
