@@ -1146,7 +1146,7 @@ async function seedDocuments(
 
   // Map actual file names to meaningful document names
   const documentPaths = [
-    // Project documents
+    // Project documents - from context/SoGood and docs/so-good-apartments
     { file: 'Northmarq Hoque Loan Request Package - SoGood - 5.6.25.pdf', name: 'Loan Request Package', type: 'PROJECT_DOCS_ROOT' as const },
     { file: 'SoGood 2021_05_18_SoGood.pdf', name: 'SoGood Master Plan - Concept', type: 'PROJECT_DOCS_ROOT' as const },
     { file: 'Concept Combined (1).pdf', name: 'Building B - Concept Drawings', type: 'PROJECT_DOCS_ROOT' as const },
@@ -1154,10 +1154,42 @@ async function seedDocuments(
     { file: 'SoGood Building B - Pro Forma.xlsx', name: 'Building B - Pro Forma', type: 'PROJECT_DOCS_ROOT' as const },
     { file: 'SGCMMD - PFC Memorandum (SoGood) 4874-2859-9225 v.2.pdf', name: 'PFC Memorandum - SoGood', type: 'PROJECT_DOCS_ROOT' as const },
     { file: 'HB 2071 Summary.pdf', name: 'HB 2071 Summary - PFC Legislation', type: 'PROJECT_DOCS_ROOT' as const },
+    
+    // Additional documents from docs/so-good-apartments
+    { file: 'alta_survey.pdf', name: 'ALTA Survey', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'appraisal_summary.pdf', name: 'Appraisal Summary', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'architectural_plan_abstract.pdf', name: 'Architectural Plan Abstract', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'construction_draw_schedule.xlsx', name: 'Construction Draw Schedule', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'construction_schedule.pdf', name: 'Construction Schedule', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'development_budget.xlsx', name: 'Development Budget', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'geotechnical_report.pdf', name: 'Geotechnical Report', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'images.pdf', name: 'Project Images', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'incentive_agreement.docx', name: 'Incentive Agreement', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'market_study.pdf', name: 'Market Study', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'operating_proforma.xlsx', name: 'Operating Pro Forma', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'phase_1_esa.pdf', name: 'Phase 1 ESA', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'purchase_and_sale_agreement.docx', name: 'Purchase and Sale Agreement', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'regulatory_agreement.docx', name: 'Regulatory Agreement', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'relocation_plan.docx', name: 'Relocation Plan', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'rent_comp_survey.pdf', name: 'Rent Comp Survey', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'rent_roll.xlsx', name: 'Rent Roll', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'sales_comparables.xlsx', name: 'Sales Comparables', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'site_plan_abstract.pdf', name: 'Site Plan Abstract', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'sources_uses.xlsx', name: 'Sources & Uses', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'sponsor_financials.xlsx', name: 'Sponsor Financials', type: 'BORROWER_DOCS_ROOT' as const },
+    { file: 'sponsor_org_chart.docx', name: 'Sponsor Org Chart', type: 'BORROWER_DOCS_ROOT' as const },
+    { file: 'term_sheet.docx', name: 'Term Sheet', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'title_commitment.docx', name: 'Title Commitment', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'utility_letter.docx', name: 'Utility Letter', type: 'PROJECT_DOCS_ROOT' as const },
+    { file: 'zoning_verification_letter.docx', name: 'Zoning Verification Letter', type: 'PROJECT_DOCS_ROOT' as const },
   ];
 
-  // Try to find documents in common locations (prioritize CapMatch-Extra)
+  // Try to find documents in common locations (prioritize context/SoGood and docs/so-good-apartments)
   const possibleBasePaths = [
+    resolve(process.cwd(), '../../context/SoGood'),
+    resolve(process.cwd(), '../context/SoGood'),
+    resolve(process.cwd(), './docs/so-good-apartments'),
+    resolve(process.cwd(), '../docs/so-good-apartments'),
     resolve(process.cwd(), '../../CapMatch-Extra/SoGood'),
     resolve(process.cwd(), '../CapMatch-Extra/SoGood'),
     resolve(process.cwd(), '../SampleLoanPackage/SoGood'),
@@ -1165,25 +1197,38 @@ async function seedDocuments(
     resolve(process.cwd(), '../hoque-docs'),
   ];
 
-  let basePath: string | null = null;
+  // Check multiple base paths - documents might be in different locations
+  const foundBasePaths: string[] = [];
   for (const path of possibleBasePaths) {
     if (existsSync(path)) {
-      basePath = path;
-      console.log(`[seed] Found document directory: ${basePath}`);
-      break;
+      foundBasePaths.push(path);
+      console.log(`[seed] Found document directory: ${path}`);
     }
   }
 
-  if (!basePath) {
+  if (foundBasePaths.length === 0) {
     console.log(`[seed] ⚠️  No document directory found. Skipping document upload.`);
     console.log(`[seed]    To upload documents, place them in one of:`);
     possibleBasePaths.forEach(p => console.log(`[seed]    - ${p}`));
     return documents;
   }
 
+  // Try to find each document in any of the found base paths
   for (const doc of documentPaths) {
-    const filePath = join(basePath, doc.file);
-    if (existsSync(filePath)) {
+    let filePath: string | null = null;
+    let foundInPath: string | null = null;
+    
+    // Check each found base path for this document
+    for (const basePath of foundBasePaths) {
+      const testPath = join(basePath, doc.file);
+      if (existsSync(testPath)) {
+        filePath = testPath;
+        foundInPath = basePath;
+        break;
+      }
+    }
+    
+    if (filePath && foundInPath) {
       // Extract file extension from the actual file path
       const fileExtension = doc.file.split('.').pop()?.toLowerCase();
       // Append extension to the display name so edit button logic works correctly
@@ -1203,7 +1248,7 @@ async function seedDocuments(
         documents[doc.name] = resourceId;
       }
     } else {
-      console.log(`[seed] ⚠️  Document not found: ${doc.file}`);
+      console.log(`[seed] ⚠️  Document not found in any directory: ${doc.file}`);
     }
   }
 
