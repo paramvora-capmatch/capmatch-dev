@@ -1,6 +1,5 @@
 "use client";
 
-import { financialDetails } from "@/services/mockOMData";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,14 +15,34 @@ import {
 } from "lucide-react";
 import PlaceholderImage from "@/components/ui/PlaceholderImage";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
+import { useOmContent } from "@/hooks/useOmContent";
 
 export default function SponsorProfilePage() {
-  const getIRRColor = (irr: string) => {
-    const irrNum = parseFloat(irr);
+  const { content } = useOmContent();
+  const financialDetails = content?.financialDetails ?? null;
+  const sponsorProfile = financialDetails?.sponsorProfile ?? null;
+  const principals = sponsorProfile?.principals ?? [];
+  const references = sponsorProfile?.references ?? [];
+  const trackRecord = sponsorProfile?.trackRecord ?? [];
+
+  const getIRRColor = (irr?: string | number | null) => {
+    const irrNum =
+      typeof irr === "number"
+        ? irr
+        : parseFloat(typeof irr === "string" ? irr : String(irr ?? ""));
+    if (Number.isNaN(irrNum)) return "bg-gray-100 text-gray-800";
     if (irrNum >= 25) return "bg-green-100 text-green-800";
     if (irrNum >= 20) return "bg-blue-100 text-blue-800";
     if (irrNum >= 15) return "bg-green-100 text-green-800";
     return "bg-gray-100 text-gray-800";
+  };
+
+  const getIrrValue = (irr?: string | number | null) => {
+    const irrNum =
+      typeof irr === "number"
+        ? irr
+        : parseFloat(typeof irr === "string" ? irr : String(irr ?? ""));
+    return Number.isNaN(irrNum) ? null : irrNum;
   };
 
   useOMPageHeader({
@@ -44,7 +63,7 @@ export default function SponsorProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {financialDetails.sponsorProfile.yearFounded}
+              {sponsorProfile?.yearFounded ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Years in business</p>
           </CardContent>
@@ -61,7 +80,7 @@ export default function SponsorProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {financialDetails.sponsorProfile.totalDeveloped}
+              {sponsorProfile?.totalDeveloped ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Cumulative value</p>
           </CardContent>
@@ -78,7 +97,7 @@ export default function SponsorProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {financialDetails.sponsorProfile.totalUnits.toLocaleString()}
+              {sponsorProfile?.totalUnits?.toLocaleString() ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Units delivered</p>
           </CardContent>
@@ -95,7 +114,7 @@ export default function SponsorProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {financialDetails.sponsorProfile.activeProjects}
+              {sponsorProfile?.activeProjects ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Current developments</p>
           </CardContent>
@@ -119,13 +138,13 @@ export default function SponsorProfilePage() {
                 <div>
                   <p className="text-sm text-gray-500">Company Name</p>
                   <p className="font-medium text-gray-800">
-                    {financialDetails.sponsorProfile.firmName}
+                    {sponsorProfile?.firmName ?? null}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Year Founded</p>
                   <p className="font-medium text-gray-800">
-                    {financialDetails.sponsorProfile.yearFounded}
+                    {sponsorProfile?.yearFounded ?? null}
                   </p>
                 </div>
                 <div>
@@ -133,19 +152,19 @@ export default function SponsorProfilePage() {
                     Total Development Value
                   </p>
                   <p className="font-medium text-gray-800">
-                    {financialDetails.sponsorProfile.totalDeveloped}
+                    {sponsorProfile?.totalDeveloped ?? null}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total Units Delivered</p>
                   <p className="font-medium text-gray-800">
-                    {financialDetails.sponsorProfile.totalUnits.toLocaleString()}
+                    {sponsorProfile?.totalUnits?.toLocaleString() ?? null}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Active Projects</p>
                   <p className="font-medium text-gray-800">
-                    {financialDetails.sponsorProfile.activeProjects}
+                    {sponsorProfile?.activeProjects ?? null}
                   </p>
                 </div>
               </div>
@@ -192,8 +211,8 @@ export default function SponsorProfilePage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {financialDetails.sponsorProfile.principals.map(
-              (principal, index) => (
+            {principals.map(
+              (principal: { name?: string | null; role?: string | null; experience?: string | null; bio?: string | null; education?: string | null; specialties?: string[] | null; achievements?: string[] | null }, index: number) => (
                 <div
                   key={index}
                   className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-100 hover:shadow-lg transition-all duration-300"
@@ -201,7 +220,7 @@ export default function SponsorProfilePage() {
                   <div className="flex items-start mb-6">
                     <div className="mr-4 flex-shrink-0">
                       <PlaceholderImage
-                        name={principal.name}
+                        name={principal.name ?? ''}
                         size={80}
                         color={index === 0 ? "3B82F6" : "10B981"}
                       />
@@ -241,7 +260,7 @@ export default function SponsorProfilePage() {
                         Specialties
                       </h5>
                       <div className="flex flex-wrap gap-2">
-                        {principal.specialties.map((specialty, idx) => (
+                        {(principal.specialties ?? []).map((specialty: string, idx: number) => (
                           <Badge
                             key={idx}
                             variant="outline"
@@ -258,7 +277,7 @@ export default function SponsorProfilePage() {
                         Key Achievements
                       </h5>
                       <div className="space-y-2">
-                        {principal.achievements.map((achievement, idx) => (
+                        {(principal.achievements ?? []).map((achievement: string, idx: number) => (
                           <div key={idx} className="flex items-center">
                             <Star className="h-3 w-3 text-green-500 mr-2" />
                             <span className="text-sm text-gray-600">
@@ -313,8 +332,9 @@ export default function SponsorProfilePage() {
                 </tr>
               </thead>
               <tbody>
-                {financialDetails.sponsorProfile.trackRecord.map(
-                  (project, index) => (
+                {trackRecord.map((project: { project?: string | null; year?: number | null; units?: number | null; irr?: string | number | null; market?: string | null; type?: string | null }, index: number) => {
+                  const irrValue = getIrrValue(project.irr);
+                  return (
                     <tr
                       key={index}
                       className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
@@ -325,14 +345,14 @@ export default function SponsorProfilePage() {
                         </p>
                       </td>
                       <td className="py-4 px-4 text-gray-600">
-                        {project.year}
+                        {project.year ?? null}
                       </td>
                       <td className="py-4 px-4 text-gray-600">
-                        {project.units}
+                        {project.units ?? null}
                       </td>
                       <td className="py-4 px-4">
-                        <Badge className={getIRRColor(project.irr)}>
-                          {project.irr}
+                        <Badge className={getIRRColor(irrValue)}>
+                          {irrValue != null ? `${irrValue}%` : null}
                         </Badge>
                       </td>
                       <td className="py-4 px-4">
@@ -347,24 +367,26 @@ export default function SponsorProfilePage() {
                       </td>
                       <td className="py-4 px-4">
                         <div className="text-sm">
-                          {parseFloat(project.irr) >= 25 ? (
-                            <Badge className="bg-green-100 text-green-800">
-                              Exceptional
-                            </Badge>
-                          ) : parseFloat(project.irr) >= 20 ? (
-                            <Badge className="bg-blue-100 text-blue-800">
-                              Strong
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-green-100 text-green-800">
-                              Good
-                            </Badge>
-                          )}
+                          {irrValue != null ? (
+                            irrValue >= 25 ? (
+                              <Badge className="bg-green-100 text-green-800">
+                                Exceptional
+                              </Badge>
+                            ) : irrValue >= 20 ? (
+                              <Badge className="bg-blue-100 text-blue-800">
+                                Strong
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-green-100 text-green-800">
+                                Good
+                              </Badge>
+                            )
+                          ) : null}
                         </div>
                       </td>
                     </tr>
-                  )
-                )}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -381,8 +403,7 @@ export default function SponsorProfilePage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {financialDetails.sponsorProfile.references.map(
-              (reference, index) => (
+            {references.map((reference: { firm?: string | null; relationship?: string | null; years?: string | null; contact?: string | null }, index: number) => (
                 <div
                   key={index}
                   className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-100 hover:shadow-lg transition-all duration-300"
@@ -393,10 +414,10 @@ export default function SponsorProfilePage() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-800">
-                        {reference.firm}
+                        {reference.firm ?? null}
                       </h4>
                       <p className="text-sm text-blue-600 font-medium">
-                        {reference.relationship}
+                        {reference.relationship ?? null}
                       </p>
                     </div>
                   </div>
@@ -404,12 +425,12 @@ export default function SponsorProfilePage() {
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 text-gray-400 mr-2" />
                       <span className="text-sm text-gray-600">
-                        {reference.years}
+                        {reference.years ?? null}
                       </span>
                     </div>
                     <div className="pt-2">
                       <p className="text-sm text-gray-600">
-                        {reference.contact}
+                        {reference.contact ?? null}
                       </p>
                     </div>
                   </div>
@@ -440,12 +461,12 @@ export default function SponsorProfilePage() {
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  {financialDetails.sponsorProfile.totalUnits.toLocaleString()}{" "}
+                  {sponsorProfile?.totalUnits?.toLocaleString() ?? null}{" "}
                   units delivered
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  {financialDetails.sponsorProfile.yearFounded} years of
+                  {sponsorProfile?.yearFounded ?? null} years of
                   experience
                 </li>
                 <li className="flex items-center">
@@ -467,7 +488,7 @@ export default function SponsorProfilePage() {
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  {financialDetails.sponsorProfile.totalDeveloped} total
+                  {sponsorProfile?.totalDeveloped ?? null} total
                   development value
                 </li>
                 <li className="flex items-center">

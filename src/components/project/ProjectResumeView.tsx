@@ -4,15 +4,20 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { Button } from '../ui/Button';
+import { ResumeVersionHistory } from './ResumeVersionHistory';
 import { Edit, MapPin, DollarSign, BarChart3, AlertCircle, ChevronDown, Building2, Calculator, TrendingUp, CheckCircle, Calendar, Map, Users, FileText, Home, Briefcase, Percent, Clock, Award, Sparkles, Loader2 } from 'lucide-react';
 import { KeyValueDisplay } from '../om/KeyValueDisplay'; // Reusing this component
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
 import { projectResumeFieldMetadata, getFieldsForSection } from '@/lib/project-resume-field-metadata';
+import { supabase } from '@/lib/supabaseClient';
+import { useCallback } from 'react';
+import { useAutofill } from '@/hooks/useAutofill';
 
 interface ProjectResumeViewProps {
   project: ProjectProfile;
   onEdit: () => void;
+  onVersionChange?: () => void;
 }
 
 const formatCurrency = (amount: number | null | undefined): string => {
@@ -72,15 +77,24 @@ const formatArray = (value: any): string => {
     return String(value);
 };
 
-// Helper to get field value from project (handles both direct properties and nested content)
+// Helper to get field value from project (handles both direct properties, nested content, and rich format)
 const getFieldValue = (project: ProjectProfile, fieldId: string): any => {
-    // First try direct property
+    // First try direct property (flat format)
     if ((project as any)[fieldId] !== undefined) {
         return (project as any)[fieldId];
     }
     // Then try nested content (for JSONB fields)
     if ((project as any).content && (project as any).content[fieldId] !== undefined) {
-        return (project as any).content[fieldId];
+        const item = (project as any).content[fieldId];
+        // Check if it's in rich format {value, source, warnings}
+        if (item && typeof item === 'object' && 'value' in item) {
+            return item.value;
+        }
+        return item;
+    }
+    // Check metadata for rich format
+    if (project._metadata && project._metadata[fieldId]) {
+        return project._metadata[fieldId].value;
     }
     return undefined;
 };
@@ -298,14 +312,22 @@ const getFieldLabel = (field: { fieldId: string; description: string }): string 
     return desc || field.fieldId;
 };
 
-export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, onEdit }) => {
+export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
+  project,
+  onEdit,
+  onVersionChange,
+}) => {
     const completeness = project.completenessPercent ?? 0;
     const progressColor = completeness >= 100 ? 'bg-green-600' : 'bg-blue-600';
     const router = useRouter();
-    const [isAutofilling, setIsAutofilling] = React.useState(false);
-    const [showSparkles, setShowSparkles] = React.useState(false);
     const [showAutofillSuccess, setShowAutofillSuccess] = React.useState(false);
     const [autofillAnimationKey, setAutofillAnimationKey] = React.useState(0);
+    
+    // Use the shared autofill hook
+    const projectAddress = project.propertyAddressStreet && project.propertyAddressCity && project.propertyAddressState
+      ? `${project.propertyAddressStreet} | ${project.propertyAddressCity} ${project.propertyAddressState}, ${project.propertyAddressZip || ''}`.trim()
+      : undefined;
+    const { isAutofilling, showSparkles, handleAutofill } = useAutofill(project.id, { projectAddress });
 
     // Collapsible state (persisted per project)
     const [collapsed, setCollapsed] = React.useState<boolean>(() => {
@@ -326,63 +348,16 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
         } catch {}
     }, [collapsed, project?.id]);
 
-    // Handle autofill button click
-    const handleAutofill = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        
-        // Trigger sparkle animation
-        setShowSparkles(true);
-        setIsAutofilling(true);
-        
-        // Simulate processing time (2-3 seconds)
-        await new Promise(resolve => setTimeout(resolve, 2500));
-        
-        // Hide sparkles after animation
-        setTimeout(() => setShowSparkles(false), 500);
-        setIsAutofilling(false);
-        
-        // Trigger success animation in resume view (only if expanded)
-        // Increment key to trigger animation only once
-        const newKey = autofillAnimationKey + 1;
-        
-        if (!collapsed) {
-            // Update both key and state together to prevent double animation
-            setAutofillAnimationKey(newKey);
-            setShowAutofillSuccess(true);
-            
-            // Auto-hide success animation after animation completes
-            setTimeout(() => {
-                setShowAutofillSuccess(false);
-            }, 4000);
-        } else {
-            // If collapsed, expand it first, then show animation
-            setCollapsed(false);
-            // Wait for expand animation, then show success
-            setTimeout(() => {
-                setAutofillAnimationKey(newKey);
-                setShowAutofillSuccess(true);
-                setTimeout(() => {
-                    setShowAutofillSuccess(false);
-                }, 4000);
-            }, 350); // Wait for collapse animation to complete
-        }
-        
-        // TODO: Implement actual autofill logic when backend is ready
-    };
+  const handleVersionHistoryOpen = useCallback(() => {
+    setCollapsed(false);
+  }, []);
+
+    // handleAutofill is now provided by the useAutofill hook
 
     return (
         <div
-            className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30 cursor-pointer"
+            className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30"
             aria-expanded={!collapsed}
-            role="button"
-            tabIndex={0}
-            onClick={() => setCollapsed((v) => !v)}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setCollapsed((v) => !v);
-                }
-            }}
         >
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
             
@@ -416,7 +391,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleAutofill}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAutofill();
+                        }}
                         disabled={isAutofilling}
                         className={cn(
                             "group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-hidden text-base",
@@ -469,6 +447,16 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                             </div>
                         )}
                     </Button>
+                    <div className="ml-2">
+                      <ResumeVersionHistory
+                        projectId={project.id}
+                        resourceId={project.projectResumeResourceId ?? null}
+                        onRollbackSuccess={() => {
+                          onVersionChange?.();
+                        }}
+                      onOpen={handleVersionHistoryOpen}
+                      />
+                    </div>
                 </div>
                 <div />
             </div>
@@ -601,7 +589,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                             {/* Residential Unit Mix */}
                                             {(() => {
                                                 const unitMix = getFieldValue(project, 'residentialUnitMix');
-                                                if (!hasValue(unitMix)) return null;
+                                                if (!hasValue(unitMix) || !Array.isArray(unitMix)) return null;
                                                 
                                                 return (
                                                     <div className="mt-4">
@@ -637,7 +625,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                             {/* Commercial Space Mix */}
                                             {(() => {
                                                 const spaceMix = getFieldValue(project, 'commercialSpaceMix');
-                                                if (!hasValue(spaceMix)) return null;
+                                                if (!hasValue(spaceMix) || !Array.isArray(spaceMix)) return null;
                                                 
                                                 return (
                                                     <div className="mt-4">
@@ -880,7 +868,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({ project, o
                                             {/* Rent Comps */}
                                             {(() => {
                                                 const rentComps = getFieldValue(project, 'rentComps');
-                                                if (!hasValue(rentComps)) return null;
+                                                if (!hasValue(rentComps) || !Array.isArray(rentComps)) return null;
                                                 
                                                 return (
                                                     <div className="mt-4">

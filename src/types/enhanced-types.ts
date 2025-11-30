@@ -8,548 +8,621 @@ export type InviteStatus = "pending" | "accepted" | "cancelled" | "expired";
 
 // Legacy types for backward compatibility
 export type EntityStructure =
-  | "LLC"
-  | "LP"
-  | "S-Corp"
-  | "C-Corp"
-  | "Sole Proprietorship"
-  | "Trust"
-  | "Other";
+	| "LLC"
+	| "LP"
+	| "S-Corp"
+	| "C-Corp"
+	| "Sole Proprietorship"
+	| "Trust"
+	| "Other";
 export type ExperienceRange = "0-2" | "3-5" | "6-10" | "11-15" | "16+";
 export type DealValueRange =
-  | "<$10M"
-  | "$10M-$50M"
-  | "$50M-$100M"
-  | "$100M-$250M"
-  | "$250M-$500M"
-  | "$500M+"
-  | "N/A";
+	| "<$10M"
+	| "$10M-$50M"
+	| "$50M-$100M"
+	| "$100M-$250M"
+	| "$250M-$500M"
+	| "$500M+"
+	| "N/A";
 export type CreditScoreRange =
-  | "<600"
-  | "600-649"
-  | "650-699"
-  | "700-749"
-  | "750-799"
-  | "800+"
-  | "N/A";
+	| "<600"
+	| "600-649"
+	| "650-699"
+	| "700-749"
+	| "750-799"
+	| "800+"
+	| "N/A";
 export type NetWorthRange =
-  | "<$1M"
-  | "$1M-$5M"
-  | "$5M-$10M"
-  | "$10M-$25M"
-  | "$25M-$50M"
-  | "$50M-$100M"
-  | "$100M+";
+	| "<$1M"
+	| "$1M-$5M"
+	| "$5M-$10M"
+	| "$10M-$25M"
+	| "$25M-$50M"
+	| "$50M-$100M"
+	| "$100M+";
 export type LiquidityRange =
-  | "<$100k"
-  | "$100k-$500k"
-  | "$500k-$1M"
-  | "$1M-$5M"
-  | "$5M-$10M"
-  | "$10M+";
+	| "<$100k"
+	| "$100k-$500k"
+	| "$500k-$1M"
+	| "$1M-$5M"
+	| "$5M-$10M"
+	| "$10M+";
 
 // New Core Profile Type (replaces BorrowerProfile)
 export interface Profile {
-  id: string; // UUID, FK to auth.users.id
-  created_at: string;
-  updated_at: string;
-  full_name?: string;
-  email: string;
-  app_role: AppRole; // 'borrower', 'lender', or 'advisor'
-  active_org_id?: string | null; // FK to orgs.id, nullable for advisors
+	id: string; // UUID, FK to auth.users.id
+	created_at: string;
+	updated_at: string;
+	full_name?: string;
+	email: string;
+	app_role: AppRole; // 'borrower', 'lender', or 'advisor'
+	active_org_id?: string | null; // FK to orgs.id, nullable for advisors
 }
 
 // New Org Type (unified for borrower, lender, and advisor organizations)
 export interface Org {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  name: string;
-  entity_type: OrgType; // 'borrower', 'lender', or 'advisor'
+	id: string;
+	created_at: string;
+	updated_at: string;
+	name: string;
+	entity_type: OrgType; // 'borrower', 'lender', or 'advisor'
 }
 
 // New Org Member Type
 export interface OrgMember {
-  org_id: string;
-  user_id: string;
-  role: OrgMemberRole; // 'owner' or 'member'
-  created_at: string;
-  // Additional properties added by the org store
-  userName?: string;
-  userEmail?: string | null;
-  userRole?: AppRole;
+	org_id: string;
+	user_id: string;
+	role: OrgMemberRole; // 'owner', 'project_manager', or 'member'
+	created_at: string;
+	// Additional properties added by the org store
+	userName?: string;
+	userEmail?: string | null;
+	userRole?: AppRole;
 }
 
 // New Invite Type
 export interface Invite {
-  id: string;
-  org_id: string;
-  invited_by: string;
-  invited_email: string;
-  role: OrgMemberRole;
-  token: string;
-  status: InviteStatus;
-  expires_at: string;
-  accepted_at?: string | null;
-  created_at: string;
-  // Added by org store
-  inviterName?: string;
+	id: string;
+	org_id: string;
+	invited_by: string;
+	invited_email: string;
+	role: OrgMemberRole;
+	token: string;
+	status: InviteStatus;
+	expires_at: string;
+	accepted_at?: string | null;
+	created_at: string;
+	// Added by org store
+	inviterName?: string;
 }
 
 // Legacy BorrowerProfile - kept for backward compatibility but deprecated
 export interface BorrowerProfile {
-  id: string;
-  userId: string;
-  fullLegalName: string;
-  primaryEntityName: string;
-  primaryEntityStructure: EntityStructure;
-  contactEmail: string;
-  contactPhone: string;
-  contactAddress: string;
-  bioNarrative: string;
-  linkedinUrl: string;
-  websiteUrl: string;
-  yearsCREExperienceRange: ExperienceRange;
-  assetClassesExperience: string[];
-  geographicMarketsExperience: string[];
-  totalDealValueClosedRange: DealValueRange;
-  existingLenderRelationships: string;
-  creditScoreRange: CreditScoreRange;
-  netWorthRange: NetWorthRange;
-  liquidityRange: LiquidityRange;
-  bankruptcyHistory: boolean;
-  foreclosureHistory: boolean;
-  litigationHistory: boolean;
-  completenessPercent: number;
-  createdAt: string;
-  updatedAt: string;
-  // RBAC additions
-  entityId: string;
-  masterProfileId?: string | null;
-  lastSyncedAt?: string;
-  customFields?: string[];
+	id: string;
+	userId: string;
+	fullLegalName: string;
+	primaryEntityName: string;
+	primaryEntityStructure: EntityStructure;
+	contactEmail: string;
+	contactPhone: string;
+	contactAddress: string;
+	bioNarrative: string;
+	linkedinUrl: string;
+	websiteUrl: string;
+	yearsCREExperienceRange: ExperienceRange;
+	assetClassesExperience: string[];
+	geographicMarketsExperience: string[];
+	totalDealValueClosedRange: DealValueRange;
+	existingLenderRelationships: string;
+	creditScoreRange: CreditScoreRange;
+	netWorthRange: NetWorthRange;
+	liquidityRange: LiquidityRange;
+	bankruptcyHistory: boolean;
+	foreclosureHistory: boolean;
+	litigationHistory: boolean;
+	completenessPercent: number;
+	createdAt: string;
+	updatedAt: string;
+	// RBAC additions
+	entityId: string;
+	masterProfileId?: string | null;
+	lastSyncedAt?: string;
+	customFields?: string[];
 }
 
 // Principal Types
 export type PrincipalRole =
-  | "Managing Member"
-  | "General Partner"
-  | "Developer"
-  | "Sponsor"
-  | "Key Principal"
-  | "Guarantor"
-  | "Limited Partner"
-  | "Other";
+	| "Managing Member"
+	| "General Partner"
+	| "Developer"
+	| "Sponsor"
+	| "Key Principal"
+	| "Guarantor"
+	| "Limited Partner"
+	| "Other";
 
 export interface Principal {
-  id: string;
-  borrowerProfileId: string;
-  principalLegalName: string;
-  principalRoleDefault: PrincipalRole;
-  principalBio: string;
-  principalEmail: string;
-  ownershipPercentage: number;
-  creditScoreRange: CreditScoreRange;
-  netWorthRange: NetWorthRange;
-  liquidityRange: LiquidityRange;
-  bankruptcyHistory: boolean;
-  foreclosureHistory: boolean;
-  pfsDocumentId: string | null;
-  createdAt: string;
-  updatedAt: string;
+	id: string;
+	borrowerProfileId: string;
+	principalLegalName: string;
+	principalRoleDefault: PrincipalRole;
+	principalBio: string;
+	principalEmail: string;
+	ownershipPercentage: number;
+	creditScoreRange: CreditScoreRange;
+	netWorthRange: NetWorthRange;
+	liquidityRange: LiquidityRange;
+	bankruptcyHistory: boolean;
+	foreclosureHistory: boolean;
+	pfsDocumentId: string | null;
+	createdAt: string;
+	updatedAt: string;
 }
 
 // Project Types
 export type ProjectPhase =
-  | "Acquisition"
-  | "Refinance"
-  | "Construction"
-  | "Bridge"
-  | "Development"
-  | "Value-Add"
-  | "Other";
+	| "Acquisition"
+	| "Refinance"
+	| "Construction"
+	| "Bridge"
+	| "Development"
+	| "Value-Add"
+	| "Other";
 export type InterestRateType = "Fixed" | "Floating" | "Not Specified";
 export type RecoursePreference =
-  | "Full Recourse"
-  | "Partial Recourse"
-  | "Non-Recourse"
-  | "Flexible";
+	| "Full Recourse"
+	| "Partial Recourse"
+	| "Non-Recourse"
+	| "Flexible";
 export type ExitStrategy =
-  | "Sale"
-  | "Refinance"
-  | "Long-Term Hold"
-  | "Undecided";
+	| "Sale"
+	| "Refinance"
+	| "Long-Term Hold"
+	| "Undecided";
 export type ProjectStatus =
-  | "Draft"
-  | "Info Gathering"
-  | "Advisor Review"
-  | "Matches Curated"
-  | "Introductions Sent"
-  | "Term Sheet Received"
-  | "Closed"
-  | "Withdrawn"
-  | "Stalled";
+	| "Draft"
+	| "Info Gathering"
+	| "Advisor Review"
+	| "Matches Curated"
+	| "Introductions Sent"
+	| "Term Sheet Received"
+	| "Closed"
+	| "Withdrawn"
+	| "Stalled";
 
 // New Project Type (matches new schema)
 export interface Project {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  name: string;
-  owner_org_id: string; // FK to orgs.id
-  assigned_advisor_id?: string | null; // FK to profiles.id
+	id: string;
+	created_at: string;
+	updated_at: string;
+	name: string;
+	owner_org_id: string; // FK to orgs.id
+	assigned_advisor_id?: string | null; // FK to profiles.id
 }
 
 // New Resume Types
 export interface BorrowerResume {
-  id: string;
-  org_id: string; // FK to orgs.id (1-to-1 with borrower org)
-  content?: Record<string, unknown>; // JSONB
-  created_at: string;
-  updated_at: string;
+	id: string;
+	org_id: string; // FK to orgs.id (1-to-1 with borrower org)
+	content?: Record<string, unknown>; // JSONB
+	created_at: string;
+	updated_at: string;
 }
 
 export interface ProjectResume {
-  id: string;
-  project_id: string; // FK to projects.id (1-to-1 with project)
-  content?: Record<string, unknown>; // JSONB
-  created_at: string;
-  updated_at: string;
+	id: string;
+	project_id: string; // FK to projects.id (1-to-1 with project)
+	content?: Record<string, unknown>; // JSONB
+	created_at: string;
+	updated_at: string;
 }
 
 // New Document Permission Types
 export interface DocumentPermission {
-  id: string;
-  project_id: string; // FK to projects.id
-  user_id: string; // FK to profiles.id
-  document_path: string;
-  created_at: string;
+	id: string;
+	project_id: string; // FK to projects.id
+	user_id: string; // FK to profiles.id
+	document_path: string;
+	created_at: string;
 }
 
 export interface LenderDocumentAccess {
-  id: string;
-  project_id: string; // FK to projects.id
-  lender_org_id: string; // FK to orgs.id
-  document_path: string;
-  granted_by: string; // FK to profiles.id
-  created_at: string;
+	id: string;
+	project_id: string; // FK to projects.id
+	lender_org_id: string; // FK to orgs.id
+	document_path: string;
+	granted_by: string; // FK to profiles.id
+	created_at: string;
 }
 
 // New Chat Types
 export interface ChatThread {
-  id: string;
-  project_id: string; // FK to projects.id
-  topic?: string;
-  created_at: string;
+	id: string;
+	project_id: string; // FK to projects.id
+	topic?: string;
+	created_at: string;
 }
 
 export interface ChatThreadParticipant {
-  thread_id: string; // FK to chat_threads.id
-  user_id: string; // FK to profiles.id
-  created_at: string;
+	thread_id: string; // FK to chat_threads.id
+	user_id: string; // FK to profiles.id
+	created_at: string;
 }
 
 export interface ProjectMessage {
-  id: number; // BIGSERIAL
-  thread_id: string; // FK to chat_threads.id
-  project_id?: string;
-  user_id?: string | null; // FK to profiles.id (SET NULL on user delete)
-  content?: string;
-  created_at: string;
-  reply_to?: number | null; // FK to project_messages.id (the message being replied to)
+	id: number; // BIGSERIAL
+	thread_id: string; // FK to chat_threads.id
+	project_id?: string;
+	user_id?: string | null; // FK to profiles.id (SET NULL on user delete)
+	content?: string;
+	created_at: string;
+	reply_to?: number | null; // FK to project_messages.id (the message being replied to)
 }
 
 export interface MessageAttachment {
-  id: number; // BIGSERIAL
-  message_id: number; // FK to project_messages.id
-  document_path: string;
-  created_at: string;
+	id: number; // BIGSERIAL
+	message_id: number; // FK to project_messages.id
+	document_path: string;
+	created_at: string;
 }
 
 export interface Notification {
-  id: number; // BIGSERIAL
-  user_id: string; // FK to profiles.id
-  content: string;
-  read_at?: string | null;
-  link_url?: string;
-  created_at: string;
+	id: number; // BIGSERIAL
+	user_id: string; // FK to profiles.id
+	content: string;
+	read_at?: string | null;
+	link_url?: string;
+	created_at: string;
 }
 
 // Legacy ProjectProfile - kept for backward compatibility but deprecated
 // Extended to include all ProjectResumeContent fields for type safety
 export interface ProjectProfile {
-  id: string;
-  owner_org_id: string; // The org_id that owns the project
-  projectName: string;
-  assetType: string;
-  projectStatus: string;
-  createdAt: string;
-  updatedAt: string;
-  // New resource IDs
-  projectDocsResourceId?: string | null;
-  projectResumeResourceId?: string | null;
-  // Optional fields
-  assignedAdvisorUserId?: string | null;
-  // Legacy `borrowerProfileId` no longer exists, but keep for older mock data compatibility
-  borrowerProfileId?: string;
-  propertyAddressStreet?: string | null;
-  propertyAddressCity?: string | null;
-  propertyAddressState?: string | null;
-  propertyAddressCounty?: string | null;
-  propertyAddressZip?: string | null;
-  projectDescription?: string | null;
-  projectPhase?: string | null;
-  loanAmountRequested?: number | null;
-  loanType?: string | null;
-  targetLtvPercent?: number | null;
-  targetLtcPercent?: number | null;
-  amortizationYears?: number | null;
-  interestOnlyPeriodMonths?: number | null;
-  interestRateType?: InterestRateType | null;
-  targetCloseDate?: string | null;
-  useOfProceeds?: string | null;
-  recoursePreference?: RecoursePreference | null;
-  purchasePrice?: number | null;
-  totalProjectCost?: number | null;
-  capexBudget?: number | null;
-  propertyNoiT12?: number | null;
-  stabilizedNoiProjected?: number | null;
-  exitStrategy?: ExitStrategy | null;
-  businessPlanSummary?: string | null;
-  marketOverviewSummary?: string | null;
-  equityCommittedPercent?: number | null;
-  completenessPercent?: number | null;
-  internalAdvisorNotes?: string | null;
-  borrowerProgress?: number | null;
-  projectSections?: any; // Add for consistency with mock data
-  borrowerSections?: any; // Add for consistency with mock data
-  // RBAC additions
-  
-  // Extended fields from ProjectResumeContent (for type safety)
-  parcelNumber?: string;
-  zoningDesignation?: string;
-  projectType?: string;
-  primaryAssetClass?: string;
-  constructionType?: string;
-  groundbreakingDate?: string;
-  completionDate?: string;
-  totalDevelopmentCost?: number;
-  requestedLoanTerm?: string;
-  masterPlanName?: string;
-  phaseNumber?: string;
-  totalResidentialUnits?: number;
-  totalResidentialNRSF?: number;
-  averageUnitSize?: number;
-  totalCommercialGRSF?: number;
-  grossBuildingArea?: number;
-  numberOfStories?: number;
-  buildingType?: string;
-  parkingSpaces?: number;
-  parkingRatio?: number;
-  parkingType?: string;
-  amenityList?: string[];
-  amenitySF?: number;
-  residentialUnitMix?: Array<{
-    unitType: string;
-    unitCount: number;
-    avgSF: number;
-    monthlyRent?: number;
-    totalSF?: number;
-    percentOfTotal?: number;
-  }>;
-  commercialSpaceMix?: Array<{
-    spaceType: string;
-    squareFootage: number;
-    tenant?: string;
-    leaseTerm?: string;
-    annualRent?: number;
-  }>;
-  landAcquisition?: number;
-  baseConstruction?: number;
-  contingency?: number;
-  ffe?: number;
-  constructionFees?: number;
-  aeFees?: number;
-  thirdPartyReports?: number;
-  legalAndOrg?: number;
-  titleAndRecording?: number;
-  taxesDuringConstruction?: number;
-  workingCapital?: number;
-  developerFee?: number;
-  pfcStructuringFee?: number;
-  loanFees?: number;
-  interestReserve?: number;
-  seniorLoanAmount?: number;
-  sponsorEquity?: number;
-  interestRate?: number;
-  underwritingRate?: number;
-  amortization?: string;
-  prepaymentTerms?: string;
-  recourse?: string;
-  permTakeoutPlanned?: boolean;
-  realEstateTaxes?: number;
-  insurance?: number;
-  utilities?: number;
-  repairsAndMaintenance?: number;
-  managementFee?: number;
-  generalAndAdmin?: number;
-  payroll?: number;
-  reserves?: number;
-  noiYear1?: number;
-  yieldOnCost?: number;
-  capRate?: number;
-  stabilizedValue?: number;
-  ltv?: number;
-  debtYield?: number;
-  dscr?: number;
-  submarketName?: string;
-  distanceToCBD?: number;
-  distanceToEmployment?: string;
-  distanceToTransit?: number;
-  walkabilityScore?: number;
-  population3Mi?: number;
-  popGrowth201020?: number;
-  projGrowth202429?: number;
-  medianHHIncome?: number;
-  renterOccupiedPercent?: number;
-  bachelorsDegreePercent?: number;
-  rentComps?: Array<{
-    propertyName: string;
-    address?: string;
-    distance?: number;
-    yearBuilt?: number;
-    totalUnits?: number;
-    occupancyPercent?: number;
-    avgRentMonth?: number;
-    rentPSF?: number;
-  }>;
-  opportunityZone?: boolean;
-  affordableHousing?: boolean;
-  affordableUnitsNumber?: number;
-  amiTargetPercent?: number;
-  taxExemption?: boolean;
-  tifDistrict?: boolean;
-  taxAbatement?: boolean;
-  paceFinancing?: boolean;
-  historicTaxCredits?: boolean;
-  newMarketsCredits?: boolean;
-  landAcqClose?: string;
-  entitlements?: string;
-  finalPlans?: string;
-  permitsIssued?: string;
-  verticalStart?: string;
-  firstOccupancy?: string;
-  stabilization?: string;
-  preLeasedSF?: number;
-  totalSiteAcreage?: number;
-  currentSiteStatus?: string;
-  topography?: string;
-  environmental?: string;
-  siteAccess?: string;
-  proximityShopping?: string;
-  proximityRestaurants?: string;
-  proximityParks?: string;
-  proximitySchools?: string;
-  proximityHospitals?: string;
-  sponsorEntityName?: string;
-  sponsorStructure?: string;
-  equityPartner?: string;
-  contactInfo?: string;
+	id: string;
+	owner_org_id: string; // The org_id that owns the project
+	projectName: string;
+	assetType: string;
+	projectStatus: string;
+	createdAt: string;
+	updatedAt: string;
+	// New resource IDs
+	projectDocsResourceId?: string | null;
+	projectResumeResourceId?: string | null;
+	// Optional fields
+	assignedAdvisorUserId?: string | null;
+	// Legacy `borrowerProfileId` no longer exists, but keep for older mock data compatibility
+	borrowerProfileId?: string;
+	propertyAddressStreet?: string | null;
+	propertyAddressCity?: string | null;
+	propertyAddressState?: string | null;
+	propertyAddressCounty?: string | null;
+	propertyAddressZip?: string | null;
+	projectDescription?: string | null;
+	projectPhase?: string | null;
+	loanAmountRequested?: number | null;
+	loanType?: string | null;
+	targetLtvPercent?: number | null;
+	targetLtcPercent?: number | null;
+	amortizationYears?: number | null;
+	interestOnlyPeriodMonths?: number | null;
+	interestRateType?: InterestRateType | null;
+	targetCloseDate?: string | null;
+	useOfProceeds?: string | null;
+	recoursePreference?: RecoursePreference | null;
+	purchasePrice?: number | null;
+	totalProjectCost?: number | null;
+	capexBudget?: number | null;
+	propertyNoiT12?: number | null;
+	stabilizedNoiProjected?: number | null;
+	exitStrategy?: ExitStrategy | null;
+	businessPlanSummary?: string | null;
+	marketOverviewSummary?: string | null;
+	equityCommittedPercent?: number | null;
+	completenessPercent?: number | null;
+	internalAdvisorNotes?: string | null;
+	borrowerProgress?: number | null;
+	projectSections?: any; // Add for consistency with mock data
+	borrowerSections?: any; // Add for consistency with mock data
+	// RBAC additions
+
+	// Extended fields from ProjectResumeContent (for type safety)
+	parcelNumber?: string;
+	zoningDesignation?: string;
+	currentZoning?: string;
+	expectedZoningChanges?: string;
+	projectType?: string;
+	primaryAssetClass?: string;
+	constructionType?: string;
+	groundbreakingDate?: string;
+	completionDate?: string;
+	totalDevelopmentCost?: number;
+	requestedLoanTerm?: string;
+	masterPlanName?: string;
+	phaseNumber?: string;
+	syndicationStatus?: string;
+	guarantorNames?: string;
+	totalResidentialUnits?: number;
+	totalResidentialNRSF?: number;
+	averageUnitSize?: number;
+	totalCommercialGRSF?: number;
+	grossBuildingArea?: number;
+	numberOfStories?: number;
+	buildingType?: string;
+	parkingSpaces?: number;
+	parkingRatio?: number;
+	parkingType?: string;
+	amenityList?: string[];
+	amenitySF?: number;
+	adaCompliantUnitsPercent?: number;
+	leedSustainabilityRating?: string;
+	residentialUnitMix?: Array<{
+		unitType: string;
+		unitCount: number;
+		avgSF: number;
+		monthlyRent?: number;
+		totalSF?: number;
+		percentOfTotal?: number;
+		affordabilityStatus?: string;
+		affordableUnitsCount?: number;
+		amiTargetPercent?: number;
+		rentBumpSchedule?: string;
+	}>;
+	commercialSpaceMix?: Array<{
+		spaceType: string;
+		squareFootage: number;
+		tenant?: string;
+		leaseTerm?: string;
+		annualRent?: number;
+		tiAllowance?: number;
+	}>;
+	landAcquisition?: number;
+	baseConstruction?: number;
+	contingency?: number;
+	ffe?: number;
+	constructionFees?: number;
+	aeFees?: number;
+	thirdPartyReports?: number;
+	legalAndOrg?: number;
+	titleAndRecording?: number;
+	taxesDuringConstruction?: number;
+	workingCapital?: number;
+	developerFee?: number;
+	pfcStructuringFee?: number;
+	loanFees?: number;
+	interestReserve?: number;
+	relocationCosts?: number;
+	syndicationCosts?: number;
+	enviroRemediation?: number;
+	seniorLoanAmount?: number;
+	sponsorEquity?: number;
+	taxCreditEquity?: number;
+	gapFinancing?: number;
+	interestRate?: number;
+	underwritingRate?: number;
+	amortization?: string;
+	prepaymentTerms?: string;
+	recourse?: string;
+	permTakeoutPlanned?: boolean;
+	allInRate?: number;
+	realEstateTaxes?: number;
+	insurance?: number;
+	utilitiesCosts?: number;
+	repairsAndMaintenance?: number;
+	managementFee?: number;
+	generalAndAdmin?: number;
+	payroll?: number;
+	reserves?: number;
+	marketingLeasing?: number;
+	serviceCoordination?: number;
+	noiYear1?: number;
+	yieldOnCost?: number;
+	capRate?: number;
+	stabilizedValue?: number;
+	ltv?: number;
+	debtYield?: number;
+	dscr?: number;
+	trendedNOIYear1?: number;
+	untrendedNOIYear1?: number;
+	trendedYield?: number;
+	untrendedYield?: number;
+	inflationAssumption?: number;
+	dscrStressTest?: number;
+	portfolioLTV?: number;
+	submarketName?: string;
+	distanceToCBD?: number;
+	distanceToEmployment?: string;
+	distanceToTransit?: number;
+	walkabilityScore?: number;
+	population3Mi?: number;
+	popGrowth201020?: number;
+	projGrowth202429?: number;
+	medianHHIncome?: number;
+	renterOccupiedPercent?: number;
+	bachelorsDegreePercent?: number;
+	absorptionRate?: number;
+	penetrationRate?: number;
+	northStarComp?: string;
+	infrastructureProject?: string;
+	projectBudget?: number;
+	infraCompletion?: string;
+	rentComps?: Array<{
+		propertyName: string;
+		address?: string;
+		distance?: number;
+		yearBuilt?: number;
+		totalUnits?: number;
+		occupancyPercent?: number;
+		avgRentMonth?: number;
+		rentPSF?: number;
+		concessions?: string;
+	}>;
+	saleComps?: Array<{
+		propertyName: string;
+		salePricePerUnit?: number;
+		capRate?: number;
+		saleDate?: string;
+	}>;
+	opportunityZone?: boolean;
+	affordableHousing?: boolean;
+	affordableUnitsNumber?: number;
+	amiTargetPercent?: number;
+	taxExemption?: boolean;
+	tifDistrict?: boolean;
+	taxAbatement?: boolean;
+	paceFinancing?: boolean;
+	historicTaxCredits?: boolean;
+	newMarketsCredits?: boolean;
+	exemptionStructure?: string;
+	sponsoringEntity?: string;
+	structuringFee?: number;
+	exemptionTerm?: number;
+	incentiveStacking?: string[];
+	relocationPlan?: string;
+	seismicPMLRisk?: string;
+	landAcqClose?: string;
+	entitlements?: string;
+	finalPlans?: string;
+	permitsIssued?: string;
+	verticalStart?: string;
+	substantialComp?: string;
+	firstOccupancy?: string;
+	stabilization?: string;
+	preLeasedSF?: number;
+	drawSchedule?: Array<{
+		drawNumber: number;
+		percentComplete?: number;
+		amount?: number;
+	}>;
+	absorptionProjection?: number;
+	opDeficitEscrow?: number;
+	leaseUpEscrow?: number;
+	totalSiteAcreage?: number;
+	currentSiteStatus?: string;
+	topography?: string;
+	environmental?: string;
+	utilities?: string;
+	utilityCapacity?: string;
+	geotechSoilsRep?: string;
+	floodZone?: string;
+	siteAccess?: string;
+	proximityShopping?: string;
+	proximityRestaurants?: string;
+	proximityParks?: string;
+	proximitySchools?: string;
+	proximityHospitals?: string;
+	topEmployers?: string;
+	sponsorEntityName?: string;
+	sponsorStructure?: string;
+	equityPartner?: string;
+	contactInfo?: string;
+	sponsorExpScore?: number;
+	priorDevelopments?: number;
+	netWorth?: number;
+	guarantorLiquidity?: number;
+	portfolioDSCR?: number;
+
+	// Metadata container for rich data (value + source + warnings)
+	_metadata?: Record<string, FieldMetadata>;
+	// Locked fields container (fieldId -> true)
+	_lockedFields?: Record<string, boolean>;
+	// Locked sections container (sectionId -> true)
+	_lockedSections?: Record<string, boolean>;
 }
 
 // Project Principal Types
 export interface ProjectPrincipal {
-  id: string;
-  projectId: string;
-  principalId: string;
-  roleInProject: PrincipalRole;
-  guarantyDetails: string | null;
-  isKeyPrincipal: boolean;
-  isPrimaryContact: boolean;
-  createdAt: string;
+	id: string;
+	projectId: string;
+	principalId: string;
+	roleInProject: PrincipalRole;
+	guarantyDetails: string | null;
+	isKeyPrincipal: boolean;
+	isPrimaryContact: boolean;
+	createdAt: string;
 }
 
 // Document Types
 export type DocumentCategory =
-  | "PFS"
-  | "SREO"
-  | "Tax Returns"
-  | "Entity Docs"
-  | "Rent Roll"
-  | "Financials"
-  | "Pro Forma"
-  | "Plans"
-  | "Budget"
-  | "Market Study"
-  | "Appraisal"
-  | "Environmental"
-  | "Title"
-  | "Survey"
-  | "Purchase Agreement"
-  | "Other";
+	| "PFS"
+	| "SREO"
+	| "Tax Returns"
+	| "Entity Docs"
+	| "Rent Roll"
+	| "Financials"
+	| "Pro Forma"
+	| "Plans"
+	| "Budget"
+	| "Market Study"
+	| "Appraisal"
+	| "Environmental"
+	| "Title"
+	| "Survey"
+	| "Purchase Agreement"
+	| "Other";
 
 export interface Document {
-  id: string;
-  uploaderUserId: string;
-  fileName: string;
-  fileType: string;
-  fileSizeBytes: number;
-  storagePath: string;
-  documentCategory: DocumentCategory;
-  extractedMetadata: Record<string, unknown>;
-  createdAt: string;
-  uploadedAt: string;
+	id: string;
+	uploaderUserId: string;
+	fileName: string;
+	fileType: string;
+	fileSizeBytes: number;
+	storagePath: string;
+	documentCategory: DocumentCategory;
+	extractedMetadata: Record<string, unknown>;
+	createdAt: string;
+	uploadedAt: string;
 }
 
 // Document Requirement Status
 export type DocumentRequirementStatus =
-  | "Required"
-  | "Pending Upload"
-  | "Uploaded"
-  | "In Review"
-  | "Approved"
-  | "Rejected"
-  | "Not Applicable";
+	| "Required"
+	| "Pending Upload"
+	| "Uploaded"
+	| "In Review"
+	| "Approved"
+	| "Rejected"
+	| "Not Applicable";
 
 export interface ProjectDocumentRequirement {
-  id: string;
-  projectId: string;
-  requiredDocType: DocumentCategory;
-  status: DocumentRequirementStatus;
-  documentId?: string | null;
-  notes: string;
-  dueDate?: string | null;
-  lastUpdated: string;
+	id: string;
+	projectId: string;
+	requiredDocType: DocumentCategory;
+	status: DocumentRequirementStatus;
+	documentId?: string | null;
+	notes: string;
+	dueDate?: string | null;
+	lastUpdated: string;
 }
 
 // Advisor Types
 export interface Advisor {
-  id: string;
-  userId: string;
-  name: string;
-  title: string;
-  email: string;
-  phone: string;
-  bio: string;
-  avatar: string;
-  specialties: string[];
-  yearsExperience: number;
-  createdAt: string;
-  updatedAt: string;
+	id: string;
+	userId: string;
+	name: string;
+	title: string;
+	email: string;
+	phone: string;
+	bio: string;
+	avatar: string;
+	specialties: string[];
+	yearsExperience: number;
+	createdAt: string;
+	updatedAt: string;
 }
 
 // Enhanced User type with role and login source - Updated for new schema
 export interface EnhancedUser {
-  id?: string; // Add user's auth ID (UUID)
-  email: string;
-  name?: string;
-  profileId?: string; // Optional: ID of the associated Profile
-  lastLogin: Date;
-  role: AppRole; // Now uses AppRole type
-  loginSource?: "direct" | "lenderline"; // Added login source tracking
-  // RBAC additions
-  activeOrgId?: string | null; // for context switching
-  orgMemberships?: OrgMember[]; // loaded on login
+	id?: string; // Add user's auth ID (UUID)
+	email: string;
+	name?: string;
+	profileId?: string; // Optional: ID of the associated Profile
+	lastLogin: Date;
+	role: AppRole; // Now uses AppRole type
+	loginSource?: "direct" | "lenderline"; // Added login source tracking
+	isDemo?: boolean; // Flag for demo users
+	// RBAC additions
+	activeOrgId?: string | null; // for context switching
+	orgMemberships?: OrgMember[]; // loaded on login
 }
 
 export type PermissionType = "file" | "folder";
@@ -557,27 +630,37 @@ export type PermissionType = "file" | "folder";
 export type Permission = "view" | "edit";
 
 export type FilePermissionOverride = {
-  resource_id: string;
-  permission: Permission | 'none';
+	resource_id: string;
+	permission: Permission | "none";
 };
 
+// Field Metadata Types for warnings and source tracking
+export interface FieldMetadata {
+	value: any;
+	source: string | null; // Primary source (for backward compatibility)
+	sources?: string[]; // Array of all sources (document names or "Census API")
+	original_source?: "document" | "knowledge_base" | null; // To track origin after edit
+	original_value?: any; // To compare against
+	warnings: string[];
+}
+
 export type ProjectGrant = {
-  projectId: string;
-  permissions: {
-    resource_type: string; // e.g., 'PROJECT_RESUME', 'PROJECT_DOCS_ROOT'
-    permission: Permission; // 'view' | 'edit'
-  }[];
-  // Per-file overrides. If absent for a file, root Project Docs permission applies.
-  fileOverrides?: FilePermissionOverride[];
-  // Back-compat: exclusions (maps to permission 'none')
-  exclusions?: string[];
+	projectId: string;
+	permissions: {
+		resource_type: string; // e.g., 'PROJECT_RESUME', 'PROJECT_DOCS_ROOT'
+		permission: Permission; // 'view' | 'edit'
+	}[];
+	// Per-file overrides. If absent for a file, root Project Docs permission applies.
+	fileOverrides?: FilePermissionOverride[];
+	// Back-compat: exclusions (maps to permission 'none')
+	exclusions?: string[];
 };
 
 export type OrgGrant = {
-  permissions: {
-    resource_type: 'BORROWER_RESUME' | 'BORROWER_DOCS_ROOT';
-    permission: Permission;
-  }[];
-  fileOverrides?: FilePermissionOverride[];
-  exclusions?: string[]; // org-level FILE resource_ids to set 'none'
+	permissions: {
+		resource_type: "BORROWER_RESUME" | "BORROWER_DOCS_ROOT";
+		permission: Permission;
+	}[];
+	fileOverrides?: FilePermissionOverride[];
+	exclusions?: string[]; // org-level FILE resource_ids to set 'none'
 };

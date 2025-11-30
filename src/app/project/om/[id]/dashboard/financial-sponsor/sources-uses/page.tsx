@@ -1,28 +1,18 @@
 "use client";
 
-import { financialDetails } from "@/services/mockOMData";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingDown, PieChart } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
+import { useOmContent } from "@/hooks/useOmContent";
 
 export default function SourcesUsesPage() {
-  const totalSources = financialDetails.sourcesUses.sources.reduce(
-    (sum, source) => sum + source.amount,
-    0
-  );
-
-  const totalUses = financialDetails.sourcesUses.uses.reduce(
-    (sum, use) => sum + use.amount,
-    0
-  );
-
-  const primaryDebtSource =
-    financialDetails.sourcesUses.sources.find((source) =>
-      /debt|loan/i.test(source.type)
-    ) || financialDetails.sourcesUses.sources[0];
-
-  const formatCurrency = (amount: number) => {
+  const { content } = useOmContent();
+  const financialDetails = content?.financialDetails ?? null;
+  const sources = financialDetails?.sourcesUses?.sources ?? [];
+  const uses = financialDetails?.sourcesUses?.uses ?? [];
+  const formatCurrency = (amount?: number | null) => {
+    if (amount == null) return null;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
@@ -31,10 +21,25 @@ export default function SourcesUsesPage() {
     }).format(amount);
   };
 
-  const formatPercentage = (amount: number, total: number) => {
-    if (total === 0) return "0.0";
+  const formatPercentage = (amount?: number | null, total?: number | null) => {
+    if (amount == null || total == null || total === 0) return null;
     return ((amount / total) * 100).toFixed(1);
   };
+
+  const totalSources = sources.reduce(
+    (sum: number, source: { amount?: number | null }) => sum + (source.amount ?? 0),
+    0
+  );
+  const totalUses = uses.reduce(
+    (sum: number, use: { amount?: number | null }) => sum + (use.amount ?? 0),
+    0
+  );
+
+  const primaryDebtSource =
+    (sources.find((source: { type?: string | null }) =>
+      /debt|loan/i.test((source.type ?? "").toLowerCase())
+    ) ?? sources[0]) ?? null;
+  const leveragePercent = formatPercentage(primaryDebtSource?.amount, totalSources);
 
   useOMPageHeader({
     subtitle: "Detailed breakdown of capital sources and where funds are deployed.",
@@ -84,7 +89,7 @@ export default function SourcesUsesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {formatPercentage(primaryDebtSource.amount, totalSources)}%
+              {leveragePercent != null ? `${leveragePercent}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Debt to total capital</p>
           </CardContent>
@@ -98,7 +103,7 @@ export default function SourcesUsesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {financialDetails.sourcesUses.sources.map((source, index) => (
+            {sources.map((source: { type?: string | null; amount?: number | null; percentage?: number | null }, index: number) => (
               <div key={index} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">
@@ -109,14 +114,14 @@ export default function SourcesUsesPage() {
                       {formatCurrency(source.amount)}
                     </span>
                     <Badge className="bg-blue-100 text-blue-800">
-                      {source.percentage}%
+                      {source.percentage != null ? `${source.percentage}%` : null}
                     </Badge>
                   </div>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
                     className="h-3 rounded-full bg-blue-500"
-                    style={{ width: `${source.percentage}%` }}
+                    style={{ width: `${source.percentage ?? 0}%` }}
                   />
                 </div>
               </div>
@@ -143,7 +148,7 @@ export default function SourcesUsesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {financialDetails.sourcesUses.uses.map((use, index) => (
+            {uses.map((use: { type?: string | null; amount?: number | null; percentage?: number | null }, index: number) => (
               <div key={index} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">
@@ -154,14 +159,14 @@ export default function SourcesUsesPage() {
                       {formatCurrency(use.amount)}
                     </span>
                     <Badge className="bg-green-100 text-green-800">
-                      {use.percentage}%
+                      {use.percentage != null ? `${use.percentage}%` : null}
                     </Badge>
                   </div>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div
                     className="h-3 rounded-full bg-green-500"
-                    style={{ width: `${use.percentage}%` }}
+                    style={{ width: `${use.percentage ?? 0}%` }}
                   />
                 </div>
               </div>
@@ -194,12 +199,13 @@ export default function SourcesUsesPage() {
                 Capital Sources
               </h4>
               <div className="space-y-3">
-                {financialDetails.sourcesUses.sources.map((source, index) => {
-                  const previousAmount = financialDetails.sourcesUses.sources
+                {sources.map((source: { type?: string | null; amount?: number | null; percentage?: number | null }, index: number) => {
+                  const sourceTotal = totalSources || 1;
+                  const previousAmount = sources
                     .slice(0, index)
-                    .reduce((sum, s) => sum + s.amount, 0);
-                  const startHeight = (previousAmount / totalSources) * 200;
-                  const height = (source.amount / totalSources) * 200;
+                    .reduce((sum: number, s: { amount?: number | null }) => sum + (s.amount ?? 0), 0);
+                  const startHeight = (previousAmount / sourceTotal) * 200;
+                  const height = ((source.amount ?? 0) / sourceTotal) * 200;
 
                   return (
                     <div key={index} className="flex items-center space-x-4">
@@ -240,12 +246,13 @@ export default function SourcesUsesPage() {
             <div>
               <h4 className="font-semibold text-gray-900 mb-4">Capital Uses</h4>
               <div className="space-y-3">
-                {financialDetails.sourcesUses.uses.map((use, index) => {
-                  const previousAmount = financialDetails.sourcesUses.uses
+                {uses.map((use: { type?: string | null; amount?: number | null; percentage?: number | null }, index: number) => {
+                  const usesTotal = totalUses || 1;
+                  const previousAmount = uses
                     .slice(0, index)
-                    .reduce((sum, u) => sum + u.amount, 0);
-                  const startHeight = (previousAmount / totalUses) * 200;
-                  const height = (use.amount / totalUses) * 200;
+                    .reduce((sum: number, u: { amount?: number | null }) => sum + (u.amount ?? 0), 0);
+                  const startHeight = (previousAmount / usesTotal) * 200;
+                  const height = ((use.amount ?? 0) / usesTotal) * 200;
 
                   return (
                     <div key={index} className="flex items-center space-x-4">
@@ -293,11 +300,13 @@ export default function SourcesUsesPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {financialDetails.sourcesUses.sources.map((source) => (
-                <div key={source.type} className="flex justify-between items-center">
-                  <span className="text-gray-600">{source.type}</span>
+              {sources.map((source: { type?: string | null; amount?: number | null }, index: number) => (
+                <div key={source.type ?? index} className="flex justify-between items-center">
+                  <span className="text-gray-600">{source.type ?? null}</span>
                   <Badge className="bg-blue-50 text-blue-800">
-                    {formatPercentage(source.amount, totalSources)}%
+                    {formatPercentage(source.amount, totalSources) != null
+                      ? `${formatPercentage(source.amount, totalSources)}%`
+                      : null}
                   </Badge>
                 </div>
               ))}
@@ -322,14 +331,16 @@ export default function SourcesUsesPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[...financialDetails.sourcesUses.uses]
-                .sort((a, b) => b.amount - a.amount)
+              {[...uses]
+                .sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))
                 .slice(0, 3)
-                .map((use) => (
-                  <div key={use.type} className="flex justify-between items-center">
-                    <span className="text-gray-600">{use.type}</span>
+                .map((use, index) => (
+                  <div key={use.type ?? index} className="flex justify-between items-center">
+                    <span className="text-gray-600">{use.type ?? null}</span>
                     <Badge className="bg-green-50 text-green-800">
-                      {formatPercentage(use.amount, totalUses)}%
+                      {formatPercentage(use.amount, totalUses) != null
+                        ? `${formatPercentage(use.amount, totalUses)}%`
+                        : null}
                     </Badge>
                   </div>
                 ))}

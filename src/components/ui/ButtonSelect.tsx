@@ -20,6 +20,7 @@ interface ButtonSelectProps {
   buttonClassName?: string;
   gridCols?: string;
   disabled?: boolean;
+  isAutofilled?: boolean; // Add autofill status prop
 }
 
 export const ButtonSelect: React.FC<ButtonSelectProps> = ({
@@ -32,6 +33,7 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   buttonClassName = "text-xs md:text-sm",
   gridCols = "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
   disabled = false,
+  isAutofilled = false,
 }) => {
   // Handler that checks if onSelect exists before calling it
   const handleClick = (option: string) => {
@@ -43,12 +45,17 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
     }
   };
 
+  // Apply background color based on autofill status or locked (disabled) state
+  const containerBgClass = isAutofilled || disabled
+    ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
+    : "bg-blue-50 p-3 rounded-lg border border-blue-200";
+
   return (
     <div className={cn("w-full", className)}>
       <label className="block text-sm font-medium text-gray-700 mb-2">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
-      <div className={`grid ${gridCols} gap-2`}>
+      <div className={cn(`grid ${gridCols} gap-2`, containerBgClass)}>
         {options.map((rawOption) => {
           const option = normalizeOption(rawOption);
           const isSelected = selectedValue === option.value;

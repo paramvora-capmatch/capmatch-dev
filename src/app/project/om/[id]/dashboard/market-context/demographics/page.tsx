@@ -1,25 +1,45 @@
 'use client';
 
-import { marketContextDetails } from '@/services/mockOMData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, TrendingUp, MapPin, BarChart3 } from 'lucide-react';
 import PopulationHeatmap from '@/components/om/PopulationHeatmap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
+import { useOmContent } from '@/hooks/useOmContent';
 
 export default function DemographicsPage() {
-  const getGrowthColor = (growth: string) => {
-    const growthNum = parseFloat(growth);
+  const { content } = useOmContent();
+  const marketContextDetails = content?.marketContextDetails ?? null;
+  const demographicProfile = marketContextDetails?.demographicProfile ?? null;
+  const oneMile = demographicProfile?.oneMile ?? null;
+  const threeMile = demographicProfile?.threeMile ?? null;
+  const fiveMile = demographicProfile?.fiveMile ?? null;
+  const growthTrends = demographicProfile?.growthTrends ?? null;
+  const radiusEntries = demographicProfile
+    ? Object.entries(demographicProfile).filter(
+        ([key]) =>
+          !['growthTrends', 'renterShare', 'bachelorsShare'].includes(key)
+      )
+    : [];
+
+  const formatNumber = (value?: number | null) =>
+    value != null ? value.toLocaleString() : null;
+  const formatCurrency = (value?: number | null) =>
+    value != null ? `$${value.toLocaleString()}` : null;
+
+  const getGrowthColor = (growth?: string | null) => {
+    const growthNum = parseFloat(growth ?? '0');
     if (growthNum >= 15) return 'bg-green-100 text-green-800';
     if (growthNum >= 10) return 'bg-blue-100 text-blue-800';
     if (growthNum >= 5) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
 
-  const getIncomeTier = (income: number) => {
-    if (income >= 80000) return 'bg-green-100 text-green-800';
-    if (income >= 60000) return 'bg-blue-100 text-blue-800';
-    if (income >= 40000) return 'bg-green-100 text-green-800';
+  const getIncomeTier = (income?: number | null) => {
+    const incomeNum = income ?? 0;
+    if (incomeNum >= 80000) return 'bg-green-100 text-green-800';
+    if (incomeNum >= 60000) return 'bg-blue-100 text-blue-800';
+    if (incomeNum >= 40000) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
 
@@ -41,12 +61,12 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {marketContextDetails.demographicProfile.oneMile.population.toLocaleString()}
+              {formatNumber(oneMile?.population)}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
             <div className="mt-2">
-              <Badge className={getIncomeTier(marketContextDetails.demographicProfile.oneMile.medianIncome)}>
-                ${marketContextDetails.demographicProfile.oneMile.medianIncome.toLocaleString()}
+              <Badge className={getIncomeTier(oneMile?.medianIncome)}>
+                {formatCurrency(oneMile?.medianIncome)}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">Median Income</p>
             </div>
@@ -62,12 +82,12 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {marketContextDetails.demographicProfile.threeMile.population.toLocaleString()}
+              {formatNumber(threeMile?.population)}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
             <div className="mt-2">
-              <Badge className={getIncomeTier(marketContextDetails.demographicProfile.threeMile.medianIncome)}>
-                ${marketContextDetails.demographicProfile.threeMile.medianIncome.toLocaleString()}
+              <Badge className={getIncomeTier(threeMile?.medianIncome)}>
+                {formatCurrency(threeMile?.medianIncome)}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">Median Income</p>
             </div>
@@ -83,12 +103,12 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {marketContextDetails.demographicProfile.fiveMile.population.toLocaleString()}
+              {formatNumber(fiveMile?.population)}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
             <div className="mt-2">
-              <Badge className={getIncomeTier(marketContextDetails.demographicProfile.fiveMile.medianIncome)}>
-                ${marketContextDetails.demographicProfile.fiveMile.medianIncome.toLocaleString()}
+              <Badge className={getIncomeTier(fiveMile?.medianIncome)}>
+                {formatCurrency(fiveMile?.medianIncome)}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">Median Income</p>
             </div>
@@ -108,8 +128,8 @@ export default function DemographicsPage() {
                 <TrendingUp className="h-10 w-10 text-green-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Population Growth</h4>
-              <Badge className={getGrowthColor(marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr)}>
-                {marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr}
+              <Badge className={getGrowthColor(growthTrends?.populationGrowth5yr)}>
+                {growthTrends?.populationGrowth5yr ?? null}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -119,8 +139,8 @@ export default function DemographicsPage() {
                 <BarChart3 className="h-10 w-10 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Income Growth</h4>
-              <Badge className={getGrowthColor(marketContextDetails.demographicProfile.growthTrends.incomeGrowth5yr)}>
-                {marketContextDetails.demographicProfile.growthTrends.incomeGrowth5yr}
+              <Badge className={getGrowthColor(growthTrends?.incomeGrowth5yr)}>
+                {growthTrends?.incomeGrowth5yr ?? null}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -130,8 +150,8 @@ export default function DemographicsPage() {
                 <Users className="h-10 w-10 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Job Growth</h4>
-              <Badge className={getGrowthColor(marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr)}>
-                {marketContextDetails.demographicProfile.growthTrends.jobGrowth5yr}
+              <Badge className={getGrowthColor(growthTrends?.jobGrowth5yr)}>
+                {growthTrends?.jobGrowth5yr ?? null}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -147,7 +167,7 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(marketContextDetails.demographicProfile).filter(([key]) => !['growthTrends', 'renterShare', 'bachelorsShare'].includes(key)).map(([radius, data], index) => {
+              {radiusEntries.map(([radius, data], index) => {
                 const colors = [
                   'bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500',
                   'bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500',
@@ -162,17 +182,21 @@ export default function DemographicsPage() {
                         {radius.replace(/([A-Z])/g, ' $1').trim()} Radius
                       </h4>
                       <Badge variant="outline" className="border-gray-200 bg-white">
-                      {(data as Record<string, number>).population.toLocaleString()}
+                      {formatNumber((data as Record<string, number | undefined>).population)}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Income</p>
-                      <p className="font-semibold text-gray-800">${(data as Record<string, number>).medianIncome.toLocaleString()}</p>
+                      <p className="font-semibold text-gray-800">
+                        {formatCurrency((data as Record<string, number | undefined>).medianIncome)}
+                      </p>
                       </div>
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Age</p>
-                      <p className="font-semibold text-gray-800">{(data as Record<string, number>).medianAge} years</p>
+                      <p className="font-semibold text-gray-800">
+                        {(data as Record<string, number | undefined>).medianAge ?? null} years
+                      </p>
                       </div>
                     </div>
                   </div>
@@ -188,7 +212,7 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {Object.entries(marketContextDetails.demographicProfile).filter(([key]) => !['growthTrends', 'renterShare', 'bachelorsShare'].includes(key)).map(([radius, data], index) => {
+              {radiusEntries.map(([radius, data], index) => {
                 const colors = [
                   'from-blue-400 to-blue-600',
                   'from-green-400 to-green-600',
@@ -202,12 +226,16 @@ export default function DemographicsPage() {
                       <span className="text-sm font-medium text-gray-700 capitalize">
                         {radius.replace(/([A-Z])/g, ' $1').trim()}
                       </span>
-                    <span className="text-sm text-gray-500">${(data as Record<string, number>).medianIncome.toLocaleString()}</span>
+                    <span className="text-sm text-gray-500">
+                      {formatCurrency((data as Record<string, number | undefined>).medianIncome)}
+                    </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                       <div 
                         className={`h-3 rounded-full bg-gradient-to-r ${color} shadow-sm`}
-                      style={{ width: `${((data as Record<string, number>).medianIncome / 100000) * 100}%` }}
+                      style={{
+                        width: `${((data as Record<string, number | undefined>).medianIncome ?? 0) / 100000 * 100}%`,
+                      }}
                       />
                     </div>
                   </div>
@@ -239,11 +267,11 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Strong population growth ({marketContextDetails.demographicProfile.growthTrends.populationGrowth5yr} 5-year)
+                  Strong population growth ({growthTrends?.populationGrowth5yr ?? null} 5-year)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  High median income (${marketContextDetails.demographicProfile.oneMile.medianIncome.toLocaleString()} within 1-mile)
+                  High median income ({formatCurrency(oneMile?.medianIncome)} within 1-mile)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>

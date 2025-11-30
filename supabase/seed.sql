@@ -291,8 +291,8 @@ INSERT INTO "public"."project_access_grants" ("id", "project_id", "org_id", "use
 -- Data for Name: project_resumes; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-INSERT INTO "public"."project_resumes" ("id", "project_id", "content", "created_at", "updated_at") VALUES
-	('b0f4960f-dbb8-4ad6-a1be-89dc0a4b9ead', 'd231b8bc-2239-4365-87a1-dc67bd795604', '{}', '2025-10-29 13:13:17.543482+00', '2025-10-29 13:13:17.543482+00');
+INSERT INTO "public"."project_resumes" ("id", "project_id", "content", "created_at", "updated_at", "version_number", "status", "created_by") VALUES
+	('b0f4960f-dbb8-4ad6-a1be-89dc0a4b9ead', 'd231b8bc-2239-4365-87a1-dc67bd795604', '{}', '2025-10-29 13:13:17.543482+00', '2025-10-29 13:13:17.543482+00', 1, 'active', 'f85936ae-02c2-4006-9065-59caf2ad26cb');
 
 
 --

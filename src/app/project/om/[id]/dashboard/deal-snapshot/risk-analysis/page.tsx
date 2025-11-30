@@ -1,12 +1,23 @@
 "use client";
 
-import { dealSnapshotDetails } from "@/services/mockOMData";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Shield, Info } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
+import { useOmContent } from "@/hooks/useOmContent";
 
 export default function RiskAnalysisPage() {
+  const { content } = useOmContent();
+  const dealSnapshotDetails = content?.dealSnapshotDetails ?? null;
+  const riskMatrix = dealSnapshotDetails?.riskMatrix ?? {
+    high: [],
+    medium: [],
+    low: [],
+  };
+  const highRisks = riskMatrix.high ?? [];
+  const mediumRisks = riskMatrix.medium ?? [];
+  const lowRisks = riskMatrix.low ?? [];
+
   const getRiskColor = (severity: string) => {
     switch (severity) {
       case "high":
@@ -20,12 +31,15 @@ export default function RiskAnalysisPage() {
     }
   };
 
-  const getProbabilityColor = (probability: string) => {
-    const prob = parseInt(probability);
+  const getProbabilityColor = (probability?: string | null) => {
+    const prob = parseInt(probability ?? "");
     if (prob >= 50) return "bg-red-100 text-red-800";
     if (prob >= 25) return "bg-red-100 text-red-800";
     return "bg-green-100 text-green-800";
   };
+
+  const asString = (value: unknown) =>
+    typeof value === "string" ? value : null;
 
   useOMPageHeader({
     subtitle: "Key underwriting risks, severity levels, and mitigations.",
@@ -41,7 +55,7 @@ export default function RiskAnalysisPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {dealSnapshotDetails.riskMatrix.high.length}
+              {highRisks.length}
             </p>
             <p className="text-sm text-red-600 mt-1">Critical issues</p>
           </CardContent>
@@ -55,7 +69,7 @@ export default function RiskAnalysisPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {dealSnapshotDetails.riskMatrix.medium.length}
+              {mediumRisks.length}
             </p>
             <p className="text-sm text-red-600 mt-1">Monitor closely</p>
           </CardContent>
@@ -67,7 +81,7 @@ export default function RiskAnalysisPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {dealSnapshotDetails.riskMatrix.low.length}
+              {lowRisks.length}
             </p>
             <p className="text-sm text-green-600 mt-1">Well controlled</p>
           </CardContent>
@@ -82,13 +96,13 @@ export default function RiskAnalysisPage() {
         <CardContent>
           <div className="space-y-6">
             {/* High Risk */}
-            {dealSnapshotDetails.riskMatrix.high.length > 0 ? (
+            {highRisks.length > 0 ? (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-red-800 flex items-center">
                   <AlertTriangle className="h-5 w-5 mr-2" />
                   High Risk Items
                 </h3>
-                {dealSnapshotDetails.riskMatrix.high.map(
+                {highRisks.map(
                   (risk: Record<string, unknown>, index: number) => (
                     <div
                       key={index}
@@ -99,17 +113,17 @@ export default function RiskAnalysisPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="font-semibold text-red-900 mb-2">
-                            {risk.risk as string}
+                            {asString(risk.risk)}
                           </h4>
                           <p className="text-red-800 text-sm mb-3">
-                            {risk.mitigation as string}
+                            {asString(risk.mitigation)}
                           </p>
                           <Badge
                             className={getProbabilityColor(
-                              risk.probability as string
+                              asString(risk.probability)
                             )}
                           >
-                            Probability: {risk.probability as string}
+                            Probability: {asString(risk.probability)}
                           </Badge>
                         </div>
                       </div>
@@ -130,13 +144,13 @@ export default function RiskAnalysisPage() {
             )}
 
             {/* Medium Risk */}
-            {dealSnapshotDetails.riskMatrix.medium.length > 0 && (
+            {mediumRisks.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-red-800 flex items-center">
                   <Info className="h-5 w-5 mr-2" />
                   Medium Risk Items
                 </h3>
-                {dealSnapshotDetails.riskMatrix.medium.map(
+                {mediumRisks.map(
                   (risk: Record<string, unknown>, index: number) => (
                     <div
                       key={index}
@@ -147,17 +161,13 @@ export default function RiskAnalysisPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="font-semibold text-red-900 mb-2">
-                            {risk.risk as string}
+                            {asString(risk.risk)}
                           </h4>
                           <p className="text-red-800 text-sm mb-3">
-                            {risk.mitigation as string}
+                            {asString(risk.mitigation)}
                           </p>
-                          <Badge
-                            className={getProbabilityColor(
-                              risk.probability as string
-                            )}
-                          >
-                            Probability: {risk.probability as string}
+                          <Badge className={getProbabilityColor(asString(risk.probability))}>
+                            Probability: {asString(risk.probability)}
                           </Badge>
                         </div>
                       </div>
@@ -168,13 +178,13 @@ export default function RiskAnalysisPage() {
             )}
 
             {/* Low Risk */}
-            {dealSnapshotDetails.riskMatrix.low.length > 0 && (
+            {lowRisks.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-green-800 flex items-center">
                   <Shield className="h-5 w-5 mr-2" />
                   Low Risk Items
                 </h3>
-                {dealSnapshotDetails.riskMatrix.low.map(
+                {lowRisks.map(
                   (risk: Record<string, unknown>, index: number) => (
                     <div
                       key={index}
@@ -183,17 +193,13 @@ export default function RiskAnalysisPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="font-semibold text-green-900 mb-2">
-                            {risk.risk as string}
+                            {asString(risk.risk)}
                           </h4>
                           <p className="text-green-800 text-sm mb-3">
-                            {risk.mitigation as string}
+                            {asString(risk.mitigation)}
                           </p>
-                          <Badge
-                            className={getProbabilityColor(
-                              risk.probability as string
-                            )}
-                          >
-                            Probability: {risk.probability as string}
+                          <Badge className={getProbabilityColor(asString(risk.probability))}>
+                            Probability: {asString(risk.probability)}
                           </Badge>
                         </div>
                       </div>

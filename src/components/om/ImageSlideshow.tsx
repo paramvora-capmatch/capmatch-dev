@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/lib/supabaseClient';
 import { cn } from '@/utils/cn';
+import { loadProjectImages, type ImageData } from '@/lib/imageUtils';
 
 interface ImageSlideshowProps {
   projectId: string;
@@ -14,11 +14,6 @@ interface ImageSlideshowProps {
   autoPlayInterval?: number; // milliseconds
   height?: string; // e.g., "h-64", "h-96"
   onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
-}
-
-interface ImageData {
-  url: string;
-  name: string;
 }
 
 export function ImageSlideshow({
@@ -37,52 +32,25 @@ export function ImageSlideshow({
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
 
-  // Load site images
+  // Load images from artifacts folder structure
   useEffect(() => {
     const loadImages = async () => {
       if (!projectId || !orgId) return;
       
       setIsLoading(true);
       try {
-        const { data: siteData, error } = await supabase.storage
-          .from(orgId)
-          .list(`${projectId}/site-images`, {
-            limit: 100,
-            sortBy: { column: 'name', order: 'asc' },
-          });
-
-        if (error) {
-          console.error('Error loading site images:', error);
-          setIsLoading(false);
-          return;
-        }
-
-        if (siteData) {
-          const imagePromises = siteData
-            .filter((f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
-            .map(async (f) => {
-              const filePath = `${projectId}/site-images/${f.name}`;
-              const { data, error } = await supabase.storage
-                .from(orgId)
-                .createSignedUrl(filePath, 3600);
-
-              if (error) {
-                console.error(`Error creating signed URL for ${f.name}:`, error);
-                return null;
-              }
-
-              return {
-                name: f.name,
-                url: data.signedUrl,
-              };
-            });
-
-          const loadedImages = (await Promise.all(imagePromises)).filter(
-            (img): img is ImageData => img !== null
-          );
-
-          setImages(loadedImages);
-        }
+        // Load images from artifacts, excluding "other" category (logos, abstract images, etc.)
+        // Only show site_images and architectural_diagrams
+        const allImages = await loadProjectImages(projectId, orgId, true); // true = exclude "other"
+        
+        // Filter to site_images first, then architectural_diagrams (exclude "other")
+        const siteImages = allImages.filter(img => img.category === 'site_images');
+        const diagrams = allImages.filter(img => img.category === 'architectural_diagrams');
+        
+        // Combine: site images first, then diagrams (no "other" category)
+        const sortedImages = [...siteImages, ...diagrams];
+        
+        setImages(sortedImages);
       } catch (error) {
         console.error('Error loading images:', error);
       } finally {
@@ -157,12 +125,6 @@ export function ImageSlideshow({
     touchEndX.current = null;
   };
 
-  // Remove file extension helper
-  const removeFileExtension = (filename: string): string => {
-    const lastDotIndex = filename.lastIndexOf('.');
-    if (lastDotIndex === -1) return filename;
-    return filename.substring(0, lastDotIndex);
-  };
 
   if (isLoading) {
     return (
@@ -205,7 +167,7 @@ export function ImageSlideshow({
           >
             <Image
               src={images[currentIndex].url}
-              alt={removeFileExtension(images[currentIndex].name)}
+              alt={images[currentIndex].title}
               fill
               sizes="100vw"
               className="object-cover"
@@ -218,7 +180,7 @@ export function ImageSlideshow({
       {/* Image Name Overlay (bottom) */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-4">
         <h3 className="text-white font-semibold text-sm md:text-base">
-          {removeFileExtension(images[currentIndex].name)}
+          {images[currentIndex].title}
         </h3>
       </div>
 

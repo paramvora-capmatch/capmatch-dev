@@ -1,12 +1,16 @@
 'use client';
 
-import { dealSnapshotDetails } from '@/services/mockOMData';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
+import { useOmContent } from '@/hooks/useOmContent';
 
 export default function MilestonesPage() {
+  const { content } = useOmContent();
+  const dealSnapshotDetails = content?.dealSnapshotDetails ?? null;
+  const milestones = dealSnapshotDetails?.milestones ?? [];
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -33,7 +37,10 @@ export default function MilestonesPage() {
     }
   };
 
-  const totalDuration = dealSnapshotDetails.milestones.reduce((sum, milestone) => sum + milestone.duration, 0);
+  const totalDuration = milestones.reduce(
+    (sum: number, milestone: { duration?: number | null }) => sum + (milestone.duration ?? 0),
+    0
+  );
 
   useOMPageHeader({
     subtitle: "Timeline of critical phases, durations, and current status.",
@@ -48,23 +55,23 @@ export default function MilestonesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {dealSnapshotDetails.milestones.map((milestone, index) => (
+            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => (
               <div key={index} className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  {getStatusIcon(milestone.status)}
+                  {getStatusIcon(milestone.status ?? 'upcoming')}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {milestone.phase}
+                      {milestone.phase ?? null}
                     </p>
-                    <Badge className={getStatusColor(milestone.status)}>
-                      {milestone.status}
+                      <Badge className={getStatusColor(milestone.status ?? 'upcoming')}>
+                      {milestone.status ?? null}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between mt-1">
-                    <p className="text-sm text-gray-500">{milestone.date}</p>
-                    <p className="text-sm text-gray-500">{milestone.duration} days</p>
+                    <p className="text-sm text-gray-500">{milestone.date ?? null}</p>
+                    <p className="text-sm text-gray-500">{milestone.duration ?? null} days</p>
                   </div>
                 </div>
               </div>
@@ -80,21 +87,22 @@ export default function MilestonesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {dealSnapshotDetails.milestones.map((milestone, index) => {
-              const previousDuration = dealSnapshotDetails.milestones
+            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => {
+              const previousDuration = milestones
                 .slice(0, index)
-                .reduce((sum, m) => sum + m.duration, 0);
-              const startPercentage = (previousDuration / totalDuration) * 100;
-              const widthPercentage = (milestone.duration / totalDuration) * 100;
+                .reduce((sum: number, m: { duration?: number | null }) => sum + (m.duration ?? 0), 0);
+              const startPercentage = totalDuration > 0 ? (previousDuration / totalDuration) * 100 : 0;
+              const duration = milestone.duration ?? 0;
+              const widthPercentage = totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
 
               return (
                 <div key={index} className="relative">
                   <div className="flex items-center mb-2">
                     <span className="text-sm font-medium text-gray-700 w-48 truncate">
-                      {milestone.phase}
+                      {milestone.phase ?? null}
                     </span>
                     <span className="text-sm text-gray-500 ml-2">
-                      {milestone.duration} days
+                      {duration} days
                     </span>
                   </div>
                   <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
@@ -142,7 +150,7 @@ export default function MilestonesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {dealSnapshotDetails.milestones.filter(m => m.status === 'completed').length}
+              {milestones.filter((m: { status?: string | null }) => m.status === 'completed').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones completed</p>
           </CardContent>
@@ -154,7 +162,7 @@ export default function MilestonesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {dealSnapshotDetails.milestones.filter(m => m.status === 'upcoming').length}
+              {milestones.filter((m: { status?: string | null }) => m.status === 'upcoming').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones pending</p>
           </CardContent>

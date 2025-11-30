@@ -166,28 +166,66 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 			try {
 				// RLS will only return projects the user has been granted access to.
-				// We perform a join to fetch the resource IDs for key project resources.
-				const { data, error } = await supabase
+				// First, fetch projects without the resources join to avoid RLS issues
+				const { data: projectsData, error: projectsError } = await supabase
 					.from("projects")
-					.select(`
-            *,
-            resources (
-              id,
-              resource_type
-            )
-          `);
+					.select("*");
 
-				if (error) {
-					console.error("[ProjectStore] ❌ Projects query failed:", error);
-					throw error;
+				if (projectsError) {
+					const errorMessage = projectsError instanceof Error 
+						? projectsError.message 
+						: typeof projectsError === 'object' && projectsError !== null
+							? JSON.stringify(projectsError)
+							: String(projectsError) || "Unknown error";
+					
+					console.error("[ProjectStore] ❌ Projects query failed:", {
+						message: errorMessage,
+						error: projectsError,
+						code: (projectsError as any)?.code,
+						details: (projectsError as any)?.details,
+						hint: (projectsError as any)?.hint,
+					});
+					throw new Error(`Failed to load projects: ${errorMessage}`);
 				}
+
+				// Then fetch resources separately for each project to avoid RLS join issues
+				const projectIds = projectsData?.map((p: any) => p.id) || [];
+				let resourcesMap: Record<string, any[]> = {};
+				
+				if (projectIds.length > 0) {
+					const { data: resourcesData, error: resourcesError } = await supabase
+						.from("resources")
+						.select("id, project_id, resource_type")
+						.in("project_id", projectIds)
+						.in("resource_type", ["PROJECT_DOCS_ROOT", "PROJECT_RESUME"]);
+
+					if (resourcesError) {
+						console.warn("[ProjectStore] ⚠️ Failed to fetch resources (non-fatal):", resourcesError);
+						// Continue without resources - this is non-fatal
+					} else {
+						// Group resources by project_id
+						resourcesMap = (resourcesData || []).reduce((acc: Record<string, any[]>, resource: any) => {
+							if (!acc[resource.project_id]) {
+								acc[resource.project_id] = [];
+							}
+							acc[resource.project_id].push(resource);
+							return acc;
+						}, {});
+					}
+				}
+
+				// Combine projects with their resources
+				const data = projectsData?.map((project: any) => ({
+					...project,
+					resources: resourcesMap[project.id] || [],
+				})) || [];
 				
 
-				// Get project IDs for the new query function
-				const projectIds = data?.map((project: any) => project.id) || [];
+				// Get project IDs for the new query function (reuse the same variable)
+				const projectIdsForResumes = data?.map((project: any) => project.id) || [];
 				
 				// Use the new query function to get projects with resume content
-				const userProjects = await getProjectsWithResumes(projectIds);
+				const userProjects = await getProjectsWithResumes(projectIdsForResumes);
 
 				// Add resource IDs to each project
 				const projectsWithResources = userProjects.map((project: any) => {
@@ -222,7 +260,18 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 				set({ projects: projectsWithProgress, isLoading: false });
 			} catch (error) {
-				console.error("[ProjectStore] Failed to load projects:", error);
+				const errorMessage = error instanceof Error 
+					? error.message 
+					: typeof error === 'object' && error !== null
+						? JSON.stringify(error)
+						: String(error) || "Unknown error";
+				
+				console.error("[ProjectStore] Failed to load projects:", {
+					message: errorMessage,
+					error: error,
+					user: user?.id,
+					userRole: user?.role,
+				});
 				set({ projects: [], isLoading: false });
 			}
 		},
@@ -230,17 +279,14 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		getProject: (id) => get().projects.find((p) => p.id === id) || null,
 
 		setActiveProject: async (project) => {
-			const { activeProject } = get();
-			if (project?.id === activeProject?.id) return;
-
 			set({ activeProject: project });
-      
-      // When a project becomes active, load its permissions
-      if (project) {
-        usePermissionStore.getState().loadPermissionsForProject(project.id);
-      } else {
-        usePermissionStore.getState().resetPermissions();
-      }
+
+			// When a project becomes active, load its permissions
+			if (project) {
+				usePermissionStore.getState().loadPermissionsForProject(project.id);
+			} else {
+				usePermissionStore.getState().resetPermissions();
+			}
 		},
 
 		createProject: async (projectData: Partial<ProjectProfile>) => {
@@ -398,12 +444,30 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					...projectProfileToResumeContent(updates),
 					completenessPercent: progressResult.completenessPercent,
 				};
+				
+				// Include metadata if present in updates
+				if ((updates as any)._metadata) {
+					(resumeContent as any)._metadata = (updates as any)._metadata;
+				}
+
+				// Extract locked_fields and locked_sections if present (separate columns, not part of content)
+				const lockedFields = (updates as any)._lockedFields;
+				const lockedSections = (updates as any)._lockedSections;
+				
+				if (lockedFields !== undefined) {
+					console.log(`[ProjectStore] Saving locked_fields for project ${id}:`, lockedFields);
+				}
+				if (lockedSections !== undefined) {
+					console.log(`[ProjectStore] Saving locked_sections for project ${id}:`, lockedSections);
+				}
 
 				const { error } = await supabase.functions.invoke('update-project', {
 					body: {
 						project_id: id,
 						core_updates: coreUpdates,
 						resume_updates: resumeContent,
+						locked_fields: lockedFields,
+						locked_sections: lockedSections,
 					},
 				});
 				if (error) throw error;
@@ -564,7 +628,128 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// Continue with project deletion even if storage cleanup fails
 			}
 
+			// Delete related data before deleting the project
+			// With the new schema, we need to delete child resources first, then let cascade delete handle root resources
+			try {
+				// 1. Delete chat data
+				const { data: threads } = await supabase
+					.from("chat_threads")
+					.select("id")
+					.eq("project_id", id);
+
+				if (threads && threads.length > 0) {
+					const threadIds = threads.map((t) => t.id);
+					await supabase
+						.from("chat_thread_participants")
+						.delete()
+						.in("thread_id", threadIds);
+					await supabase
+						.from("chat_threads")
+						.delete()
+						.eq("project_id", id);
+				}
+
+				// 2. Delete child resources and permissions
+				// Note: Root resources (PROJECT_RESUME, PROJECT_DOCS_ROOT, BORROWER_RESUME, BORROWER_DOCS_ROOT, OM)
+				// cannot be deleted directly due to database trigger. They will be cascade deleted when the project is deleted.
+				const { data: resources } = await supabase
+					.from("resources")
+					.select("id, resource_type, parent_id")
+					.eq("project_id", id);
+
+				if (resources && resources.length > 0) {
+					// Separate root resources from child resources
+					const rootResourceTypes = [
+						"PROJECT_RESUME",
+						"PROJECT_DOCS_ROOT",
+						"BORROWER_RESUME",
+						"BORROWER_DOCS_ROOT",
+						"OM",
+					];
+					
+					// Child resources are those that have a parent_id (nested under root resources)
+					// Root resources (with parent_id = null) will be cascade deleted when project is deleted
+					const childResources = resources.filter(
+						(r) => r.parent_id !== null && !rootResourceTypes.includes(r.resource_type)
+					);
+					const rootResources = resources.filter(
+						(r) => r.parent_id === null || rootResourceTypes.includes(r.resource_type)
+					);
+					
+					const allResourceIds = resources.map((r) => r.id);
+					const childResourceIds = childResources.map((r) => r.id);
+					const rootResourceIds = rootResources.map((r) => r.id);
+
+					console.log(
+						`[ProjectStore] Deleting resources for project ${id}: ${childResourceIds.length} child resources, ${rootResourceIds.length} root resources (will cascade)`
+					);
+
+					// Delete permissions for all resources (including root)
+					// Permissions will be cascade deleted, but we delete them explicitly to be safe
+					if (allResourceIds.length > 0) {
+						await supabase
+							.from("permissions")
+							.delete()
+							.in("resource_id", allResourceIds);
+					}
+
+					// Only delete child resources (non-root resources with parent_id)
+					// Root resources will be cascade deleted when project is deleted
+					// DO NOT attempt to delete root resources - they are protected by database trigger
+					if (childResourceIds.length > 0) {
+						const { error: childDeleteError } = await supabase
+							.from("resources")
+							.delete()
+							.in("id", childResourceIds);
+						
+						if (childDeleteError) {
+							console.error(
+								`[ProjectStore] Error deleting child resources:`,
+								childDeleteError
+							);
+							// Continue anyway - try to delete project which will cascade delete everything
+						}
+					}
+					
+					// Explicitly skip root resources - they will be cascade deleted
+					if (rootResourceIds.length > 0) {
+						console.log(
+							`[ProjectStore] Skipping ${rootResourceIds.length} root resources - will be cascade deleted with project`
+						);
+					}
+				}
+
+				// 3. Delete resumes (these have ON DELETE CASCADE, but we delete explicitly)
+				await supabase
+					.from("project_resumes")
+					.delete()
+					.eq("project_id", id);
+				await supabase
+					.from("borrower_resumes")
+					.delete()
+					.eq("project_id", id);
+
+				// 4. Delete OM data (if exists, has ON DELETE CASCADE)
+				await supabase.from("om").delete().eq("project_id", id);
+
+				// 5. Delete project access grants (has ON DELETE CASCADE)
+				await supabase
+					.from("project_access_grants")
+					.delete()
+					.eq("project_id", id);
+			} catch (relatedDataError) {
+				console.error(
+					`[ProjectStore] Error deleting related data for project ${id}:`,
+					relatedDataError
+				);
+				// Continue with project deletion attempt even if some related data deletion fails
+			}
+
 			// Now delete the project from the database
+			// This will cascade delete ALL resources (including root resources) via foreign key constraints
+			// The cascade delete trigger should allow root resource deletion when the project is deleted
+			// Note: If this fails with "Cannot delete root resource types", the trigger may need to be updated
+			// to properly detect cascade deletes in the same transaction
 			const { error } = await supabase
 				.from("projects")
 				.delete()
@@ -574,6 +759,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					`[ProjectStore] Failed to delete project ${id}:`,
 					error
 				);
+				// If the error is about root resources, it means the cascade delete trigger
+				// is not properly detecting the cascade. This might require a database fix.
+				if (error.message?.includes("Cannot delete root resource types")) {
+					console.error(
+						`[ProjectStore] Cascade delete trigger issue: Root resources should be automatically deleted when project is deleted. This may require a database migration fix.`
+					);
+				}
 				return false;
 			}
 			set((state) => ({

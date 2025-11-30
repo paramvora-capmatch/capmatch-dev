@@ -134,12 +134,54 @@ serve(async (req) => {
 
     const sourceResumeContent = sourceResumeData?.content || {};
 
-    await supabaseAdmin
-      .from("borrower_resumes")
-      .upsert({
-        project_id: target_project_id,
-        content: sourceResumeContent,
-      }, { onConflict: "project_id" });
+    if (targetBorrowerResumeResourceId) {
+      const { data: pointer, error: pointerError } = await supabaseAdmin
+        .from("resources")
+        .select("current_version_id")
+        .eq("id", targetBorrowerResumeResourceId)
+        .maybeSingle();
+
+      if (pointerError && pointerError.code !== "PGRST116") {
+        console.warn("[copy-borrower-profile] Failed to read borrower resume pointer:", pointerError);
+      }
+
+      if (pointer?.current_version_id) {
+        const { error: updateError } = await supabaseAdmin
+          .from("borrower_resumes")
+          .update({ content: sourceResumeContent })
+          .eq("id", pointer.current_version_id);
+
+        if (updateError) {
+          throw new Error(`Failed to update borrower resume: ${updateError.message}`);
+        }
+      } else {
+        const { data: inserted, error: insertError } = await supabaseAdmin
+          .from("borrower_resumes")
+          .insert({
+            project_id: target_project_id,
+            content: sourceResumeContent,
+          })
+          .select("id")
+          .single();
+
+        if (insertError || !inserted?.id) {
+          throw new Error(`Failed to create borrower resume: ${insertError?.message ?? "Unknown error"}`);
+        }
+
+        await supabaseAdmin
+          .from("resources")
+          .update({ current_version_id: inserted.id })
+          .eq("id", targetBorrowerResumeResourceId);
+      }
+    } else {
+      // Fallback if the resource is missing – insert and rely on migration to sync pointers later
+      await supabaseAdmin
+        .from("borrower_resumes")
+        .insert({
+          project_id: target_project_id,
+          content: sourceResumeContent,
+        });
+    }
 
     if (targetBorrowerDocsRootId) {
       await clearBorrowerDocuments(

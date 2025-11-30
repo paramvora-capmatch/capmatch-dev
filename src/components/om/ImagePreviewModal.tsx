@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-re
 interface MediaFile {
   name: string;
   url: string;
+  title?: string; // Optional AI-generated title
   isPdf: boolean;
 }
 
@@ -134,11 +135,11 @@ export function ImagePreviewModal({
     setIsDragging(false);
   };
 
-  // Remove file extension helper
-  const removeFileExtension = (filename: string): string => {
-    const lastDotIndex = filename.lastIndexOf('.');
-    if (lastDotIndex === -1) return filename;
-    return filename.substring(0, lastDotIndex);
+  // Get display title (prefer AI-generated title, fallback to filename without extension)
+  const getDisplayTitle = (image: MediaFile): string => {
+    if (image.title) return image.title;
+    const lastDotIndex = image.name.lastIndexOf('.');
+    return lastDotIndex === -1 ? image.name : image.name.substring(0, lastDotIndex);
   };
 
   if (!currentImage) return null;
@@ -148,7 +149,7 @@ export function ImagePreviewModal({
       isOpen={isOpen}
       onClose={onClose}
       size="full"
-      title={removeFileExtension(currentImage.name)}
+      title={getDisplayTitle(currentImage)}
     >
       <div className="flex flex-col h-full">
         {/* Controls Bar */}

@@ -5,6 +5,7 @@ import Script from "next/script";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { extractOriginalFilename } from "@/utils/documentUtils";
 
 interface OnlyOfficeEditorProps {
   bucketId: string;
@@ -259,9 +260,9 @@ export const OnlyOfficeEditor: React.FC<OnlyOfficeEditorProps> = ({
             </Button>
             <div
               className="text-sm text-gray-600 truncate px-4"
-              title={filePath.split("/").pop()}
+              title={extractOriginalFilename(filePath)}
             >
-              {filePath.split("/").pop()}
+              {extractOriginalFilename(filePath)}
             </div>
           </header>
         )}

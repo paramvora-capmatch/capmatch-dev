@@ -6,7 +6,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve } from 'path';
-import { readFileSync, existsSync, readdirSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { ProjectResumeContent } from '../src/lib/project-queries';
 
@@ -427,8 +427,8 @@ async function callOnboardBorrower(
 async function createAdvisorAccount(): Promise<{ userId: string; orgId: string } | null> {
   console.log('[seed] Setting up advisor account (Cody Field)...');
   
-  const advisorEmail = 'cody@capmatch.com';
-  const advisorPassword = 'password123';
+  const advisorEmail = 'cody.field@capmatch.com';
+  const advisorPassword = 'password';
   const advisorName = 'Cody Field';
 
   // Check if advisor already exists
@@ -512,15 +512,25 @@ async function createAdvisorAccount(): Promise<{ userId: string; orgId: string }
     .eq('id', advisorUserId);
 
   console.log('[seed] ✅ Advisor account setup complete');
+  if (!advisorOrgId) {
+    console.error('[seed] ❌ Advisor org ID is null');
+    return null;
+  }
   return { userId: advisorUserId, orgId: advisorOrgId };
 }
 
-async function createHoqueBorrowerAccount(): Promise<{ userId: string; orgId: string } | null> {
-  console.log('[seed] Creating Hoque borrower account...');
+/**
+ * Get or create the borrower account (param.vora@capmatch.com)
+ * This account is shared between the Hoque seed script and the demo seed script.
+ * Both scripts can run together - they create different projects in the same account.
+ */
+async function getOrCreateDemoBorrowerAccount(): Promise<{ userId: string; orgId: string } | null> {
+  console.log('[seed] Getting or creating borrower account (param.vora@capmatch.com)...');
+  console.log('[seed] Note: This account is shared with seed-demo-data.ts');
   
-  const borrowerEmail = 'info@hoqueglobal.com';
-  const borrowerPassword = 'password123';
-  const borrowerName = 'Hoque Global';
+  const borrowerEmail = 'param.vora@capmatch.com';
+  const borrowerPassword = 'password';
+  const borrowerName = 'Param Vora';
 
   // Check if borrower already exists
   const { data: existingProfile } = await supabaseAdmin
@@ -536,6 +546,20 @@ async function createHoqueBorrowerAccount(): Promise<{ userId: string; orgId: st
     console.log(`[seed] Borrower already exists: ${borrowerEmail} (${existingProfile.id})`);
     borrowerUserId = existingProfile.id;
     borrowerOrgId = existingProfile.active_org_id;
+    
+    if (!borrowerOrgId) {
+      // Get org from org_members
+      const { data: memberData } = await supabaseAdmin
+        .from('org_members')
+        .select('org_id')
+        .eq('user_id', borrowerUserId)
+        .eq('role', 'owner')
+        .single();
+      
+      if (memberData) {
+        borrowerOrgId = memberData.org_id;
+      }
+    }
   } else {
     const borrowerResult = await callOnboardBorrower(borrowerEmail, borrowerPassword, borrowerName);
     if (borrowerResult.error || !borrowerResult.user) {
@@ -561,7 +585,102 @@ async function createHoqueBorrowerAccount(): Promise<{ userId: string; orgId: st
     console.log(`[seed] ✅ Borrower org: ${borrowerOrgId}`);
   }
 
+  if (!borrowerOrgId) {
+    console.error('[seed] ❌ Borrower org ID is null');
+    return null;
+  }
+
   return { userId: borrowerUserId, orgId: borrowerOrgId };
+}
+
+async function createHoqueGlobalMember(orgId: string): Promise<string | null> {
+  console.log('[seed] Creating Hoque Global member account...');
+  
+  const memberEmail = 'info@hoqueglobal.com';
+  const memberPassword = 'password';
+  const memberName = 'Hoque Global';
+
+  // Check if user already exists
+  const { data: existingProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('email', memberEmail)
+    .maybeSingle();
+
+  let userId: string;
+
+  if (existingProfile) {
+    console.log(`[seed] Hoque Global member already exists: ${memberEmail} (${existingProfile.id})`);
+    userId = existingProfile.id;
+  } else {
+    // Create user via auth
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: memberEmail,
+      password: memberPassword,
+      email_confirm: true,
+      user_metadata: { full_name: memberName },
+    });
+
+    if (authError || !authUser.user) {
+      console.error(`[seed] Failed to create Hoque Global member:`, authError);
+      return null;
+    }
+
+    userId = authUser.user.id;
+
+    // Create profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: userId,
+        email: memberEmail,
+        full_name: memberName,
+        app_role: 'borrower',
+        active_org_id: orgId,
+      });
+
+    if (profileError) {
+      console.error(`[seed] Failed to create Hoque Global profile:`, profileError);
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      return null;
+    }
+
+    console.log(`[seed] ✅ Created Hoque Global member: ${memberEmail} (${userId})`);
+  }
+
+  // Add to org_members as member (not owner)
+  const { error: memberError } = await supabaseAdmin
+    .from('org_members')
+    .upsert(
+      {
+        org_id: orgId,
+        user_id: userId,
+        role: 'member',
+      },
+      { onConflict: 'org_id,user_id' }
+    );
+
+  if (memberError) {
+    console.error(`[seed] Failed to add Hoque Global to org:`, memberError);
+    return null;
+  }
+
+  // Ensure active_org_id is set
+  await supabaseAdmin
+    .from('profiles')
+    .update({ active_org_id: orgId })
+    .eq('id', userId);
+
+  console.log(`[seed] ✅ Hoque Global member setup complete: ${memberEmail}`);
+  return userId;
+}
+
+// Helper to safely get service role key
+function getServiceRoleKey(): string {
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set');
+  }
+  return serviceRoleKey;
 }
 
 // ============================================================================
@@ -669,13 +788,6 @@ async function uploadDocumentToProject(
       });
 
     if (uploadError) {
-      // Check if it's a file size error
-      if (uploadError.message?.includes('exceeded the maximum allowed size') || 
-          uploadError.statusCode === '413') {
-        console.warn(`[seed] ⚠️  Skipping document ${fileName}: file size exceeds maximum allowed size`);
-        await supabaseAdmin.from('resources').delete().eq('id', resourceId);
-        return null;
-      }
       console.error(`[seed] Failed to upload file to storage:`, uploadError);
       await supabaseAdmin.from('resources').delete().eq('id', resourceId);
       return null;
@@ -758,161 +870,6 @@ async function uploadDocumentToProject(
     console.error(`[seed] Exception uploading document ${fileName}:`, err);
     return null;
   }
-}
-
-async function seedImages(
-  projectId: string,
-  orgId: string
-): Promise<void> {
-  console.log(`[seed] Seeding images for SoGood Apartments...`);
-
-  // Try to find images in common locations
-  const possibleBasePaths = [
-    resolve(process.cwd(), '../../CapMatch-Extra/SoGood/images'),
-    resolve(process.cwd(), '../CapMatch-Extra/SoGood/images'),
-    resolve(process.cwd(), '../SampleLoanPackage/SoGood/images'),
-    resolve(process.cwd(), './hoque-docs/images'),
-    resolve(process.cwd(), '../hoque-docs/images'),
-  ];
-
-  let basePath: string | null = null;
-  for (const path of possibleBasePaths) {
-    if (existsSync(path)) {
-      basePath = path;
-      console.log(`[seed] Found images directory: ${basePath}`);
-      break;
-    }
-  }
-
-  if (!basePath) {
-    console.log(`[seed] ⚠️  No images directory found. Skipping image upload.`);
-    console.log(`[seed]    To upload images, place them in one of:`);
-    possibleBasePaths.forEach(p => console.log(`[seed]    - ${p}`));
-    return;
-  }
-
-  // Ensure storage folders exist (create .keep files if needed)
-  const keepBlob = new Blob(['keep'], { type: 'text/plain;charset=UTF-8' });
-  await supabaseAdmin.storage
-    .from(orgId)
-    .upload(`${projectId}/site-images/.keep`, keepBlob, { upsert: true });
-  await supabaseAdmin.storage
-    .from(orgId)
-    .upload(`${projectId}/architectural-diagrams/.keep`, keepBlob, { upsert: true });
-
-  // Upload architectural diagrams
-  const diagramsPath = join(basePath, 'architectural_diagrams');
-  if (existsSync(diagramsPath)) {
-    console.log(`[seed] Uploading architectural diagrams...`);
-    const diagramFiles = readdirSync(diagramsPath).filter(f => 
-      f.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)
-    );
-
-    let uploadedCount = 0;
-    for (const fileName of diagramFiles) {
-      const filePath = join(diagramsPath, fileName);
-      const fileBuffer = readFileSync(filePath);
-
-      // Determine content type from file extension
-      const ext = fileName.split('.').pop()?.toLowerCase();
-      const contentTypeMap: Record<string, string> = {
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'gif': 'image/gif',
-        'webp': 'image/webp',
-        'pdf': 'application/pdf',
-      };
-      const contentType = contentTypeMap[ext || ''];
-      
-      if (!contentType) {
-        console.warn(`[seed] ⚠️  Skipping diagram ${fileName}: unsupported file type (${ext || 'unknown'})`);
-        continue;
-      }
-
-      const storagePath = `${projectId}/architectural-diagrams/${fileName}`;
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from(orgId)
-        .upload(storagePath, fileBuffer, {
-          contentType,
-          cacheControl: '3600',
-          upsert: true, // Overwrite if exists
-        });
-
-      if (uploadError) {
-        console.error(`[seed] ❌ Failed to upload diagram ${fileName}:`, uploadError.message);
-      } else {
-        console.log(`[seed] ✅ Uploaded diagram: ${fileName}`);
-        uploadedCount++;
-      }
-    }
-
-    if (uploadedCount > 0) {
-      console.log(`[seed] ✅ Uploaded ${uploadedCount} architectural diagram(s)`);
-    } else if (diagramFiles.length > 0) {
-      console.log(`[seed] ⚠️  No diagrams were uploaded (check errors above)`);
-    }
-  } else {
-    console.log(`[seed] ⚠️  Architectural diagrams folder not found: ${diagramsPath}`);
-  }
-
-  // Upload site images
-  const siteImagesPath = join(basePath, 'site_images');
-  if (existsSync(siteImagesPath)) {
-    console.log(`[seed] Uploading site images...`);
-    const imageFiles = readdirSync(siteImagesPath).filter(f => 
-      f.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i)
-    );
-
-    let uploadedCount = 0;
-    for (const fileName of imageFiles) {
-      const filePath = join(siteImagesPath, fileName);
-      const fileBuffer = readFileSync(filePath);
-
-      // Determine content type from file extension
-      const ext = fileName.split('.').pop()?.toLowerCase();
-      const contentTypeMap: Record<string, string> = {
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'gif': 'image/gif',
-        'webp': 'image/webp',
-        'pdf': 'application/pdf',
-      };
-      const contentType = contentTypeMap[ext || ''];
-      
-      if (!contentType) {
-        console.warn(`[seed] ⚠️  Skipping site image ${fileName}: unsupported file type (${ext || 'unknown'})`);
-        continue;
-      }
-
-      const storagePath = `${projectId}/site-images/${fileName}`;
-      const { error: uploadError } = await supabaseAdmin.storage
-        .from(orgId)
-        .upload(storagePath, fileBuffer, {
-          contentType,
-          cacheControl: '3600',
-          upsert: true, // Overwrite if exists
-        });
-
-      if (uploadError) {
-        console.error(`[seed] ❌ Failed to upload site image ${fileName}:`, uploadError.message);
-      } else {
-        console.log(`[seed] ✅ Uploaded site image: ${fileName}`);
-        uploadedCount++;
-      }
-    }
-
-    if (uploadedCount > 0) {
-      console.log(`[seed] ✅ Uploaded ${uploadedCount} site image(s)`);
-    } else if (imageFiles.length > 0) {
-      console.log(`[seed] ⚠️  No site images were uploaded (check errors above)`);
-    }
-  } else {
-    console.log(`[seed] ⚠️  Site images folder not found: ${siteImagesPath}`);
-  }
-
-  console.log(`[seed] ✅ Image seeding complete`);
 }
 
 async function createChatMessage(
@@ -1109,21 +1066,29 @@ async function grantMemberProjectAccess(
 // MAIN SEEDING FUNCTIONS
 // ============================================================================
 
-async function seedProjectResume(projectId: string): Promise<boolean> {
+async function seedProjectResume(projectId: string, createdById: string): Promise<boolean> {
   console.log(`[seed] Updating project resume for SoGood Apartments...`);
 
+  // Mark any existing active resumes as superseded (project resumes now support versioning)
+  await supabaseAdmin
+    .from('project_resumes')
+    .update({ status: 'superseded' })
+    .eq('project_id', projectId)
+    .eq('status', 'active');
+
+  // Insert new resume with versioning fields
+  // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('project_resumes')
-    .upsert(
-      {
-        project_id: projectId,
-        content: hoqueProjectResume as any,
-      },
-      { onConflict: 'project_id' }
-    );
+    .insert({
+      project_id: projectId,
+      content: hoqueProjectResume as any,
+      status: 'active',
+      created_by: createdById,
+    });
 
   if (error) {
-    console.error(`[seed] Failed to update project resume:`, error);
+    console.error(`[seed] Failed to insert project resume:`, error);
     return false;
   }
 
@@ -1131,7 +1096,7 @@ async function seedProjectResume(projectId: string): Promise<boolean> {
   return true;
 }
 
-async function seedBorrowerResume(projectId: string): Promise<boolean> {
+async function seedBorrowerResume(projectId: string, createdById: string): Promise<boolean> {
   console.log(`[seed] Updating borrower resume for SoGood Apartments...`);
 
   // Ensure borrower root resources exist
@@ -1143,18 +1108,26 @@ async function seedBorrowerResume(projectId: string): Promise<boolean> {
     console.warn(`[seed] Warning: Failed to ensure borrower root resources:`, rootError.message);
   }
 
+  // Mark any existing active resumes as superseded (borrower resumes now support versioning)
+  await supabaseAdmin
+    .from('borrower_resumes')
+    .update({ status: 'superseded' })
+    .eq('project_id', projectId)
+    .eq('status', 'active');
+
+  // Insert new resume with versioning fields
+  // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
-    .upsert(
-      {
-        project_id: projectId,
-        content: hoqueBorrowerResume as any,
-      },
-      { onConflict: 'project_id' }
-    );
+    .insert({
+      project_id: projectId,
+      content: hoqueBorrowerResume as any,
+      status: 'active',
+      created_by: createdById,
+    });
 
   if (error) {
-    console.error(`[seed] Failed to update borrower resume:`, error);
+    console.error(`[seed] Failed to insert borrower resume:`, error);
     return false;
   }
 
@@ -1208,41 +1181,21 @@ async function seedDocuments(
     return documents;
   }
 
-  // Check existing documents in the project to avoid re-uploading
-  const { data: existingDocs } = await supabaseAdmin
-    .from('resources')
-    .select('name')
-    .eq('project_id', projectId)
-    .eq('resource_type', 'FILE');
-
-  const existingDocNames = new Set(existingDocs?.map(d => d.name) || []);
-
   for (const doc of documentPaths) {
-    // Skip if document already exists
-    if (existingDocNames.has(doc.name)) {
-      console.log(`[seed] ⏭️  Document already exists, skipping: ${doc.name}`);
-      // Still add to documents map for chat message references
-      const { data: existingResource } = await supabaseAdmin
-        .from('resources')
-        .select('id')
-        .eq('project_id', projectId)
-        .eq('resource_type', 'FILE')
-        .eq('name', doc.name)
-        .maybeSingle();
-      
-      if (existingResource) {
-        documents[doc.name] = existingResource.id;
-      }
-      continue;
-    }
-
     const filePath = join(basePath, doc.file);
     if (existsSync(filePath)) {
+      // Extract file extension from the actual file path
+      const fileExtension = doc.file.split('.').pop()?.toLowerCase();
+      // Append extension to the display name so edit button logic works correctly
+      const fileNameWithExtension = fileExtension 
+        ? `${doc.name}.${fileExtension}`
+        : doc.name;
+      
       const resourceId = await uploadDocumentToProject(
         projectId,
         orgId,
         filePath,
-        doc.name,
+        fileNameWithExtension,
         doc.type,
         uploadedById
       );
@@ -1296,18 +1249,6 @@ async function seedChatMessages(
   }
 
   const threadId = generalThread.id;
-  
-  // Check if messages already exist in General thread (idempotency check)
-  const { data: existingMessages, count: messageCount } = await supabaseAdmin
-    .from('chat_messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('thread_id', threadId);
-
-  let shouldSeedGeneralMessages = true;
-  if (messageCount && messageCount > 0) {
-    console.log(`[seed] ⏭️  General thread already has ${messageCount} message(s), skipping message seeding`);
-    shouldSeedGeneralMessages = false;
-  }
   
   // Get document IDs for references
   const loanPackageId = documents['Loan Request Package'];
@@ -1403,151 +1344,79 @@ async function seedChatMessages(
     },
   ];
 
-  // Create messages with slight delays to simulate real conversation timing (only if not already seeded)
-  if (shouldSeedGeneralMessages) {
-    for (const message of messages) {
-      await createChatMessage(threadId, message.userId, message.content, message.resourceIds);
-      // Small delay to space out messages
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
+  // Create messages with slight delays to simulate real conversation timing
+  for (const message of messages) {
+    await createChatMessage(threadId, message.userId, message.content, message.resourceIds);
+    // Small delay to space out messages
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   // Create additional threads for specific topics
   if (memberIds.length > 0) {
-    // Check if Construction thread exists and has messages
-    let { data: existingConstructionThread } = await supabaseAdmin
-      .from('chat_threads')
-      .select('id')
-      .eq('project_id', projectId)
-      .eq('topic', 'Construction & Timeline')
-      .maybeSingle();
-
-    let constructionThreadId: string | null = null;
-    
-    if (existingConstructionThread) {
-      constructionThreadId = existingConstructionThread.id;
-      
-      // Ensure participants are added
-      const allParticipantIds = [advisorId, borrowerId, ...memberIds];
-      for (const userId of allParticipantIds) {
-        await supabaseAdmin
-          .from('chat_thread_participants')
-          .upsert(
-            { thread_id: constructionThreadId, user_id: userId },
-            { onConflict: 'thread_id,user_id' }
-          );
-      }
-    } else {
-      constructionThreadId = await createThread(
-        projectId,
-        'Construction & Timeline',
-        [advisorId, borrowerId, ...memberIds]
-      );
-    }
+    const constructionThreadId = await createThread(
+      projectId,
+      'Construction & Timeline',
+      [advisorId, borrowerId, ...memberIds]
+    );
 
     if (constructionThreadId) {
-      // Check if messages already exist
-      const { count: constructionMessageCount } = await supabaseAdmin
-        .from('chat_messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('thread_id', constructionThreadId);
+      const constructionMessages = [
+        {
+          userId: borrowerId,
+          content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Building B - Concept Drawings](doc:${conceptDrawingsId || ''}) show the full scope - 6-story podium with structured parking.`,
+          resourceIds: conceptDrawingsId ? [conceptDrawingsId] : [],
+        },
+        {
+          userId: advisorId,
+          content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan - SoGood Tracts](doc:${sitePlanId || ''}) shows good site access - that should help with construction logistics.`,
+          resourceIds: sitePlanId ? [sitePlanId] : [],
+        },
+        {
+          userId: borrowerId,
+          content: `Yes, we'll provide monthly draw requests and progress photos. Our GC has experience with lender reporting requirements. The site is well-positioned with access from both Hickory St and Ferris St, which helps with material delivery and staging.`,
+          resourceIds: [],
+        },
+      ];
 
-      if (!constructionMessageCount || constructionMessageCount === 0) {
-        const constructionMessages = [
-          {
-            userId: borrowerId,
-            content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Building B - Concept Drawings](doc:${conceptDrawingsId || ''}) show the full scope - 6-story podium with structured parking.`,
-            resourceIds: conceptDrawingsId ? [conceptDrawingsId] : [],
-          },
-          {
-            userId: advisorId,
-            content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan - SoGood Tracts](doc:${sitePlanId || ''}) shows good site access - that should help with construction logistics.`,
-            resourceIds: sitePlanId ? [sitePlanId] : [],
-          },
-          {
-            userId: borrowerId,
-            content: `Yes, we'll provide monthly draw requests and progress photos. Our GC has experience with lender reporting requirements. The site is well-positioned with access from both Hickory St and Ferris St, which helps with material delivery and staging.`,
-            resourceIds: [],
-          },
-        ];
-
-        for (const message of constructionMessages) {
-          await createChatMessage(constructionThreadId, message.userId, message.content, message.resourceIds);
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      } else {
-        console.log(`[seed] ⏭️  Construction & Timeline thread already has ${constructionMessageCount} message(s), skipping`);
+      for (const message of constructionMessages) {
+        await createChatMessage(constructionThreadId, message.userId, message.content, message.resourceIds);
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
-    // Check if Financing thread exists and has messages
-    let { data: existingFinancingThread } = await supabaseAdmin
-      .from('chat_threads')
-      .select('id')
-      .eq('project_id', projectId)
-      .eq('topic', 'Financing & Lender Outreach')
-      .maybeSingle();
-
-    let financingThreadId: string | null = null;
-    
-    if (existingFinancingThread) {
-      financingThreadId = existingFinancingThread.id;
-      
-      // Ensure participants are added
-      const allParticipantIds = [advisorId, borrowerId, ...memberIds];
-      for (const userId of allParticipantIds) {
-        await supabaseAdmin
-          .from('chat_thread_participants')
-          .upsert(
-            { thread_id: financingThreadId, user_id: userId },
-            { onConflict: 'thread_id,user_id' }
-          );
-      }
-    } else {
-      financingThreadId = await createThread(
-        projectId,
-        'Financing & Lender Outreach',
-        [advisorId, borrowerId, ...memberIds]
-      );
-    }
+    const financingThreadId = await createThread(
+      projectId,
+      'Financing & Lender Outreach',
+      [advisorId, borrowerId, ...memberIds]
+    );
 
     if (financingThreadId) {
-      // Check if messages already exist
-      const { count: financingMessageCount } = await supabaseAdmin
-        .from('chat_messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('thread_id', financingThreadId);
+      const financingMessages = [
+        {
+          userId: advisorId,
+          content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Loan Request Package](doc:${loanPackageId || ''}) is comprehensive - I'll use this for initial outreach. Target list coming next week.`,
+          resourceIds: loanPackageId ? [loanPackageId] : [],
+        },
+        {
+          userId: borrowerId,
+          content: `Thanks! We have existing relationships with Frost Bank and Citi Community Capital. Should we prioritize those or cast a wider net? The @[PFC Memorandum - SoGood](doc:${pfcMemoId || ''}) details the tax exemption structure which should be attractive to lenders.`,
+          resourceIds: pfcMemoId ? [pfcMemoId] : [],
+        },
+        {
+          userId: advisorId,
+          content: `Let's leverage those relationships but also expand. Given the deal size ($18M) and structure, there are several regional banks and specialty lenders who'd be competitive. The PFC structure is a key selling point - having that tax exemption executed removes a lot of execution risk. I'll coordinate initial outreach and prioritize lenders familiar with PFC deals.`,
+          resourceIds: [],
+        },
+        {
+          userId: borrowerId,
+          content: `Sounds good. The @[Building B - Pro Forma](doc:${proFormaId || ''}) shows strong returns - 17.5% base case IRR with multiple exit scenarios. That should help with lender underwriting.`,
+          resourceIds: proFormaId ? [proFormaId] : [],
+        },
+      ];
 
-      if (!financingMessageCount || financingMessageCount === 0) {
-        const financingMessages = [
-          {
-            userId: advisorId,
-            content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Loan Request Package](doc:${loanPackageId || ''}) is comprehensive - I'll use this for initial outreach. Target list coming next week.`,
-            resourceIds: loanPackageId ? [loanPackageId] : [],
-          },
-          {
-            userId: borrowerId,
-            content: `Thanks! We have existing relationships with Frost Bank and Citi Community Capital. Should we prioritize those or cast a wider net? The @[PFC Memorandum - SoGood](doc:${pfcMemoId || ''}) details the tax exemption structure which should be attractive to lenders.`,
-            resourceIds: pfcMemoId ? [pfcMemoId] : [],
-          },
-          {
-            userId: advisorId,
-            content: `Let's leverage those relationships but also expand. Given the deal size ($18M) and structure, there are several regional banks and specialty lenders who'd be competitive. The PFC structure is a key selling point - having that tax exemption executed removes a lot of execution risk. I'll coordinate initial outreach and prioritize lenders familiar with PFC deals.`,
-            resourceIds: [],
-          },
-          {
-            userId: borrowerId,
-            content: `Sounds good. The @[Building B - Pro Forma](doc:${proFormaId || ''}) shows strong returns - 17.5% base case IRR with multiple exit scenarios. That should help with lender underwriting.`,
-            resourceIds: proFormaId ? [proFormaId] : [],
-          },
-        ];
-
-        for (const message of financingMessages) {
-          await createChatMessage(financingThreadId, message.userId, message.content, message.resourceIds);
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      } else {
-        console.log(`[seed] ⏭️  Financing & Lender Outreach thread already has ${financingMessageCount} message(s), skipping`);
+      for (const message of financingMessages) {
+        await createChatMessage(financingThreadId, message.userId, message.content, message.resourceIds);
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
   }
@@ -1594,25 +1463,15 @@ async function createProject(
       return null;
     }
 
-    // 3. Create storage folders (including image folders)
-    const keepBlob = new Blob(['keep'], { type: 'text/plain;charset=UTF-8' });
-    const storageFolders = [
-      `${projectId}/.placeholder`,
-      `${projectId}/site-images/.keep`,
-      `${projectId}/architectural-diagrams/.keep`,
-    ];
+    // 3. Create storage folder
+    const { error: storageError } = await supabaseAdmin.storage
+      .from(ownerOrgId)
+      .upload(`${projectId}/.placeholder`, new Blob([''], { type: 'text/plain' }), {
+        contentType: 'text/plain;charset=UTF-8',
+      });
 
-    for (const folderPath of storageFolders) {
-      const { error: storageError } = await supabaseAdmin.storage
-        .from(ownerOrgId)
-        .upload(folderPath, keepBlob, {
-          contentType: 'text/plain;charset=UTF-8',
-          upsert: true,
-        });
-
-      if (storageError && !storageError.message?.toLowerCase().includes('already exists')) {
-        console.warn(`[seed] Warning: Storage folder creation failed for ${folderPath}:`, storageError.message);
-      }
+    if (storageError && !storageError.message?.toLowerCase().includes('already exists')) {
+      console.warn(`[seed] Warning: Storage folder creation failed (non-critical):`, storageError.message);
     }
 
     // 4. Create PROJECT_RESUME resource
@@ -1717,49 +1576,25 @@ async function createProject(
 
 async function seedTeamMembers(projectId: string, orgId: string, ownerId: string): Promise<string[]> {
   console.log(`[seed] Seeding team members for SoGood Apartments...`);
+  console.log(`[seed] Note: Using same member accounts as seed-demo-data.ts for compatibility`);
 
   const memberEmails = [
-    { email: 'joel.heikenfeld@acara.com', name: 'Joel Heikenfeld', role: 'ACARA Managing Director' },
-    { email: 'mike.hoque@hoqueglobal.com', name: 'Mike Hoque', role: 'Hoque Global CEO' },
-    { email: 'sarah.martinez@hoqueglobal.com', name: 'Sarah Martinez', role: 'Project Manager' },
-    { email: 'david.kim@acara.com', name: 'David Kim', role: 'Financial Analyst' },
+    { email: 'aryan.jain@capmatch.com', name: 'Aryan Jain', role: 'Team Member' },
+    { email: 'sarthak.karandikar@capmatch.com', name: 'Sarthak Karandikar', role: 'Team Member' },
+    { email: 'kabeer.merchant@capmatch.com', name: 'Kabeer Merchant', role: 'Team Member' },
   ];
 
   const memberIds: string[] = [];
 
   for (const member of memberEmails) {
-    // Check if user already exists
-    const { data: existingUser } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('email', member.email)
-      .maybeSingle();
-
-    let userId: string | null = null;
-
-    if (existingUser) {
-      console.log(`[seed] ⏭️  Team member already exists: ${member.email} (${existingUser.id})`);
-      userId = existingUser.id;
-    } else {
-      userId = await createMemberUser(member.email, 'password', member.name, orgId);
-    }
-
+    const userId = await createMemberUser(member.email, 'password', member.name, orgId);
     if (userId) {
       memberIds.push(userId);
       
-      // Grant project access (idempotent - upsert)
-      const { data: existingGrant } = await supabaseAdmin
-        .from('project_access_grants')
-        .select('id')
-        .eq('project_id', projectId)
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!existingGrant) {
-        await grantMemberProjectAccess(projectId, userId, ownerId);
-      }
+      // Grant project access
+      await grantMemberProjectAccess(projectId, userId, ownerId);
       
-      // Add to General chat thread (idempotent - upsert)
+      // Add to General chat thread
       const { data: generalThread } = await supabaseAdmin
         .from('chat_threads')
         .select('id')
@@ -1788,85 +1623,52 @@ async function seedTeamMembers(projectId: string, orgId: string, ownerId: string
 
 async function seedHoqueProject(): Promise<void> {
   console.log('🌱 Starting Hoque (SoGood Apartments) complete account seed...\n');
+  console.log('📝 Note: This script uses the same borrower and advisor accounts as seed-demo-data.ts');
+  console.log('📝 Both scripts can be run together - they create different projects in the same accounts\n');
 
   try {
-    // Step 1: Create or get advisor account and org
-    console.log('📋 Step 1: Creating/finding advisor account (Cody Field)...');
+    // Step 1: Create advisor account and org
+    // Note: Uses same advisor as demo script (cody.field@capmatch.com)
+    console.log('📋 Step 1: Creating advisor account (Cody Field)...');
     const advisorInfo = await createAdvisorAccount();
     if (!advisorInfo) {
-      console.error('[seed] ❌ Failed to create/find advisor account');
+      console.error('[seed] ❌ Failed to create advisor account');
       return;
     }
     const { userId: advisorId, orgId: advisorOrgId } = advisorInfo;
 
-    // Step 2: Create or get Hoque borrower account and org
-    console.log('\n📋 Step 2: Creating/finding Hoque borrower account...');
-    const borrowerInfo = await createHoqueBorrowerAccount();
+    // Step 2: Get or create borrower account (param.vora@capmatch.com)
+    // This uses the same account as the demo script, so both scripts can work together
+    console.log('\n📋 Step 2: Getting/creating borrower account (param.vora@capmatch.com)...');
+    const borrowerInfo = await getOrCreateDemoBorrowerAccount();
     if (!borrowerInfo) {
-      console.error('[seed] ❌ Failed to create/find borrower account');
+      console.error('[seed] ❌ Failed to get/create borrower account');
       return;
     }
     const { userId: borrowerId, orgId: borrowerOrgId } = borrowerInfo;
 
-    // Step 3: Find or create SoGood Apartments project
-    console.log('\n📋 Step 3: Finding/creating SoGood Apartments project...');
-    let projectId: string | null = null;
-    
-    // Check if project already exists
-    const { data: existingProject } = await supabaseAdmin
-      .from('projects')
-      .select('id, assigned_advisor_id')
-      .eq('name', HOQUE_PROJECT_NAME)
-      .eq('owner_org_id', borrowerOrgId)
-      .maybeSingle();
-
-    if (existingProject) {
-      console.log(`[seed] ⏭️  Project already exists: ${existingProject.id}`);
-      projectId = existingProject.id;
-
-      // Ensure advisor is assigned if not already
-      if (!existingProject.assigned_advisor_id || existingProject.assigned_advisor_id !== advisorId) {
-        await supabaseAdmin
-          .from('projects')
-          .update({ assigned_advisor_id: advisorId })
-          .eq('id', projectId);
-        console.log(`[seed] ✅ Updated project to assign advisor`);
-      }
-
-      // Ensure storage folders exist (including image folders)
-      const keepBlob = new Blob(['keep'], { type: 'text/plain;charset=UTF-8' });
-      const storageFolders = [
-        `${projectId}/site-images/.keep`,
-        `${projectId}/architectural-diagrams/.keep`,
-      ];
-
-      for (const folderPath of storageFolders) {
-        const { error: storageError } = await supabaseAdmin.storage
-          .from(borrowerOrgId)
-          .upload(folderPath, keepBlob, {
-            contentType: 'text/plain;charset=UTF-8',
-            upsert: true,
-          });
-
-        if (storageError && !storageError.message?.toLowerCase().includes('already exists')) {
-          // Non-critical - folders might already exist
-        }
-      }
-    } else {
-      projectId = await createProject(
-        borrowerOrgId,
-        HOQUE_PROJECT_NAME,
-        advisorId,
-        borrowerId
-      );
-
-      if (!projectId) {
-        console.error('[seed] ❌ Failed to create project');
-        return;
-      }
+    // Step 2.5: Create Hoque Global as a member (not owner)
+    console.log('\n📋 Step 2.5: Creating Hoque Global member account...');
+    const hoqueGlobalMemberId = await createHoqueGlobalMember(borrowerOrgId);
+    if (!hoqueGlobalMemberId) {
+      console.warn('[seed] ⚠️  Failed to create Hoque Global member (continuing anyway)');
     }
 
-    // Grant advisor permissions (idempotent)
+    // Step 3: Create SoGood Apartments project
+    console.log('\n📋 Step 3: Creating SoGood Apartments project...');
+    const projectId = await createProject(
+      borrowerOrgId,
+      HOQUE_PROJECT_NAME,
+      advisorId,
+      borrowerId
+    );
+
+    if (!projectId) {
+      console.error('[seed] ❌ Failed to create project');
+      return;
+    }
+
+    // Grant advisor permissions
     const { error: permError } = await supabaseAdmin.rpc('grant_advisor_project_permissions', {
       p_project_id: projectId,
       p_advisor_id: advisorId,
@@ -1877,40 +1679,62 @@ async function seedHoqueProject(): Promise<void> {
       console.warn(`[seed] Warning: Failed to grant advisor permissions:`, permError.message);
     }
 
-    // Step 4: Seed project and borrower resumes (idempotent - upsert)
+    // Step 4: Seed project and borrower resumes
     console.log('\n📋 Step 4: Seeding project and borrower resumes...');
-    await seedProjectResume(projectId);
-    await seedBorrowerResume(projectId);
+    await seedProjectResume(projectId, borrowerId);
+    await seedBorrowerResume(projectId, borrowerId);
 
-    // Step 5: Seed documents (idempotent - skips existing)
+    // Step 4.5: Seed OM data (single row per project, no versioning)
+    console.log('\n📋 Step 4.5: Seeding OM data...');
+    const { error: omError } = await supabaseAdmin
+      .from('om')
+      .upsert(
+        {
+          project_id: projectId,
+          content: hoqueProjectResume as any, // OM uses same content as project resume
+        },
+        { onConflict: 'project_id' }
+      );
+
+    if (omError) {
+      console.warn(`[seed] ⚠️  Failed to seed OM data:`, omError.message);
+    } else {
+      console.log(`[seed] ✅ Seeded OM data`);
+    }
+
+    // Step 5: Seed documents
     console.log('\n📋 Step 5: Seeding documents...');
     const documents = await seedDocuments(projectId, borrowerOrgId, borrowerId);
 
-    // Step 6: Seed images (idempotent - skips existing)
-    console.log('\n📋 Step 6: Seeding images...');
-    await seedImages(projectId, borrowerOrgId);
-
-    // Step 7: Seed team members (idempotent - skips existing)
-    console.log('\n📋 Step 7: Seeding team members...');
+    // Step 6: Seed team members
+    console.log('\n📋 Step 6: Seeding team members...');
     const memberIds = await seedTeamMembers(projectId, borrowerOrgId, borrowerId);
+    
+    // Add Hoque Global member to the project if it was created
+    if (hoqueGlobalMemberId) {
+      memberIds.push(hoqueGlobalMemberId);
+      // Grant project access to Hoque Global member
+      await grantMemberProjectAccess(projectId, hoqueGlobalMemberId, borrowerId);
+    }
 
-    // Step 8: Seed chat messages (idempotent - checks existing)
-    console.log('\n📋 Step 8: Seeding chat messages...');
+    // Step 7: Seed chat messages
+    console.log('\n📋 Step 7: Seeding chat messages...');
     await seedChatMessages(projectId, advisorId, borrowerId, memberIds, documents);
 
     // Summary
     console.log('\n✅ Hoque (SoGood Apartments) complete account seed completed successfully!');
     console.log('\n📊 Summary:');
-    console.log(`   Advisor: cody@capmatch.com (password: password123)`);
-    console.log(`   Borrower: info@hoqueglobal.com (password: password123)`);
+    console.log(`   Advisor: cody.field@capmatch.com (password: password)`);
+    console.log(`   Project Owner: param.vora@capmatch.com (password: password)`);
+    console.log(`   Hoque Global Member: info@hoqueglobal.com (password: password)`);
     console.log(`   Project: ${HOQUE_PROJECT_NAME} (${projectId})`);
     console.log(`   Project Resume: ✅ Seeded (100% complete)`);
     console.log(`   Borrower Resume: ✅ Seeded (100% complete)`);
+    console.log(`   OM Data: ✅ Seeded`);
     console.log(`   Documents: ✅ ${Object.keys(documents).length} documents`);
-    console.log(`   Images: ✅ Seeded in site-images and architectural-diagrams folders`);
     console.log(`   Team Members: ✅ ${memberIds.length} members`);
     console.log(`   Chat Messages: ✅ Seeded in General and topic threads`);
-    console.log('\n🎉 The Hoque account is now fully seeded with realistic data!');
+    console.log('\n🎉 The Hoque project is now fully seeded in the borrower account!');
   } catch (error) {
     console.error('\n❌ Seed script failed:', error);
     if (error instanceof Error) {
@@ -1926,19 +1750,20 @@ async function seedHoqueProject(): Promise<void> {
 // ============================================================================
 
 async function cleanupHoqueAccounts(): Promise<void> {
-  console.log('🧹 Starting Hoque accounts cleanup...\n');
+  console.log('🧹 Starting Hoque project cleanup...\n');
 
   try {
-    const borrowerEmail = 'info@hoqueglobal.com';
-    const advisorEmail = 'cody@capmatch.com';
+    const borrowerEmail = 'param.vora@capmatch.com';
+    const hoqueGlobalEmail = 'info@hoqueglobal.com';
+    const advisorEmail = 'cody.field@capmatch.com';
     const teamMemberEmails = [
-      'joel.heikenfeld@acara.com',
-      'mike.hoque@hoqueglobal.com',
-      'sarah.martinez@hoqueglobal.com',
-      'david.kim@acara.com',
+      'aryan.jain@capmatch.com',
+      'sarthak.karandikar@capmatch.com',
+      'kabeer.merchant@capmatch.com',
     ];
 
     // Step 1: Find and delete SoGood Apartments project
+    // Note: This only deletes the Hoque project, not the demo projects
     console.log('📋 Step 1: Deleting SoGood Apartments project...');
     const { data: projects } = await supabaseAdmin
       .from('projects')
@@ -1980,6 +1805,9 @@ async function cleanupHoqueAccounts(): Promise<void> {
         await supabaseAdmin.from('project_resumes').delete().eq('project_id', project.id);
         await supabaseAdmin.from('borrower_resumes').delete().eq('project_id', project.id);
 
+        // Delete OM data
+        await supabaseAdmin.from('om').delete().eq('project_id', project.id);
+
         // Delete project access grants
         await supabaseAdmin.from('project_access_grants').delete().in('project_id', projectIds);
       }
@@ -1987,114 +1815,73 @@ async function cleanupHoqueAccounts(): Promise<void> {
       // Delete projects
       await supabaseAdmin.from('projects').delete().in('id', projectIds);
       console.log(`[cleanup] ✅ Deleted ${projects.length} project(s)`);
-
-      // Step 2: Delete borrower org and users
-      if (borrowerOrgId) {
-        console.log('\n📋 Step 2: Deleting borrower org and users...');
-        
-        // Delete org members
-        await supabaseAdmin.from('org_members').delete().eq('org_id', borrowerOrgId);
-        
-        // Delete org resources
-        const { data: orgResources } = await supabaseAdmin
-          .from('resources')
-          .select('id')
-          .eq('org_id', borrowerOrgId);
-
-        if (orgResources && orgResources.length > 0) {
-          const resourceIds = orgResources.map(r => r.id);
-          await supabaseAdmin.from('permissions').delete().in('resource_id', resourceIds);
-          await supabaseAdmin.from('resources').delete().in('id', resourceIds);
-        }
-
-        // Delete org
-        await supabaseAdmin.from('orgs').delete().eq('id', borrowerOrgId);
-        console.log(`[cleanup] ✅ Deleted borrower org: ${borrowerOrgId}`);
-      }
+      
+      // Note: We do NOT delete the borrower account (param.vora@capmatch.com) or its org
+      // as it's shared with the demo script and may have other projects
     } else {
       console.log('[cleanup] No SoGood Apartments projects found');
     }
 
-    // Step 3: Delete team member users
-    console.log('\n📋 Step 3: Deleting team member users...');
+    // Step 3: Skip team member cleanup (team members are shared with demo script)
+    // Note: We do NOT delete team member accounts as they're shared with the demo script
+    console.log('\n📋 Step 3: Skipping team member cleanup...');
+    console.log(`[cleanup] ⚠️  Preserving team member accounts - shared with demo script:`);
     for (const email of teamMemberEmails) {
-      try {
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .eq('email', email)
-          .maybeSingle();
-
-        if (profile) {
-          // Delete project access, permissions, etc.
-          await supabaseAdmin.from('project_access_grants').delete().eq('user_id', profile.id);
-          await supabaseAdmin.from('permissions').delete().eq('user_id', profile.id);
-          await supabaseAdmin.from('org_members').delete().eq('user_id', profile.id);
-          await supabaseAdmin.from('chat_thread_participants').delete().eq('user_id', profile.id);
-          
-          // Delete user
-          await supabaseAdmin.auth.admin.deleteUser(profile.id);
-          console.log(`[cleanup] ✅ Deleted team member: ${email}`);
-        }
-      } catch (err) {
-        console.warn(`[cleanup] Could not delete team member ${email}:`, err);
-      }
+      console.log(`[cleanup]   - ${email}`);
     }
+    console.log(`[cleanup] Note: Only Hoque project access will be removed (project deletion handles this)`);
 
-    // Step 4: Delete borrower user
-    console.log('\n📋 Step 4: Deleting borrower user...');
+    // Step 4: Delete Hoque Global member (but keep borrower account - shared with demo script)
+    console.log('\n📋 Step 4: Deleting Hoque Global member...');
     try {
-      const { data: borrowerProfile } = await supabaseAdmin
+      const { data: hoqueProfile } = await supabaseAdmin
         .from('profiles')
         .select('id')
-        .eq('email', borrowerEmail)
+        .eq('email', hoqueGlobalEmail)
         .maybeSingle();
 
-      if (borrowerProfile) {
-        await supabaseAdmin.auth.admin.deleteUser(borrowerProfile.id);
-        console.log(`[cleanup] ✅ Deleted borrower: ${borrowerEmail}`);
-      }
-    } catch (err) {
-      console.warn(`[cleanup] Could not delete borrower:`, err);
-    }
-
-    // Step 5: Delete advisor user (but keep advisor org if it has other members)
-    console.log('\n📋 Step 5: Cleaning up advisor account...');
-    try {
-      const { data: advisorProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id, active_org_id')
-        .eq('email', advisorEmail)
-        .maybeSingle();
-
-      if (advisorProfile) {
-        // Check if advisor org has other members
-        const { data: orgMembers } = await supabaseAdmin
+      if (hoqueProfile) {
+        // Remove from org_members
+        await supabaseAdmin
           .from('org_members')
-          .select('user_id')
-          .eq('org_id', advisorProfile.active_org_id);
-
-        // Only delete org if Cody is the only member
-        if (orgMembers && orgMembers.length <= 1 && advisorProfile.active_org_id) {
-          await supabaseAdmin.from('org_members').delete().eq('org_id', advisorProfile.active_org_id);
-          await supabaseAdmin.from('orgs').delete().eq('id', advisorProfile.active_org_id);
-          console.log(`[cleanup] ✅ Deleted advisor org: ${advisorProfile.active_org_id}`);
-        } else {
-          // Just remove Cody from the org
-          await supabaseAdmin.from('org_members').delete()
-            .eq('org_id', advisorProfile.active_org_id)
-            .eq('user_id', advisorProfile.id);
-          console.log(`[cleanup] ✅ Removed advisor from org (org has other members)`);
-        }
-
-        await supabaseAdmin.auth.admin.deleteUser(advisorProfile.id);
-        console.log(`[cleanup] ✅ Deleted advisor: ${advisorEmail}`);
+          .delete()
+          .eq('user_id', hoqueProfile.id);
+        
+        // Delete project access
+        await supabaseAdmin
+          .from('project_access_grants')
+          .delete()
+          .eq('user_id', hoqueProfile.id);
+        
+        // Delete permissions
+        await supabaseAdmin
+          .from('permissions')
+          .delete()
+          .eq('user_id', hoqueProfile.id);
+        
+        // Delete chat participants
+        await supabaseAdmin
+          .from('chat_thread_participants')
+          .delete()
+          .eq('user_id', hoqueProfile.id);
+        
+        // Delete user
+        await supabaseAdmin.auth.admin.deleteUser(hoqueProfile.id);
+        console.log(`[cleanup] ✅ Deleted Hoque Global member: ${hoqueGlobalEmail}`);
       }
     } catch (err) {
-      console.warn(`[cleanup] Could not delete advisor:`, err);
+      console.warn(`[cleanup] Could not delete Hoque Global member:`, err);
     }
 
-    console.log('\n✅ Hoque accounts cleanup completed!');
+    // Step 5: Skip advisor cleanup (advisor is shared with demo script)
+    // Note: We do NOT delete the advisor account (cody.field@capmatch.com) or its org
+    // as it's shared with the demo script and may be used by other projects
+    console.log('\n📋 Step 5: Skipping advisor cleanup...');
+    console.log(`[cleanup] ⚠️  Preserving advisor account (${advisorEmail}) - shared with demo script`);
+
+    console.log('\n✅ Hoque project cleanup completed!');
+    console.log('🌱 Note: Borrower account (param.vora@capmatch.com) was NOT deleted.');
+    console.log('🌱 Note: This account is shared with the demo script, so it is preserved.');
     console.log('🌱 You can now run the seed script again for a fresh start.');
   } catch (error) {
     console.error('\n❌ Cleanup failed:', error);
@@ -2111,7 +1898,8 @@ async function main() {
   if (isProduction && !isCleanup) {
     console.log('⚠️  PRODUCTION MODE DETECTED');
     console.log(`   Database: ${supabaseUrl}`);
-    console.log(`   Service Role Key: ${serviceRoleKey.substring(0, 20)}...`);
+    const key = getServiceRoleKey();
+    console.log(`   Service Role Key: ${key.substring(0, 20)}...`);
     console.log('\n⚠️  This will create real users and data in PRODUCTION!');
     console.log('⚠️  Make sure you have backups before proceeding.');
     console.log('\nPress Ctrl+C to cancel, or wait 5 seconds to proceed...\n');
@@ -2138,7 +1926,7 @@ async function main() {
     console.log('\n✨ Done!');
     if (isProduction) {
       console.log('\n📝 Next steps:');
-      console.log('   1. Change user passwords (default is "password123")');
+      console.log('   1. Change user passwords (default is "password")');
       console.log('   2. Verify data in Supabase Dashboard');
       console.log('   3. Test login with created accounts');
     }

@@ -1,7 +1,7 @@
 # Hoque (SoGood Apartments) Complete Account Seed Script
 
 Comprehensive TypeScript seed script that creates a complete account setup for the Hoque Global / SoGood Apartments project:
-- ✅ **Advisor account** (Cody Field - cody@capmatch.com)
+- ✅ **Advisor account** (Cody Field - cody.field@capmatch.com)
 - ✅ **Borrower account** (Hoque Global - info@hoqueglobal.com)
 - ✅ **Team member accounts** (4 team members)
 - ✅ **SoGood Apartments project** (assigned to Cody Field)
@@ -133,7 +133,7 @@ The script looks for documents in these locations (in order):
 ### Accounts Created
 
 **Advisor Account:**
-- Email: `cody@capmatch.com`
+- Email: `cody.field@capmatch.com`
 - Password: `password123`
 - Name: Cody Field
 - Org: CapMatch Advisors (created if it doesn't exist)

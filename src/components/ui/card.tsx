@@ -31,7 +31,7 @@ const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
     return (
       <div
         ref={ref}
-        className={cn("flex flex-col space-y-2 p-7 pb-0", className)}
+        className={cn("flex flex-col p-4", className)}
         {...props}
       >
         {hasTooltip ? (

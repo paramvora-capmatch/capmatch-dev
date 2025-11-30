@@ -16,8 +16,8 @@ BEGIN
     
     -- If parent_id is null, this is a root resource - only allow for root types
     IF NEW.parent_id IS NULL THEN
-        IF NEW.resource_type NOT IN ('BORROWER_RESUME', 'BORROWER_DOCS_ROOT', 'PROJECT_RESUME', 'PROJECT_DOCS_ROOT') THEN
-            RAISE EXCEPTION 'Only root resource types (BORROWER_RESUME, BORROWER_DOCS_ROOT, PROJECT_RESUME, PROJECT_DOCS_ROOT) can have null parent_id';
+        IF NEW.resource_type NOT IN ('BORROWER_RESUME', 'BORROWER_DOCS_ROOT', 'PROJECT_RESUME', 'PROJECT_DOCS_ROOT', 'OM') THEN
+            RAISE EXCEPTION 'Only root resource types (BORROWER_RESUME, BORROWER_DOCS_ROOT, PROJECT_RESUME, PROJECT_DOCS_ROOT, OM) can have null parent_id';
         END IF;
         RETURN NEW;
     END IF;
@@ -71,7 +71,7 @@ BEGIN
     v_user_id := auth.uid();
     
     -- Prevent deletion of root resources
-    IF OLD.resource_type IN ('BORROWER_RESUME', 'PROJECT_RESUME', 'BORROWER_DOCS_ROOT', 'PROJECT_DOCS_ROOT') THEN
+    IF OLD.resource_type IN ('BORROWER_RESUME', 'PROJECT_RESUME', 'BORROWER_DOCS_ROOT', 'PROJECT_DOCS_ROOT', 'OM') THEN
         RAISE EXCEPTION 'Cannot delete root resource types';
     END IF;
     

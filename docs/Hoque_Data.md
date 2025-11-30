@@ -237,8 +237,6 @@ The following table contains information that we want to display on the platform
 | | **Rent Range** | "$1,850-$2,050" | ⚠️ **Partial** | OM provides a single "Market Rent" point, not a range per unit type. |
 
 
-SOURCES
-
 Here are all the fields that need to be included in the Project Resume:
 
 ### **Section 1: Project Identification & Basic Info**

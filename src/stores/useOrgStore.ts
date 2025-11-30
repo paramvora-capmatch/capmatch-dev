@@ -195,11 +195,19 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      console.error("Error loading org:", error);
+      // Provide better error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : typeof error === 'object' && error !== null
+          ? JSON.stringify(error)
+          : String(error) || "Failed to load org";
+      
+      console.error("Error loading org:", errorMessage, error);
       set({
-        error: error instanceof Error ? error.message : "Failed to load org",
+        error: errorMessage,
         isLoading: false,
       });
+      // Don't throw - let the caller handle it gracefully
     }
   },
 

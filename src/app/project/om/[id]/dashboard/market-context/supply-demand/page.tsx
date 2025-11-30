@@ -1,36 +1,50 @@
 "use client";
 
-import { marketContextDetails } from "@/services/mockOMData";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, BarChart3, Clock } from "lucide-react";
 import SupplyDemandMap from "@/components/om/SupplyDemandMap";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
+import { useOmContent } from "@/hooks/useOmContent";
 
 export default function SupplyDemandPage() {
-  const getOccupancyColor = (occupancy: string) => {
-    const occ = parseFloat(occupancy);
+  const { content } = useOmContent();
+  const marketContextDetails = content?.marketContextDetails ?? null;
+  const supplyAnalysis = marketContextDetails?.supplyAnalysis ?? null;
+  const currentInventory = supplyAnalysis?.currentInventory ?? 0;
+  const underConstruction = supplyAnalysis?.underConstruction ?? 0;
+  const planned24Months = supplyAnalysis?.planned24Months ?? 0;
+  const averageOccupancy = supplyAnalysis?.averageOccupancy ?? null;
+  const deliveryByQuarter = supplyAnalysis?.deliveryByQuarter ?? [];
+
+  const getOccupancyColor = (occupancy?: string | null) => {
+    const occ = parseFloat(occupancy ?? "");
+    if (Number.isNaN(occ)) return "bg-gray-100 text-gray-800";
     if (occ >= 95) return "bg-green-100 text-green-800";
     if (occ >= 90) return "bg-blue-100 text-blue-800";
     if (occ >= 85) return "bg-red-100 text-red-800";
     return "bg-red-100 text-red-800";
   };
 
-  const totalSupply =
-    marketContextDetails.supplyAnalysis.currentInventory +
-    marketContextDetails.supplyAnalysis.underConstruction +
-    marketContextDetails.supplyAnalysis.planned24Months;
-
+  const totalSupply = currentInventory + underConstruction + planned24Months;
   const supplyUtilization =
-    ((marketContextDetails.supplyAnalysis.currentInventory +
-      marketContextDetails.supplyAnalysis.underConstruction) /
-      totalSupply) *
-    100;
+    totalSupply > 0
+      ? ((currentInventory + underConstruction) / totalSupply) * 100
+      : 0;
 
   // Calculate the maximum units for histogram scaling
-  const maxUnits = Math.max(
-    ...marketContextDetails.supplyAnalysis.deliveryByQuarter.map((q) => q.units)
-  );
+  const maxUnits =
+    deliveryByQuarter.length > 0
+      ? Math.max(
+          ...deliveryByQuarter.map((q: { units?: number | null }) => q.units ?? 0)
+        )
+      : 0;
+  const parseOccupancyPercent = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = parseFloat(value.replace(/[^\d.]/g, ''));
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+  const occupancyPercentValue = parseOccupancyPercent(averageOccupancy);
 
   useOMPageHeader({
     subtitle: "Pipeline deliveries, occupancy, and the market’s supply-demand balance.",
@@ -52,7 +66,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {marketContextDetails.supplyAnalysis.currentInventory.toLocaleString()}
+              {currentInventory.toLocaleString()}
             </p>
             <p className="text-sm text-gray-500 mt-1">Available units</p>
           </CardContent>
@@ -69,7 +83,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()}
+              {underConstruction.toLocaleString()}
             </p>
             <p className="text-sm text-gray-500 mt-1">Units in progress</p>
           </CardContent>
@@ -86,7 +100,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {marketContextDetails.supplyAnalysis.planned24Months.toLocaleString()}
+              {planned24Months.toLocaleString()}
             </p>
             <p className="text-sm text-gray-500 mt-1">Future units</p>
           </CardContent>
@@ -98,7 +112,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {marketContextDetails.supplyAnalysis.averageOccupancy}
+              {averageOccupancy}
             </p>
             <p className="text-sm text-gray-500 mt-1">Current average</p>
           </CardContent>
@@ -120,7 +134,7 @@ export default function SupplyDemandPage() {
               </span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">
-                  {marketContextDetails.supplyAnalysis.currentInventory.toLocaleString()}{" "}
+                  {currentInventory.toLocaleString()}{" "}
                   units
                 </span>
                 <Badge className="bg-blue-100 text-blue-800">Available</Badge>
@@ -131,8 +145,7 @@ export default function SupplyDemandPage() {
                 className="h-4 rounded-full bg-blue-500"
                 style={{
                   width: `${
-                    (marketContextDetails.supplyAnalysis.currentInventory /
-                      totalSupply) *
+                    (currentInventory / totalSupply) *
                     100
                   }%`,
                 }}
@@ -145,7 +158,7 @@ export default function SupplyDemandPage() {
               </span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">
-                  {marketContextDetails.supplyAnalysis.underConstruction.toLocaleString()}{" "}
+                  {underConstruction.toLocaleString()}{" "}
                   units
                 </span>
                 <Badge className="bg-red-100 text-red-800">
@@ -158,8 +171,7 @@ export default function SupplyDemandPage() {
                 className="h-4 rounded-full bg-red-500"
                 style={{
                   width: `${
-                    (marketContextDetails.supplyAnalysis.underConstruction /
-                      totalSupply) *
+                    (underConstruction / totalSupply) *
                     100
                   }%`,
                 }}
@@ -172,7 +184,7 @@ export default function SupplyDemandPage() {
               </span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">
-                  {marketContextDetails.supplyAnalysis.planned24Months.toLocaleString()}{" "}
+                  {planned24Months.toLocaleString()}{" "}
                   units
                 </span>
                 <Badge className="bg-blue-100 text-blue-800">Planned</Badge>
@@ -183,8 +195,7 @@ export default function SupplyDemandPage() {
                 className="h-4 rounded-full bg-blue-500"
                 style={{
                   width: `${
-                    (marketContextDetails.supplyAnalysis.planned24Months /
-                      totalSupply) *
+                    (planned24Months / totalSupply) *
                     100
                   }%`,
                 }}
@@ -216,9 +227,9 @@ export default function SupplyDemandPage() {
           <div className="space-y-6">
             {/* Histogram Bars */}
             <div className="flex items-end justify-between space-x-4 h-48">
-              {marketContextDetails.supplyAnalysis.deliveryByQuarter.map(
-                (quarter, index) => {
-                  const barHeight = (quarter.units / maxUnits) * 100;
+              {deliveryByQuarter.map((quarter: { quarter?: string | null; units?: number | null }, index: number) => {
+                  const safeMaxUnits = maxUnits || 1;
+                  const barHeight = ((quarter.units ?? 0) / safeMaxUnits) * 100;
                   return (
                     <div
                       key={index}
@@ -226,7 +237,7 @@ export default function SupplyDemandPage() {
                     >
                       {/* Value Label above Bar */}
                       <div className="text-sm font-medium text-gray-700 mb-2">
-                        {quarter.units.toLocaleString()}
+                        {(quarter.units ?? 0).toLocaleString()}
                       </div>
 
                       {/* Bar */}
@@ -261,8 +272,8 @@ export default function SupplyDemandPage() {
                     Total:{" "}
                   </span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {marketContextDetails.supplyAnalysis.deliveryByQuarter
-                      .reduce((sum, q) => sum + q.units, 0)
+                    {deliveryByQuarter
+                      .reduce((sum: number, q: { units?: number | null }) => sum + (q.units ?? 0), 0)
                       .toLocaleString()}{" "}
                     units
                   </Badge>
@@ -298,16 +309,13 @@ export default function SupplyDemandPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Available Units</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {marketContextDetails.supplyAnalysis.currentInventory.toLocaleString()}
+                    {currentInventory.toLocaleString()}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Pipeline Units</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {(
-                      marketContextDetails.supplyAnalysis.underConstruction +
-                      marketContextDetails.supplyAnalysis.planned24Months
-                    ).toLocaleString()}
+                    {(underConstruction + planned24Months).toLocaleString()}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -329,10 +337,10 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="text-center">
+                <div className="text-center">
                 <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl font-bold text-green-600">
-                    {marketContextDetails.supplyAnalysis.averageOccupancy}
+                    {averageOccupancy ?? null}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">
@@ -344,19 +352,15 @@ export default function SupplyDemandPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Market Status</span>
                   <Badge
-                    className={getOccupancyColor(
-                      marketContextDetails.supplyAnalysis.averageOccupancy
-                    )}
-                  >
-                    {parseFloat(
-                      marketContextDetails.supplyAnalysis.averageOccupancy
-                    ) >= 95
-                      ? "Tight"
-                      : parseFloat(
-                          marketContextDetails.supplyAnalysis.averageOccupancy
-                        ) >= 90
-                      ? "Balanced"
-                      : "Soft"}
+                    className={getOccupancyColor(averageOccupancy)}
+                    >
+                      {occupancyPercentValue != null
+                        ? occupancyPercentValue >= 95
+                          ? "Tight"
+                          : occupancyPercentValue >= 90
+                          ? "Balanced"
+                          : "Soft"
+                        : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">

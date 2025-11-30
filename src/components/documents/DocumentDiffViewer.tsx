@@ -9,8 +9,12 @@ import * as mammoth from "mammoth";
 import * as XLSX from "xlsx";
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
 
-// Set workerSrc to a CDN to avoid bundling issues with Next.js
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.mjs`;
+// Set workerSrc to use HTTPS CDN (explicit HTTPS for localhost compatibility)
+// Using jsdelivr CDN which is more reliable than cdnjs for worker files
+if (typeof window !== 'undefined') {
+  // In browser, use CDN with explicit HTTPS protocol
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+}
 
 interface DiffViewerProps {
   resourceId: string;
@@ -435,7 +439,7 @@ export const DocumentDiffViewer: React.FC<DiffViewerProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4"
     >
       <div 
         role="dialog"

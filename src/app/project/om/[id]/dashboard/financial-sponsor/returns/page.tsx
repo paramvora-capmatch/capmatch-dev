@@ -1,28 +1,38 @@
 "use client";
 
-import { financialDetails } from "@/services/mockOMData";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import ReturnsCharts from "@/components/om/ReturnsCharts";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
+import { useOmContent } from "@/hooks/useOmContent";
 
 export default function ReturnsPage() {
-  const getIRRColor = (irr: number) => {
+  const { content } = useOmContent();
+  const financialDetails = content?.financialDetails ?? null;
+  const returnProjections = financialDetails?.returnProjections ?? null;
+  const upsideScenario = returnProjections?.upside ?? null;
+  const baseScenario = returnProjections?.base ?? null;
+  const downsideScenario = returnProjections?.downside ?? null;
+
+  const getIRRColor = (irr?: number | null) => {
+    if (irr == null || Number.isNaN(irr)) return "bg-red-100 text-red-800";
     if (irr >= 25) return "bg-green-100 text-green-800";
     if (irr >= 20) return "bg-blue-100 text-blue-800";
     if (irr >= 15) return "bg-green-100 text-green-800";
     return "bg-red-100 text-red-800";
   };
 
-  const getMultipleColor = (multiple: number) => {
+  const getMultipleColor = (multiple?: number | null) => {
+    if (multiple == null || Number.isNaN(multiple)) return "bg-red-100 text-red-800";
     if (multiple >= 2.5) return "bg-green-100 text-green-800";
     if (multiple >= 2.0) return "bg-blue-100 text-blue-800";
     if (multiple >= 1.5) return "bg-green-100 text-green-800";
     return "bg-red-100 text-red-800";
   };
 
-  const getProfitMarginColor = (margin: number) => {
+  const getProfitMarginColor = (margin?: number | null) => {
+    if (margin == null || Number.isNaN(margin)) return "bg-red-100 text-red-800";
     if (margin >= 30) return "bg-green-100 text-green-800";
     if (margin >= 25) return "bg-blue-100 text-blue-800";
     if (margin >= 20) return "bg-green-100 text-green-800";
@@ -49,12 +59,12 @@ export default function ReturnsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {financialDetails.returnProjections.upside.irr}%
+              {upsideScenario?.irr != null ? `${upsideScenario.irr}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Projected IRR</p>
             <div className="mt-2">
               <Badge className="bg-green-100 text-green-800">
-                {financialDetails.returnProjections.upside.multiple}x Multiple
+                {upsideScenario?.multiple != null ? `${upsideScenario.multiple}x Multiple` : null}
               </Badge>
             </div>
           </CardContent>
@@ -71,12 +81,12 @@ export default function ReturnsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {financialDetails.returnProjections.base.irr}%
+              {baseScenario?.irr != null ? `${baseScenario.irr}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Projected IRR</p>
             <div className="mt-2">
               <Badge className="bg-blue-100 text-blue-800">
-                {financialDetails.returnProjections.base.multiple}x Multiple
+                {baseScenario?.multiple != null ? `${baseScenario.multiple}x Multiple` : null}
               </Badge>
             </div>
           </CardContent>
@@ -93,12 +103,12 @@ export default function ReturnsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {financialDetails.returnProjections.downside.irr}%
+              {downsideScenario?.irr != null ? `${downsideScenario.irr}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Projected IRR</p>
             <div className="mt-2">
               <Badge className="bg-red-100 text-red-800">
-                {financialDetails.returnProjections.downside.multiple}x Multiple
+                {downsideScenario?.multiple != null ? `${downsideScenario.multiple}x Multiple` : null}
               </Badge>
             </div>
           </CardContent>
@@ -121,8 +131,8 @@ export default function ReturnsPage() {
             <div className="space-y-4">
               <div className="text-center">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <span className="text-2xl font-bold text-green-600">
-                    {financialDetails.returnProjections.upside.irr}%
+                <span className="text-2xl font-bold text-green-600">
+                    {upsideScenario?.irr != null ? `${upsideScenario.irr}%` : null}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">Projected IRR</p>
@@ -132,21 +142,17 @@ export default function ReturnsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Equity Multiple</span>
                   <Badge
-                    className={getMultipleColor(
-                      financialDetails.returnProjections.upside.multiple
-                    )}
+                    className={getMultipleColor(upsideScenario?.multiple)}
                   >
-                    {financialDetails.returnProjections.upside.multiple}x
+                    {upsideScenario?.multiple != null ? `${upsideScenario.multiple}x` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Profit Margin</span>
                   <Badge
-                    className={getProfitMarginColor(
-                      financialDetails.returnProjections.upside.profitMargin
-                    )}
+                    className={getProfitMarginColor(upsideScenario?.profitMargin)}
                   >
-                    {financialDetails.returnProjections.upside.profitMargin}%
+                    {upsideScenario?.profitMargin != null ? `${upsideScenario.profitMargin}%` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -173,7 +179,7 @@ export default function ReturnsPage() {
               <div className="text-center">
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl font-bold text-blue-600">
-                    {financialDetails.returnProjections.base.irr}%
+                    {baseScenario?.irr != null ? `${baseScenario.irr}%` : null}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">Projected IRR</p>
@@ -183,21 +189,17 @@ export default function ReturnsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Equity Multiple</span>
                   <Badge
-                    className={getMultipleColor(
-                      financialDetails.returnProjections.base.multiple
-                    )}
+                    className={getMultipleColor(baseScenario?.multiple)}
                   >
-                    {financialDetails.returnProjections.base.multiple}x
+                    {baseScenario?.multiple != null ? `${baseScenario.multiple}x` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Profit Margin</span>
                   <Badge
-                    className={getProfitMarginColor(
-                      financialDetails.returnProjections.base.profitMargin
-                    )}
+                    className={getProfitMarginColor(baseScenario?.profitMargin)}
                   >
-                    {financialDetails.returnProjections.base.profitMargin}%
+                    {baseScenario?.profitMargin != null ? `${baseScenario.profitMargin}%` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -224,7 +226,7 @@ export default function ReturnsPage() {
               <div className="text-center">
                 <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl font-bold text-red-600">
-                    {financialDetails.returnProjections.downside.irr}%
+                    {downsideScenario?.irr != null ? `${downsideScenario.irr}%` : null}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">Projected IRR</p>
@@ -234,21 +236,17 @@ export default function ReturnsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Equity Multiple</span>
                   <Badge
-                    className={getMultipleColor(
-                      financialDetails.returnProjections.downside.multiple
-                    )}
+                    className={getMultipleColor(downsideScenario?.multiple)}
                   >
-                    {financialDetails.returnProjections.downside.multiple}x
+                    {downsideScenario?.multiple != null ? `${downsideScenario.multiple}x` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Profit Margin</span>
                   <Badge
-                    className={getProfitMarginColor(
-                      financialDetails.returnProjections.downside.profitMargin
-                    )}
+                    className={getProfitMarginColor(downsideScenario?.profitMargin)}
                   >
-                    {financialDetails.returnProjections.downside.profitMargin}%
+                    {downsideScenario?.profitMargin != null ? `${downsideScenario.profitMargin}%` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -299,31 +297,25 @@ export default function ReturnsPage() {
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge
-                      className={getIRRColor(
-                        financialDetails.returnProjections.upside.irr
-                      )}
-                    >
-                      {financialDetails.returnProjections.upside.irr}%
-                    </Badge>
+                  <Badge
+                    className={getIRRColor(upsideScenario?.irr)}
+                  >
+                    {upsideScenario?.irr != null ? `${upsideScenario.irr}%` : null}
+                  </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge
-                      className={getMultipleColor(
-                        financialDetails.returnProjections.upside.multiple
-                      )}
-                    >
-                      {financialDetails.returnProjections.upside.multiple}x
-                    </Badge>
+                  <Badge
+                    className={getMultipleColor(upsideScenario?.multiple)}
+                  >
+                    {upsideScenario?.multiple != null ? `${upsideScenario.multiple}x` : null}
+                  </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge
-                      className={getProfitMarginColor(
-                        financialDetails.returnProjections.upside.profitMargin
-                      )}
-                    >
-                      {financialDetails.returnProjections.upside.profitMargin}%
-                    </Badge>
+                  <Badge
+                    className={getProfitMarginColor(upsideScenario?.profitMargin)}
+                  >
+                    {upsideScenario?.profitMargin != null ? `${upsideScenario.profitMargin}%` : null}
+                  </Badge>
                   </td>
                   <td className="py-4 px-4">
                     <Badge className="bg-green-100 text-green-800">
@@ -339,31 +331,25 @@ export default function ReturnsPage() {
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge
-                      className={getIRRColor(
-                        financialDetails.returnProjections.base.irr
-                      )}
-                    >
-                      {financialDetails.returnProjections.base.irr}%
-                    </Badge>
+                  <Badge
+                    className={getIRRColor(baseScenario?.irr)}
+                  >
+                    {baseScenario?.irr != null ? `${baseScenario.irr}%` : null}
+                  </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge
-                      className={getMultipleColor(
-                        financialDetails.returnProjections.base.multiple
-                      )}
-                    >
-                      {financialDetails.returnProjections.base.multiple}x
-                    </Badge>
+                  <Badge
+                    className={getMultipleColor(baseScenario?.multiple)}
+                  >
+                    {baseScenario?.multiple != null ? `${baseScenario.multiple}x` : null}
+                  </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge
-                      className={getProfitMarginColor(
-                        financialDetails.returnProjections.base.profitMargin
-                      )}
-                    >
-                      {financialDetails.returnProjections.base.profitMargin}%
-                    </Badge>
+                  <Badge
+                    className={getProfitMarginColor(baseScenario?.profitMargin)}
+                  >
+                    {baseScenario?.profitMargin != null ? `${baseScenario.profitMargin}%` : null}
+                  </Badge>
                   </td>
                   <td className="py-4 px-4">
                     <Badge className="bg-blue-100 text-blue-800">
@@ -381,32 +367,25 @@ export default function ReturnsPage() {
                     </div>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge
-                      className={getIRRColor(
-                        financialDetails.returnProjections.downside.irr
-                      )}
-                    >
-                      {financialDetails.returnProjections.downside.irr}%
-                    </Badge>
+                  <Badge
+                    className={getIRRColor(downsideScenario?.irr)}
+                  >
+                    {downsideScenario?.irr != null ? `${downsideScenario.irr}%` : null}
+                  </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge
-                      className={getMultipleColor(
-                        financialDetails.returnProjections.downside.multiple
-                      )}
-                    >
-                      {financialDetails.returnProjections.downside.multiple}x
-                    </Badge>
+                  <Badge
+                    className={getMultipleColor(downsideScenario?.multiple)}
+                  >
+                    {downsideScenario?.multiple != null ? `${downsideScenario.multiple}x` : null}
+                  </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge
-                      className={getProfitMarginColor(
-                        financialDetails.returnProjections.downside.profitMargin
-                      )}
-                    >
-                      {financialDetails.returnProjections.downside.profitMargin}
-                      %
-                    </Badge>
+                  <Badge
+                    className={getProfitMarginColor(downsideScenario?.profitMargin)}
+                  >
+                    {downsideScenario?.profitMargin != null ? `${downsideScenario.profitMargin}%` : null}
+                  </Badge>
                   </td>
                   <td className="py-4 px-4">
                     <Badge className="bg-red-100 text-red-800">High Risk</Badge>

@@ -130,27 +130,49 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Use the resource name for the title, and version ID for the key
-    const fileName = resource.name;
+    // Extract the original filename from storage path to avoid showing version/user prefixes
+    // The resource.name might contain version prefix, so we extract from storage_path
+    const extractOriginalFilename = (storagePath: string): string => {
+      if (!storagePath) return resource.name;
+      const filename = storagePath.split('/').pop() || storagePath;
+      // Match patterns: v{version}_user{userId}_{filename} or v{version}_{filename}
+      const newFormatMatch = filename.match(/^v\d+_user[^_]+_(.+)$/);
+      if (newFormatMatch) return newFormatMatch[1];
+      const oldFormatMatch = filename.match(/^v\d+_(.+)$/);
+      if (oldFormatMatch) return oldFormatMatch[1];
+      return filename;
+    };
+    
+    const fileName = extractOriginalFilename(filePath);
     
     // Extract file type - try multiple sources
     let fileType = "";
     
-    // First, try to get extension from resource name
+    // First, try to get extension from extracted filename
     const nameParts = fileName.split(".");
     if (nameParts.length > 1 && nameParts[nameParts.length - 1].length <= 5) {
       fileType = nameParts[nameParts.length - 1].toLowerCase();
     }
     
-    // If not found, extract from storage path (format: v{number}_{filename})
+    // If not found, extract from storage path (format: v{number}_user{userId}_{filename} or v{number}_{filename})
     if (!fileType) {
       const storagePathParts = filePath.split("/");
       const storageFileName = storagePathParts[storagePathParts.length - 1];
-      const match = storageFileName.match(/v\d+_(.+)$/);
-      if (match && match[1]) {
-        const extension = match[1].split(".").pop();
-        if (extension && extension !== match[1] && extension.length <= 5) {
+      // Try new format first (with user ID)
+      const newFormatMatch = storageFileName.match(/^v\d+_user[^_]+_(.+)$/);
+      if (newFormatMatch && newFormatMatch[1]) {
+        const extension = newFormatMatch[1].split(".").pop();
+        if (extension && extension !== newFormatMatch[1] && extension.length <= 5) {
           fileType = extension.toLowerCase();
+        }
+      } else {
+        // Try old format (without user ID)
+        const oldFormatMatch = storageFileName.match(/^v\d+_(.+)$/);
+        if (oldFormatMatch && oldFormatMatch[1]) {
+          const extension = oldFormatMatch[1].split(".").pop();
+          if (extension && extension !== oldFormatMatch[1] && extension.length <= 5) {
+            fileType = extension.toLowerCase();
+          }
         }
       }
     }
