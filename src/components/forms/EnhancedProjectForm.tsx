@@ -18,6 +18,7 @@ import { Input } from "../ui/Input";
 import { Select } from "../ui/Select"; // Keep Select for States
 import { Button } from "../ui/Button";
 import { ButtonSelect } from "../ui/ButtonSelect"; // Import ButtonSelect
+import { MultiSelect } from "../ui/MultiSelect"; // Import MultiSelect
 import { useProjects } from "../../hooks/useProjects";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
@@ -52,6 +53,7 @@ import {
 	Image as ImageIcon,
 	Upload,
 	X,
+	Plus,
 } from "lucide-react";
 import {
 	ProjectProfile,
@@ -88,6 +90,43 @@ const assetTypeOptions = [
 	"Medical Office",
 	"Senior Housing",
 	"Student Housing",
+	"Other",
+];
+const projectTypeOptions = [
+	"Multifamily",
+	"Mixed-Use",
+	"Office",
+	"Retail",
+	"Industrial",
+	"Hospitality",
+	"Self-Storage",
+	"Senior Housing",
+	"Student Housing",
+	"Medical Office",
+	"Data Center",
+	"Land",
+	"Other",
+];
+const amenityListOptions = [
+	"Fitness Center",
+	"Swimming Pool",
+	"Rooftop Deck",
+	"Business Center",
+	"Package Lockers",
+	"Pet Friendly",
+	"EV Charging",
+	"Bike Storage",
+	"Co-Working Space",
+	"Concierge",
+	"Controlled Access",
+	"Garage Parking",
+	"Surface Parking",
+	"Outdoor Space",
+	"Playground",
+	"Dog Park",
+	"Clubhouse",
+	"Media Room",
+	"Game Room",
 	"Other",
 ];
 const projectPhaseOptions: ProjectPhase[] = [
@@ -1603,6 +1642,22 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"propertyAddressZip",
 				"propertyAddressCounty",
 				"assetType",
+				"projectType",
+				"parcelNumber",
+				"zoningDesignation",
+				"expectedZoningChanges",
+				"constructionType",
+				"dealStatus",
+				"requestedTerm",
+				"prepaymentPremium",
+				"expectedHoldPeriod",
+				"syndicationStatus",
+				"sponsorExperience",
+				"borrowerNetWorth",
+				"ltvStressMax",
+				"dscrStressMin",
+				"totalDevelopmentCost",
+				"assetType",
 				"projectPhase",
 				"projectDescription",
 			],
@@ -1628,6 +1683,31 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"exitStrategy",
 				"businessPlanSummary",
 				"marketOverviewSummary",
+				"realEstateTaxes",
+				"insurance",
+				"utilitiesCosts",
+				"repairsAndMaintenance",
+				"managementFee",
+				"generalAndAdmin",
+				"payroll",
+				"reserves",
+				"marketingLeasing",
+				"serviceCoordination",
+				"noiYear1",
+				"yieldOnCost",
+				"capRate",
+				"stabilizedValue",
+				"ltv",
+				"debtYield",
+				"dscr",
+				"dscrStressTest",
+				"inflationAssumption",
+				"portfolioLTV",
+				"trendedNOIYear1",
+				"untrendedNOIYear1",
+				"trendedYield",
+				"untrendedYield",
+				"portfolioDSCR",
 			],
 			"property-specs": [
 				"totalResidentialUnits",
@@ -1636,6 +1716,23 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"grossBuildingArea",
 				"numberOfStories",
 				"parkingSpaces",
+				"buildingEfficiency",
+				"buildingType",
+				"studioCount",
+				"oneBedCount",
+				"twoBedCount",
+				"threeBedCount",
+				"furnishedUnits",
+				"lossToLease",
+				"hvacSystem",
+				"roofTypeAge",
+				"solarCapacity",
+				"evChargingStations",
+				"leedGreenRating",
+				"adaCompliantPercent",
+				"amenityList",
+				"residentialUnitMix",
+				"commercialSpaceMix",
 			],
 			"dev-budget": [
 				"landAcquisition",
@@ -1646,6 +1743,21 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"developerFee",
 				"interestReserve",
 				"workingCapital",
+				"relocationCosts",
+				"syndicationCosts",
+				"enviroRemediation",
+				"pfcStructuringFee",
+				"seniorLoanAmount",
+				"sponsorEquity",
+				"taxCreditEquity",
+				"gapFinancing",
+				"interestRate",
+				"underwritingRate",
+				"amortization",
+				"prepaymentTerms",
+				"recourse",
+				"permTakeoutPlanned",
+				"allInRate",
 			],
 			"market-context": [
 				"submarketName",
@@ -1654,6 +1766,22 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"medianHHIncome",
 				"renterOccupiedPercent",
 				"popGrowth201020",
+				"msaName",
+				"projGrowth202429",
+				"unemploymentRate",
+				"largestEmployer",
+				"employerConcentration",
+				"submarketAbsorption",
+				"supplyPipeline",
+				"monthsOfSupply",
+				"captureRate",
+				"marketConcessions",
+				"infrastructureCatalyst",
+				"broadbandSpeed",
+				"crimeRiskLevel",
+				"northStarComp",
+				"rentComps",
+				"saleComps",
 			],
 			"special-considerations": [
 				"opportunityZone",
@@ -1662,6 +1790,16 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"amiTargetPercent",
 				"taxExemption",
 				"taxAbatement",
+				"exemptionStructure",
+				"sponsoringEntity",
+				"exemptionTerm",
+				"relocationPlan",
+				"seismicPMLRisk",
+				"incentiveStacking",
+				"tifDistrict",
+				"paceFinancing",
+				"historicTaxCredits",
+				"newMarketsCredits",
 			],
 			timeline: [
 				"groundbreakingDate",
@@ -1670,18 +1808,48 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"stabilization",
 				"entitlements",
 				"permitsIssued",
+				"landAcqClose",
+				"finalPlans",
+				"verticalStart",
+				"substantialComp",
+				"preLeasedSF",
+				"absorptionProjection",
+				"opDeficitEscrow",
+				"leaseUpEscrow",
+				"drawSchedule",
 			],
 			"site-context": [
 				"totalSiteAcreage",
 				"currentSiteStatus",
 				"siteAccess",
 				"proximityShopping",
+				"buildableAcreage",
+				"allowableFAR",
+				"farUtilizedPercent",
+				"densityBonus",
+				"soilConditions",
+				"wetlandsPresent",
+				"seismicRisk",
+				"phaseIESAFinding",
+				"utilityAvailability",
+				"easements",
+				"accessPoints",
+				"adjacentLandUse",
+				"noiseFactors",
+				"viewCorridors",
+				"topography",
+				"floodZone",
 			],
 			"sponsor-info": [
 				"sponsorEntityName",
 				"sponsorStructure",
 				"equityPartner",
 				"contactInfo",
+				"sponsorExpScore",
+				"priorDevelopments",
+				"netWorth",
+				"guarantorLiquidity",
+				"portfolioDSCR",
 			],
 		};
 		return sectionFieldMap[sectionId] || [];
@@ -2257,6 +2425,70 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[onFormDataChange]
 	);
 
+	// Helper functions for table row operations
+	const handleTableRowAdd = useCallback(
+		(tableField: keyof ProjectProfile, defaultRow: any) => {
+			setFormData((prev) => {
+				const currentArray = Array.isArray((prev as any)[tableField])
+					? [...((prev as any)[tableField] as any[])]
+					: [];
+				const nextFormData = {
+					...prev,
+					[tableField]: [...currentArray, { ...defaultRow }],
+				};
+				onFormDataChange?.(nextFormData);
+				return nextFormData;
+			});
+		},
+		[onFormDataChange]
+	);
+
+	const handleTableRowDelete = useCallback(
+		(tableField: keyof ProjectProfile, index: number) => {
+			setFormData((prev) => {
+				const currentArray = Array.isArray((prev as any)[tableField])
+					? [...((prev as any)[tableField] as any[])]
+					: [];
+				currentArray.splice(index, 1);
+				const nextFormData = {
+					...prev,
+					[tableField]: currentArray,
+				};
+				onFormDataChange?.(nextFormData);
+				return nextFormData;
+			});
+		},
+		[onFormDataChange]
+	);
+
+	const handleTableRowUpdate = useCallback(
+		(
+			tableField: keyof ProjectProfile,
+			index: number,
+			field: string,
+			value: any
+		) => {
+			setFormData((prev) => {
+				const currentArray = Array.isArray((prev as any)[tableField])
+					? [...((prev as any)[tableField] as any[])]
+					: [];
+				if (currentArray[index]) {
+					currentArray[index] = {
+						...currentArray[index],
+						[field]: value,
+					};
+				}
+				const nextFormData = {
+					...prev,
+					[tableField]: currentArray,
+				};
+				onFormDataChange?.(nextFormData);
+				return nextFormData;
+			});
+		},
+		[onFormDataChange]
+	);
+
 	// Helper function to compare form content (excluding metadata and lock fields)
 	const hasFormContentChanged = useCallback(() => {
 		// Create clean copies without metadata and lock fields for comparison
@@ -2759,6 +2991,60 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										</div>
 									</AskAIButton>
 								</FormGroup>
+								{/* Project Type uses MultiSelect */}
+								<FormGroup className="mt-4">
+									<AskAIButton
+										id="projectType"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div
+											data-field-id="projectType"
+											data-field-type="multi-select"
+											data-field-section="basic-info"
+											data-field-label="Project Type"
+											className="relative group/field"
+										>
+											{renderFieldLabel(
+												"projectType",
+												"basic-info",
+												"Project Type",
+												false
+											)}
+											<MultiSelect
+												id="projectType"
+												options={projectTypeOptions}
+												value={
+													Array.isArray(
+														formData.projectType
+													)
+														? formData.projectType
+														: []
+												}
+												onChange={(value) =>
+													handleInputChange(
+														"projectType",
+														value
+													)
+												}
+												placeholder="Select project types..."
+												disabled={isFieldDisabled(
+													"projectType",
+													"basic-info"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"projectType"
+													),
+													isFieldDisabled(
+														"projectType",
+														"basic-info"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
 								{/* Project Phase uses ButtonSelect */}
 								<FormGroup className="mt-4">
 									<AskAIButton
@@ -2859,6 +3145,864 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										</div>
 									</AskAIButton>
 								</FormGroup>
+							</div>
+							{/* Additional Project Details Section */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Info className="h-4 w-4 mr-2 text-blue-600" />
+									Additional Project Details
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="parcelNumber"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"parcelNumber",
+													"basic-info",
+													"Parcel Number(s)",
+													false
+												)}
+												<Input
+													id="parcelNumber"
+													label={null}
+													value={
+														formData.parcelNumber ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"parcelNumber",
+															e.target.value
+														)
+													}
+													placeholder="e.g., 000472000A01B0100"
+													disabled={isFieldDisabled(
+														"parcelNumber",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"parcelNumber"
+														),
+														isFieldDisabled(
+															"parcelNumber",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="parcelNumber"
+													data-field-type="input"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Parcel Number(s)"
+													data-field-placeholder="e.g., 000472000A01B0100"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="zoningDesignation"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"zoningDesignation",
+													"basic-info",
+													"Zoning Designation",
+													false
+												)}
+												<Input
+													id="zoningDesignation"
+													label={null}
+													value={
+														formData.zoningDesignation ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"zoningDesignation",
+															e.target.value
+														)
+													}
+													placeholder="e.g., PD-317"
+													disabled={isFieldDisabled(
+														"zoningDesignation",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"zoningDesignation"
+														),
+														isFieldDisabled(
+															"zoningDesignation",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="zoningDesignation"
+													data-field-type="input"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Zoning Designation"
+													data-field-placeholder="e.g., PD-317"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="expectedZoningChanges"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"expectedZoningChanges",
+													"basic-info",
+													"Expected Zoning Changes",
+													false
+												)}
+												<Select
+													id="expectedZoningChanges"
+													value={
+														formData.expectedZoningChanges ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"expectedZoningChanges",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "None",
+															label: "None",
+														},
+														{
+															value: "Variance",
+															label: "Variance",
+														},
+														{
+															value: "PUD",
+															label: "PUD",
+														},
+														{
+															value: "Re-Zoning",
+															label: "Re-Zoning",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"expectedZoningChanges",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"expectedZoningChanges"
+														),
+														isFieldDisabled(
+															"expectedZoningChanges",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="expectedZoningChanges"
+													data-field-type="select"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Expected Zoning Changes"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="constructionType"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"constructionType",
+													"basic-info",
+													"Construction Type",
+													false
+												)}
+												<Select
+													id="constructionType"
+													value={
+														formData.constructionType ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"constructionType",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Ground-Up",
+															label: "Ground-Up",
+														},
+														{
+															value: "Renovation",
+															label: "Renovation",
+														},
+														{
+															value: "Adaptive Reuse",
+															label: "Adaptive Reuse",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"constructionType",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"constructionType"
+														),
+														isFieldDisabled(
+															"constructionType",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="constructionType"
+													data-field-type="select"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Construction Type"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="dealStatus"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"dealStatus",
+													"basic-info",
+													"Deal Status",
+													false
+												)}
+												<Select
+													id="dealStatus"
+													value={
+														formData.dealStatus ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"dealStatus",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Inquiry",
+															label: "Inquiry",
+														},
+														{
+															value: "Underwriting",
+															label: "Underwriting",
+														},
+														{
+															value: "Pre-Submission",
+															label: "Pre-Submission",
+														},
+														{
+															value: "Submitted",
+															label: "Submitted",
+														},
+														{
+															value: "Closed",
+															label: "Closed",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"dealStatus",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"dealStatus"
+														),
+														isFieldDisabled(
+															"dealStatus",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="dealStatus"
+													data-field-type="select"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Deal Status"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="requestedTerm"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"requestedTerm",
+													"basic-info",
+													"Requested Term",
+													false
+												)}
+												<Input
+													id="requestedTerm"
+													label={null}
+													value={
+														formData.requestedTerm ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"requestedTerm",
+															e.target.value
+														)
+													}
+													placeholder="e.g., 3 Years + 1 Year Ext"
+													disabled={isFieldDisabled(
+														"requestedTerm",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"requestedTerm"
+														),
+														isFieldDisabled(
+															"requestedTerm",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="requestedTerm"
+													data-field-type="input"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Requested Term"
+													data-field-placeholder="e.g., 3 Years + 1 Year Ext"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="prepaymentPremium"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"prepaymentPremium",
+													"basic-info",
+													"Prepayment Premium",
+													false
+												)}
+												<Select
+													id="prepaymentPremium"
+													value={
+														formData.prepaymentPremium ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"prepaymentPremium",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Yield Maint",
+															label: "Yield Maint",
+														},
+														{
+															value: "Defeasance",
+															label: "Defeasance",
+														},
+														{
+															value: "Step-down",
+															label: "Step-down",
+														},
+														{
+															value: "Open",
+															label: "Open",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"prepaymentPremium",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"prepaymentPremium"
+														),
+														isFieldDisabled(
+															"prepaymentPremium",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="prepaymentPremium"
+													data-field-type="select"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Prepayment Premium"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="expectedHoldPeriod"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"expectedHoldPeriod",
+													"basic-info",
+													"Expected Hold Period (Years)",
+													false
+												)}
+												<Input
+													id="expectedHoldPeriod"
+													type="number"
+													label={null}
+													value={
+														formData.expectedHoldPeriod?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"expectedHoldPeriod",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 5"
+													disabled={isFieldDisabled(
+														"expectedHoldPeriod",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"expectedHoldPeriod"
+														),
+														isFieldDisabled(
+															"expectedHoldPeriod",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="expectedHoldPeriod"
+													data-field-type="number"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Expected Hold Period (Years)"
+													data-field-placeholder="e.g., 5"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="syndicationStatus"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"syndicationStatus",
+													"basic-info",
+													"Syndication Status",
+													false
+												)}
+												<Select
+													id="syndicationStatus"
+													value={
+														formData.syndicationStatus ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"syndicationStatus",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Committed",
+															label: "Committed",
+														},
+														{
+															value: "In Process",
+															label: "In Process",
+														},
+														{
+															value: "TBD",
+															label: "TBD",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"syndicationStatus",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"syndicationStatus"
+														),
+														isFieldDisabled(
+															"syndicationStatus",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="syndicationStatus"
+													data-field-type="select"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Syndication Status"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="sponsorExperience"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"sponsorExperience",
+													"basic-info",
+													"Sponsor Experience",
+													false
+												)}
+												<Select
+													id="sponsorExperience"
+													value={
+														formData.sponsorExperience ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"sponsorExperience",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "First-Time",
+															label: "First-Time",
+														},
+														{
+															value: "Emerging (1-3)",
+															label: "Emerging (1-3)",
+														},
+														{
+															value: "Seasoned (3+)",
+															label: "Seasoned (3+)",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"sponsorExperience",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"sponsorExperience"
+														),
+														isFieldDisabled(
+															"sponsorExperience",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="sponsorExperience"
+													data-field-type="select"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Sponsor Experience"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="borrowerNetWorth"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"borrowerNetWorth",
+													"basic-info",
+													"Borrower Net Worth ($)",
+													false
+												)}
+												<Input
+													id="borrowerNetWorth"
+													type="number"
+													label={null}
+													value={
+														formData.borrowerNetWorth?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"borrowerNetWorth",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 45000000"
+													disabled={isFieldDisabled(
+														"borrowerNetWorth",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"borrowerNetWorth"
+														),
+														isFieldDisabled(
+															"borrowerNetWorth",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="borrowerNetWorth"
+													data-field-type="number"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Borrower Net Worth ($)"
+													data-field-placeholder="e.g., 45000000"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="ltvStressMax"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"ltvStressMax",
+													"basic-info",
+													"LTV Stress Max (%)",
+													false
+												)}
+												<Input
+													id="ltvStressMax"
+													type="number"
+													label={null}
+													value={
+														formData.ltvStressMax?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"ltvStressMax",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 50"
+													disabled={isFieldDisabled(
+														"ltvStressMax",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"ltvStressMax"
+														),
+														isFieldDisabled(
+															"ltvStressMax",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="ltvStressMax"
+													data-field-type="number"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="LTV Stress Max (%)"
+													data-field-placeholder="e.g., 50"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="dscrStressMin"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"dscrStressMin",
+													"basic-info",
+													"DSCR Stress Min",
+													false
+												)}
+												<Input
+													id="dscrStressMin"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														formData.dscrStressMin?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"dscrStressMin",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 1.10"
+													disabled={isFieldDisabled(
+														"dscrStressMin",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"dscrStressMin"
+														),
+														isFieldDisabled(
+															"dscrStressMin",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="dscrStressMin"
+													data-field-type="number"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="DSCR Stress Min"
+													data-field-placeholder="e.g., 1.10"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="totalDevelopmentCost"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"totalDevelopmentCost",
+													"basic-info",
+													"Total Development Cost (TDC) ($)",
+													false
+												)}
+												<Input
+													id="totalDevelopmentCost"
+													type="number"
+													label={null}
+													value={
+														formData.totalDevelopmentCost?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"totalDevelopmentCost",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 29800000"
+													disabled={isFieldDisabled(
+														"totalDevelopmentCost",
+														"basic-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"totalDevelopmentCost"
+														),
+														isFieldDisabled(
+															"totalDevelopmentCost",
+															"basic-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="totalDevelopmentCost"
+													data-field-type="number"
+													data-field-section="basic-info"
+													data-field-required="false"
+													data-field-label="Total Development Cost (TDC) ($)"
+													data-field-placeholder="e.g., 29800000"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
 							</div>
 						</div>
 					</>
@@ -3981,6 +5125,1430 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									</div>
 								</AskAIButton>
 							</FormGroup>
+							{/* Operating Expenses */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Calculator className="h-4 w-4 mr-2 text-blue-600" />
+									Operating Expenses (Proforma Year 1)
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="realEstateTaxes"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"realEstateTaxes",
+													"financials",
+													"Real Estate Taxes",
+													false
+												)}
+												<Input
+													id="realEstateTaxes"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).realEstateTaxes?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"realEstateTaxes",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 450000"
+													disabled={isFieldDisabled(
+														"realEstateTaxes",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"realEstateTaxes"
+														),
+														isFieldDisabled(
+															"realEstateTaxes",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="realEstateTaxes"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="insurance"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"insurance",
+													"financials",
+													"Insurance",
+													false
+												)}
+												<Input
+													id="insurance"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).insurance?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"insurance",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 125000"
+													disabled={isFieldDisabled(
+														"insurance",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"insurance"
+														),
+														isFieldDisabled(
+															"insurance",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="insurance"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="utilitiesCosts"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"utilitiesCosts",
+													"financials",
+													"Utilities",
+													false
+												)}
+												<Input
+													id="utilitiesCosts"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).utilitiesCosts?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"utilitiesCosts",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 180000"
+													disabled={isFieldDisabled(
+														"utilitiesCosts",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"utilitiesCosts"
+														),
+														isFieldDisabled(
+															"utilitiesCosts",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="utilitiesCosts"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="repairsAndMaintenance"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"repairsAndMaintenance",
+													"financials",
+													"Repairs & Maintenance",
+													false
+												)}
+												<Input
+													id="repairsAndMaintenance"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).repairsAndMaintenance?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"repairsAndMaintenance",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 95000"
+													disabled={isFieldDisabled(
+														"repairsAndMaintenance",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"repairsAndMaintenance"
+														),
+														isFieldDisabled(
+															"repairsAndMaintenance",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="repairsAndMaintenance"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="managementFee"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"managementFee",
+													"financials",
+													"Management Fee",
+													false
+												)}
+												<Input
+													id="managementFee"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).managementFee?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"managementFee",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 113400"
+													disabled={isFieldDisabled(
+														"managementFee",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"managementFee"
+														),
+														isFieldDisabled(
+															"managementFee",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="managementFee"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="generalAndAdmin"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"generalAndAdmin",
+													"financials",
+													"General & Admin",
+													false
+												)}
+												<Input
+													id="generalAndAdmin"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).generalAndAdmin?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"generalAndAdmin",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 75000"
+													disabled={isFieldDisabled(
+														"generalAndAdmin",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"generalAndAdmin"
+														),
+														isFieldDisabled(
+															"generalAndAdmin",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="generalAndAdmin"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="payroll"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"payroll",
+													"financials",
+													"Payroll",
+													false
+												)}
+												<Input
+													id="payroll"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).payroll?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"payroll",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 120000"
+													disabled={isFieldDisabled(
+														"payroll",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"payroll"
+														),
+														isFieldDisabled(
+															"payroll",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="payroll"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="reserves"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"reserves",
+													"financials",
+													"Reserves",
+													false
+												)}
+												<Input
+													id="reserves"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).reserves?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"reserves",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 29000"
+													disabled={isFieldDisabled(
+														"reserves",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"reserves"
+														),
+														isFieldDisabled(
+															"reserves",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="reserves"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="marketingLeasing"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"marketingLeasing",
+													"financials",
+													"Marketing/Leasing",
+													false
+												)}
+												<Input
+													id="marketingLeasing"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).marketingLeasing?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"marketingLeasing",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 68040"
+													disabled={isFieldDisabled(
+														"marketingLeasing",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"marketingLeasing"
+														),
+														isFieldDisabled(
+															"marketingLeasing",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="marketingLeasing"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="serviceCoordination"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"serviceCoordination",
+													"financials",
+													"Service Coordination",
+													false
+												)}
+												<Input
+													id="serviceCoordination"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).serviceCoordination?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"serviceCoordination",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 0"
+													disabled={isFieldDisabled(
+														"serviceCoordination",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"serviceCoordination"
+														),
+														isFieldDisabled(
+															"serviceCoordination",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="serviceCoordination"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
+							{/* Investment Metrics */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<TrendingUp className="h-4 w-4 mr-2 text-blue-600" />
+									Investment Metrics
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="noiYear1"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"noiYear1",
+													"financials",
+													"NOI (Year 1)",
+													false
+												)}
+												<Input
+													id="noiYear1"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).noiYear1?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"noiYear1",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 2268000"
+													disabled={isFieldDisabled(
+														"noiYear1",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"noiYear1"
+														),
+														isFieldDisabled(
+															"noiYear1",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="noiYear1"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="yieldOnCost"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"yieldOnCost",
+													"financials",
+													"Yield on Cost (%)",
+													false
+												)}
+												<Input
+													id="yieldOnCost"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).yieldOnCost?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"yieldOnCost",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 7.6"
+													disabled={isFieldDisabled(
+														"yieldOnCost",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"yieldOnCost"
+														),
+														isFieldDisabled(
+															"yieldOnCost",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="yieldOnCost"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="capRate"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"capRate",
+													"financials",
+													"Cap Rate (%)",
+													false
+												)}
+												<Input
+													id="capRate"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).capRate?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"capRate",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 5.5"
+													disabled={isFieldDisabled(
+														"capRate",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"capRate"
+														),
+														isFieldDisabled(
+															"capRate",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="capRate"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="stabilizedValue"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"stabilizedValue",
+													"financials",
+													"Stabilized Value ($)",
+													false
+												)}
+												<Input
+													id="stabilizedValue"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).stabilizedValue?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"stabilizedValue",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 41200000"
+													disabled={isFieldDisabled(
+														"stabilizedValue",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"stabilizedValue"
+														),
+														isFieldDisabled(
+															"stabilizedValue",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="stabilizedValue"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="ltv"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"ltv",
+													"financials",
+													"LTV (%)",
+													false
+												)}
+												<Input
+													id="ltv"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).ltv?.toString() || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"ltv",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 43.7"
+													disabled={isFieldDisabled(
+														"ltv",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"ltv"
+														),
+														isFieldDisabled(
+															"ltv",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="ltv"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="debtYield"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"debtYield",
+													"financials",
+													"Debt Yield (%)",
+													false
+												)}
+												<Input
+													id="debtYield"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).debtYield?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"debtYield",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 12.6"
+													disabled={isFieldDisabled(
+														"debtYield",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"debtYield"
+														),
+														isFieldDisabled(
+															"debtYield",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="debtYield"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="dscr"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"dscr",
+													"financials",
+													"DSCR",
+													false
+												)}
+												<Input
+													id="dscr"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).dscr?.toString() || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"dscr",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 1.25"
+													disabled={isFieldDisabled(
+														"dscr",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"dscr"
+														),
+														isFieldDisabled(
+															"dscr",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="dscr"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="dscrStressTest"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"dscrStressTest",
+													"financials",
+													"DSCR Stress Test",
+													false
+												)}
+												<Input
+													id="dscrStressTest"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).dscrStressTest?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"dscrStressTest",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 1.08"
+													disabled={isFieldDisabled(
+														"dscrStressTest",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"dscrStressTest"
+														),
+														isFieldDisabled(
+															"dscrStressTest",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="dscrStressTest"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="inflationAssumption"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"inflationAssumption",
+													"financials",
+													"Inflation Assumption (%)",
+													false
+												)}
+												<Input
+													id="inflationAssumption"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														(
+															formData as any
+														).inflationAssumption?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"inflationAssumption",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 2.0"
+													disabled={isFieldDisabled(
+														"inflationAssumption",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"inflationAssumption"
+														),
+														isFieldDisabled(
+															"inflationAssumption",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="inflationAssumption"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="portfolioLTV"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"portfolioLTV",
+													"financials",
+													"Portfolio LTV (%)",
+													false
+												)}
+												<Input
+													id="portfolioLTV"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														(
+															formData as any
+														).portfolioLTV?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"portfolioLTV",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 65.0"
+													disabled={isFieldDisabled(
+														"portfolioLTV",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"portfolioLTV"
+														),
+														isFieldDisabled(
+															"portfolioLTV",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="portfolioLTV"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="trendedNOIYear1"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"trendedNOIYear1",
+													"financials",
+													"Trended NOI (Yr 1)",
+													false
+												)}
+												<Input
+													id="trendedNOIYear1"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).trendedNOIYear1?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"trendedNOIYear1",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 2313360"
+													disabled={isFieldDisabled(
+														"trendedNOIYear1",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"trendedNOIYear1"
+														),
+														isFieldDisabled(
+															"trendedNOIYear1",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="trendedNOIYear1"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="untrendedNOIYear1"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"untrendedNOIYear1",
+													"financials",
+													"Untrended NOI (Yr 1)",
+													false
+												)}
+												<Input
+													id="untrendedNOIYear1"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).untrendedNOIYear1?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"untrendedNOIYear1",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 2222640"
+													disabled={isFieldDisabled(
+														"untrendedNOIYear1",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"untrendedNOIYear1"
+														),
+														isFieldDisabled(
+															"untrendedNOIYear1",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="untrendedNOIYear1"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="trendedYield"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"trendedYield",
+													"financials",
+													"Trended Yield (%)",
+													false
+												)}
+												<Input
+													id="trendedYield"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).trendedYield?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"trendedYield",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 7.76"
+													disabled={isFieldDisabled(
+														"trendedYield",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"trendedYield"
+														),
+														isFieldDisabled(
+															"trendedYield",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="trendedYield"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="untrendedYield"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"untrendedYield",
+													"financials",
+													"Untrended Yield (%)",
+													false
+												)}
+												<Input
+													id="untrendedYield"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).untrendedYield?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"untrendedYield",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 7.45"
+													disabled={isFieldDisabled(
+														"untrendedYield",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"untrendedYield"
+														),
+														isFieldDisabled(
+															"untrendedYield",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="untrendedYield"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="portfolioDSCR"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"portfolioDSCR",
+													"financials",
+													"Portfolio DSCR",
+													false
+												)}
+												<Input
+													id="portfolioDSCR"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).portfolioDSCR?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"portfolioDSCR",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 1.35"
+													disabled={isFieldDisabled(
+														"portfolioDSCR",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"portfolioDSCR"
+														),
+														isFieldDisabled(
+															"portfolioDSCR",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="portfolioDSCR"
+													data-field-type="number"
+													data-field-section="financials"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
 						</div>
 					</>
 				),
@@ -4350,6 +6918,1499 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										</div>
 									</AskAIButton>
 								</FormGroup>
+							</div>
+							{/* Additional Property Details */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Info className="h-4 w-4 mr-2 text-blue-600" />
+									Additional Property Details
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="buildingEfficiency"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"buildingEfficiency",
+													"property-specs",
+													"Building Efficiency (%)",
+													false
+												)}
+												<Input
+													id="buildingEfficiency"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														formData.buildingEfficiency?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"buildingEfficiency",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 82.0"
+													disabled={isFieldDisabled(
+														"buildingEfficiency",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"buildingEfficiency"
+														),
+														isFieldDisabled(
+															"buildingEfficiency",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="buildingEfficiency"
+													data-field-type="number"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="buildingType"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"buildingType",
+													"property-specs",
+													"Building Type",
+													false
+												)}
+												<Select
+													id="buildingType"
+													value={
+														formData.buildingType ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"buildingType",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "High-rise",
+															label: "High-rise",
+														},
+														{
+															value: "Mid-rise",
+															label: "Mid-rise",
+														},
+														{
+															value: "Garden",
+															label: "Garden",
+														},
+														{
+															value: "Podium",
+															label: "Podium",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"buildingType",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"buildingType"
+														),
+														isFieldDisabled(
+															"buildingType",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="buildingType"
+													data-field-type="select"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="studioCount"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"studioCount",
+													"property-specs",
+													"Studio Count",
+													false
+												)}
+												<Input
+													id="studioCount"
+													type="number"
+													label={null}
+													value={
+														formData.studioCount?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"studioCount",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 12"
+													disabled={isFieldDisabled(
+														"studioCount",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"studioCount"
+														),
+														isFieldDisabled(
+															"studioCount",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="studioCount"
+													data-field-type="number"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="oneBedCount"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"oneBedCount",
+													"property-specs",
+													"1-Bed Count",
+													false
+												)}
+												<Input
+													id="oneBedCount"
+													type="number"
+													label={null}
+													value={
+														formData.oneBedCount?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"oneBedCount",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 46"
+													disabled={isFieldDisabled(
+														"oneBedCount",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"oneBedCount"
+														),
+														isFieldDisabled(
+															"oneBedCount",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="oneBedCount"
+													data-field-type="number"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="twoBedCount"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"twoBedCount",
+													"property-specs",
+													"2-Bed Count",
+													false
+												)}
+												<Input
+													id="twoBedCount"
+													type="number"
+													label={null}
+													value={
+														formData.twoBedCount?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"twoBedCount",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 58"
+													disabled={isFieldDisabled(
+														"twoBedCount",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"twoBedCount"
+														),
+														isFieldDisabled(
+															"twoBedCount",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="twoBedCount"
+													data-field-type="number"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="threeBedCount"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"threeBedCount",
+													"property-specs",
+													"3-Bed Count",
+													false
+												)}
+												<Input
+													id="threeBedCount"
+													type="number"
+													label={null}
+													value={
+														formData.threeBedCount?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"threeBedCount",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 0"
+													disabled={isFieldDisabled(
+														"threeBedCount",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"threeBedCount"
+														),
+														isFieldDisabled(
+															"threeBedCount",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="threeBedCount"
+													data-field-type="number"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="furnishedUnits"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"furnishedUnits",
+													"property-specs",
+													"Furnished Units?",
+													false
+												)}
+												<Select
+													id="furnishedUnits"
+													value={
+														formData.furnishedUnits
+															? "Yes"
+															: formData.furnishedUnits ===
+															  false
+															? "No"
+															: ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"furnishedUnits",
+															e.target.value ===
+																"Yes"
+																? true
+																: e.target
+																		.value ===
+																  "No"
+																? false
+																: null
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Yes",
+															label: "Yes",
+														},
+														{
+															value: "No",
+															label: "No",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"furnishedUnits",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"furnishedUnits"
+														),
+														isFieldDisabled(
+															"furnishedUnits",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="furnishedUnits"
+													data-field-type="select"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="lossToLease"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"lossToLease",
+													"property-specs",
+													"Loss to Lease (%)",
+													false
+												)}
+												<Input
+													id="lossToLease"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														formData.lossToLease?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"lossToLease",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 5.0"
+													disabled={isFieldDisabled(
+														"lossToLease",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"lossToLease"
+														),
+														isFieldDisabled(
+															"lossToLease",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="lossToLease"
+													data-field-type="number"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="hvacSystem"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"hvacSystem",
+													"property-specs",
+													"HVAC System",
+													false
+												)}
+												<Select
+													id="hvacSystem"
+													value={
+														formData.hvacSystem ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"hvacSystem",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Central",
+															label: "Central",
+														},
+														{
+															value: "Split System",
+															label: "Split System",
+														},
+														{
+															value: "PTAC",
+															label: "PTAC",
+														},
+														{
+															value: "VRF",
+															label: "VRF",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"hvacSystem",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"hvacSystem"
+														),
+														isFieldDisabled(
+															"hvacSystem",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="hvacSystem"
+													data-field-type="select"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="roofTypeAge"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"roofTypeAge",
+													"property-specs",
+													"Roof Type/Age",
+													false
+												)}
+												<Input
+													id="roofTypeAge"
+													label={null}
+													value={
+														formData.roofTypeAge ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"roofTypeAge",
+															e.target.value
+														)
+													}
+													placeholder="e.g., TPO, 2 years old"
+													disabled={isFieldDisabled(
+														"roofTypeAge",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"roofTypeAge"
+														),
+														isFieldDisabled(
+															"roofTypeAge",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="roofTypeAge"
+													data-field-type="input"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="solarCapacity"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"solarCapacity",
+													"property-specs",
+													"Solar Capacity (kW)",
+													false
+												)}
+												<Input
+													id="solarCapacity"
+													type="number"
+													label={null}
+													value={
+														formData.solarCapacity?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"solarCapacity",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 100"
+													disabled={isFieldDisabled(
+														"solarCapacity",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"solarCapacity"
+														),
+														isFieldDisabled(
+															"solarCapacity",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="solarCapacity"
+													data-field-type="number"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="evChargingStations"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"evChargingStations",
+													"property-specs",
+													"EV Charging Stations",
+													false
+												)}
+												<Input
+													id="evChargingStations"
+													type="number"
+													label={null}
+													value={
+														formData.evChargingStations?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"evChargingStations",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 8"
+													disabled={isFieldDisabled(
+														"evChargingStations",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"evChargingStations"
+														),
+														isFieldDisabled(
+															"evChargingStations",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="evChargingStations"
+													data-field-type="number"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="leedGreenRating"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"leedGreenRating",
+													"property-specs",
+													"LEED/Green Rating",
+													false
+												)}
+												<Select
+													id="leedGreenRating"
+													value={
+														formData.leedGreenRating ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"leedGreenRating",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Certified",
+															label: "Certified",
+														},
+														{
+															value: "Silver",
+															label: "Silver",
+														},
+														{
+															value: "Gold",
+															label: "Gold",
+														},
+														{
+															value: "Platinum",
+															label: "Platinum",
+														},
+														{
+															value: "NGBS",
+															label: "NGBS",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"leedGreenRating",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"leedGreenRating"
+														),
+														isFieldDisabled(
+															"leedGreenRating",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="leedGreenRating"
+													data-field-type="select"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="adaCompliantPercent"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"adaCompliantPercent",
+													"property-specs",
+													"ADA Compliant %",
+													false
+												)}
+												<Input
+													id="adaCompliantPercent"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														formData.adaCompliantPercent?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"adaCompliantPercent",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 5.0"
+													disabled={isFieldDisabled(
+														"adaCompliantPercent",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"adaCompliantPercent"
+														),
+														isFieldDisabled(
+															"adaCompliantPercent",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="adaCompliantPercent"
+													data-field-type="number"
+													data-field-section="property-specs"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
+							{/* Amenity List */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Info className="h-4 w-4 mr-2 text-blue-600" />
+									Amenities
+								</h3>
+								<div className="grid grid-cols-1 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="amenityList"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"amenityList",
+													"property-specs",
+													"Amenity List",
+													false
+												)}
+												<MultiSelect
+													id="amenityList"
+													options={amenityListOptions}
+													value={
+														Array.isArray(
+															(formData as any)
+																.amenityList
+														)
+															? (formData as any)
+																	.amenityList
+															: []
+													}
+													onChange={(value) =>
+														handleInputChange(
+															"amenityList",
+															value
+														)
+													}
+													placeholder="Select amenities..."
+													disabled={isFieldDisabled(
+														"amenityList",
+														"property-specs"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"amenityList"
+														),
+														isFieldDisabled(
+															"amenityList",
+															"property-specs"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
+							{/* Residential Unit Mix Table */}
+							<div className="pt-4">
+								<div className="flex items-center justify-between mb-3">
+									<h3 className="text-md font-medium text-gray-800 flex items-center">
+										<Info className="h-4 w-4 mr-2 text-blue-600" />
+										Residential Unit Mix
+									</h3>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() =>
+											handleTableRowAdd(
+												"residentialUnitMix",
+												{
+													unitType: "",
+													unitCount: 0,
+													avgSF: 0,
+													monthlyRent: 0,
+													affordabilityStatus: "",
+													amiTargetPercent: null,
+													rentBumpSchedule: "",
+												}
+											)
+										}
+										disabled={isFieldDisabled(
+											"residentialUnitMix",
+											"property-specs"
+										)}
+										className="flex items-center gap-1"
+									>
+										<Plus className="h-4 w-4" />
+										Add Row
+									</Button>
+								</div>
+								<div className="overflow-x-auto">
+									<table className="min-w-full border-collapse border border-gray-300">
+										<thead>
+											<tr className="bg-gray-50">
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Unit Type
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Count
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Avg SF
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Monthly Rent
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Affordability Status
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													AMI Target %
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Rent Bump
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Actions
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											{Array.isArray(
+												(formData as any)
+													.residentialUnitMix
+											) &&
+											(formData as any).residentialUnitMix
+												.length > 0 ? (
+												(
+													formData as any
+												).residentialUnitMix.map(
+													(
+														unit: any,
+														index: number
+													) => (
+														<tr key={index}>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		unit.unitType ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"unitType",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		unit.unitCount?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"unitCount",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		unit.avgSF?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"avgSF",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		unit.monthlyRent?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"monthlyRent",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		unit.affordabilityStatus ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"affordabilityStatus",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		unit.amiTargetPercent?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"amiTargetPercent",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: null
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		unit.rentBumpSchedule ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"residentialUnitMix",
+																			index,
+																			"rentBumpSchedule",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	onClick={() =>
+																		handleTableRowDelete(
+																			"residentialUnitMix",
+																			index
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"residentialUnitMix",
+																		"property-specs"
+																	)}
+																	className="text-red-600 hover:text-red-700 hover:bg-red-50"
+																>
+																	<X className="h-4 w-4" />
+																</Button>
+															</td>
+														</tr>
+													)
+												)
+											) : (
+												<tr>
+													<td
+														colSpan={8}
+														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
+													>
+														No unit mix data
+														available. Click "Add
+														Row" to add a new entry.
+													</td>
+												</tr>
+											)}
+										</tbody>
+									</table>
+								</div>
+							</div>
+							{/* Commercial Space Mix Table */}
+							<div className="pt-4">
+								<div className="flex items-center justify-between mb-3">
+									<h3 className="text-md font-medium text-gray-800 flex items-center">
+										<Info className="h-4 w-4 mr-2 text-blue-600" />
+										Commercial Space Mix
+									</h3>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() =>
+											handleTableRowAdd(
+												"commercialSpaceMix",
+												{
+													spaceType: "",
+													squareFootage: 0,
+													tenant: "",
+													leaseTerm: "",
+													annualRent: 0,
+													tiAllowance: 0,
+												}
+											)
+										}
+										disabled={isFieldDisabled(
+											"commercialSpaceMix",
+											"property-specs"
+										)}
+										className="flex items-center gap-1"
+									>
+										<Plus className="h-4 w-4" />
+										Add Row
+									</Button>
+								</div>
+								<div className="overflow-x-auto">
+									<table className="min-w-full border-collapse border border-gray-300">
+										<thead>
+											<tr className="bg-gray-50">
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Space Type
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Square Footage
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Tenant
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Lease Term
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Annual Rent
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													TI Allowance
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Actions
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											{Array.isArray(
+												(formData as any)
+													.commercialSpaceMix
+											) &&
+											(formData as any).commercialSpaceMix
+												.length > 0 ? (
+												(
+													formData as any
+												).commercialSpaceMix.map(
+													(
+														space: any,
+														index: number
+													) => (
+														<tr key={index}>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		space.spaceType ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"commercialSpaceMix",
+																			index,
+																			"spaceType",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"commercialSpaceMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		space.squareFootage?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"commercialSpaceMix",
+																			index,
+																			"squareFootage",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"commercialSpaceMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		space.tenant ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"commercialSpaceMix",
+																			index,
+																			"tenant",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"commercialSpaceMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		space.leaseTerm ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"commercialSpaceMix",
+																			index,
+																			"leaseTerm",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"commercialSpaceMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		space.annualRent?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"commercialSpaceMix",
+																			index,
+																			"annualRent",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"commercialSpaceMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		space.tiAllowance?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"commercialSpaceMix",
+																			index,
+																			"tiAllowance",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"commercialSpaceMix",
+																		"property-specs"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	onClick={() =>
+																		handleTableRowDelete(
+																			"commercialSpaceMix",
+																			index
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"commercialSpaceMix",
+																		"property-specs"
+																	)}
+																	className="text-red-600 hover:text-red-700 hover:bg-red-50"
+																>
+																	<X className="h-4 w-4" />
+																</Button>
+															</td>
+														</tr>
+													)
+												)
+											) : (
+												<tr>
+													<td
+														colSpan={7}
+														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
+													>
+														No commercial space data
+														available. Click "Add
+														Row" to add a new entry.
+													</td>
+												</tr>
+											)}
+										</tbody>
+									</table>
+								</div>
 							</div>
 						</div>
 					</>
@@ -4843,6 +8904,898 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									</AskAIButton>
 								</FormGroup>
 							</div>
+							{/* Additional Budget Items */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Info className="h-4 w-4 mr-2 text-blue-600" />
+									Additional Budget Items
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="relocationCosts"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"relocationCosts",
+													"dev-budget",
+													"Relocation Costs",
+													false
+												)}
+												<Input
+													id="relocationCosts"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).relocationCosts?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"relocationCosts",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 0"
+													disabled={isFieldDisabled(
+														"relocationCosts",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"relocationCosts"
+														),
+														isFieldDisabled(
+															"relocationCosts",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="relocationCosts"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="syndicationCosts"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"syndicationCosts",
+													"dev-budget",
+													"Syndication Costs",
+													false
+												)}
+												<Input
+													id="syndicationCosts"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).syndicationCosts?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"syndicationCosts",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 238000"
+													disabled={isFieldDisabled(
+														"syndicationCosts",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"syndicationCosts"
+														),
+														isFieldDisabled(
+															"syndicationCosts",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="syndicationCosts"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="enviroRemediation"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"enviroRemediation",
+													"dev-budget",
+													"Environmental Remediation",
+													false
+												)}
+												<Input
+													id="enviroRemediation"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).enviroRemediation?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"enviroRemediation",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 0"
+													disabled={isFieldDisabled(
+														"enviroRemediation",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"enviroRemediation"
+														),
+														isFieldDisabled(
+															"enviroRemediation",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="enviroRemediation"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="pfcStructuringFee"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"pfcStructuringFee",
+													"dev-budget",
+													"PFC/Structure Fee",
+													false
+												)}
+												<Input
+													id="pfcStructuringFee"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).pfcStructuringFee?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"pfcStructuringFee",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 116000"
+													disabled={isFieldDisabled(
+														"pfcStructuringFee",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"pfcStructuringFee"
+														),
+														isFieldDisabled(
+															"pfcStructuringFee",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="pfcStructuringFee"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
+							{/* Sources of Funds */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<DollarSign className="h-4 w-4 mr-2 text-blue-600" />
+									Sources of Funds
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="seniorLoanAmount"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"seniorLoanAmount",
+													"dev-budget",
+													"Senior Loan Amount",
+													false
+												)}
+												<Input
+													id="seniorLoanAmount"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).seniorLoanAmount?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"seniorLoanAmount",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 18000000"
+													disabled={isFieldDisabled(
+														"seniorLoanAmount",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"seniorLoanAmount"
+														),
+														isFieldDisabled(
+															"seniorLoanAmount",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="seniorLoanAmount"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="sponsorEquity"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"sponsorEquity",
+													"dev-budget",
+													"Sponsor Equity",
+													false
+												)}
+												<Input
+													id="sponsorEquity"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).sponsorEquity?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"sponsorEquity",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 11807800"
+													disabled={isFieldDisabled(
+														"sponsorEquity",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"sponsorEquity"
+														),
+														isFieldDisabled(
+															"sponsorEquity",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="sponsorEquity"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="taxCreditEquity"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"taxCreditEquity",
+													"dev-budget",
+													"Tax Credit Equity",
+													false
+												)}
+												<Input
+													id="taxCreditEquity"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).taxCreditEquity?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"taxCreditEquity",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 0"
+													disabled={isFieldDisabled(
+														"taxCreditEquity",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"taxCreditEquity"
+														),
+														isFieldDisabled(
+															"taxCreditEquity",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="taxCreditEquity"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="gapFinancing"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"gapFinancing",
+													"dev-budget",
+													"Gap Financing",
+													false
+												)}
+												<Input
+													id="gapFinancing"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).gapFinancing?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"gapFinancing",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 0"
+													disabled={isFieldDisabled(
+														"gapFinancing",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"gapFinancing"
+														),
+														isFieldDisabled(
+															"gapFinancing",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="gapFinancing"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
+							{/* Loan Terms */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<FileText className="h-4 w-4 mr-2 text-blue-600" />
+									Loan Terms
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="interestRate"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"interestRate",
+													"dev-budget",
+													"Interest Rate (%)",
+													false
+												)}
+												<Input
+													id="interestRate"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).interestRate?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"interestRate",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 6.5"
+													disabled={isFieldDisabled(
+														"interestRate",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"interestRate"
+														),
+														isFieldDisabled(
+															"interestRate",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="interestRate"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="underwritingRate"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"underwritingRate",
+													"dev-budget",
+													"Underwriting Rate (%)",
+													false
+												)}
+												<Input
+													id="underwritingRate"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).underwritingRate?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"underwritingRate",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 8.5"
+													disabled={isFieldDisabled(
+														"underwritingRate",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"underwritingRate"
+														),
+														isFieldDisabled(
+															"underwritingRate",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="underwritingRate"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="amortization"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"amortization",
+													"dev-budget",
+													"Amortization",
+													false
+												)}
+												<Select
+													id="amortization"
+													value={
+														(formData as any)
+															.amortization || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"amortization",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "IO",
+															label: "IO",
+														},
+														{
+															value: "30yr",
+															label: "30yr",
+														},
+														{
+															value: "25yr",
+															label: "25yr",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"amortization",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"amortization"
+														),
+														isFieldDisabled(
+															"amortization",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="amortization"
+													data-field-type="select"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="prepaymentTerms"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"prepaymentTerms",
+													"dev-budget",
+													"Prepayment Terms",
+													false
+												)}
+												<Input
+													id="prepaymentTerms"
+													label={null}
+													value={
+														(formData as any)
+															.prepaymentTerms ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"prepaymentTerms",
+															e.target.value
+														)
+													}
+													placeholder="e.g., No prepayment penalty after year 1"
+													disabled={isFieldDisabled(
+														"prepaymentTerms",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"prepaymentTerms"
+														),
+														isFieldDisabled(
+															"prepaymentTerms",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="prepaymentTerms"
+													data-field-type="input"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="recourse"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"recourse",
+													"dev-budget",
+													"Recourse",
+													false
+												)}
+												<Select
+													id="recourse"
+													value={
+														(formData as any)
+															.recourse || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"recourse",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Full",
+															label: "Full",
+														},
+														{
+															value: "Partial",
+															label: "Partial",
+														},
+														{
+															value: "Non",
+															label: "Non",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"recourse",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"recourse"
+														),
+														isFieldDisabled(
+															"recourse",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="recourse"
+													data-field-type="select"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="permTakeoutPlanned"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"permTakeoutPlanned",
+													"dev-budget",
+													"Perm Takeout Planned?",
+													false
+												)}
+												<Select
+													id="permTakeoutPlanned"
+													value={
+														(formData as any)
+															.permTakeoutPlanned ===
+														true
+															? "Yes"
+															: (formData as any)
+																	.permTakeoutPlanned ===
+															  false
+															? "No"
+															: ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"permTakeoutPlanned",
+															e.target.value ===
+																"Yes"
+																? true
+																: e.target
+																		.value ===
+																  "No"
+																? false
+																: null
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Yes",
+															label: "Yes",
+														},
+														{
+															value: "No",
+															label: "No",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"permTakeoutPlanned",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"permTakeoutPlanned"
+														),
+														isFieldDisabled(
+															"permTakeoutPlanned",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="permTakeoutPlanned"
+													data-field-type="select"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="allInRate"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"allInRate",
+													"dev-budget",
+													"All-In Rate (%)",
+													false
+												)}
+												<Input
+													id="allInRate"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).allInRate?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"allInRate",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 7.2"
+													disabled={isFieldDisabled(
+														"allInRate",
+														"dev-budget"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"allInRate"
+														),
+														isFieldDisabled(
+															"allInRate",
+															"dev-budget"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="allInRate"
+													data-field-type="number"
+													data-field-section="dev-budget"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
 						</div>
 					</>
 				),
@@ -5221,6 +10174,1375 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									</AskAIButton>
 								</FormGroup>
 							</div>
+							{/* Additional Market Context Fields */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Info className="h-4 w-4 mr-2 text-blue-600" />
+									Additional Market Data
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="msaName"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"msaName",
+													"market-context",
+													"MSA Name",
+													false
+												)}
+												<Input
+													id="msaName"
+													label={null}
+													value={
+														(formData as any)
+															.msaName || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"msaName",
+															e.target.value
+														)
+													}
+													placeholder="e.g., Dallas-Fort Worth-Arlington, TX"
+													disabled={isFieldDisabled(
+														"msaName",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"msaName"
+														),
+														isFieldDisabled(
+															"msaName",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="msaName"
+													data-field-type="input"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="projGrowth202429"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"projGrowth202429",
+													"market-context",
+													"Pop Growth (5-yr Proj) (%)",
+													false
+												)}
+												<Input
+													id="projGrowth202429"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														(
+															formData as any
+														).projGrowth202429?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"projGrowth202429",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 6.9"
+													disabled={isFieldDisabled(
+														"projGrowth202429",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"projGrowth202429"
+														),
+														isFieldDisabled(
+															"projGrowth202429",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="projGrowth202429"
+													data-field-type="number"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="unemploymentRate"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"unemploymentRate",
+													"market-context",
+													"Unemployment Rate (%)",
+													false
+												)}
+												<Input
+													id="unemploymentRate"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														(
+															formData as any
+														).unemploymentRate?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"unemploymentRate",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 3.5"
+													disabled={isFieldDisabled(
+														"unemploymentRate",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"unemploymentRate"
+														),
+														isFieldDisabled(
+															"unemploymentRate",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="unemploymentRate"
+													data-field-type="number"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="largestEmployer"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"largestEmployer",
+													"market-context",
+													"Largest Employer",
+													false
+												)}
+												<Input
+													id="largestEmployer"
+													label={null}
+													value={
+														(formData as any)
+															.largestEmployer ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"largestEmployer",
+															e.target.value
+														)
+													}
+													placeholder="e.g., Downtown Dallas"
+													disabled={isFieldDisabled(
+														"largestEmployer",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"largestEmployer"
+														),
+														isFieldDisabled(
+															"largestEmployer",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="largestEmployer"
+													data-field-type="input"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="employerConcentration"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"employerConcentration",
+													"market-context",
+													"Employer Concentration (%)",
+													false
+												)}
+												<Input
+													id="employerConcentration"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														(
+															formData as any
+														).employerConcentration?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"employerConcentration",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 15.0"
+													disabled={isFieldDisabled(
+														"employerConcentration",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"employerConcentration"
+														),
+														isFieldDisabled(
+															"employerConcentration",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="employerConcentration"
+													data-field-type="number"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="submarketAbsorption"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"submarketAbsorption",
+													"market-context",
+													"Submarket Absorption (Units/Year)",
+													false
+												)}
+												<Input
+													id="submarketAbsorption"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).submarketAbsorption?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"submarketAbsorption",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 500"
+													disabled={isFieldDisabled(
+														"submarketAbsorption",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"submarketAbsorption"
+														),
+														isFieldDisabled(
+															"submarketAbsorption",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="submarketAbsorption"
+													data-field-type="number"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="supplyPipeline"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"supplyPipeline",
+													"market-context",
+													"Supply Pipeline (Units)",
+													false
+												)}
+												<Input
+													id="supplyPipeline"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).supplyPipeline?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"supplyPipeline",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 1200"
+													disabled={isFieldDisabled(
+														"supplyPipeline",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"supplyPipeline"
+														),
+														isFieldDisabled(
+															"supplyPipeline",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="supplyPipeline"
+													data-field-type="number"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="monthsOfSupply"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"monthsOfSupply",
+													"market-context",
+													"Months of Supply",
+													false
+												)}
+												<Input
+													id="monthsOfSupply"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														(
+															formData as any
+														).monthsOfSupply?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"monthsOfSupply",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 8.5"
+													disabled={isFieldDisabled(
+														"monthsOfSupply",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"monthsOfSupply"
+														),
+														isFieldDisabled(
+															"monthsOfSupply",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="monthsOfSupply"
+													data-field-type="number"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="captureRate"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"captureRate",
+													"market-context",
+													"Capture Rate (%)",
+													false
+												)}
+												<Input
+													id="captureRate"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														(
+															formData as any
+														).captureRate?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"captureRate",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 2.1"
+													disabled={isFieldDisabled(
+														"captureRate",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"captureRate"
+														),
+														isFieldDisabled(
+															"captureRate",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="captureRate"
+													data-field-type="number"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="marketConcessions"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"marketConcessions",
+													"market-context",
+													"Market Concessions",
+													false
+												)}
+												<Input
+													id="marketConcessions"
+													label={null}
+													value={
+														(formData as any)
+															.marketConcessions ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"marketConcessions",
+															e.target.value
+														)
+													}
+													placeholder="e.g., 1 Month Free"
+													disabled={isFieldDisabled(
+														"marketConcessions",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"marketConcessions"
+														),
+														isFieldDisabled(
+															"marketConcessions",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="marketConcessions"
+													data-field-type="input"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="infrastructureCatalyst"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"infrastructureCatalyst",
+													"market-context",
+													"Infrastructure Catalyst",
+													false
+												)}
+												<Input
+													id="infrastructureCatalyst"
+													label={null}
+													value={
+														(formData as any)
+															.infrastructureCatalyst ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"infrastructureCatalyst",
+															e.target.value
+														)
+													}
+													placeholder="e.g., New Light Rail Station"
+													disabled={isFieldDisabled(
+														"infrastructureCatalyst",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"infrastructureCatalyst"
+														),
+														isFieldDisabled(
+															"infrastructureCatalyst",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="infrastructureCatalyst"
+													data-field-type="input"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="broadbandSpeed"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"broadbandSpeed",
+													"market-context",
+													"Broadband Speed",
+													false
+												)}
+												<Input
+													id="broadbandSpeed"
+													label={null}
+													value={
+														(formData as any)
+															.broadbandSpeed ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"broadbandSpeed",
+															e.target.value
+														)
+													}
+													placeholder="e.g., Fiber 1Gbps Available"
+													disabled={isFieldDisabled(
+														"broadbandSpeed",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"broadbandSpeed"
+														),
+														isFieldDisabled(
+															"broadbandSpeed",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="broadbandSpeed"
+													data-field-type="input"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="crimeRiskLevel"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"crimeRiskLevel",
+													"market-context",
+													"Crime Risk Level",
+													false
+												)}
+												<Select
+													id="crimeRiskLevel"
+													value={
+														(formData as any)
+															.crimeRiskLevel ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"crimeRiskLevel",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Low",
+															label: "Low",
+														},
+														{
+															value: "Moderate",
+															label: "Moderate",
+														},
+														{
+															value: "High",
+															label: "High",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"crimeRiskLevel",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"crimeRiskLevel"
+														),
+														isFieldDisabled(
+															"crimeRiskLevel",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="crimeRiskLevel"
+													data-field-type="select"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="northStarComp"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"northStarComp",
+													"market-context",
+													"North Star Comp",
+													false
+												)}
+												<Input
+													id="northStarComp"
+													label={null}
+													value={
+														(formData as any)
+															.northStarComp || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"northStarComp",
+															e.target.value
+														)
+													}
+													placeholder="e.g., The Alexan Deep Ellum"
+													disabled={isFieldDisabled(
+														"northStarComp",
+														"market-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"northStarComp"
+														),
+														isFieldDisabled(
+															"northStarComp",
+															"market-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="northStarComp"
+													data-field-type="input"
+													data-field-section="market-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
+							{/* Rent Comps Table */}
+							<div className="pt-4">
+								<div className="flex items-center justify-between mb-3">
+									<h3 className="text-md font-medium text-gray-800 flex items-center">
+										<Info className="h-4 w-4 mr-2 text-blue-600" />
+										Rent Comps
+									</h3>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() =>
+											handleTableRowAdd("rentComps", {
+												propertyName: "",
+												address: "",
+												distance: 0,
+												yearBuilt: 0,
+												totalUnits: 0,
+												occupancyPercent: 0,
+												avgRentMonth: 0,
+												rentPSF: 0,
+												concessions: "",
+											})
+										}
+										disabled={isFieldDisabled(
+											"rentComps",
+											"market-context"
+										)}
+										className="flex items-center gap-1"
+									>
+										<Plus className="h-4 w-4" />
+										Add Row
+									</Button>
+								</div>
+								<div className="overflow-x-auto">
+									<table className="min-w-full border-collapse border border-gray-300">
+										<thead>
+											<tr className="bg-gray-50">
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Property Name
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Address
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Distance (mi)
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Year Built
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Total Units
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Occupancy (%)
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Avg Rent/Month
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Rent PSF
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Concessions
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Actions
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											{Array.isArray(
+												(formData as any).rentComps
+											) &&
+											(formData as any).rentComps.length >
+												0 ? (
+												(formData as any).rentComps.map(
+													(
+														comp: any,
+														index: number
+													) => (
+														<tr key={index}>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		comp.propertyName ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"rentComps",
+																			index,
+																			"propertyName",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		comp.address ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"rentComps",
+																			index,
+																			"address",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		comp.distance?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"rentComps",
+																			index,
+																			"distance",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		comp.yearBuilt?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"rentComps",
+																			index,
+																			"yearBuilt",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		comp.totalUnits?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"rentComps",
+																			index,
+																			"totalUnits",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		comp.occupancyPercent?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"rentComps",
+																			index,
+																			"occupancyPercent",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		comp.avgRentMonth?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"rentComps",
+																			index,
+																			"avgRentMonth",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		comp.rentPSF?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"rentComps",
+																			index,
+																			"rentPSF",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		comp.concessions ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"rentComps",
+																			index,
+																			"concessions",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	onClick={() =>
+																		handleTableRowDelete(
+																			"rentComps",
+																			index
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"rentComps",
+																		"market-context"
+																	)}
+																	className="text-red-600 hover:text-red-700 hover:bg-red-50"
+																>
+																	<X className="h-4 w-4" />
+																</Button>
+															</td>
+														</tr>
+													)
+												)
+											) : (
+												<tr>
+													<td
+														colSpan={10}
+														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
+													>
+														No rent comps data
+														available. Click "Add
+														Row" to add a new entry.
+													</td>
+												</tr>
+											)}
+										</tbody>
+									</table>
+								</div>
+							</div>
+							{/* Sale Comps Table */}
+							<div className="pt-4">
+								<div className="flex items-center justify-between mb-3">
+									<h3 className="text-md font-medium text-gray-800 flex items-center">
+										<Info className="h-4 w-4 mr-2 text-blue-600" />
+										Sale Comps
+									</h3>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() =>
+											handleTableRowAdd("saleComps", {
+												propertyName: "",
+												salePricePerUnit: 0,
+												capRate: 0,
+												saleDate: "",
+											})
+										}
+										disabled={isFieldDisabled(
+											"saleComps",
+											"market-context"
+										)}
+										className="flex items-center gap-1"
+									>
+										<Plus className="h-4 w-4" />
+										Add Row
+									</Button>
+								</div>
+								<div className="overflow-x-auto">
+									<table className="min-w-full border-collapse border border-gray-300">
+										<thead>
+											<tr className="bg-gray-50">
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Property Name
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Sale Price/Unit
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Cap Rate (%)
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Sale Date
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Actions
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											{Array.isArray(
+												(formData as any).saleComps
+											) &&
+											(formData as any).saleComps.length >
+												0 ? (
+												(formData as any).saleComps.map(
+													(
+														comp: any,
+														index: number
+													) => (
+														<tr key={index}>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		comp.propertyName ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"saleComps",
+																			index,
+																			"propertyName",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"saleComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		comp.salePricePerUnit?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"saleComps",
+																			index,
+																			"salePricePerUnit",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"saleComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		comp.capRate?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"saleComps",
+																			index,
+																			"capRate",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"saleComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="text"
+																	value={
+																		comp.saleDate ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"saleComps",
+																			index,
+																			"saleDate",
+																			e
+																				.target
+																				.value
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"saleComps",
+																		"market-context"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	onClick={() =>
+																		handleTableRowDelete(
+																			"saleComps",
+																			index
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"saleComps",
+																		"market-context"
+																	)}
+																	className="text-red-600 hover:text-red-700 hover:bg-red-50"
+																>
+																	<X className="h-4 w-4" />
+																</Button>
+															</td>
+														</tr>
+													)
+												)
+											) : (
+												<tr>
+													<td
+														colSpan={5}
+														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
+													>
+														No sale comps data
+														available. Click "Add
+														Row" to add a new entry.
+													</td>
+												</tr>
+											)}
+										</tbody>
+									</table>
+								</div>
+							</div>
 						</div>
 					</>
 				),
@@ -5569,6 +11891,539 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									</AskAIButton>
 								</FormGroup>
 							</div>
+							{/* Additional Special Considerations */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Info className="h-4 w-4 mr-2 text-blue-600" />
+									Additional Special Considerations
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="exemptionStructure"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"exemptionStructure",
+													"special-considerations",
+													"Exemption Structure",
+													false
+												)}
+												<Select
+													id="exemptionStructure"
+													value={
+														(formData as any)
+															.exemptionStructure ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"exemptionStructure",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "PFC",
+															label: "PFC",
+														},
+														{
+															value: "MMD",
+															label: "MMD",
+														},
+														{
+															value: "PILOT",
+															label: "PILOT",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"exemptionStructure",
+														"special-considerations"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"exemptionStructure"
+														),
+														isFieldDisabled(
+															"exemptionStructure",
+															"special-considerations"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="exemptionStructure"
+													data-field-type="select"
+													data-field-section="special-considerations"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="sponsoringEntity"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"sponsoringEntity",
+													"special-considerations",
+													"Sponsoring Entity",
+													false
+												)}
+												<Input
+													id="sponsoringEntity"
+													label={null}
+													value={
+														(formData as any)
+															.sponsoringEntity ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"sponsoringEntity",
+															e.target.value
+														)
+													}
+													placeholder="e.g., SoGood MMD"
+													disabled={isFieldDisabled(
+														"sponsoringEntity",
+														"special-considerations"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"sponsoringEntity"
+														),
+														isFieldDisabled(
+															"sponsoringEntity",
+															"special-considerations"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="sponsoringEntity"
+													data-field-type="input"
+													data-field-section="special-considerations"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="exemptionTerm"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"exemptionTerm",
+													"special-considerations",
+													"Exemption Term (Years)",
+													false
+												)}
+												<Input
+													id="exemptionTerm"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).exemptionTerm?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"exemptionTerm",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 15"
+													disabled={isFieldDisabled(
+														"exemptionTerm",
+														"special-considerations"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"exemptionTerm"
+														),
+														isFieldDisabled(
+															"exemptionTerm",
+															"special-considerations"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="exemptionTerm"
+													data-field-type="number"
+													data-field-section="special-considerations"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="relocationPlan"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"relocationPlan",
+													"special-considerations",
+													"Relocation Plan",
+													false
+												)}
+												<Select
+													id="relocationPlan"
+													value={
+														(formData as any)
+															.relocationPlan ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"relocationPlan",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Complete",
+															label: "Complete",
+														},
+														{
+															value: "In Process",
+															label: "In Process",
+														},
+														{
+															value: "N/A",
+															label: "N/A",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"relocationPlan",
+														"special-considerations"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"relocationPlan"
+														),
+														isFieldDisabled(
+															"relocationPlan",
+															"special-considerations"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="relocationPlan"
+													data-field-type="select"
+													data-field-section="special-considerations"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="seismicPMLRisk"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"seismicPMLRisk",
+													"special-considerations",
+													"Seismic/PML Risk",
+													false
+												)}
+												<Input
+													id="seismicPMLRisk"
+													label={null}
+													value={
+														(formData as any)
+															.seismicPMLRisk ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"seismicPMLRisk",
+															e.target.value
+														)
+													}
+													placeholder="e.g., 2.5% PML"
+													disabled={isFieldDisabled(
+														"seismicPMLRisk",
+														"special-considerations"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"seismicPMLRisk"
+														),
+														isFieldDisabled(
+															"seismicPMLRisk",
+															"special-considerations"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="seismicPMLRisk"
+													data-field-type="input"
+													data-field-section="special-considerations"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="incentiveStacking"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"incentiveStacking",
+													"special-considerations",
+													"Incentive Stacking",
+													false
+												)}
+												<MultiSelect
+													id="incentiveStacking"
+													options={[
+														"LIHTC",
+														"Section 8",
+														"Tax Exemption",
+														"Tax Abatement",
+														"PACE",
+														"Historic Tax Credits",
+														"New Markets Credits",
+														"Opportunity Zone",
+														"Other",
+													]}
+													value={
+														Array.isArray(
+															(formData as any)
+																.incentiveStacking
+														)
+															? (formData as any)
+																	.incentiveStacking
+															: []
+													}
+													onChange={(value) =>
+														handleInputChange(
+															"incentiveStacking",
+															value
+														)
+													}
+													placeholder="Select incentives..."
+													disabled={isFieldDisabled(
+														"incentiveStacking",
+														"special-considerations"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"incentiveStacking"
+														),
+														isFieldDisabled(
+															"incentiveStacking",
+															"special-considerations"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="tifDistrict"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"tifDistrict",
+													"special-considerations",
+													"TIF District?",
+													false
+												)}
+												<ButtonSelect
+													label=""
+													options={["Yes", "No"]}
+													selectedValue={
+														(formData as any)
+															.tifDistrict ===
+														true
+															? "Yes"
+															: (formData as any)
+																	.tifDistrict ===
+															  false
+															? "No"
+															: ""
+													}
+													onSelect={(value) =>
+														handleInputChange(
+															"tifDistrict",
+															value === "Yes"
+														)
+													}
+													gridCols="grid-cols-2"
+													disabled={isFieldDisabled(
+														"tifDistrict",
+														"special-considerations"
+													)}
+													isAutofilled={isFieldAutofilled(
+														"tifDistrict"
+													)}
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="paceFinancing"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"paceFinancing",
+													"special-considerations",
+													"PACE Financing?",
+													false
+												)}
+												<ButtonSelect
+													label=""
+													options={["Yes", "No"]}
+													selectedValue={
+														(formData as any)
+															.paceFinancing ===
+														true
+															? "Yes"
+															: (formData as any)
+																	.paceFinancing ===
+															  false
+															? "No"
+															: ""
+													}
+													onSelect={(value) =>
+														handleInputChange(
+															"paceFinancing",
+															value === "Yes"
+														)
+													}
+													gridCols="grid-cols-2"
+													disabled={isFieldDisabled(
+														"paceFinancing",
+														"special-considerations"
+													)}
+													isAutofilled={isFieldAutofilled(
+														"paceFinancing"
+													)}
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="historicTaxCredits"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"historicTaxCredits",
+													"special-considerations",
+													"Historic Tax Credits?",
+													false
+												)}
+												<ButtonSelect
+													label=""
+													options={["Yes", "No"]}
+													selectedValue={
+														(formData as any)
+															.historicTaxCredits ===
+														true
+															? "Yes"
+															: (formData as any)
+																	.historicTaxCredits ===
+															  false
+															? "No"
+															: ""
+													}
+													onSelect={(value) =>
+														handleInputChange(
+															"historicTaxCredits",
+															value === "Yes"
+														)
+													}
+													gridCols="grid-cols-2"
+													disabled={isFieldDisabled(
+														"historicTaxCredits",
+														"special-considerations"
+													)}
+													isAutofilled={isFieldAutofilled(
+														"historicTaxCredits"
+													)}
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="newMarketsCredits"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"newMarketsCredits",
+													"special-considerations",
+													"New Markets Credits?",
+													false
+												)}
+												<ButtonSelect
+													label=""
+													options={["Yes", "No"]}
+													selectedValue={
+														(formData as any)
+															.newMarketsCredits ===
+														true
+															? "Yes"
+															: (formData as any)
+																	.newMarketsCredits ===
+															  false
+															? "No"
+															: ""
+													}
+													onSelect={(value) =>
+														handleInputChange(
+															"newMarketsCredits",
+															value === "Yes"
+														)
+													}
+													gridCols="grid-cols-2"
+													disabled={isFieldDisabled(
+														"newMarketsCredits",
+														"special-considerations"
+													)}
+													isAutofilled={isFieldAutofilled(
+														"newMarketsCredits"
+													)}
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
 						</div>
 					</>
 				),
@@ -5909,6 +12764,641 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									</AskAIButton>
 								</FormGroup>
 							</div>
+							{/* Additional Timeline Fields */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Info className="h-4 w-4 mr-2 text-blue-600" />
+									Additional Timeline Milestones
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="landAcqClose"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"landAcqClose",
+													"timeline",
+													"Land Acquisition Close",
+													false
+												)}
+												<Input
+													id="landAcqClose"
+													type="date"
+													label={null}
+													value={
+														(formData as any)
+															.landAcqClose || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"landAcqClose",
+															e.target.value
+														)
+													}
+													disabled={isFieldDisabled(
+														"landAcqClose",
+														"timeline"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"landAcqClose"
+														),
+														isFieldDisabled(
+															"landAcqClose",
+															"timeline"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="landAcqClose"
+													data-field-type="date"
+													data-field-section="timeline"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="finalPlans"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"finalPlans",
+													"timeline",
+													"Final Plans Status",
+													false
+												)}
+												<Select
+													id="finalPlans"
+													value={
+														(formData as any)
+															.finalPlans || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"finalPlans",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Approved",
+															label: "Approved",
+														},
+														{
+															value: "Pending",
+															label: "Pending",
+														},
+														{
+															value: "In Review",
+															label: "In Review",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"finalPlans",
+														"timeline"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"finalPlans"
+														),
+														isFieldDisabled(
+															"finalPlans",
+															"timeline"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="finalPlans"
+													data-field-type="select"
+													data-field-section="timeline"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="verticalStart"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"verticalStart",
+													"timeline",
+													"Vertical Start Date",
+													false
+												)}
+												<Input
+													id="verticalStart"
+													type="date"
+													label={null}
+													value={
+														(formData as any)
+															.verticalStart || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"verticalStart",
+															e.target.value
+														)
+													}
+													disabled={isFieldDisabled(
+														"verticalStart",
+														"timeline"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"verticalStart"
+														),
+														isFieldDisabled(
+															"verticalStart",
+															"timeline"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="verticalStart"
+													data-field-type="date"
+													data-field-section="timeline"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="substantialComp"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"substantialComp",
+													"timeline",
+													"Substantial Completion Date",
+													false
+												)}
+												<Input
+													id="substantialComp"
+													type="date"
+													label={null}
+													value={
+														(formData as any)
+															.substantialComp ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"substantialComp",
+															e.target.value
+														)
+													}
+													disabled={isFieldDisabled(
+														"substantialComp",
+														"timeline"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"substantialComp"
+														),
+														isFieldDisabled(
+															"substantialComp",
+															"timeline"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="substantialComp"
+													data-field-type="date"
+													data-field-section="timeline"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="preLeasedSF"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"preLeasedSF",
+													"timeline",
+													"Pre-Leased SF",
+													false
+												)}
+												<Input
+													id="preLeasedSF"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).preLeasedSF?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"preLeasedSF",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 19669"
+													disabled={isFieldDisabled(
+														"preLeasedSF",
+														"timeline"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"preLeasedSF"
+														),
+														isFieldDisabled(
+															"preLeasedSF",
+															"timeline"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="preLeasedSF"
+													data-field-type="number"
+													data-field-section="timeline"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="absorptionProjection"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"absorptionProjection",
+													"timeline",
+													"Absorption Projection (Months)",
+													false
+												)}
+												<Input
+													id="absorptionProjection"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).absorptionProjection?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"absorptionProjection",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 12"
+													disabled={isFieldDisabled(
+														"absorptionProjection",
+														"timeline"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"absorptionProjection"
+														),
+														isFieldDisabled(
+															"absorptionProjection",
+															"timeline"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="absorptionProjection"
+													data-field-type="number"
+													data-field-section="timeline"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="opDeficitEscrow"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"opDeficitEscrow",
+													"timeline",
+													"Operating Deficit Escrow ($)",
+													false
+												)}
+												<Input
+													id="opDeficitEscrow"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).opDeficitEscrow?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"opDeficitEscrow",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 650000"
+													disabled={isFieldDisabled(
+														"opDeficitEscrow",
+														"timeline"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"opDeficitEscrow"
+														),
+														isFieldDisabled(
+															"opDeficitEscrow",
+															"timeline"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="opDeficitEscrow"
+													data-field-type="number"
+													data-field-section="timeline"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="leaseUpEscrow"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"leaseUpEscrow",
+													"timeline",
+													"Lease-Up Escrow ($)",
+													false
+												)}
+												<Input
+													id="leaseUpEscrow"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).leaseUpEscrow?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"leaseUpEscrow",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 1300000"
+													disabled={isFieldDisabled(
+														"leaseUpEscrow",
+														"timeline"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"leaseUpEscrow"
+														),
+														isFieldDisabled(
+															"leaseUpEscrow",
+															"timeline"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="leaseUpEscrow"
+													data-field-type="number"
+													data-field-section="timeline"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
+							{/* Draw Schedule Table */}
+							<div className="pt-4">
+								<div className="flex items-center justify-between mb-3">
+									<h3 className="text-md font-medium text-gray-800 flex items-center">
+										<Info className="h-4 w-4 mr-2 text-blue-600" />
+										Draw Schedule
+									</h3>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() =>
+											handleTableRowAdd("drawSchedule", {
+												drawNumber: 0,
+												percentComplete: 0,
+												amount: 0,
+											})
+										}
+										disabled={isFieldDisabled(
+											"drawSchedule",
+											"timeline"
+										)}
+										className="flex items-center gap-1"
+									>
+										<Plus className="h-4 w-4" />
+										Add Row
+									</Button>
+								</div>
+								<div className="overflow-x-auto">
+									<table className="min-w-full border-collapse border border-gray-300">
+										<thead>
+											<tr className="bg-gray-50">
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Draw Number
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													% Complete
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Amount ($)
+												</th>
+												<th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">
+													Actions
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											{Array.isArray(
+												(formData as any).drawSchedule
+											) &&
+											(formData as any).drawSchedule
+												.length > 0 ? (
+												(
+													formData as any
+												).drawSchedule.map(
+													(
+														draw: any,
+														index: number
+													) => (
+														<tr key={index}>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		draw.drawNumber?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"drawSchedule",
+																			index,
+																			"drawNumber",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"drawSchedule",
+																		"timeline"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		draw.percentComplete?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"drawSchedule",
+																			index,
+																			"percentComplete",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"drawSchedule",
+																		"timeline"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Input
+																	type="number"
+																	value={
+																		draw.amount?.toString() ||
+																		""
+																	}
+																	onChange={(
+																		e
+																	) =>
+																		handleTableRowUpdate(
+																			"drawSchedule",
+																			index,
+																			"amount",
+																			e
+																				.target
+																				.value
+																				? Number(
+																						e
+																							.target
+																							.value
+																				  )
+																				: 0
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"drawSchedule",
+																		"timeline"
+																	)}
+																	className="w-full"
+																/>
+															</td>
+															<td className="border border-gray-300 px-3 py-2">
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	onClick={() =>
+																		handleTableRowDelete(
+																			"drawSchedule",
+																			index
+																		)
+																	}
+																	disabled={isFieldDisabled(
+																		"drawSchedule",
+																		"timeline"
+																	)}
+																	className="text-red-600 hover:text-red-700 hover:bg-red-50"
+																>
+																	<X className="h-4 w-4" />
+																</Button>
+															</td>
+														</tr>
+													)
+												)
+											) : (
+												<tr>
+													<td
+														colSpan={4}
+														className="border border-gray-300 px-3 py-2 text-center text-gray-500"
+													>
+														No draw schedule data
+														available. Click "Add
+														Row" to add a new entry.
+													</td>
+												</tr>
+											)}
+										</tbody>
+									</table>
+								</div>
+							</div>
 						</div>
 					</>
 				),
@@ -6157,6 +13647,952 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									</AskAIButton>
 								</FormGroup>
 							</div>
+							{/* Additional Site & Context Fields */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Info className="h-4 w-4 mr-2 text-blue-600" />
+									Additional Site Information
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="buildableAcreage"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"buildableAcreage",
+													"site-context",
+													"Buildable Acreage",
+													false
+												)}
+												<Input
+													id="buildableAcreage"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).buildableAcreage?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"buildableAcreage",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 2.3"
+													disabled={isFieldDisabled(
+														"buildableAcreage",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"buildableAcreage"
+														),
+														isFieldDisabled(
+															"buildableAcreage",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="buildableAcreage"
+													data-field-type="number"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="allowableFAR"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"allowableFAR",
+													"site-context",
+													"Allowable FAR",
+													false
+												)}
+												<Input
+													id="allowableFAR"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														(
+															formData as any
+														).allowableFAR?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"allowableFAR",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 3.5"
+													disabled={isFieldDisabled(
+														"allowableFAR",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"allowableFAR"
+														),
+														isFieldDisabled(
+															"allowableFAR",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="allowableFAR"
+													data-field-type="number"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="farUtilizedPercent"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"farUtilizedPercent",
+													"site-context",
+													"FAR Utilized (%)",
+													false
+												)}
+												<Input
+													id="farUtilizedPercent"
+													type="number"
+													step="0.1"
+													label={null}
+													value={
+														(
+															formData as any
+														).farUtilizedPercent?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"farUtilizedPercent",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 85.0"
+													disabled={isFieldDisabled(
+														"farUtilizedPercent",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"farUtilizedPercent"
+														),
+														isFieldDisabled(
+															"farUtilizedPercent",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="farUtilizedPercent"
+													data-field-type="number"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="densityBonus"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"densityBonus",
+													"site-context",
+													"Density Bonus?",
+													false
+												)}
+												<Select
+													id="densityBonus"
+													value={
+														(formData as any)
+															.densityBonus ===
+														true
+															? "Yes"
+															: (formData as any)
+																	.densityBonus ===
+															  false
+															? "No"
+															: ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"densityBonus",
+															e.target.value ===
+																"Yes"
+																? true
+																: e.target
+																		.value ===
+																  "No"
+																? false
+																: null
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Yes",
+															label: "Yes",
+														},
+														{
+															value: "No",
+															label: "No",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"densityBonus",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"densityBonus"
+														),
+														isFieldDisabled(
+															"densityBonus",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="densityBonus"
+													data-field-type="select"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="soilConditions"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"soilConditions",
+													"site-context",
+													"Soil Conditions",
+													false
+												)}
+												<Input
+													id="soilConditions"
+													label={null}
+													value={
+														(formData as any)
+															.soilConditions ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"soilConditions",
+															e.target.value
+														)
+													}
+													placeholder="e.g., Expansive Clay, req Piles"
+													disabled={isFieldDisabled(
+														"soilConditions",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"soilConditions"
+														),
+														isFieldDisabled(
+															"soilConditions",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="soilConditions"
+													data-field-type="input"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="wetlandsPresent"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"wetlandsPresent",
+													"site-context",
+													"Wetlands Present?",
+													false
+												)}
+												<Select
+													id="wetlandsPresent"
+													value={
+														(formData as any)
+															.wetlandsPresent ===
+														true
+															? "Yes"
+															: (formData as any)
+																	.wetlandsPresent ===
+															  false
+															? "No"
+															: ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"wetlandsPresent",
+															e.target.value ===
+																"Yes"
+																? true
+																: e.target
+																		.value ===
+																  "No"
+																? false
+																: null
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Yes",
+															label: "Yes",
+														},
+														{
+															value: "No",
+															label: "No",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"wetlandsPresent",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"wetlandsPresent"
+														),
+														isFieldDisabled(
+															"wetlandsPresent",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="wetlandsPresent"
+													data-field-type="select"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="seismicRisk"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"seismicRisk",
+													"site-context",
+													"Seismic Risk",
+													false
+												)}
+												<Select
+													id="seismicRisk"
+													value={
+														(formData as any)
+															.seismicRisk || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"seismicRisk",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Low",
+															label: "Low",
+														},
+														{
+															value: "Moderate",
+															label: "Moderate",
+														},
+														{
+															value: "High",
+															label: "High",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"seismicRisk",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"seismicRisk"
+														),
+														isFieldDisabled(
+															"seismicRisk",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="seismicRisk"
+													data-field-type="select"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="phaseIESAFinding"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"phaseIESAFinding",
+													"site-context",
+													"Phase I ESA Finding",
+													false
+												)}
+												<Select
+													id="phaseIESAFinding"
+													value={
+														(formData as any)
+															.phaseIESAFinding ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"phaseIESAFinding",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Clean",
+															label: "Clean",
+														},
+														{
+															value: "Recognized Environmental Condition",
+															label: "Recognized Environmental Condition",
+														},
+														{
+															value: "Historical Recognized Environmental Condition",
+															label: "Historical Recognized Environmental Condition",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"phaseIESAFinding",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"phaseIESAFinding"
+														),
+														isFieldDisabled(
+															"phaseIESAFinding",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="phaseIESAFinding"
+													data-field-type="select"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="utilityAvailability"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"utilityAvailability",
+													"site-context",
+													"Utility Availability",
+													false
+												)}
+												<Input
+													id="utilityAvailability"
+													label={null}
+													value={
+														(formData as any)
+															.utilityAvailability ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"utilityAvailability",
+															e.target.value
+														)
+													}
+													placeholder="e.g., All Available"
+													disabled={isFieldDisabled(
+														"utilityAvailability",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"utilityAvailability"
+														),
+														isFieldDisabled(
+															"utilityAvailability",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="utilityAvailability"
+													data-field-type="input"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="easements"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"easements",
+													"site-context",
+													"Easements",
+													false
+												)}
+												<Input
+													id="easements"
+													label={null}
+													value={
+														(formData as any)
+															.easements || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"easements",
+															e.target.value
+														)
+													}
+													placeholder="e.g., Utility easement on north side"
+													disabled={isFieldDisabled(
+														"easements",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"easements"
+														),
+														isFieldDisabled(
+															"easements",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="easements"
+													data-field-type="input"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="accessPoints"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"accessPoints",
+													"site-context",
+													"Access Points",
+													false
+												)}
+												<Input
+													id="accessPoints"
+													label={null}
+													value={
+														(formData as any)
+															.accessPoints || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"accessPoints",
+															e.target.value
+														)
+													}
+													placeholder="e.g., 1 Curb Cut on Main St"
+													disabled={isFieldDisabled(
+														"accessPoints",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"accessPoints"
+														),
+														isFieldDisabled(
+															"accessPoints",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="accessPoints"
+													data-field-type="input"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="adjacentLandUse"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"adjacentLandUse",
+													"site-context",
+													"Adjacent Land Use",
+													false
+												)}
+												<Input
+													id="adjacentLandUse"
+													label={null}
+													value={
+														(formData as any)
+															.adjacentLandUse ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"adjacentLandUse",
+															e.target.value
+														)
+													}
+													placeholder="e.g., Mixed-Use"
+													disabled={isFieldDisabled(
+														"adjacentLandUse",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"adjacentLandUse"
+														),
+														isFieldDisabled(
+															"adjacentLandUse",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="adjacentLandUse"
+													data-field-type="input"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="noiseFactors"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"noiseFactors",
+													"site-context",
+													"Noise Factors",
+													false
+												)}
+												<Input
+													id="noiseFactors"
+													label={null}
+													value={
+														Array.isArray(
+															(formData as any)
+																.noiseFactors
+														)
+															? (
+																	formData as any
+															  ).noiseFactors.join(
+																	", "
+															  )
+															: (formData as any)
+																	.noiseFactors ||
+															  ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"noiseFactors",
+															e.target.value
+																? e.target.value
+																		.split(
+																			", "
+																		)
+																		.filter(
+																			Boolean
+																		)
+																: null
+														)
+													}
+													placeholder="e.g., Highway"
+													disabled={isFieldDisabled(
+														"noiseFactors",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"noiseFactors"
+														),
+														isFieldDisabled(
+															"noiseFactors",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="noiseFactors"
+													data-field-type="input"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="viewCorridors"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"viewCorridors",
+													"site-context",
+													"View Corridors",
+													false
+												)}
+												<Input
+													id="viewCorridors"
+													label={null}
+													value={
+														Array.isArray(
+															(formData as any)
+																.viewCorridors
+														)
+															? (
+																	formData as any
+															  ).viewCorridors.join(
+																	", "
+															  )
+															: (formData as any)
+																	.viewCorridors ||
+															  ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"viewCorridors",
+															e.target.value
+																? e.target.value
+																		.split(
+																			", "
+																		)
+																		.filter(
+																			Boolean
+																		)
+																: null
+														)
+													}
+													placeholder="e.g., Skyline"
+													disabled={isFieldDisabled(
+														"viewCorridors",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"viewCorridors"
+														),
+														isFieldDisabled(
+															"viewCorridors",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="viewCorridors"
+													data-field-type="input"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="topography"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"topography",
+													"site-context",
+													"Topography",
+													false
+												)}
+												<Select
+													id="topography"
+													value={
+														(formData as any)
+															.topography || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"topography",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Flat",
+															label: "Flat",
+														},
+														{
+															value: "Rolling",
+															label: "Rolling",
+														},
+														{
+															value: "Hilly",
+															label: "Hilly",
+														},
+														{
+															value: "Steep",
+															label: "Steep",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"topography",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"topography"
+														),
+														isFieldDisabled(
+															"topography",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="topography"
+													data-field-type="select"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="floodZone"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"floodZone",
+													"site-context",
+													"Flood Zone",
+													false
+												)}
+												<Input
+													id="floodZone"
+													label={null}
+													value={
+														(formData as any)
+															.floodZone || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"floodZone",
+															e.target.value
+														)
+													}
+													placeholder="e.g., Zone X"
+													disabled={isFieldDisabled(
+														"floodZone",
+														"site-context"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"floodZone"
+														),
+														isFieldDisabled(
+															"floodZone",
+															"site-context"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="floodZone"
+													data-field-type="input"
+													data-field-section="site-context"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
 						</div>
 					</>
 				),
@@ -6394,6 +14830,297 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										</div>
 									</AskAIButton>
 								</FormGroup>
+							</div>
+							{/* Additional Sponsor Information */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<Info className="h-4 w-4 mr-2 text-blue-600" />
+									Additional Sponsor Information
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="sponsorExpScore"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"sponsorExpScore",
+													"sponsor-info",
+													"Sponsor Experience Score",
+													false
+												)}
+												<Input
+													id="sponsorExpScore"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).sponsorExpScore?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"sponsorExpScore",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 8"
+													min="0"
+													max="10"
+													disabled={isFieldDisabled(
+														"sponsorExpScore",
+														"sponsor-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"sponsorExpScore"
+														),
+														isFieldDisabled(
+															"sponsorExpScore",
+															"sponsor-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="sponsorExpScore"
+													data-field-type="number"
+													data-field-section="sponsor-info"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="priorDevelopments"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"priorDevelopments",
+													"sponsor-info",
+													"Prior Developments (Count)",
+													false
+												)}
+												<Input
+													id="priorDevelopments"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).priorDevelopments?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"priorDevelopments",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 15"
+													disabled={isFieldDisabled(
+														"priorDevelopments",
+														"sponsor-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"priorDevelopments"
+														),
+														isFieldDisabled(
+															"priorDevelopments",
+															"sponsor-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="priorDevelopments"
+													data-field-type="number"
+													data-field-section="sponsor-info"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="netWorth"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"netWorth",
+													"sponsor-info",
+													"Sponsor Net Worth ($)",
+													false
+												)}
+												<Input
+													id="netWorth"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).netWorth?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"netWorth",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 45000000"
+													disabled={isFieldDisabled(
+														"netWorth",
+														"sponsor-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"netWorth"
+														),
+														isFieldDisabled(
+															"netWorth",
+															"sponsor-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="netWorth"
+													data-field-type="number"
+													data-field-section="sponsor-info"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="guarantorLiquidity"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"guarantorLiquidity",
+													"sponsor-info",
+													"Guarantor Liquidity ($)",
+													false
+												)}
+												<Input
+													id="guarantorLiquidity"
+													type="number"
+													label={null}
+													value={
+														(
+															formData as any
+														).guarantorLiquidity?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"guarantorLiquidity",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 2500000"
+													disabled={isFieldDisabled(
+														"guarantorLiquidity",
+														"sponsor-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"guarantorLiquidity"
+														),
+														isFieldDisabled(
+															"guarantorLiquidity",
+															"sponsor-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="guarantorLiquidity"
+													data-field-type="number"
+													data-field-section="sponsor-info"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="portfolioDSCR"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"portfolioDSCR",
+													"sponsor-info",
+													"Portfolio DSCR",
+													false
+												)}
+												<Input
+													id="portfolioDSCR"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														(
+															formData as any
+														).portfolioDSCR?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"portfolioDSCR",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 1.35"
+													disabled={isFieldDisabled(
+														"portfolioDSCR",
+														"sponsor-info"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"portfolioDSCR"
+														),
+														isFieldDisabled(
+															"portfolioDSCR",
+															"sponsor-info"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="portfolioDSCR"
+													data-field-type="number"
+													data-field-section="sponsor-info"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
 							</div>
 						</div>
 					</>
