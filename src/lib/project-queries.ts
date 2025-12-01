@@ -502,13 +502,11 @@ export const getProjectWithResume = async (
 		// Override with fallbacks for key fields
 		projectName: resumeContent.projectName || project.name, // Fallback to core name
 		assetType: resumeContent.assetType || "",
-		projectStatus: resumeContent.projectStatus || "Draft",
+		projectStatus: (resumeContent.projectStatus as any) || "",
 
-		// Type-safe overrides for enum fields
-		interestRateType:
-			(resumeContent.interestRateType as any) || "Not Specified",
-		recoursePreference:
-			(resumeContent.recoursePreference as any) || "Flexible",
+		// Type-safe overrides for enum fields (no UX defaults – start empty)
+		interestRateType: (resumeContent.interestRateType as any) || "",
+		recoursePreference: (resumeContent.recoursePreference as any) || "",
 		exitStrategy: resumeContent.exitStrategy as any,
 
 		// Load completenessPercent from DB, fallback to 0 if not stored
@@ -746,13 +744,11 @@ export const getProjectsWithResumes = async (
 				// Override with fallbacks for key fields
 				projectName: resumeContent.projectName || project.name,
 				assetType: resumeContent.assetType || "",
-				projectStatus: resumeContent.projectStatus || "Draft",
+				projectStatus: (resumeContent.projectStatus as any) || "",
 
-				// Type-safe overrides for enum fields
-				interestRateType:
-					(resumeContent.interestRateType as any) || "Not Specified",
-				recoursePreference:
-					(resumeContent.recoursePreference as any) || "Flexible",
+				// Type-safe overrides for enum fields (no UX defaults – start empty)
+				interestRateType: (resumeContent.interestRateType as any) || "",
+				recoursePreference: (resumeContent.recoursePreference as any) || "",
 				exitStrategy: resumeContent.exitStrategy as any,
 
 				// Load completenessPercent from DB, fallback to 0 if not stored

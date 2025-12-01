@@ -986,8 +986,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}, [startAutofill]);
 
 	return (
-		<div className={cn("border rounded-lg bg-white", compact && "p-4")}>
-			<div className="flex items-center justify-between px-4 py-3 border-b">
+		<div
+			className={cn(
+				"h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden",
+				compact && "p-4"
+			)}
+		>
+			<div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
 				<div className="flex items-center gap-2">
 					<FileText className="h-5 w-5 text-blue-600" />
 					<div>

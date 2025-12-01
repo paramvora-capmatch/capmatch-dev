@@ -336,14 +336,16 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				)
 			);
 
-			// Convert the database project to ProjectProfile format
+			// Convert the database project to ProjectProfile format.
+			// When a new project is created, ONLY the project name should be pre-filled by default.
+			// All other resume fields should start empty so the borrower can enter them explicitly.
 			const newProjectData: ProjectProfile = {
 				id: data.project.id,
 				owner_org_id: data.project.owner_org_id,
 				assignedAdvisorUserId: data.project.assigned_advisor_id,
 				projectName: data.project.name,
-				assetType: "Multifamily",
-				projectStatus: "Info Gathering",
+				assetType: "",
+				projectStatus: "",
 				createdAt: data.project.created_at,
 				updatedAt: data.project.updated_at,
 				propertyAddressStreet: "",
@@ -358,16 +360,16 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				targetLtcPercent: null,
 				amortizationYears: null,
 				interestOnlyPeriodMonths: null,
-				interestRateType: "Not Specified",
+				interestRateType: "",
 				targetCloseDate: null,
 				useOfProceeds: "",
-				recoursePreference: "Flexible",
+				recoursePreference: "",
 				purchasePrice: null,
 				totalProjectCost: null,
 				capexBudget: null,
 				propertyNoiT12: null,
 				stabilizedNoiProjected: null,
-				exitStrategy: "Undecided",
+				exitStrategy: "",
 				businessPlanSummary: "",
 				marketOverviewSummary: "",
 				equityCommittedPercent: null,

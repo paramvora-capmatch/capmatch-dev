@@ -136,6 +136,19 @@ export const FormWizard: React.FC<FormWizardProps> = ({
     (Object.values(internallyCompletedSteps).filter(Boolean).length / steps.length) * 100
   );
 
+  const scrollTabs = (direction: 'left' | 'right') => {
+    const container = scrollContainerRef.current;
+    if (!container || variant !== 'tabs') return;
+
+    const scrollAmount = 260; // roughly a couple of tabs at a time
+    const delta = direction === 'left' ? -scrollAmount : scrollAmount;
+
+    container.scrollBy({
+      left: delta,
+      behavior: 'smooth',
+    });
+  };
+
 
   return (
     <div className={cn("w-full", className)}>
@@ -143,6 +156,28 @@ export const FormWizard: React.FC<FormWizardProps> = ({
       {variant === 'tabs' && (
         <div className="mb-6 border-b border-gray-200/70 bg-white/60 px-2 py-1">
           <div className="max-w-6xl mx-auto relative">
+            {/* Left arrow */}
+            {showLeftGradient && (
+              <button
+                type="button"
+                onClick={() => scrollTabs('left')}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-sm border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                aria-label="Scroll left through sections"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
+            {/* Right arrow */}
+            {showRightGradient && (
+              <button
+                type="button"
+                onClick={() => scrollTabs('right')}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-sm border border-gray-200 text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                aria-label="Scroll right through sections"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            )}
             {/* Left gradient overlay */}
             {showLeftGradient && (
               <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-white/95 via-white/60 to-transparent pointer-events-none z-10" />
