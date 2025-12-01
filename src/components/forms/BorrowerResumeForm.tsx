@@ -56,18 +56,6 @@ import {
 	computeBorrowerCompletion,
 } from "@/utils/resumeCompletion";
 import { normalizeSource } from "@/utils/sourceNormalizer";
-import {
-	type FieldStateData,
-	type FieldState,
-	isValueProvided,
-	getSourceType,
-	calculateFieldState,
-	getStateAfterAction,
-	getFieldStateData,
-	updateFieldState,
-	getFieldStateClasses,
-	isAISource,
-} from "@/utils/fieldStateManagement";
 
 interface BorrowerResumeFormProps {
 	projectId: string;
@@ -255,25 +243,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		new Set()
 	); // Fields explicitly unlocked even when section is locked
 
-	// Field states management - tracks WHITE, BLUE, GREEN states for each field
-	const [fieldStates, setFieldStates] = useState<Record<string, FieldStateData>>(() => {
-		// Initialize from borrowerResume's _fieldStates or calculate from current state
-		const savedStates = (borrowerResume as any)?._fieldStates || {};
-		const existingMetadata: Record<string, any> = {};
-		const existingLockedFields = new Set(
-			Object.keys(savedLockedFields || {}).filter((key) => savedLockedFields?.[key] === true)
-		);
-		
-		// If we have saved states, use them
-		if (Object.keys(savedStates).length > 0) {
-			return savedStates;
-		}
-		
-		// Otherwise, initialize all fields as WHITE and unlocked (new project)
-		// Field states will be calculated and updated when data is loaded
-		return {};
-	});
-
 	// Sync locked fields from saved data when it changes
 	useEffect(() => {
 		if (savedLockedFields) {
@@ -356,10 +325,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				if (sectionId && lockedSections.has(sectionId)) return true;
 				return false;
 			})();
-			
-			const currentState = getFieldStateData(fieldId, fieldStates);
-			const value = formData[fieldId as keyof BorrowerResumeContent];
-			const hasValue = isValueProvided(value);
 
 			if (currentlyLocked) {
 				// Unlocking the field
@@ -370,16 +335,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						next.add(fieldId);
 						return next;
 					});
-					
-					// Update field state: GREEN -> BLUE (if has value)
-					setFieldStates((prev) => {
-						const newState = hasValue ? "BLUE" : "WHITE";
-						return updateFieldState(prev, fieldId, {
-							locked: false,
-							state: newState,
-						});
-					});
-					
 					// Field is now effectively unlocked (override section lock)
 					return;
 				} else {
@@ -408,15 +363,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						next.delete(fieldId);
 						return next;
 					});
-					
-					// Update field state: GREEN -> BLUE (if has value)
-					setFieldStates((prev) => {
-						const newState = hasValue ? "BLUE" : "WHITE";
-						return updateFieldState(prev, fieldId, {
-							locked: false,
-							state: newState,
-						});
-					});
 				}
 			} else {
 				// Locking the field
@@ -442,19 +388,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 					return next;
 				});
-				
-				// Update field state: BLUE -> GREEN (only if has value)
-				setFieldStates((prev) => {
-					const newState = hasValue ? "GREEN" : "WHITE";
-					return updateFieldState(prev, fieldId, {
-						locked: true,
-						state: newState,
-						source: currentState.source || "user_input",
-					});
-				});
 			}
 		},
-		[lockedSections, unlockedFields, lockedFields, save, fieldStates, formData]
+		[lockedSections, unlockedFields, lockedFields, save]
 	);
 
 	// Get all field IDs in a section (needed for section lock visual feedback)
@@ -1159,41 +1095,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		lastInitializedSnapshot.current = snapshotKey;
 		setFormData(initialData);
 		setFieldMetadata(extractedMetadata);
-		
-		// Initialize field states from saved data or calculate from current state
-		const savedStates = (borrowerResume as any)?._fieldStates || {};
-		if (Object.keys(savedStates).length > 0) {
-			setFieldStates(savedStates);
-		} else {
-			// Calculate field states from current data
-			const calculated: Record<string, FieldStateData> = {};
-			const existingLockedFields = new Set(
-				Object.keys(savedLockedFields || {}).filter((key) => savedLockedFields?.[key] === true)
-			);
-			
-			Object.keys(initialData).forEach((key) => {
-				if (key.startsWith("_")) return;
-				const value = initialData[key as keyof BorrowerResumeContent];
-				const hasValue = isValueProvided(value);
-				const isLocked = existingLockedFields.has(key);
-				const meta = extractedMetadata[key];
-				const sourceType = meta?.sources ? getSourceType(meta.sources) : null;
-				
-				calculated[key] = {
-					state: calculateFieldState(value, isLocked, sourceType, hasValue),
-					locked: isLocked,
-					source: sourceType,
-				};
-			});
-			setFieldStates(calculated);
-		}
-
-		// Initialize last saved snapshot to avoid immediate auto-save loop on mount
-		lastSavedSnapshotRef.current = JSON.stringify(defaultData);
-	}, [borrowerResume, user?.email, projectId, isEditing, savedLockedFields]);
+	}, [borrowerResume, user?.email, projectId, isEditing]);
 
 	const lastEmittedSnapshot = useRef<string | null>(null);
-	const lastSavedSnapshotRef = useRef<string | null>(null);
 
 	// Emit form data for AskAI consumers when it changes
 	useEffect(() => {
@@ -1214,21 +1118,19 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		}
 
 		debounceTimeout.current = setTimeout(async () => {
-			// Only auto-save if the current form data is actually different
-			// from the last successfully saved snapshot
-			const snapshotKey = JSON.stringify(formData);
-			if (snapshotKey === lastSavedSnapshotRef.current) {
-				return;
-			}
+			// Only auto-save if we have existing resume content loaded
+			// and the current form data is actually different
+			if (!borrowerResume) return;
+			const hasChanged =
+				JSON.stringify(formData) !== JSON.stringify(borrowerResume);
+			if (!hasChanged) return;
 			try {
 				const completenessPercent = computeBorrowerCompletion(formData);
 				onProgressChange?.(completenessPercent);
 				await save({
 					...formData,
 					completenessPercent,
-					_fieldStates: fieldStates,
 				});
-				lastSavedSnapshotRef.current = snapshotKey;
 			} catch (error) {
 				console.error("[ProfileForm] Auto-save failed:", error);
 			}
@@ -1239,7 +1141,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				clearTimeout(debounceTimeout.current);
 			}
 		};
-	}, [formData, fieldStates, save, onProgressChange, projectId]);
+	}, [formData, borrowerResume, save, onProgressChange, projectId]);
 
 	// Report progress on any local change immediately (for live banner updates)
 	useEffect(() => {
@@ -1475,42 +1377,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	// Input change handlers
 	const handleInputChange = useCallback(
 		(field: keyof BorrowerResumeContent, value: any) => {
-			const fieldId = field as string;
-			const hasValue = isValueProvided(value);
-			const currentState = getFieldStateData(fieldId, fieldStates);
-
 			setFormData((prev) => {
 				const nextFormData = { ...prev, [field]: value };
-
-				// Update field state based on the change
-				setFieldStates((prevStates) => {
-					let newState: FieldState;
-					let newSource: "ai" | "user_input" | null = "user_input";
-					
-					if (!hasValue) {
-						// User cleared the field -> WHITE
-						newState = "WHITE";
-						newSource = null;
-					} else {
-						// User is filling the field
-						if (currentState.locked) {
-							// If field was locked (green), unlocking happens separately
-							// For now, just keep it locked but mark as user input
-							newState = "GREEN";
-							newSource = "user_input";
-						} else {
-							// Field is unlocked, user is filling it -> BLUE
-							newState = "BLUE";
-							newSource = "user_input";
-						}
-					}
-					
-					return updateFieldState(prevStates, fieldId, {
-						state: newState,
-						source: newSource,
-						// Keep locked status as-is (unlocking happens via toggleFieldLock)
-					});
-				});
 
 				// Update metadata to track source changes immediately
 				setFieldMetadata((prevMeta) => {
@@ -1683,7 +1551,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				return nextFormData;
 			});
 		},
-		[fieldStates]
+		[]
 	);
 	const handlePrincipalInputChange = useCallback(
 		(field: keyof Principal, value: any) => {
@@ -1705,7 +1573,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			await save({
 				...formData,
 				completenessPercent,
-				_fieldStates: fieldStates,
 			});
 
 			if (onComplete) {
@@ -1718,7 +1585,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		} finally {
 			setTimeout(() => setFormSaved(false), 2000);
 		}
-	}, [formData, fieldStates, onComplete, save, onProgressChange]);
+	}, [formData, onComplete, save, onProgressChange]);
 
 	// Principals removed from new schema - these functions are no-ops
 	const handleAddPrincipal = useCallback(async () => {

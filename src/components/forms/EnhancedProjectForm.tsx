@@ -17,7 +17,6 @@ import { AskAIButton } from "../ui/AskAIProvider";
 import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
 import { useProjects } from "@/hooks/useProjects";
 import { useAutofill } from "@/hooks/useAutofill";
-import { getProjectWithResume } from "@/lib/project-queries";
 import { cn } from "@/utils/cn";
 import {
 	FileText,
@@ -150,54 +149,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [unlockedFields, setUnlockedFields] = useState<Set<string>>(
 		new Set()
 	);
-	
-	// Field states management - tracks WHITE, BLUE, GREEN states for each field
-	const [fieldStates, setFieldStates] = useState<Record<string, FieldStateData>>(() => {
-		// Initialize from existing project's _fieldStates or calculate from current state
-		const savedStates = existingProject._fieldStates || {};
-		const existingMetadata = existingProject._metadata || {};
-		const existingLockedFields = new Set(
-			Object.keys(existingProject._lockedFields || {}).filter(
-				(k) => existingProject._lockedFields?.[k]
-			)
-		);
-		const initialized: Record<string, FieldStateData> = {};
-		
-		// If we have saved states, use them
-		if (Object.keys(savedStates).length > 0) {
-			return savedStates;
-		}
-		
-		// Otherwise, calculate initial states from existing data
-		// For new projects, all fields should be WHITE and unlocked
-		// But if there's existing data, we need to determine states
-		Object.keys(existingProject).forEach((key) => {
-			if (key.startsWith("_")) return; // Skip metadata keys
-			
-			const value = (existingProject as any)[key];
-			const hasValue = isValueProvided(value);
-			const isLocked = existingLockedFields.has(key);
-			
-			// Get source from metadata
-			const meta = existingMetadata[key];
-			const sourceType = meta?.sources ? getSourceType(meta.sources) : null;
-			
-			initialized[key] = {
-				state: calculateFieldState(value, isLocked, sourceType, hasValue),
-				locked: isLocked,
-				source: sourceType,
-			};
-		});
-		
-		return initialized;
-	});
-	
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
 	const [formSaved, setFormSaved] = useState(false);
 	const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
-	const lastSavedSnapshotRef = useRef<string | null>(null);
-	const [isDirty, setIsDirty] = useState(false);
 	const { updateProject } = useProjects();
 
 	const {
@@ -207,147 +162,29 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	} = useAutofill(existingProject.id, { context: "project" });
 
 	useEffect(() => {
-		const handleAutofillCompleted = async (event: Event) => {
-			const customEvent = event as CustomEvent<{
-				projectId: string;
-				context: string;
-			}>;
-			// Only handle project context autofill for this project
-			if (
-				customEvent.detail?.context !== "project" ||
-				customEvent.detail?.projectId !== existingProject.id
-			) {
-				return;
-			}
-
+		const handler = () => {
 			setShowAutofillNotification(true);
 			setTimeout(() => setShowAutofillNotification(false), 5000);
-
-			// Wait a bit for autofill data to be saved
-			await new Promise((resolve) => setTimeout(resolve, 1000));
-
-			// Fetch the latest project data with updated metadata
-			try {
-				const updatedProject = await getProjectWithResume(existingProject.id);
-				
-				// Process AI-filled fields and lock them
-				const fieldsToLock: string[] = [];
-				const updatedFieldStates: Record<string, FieldStateData> = {};
-				const currentMetadata = updatedProject._metadata || {};
-				const currentLockedFields = new Set(
-					Object.keys(updatedProject._lockedFields || {}).filter(
-						(k) => updatedProject._lockedFields?.[k]
-					)
-				);
-
-				Object.keys(updatedProject).forEach((fieldId) => {
-					if (fieldId.startsWith("_")) return;
-
-					const value = (updatedProject as any)[fieldId];
-					const hasValue = isValueProvided(value);
-					const meta = currentMetadata[fieldId];
-					const isLocked = currentLockedFields.has(fieldId);
-
-					if (meta?.sources && meta.sources.length > 0) {
-						const sourceType = getSourceType(meta.sources);
-						const isAIFilled = sourceType === "ai" || isAISource(meta.sources);
-
-						if (isAIFilled && hasValue && !isLocked) {
-							// AI filled this field -> GREEN + locked
-							updatedFieldStates[fieldId] = {
-								state: "GREEN",
-								locked: true,
-								source: "ai",
-							};
-							fieldsToLock.push(fieldId);
-						} else if (isAIFilled && hasValue) {
-							// Already locked AI-filled field
-							updatedFieldStates[fieldId] = {
-								state: "GREEN",
-								locked: true,
-								source: "ai",
-							};
-						} else if (hasValue) {
-							// Field has value but not from AI
-							updatedFieldStates[fieldId] = {
-								state: isLocked ? "GREEN" : "BLUE",
-								locked: isLocked,
-								source: sourceType || "user_input",
-							};
-						} else {
-							// Empty field
-							updatedFieldStates[fieldId] = {
-								state: "WHITE",
-								locked: false,
-								source: null,
-							};
-						}
-					} else if (hasValue) {
-						// Field has value but no source info
-						updatedFieldStates[fieldId] = {
-							state: isLocked ? "GREEN" : "BLUE",
-							locked: isLocked,
-							source: "user_input",
-						};
-					}
-				});
-
-				// Update field states
-				if (Object.keys(updatedFieldStates).length > 0) {
-					setFieldStates((prev) => ({ ...prev, ...updatedFieldStates }));
-				}
-
-				// Update locked fields set and save
-				if (fieldsToLock.length > 0) {
-					const newLockedFields = new Set([...currentLockedFields, ...fieldsToLock]);
-					setLockedFields(newLockedFields);
-
-					// Save locked fields to database
-					const lockedFieldsObj: Record<string, boolean> = {};
-					newLockedFields.forEach((id) => {
-						lockedFieldsObj[id] = true;
-					});
-
-					const dataToSave: ProjectProfile = {
-						...updatedProject,
-						_lockedFields: lockedFieldsObj,
-						_fieldStates: { ...updatedProject._fieldStates, ...updatedFieldStates },
-					};
-
-					await updateProject(existingProject.id, dataToSave);
-				}
-			} catch (err) {
-				console.error("[EnhancedProjectForm] Failed to process autofill completion:", err);
-			}
 		};
-
 		if (typeof window !== "undefined") {
-			window.addEventListener(
-				"autofill-completed",
-				handleAutofillCompleted as EventListener
-			);
+			window.addEventListener("autofill-completed", handler as any);
 		}
 		return () => {
 			if (typeof window !== "undefined") {
 				window.removeEventListener(
 					"autofill-completed",
-					handleAutofillCompleted as EventListener
+					handler as any
 				);
 			}
 		};
-	}, [existingProject.id]);
+	}, []);
 
 	// Helper function to update metadata when user inputs data
 	const handleInputChange = useCallback(
 		(fieldId: string, value: any) => {
-			const hasValue = isValueProvided(value);
-			const currentState = getFieldStateData(fieldId, fieldStates);
-			
-			// Update form data
 			setFormData((prev) => {
 				const next = { ...prev, [fieldId]: value };
 				onFormDataChange?.(next);
-				setIsDirty(true);
 				return next;
 			});
 
@@ -372,7 +209,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				};
 			});
 		},
-		[onFormDataChange, fieldStates]
+		[onFormDataChange]
 	);
 
 	const isFieldLocked = useCallback(
@@ -636,22 +473,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	// Autosave
 	useEffect(() => {
-		// Only auto-save when the user has edited a field
-		if (!isDirty) {
-			if (debounceTimeout.current) {
-				clearTimeout(debounceTimeout.current);
-			}
-			return;
-		}
-
 		if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
 		debounceTimeout.current = setTimeout(async () => {
-			// Only auto-save if the current snapshot of formData differs from the last saved one
-			const snapshotKey = JSON.stringify(formData);
-			if (snapshotKey === lastSavedSnapshotRef.current) {
-				setIsDirty(false);
-				return;
-			}
 			try {
 				const lockedFieldsObj: Record<string, boolean> = {};
 				lockedFields.forEach((id) => {
@@ -666,22 +489,19 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					_metadata: fieldMetadata,
 					_lockedFields: lockedFieldsObj,
 					_lockedSections: lockedSectionsObj,
-					_fieldStates: fieldStates,
 				};
 				await updateProject(formData.id, dataToSave);
-				lastSavedSnapshotRef.current = snapshotKey;
 				setFormSaved(true);
-				setIsDirty(false);
 			} catch (err) {
 				console.error("[EnhancedProjectForm] Auto-save failed:", err);
 			} finally {
 				setTimeout(() => setFormSaved(false), 1500);
 			}
-		}, 2000);
+		}, 1500);
 		return () => {
 			if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
 		};
-	}, [formData, fieldMetadata, lockedFields, lockedSections, fieldStates, updateProject, isDirty]);
+	}, [formData, fieldMetadata, lockedFields, lockedSections, updateProject]);
 
 	type ControlKind =
 		| "input"
@@ -1037,16 +857,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				_metadata: fieldMetadata,
 				_lockedFields: lockedFieldsObj,
 				_lockedSections: lockedSectionsObj,
-				_fieldStates: fieldStates,
 			};
 			await updateProject(formData.id, dataToSave);
-			// Update last saved snapshot to prevent immediate auto-save loop
-			lastSavedSnapshotRef.current = JSON.stringify({
-				formData: dataToSave,
-				fieldMetadata,
-				lockedFields: Array.from(lockedFields),
-				lockedSections: Array.from(lockedSections),
-			});
 			onComplete?.(dataToSave);
 			onVersionChange?.();
 		},
@@ -1055,7 +867,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			fieldMetadata,
 			lockedFields,
 			lockedSections,
-			fieldStates,
 			updateProject,
 			onComplete,
 			onVersionChange,
