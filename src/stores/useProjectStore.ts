@@ -258,10 +258,21 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					};
 				});
 
-				set({ projects: projectsWithProgress, isLoading: false });
+				// Update activeProject if it exists in the new list to keep UI in sync
+				const currentActive = get().activeProject;
+				let nextActiveProject = currentActive;
+
+				if (currentActive) {
+					const updatedActive = projectsWithProgress.find(p => p.id === currentActive.id);
+					if (updatedActive) {
+						nextActiveProject = updatedActive;
+					}
+				}
+
+				set({ projects: projectsWithProgress, isLoading: false, activeProject: nextActiveProject });
 			} catch (error) {
 				const errorMessage = error instanceof Error 
-					? error.message 
+					? error.message
 					: typeof error === 'object' && error !== null
 						? JSON.stringify(error)
 						: String(error) || "Unknown error";

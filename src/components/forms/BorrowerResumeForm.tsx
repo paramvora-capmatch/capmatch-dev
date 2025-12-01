@@ -244,6 +244,22 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		new Set()
 	); // Fields explicitly unlocked even when section is locked
 
+	// Sync locked fields from saved data when it changes
+	useEffect(() => {
+		if (savedLockedFields) {
+			const newLockedFields = new Set(Object.keys(savedLockedFields).filter((key) => savedLockedFields[key] === true));
+			setLockedFields(newLockedFields);
+		}
+	}, [savedLockedFields]);
+
+	// Sync locked sections from saved data when it changes
+	useEffect(() => {
+		if (savedLockedSections) {
+			const newLockedSections = new Set(Object.keys(savedLockedSections).filter((key) => savedLockedSections[key] === true));
+			setLockedSections(newLockedSections);
+		}
+	}, [savedLockedSections]);
+
 	// Autofill state
 	const {
 		isAutofilling,
@@ -306,12 +322,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			if (currentlyLocked) {
 				// Unlocking the field
 				// If section is locked, add to unlockedFields (override section lock)
+				// This doesn't need to be saved as it's just an in-memory override
 				if (sectionId && lockedSections.has(sectionId)) {
 					setUnlockedFields((prev) => {
 						const next = new Set(prev);
 						next.add(fieldId);
 						return next;
 					});
+					// Field is now effectively unlocked (override section lock)
+					return;
 				} else {
 					// Field was explicitly locked, remove from lockedFields
 					setLockedFields((prev) => {
@@ -408,42 +427,145 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		return sectionFieldMap[sectionId] || [];
 	}, []);
 
+	// Sync section lock state based on individual field locks
+	// A section is locked if all its fields are individually locked
+	useEffect(() => {
+		const sectionFieldMap: Record<string, string[]> = {
+			"basic-info": [
+				"fullLegalName",
+				"primaryEntityName",
+				"primaryEntityStructure",
+				"contactEmail",
+				"contactPhone",
+				"contactAddress",
+			],
+			experience: [
+				"yearsCREExperienceRange",
+				"assetClassesExperience",
+				"geographicMarketsExperience",
+				"totalDealValueClosedRange",
+				"existingLenderRelationships",
+				"bioNarrative",
+			],
+			"borrower-financials": [
+				"creditScoreRange",
+				"netWorthRange",
+				"liquidityRange",
+				"bankruptcyHistory",
+				"foreclosureHistory",
+				"litigationHistory",
+			],
+			"online-presence": ["linkedinUrl", "websiteUrl"],
+			principals: [
+				"principalLegalName",
+				"principalRoleDefault",
+				"principalEmail",
+				"ownershipPercentage",
+				"principalBio",
+			],
+		};
+
+		setLockedSections((prev) => {
+			const next = new Set(prev);
+			// Check each section to see if all fields are locked
+			for (const [sectionId, fieldIds] of Object.entries(sectionFieldMap)) {
+				const allFieldsLocked = fieldIds.every((fieldId) => {
+					// Field is locked if it's in lockedFields (and not explicitly unlocked)
+					if (unlockedFields.has(fieldId)) return false; // Explicitly unlocked
+					return lockedFields.has(fieldId); // Explicitly locked
+				});
+
+				if (allFieldsLocked && fieldIds.length > 0) {
+					next.add(sectionId);
+				} else {
+					next.delete(sectionId);
+				}
+			}
+
+			// Save to database if changed (use setTimeout to avoid blocking)
+			if (JSON.stringify(Array.from(next).sort()) !== JSON.stringify(Array.from(prev).sort())) {
+				setTimeout(() => {
+					const lockedSectionsMap: Record<string, boolean> = {};
+					next.forEach((id) => {
+						lockedSectionsMap[id] = true;
+					});
+					save({}, {}, lockedSectionsMap).catch((err) => {
+						console.error("Failed to save locked sections:", err);
+					});
+				}, 0);
+			}
+
+			return next;
+		});
+	}, [lockedFields, unlockedFields, save]);
+
 	// Toggle lock for an entire section
 	const toggleSectionLock = useCallback(
 		(sectionId: string) => {
-			setLockedSections((prev) => {
-				const next = new Set(prev);
-				const wasLocked = next.has(sectionId);
-				if (wasLocked) {
-					// Unlocking section - remove it from locked sections
-					next.delete(sectionId);
-					// Also clear any unlocked fields for this section since they're no longer needed
-					setUnlockedFields((prevUnlocked) => {
-						const sectionFields = getSectionFieldIds(sectionId);
-						const nextUnlocked = new Set(prevUnlocked);
-						sectionFields.forEach((fieldId) => {
-							nextUnlocked.delete(fieldId);
-						});
-						return nextUnlocked;
+			const sectionFields = getSectionFieldIds(sectionId);
+			const allCurrentlyLocked = sectionFields.every((fieldId) =>
+				isFieldLocked(fieldId, sectionId)
+			);
+
+			if (allCurrentlyLocked) {
+				// Unlocking section - unlock all individual fields
+				setLockedFields((prev) => {
+					const next = new Set(prev);
+					sectionFields.forEach((fieldId) => {
+						next.delete(fieldId);
 					});
-				} else {
-					// Locking section - add it to locked sections
-					next.add(sectionId);
-				}
 
-				// Save to database
-				const lockedSectionsMap: Record<string, boolean> = {};
-				next.forEach((id) => {
-					lockedSectionsMap[id] = true;
-				});
-				save({}, {}, lockedSectionsMap).catch((err) => {
-					console.error("Failed to save locked sections:", err);
+					// Save to database
+					const lockedFieldsMap: Record<string, boolean> = {};
+					next.forEach((id) => {
+						lockedFieldsMap[id] = true;
+					});
+					save({}, lockedFieldsMap, {}).catch((err) => {
+						console.error("Failed to save unlocked fields:", err);
+					});
+
+					return next;
 				});
 
-				return next;
-			});
+				// Clear any unlocked field overrides for this section
+				setUnlockedFields((prev) => {
+					const next = new Set(prev);
+					sectionFields.forEach((fieldId) => {
+						next.delete(fieldId);
+					});
+					return next;
+				});
+			} else {
+				// Locking section - lock all individual fields
+				setLockedFields((prev) => {
+					const next = new Set(prev);
+					sectionFields.forEach((fieldId) => {
+						next.add(fieldId);
+					});
+
+					// Save to database
+					const lockedFieldsMap: Record<string, boolean> = {};
+					next.forEach((id) => {
+						lockedFieldsMap[id] = true;
+					});
+					save({}, lockedFieldsMap, {}).catch((err) => {
+						console.error("Failed to save locked fields:", err);
+					});
+
+					return next;
+				});
+
+				// Clear any unlocked field overrides for this section
+				setUnlockedFields((prev) => {
+					const next = new Set(prev);
+					sectionFields.forEach((fieldId) => {
+						next.delete(fieldId);
+					});
+					return next;
+				});
+			}
 		},
-		[getSectionFieldIds, save]
+		[getSectionFieldIds, save, isFieldLocked]
 	);
 
 	// Helper function to render field lock button - always visible, positioned next to Ask AI button
@@ -635,9 +757,89 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		[]
 	);
 
+	// Check if autofill has ever been run (has any field with non-user-input source)
+	const hasAutofillBeenRun = useMemo(() => {
+		if (!borrowerResume) return false;
+		
+		// Check all fields for any non-user-input source
+		// Only return true if we find an actual autofilled field with a valid non-user-input source
+		for (const [key, value] of Object.entries(borrowerResume)) {
+			if (key === "_metadata" || key === "_lockedFields" || key === "_lockedSections" || key === "completenessPercent") continue;
+			
+			// Skip if value is empty/null/undefined
+			if (!value) continue;
+			
+			// Check fieldMetadata first (more reliable) - this comes from the database
+			const meta = fieldMetadata[key];
+			if (meta && meta.sources && meta.sources.length > 0) {
+				const hasNonUserInput = meta.sources.some((src: any) => {
+					if (typeof src === "object" && src !== null && "type" in src) {
+						return src.type !== "user_input";
+					} else if (typeof src === "string") {
+						const normalizedSource = normalizeSource(src);
+						return normalizedSource.toLowerCase() !== "user input" && src.toLowerCase() !== "user_input";
+					}
+					return false;
+				});
+				if (hasNonUserInput) {
+					// Verify the field actually has a value (not just empty)
+					const fieldValue = formData[key as keyof typeof formData] ?? value;
+					if (fieldValue && (typeof fieldValue !== "string" || fieldValue.trim() !== "")) {
+						return true;
+					}
+				}
+			}
+			
+			// Also check value object structure from borrowerResume directly
+			if (value && typeof value === "object" && "value" in value && !Array.isArray(value)) {
+				const richValue = value as { value: any; sources?: any[]; source?: any };
+				const fieldVal = richValue.value;
+				
+				// Skip if the actual value is empty
+				if (!fieldVal || (typeof fieldVal === "string" && fieldVal.trim() === "")) continue;
+				
+				const sources = richValue.sources;
+				const source = richValue.source;
+				
+				// Check sources array
+				if (sources && Array.isArray(sources) && sources.length > 0) {
+					const hasNonUserInput = sources.some((src: any) => {
+						if (typeof src === "object" && src !== null && "type" in src) {
+							return src.type !== "user_input";
+						} else if (typeof src === "string") {
+							const normalizedSource = normalizeSource(src);
+							return normalizedSource.toLowerCase() !== "user input" && src.toLowerCase() !== "user_input";
+						}
+						return false;
+					});
+					if (hasNonUserInput) return true;
+				}
+				
+				// Check single source
+				if (source) {
+					if (typeof source === "object" && source !== null && "type" in source) {
+						if (source.type !== "user_input") return true;
+					} else if (typeof source === "string") {
+						const normalizedSource = normalizeSource(source);
+						if (normalizedSource.toLowerCase() !== "user input" && source.toLowerCase() !== "user_input") {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		
+		return false;
+	}, [borrowerResume, fieldMetadata, formData]);
+
 	// Helper function to get field styling classes based on lock status
 	const getFieldStylingClasses = useCallback(
 		(fieldId: string, baseClasses?: string): string => {
+			// If autofill has never been run, return white (no special styling)
+			if (!hasAutofillBeenRun) {
+				return cn(baseClasses);
+			}
+			
 			const sectionId = getSectionIdFromFieldId(fieldId);
 			const isLocked = isFieldLocked(fieldId, sectionId);
 
@@ -657,7 +859,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				);
 			}
 		},
-		[isFieldLocked, getSectionIdFromFieldId]
+		[isFieldLocked, getSectionIdFromFieldId, hasAutofillBeenRun]
 	);
 
 	// Initialize form once on first load (avoid resetting on each store update)
@@ -833,7 +1035,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 		const initialData = { ...defaultData, ...extractedData };
 		const snapshotKey = JSON.stringify(initialData);
-		if (snapshotKey === lastInitializedSnapshot.current) {
+		// Only skip if snapshot matches AND we're not forcing a refresh (snapshot is null means force refresh)
+		if (snapshotKey === lastInitializedSnapshot.current && lastInitializedSnapshot.current !== null) {
 			return;
 		}
 		lastInitializedSnapshot.current = snapshotKey;
@@ -944,6 +1147,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			// Reload the borrower resume to get the latest data
 			await reloadBorrowerResume();
+			
+			// Force formData refresh by clearing the last initialized snapshot
+			// This will cause the initialization effect to run again and reload formData
+			lastInitializedSnapshot.current = null;
+			
+			// Wait a moment for the reload to complete and trigger form refresh
+			setTimeout(() => {
+				// Trigger animation update to show new data
+				const newKey = autofillAnimationKey + 1;
+				setAutofillAnimationKey(newKey);
+			}, 800);
 		};
 
 		window.addEventListener(
@@ -956,20 +1170,29 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				handleAutofillCompleted as EventListener
 			);
 		};
-	}, [projectId, reloadBorrowerResume]);
+	}, [projectId, reloadBorrowerResume, autofillAnimationKey]);
 
 	// Lock autofilled fields after borrowerResume is updated (which happens after autofill)
+	// Also lock complete fields for seeded projects (like Hoque)
 	useEffect(() => {
 		if (!borrowerResume) return;
 
-		// Lock all fields that are autofilled (have a source that's not "User Input")
+		// Check if this is a seeded project (check if borrower name is "Hoque Global" or completeness is 100)
+		const isSeededProject = borrowerResume.fullLegalName === "Hoque Global" || 
+			(borrowerResume as any).completenessPercent === 100;
+
+		// Lock all fields that are autofilled (have a source that's not "User Input") or are complete in seeded projects
 		setLockedFields((prev) => {
 			const next = new Set(prev);
+			const fieldsToLock: string[] = [];
+
 			Object.keys(borrowerResume).forEach((key) => {
 				if (key === "_metadata") return;
 
 				const value =
 					borrowerResume[key as keyof typeof borrowerResume];
+				let shouldLock = false;
+
 				// Check if value is in rich format { value, source, sources, warnings }
 				if (
 					value &&
@@ -1032,13 +1255,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					}
 
 					// If field has a valid value and source is not User Input, lock it
-					// But don't re-lock if user explicitly unlocked it
 					if (
 						isAutofilled &&
-						isValidFieldValue((value as any).value) &&
-						!unlockedFields.has(key)
+						isValidFieldValue((value as any).value)
 					) {
-						next.add(key);
+						shouldLock = true;
 					}
 				} else {
 					// Also check fieldMetadata for fields that might not be in rich format
@@ -1056,16 +1277,38 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 							return false;
 						});
 
-						// Don't re-lock if user explicitly unlocked it
-						if (isAutofilled && isValidFieldValue(value) && !unlockedFields.has(key)) {
-							next.add(key);
+						if (isAutofilled && isValidFieldValue(value)) {
+							shouldLock = true;
 						}
 					}
 				}
+
+				// For seeded projects, also lock fields that have valid values (are complete)
+				if (isSeededProject && isValidFieldValue(value) && !shouldLock) {
+					shouldLock = true;
+				}
+
+				// Only lock if not explicitly unlocked by user
+				if (shouldLock && !unlockedFields.has(key)) {
+					fieldsToLock.push(key);
+					next.add(key);
+				}
 			});
+
+			// Save to database if there are new fields to lock
+			if (fieldsToLock.length > 0) {
+				const lockedFieldsMap: Record<string, boolean> = {};
+				next.forEach((id) => {
+					lockedFieldsMap[id] = true;
+				});
+				save({}, lockedFieldsMap, {}).catch((err) => {
+					console.error("Failed to save locked fields:", err);
+				});
+			}
+
 			return next;
 		});
-	}, [borrowerResume, isValidFieldValue, fieldMetadata, unlockedFields]);
+	}, [borrowerResume, isValidFieldValue, fieldMetadata, unlockedFields, save]);
 
 	// Input change handlers
 	const handleInputChange = useCallback(
@@ -1507,6 +1750,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"primaryEntityStructure",
 												"basic-info"
 											)}
+											hasAutofillBeenRun={hasAutofillBeenRun}
 										/>
 									</div>
 								</AskAIButton>
@@ -1754,6 +1998,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"yearsCREExperienceRange",
 												"experience"
 											)}
+											hasAutofillBeenRun={hasAutofillBeenRun}
 										/>
 									</div>
 								</AskAIButton>
@@ -1798,6 +2043,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 													"experience"
 												)
 											}
+											isLocked={isFieldLocked(
+												"assetClassesExperience",
+												"experience"
+											)}
+											hasAutofillBeenRun={hasAutofillBeenRun}
 										/>
 									</div>
 								</AskAIButton>
@@ -1841,6 +2091,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 													"experience"
 												)
 											}
+											isLocked={isFieldLocked(
+												"geographicMarketsExperience",
+												"experience"
+											)}
+											hasAutofillBeenRun={hasAutofillBeenRun}
 										/>
 									</div>
 								</AskAIButton>
@@ -1882,6 +2137,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"totalDealValueClosedRange",
 												"experience"
 											)}
+											hasAutofillBeenRun={hasAutofillBeenRun}
 										/>
 									</div>
 								</AskAIButton>
@@ -2062,6 +2318,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"creditScoreRange",
 												"borrower-financials"
 											)}
+											hasAutofillBeenRun={hasAutofillBeenRun}
 										/>
 									</div>
 								</AskAIButton>
@@ -2102,6 +2359,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"netWorthRange",
 												"borrower-financials"
 											)}
+											hasAutofillBeenRun={hasAutofillBeenRun}
 										/>
 									</div>
 								</AskAIButton>
@@ -2143,6 +2401,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"liquidityRange",
 												"borrower-financials"
 											)}
+											hasAutofillBeenRun={hasAutofillBeenRun}
 										/>
 									</div>
 								</AskAIButton>
@@ -2585,6 +2844,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											disabled={!isEditing}
 											buttonClassName="text-sm"
 											gridCols="grid-cols-8"
+											hasAutofillBeenRun={hasAutofillBeenRun}
 										/>
 									</div>
 								</AskAIButton>
@@ -2824,6 +3084,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			renderFieldLabel,
 			toggleSectionLock,
 			getFieldStylingClasses,
+			hasAutofillBeenRun,
 		]
 	);
 
@@ -3116,3 +3377,5 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		</div>
 	);
 };
+
+

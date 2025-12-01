@@ -22,6 +22,7 @@ interface ButtonSelectProps {
   disabled?: boolean;
   isAutofilled?: boolean; // Deprecated: use isLocked instead
   isLocked?: boolean; // Use lock status for color coding (green = locked, blue = unlocked)
+  hasAutofillBeenRun?: boolean; // Whether autofill has ever been run (affects styling)
 }
 
 export const ButtonSelect: React.FC<ButtonSelectProps> = ({
@@ -36,6 +37,7 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   disabled = false,
   isAutofilled = false, // Deprecated
   isLocked,
+  hasAutofillBeenRun = true,
 }) => {
   // Handler that checks if onSelect exists before calling it
   const handleClick = (option: string) => {
@@ -48,9 +50,12 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   };
 
   // Apply background color based on lock status (green = locked, blue = unlocked)
+  // Only show colors if autofill has been run
   // Fall back to isAutofilled for backward compatibility
   const isLockedState = isLocked !== undefined ? isLocked : (isAutofilled || disabled);
-  const containerBgClass = isLockedState
+  const containerBgClass = !hasAutofillBeenRun
+    ? "" // White by default (no special styling)
+    : isLockedState
     ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
     : "bg-blue-50 p-3 rounded-lg border border-blue-200";
 

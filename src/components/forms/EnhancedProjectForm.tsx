@@ -19,6 +19,7 @@ import { Select } from "../ui/Select"; // Keep Select for States
 import { Button } from "../ui/Button";
 import { ButtonSelect } from "../ui/ButtonSelect"; // Import ButtonSelect
 import { MultiSelect } from "../ui/MultiSelect"; // Import MultiSelect
+import { MultiSelectPills } from "../ui/MultiSelectPills"; // Import MultiSelectPills
 import { useProjects } from "../../hooks/useProjects";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
@@ -663,92 +664,94 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					</label>
 				</div>
 				{siteImages.length > 0 && (
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-						{siteImages.map((image) => {
-							const imageUrl = getImageUrl(image.storagePath);
-							const isSelected = selectedSiteImages.has(
-								image.fileName
-							);
-							return (
-								<div
-									key={image.storagePath}
-									className={cn(
-										"relative group border-2 rounded-lg transition-all",
-										isSelected
-											? "border-blue-500 ring-2 ring-blue-200"
-											: "border-gray-200"
-									)}
-									onClick={() =>
-										handleToggleSelect(
-											image.fileName,
-											"site-images"
-										)
-									}
-								>
-									{!disabled && (
-										<div className="absolute top-2 left-2 z-10">
-											<input
-												type="checkbox"
-												checked={isSelected}
-												onChange={() =>
-													handleToggleSelect(
-														image.fileName,
-														"site-images"
-													)
-												}
-												onClick={(e) =>
-													e.stopPropagation()
-												}
-												className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-											/>
-										</div>
-									)}
-									{image.source === "artifacts" &&
-										image.documentName && (
-											<div className="absolute top-2 right-2 z-10 group/tooltip">
-												<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
-												<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
-													<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
-														From:{" "}
-														{image.documentName}
-														<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
-													</div>
-												</div>
+					<div className="max-h-96 overflow-y-auto mt-4 pr-2">
+						<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+							{siteImages.map((image) => {
+								const imageUrl = getImageUrl(image.storagePath);
+								const isSelected = selectedSiteImages.has(
+									image.fileName
+								);
+								return (
+									<div
+										key={image.storagePath}
+										className={cn(
+											"relative group border-2 rounded-lg transition-all",
+											isSelected
+												? "border-blue-500 ring-2 ring-blue-200"
+												: "border-gray-200"
+										)}
+										onClick={() =>
+											handleToggleSelect(
+												image.fileName,
+												"site-images"
+											)
+										}
+									>
+										{!disabled && (
+											<div className="absolute top-2 left-2 z-10">
+												<input
+													type="checkbox"
+													checked={isSelected}
+													onChange={() =>
+														handleToggleSelect(
+															image.fileName,
+															"site-images"
+														)
+													}
+													onClick={(e) =>
+														e.stopPropagation()
+													}
+													className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+												/>
 											</div>
 										)}
-									{imageUrl ? (
-										<div className="relative w-full h-32 rounded-lg overflow-hidden">
-											<Image
-												src={imageUrl}
-												alt={image.fileName}
-												fill
-												sizes="(max-width: 768px) 50vw, 25vw"
-												className="object-cover"
-											/>
-										</div>
-									) : (
-										<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-											<Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-										</div>
-									)}
-									{!disabled && !deleting && (
-										<button
-											type="button"
-											onClick={(e) => {
-												e.stopPropagation();
-												handleDeleteImage(
-													image.fileName,
-													"site-images"
-												);
-											}}
-											className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-										>
-											<X className="h-4 w-4" />
-										</button>
-									)}
-								</div>
-							);
-						})}
+										{image.source === "artifacts" &&
+											image.documentName && (
+												<div className="absolute top-2 right-2 z-10 group/tooltip">
+													<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
+													<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+														<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+															From:{" "}
+															{image.documentName}
+															<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+														</div>
+													</div>
+												</div>
+											)}
+										{imageUrl ? (
+											<div className="relative w-full h-32 rounded-lg overflow-hidden">
+												<Image
+													src={imageUrl}
+													alt={image.fileName}
+													fill
+													sizes="(max-width: 768px) 50vw, 25vw"
+													className="object-cover"
+												/>
+											</div>
+										) : (
+											<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+												<Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+											</div>
+										)}
+										{!disabled && !deleting && (
+											<button
+												type="button"
+												onClick={(e) => {
+													e.stopPropagation();
+													handleDeleteImage(
+														image.fileName,
+														"site-images"
+													);
+												}}
+												className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+											>
+												<X className="h-4 w-4" />
+											</button>
+										)}
+									</div>
+								);
+							})}
+						</div>
 					</div>
 				)}
 			</FormGroup>
@@ -829,97 +832,99 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					</label>
 				</div>
 				{architecturalDiagrams.length > 0 && (
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-						{architecturalDiagrams.map((image) => {
-							const imageUrl = getImageUrl(image.storagePath);
-							const isSelected = selectedDiagrams.has(
-								image.fileName
-							);
-							const isPdf = image.fileName.match(/\.pdf$/i);
-							return (
-								<div
-									key={image.storagePath}
-									className={cn(
-										"relative group border-2 rounded-lg transition-all",
-										isSelected
-											? "border-blue-500 ring-2 ring-blue-200"
-											: "border-gray-200"
-									)}
-									onClick={() =>
-										handleToggleSelect(
-											image.fileName,
-											"architectural-diagrams"
-										)
-									}
-								>
-									{!disabled && (
-										<div className="absolute top-2 left-2 z-10">
-											<input
-												type="checkbox"
-												checked={isSelected}
-												onChange={() =>
-													handleToggleSelect(
-														image.fileName,
-														"architectural-diagrams"
-													)
-												}
-												onClick={(e) =>
-													e.stopPropagation()
-												}
-												className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-											/>
-										</div>
-									)}
-									{image.source === "artifacts" &&
-										image.documentName && (
-											<div className="absolute top-2 right-2 z-10 group/tooltip">
-												<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
-												<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
-													<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
-														From:{" "}
-														{image.documentName}
-														<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
-													</div>
-												</div>
+					<div className="max-h-96 overflow-y-auto mt-4 pr-2">
+						<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+							{architecturalDiagrams.map((image) => {
+								const imageUrl = getImageUrl(image.storagePath);
+								const isSelected = selectedDiagrams.has(
+									image.fileName
+								);
+								const isPdf = image.fileName.match(/\.pdf$/i);
+								return (
+									<div
+										key={image.storagePath}
+										className={cn(
+											"relative group border-2 rounded-lg transition-all",
+											isSelected
+												? "border-blue-500 ring-2 ring-blue-200"
+												: "border-gray-200"
+										)}
+										onClick={() =>
+											handleToggleSelect(
+												image.fileName,
+												"architectural-diagrams"
+											)
+										}
+									>
+										{!disabled && (
+											<div className="absolute top-2 left-2 z-10">
+												<input
+													type="checkbox"
+													checked={isSelected}
+													onChange={() =>
+														handleToggleSelect(
+															image.fileName,
+															"architectural-diagrams"
+														)
+													}
+													onClick={(e) =>
+														e.stopPropagation()
+													}
+													className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+												/>
 											</div>
 										)}
-									{isPdf ? (
-										<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-											<FileText className="h-8 w-8 text-gray-400" />
-										</div>
-									) : imageUrl ? (
-										<div className="relative w-full h-32 rounded-lg overflow-hidden">
-											<Image
-												src={imageUrl}
-												alt={image.fileName}
-												fill
-												sizes="(max-width: 768px) 50vw, 25vw"
-												className="object-cover"
-											/>
-										</div>
-									) : (
-										<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
-											<Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-										</div>
-									)}
-									{!disabled && !deleting && (
-										<button
-											type="button"
-											onClick={(e) => {
-												e.stopPropagation();
-												handleDeleteImage(
-													image.fileName,
-													"architectural-diagrams"
-												);
-											}}
-											className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-										>
-											<X className="h-4 w-4" />
-										</button>
-									)}
-								</div>
-							);
-						})}
+										{image.source === "artifacts" &&
+											image.documentName && (
+												<div className="absolute top-2 right-2 z-10 group/tooltip">
+													<FileText className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
+													<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+														<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+															From:{" "}
+															{image.documentName}
+															<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+														</div>
+													</div>
+												</div>
+											)}
+										{isPdf ? (
+											<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+												<FileText className="h-8 w-8 text-gray-400" />
+											</div>
+										) : imageUrl ? (
+											<div className="relative w-full h-32 rounded-lg overflow-hidden">
+												<Image
+													src={imageUrl}
+													alt={image.fileName}
+													fill
+													sizes="(max-width: 768px) 50vw, 25vw"
+													className="object-cover"
+												/>
+											</div>
+										) : (
+											<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+												<Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+											</div>
+										)}
+										{!disabled && !deleting && (
+											<button
+												type="button"
+												onClick={(e) => {
+													e.stopPropagation();
+													handleDeleteImage(
+														image.fileName,
+														"architectural-diagrams"
+													);
+												}}
+												className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+											>
+												<X className="h-4 w-4" />
+											</button>
+										)}
+									</div>
+								);
+							})}
+						</div>
 					</div>
 				)}
 			</FormGroup>
@@ -1078,6 +1083,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
 
+	// State to track if autofill has been triggered (clicked) at least once
+	// This controls when color coding (green/blue) should be applied
+	const [hasAutofillBeenTriggered, setHasAutofillBeenTriggered] =
+		useState(false);
+
+	// Wrap handleAutofill to track when autofill is triggered
+	const wrappedHandleAutofill = useCallback(async () => {
+		setHasAutofillBeenTriggered(true);
+		await handleAutofill();
+	}, [handleAutofill]);
+
 	// Listen for autofill completion event
 	useEffect(() => {
 		const handleAutofillCompleted = (event: CustomEvent) => {
@@ -1085,6 +1101,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				event.detail.projectId === formData.id &&
 				event.detail.context === "project"
 			) {
+				// Mark autofill as triggered when it completes (in case it was triggered elsewhere)
+				setHasAutofillBeenTriggered(true);
 				setShowAutofillNotification(true);
 				// Auto-hide after 10 seconds
 				setTimeout(() => {
@@ -1188,8 +1206,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	useEffect(() => {
 		// Skip sync if user just made a change (will be saved and then synced on next load)
+		// Don't reset the flag here - let the save effect handle it after successful save
 		if (isUserActionRef.current) {
-			isUserActionRef.current = false;
 			return;
 		}
 
@@ -1258,21 +1276,49 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		}
 	}, [existingProject._lockedSections, lockedSections]);
 
+	// Calculate if autofill has ever been run (any field has source != "User Input")
+	const hasAutofillBeenRun = useMemo(() => {
+		// Check fieldMetadata state instead of just existingProject._metadata
+		return Object.values(fieldMetadata).some((meta) => {
+			if (!meta) return false;
+			// Check sources array
+			if (
+				meta.sources &&
+				Array.isArray(meta.sources) &&
+				meta.sources.length > 0
+			) {
+				const hasNonUserInput = meta.sources.some((src: any) => {
+					if (
+						typeof src === "object" &&
+						src !== null &&
+						"type" in src
+					) {
+						return src.type !== "user_input";
+					}
+					if (typeof src === "string") {
+						const norm = normalizeSource(src);
+						return norm.toLowerCase() !== "user input";
+					}
+					return false;
+				});
+				if (hasNonUserInput) return true;
+			}
+			// Check legacy source
+			if (meta.source) {
+				const norm = normalizeSource(meta.source);
+				return norm.toLowerCase() !== "user input";
+			}
+			return false;
+		});
+	}, [fieldMetadata]);
+
 	// Helper function to check if a field is locked
 	const isFieldLocked = useCallback(
 		(fieldId: string, sectionId?: string): boolean => {
-			// If explicitly unlocked (overrides section lock), return false
-			if (unlockedFields.has(fieldId)) return false;
-
-			// If explicitly locked, return true
-			if (lockedFields.has(fieldId)) return true;
-
-			// If section is locked and field is not explicitly unlocked, return true
-			if (sectionId && lockedSections.has(sectionId)) return true;
-
-			return false;
+			// Locked if explicitly in lockedFields set
+			return lockedFields.has(fieldId);
 		},
-		[lockedFields, lockedSections, unlockedFields]
+		[lockedFields]
 	);
 
 	// Helper function to check if a field should be disabled (locked OR autofilling)
@@ -1334,27 +1380,70 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}, []);
 
 	// Lock autofilled fields after existingProject is updated (which happens after autofill)
+	// This runs when autofill completes (notification shows) OR when autofill has been triggered
+	// and there are autofilled fields in the metadata
 	useEffect(() => {
+		// Only lock fields if autofill has been triggered
+		if (!hasAutofillBeenTriggered) return;
 		if (!existingProject) return;
 
-		// Lock all fields that are autofilled (have a source that's not "User Input")
+		// Check if there are any autofilled fields (to avoid unnecessary work)
+		const metadata = existingProject._metadata || {};
+		const hasAutofilledFields = Object.values(metadata).some((meta) => {
+			if (!meta) return false;
+			const sources = meta.sources;
+			if (sources && Array.isArray(sources) && sources.length > 0) {
+				return sources.some((src: any) => {
+					if (
+						typeof src === "object" &&
+						src !== null &&
+						"type" in src
+					) {
+						return src.type !== "user_input";
+					} else if (typeof src === "string") {
+						const normalizedSource = normalizeSource(src);
+						return (
+							normalizedSource.toLowerCase() !== "user input" &&
+							src.toLowerCase() !== "user_input"
+						);
+					}
+					return false;
+				});
+			}
+			if (meta.source) {
+				const normalizedSource = normalizeSource(meta.source);
+				return (
+					normalizedSource.toLowerCase() !== "user input" &&
+					meta.source.toLowerCase() !== "user_input"
+				);
+			}
+			return false;
+		});
+
+		// Only proceed if there are autofilled fields or if notification is showing
+		if (!hasAutofilledFields && !showAutofillNotification) return;
+
+		// Lock autofilled fields that are filled, unlock fields that are empty
 		setLockedFields((prev) => {
 			const next = new Set(prev);
 			const metadata = existingProject._metadata || {};
 			let hasChanges = false;
 
-			// Check all fields in metadata
-			Object.keys(metadata).forEach((fieldId) => {
-				const meta = metadata[fieldId];
-				if (!meta) return;
+			// Combine all keys from metadata and fieldMetadata to ensure we cover all fields
+			const allFieldIds = new Set([
+				...Object.keys(metadata),
+				...Object.keys(fieldMetadata),
+			]);
 
-				// Check both single source and sources array
-				const sources = meta.sources;
+			// Check all fields
+			allFieldIds.forEach((fieldId) => {
+				const meta = fieldMetadata[fieldId] || metadata[fieldId];
+				if (!meta) return;
 
 				// Determine if this field is autofilled
 				let isAutofilled = false;
+				const sources = meta.sources;
 
-				// Check sources array first (can contain SourceMetadata objects)
 				if (sources && Array.isArray(sources) && sources.length > 0) {
 					// Check if any source is not user_input
 					isAutofilled = sources.some((src: any) => {
@@ -1374,11 +1463,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						}
 						return false;
 					});
-				}
-
-				// If not autofilled from sources array, check legacy source field (string)
-				if (!isAutofilled && meta.source) {
-					// Handle legacy string format
+				} else if (meta.source) {
+					// Legacy source check
 					const normalizedSource = normalizeSource(meta.source);
 					const isUserInput =
 						normalizedSource.toLowerCase() === "user input" ||
@@ -1392,71 +1478,22 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					existingProject[fieldId as keyof typeof existingProject];
 				const hasValidValue = isValidFieldValue(fieldValue);
 
-				// If field has a valid value and source is not User Input, lock it
-				// But don't re-lock if user explicitly unlocked it
-				if (isAutofilled && hasValidValue) {
-					if (!next.has(fieldId) && !unlockedFields.has(fieldId)) {
-						next.add(fieldId);
-						hasChanges = true;
-					}
-				}
-			});
-
-			// Also check fieldMetadata for any additional fields that might have been autofilled
-			// This handles cases where metadata might be in fieldMetadata but not in existingProject._metadata
-			Object.keys(fieldMetadata).forEach((fieldId) => {
-				// Skip if already locked
-				if (next.has(fieldId)) return;
-
-				const meta = fieldMetadata[fieldId];
-				if (!meta) return;
-
-				// Check sources array first (can contain SourceMetadata objects)
-				const sources = meta.sources;
-				let isAutofilled = false;
-
-				if (sources && Array.isArray(sources) && sources.length > 0) {
-					// Check if any source is not user_input
-					isAutofilled = sources.some((src: any) => {
+				if (hasValidValue) {
+					// Lock filled fields ONLY if they are autofilled
+					// This prevents locking user-typed fields
+					if (isAutofilled) {
 						if (
-							typeof src === "object" &&
-							src !== null &&
-							"type" in src
+							!next.has(fieldId) &&
+							!unlockedFields.has(fieldId)
 						) {
-							return src.type !== "user_input";
-						} else if (typeof src === "string") {
-							const normalizedSource = normalizeSource(src);
-							return (
-								normalizedSource.toLowerCase() !==
-									"user input" &&
-								src.toLowerCase() !== "user_input"
-							);
+							next.add(fieldId);
+							hasChanges = true;
 						}
-						return false;
-					});
-				}
-
-				// If not autofilled from sources array, check legacy source field (string)
-				if (!isAutofilled && meta.source) {
-					const normalizedSource = normalizeSource(meta.source);
-					const isUserInput =
-						normalizedSource.toLowerCase() === "user input" ||
-						meta.source.toLowerCase() === "user_input";
-					isAutofilled = !isUserInput;
-				}
-
-				if (isAutofilled) {
-					const fieldValue =
-						formData[fieldId as keyof typeof formData] ??
-						existingProject[
-							fieldId as keyof typeof existingProject
-						];
-					// Don't re-lock if user explicitly unlocked it
-					if (
-						isValidFieldValue(fieldValue) &&
-						!unlockedFields.has(fieldId)
-					) {
-						next.add(fieldId);
+					}
+				} else {
+					// Unlock empty fields
+					if (next.has(fieldId)) {
+						next.delete(fieldId);
 						hasChanges = true;
 					}
 				}
@@ -1494,8 +1531,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isValidFieldValue,
 		fieldMetadata,
 		lockedSections,
-		unlockedFields,
 		updateProject,
+		showAutofillNotification,
+		hasAutofillBeenTriggered,
+		unlockedFields,
 	]);
 
 	// Helper function to check if a field is autofilled (has source that's not User Input AND has valid value)
@@ -1801,6 +1840,11 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	// Helper function to get field styling classes based on lock status
 	const getFieldStylingClasses = useCallback(
 		(fieldId: string, baseClasses?: string): string => {
+			// Only apply color coding after autofill has been triggered at least once
+			if (!hasAutofillBeenTriggered) {
+				return cn(baseClasses);
+			}
+
 			const sectionId = getSectionIdFromFieldId(fieldId);
 			const isLocked = isFieldLocked(fieldId, sectionId);
 
@@ -1820,7 +1864,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				);
 			}
 		},
-		[isFieldLocked, getSectionIdFromFieldId]
+		[isFieldLocked, getSectionIdFromFieldId, hasAutofillBeenTriggered]
 	);
 
 	// Helper function to check if a table field is autofilled
@@ -1834,6 +1878,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	// Helper function to get table row styling classes based on lock status
 	const getTableRowStylingClasses = useCallback(
 		(tableFieldId: string): string => {
+			// Only apply color coding after autofill has been triggered at least once
+			if (!hasAutofillBeenTriggered) return "";
+
 			const sectionId = getSectionIdFromFieldId(tableFieldId);
 			const isLocked = isFieldLocked(tableFieldId, sectionId);
 
@@ -1845,7 +1892,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				return "bg-blue-50/30 hover:bg-blue-50/50";
 			}
 		},
-		[isFieldLocked, getSectionIdFromFieldId]
+		[isFieldLocked, getSectionIdFromFieldId, hasAutofillBeenTriggered]
 	);
 
 	// Toggle lock for a single field
@@ -1854,46 +1901,17 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			// Mark that user is making a change to prevent sync from overwriting
 			isUserActionRef.current = true;
 
-			// Check current effective lock state
-			const currentlyLocked = (() => {
-				if (unlockedFields.has(fieldId)) return false;
-				if (lockedFields.has(fieldId)) return true;
-				if (sectionId && lockedSections.has(sectionId)) return true;
-				return false;
-			})();
+			const currentlyLocked = lockedFields.has(fieldId);
 
 			if (currentlyLocked) {
 				// Unlocking the field
-				// If section is locked, add to unlockedFields (override section lock)
-				if (sectionId && lockedSections.has(sectionId)) {
-					setUnlockedFields((prev) => {
-						const next = new Set(prev);
-						next.add(fieldId);
-						return next;
-					});
-				} else {
-					// Field was explicitly locked, remove from lockedFields
-					setLockedFields((prev) => {
-						const next = new Set(prev);
-						next.delete(fieldId);
-						return next;
-					});
-					// Also remove from unlockedFields if it was there
-					setUnlockedFields((prev) => {
-						const next = new Set(prev);
-						next.delete(fieldId);
-						return next;
-					});
-				}
-			} else {
-				// Locking the field
-				// Remove from unlockedFields if it was there
-				setUnlockedFields((prev) => {
+				setLockedFields((prev) => {
 					const next = new Set(prev);
 					next.delete(fieldId);
 					return next;
 				});
-				// Add to lockedFields
+			} else {
+				// Locking the field
 				setLockedFields((prev) => {
 					const next = new Set(prev);
 					next.add(fieldId);
@@ -1901,7 +1919,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				});
 			}
 		},
-		[lockedSections, unlockedFields, lockedFields]
+		[lockedFields]
 	);
 
 	// Get all field IDs in a section (needed for section lock visual feedback)
@@ -2143,29 +2161,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			// Mark that user is making a change to prevent sync from overwriting
 			isUserActionRef.current = true;
 
+			const sectionFields = getSectionFieldIds(sectionId);
+			// Check if all fields in this section are currently locked
+			const allLocked = sectionFields.every((fid) =>
+				lockedFields.has(fid)
+			);
+
 			setLockedSections((prev) => {
 				const next = new Set(prev);
-				const wasLocked = next.has(sectionId);
-				if (wasLocked) {
-					// Unlocking section - remove it from locked sections
+				if (allLocked) {
 					next.delete(sectionId);
-					// Also clear any unlocked fields for this section since they're no longer needed
-					setUnlockedFields((prevUnlocked) => {
-						const sectionFields = getSectionFieldIds(sectionId);
-						const nextUnlocked = new Set(prevUnlocked);
-						sectionFields.forEach((fieldId) => {
-							nextUnlocked.delete(fieldId);
-						});
-						return nextUnlocked;
-					});
 				} else {
-					// Locking section - add it to locked sections
 					next.add(sectionId);
 				}
 				return next;
 			});
+
+			setLockedFields((prev) => {
+				const next = new Set(prev);
+				if (allLocked) {
+					sectionFields.forEach((fid) => next.delete(fid));
+				} else {
+					sectionFields.forEach((fid) => next.add(fid));
+				}
+				return next;
+			});
 		},
-		[getSectionFieldIds]
+		[getSectionFieldIds, lockedFields]
 	);
 
 	// Helper function to render field lock button - always visible, positioned next to Ask AI button
@@ -3278,6 +3300,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"assetType"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -3301,37 +3326,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												"Project Type",
 												false
 											)}
-											<MultiSelect
-												id="projectType"
+											<MultiSelectPills
+												label=""
 												options={projectTypeOptions}
-												value={
+												selectedValues={
 													Array.isArray(
 														formData.projectType
 													)
 														? formData.projectType
 														: []
 												}
-												onChange={(value) =>
+												onSelect={(values) =>
 													handleInputChange(
 														"projectType",
-														value
+														values
 													)
 												}
-												placeholder="Select project types..."
 												disabled={isFieldDisabled(
 													"projectType",
 													"basic-info"
 												)}
-												className={cn(
-													getFieldStylingClasses(
-														"projectType"
-													),
-													isFieldDisabled(
-														"projectType",
-														"basic-info"
-													) &&
-														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												isLocked={isFieldLocked(
+													"projectType",
+													"basic-info"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -3378,6 +3399,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"projectPhase"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -3444,177 +3468,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									Additional Project Details
 								</h3>
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-									<FormGroup>
-										<AskAIButton
-											id="parcelNumber"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"parcelNumber",
-													"basic-info",
-													"Parcel Number(s)",
-													false
-												)}
-												<Input
-													id="parcelNumber"
-													label={null}
-													value={
-														formData.parcelNumber ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"parcelNumber",
-															e.target.value
-														)
-													}
-													placeholder="e.g., 000472000A01B0100"
-													disabled={isFieldDisabled(
-														"parcelNumber",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"parcelNumber"
-														),
-														isFieldDisabled(
-															"parcelNumber",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="parcelNumber"
-													data-field-type="input"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Parcel Number(s)"
-													data-field-placeholder="e.g., 000472000A01B0100"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-									<FormGroup>
-										<AskAIButton
-											id="zoningDesignation"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"zoningDesignation",
-													"basic-info",
-													"Zoning Designation",
-													false
-												)}
-												<Input
-													id="zoningDesignation"
-													label={null}
-													value={
-														formData.zoningDesignation ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"zoningDesignation",
-															e.target.value
-														)
-													}
-													placeholder="e.g., PD-317"
-													disabled={isFieldDisabled(
-														"zoningDesignation",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"zoningDesignation"
-														),
-														isFieldDisabled(
-															"zoningDesignation",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="zoningDesignation"
-													data-field-type="input"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Zoning Designation"
-													data-field-placeholder="e.g., PD-317"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-								</div>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-									<FormGroup>
-										<AskAIButton
-											id="expectedZoningChanges"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"expectedZoningChanges",
-													"basic-info",
-													"Expected Zoning Changes",
-													false
-												)}
-												<Select
-													id="expectedZoningChanges"
-													value={
-														formData.expectedZoningChanges ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"expectedZoningChanges",
-															e.target.value
-														)
-													}
-													options={[
-														{
-															value: "",
-															label: "Select...",
-														},
-														{
-															value: "None",
-															label: "None",
-														},
-														{
-															value: "Variance",
-															label: "Variance",
-														},
-														{
-															value: "PUD",
-															label: "PUD",
-														},
-														{
-															value: "Re-Zoning",
-															label: "Re-Zoning",
-														},
-													]}
-													disabled={isFieldDisabled(
-														"expectedZoningChanges",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"expectedZoningChanges"
-														),
-														isFieldDisabled(
-															"expectedZoningChanges",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="expectedZoningChanges"
-													data-field-type="select"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Expected Zoning Changes"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
 									<FormGroup>
 										<AskAIButton
 											id="constructionType"
@@ -3751,544 +3604,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													data-field-section="basic-info"
 													data-field-required="false"
 													data-field-label="Deal Status"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-									<FormGroup>
-										<AskAIButton
-											id="requestedTerm"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"requestedTerm",
-													"basic-info",
-													"Requested Term",
-													false
-												)}
-												<Input
-													id="requestedTerm"
-													label={null}
-													value={
-														formData.requestedTerm ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"requestedTerm",
-															e.target.value
-														)
-													}
-													placeholder="e.g., 3 Years + 1 Year Ext"
-													disabled={isFieldDisabled(
-														"requestedTerm",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"requestedTerm"
-														),
-														isFieldDisabled(
-															"requestedTerm",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="requestedTerm"
-													data-field-type="input"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Requested Term"
-													data-field-placeholder="e.g., 3 Years + 1 Year Ext"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-								</div>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-									<FormGroup>
-										<AskAIButton
-											id="prepaymentPremium"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"prepaymentPremium",
-													"basic-info",
-													"Prepayment Premium",
-													false
-												)}
-												<Select
-													id="prepaymentPremium"
-													value={
-														formData.prepaymentPremium ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"prepaymentPremium",
-															e.target.value
-														)
-													}
-													options={[
-														{
-															value: "",
-															label: "Select...",
-														},
-														{
-															value: "Yield Maint",
-															label: "Yield Maint",
-														},
-														{
-															value: "Defeasance",
-															label: "Defeasance",
-														},
-														{
-															value: "Step-down",
-															label: "Step-down",
-														},
-														{
-															value: "Open",
-															label: "Open",
-														},
-													]}
-													disabled={isFieldDisabled(
-														"prepaymentPremium",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"prepaymentPremium"
-														),
-														isFieldDisabled(
-															"prepaymentPremium",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="prepaymentPremium"
-													data-field-type="select"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Prepayment Premium"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-									<FormGroup>
-										<AskAIButton
-											id="expectedHoldPeriod"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"expectedHoldPeriod",
-													"basic-info",
-													"Expected Hold Period (Years)",
-													false
-												)}
-												<Input
-													id="expectedHoldPeriod"
-													type="number"
-													label={null}
-													value={
-														formData.expectedHoldPeriod?.toString() ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"expectedHoldPeriod",
-															e.target.value
-																? Number(
-																		e.target
-																			.value
-																  )
-																: null
-														)
-													}
-													placeholder="e.g., 5"
-													disabled={isFieldDisabled(
-														"expectedHoldPeriod",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"expectedHoldPeriod"
-														),
-														isFieldDisabled(
-															"expectedHoldPeriod",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="expectedHoldPeriod"
-													data-field-type="number"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Expected Hold Period (Years)"
-													data-field-placeholder="e.g., 5"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-								</div>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-									<FormGroup>
-										<AskAIButton
-											id="syndicationStatus"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"syndicationStatus",
-													"basic-info",
-													"Syndication Status",
-													false
-												)}
-												<Select
-													id="syndicationStatus"
-													value={
-														formData.syndicationStatus ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"syndicationStatus",
-															e.target.value
-														)
-													}
-													options={[
-														{
-															value: "",
-															label: "Select...",
-														},
-														{
-															value: "Committed",
-															label: "Committed",
-														},
-														{
-															value: "In Process",
-															label: "In Process",
-														},
-														{
-															value: "TBD",
-															label: "TBD",
-														},
-													]}
-													disabled={isFieldDisabled(
-														"syndicationStatus",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"syndicationStatus"
-														),
-														isFieldDisabled(
-															"syndicationStatus",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="syndicationStatus"
-													data-field-type="select"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Syndication Status"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-									<FormGroup>
-										<AskAIButton
-											id="sponsorExperience"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"sponsorExperience",
-													"basic-info",
-													"Sponsor Experience",
-													false
-												)}
-												<Select
-													id="sponsorExperience"
-													value={
-														formData.sponsorExperience ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"sponsorExperience",
-															e.target.value
-														)
-													}
-													options={[
-														{
-															value: "",
-															label: "Select...",
-														},
-														{
-															value: "First-Time",
-															label: "First-Time",
-														},
-														{
-															value: "Emerging (1-3)",
-															label: "Emerging (1-3)",
-														},
-														{
-															value: "Seasoned (3+)",
-															label: "Seasoned (3+)",
-														},
-													]}
-													disabled={isFieldDisabled(
-														"sponsorExperience",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"sponsorExperience"
-														),
-														isFieldDisabled(
-															"sponsorExperience",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="sponsorExperience"
-													data-field-type="select"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Sponsor Experience"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-								</div>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-									<FormGroup>
-										<AskAIButton
-											id="borrowerNetWorth"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"borrowerNetWorth",
-													"basic-info",
-													"Borrower Net Worth ($)",
-													false
-												)}
-												<Input
-													id="borrowerNetWorth"
-													type="number"
-													label={null}
-													value={
-														formData.borrowerNetWorth?.toString() ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"borrowerNetWorth",
-															e.target.value
-																? Number(
-																		e.target
-																			.value
-																  )
-																: null
-														)
-													}
-													placeholder="e.g., 45000000"
-													disabled={isFieldDisabled(
-														"borrowerNetWorth",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"borrowerNetWorth"
-														),
-														isFieldDisabled(
-															"borrowerNetWorth",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="borrowerNetWorth"
-													data-field-type="number"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Borrower Net Worth ($)"
-													data-field-placeholder="e.g., 45000000"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-									<FormGroup>
-										<AskAIButton
-											id="ltvStressMax"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"ltvStressMax",
-													"basic-info",
-													"LTV Stress Max (%)",
-													false
-												)}
-												<Input
-													id="ltvStressMax"
-													type="number"
-													label={null}
-													value={
-														formData.ltvStressMax?.toString() ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"ltvStressMax",
-															e.target.value
-																? Number(
-																		e.target
-																			.value
-																  )
-																: null
-														)
-													}
-													placeholder="e.g., 50"
-													disabled={isFieldDisabled(
-														"ltvStressMax",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"ltvStressMax"
-														),
-														isFieldDisabled(
-															"ltvStressMax",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="ltvStressMax"
-													data-field-type="number"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="LTV Stress Max (%)"
-													data-field-placeholder="e.g., 50"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-								</div>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-									<FormGroup>
-										<AskAIButton
-											id="dscrStressMin"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"dscrStressMin",
-													"basic-info",
-													"DSCR Stress Min",
-													false
-												)}
-												<Input
-													id="dscrStressMin"
-													type="number"
-													step="0.01"
-													label={null}
-													value={
-														formData.dscrStressMin?.toString() ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"dscrStressMin",
-															e.target.value
-																? Number(
-																		e.target
-																			.value
-																  )
-																: null
-														)
-													}
-													placeholder="e.g., 1.10"
-													disabled={isFieldDisabled(
-														"dscrStressMin",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"dscrStressMin"
-														),
-														isFieldDisabled(
-															"dscrStressMin",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="dscrStressMin"
-													data-field-type="number"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="DSCR Stress Min"
-													data-field-placeholder="e.g., 1.10"
-												/>
-											</div>
-										</AskAIButton>
-									</FormGroup>
-									<FormGroup>
-										<AskAIButton
-											id="totalDevelopmentCost"
-											onAskAI={onAskAI || (() => {})}
-										>
-											<div className="relative group/field">
-												{renderFieldLabel(
-													"totalDevelopmentCost",
-													"basic-info",
-													"Total Development Cost (TDC) ($)",
-													false
-												)}
-												<Input
-													id="totalDevelopmentCost"
-													type="number"
-													label={null}
-													value={
-														formData.totalDevelopmentCost?.toString() ||
-														""
-													}
-													onChange={(e) =>
-														handleInputChange(
-															"totalDevelopmentCost",
-															e.target.value
-																? Number(
-																		e.target
-																			.value
-																  )
-																: null
-														)
-													}
-													placeholder="e.g., 29800000"
-													disabled={isFieldDisabled(
-														"totalDevelopmentCost",
-														"basic-info"
-													)}
-													className={cn(
-														getFieldStylingClasses(
-															"totalDevelopmentCost"
-														),
-														isFieldDisabled(
-															"totalDevelopmentCost",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
-													)}
-													data-field-id="totalDevelopmentCost"
-													data-field-type="number"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Total Development Cost (TDC) ($)"
-													data-field-placeholder="e.g., 29800000"
 												/>
 											</div>
 										</AskAIButton>
@@ -4442,6 +3757,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"loanType"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -4723,6 +4041,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"interestRateType"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -4821,6 +4142,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											isAutofilled={isFieldAutofilled(
 												"recoursePreference"
 											)}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -5095,6 +4419,64 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								</FormGroup>
 								<FormGroup>
 									<AskAIButton
+										id="totalDevelopmentCost"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"totalDevelopmentCost",
+												"financials",
+												"Total Development Cost (TDC) ($)",
+												false
+											)}
+											<Input
+												id="totalDevelopmentCost"
+												type="number"
+												label={null}
+												value={
+													formData.totalDevelopmentCost?.toString() ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"totalDevelopmentCost",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 29800000"
+												disabled={isFieldDisabled(
+													"totalDevelopmentCost",
+													"financials"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"totalDevelopmentCost"
+													),
+													isFieldDisabled(
+														"totalDevelopmentCost",
+														"financials"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="totalDevelopmentCost"
+												data-field-type="number"
+												data-field-section="financials"
+												data-field-required="false"
+												data-field-label="Total Development Cost (TDC) ($)"
+												data-field-placeholder="e.g., 29800000"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								<FormGroup>
+									<AskAIButton
 										id="equityCommittedPercent"
 										onAskAI={onAskAI || (() => {})}
 									>
@@ -5307,10 +4689,321 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											isAutofilled={isFieldAutofilled(
 												"exitStrategy"
 											)}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
 							</FormGroup>
+							{/* Loan Terms */}
+							<div className="pt-4">
+								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+									<FileText className="h-4 w-4 mr-2 text-blue-600" />
+									Loan Terms
+								</h3>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									<FormGroup>
+										<AskAIButton
+											id="loanAmountRequested"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"loanAmountRequested",
+													"financials",
+													"Loan Amount Requested ($)",
+													false
+												)}
+												<Input
+													id="loanAmountRequested"
+													type="number"
+													label={null}
+													value={
+														formData.loanAmountRequested?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"loanAmountRequested",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 10000000"
+													disabled={isFieldDisabled(
+														"loanAmountRequested",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"loanAmountRequested"
+														),
+														isFieldDisabled(
+															"loanAmountRequested",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="loanAmountRequested"
+													data-field-type="number"
+													data-field-section="financials"
+													data-field-required="false"
+													data-field-label="Loan Amount Requested ($)"
+													data-field-placeholder="e.g., 10000000"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="loanType"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"loanType",
+													"financials",
+													"Loan Type",
+													false
+												)}
+												<Select
+													id="loanType"
+													value={
+														formData.loanType || ""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"loanType",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Construction",
+															label: "Construction",
+														},
+														{
+															value: "Bridge",
+															label: "Bridge",
+														},
+														{
+															value: "Permanent",
+															label: "Permanent",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"loanType",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"loanType"
+														),
+														isFieldDisabled(
+															"loanType",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="loanType"
+													data-field-type="select"
+													data-field-section="financials"
+													data-field-required="false"
+													data-field-label="Loan Type"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="requestedTerm"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"requestedTerm",
+													"financials",
+													"Requested Term",
+													false
+												)}
+												<Input
+													id="requestedTerm"
+													label={null}
+													value={
+														formData.requestedTerm ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"requestedTerm",
+															e.target.value
+														)
+													}
+													placeholder="e.g., 3 Years + 1 Year Ext"
+													disabled={isFieldDisabled(
+														"requestedTerm",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"requestedTerm"
+														),
+														isFieldDisabled(
+															"requestedTerm",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="requestedTerm"
+													data-field-type="input"
+													data-field-section="financials"
+													data-field-required="false"
+													data-field-label="Requested Term"
+													data-field-placeholder="e.g., 3 Years + 1 Year Ext"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="amortizationYears"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"amortizationYears",
+													"financials",
+													"Amortization (Years)",
+													false
+												)}
+												<Input
+													id="amortizationYears"
+													type="number"
+													label={null}
+													value={
+														formData.amortizationYears?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"amortizationYears",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 30"
+													disabled={isFieldDisabled(
+														"amortizationYears",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"amortizationYears"
+														),
+														isFieldDisabled(
+															"amortizationYears",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="amortizationYears"
+													data-field-type="number"
+													data-field-section="financials"
+													data-field-required="false"
+													data-field-label="Amortization (Years)"
+													data-field-placeholder="e.g., 30"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="prepaymentPremium"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"prepaymentPremium",
+													"financials",
+													"Prepayment Premium",
+													false
+												)}
+												<Select
+													id="prepaymentPremium"
+													value={
+														formData.prepaymentPremium ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"prepaymentPremium",
+															e.target.value
+														)
+													}
+													options={[
+														{
+															value: "",
+															label: "Select...",
+														},
+														{
+															value: "Yield Maint",
+															label: "Yield Maint",
+														},
+														{
+															value: "Defeasance",
+															label: "Defeasance",
+														},
+														{
+															value: "Step-down",
+															label: "Step-down",
+														},
+														{
+															value: "Open",
+															label: "Open",
+														},
+													]}
+													disabled={isFieldDisabled(
+														"prepaymentPremium",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"prepaymentPremium"
+														),
+														isFieldDisabled(
+															"prepaymentPremium",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="prepaymentPremium"
+													data-field-type="select"
+													data-field-section="financials"
+													data-field-required="false"
+													data-field-label="Prepayment Premium"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+							</div>
 							{/* Business Plan & Market Overview use Textarea */}
 							<FormGroup>
 								<AskAIButton
@@ -6839,6 +6532,179 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										</AskAIButton>
 									</FormGroup>
 								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="expectedHoldPeriod"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"expectedHoldPeriod",
+													"financials",
+													"Expected Hold Period (Years)",
+													false
+												)}
+												<Input
+													id="expectedHoldPeriod"
+													type="number"
+													label={null}
+													value={
+														formData.expectedHoldPeriod?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"expectedHoldPeriod",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 5"
+													disabled={isFieldDisabled(
+														"expectedHoldPeriod",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"expectedHoldPeriod"
+														),
+														isFieldDisabled(
+															"expectedHoldPeriod",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="expectedHoldPeriod"
+													data-field-type="number"
+													data-field-section="financials"
+													data-field-required="false"
+													data-field-label="Expected Hold Period (Years)"
+													data-field-placeholder="e.g., 5"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+									<FormGroup>
+										<AskAIButton
+											id="ltvStressMax"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"ltvStressMax",
+													"financials",
+													"LTV Stress Max (%)",
+													false
+												)}
+												<Input
+													id="ltvStressMax"
+													type="number"
+													label={null}
+													value={
+														formData.ltvStressMax?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"ltvStressMax",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 50"
+													disabled={isFieldDisabled(
+														"ltvStressMax",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"ltvStressMax"
+														),
+														isFieldDisabled(
+															"ltvStressMax",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="ltvStressMax"
+													data-field-type="number"
+													data-field-section="financials"
+													data-field-required="false"
+													data-field-label="LTV Stress Max (%)"
+													data-field-placeholder="e.g., 50"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+									<FormGroup>
+										<AskAIButton
+											id="dscrStressMin"
+											onAskAI={onAskAI || (() => {})}
+										>
+											<div className="relative group/field">
+												{renderFieldLabel(
+													"dscrStressMin",
+													"financials",
+													"DSCR Stress Min",
+													false
+												)}
+												<Input
+													id="dscrStressMin"
+													type="number"
+													step="0.01"
+													label={null}
+													value={
+														formData.dscrStressMin?.toString() ||
+														""
+													}
+													onChange={(e) =>
+														handleInputChange(
+															"dscrStressMin",
+															e.target.value
+																? Number(
+																		e.target
+																			.value
+																  )
+																: null
+														)
+													}
+													placeholder="e.g., 1.10"
+													disabled={isFieldDisabled(
+														"dscrStressMin",
+														"financials"
+													)}
+													className={cn(
+														getFieldStylingClasses(
+															"dscrStressMin"
+														),
+														isFieldDisabled(
+															"dscrStressMin",
+															"financials"
+														) &&
+															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													)}
+													data-field-id="dscrStressMin"
+													data-field-type="number"
+													data-field-section="financials"
+													data-field-required="false"
+													data-field-label="DSCR Stress Min"
+													data-field-placeholder="e.g., 1.10"
+												/>
+											</div>
+										</AskAIButton>
+									</FormGroup>
+								</div>
 							</div>
 						</div>
 					</>
@@ -8157,10 +8023,10 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"Amenity List",
 													false
 												)}
-												<MultiSelect
-													id="amenityList"
+												<MultiSelectPills
+													label=""
 													options={amenityListOptions}
-													value={
+													selectedValues={
 														Array.isArray(
 															(formData as any)
 																.amenityList
@@ -8169,27 +8035,23 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	.amenityList
 															: []
 													}
-													onChange={(value) =>
+													onSelect={(values) =>
 														handleInputChange(
 															"amenityList",
-															value
+															values
 														)
 													}
-													placeholder="Select amenities..."
 													disabled={isFieldDisabled(
 														"amenityList",
 														"property-specs"
 													)}
-													className={cn(
-														getFieldStylingClasses(
-															"amenityList"
-														),
-														isFieldDisabled(
-															"amenityList",
-															"property-specs"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													isLocked={isFieldLocked(
+														"amenityList",
+														"property-specs"
 													)}
+													hasAutofillBeenRun={
+														hasAutofillBeenRun
+													}
 												/>
 											</div>
 										</AskAIButton>
@@ -12841,6 +12703,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"opportunityZone"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -12884,6 +12749,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"affordableHousing"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -13047,6 +12915,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"taxExemption"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -13090,6 +12961,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"taxAbatement"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -13399,8 +13273,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"Incentive Stacking",
 													false
 												)}
-												<MultiSelect
-													id="incentiveStacking"
+												<MultiSelectPills
+													label=""
 													options={[
 														"LIHTC",
 														"Section 8",
@@ -13412,7 +13286,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"Opportunity Zone",
 														"Other",
 													]}
-													value={
+													selectedValues={
 														Array.isArray(
 															(formData as any)
 																.incentiveStacking
@@ -13421,27 +13295,23 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 																	.incentiveStacking
 															: []
 													}
-													onChange={(value) =>
+													onSelect={(values) =>
 														handleInputChange(
 															"incentiveStacking",
-															value
+															values
 														)
 													}
-													placeholder="Select incentives..."
 													disabled={isFieldDisabled(
 														"incentiveStacking",
 														"special-considerations"
 													)}
-													className={cn(
-														getFieldStylingClasses(
-															"incentiveStacking"
-														),
-														isFieldDisabled(
-															"incentiveStacking",
-															"special-considerations"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													isLocked={isFieldLocked(
+														"incentiveStacking",
+														"special-considerations"
 													)}
+													hasAutofillBeenRun={
+														hasAutofillBeenRun
+													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13486,6 +13356,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													isAutofilled={isFieldAutofilled(
 														"tifDistrict"
 													)}
+													hasAutofillBeenRun={
+														hasAutofillBeenRun
+													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13532,6 +13405,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													isAutofilled={isFieldAutofilled(
 														"paceFinancing"
 													)}
+													hasAutofillBeenRun={
+														hasAutofillBeenRun
+													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13576,6 +13452,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													isAutofilled={isFieldAutofilled(
 														"historicTaxCredits"
 													)}
+													hasAutofillBeenRun={
+														hasAutofillBeenRun
+													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13622,6 +13501,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													isAutofilled={isFieldAutofilled(
 														"newMarketsCredits"
 													)}
+													hasAutofillBeenRun={
+														hasAutofillBeenRun
+													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13915,6 +13797,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"entitlements"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -13963,6 +13848,9 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"permitsIssued"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
 											/>
 										</div>
 									</AskAIButton>
@@ -14800,6 +14688,181 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"currentSiteStatus"
 												)}
+												hasAutofillBeenRun={
+													hasAutofillBeenRun
+												}
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								<FormGroup>
+									<AskAIButton
+										id="parcelNumber"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"parcelNumber",
+												"site-context",
+												"Parcel Number(s)",
+												false
+											)}
+											<Input
+												id="parcelNumber"
+												label={null}
+												value={
+													formData.parcelNumber || ""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"parcelNumber",
+														e.target.value
+													)
+												}
+												placeholder="e.g., 000472000A01B0100"
+												disabled={isFieldDisabled(
+													"parcelNumber",
+													"site-context"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"parcelNumber"
+													),
+													isFieldDisabled(
+														"parcelNumber",
+														"site-context"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="parcelNumber"
+												data-field-type="input"
+												data-field-section="site-context"
+												data-field-required="false"
+												data-field-label="Parcel Number(s)"
+												data-field-placeholder="e.g., 000472000A01B0100"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+								<FormGroup>
+									<AskAIButton
+										id="zoningDesignation"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"zoningDesignation",
+												"site-context",
+												"Zoning Designation",
+												false
+											)}
+											<Input
+												id="zoningDesignation"
+												label={null}
+												value={
+													formData.zoningDesignation ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"zoningDesignation",
+														e.target.value
+													)
+												}
+												placeholder="e.g., PD-317"
+												disabled={isFieldDisabled(
+													"zoningDesignation",
+													"site-context"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"zoningDesignation"
+													),
+													isFieldDisabled(
+														"zoningDesignation",
+														"site-context"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="zoningDesignation"
+												data-field-type="input"
+												data-field-section="site-context"
+												data-field-required="false"
+												data-field-label="Zoning Designation"
+												data-field-placeholder="e.g., PD-317"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								<FormGroup>
+									<AskAIButton
+										id="expectedZoningChanges"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"expectedZoningChanges",
+												"site-context",
+												"Expected Zoning Changes",
+												false
+											)}
+											<Select
+												id="expectedZoningChanges"
+												value={
+													formData.expectedZoningChanges ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"expectedZoningChanges",
+														e.target.value
+													)
+												}
+												options={[
+													{
+														value: "",
+														label: "Select...",
+													},
+													{
+														value: "None",
+														label: "None",
+													},
+													{
+														value: "Variance",
+														label: "Variance",
+													},
+													{
+														value: "PUD",
+														label: "PUD",
+													},
+													{
+														value: "Re-Zoning",
+														label: "Re-Zoning",
+													},
+												]}
+												disabled={isFieldDisabled(
+													"expectedZoningChanges",
+													"site-context"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"expectedZoningChanges"
+													),
+													isFieldDisabled(
+														"expectedZoningChanges",
+														"site-context"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="expectedZoningChanges"
+												data-field-type="select"
+												data-field-section="site-context"
+												data-field-required="false"
+												data-field-label="Expected Zoning Changes"
 											/>
 										</div>
 									</AskAIButton>
@@ -16085,6 +16148,198 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									</AskAIButton>
 								</FormGroup>
 							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								<FormGroup>
+									<AskAIButton
+										id="syndicationStatus"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"syndicationStatus",
+												"sponsor-info",
+												"Syndication Status",
+												false
+											)}
+											<Select
+												id="syndicationStatus"
+												value={
+													(formData as any)
+														.syndicationStatus || ""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"syndicationStatus",
+														e.target.value
+													)
+												}
+												options={[
+													{
+														value: "",
+														label: "Select...",
+													},
+													{
+														value: "Committed",
+														label: "Committed",
+													},
+													{
+														value: "In Process",
+														label: "In Process",
+													},
+													{
+														value: "TBD",
+														label: "TBD",
+													},
+												]}
+												disabled={isFieldDisabled(
+													"syndicationStatus",
+													"sponsor-info"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"syndicationStatus"
+													),
+													isFieldDisabled(
+														"syndicationStatus",
+														"sponsor-info"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="syndicationStatus"
+												data-field-type="select"
+												data-field-section="sponsor-info"
+												data-field-required="false"
+												data-field-label="Syndication Status"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+								<FormGroup>
+									<AskAIButton
+										id="sponsorExperience"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"sponsorExperience",
+												"sponsor-info",
+												"Sponsor Experience",
+												false
+											)}
+											<Select
+												id="sponsorExperience"
+												value={
+													(formData as any)
+														.sponsorExperience || ""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"sponsorExperience",
+														e.target.value
+													)
+												}
+												options={[
+													{
+														value: "",
+														label: "Select...",
+													},
+													{
+														value: "First-Time",
+														label: "First-Time",
+													},
+													{
+														value: "Emerging (1-3)",
+														label: "Emerging (1-3)",
+													},
+													{
+														value: "Seasoned (3+)",
+														label: "Seasoned (3+)",
+													},
+												]}
+												disabled={isFieldDisabled(
+													"sponsorExperience",
+													"sponsor-info"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"sponsorExperience"
+													),
+													isFieldDisabled(
+														"sponsorExperience",
+														"sponsor-info"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="sponsorExperience"
+												data-field-type="select"
+												data-field-section="sponsor-info"
+												data-field-required="false"
+												data-field-label="Sponsor Experience"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								<FormGroup>
+									<AskAIButton
+										id="borrowerNetWorth"
+										onAskAI={onAskAI || (() => {})}
+									>
+										<div className="relative group/field">
+											{renderFieldLabel(
+												"borrowerNetWorth",
+												"sponsor-info",
+												"Borrower Net Worth ($)",
+												false
+											)}
+											<Input
+												id="borrowerNetWorth"
+												type="number"
+												label={null}
+												value={
+													(
+														formData as any
+													).borrowerNetWorth?.toString() ||
+													""
+												}
+												onChange={(e) =>
+													handleInputChange(
+														"borrowerNetWorth",
+														e.target.value
+															? Number(
+																	e.target
+																		.value
+															  )
+															: null
+													)
+												}
+												placeholder="e.g., 45000000"
+												disabled={isFieldDisabled(
+													"borrowerNetWorth",
+													"sponsor-info"
+												)}
+												className={cn(
+													getFieldStylingClasses(
+														"borrowerNetWorth"
+													),
+													isFieldDisabled(
+														"borrowerNetWorth",
+														"sponsor-info"
+													) &&
+														"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+												)}
+												data-field-id="borrowerNetWorth"
+												data-field-type="number"
+												data-field-section="sponsor-info"
+												data-field-required="false"
+												data-field-label="Borrower Net Worth ($)"
+												data-field-placeholder="e.g., 45000000"
+											/>
+										</div>
+									</AskAIButton>
+								</FormGroup>
+							</div>
 							{/* Additional Sponsor Information */}
 							<div className="pt-4">
 								<h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
@@ -16471,7 +16726,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={handleAutofill}
+						onClick={wrappedHandleAutofill}
 						disabled={isAutofilling}
 						className={cn(
 							"group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-hidden",

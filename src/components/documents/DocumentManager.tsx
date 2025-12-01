@@ -426,8 +426,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             ))}
 
             {/* Files */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {files.map((file, index) => {
+            <div className="max-h-[300px] overflow-y-auto pr-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {files.map((file, index) => {
               const fileCanEdit = getPermission(file.resource_id) === 'edit';
               const isEditable = /\.(docx|xlsx|pptx|pdf)$/i.test(file.name);
               const filePermission = getPermission(file.resource_id);
@@ -594,6 +595,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 </motion.div>
               );
             })}
+              </div>
             </div>
 
             {/* Empty State */}
