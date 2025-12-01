@@ -15,6 +15,7 @@ import { Button } from "../ui/Button";
 import { ButtonSelect } from "../ui/ButtonSelect";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
+import { HelpCircle } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useAutofill } from "@/hooks/useAutofill";
 import { cn } from "@/utils/cn";
@@ -452,16 +453,31 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		);
 
 		Object.entries(metadata).forEach(([fieldId, meta]) => {
-			// Check if source is AI/Document
+			// Check if source is AI/Document.
+			// Be defensive: sources array can contain null/undefined or non-standard entries.
 			const isAiSourced =
-				meta.sources &&
-				meta.sources.some((src: any) => {
-					if (typeof src === "string")
+				Array.isArray((meta as any)?.sources) &&
+				(meta as any).sources.some((src: any) => {
+					if (!src) return false;
+
+					if (typeof src === "string") {
+						const normalized = src.toLowerCase();
 						return (
-							src.toLowerCase() !== "user_input" &&
-							src.toLowerCase() !== "user input"
+							normalized !== "user_input" &&
+							normalized !== "user input"
 						);
-					return src.type !== "user_input";
+					}
+
+					if (
+						typeof src === "object" &&
+						"type" in src &&
+						typeof (src as any).type === "string"
+					) {
+						return (src as any).type !== "user_input";
+					}
+
+					// Unknown shape – treat as non-user-input but do not crash
+					return false;
 				});
 
 			const hasValue = isProjectValueProvided(
@@ -530,58 +546,69 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		| "select"
 		| "button-select";
 
-	const sectionIconComponents: Record<
-		string,
-		React.ComponentType<{ className?: string }>
-	> = {
-		FileText,
-		DollarSign,
-		Building,
-		Globe,
-		Calendar,
-		Map,
-		Users,
-		Calculator,
-		AlertTriangle,
-		Info,
-		BarChart,
-	};
+	const sectionIconComponents = useMemo<
+		Record<string, React.ComponentType<{ className?: string }>>
+	>(
+		() => ({
+			FileText,
+			DollarSign,
+			Building,
+			Globe,
+			Calendar,
+			Map,
+			Users,
+			Calculator,
+			AlertTriangle,
+			Info,
+			BarChart,
+		}),
+		[]
+	);
 
-	const fieldControlOverrides: Record<string, ControlKind> = {
-		assetType: "button-select",
-		projectPhase: "button-select",
-		loanType: "button-select",
-		interestRateType: "button-select",
-		recoursePreference: "button-select",
-		exitStrategy: "button-select",
-	};
+	const fieldControlOverrides = useMemo<Record<string, ControlKind>>(
+		() => ({
+			assetType: "button-select",
+			projectPhase: "button-select",
+			loanType: "button-select",
+			interestRateType: "button-select",
+			recoursePreference: "button-select",
+			exitStrategy: "button-select",
+		}),
+		[]
+	);
 
-	const fieldOptionsRegistry: Record<string, any[]> = {
-		assetType: assetTypeOptions,
-		projectPhase: projectPhaseOptions,
-		loanType: capitalTypeOptions,
-		interestRateType: interestRateTypeOptions,
-		recoursePreference: recourseOptions,
-		exitStrategy: exitStrategyOptions,
-	};
+	const fieldOptionsRegistry = useMemo<Record<string, any[]>>(
+		() => ({
+			assetType: assetTypeOptions,
+			projectPhase: projectPhaseOptions,
+			loanType: capitalTypeOptions,
+			interestRateType: interestRateTypeOptions,
+			recoursePreference: recourseOptions,
+			exitStrategy: exitStrategyOptions,
+		}),
+		[]
+	);
 
-	const getDefaultControlForDataType = (dataType?: string): ControlKind => {
-		if (!dataType) return "input";
-		switch (dataType.toLowerCase()) {
-			case "textarea":
-				return "textarea";
-			case "dropdown":
-				return "select";
-			case "currency":
-			case "integer":
-			case "numeric":
-				return "number";
-			case "date":
-				return "input";
-			default:
-				return "input";
-		}
-	};
+	const getDefaultControlForDataType = useCallback(
+		(dataType?: string): ControlKind => {
+			if (!dataType) return "input";
+			switch (dataType.toLowerCase()) {
+				case "textarea":
+					return "textarea";
+				case "dropdown":
+					return "select";
+				case "currency":
+				case "integer":
+				case "numeric":
+					return "number";
+				case "date":
+					return "input";
+				default:
+					return "input";
+			}
+		},
+		[]
+	);
 
 	const getFieldConfig = useCallback(
 		(fieldId: string) => {
@@ -813,6 +840,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			renderFieldLabel,
 			isFieldLocked,
 			isFieldRequiredFromSchema,
+			fieldControlOverrides,
+			fieldOptionsRegistry,
+			getDefaultControlForDataType,
 		]
 	);
 
@@ -964,6 +994,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		lockedSections,
 		renderDynamicField,
 		toggleSectionLock,
+		sectionIconComponents,
+		toggleSubsectionOptional,
 	]);
 
 	const handleFormSubmit = useCallback(
@@ -1014,17 +1046,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			)}
 		>
 			<div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-				<div className="flex items-center gap-2">
+				<div className="flex items-center gap-3">
 					<FileText className="h-5 w-5 text-blue-600" />
-					<div>
-						<p className="text-sm font-medium text-gray-900">
+					<div className="flex items-center gap-2">
+						<h3 className="text-xl md:text-2xl font-semibold text-gray-900">
 							Project Resume
-						</p>
-						<p className="text-xs text-gray-500">
-							Fill out the key details for your project. Fields
-							can be autofilled from documents and locked to
-							prevent overwrites.
-						</p>
+						</h3>
+						<div className="relative group">
+							<HelpCircle className="h-4 w-4 text-gray-400 hover:text-blue-600 cursor-help" />
+							<div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-72 -translate-x-1/2 transform opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+								<div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-lg">
+									Fill out the key details for your project. Fields can be autofilled from documents and locked to prevent overwrites.
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 				<div className="flex items-center gap-2">

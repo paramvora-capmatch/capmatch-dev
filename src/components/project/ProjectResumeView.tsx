@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ProjectProfile } from '@/types/enhanced-types';
 import { Button } from '../ui/Button';
 import { ResumeVersionHistory } from './ResumeVersionHistory';
-import { Edit, MapPin, DollarSign, BarChart3, AlertCircle, ChevronDown, Building2, Calculator, TrendingUp, CheckCircle, Calendar, Map, Users, FileText, Home, Briefcase, Percent, Clock, Award, Sparkles, Loader2 } from 'lucide-react';
+import { Edit, MapPin, DollarSign, BarChart3, AlertCircle, ChevronDown, Building2, Calculator, TrendingUp, CheckCircle, Calendar, Map, Users, FileText, Home, Briefcase, Percent, Clock, Award, Sparkles, Loader2, Building, Globe, AlertTriangle } from 'lucide-react';
 import { KeyValueDisplay } from '../om/KeyValueDisplay'; // Reusing this component
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/utils/cn';
@@ -13,6 +13,7 @@ import { projectResumeFieldMetadata, getFieldsForSection } from '@/lib/project-r
 import { supabase } from '@/lib/supabaseClient';
 import { useCallback } from 'react';
 import { useAutofill } from '@/hooks/useAutofill';
+import formSchema from '@/lib/enhanced-project-form.schema.json';
 
 interface ProjectResumeViewProps {
   project: ProjectProfile;
@@ -107,6 +108,17 @@ const hasValue = (value: any): boolean => {
     return true;
 };
 
+// Helper to read field config (label/required) from the shared form schema
+const getFieldConfig = (fieldId: string): any => {
+    const fieldsConfig = (formSchema as any).fields || {};
+    return fieldsConfig[fieldId] || {};
+};
+
+const isFieldRequiredFromSchema = (fieldId: string): boolean => {
+    const config = getFieldConfig(fieldId);
+    return typeof config.required === 'boolean' ? config.required : false;
+};
+
 // Helper to format field value based on data type
 const formatFieldValue = (value: any, dataType?: string): string => {
     if (!hasValue(value)) return 'N/A';
@@ -119,8 +131,14 @@ const formatFieldValue = (value: any, dataType?: string): string => {
         return formatArray(value);
     }
     
-    // If it's actually a boolean, format as boolean
+    // If it's actually a boolean, format as boolean only when metadata says Boolean.
+    // If metadata expects a different type (Integer, Percent, etc.), treat boolean as invalid/mismatched.
     if (typeof value === 'boolean') {
+        if (dataType && dataType !== 'Boolean') {
+            // Data type mismatch – underlying data is likely stale/incorrect.
+            // Hide the bad value by treating it as missing.
+            return 'N/A';
+        }
         return formatBoolean(value);
     }
     
@@ -321,6 +339,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
     const router = useRouter();
     const [showAutofillSuccess, setShowAutofillSuccess] = React.useState(false);
     const [autofillAnimationKey, setAutofillAnimationKey] = React.useState(0);
+    const [expandedSubsections, setExpandedSubsections] = React.useState<Set<string>>(
+        () => new Set()
+    );
     
     // Use the shared autofill hook
     const projectAddress = project.propertyAddressStreet && project.propertyAddressCity && project.propertyAddressState
@@ -350,6 +371,36 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
   const handleVersionHistoryOpen = useCallback(() => {
     setCollapsed(false);
   }, []);
+
+    const toggleSubsectionOptional = React.useCallback((subsectionKey: string) => {
+        setExpandedSubsections((prev) => {
+            const next = new Set(prev);
+            if (next.has(subsectionKey)) {
+                next.delete(subsectionKey);
+            } else {
+                next.add(subsectionKey);
+            }
+            return next;
+        });
+    }, []);
+
+    const sectionIconComponents: Record<string, React.ComponentType<{ className?: string }>> = {
+        FileText,
+        Building,
+        DollarSign,
+        Globe,
+        Calendar,
+        Map,
+        Users,
+        AlertTriangle,
+    };
+
+    const getDisplayLabel = (fieldId: string, fieldMeta?: { fieldId: string; description: string }): string => {
+        const config = getFieldConfig(fieldId);
+        if (config.label) return config.label as string;
+        if (fieldMeta) return getFieldLabel(fieldMeta);
+        return fieldId;
+    };
 
     // handleAutofill is now provided by the useAutofill hook
 
@@ -489,588 +540,525 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                 }}
                                 className="space-y-6"
                             >
-                                {/* Section 1: Basic Info */}
-                                {(() => {
-                                    const basicInfoFields = getFieldsForSection('basic-info');
-                                    const fieldsWithValues = basicInfoFields.filter(field => {
-                                        const value = getFieldValue(project, field.fieldId);
-                                        return hasValue(value);
-                                    });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
-                                    return (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3 }}
-                                        >
-                                            <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <MapPin className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Project Identification & Basic Info
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {fieldsWithValues.map((field, idx) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    const isFullWidth = field.dataType === 'Textarea' || field.fieldId === 'projectDescription';
-                                                    
-                                                    // Special handling for address
-                                                    if (field.fieldId === 'propertyAddressStreet') {
-                                                        const street = getFieldValue(project, 'propertyAddressStreet') || '';
-                                                        const city = getFieldValue(project, 'propertyAddressCity') || '';
-                                                        const state = getFieldValue(project, 'propertyAddressState') || '';
-                                                        const zip = getFieldValue(project, 'propertyAddressZip') || '';
-                                                        const address = [street, city, state, zip].filter(Boolean).join(', ');
-                                                        return address ? (
-                                                            <AnimatedField key={field.fieldId}>
-                                                                <KeyValueDisplay label="Address" value={address} fullWidth={true} />
-                                                            </AnimatedField>
-                                                        ) : null;
-                                                    }
-                                                    
-                                                    // Skip other address components as they're in the full address
-                                                    if (['propertyAddressCity', 'propertyAddressState', 'propertyAddressZip'].includes(field.fieldId)) {
-                                                        return null;
-                                                    }
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                                fullWidth={isFullWidth}
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })()}
+                                {(((formSchema as any).steps || []) as any[]).map((step: any, stepIndex: number) => {
+                                    const sectionId = step.id as string;
+                                    const IconComponent =
+                                        (step.icon && sectionIconComponents[step.icon as string]) || MapPin;
 
-                                {/* Section 2: Property Specifications */}
-                                {(() => {
-                                    const propertySpecsFields = getFieldsForSection('property-specs');
-                                    const fieldsWithValues = propertySpecsFields.filter(field => {
-                                        const value = getFieldValue(project, field.fieldId);
-                                        return hasValue(value);
-                                    });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
-                                    return (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3, delay: 0.1 }}
-                                        >
-                                            <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <Building2 className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Property Specifications
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {fieldsWithValues.map((field) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
-                                            </div>
-                                            
-                                            {/* Residential Unit Mix */}
-                                            {(() => {
-                                                const unitMix = getFieldValue(project, 'residentialUnitMix');
-                                                if (!hasValue(unitMix) || !Array.isArray(unitMix)) return null;
-                                                
-                                                return (
-                                                    <div className="mt-4">
-                                                        <h4 className="text-sm font-semibold text-gray-600 mb-2">Residential Unit Mix</h4>
-                                                        <div className="overflow-x-auto">
-                                                            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                                                <thead className="bg-gray-50">
-                                                                    <tr>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit Type</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Count</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Avg SF</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Monthly Rent</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total SF</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody className="bg-white divide-y divide-gray-200">
-                                                                    {unitMix.map((unit: any, idx: number) => (
-                                                                        <tr key={idx}>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{unit.unitType || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{unit.unitCount?.toLocaleString() || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{unit.avgSF?.toLocaleString() || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{formatCurrency(unit.monthlyRent)}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{unit.totalSF?.toLocaleString() || 'N/A'}</td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-                                            
-                                            {/* Commercial Space Mix */}
-                                            {(() => {
-                                                const spaceMix = getFieldValue(project, 'commercialSpaceMix');
-                                                if (!hasValue(spaceMix) || !Array.isArray(spaceMix)) return null;
-                                                
-                                                return (
-                                                    <div className="mt-4">
-                                                        <h4 className="text-sm font-semibold text-gray-600 mb-2">Commercial Space Mix</h4>
-                                                        <div className="overflow-x-auto">
-                                                            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                                                <thead className="bg-gray-50">
-                                                                    <tr>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Space Type</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Square Footage</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tenant</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Lease Term</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Annual Rent</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody className="bg-white divide-y divide-gray-200">
-                                                                    {spaceMix.map((space: any, idx: number) => (
-                                                                        <tr key={idx}>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{space.spaceType || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{space.squareFootage?.toLocaleString() || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{space.tenant || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{space.leaseTerm || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{formatCurrency(space.annualRent)}</td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </motion.div>
-                                    );
-                                })()}
+                                    const allFieldIds: string[] = step.fields || [];
+                                    const allFieldMetas = allFieldIds
+                                        .map((id) => projectResumeFieldMetadata[id])
+                                        .filter((m): m is { fieldId: string; description: string; dataType?: string } => !!m);
 
-                                {/* Section 3: Loan Info */}
-                                {(() => {
-                                    const loanInfoFields = getFieldsForSection('loan-info');
-                                    const fieldsWithValues = loanInfoFields.filter(field => {
+                                    const hasAnyValueInSection = allFieldMetas.some((field) => {
                                         const value = getFieldValue(project, field.fieldId);
+                                        if (sectionId === 'special-considerations') {
+                                            return value !== undefined && (hasValue(value) || value === false);
+                                        }
                                         return hasValue(value);
                                     });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
-                                    return (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3, delay: 0.2 }}
-                                        >
-                                            <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <DollarSign className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Financing Request
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {loanInfoFields.map((field) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    if (!hasValue(value)) return null;
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    const isFullWidth = field.dataType === 'Textarea';
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                                fullWidth={isFullWidth}
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })()}
 
-                                {/* Section 3.2: Loan Terms */}
-                                {(() => {
-                                    const loanTermsFields = getFieldsForSection('loan-terms');
-                                    const fieldsWithValues = loanTermsFields.filter(field => {
-                                        const value = getFieldValue(project, field.fieldId);
-                                        return hasValue(value);
-                                    });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
-                                    return (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3, delay: 0.25 }}
-                                        >
-                                            <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <Percent className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Loan Terms
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {loanTermsFields.map((field) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    if (!hasValue(value)) return null;
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })()}
+                                    // Also check for special table data per section
+                                    const hasUnitMix =
+                                        sectionId === 'property-specs' &&
+                                        Array.isArray(getFieldValue(project, 'residentialUnitMix')) &&
+                                        (getFieldValue(project, 'residentialUnitMix') as any[]).length > 0;
+                                    const hasCommercialMix =
+                                        sectionId === 'property-specs' &&
+                                        Array.isArray(getFieldValue(project, 'commercialSpaceMix')) &&
+                                        (getFieldValue(project, 'commercialSpaceMix') as any[]).length > 0;
+                                    const hasRentComps =
+                                        sectionId === 'market-context' &&
+                                        Array.isArray(getFieldValue(project, 'rentComps')) &&
+                                        (getFieldValue(project, 'rentComps') as any[]).length > 0;
 
-                                {/* Section 3: Financial Details */}
-                                {(() => {
-                                    const financialFields = getFieldsForSection('financial-details');
-                                    const fieldsWithValues = financialFields.filter(field => {
-                                        const value = getFieldValue(project, field.fieldId);
-                                        return hasValue(value);
-                                    });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
+                                    if (!hasAnyValueInSection && !hasUnitMix && !hasCommercialMix && !hasRentComps) {
+                                        return null;
+                                    }
+
                                     return (
                                         <motion.div
+                                            key={sectionId}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3, delay: 0.3 }}
+                                            transition={{ duration: 0.3, delay: 0.1 * stepIndex }}
                                         >
                                             <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <Calculator className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Development Budget & Financial Details
+                                                <IconComponent className="h-4 w-4 mr-2 text-blue-600" />
+                                                {step.title}
                                             </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {financialFields.map((field) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    if (!hasValue(value)) return null;
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
-                                            </div>
-                                            
-                                            {/* Legacy Financial Fields */}
-                                            {(() => {
-                                                const legacyFields = [
-                                                    { id: 'purchasePrice', label: 'Purchase Price', type: 'Currency' },
-                                                    { id: 'totalProjectCost', label: 'Total Project Cost', type: 'Currency' },
-                                                    { id: 'capexBudget', label: 'CapEx Budget', type: 'Currency' },
-                                                    { id: 'propertyNoiT12', label: 'Current NOI (T12)', type: 'Currency' },
-                                                    { id: 'stabilizedNoiProjected', label: 'Projected Stabilized NOI', type: 'Currency' },
-                                                    { id: 'exitStrategy', label: 'Exit Strategy', type: 'Text' },
-                                                    { id: 'businessPlanSummary', label: 'Business Plan Summary', type: 'Textarea' },
-                                                    { id: 'marketOverviewSummary', label: 'Market Overview Summary', type: 'Textarea' },
-                                                    { id: 'equityCommittedPercent', label: 'Equity Committed', type: 'Percent' },
-                                                ];
-                                                
-                                                const legacyFieldsWithValues = legacyFields.filter(field => {
-                                                    const value = getFieldValue(project, field.id);
-                                                    return hasValue(value);
-                                                });
-                                                
-                                                if (legacyFieldsWithValues.length === 0) return null;
-                                                
-                                                return (
-                                                    <div className="mt-4">
-                                                        <h4 className="text-sm font-semibold text-gray-600 mb-2">Additional Financial Information</h4>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                            {legacyFieldsWithValues.map((field) => {
-                                                                const value = getFieldValue(project, field.id);
-                                                                const formattedValue = formatFieldValue(value, field.type);
-                                                                const isFullWidth = field.type === 'Textarea';
-                                                                
-                                                                return (
-                                                                    <AnimatedField key={field.id}>
-                                                                        <KeyValueDisplay 
-                                                                            label={field.label} 
-                                                                            value={formattedValue} 
-                                                                            fullWidth={isFullWidth}
-                                                                        />
-                                                                    </AnimatedField>
+
+                                            {Array.isArray(step.subsections) && step.subsections.length > 0 ? (
+                                                <div className="space-y-4">
+                                                    {step.subsections.map((subsection: any) => {
+                                                        const subsectionId = subsection.id as string;
+                                                        const subsectionKey = `${sectionId}::${subsectionId}`;
+                                                        const subsectionFieldIds: string[] = subsection.fields || [];
+
+                                                        const requiredFieldIds = subsectionFieldIds.filter((id) =>
+                                                            isFieldRequiredFromSchema(id)
+                                                        );
+                                                        const optionalFieldIds = subsectionFieldIds.filter(
+                                                            (id) => !isFieldRequiredFromSchema(id)
+                                                        );
+
+                                                        const showOptional = expandedSubsections.has(subsectionKey);
+                                                        const visibleFieldIds = showOptional
+                                                            ? subsectionFieldIds
+                                                            : requiredFieldIds;
+
+                                                        const visibleFieldMetas = visibleFieldIds
+                                                            .map((id) => projectResumeFieldMetadata[id])
+                                                            .filter(
+                                                                (
+                                                                    m
+                                                                ): m is {
+                                                                    fieldId: string;
+                                                                    description: string;
+                                                                    dataType?: string;
+                                                                } => !!m
+                                                            )
+                                                            .filter((field) => {
+                                                                const value = getFieldValue(project, field.fieldId);
+                                                                if (sectionId === 'special-considerations') {
+                                                                    return (
+                                                                        value !== undefined &&
+                                                                        (hasValue(value) || value === false)
+                                                                    );
+                                                                }
+                                                                return hasValue(value);
+                                                            });
+
+                                                        if (visibleFieldMetas.length === 0) {
+                                                            return null;
+                                                        }
+
+                                                        const optionalCount = optionalFieldIds.length;
+
+                                                        return (
+                                                            <div
+                                                                key={subsectionId}
+                                                                className="space-y-3 rounded-md border border-gray-100 bg-gray-50/60 p-3"
+                                                            >
+                                                                <div className="flex items-center justify-between">
+                                                                    <h4 className="text-sm font-semibold text-gray-800">
+                                                                        {subsection.title}
+                                                                    </h4>
+                                                                    {optionalCount > 0 && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                toggleSubsectionOptional(subsectionKey)
+                                                                            }
+                                                                            className="text-xs font-medium text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline"
+                                                                        >
+                                                                            {showOptional
+                                                                                ? 'Hide optional fields'
+                                                                                : `Show ${optionalCount} optional field${
+                                                                                      optionalCount > 1 ? 's' : ''
+                                                                                  }`}
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                                                    {visibleFieldMetas.map((field) => {
+                                                                        const value = getFieldValue(project, field.fieldId);
+
+                                                                        // Special handling for full address
+                                                                        if (field.fieldId === 'propertyAddressStreet') {
+                                                                            const street =
+                                                                                getFieldValue(
+                                                                                    project,
+                                                                                    'propertyAddressStreet'
+                                                                                ) || '';
+                                                                            const city =
+                                                                                getFieldValue(
+                                                                                    project,
+                                                                                    'propertyAddressCity'
+                                                                                ) || '';
+                                                                            const state =
+                                                                                getFieldValue(
+                                                                                    project,
+                                                                                    'propertyAddressState'
+                                                                                ) || '';
+                                                                            const zip =
+                                                                                getFieldValue(
+                                                                                    project,
+                                                                                    'propertyAddressZip'
+                                                                                ) || '';
+                                                                            const address = [street, city, state, zip]
+                                                                                .filter(Boolean)
+                                                                                .join(', ');
+                                                                            if (!address) return null;
+
+                                                                            return (
+                                                                                <AnimatedField key={field.fieldId}>
+                                                                                    <KeyValueDisplay
+                                                                                        label="Address"
+                                                                                        value={address}
+                                                                                        fullWidth={true}
+                                                                                    />
+                                                                                </AnimatedField>
+                                                                            );
+                                                                        }
+
+                                                                        // Skip individual address parts once combined
+                                                                        if (
+                                                                            [
+                                                                                'propertyAddressCity',
+                                                                                'propertyAddressState',
+                                                                                'propertyAddressZip',
+                                                                            ].includes(field.fieldId)
+                                                                        ) {
+                                                                            return null;
+                                                                        }
+
+                                                                        const formattedValue = formatFieldValue(
+                                                                            value,
+                                                                            field.dataType
+                                                                        );
+                                                                        const isFullWidth =
+                                                                            field.dataType === 'Textarea' ||
+                                                                            field.fieldId === 'projectDescription' ||
+                                                                            field.fieldId === 'businessPlanSummary' ||
+                                                                            field.fieldId === 'marketOverviewSummary' ||
+                                                                            field.fieldId === 'contactInfo';
+
+                                                                        return (
+                                                                            <AnimatedField key={field.fieldId}>
+                                                                                <KeyValueDisplay
+                                                                                    label={getDisplayLabel(
+                                                                                        field.fieldId,
+                                                                                        field
+                                                                                    )}
+                                                                                    value={formattedValue}
+                                                                                    fullWidth={isFullWidth}
+                                                                                />
+                                                                            </AnimatedField>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                    {/* Special tables within sections */}
+                                                    {sectionId === 'property-specs' && (
+                                                        <>
+                                                            {(() => {
+                                                                const unitMix = getFieldValue(
+                                                                    project,
+                                                                    'residentialUnitMix'
                                                                 );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </motion.div>
-                                    );
-                                })()}
+                                                                if (
+                                                                    !hasValue(unitMix) ||
+                                                                    !Array.isArray(unitMix) ||
+                                                                    unitMix.length === 0
+                                                                )
+                                                                    return null;
 
-                                {/* Section 4: Market Context */}
-                                {(() => {
-                                    const marketFields = getFieldsForSection('market-context');
-                                    const fieldsWithValues = marketFields.filter(field => {
-                                        const value = getFieldValue(project, field.fieldId);
-                                        return hasValue(value);
-                                    });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
-                                    return (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3, delay: 0.4 }}
-                                        >
-                                            <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <TrendingUp className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Market Context
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {marketFields.map((field) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    if (!hasValue(value)) return null;
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
-                                            </div>
-                                            
-                                            {/* Rent Comps */}
-                                            {(() => {
-                                                const rentComps = getFieldValue(project, 'rentComps');
-                                                if (!hasValue(rentComps) || !Array.isArray(rentComps)) return null;
-                                                
-                                                return (
-                                                    <div className="mt-4">
-                                                        <h4 className="text-sm font-semibold text-gray-600 mb-2">Rent Comparables</h4>
-                                                        <div className="overflow-x-auto">
-                                                            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                                                <thead className="bg-gray-50">
-                                                                    <tr>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Property Name</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Distance</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Year Built</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Units</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Occupancy</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Avg Rent/Month</th>
-                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Rent/PSF</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody className="bg-white divide-y divide-gray-200">
-                                                                    {rentComps.map((comp: any, idx: number) => (
-                                                                        <tr key={idx}>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{comp.propertyName || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{comp.address || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{comp.distance ? `${comp.distance.toFixed(2)} mi` : 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{comp.yearBuilt || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{comp.totalUnits?.toLocaleString() || 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{comp.occupancyPercent ? `${comp.occupancyPercent.toFixed(1)}%` : 'N/A'}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{formatCurrency(comp.avgRentMonth)}</td>
-                                                                            <td className="px-3 py-2 whitespace-nowrap">{comp.rentPSF ? `$${comp.rentPSF.toFixed(2)}` : 'N/A'}</td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </motion.div>
-                                    );
-                                })()}
+                                                                return (
+                                                                    <div className="mt-4">
+                                                                        <h4 className="text-sm font-semibold text-gray-600 mb-2">
+                                                                            Residential Unit Mix
+                                                                        </h4>
+                                                                        <div className="overflow-x-auto">
+                                                                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                                                                <thead className="bg-gray-50">
+                                                                                    <tr>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Unit Type
+                                                                                        </th>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Count
+                                                                                        </th>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Avg SF
+                                                                                        </th>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Monthly Rent
+                                                                                        </th>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Total SF
+                                                                                        </th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="bg-white divide-y divide-gray-200">
+                                                                                    {unitMix.map((unit: any, idx: number) => (
+                                                                                        <tr key={idx}>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {unit.unitType || 'N/A'}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {unit.unitCount?.toLocaleString() ||
+                                                                                                    'N/A'}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {unit.avgSF?.toLocaleString() ||
+                                                                                                    'N/A'}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {formatCurrency(unit.monthlyRent)}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {unit.totalSF?.toLocaleString() ||
+                                                                                                    'N/A'}
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
 
-                                {/* Section 5: Special Considerations */}
-                                {(() => {
-                                    const specialFields = getFieldsForSection('special-considerations');
-                                    const fieldsWithValues = specialFields.filter(field => {
-                                        const value = getFieldValue(project, field.fieldId);
-                                        return hasValue(value) || value === false; // Include false booleans
-                                    });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
-                                    return (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3, delay: 0.5 }}
-                                        >
-                                            <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <CheckCircle className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Special Considerations
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {specialFields.map((field) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    // For booleans, show even if false
-                                                    if (value === undefined || (value === null && field.dataType !== 'Boolean')) return null;
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })()}
+                                                            {(() => {
+                                                                const spaceMix = getFieldValue(
+                                                                    project,
+                                                                    'commercialSpaceMix'
+                                                                );
+                                                                if (
+                                                                    !hasValue(spaceMix) ||
+                                                                    !Array.isArray(spaceMix) ||
+                                                                    spaceMix.length === 0
+                                                                )
+                                                                    return null;
 
-                                {/* Section 6: Timeline & Milestones */}
-                                {(() => {
-                                    const timelineFields = getFieldsForSection('timeline');
-                                    const fieldsWithValues = timelineFields.filter(field => {
-                                        const value = getFieldValue(project, field.fieldId);
-                                        return hasValue(value);
-                                    });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
-                                    return (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3, delay: 0.6 }}
-                                        >
-                                            <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <Calendar className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Timeline & Milestones
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {timelineFields.map((field) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    if (!hasValue(value)) return null;
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })()}
+                                                                return (
+                                                                    <div className="mt-4">
+                                                                        <h4 className="text-sm font-semibold text-gray-600 mb-2">
+                                                                            Commercial Space Mix
+                                                                        </h4>
+                                                                        <div className="overflow-x-auto">
+                                                                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                                                                <thead className="bg-gray-50">
+                                                                                    <tr>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Space Type
+                                                                                        </th>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Square Footage
+                                                                                        </th>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Tenant
+                                                                                        </th>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Lease Term
+                                                                                        </th>
+                                                                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                            Annual Rent
+                                                                                        </th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="bg-white divide-y divide-gray-200">
+                                                                                    {spaceMix.map((space: any, idx: number) => (
+                                                                                        <tr key={idx}>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {space.spaceType || 'N/A'}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {space.squareFootage?.toLocaleString() ||
+                                                                                                    'N/A'}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {space.tenant || 'N/A'}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {space.leaseTerm || 'N/A'}
+                                                                                            </td>
+                                                                                            <td className="px-3 py-2 whitespace-nowrap">
+                                                                                                {formatCurrency(space.annualRent)}
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </>
+                                                    )}
 
-                                {/* Section 7: Site & Context */}
-                                {(() => {
-                                    const siteFields = getFieldsForSection('site-context');
-                                    const fieldsWithValues = siteFields.filter(field => {
-                                        const value = getFieldValue(project, field.fieldId);
-                                        return hasValue(value);
-                                    });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
-                                    return (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3, delay: 0.7 }}
-                                        >
-                                            <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <Map className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Site & Context
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {siteFields.map((field) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    if (!hasValue(value)) return null;
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })()}
+                                                    {sectionId === 'financial-details' && (() => {
+                                                        const legacyFields = [
+                                                            { id: 'purchasePrice', label: 'Purchase Price', type: 'Currency' },
+                                                            { id: 'totalProjectCost', label: 'Total Project Cost', type: 'Currency' },
+                                                            { id: 'capexBudget', label: 'CapEx Budget', type: 'Currency' },
+                                                            { id: 'propertyNoiT12', label: 'Current NOI (T12)', type: 'Currency' },
+                                                            { id: 'stabilizedNoiProjected', label: 'Projected Stabilized NOI', type: 'Currency' },
+                                                            { id: 'exitStrategy', label: 'Exit Strategy', type: 'Text' },
+                                                            { id: 'businessPlanSummary', label: 'Business Plan Summary', type: 'Textarea' },
+                                                            { id: 'marketOverviewSummary', label: 'Market Overview Summary', type: 'Textarea' },
+                                                            { id: 'equityCommittedPercent', label: 'Equity Committed', type: 'Percent' },
+                                                        ];
 
-                                {/* Section 8: Sponsor Information */}
-                                {(() => {
-                                    const sponsorFields = getFieldsForSection('sponsor-info');
-                                    const fieldsWithValues = sponsorFields.filter(field => {
-                                        const value = getFieldValue(project, field.fieldId);
-                                        return hasValue(value);
-                                    });
-                                    
-                                    if (fieldsWithValues.length === 0) return null;
-                                    
-                                    return (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ duration: 0.3, delay: 0.8 }}
-                                        >
-                                            <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
-                                                <Users className="h-4 w-4 mr-2 text-blue-600" /> 
-                                                Sponsor Information
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                                                {sponsorFields.map((field) => {
-                                                    const value = getFieldValue(project, field.fieldId);
-                                                    if (!hasValue(value)) return null;
-                                                    const formattedValue = formatFieldValue(value, field.dataType);
-                                                    const isFullWidth = field.fieldId === 'contactInfo';
-                                                    
-                                                    return (
-                                                        <AnimatedField key={field.fieldId}>
-                                                            <KeyValueDisplay 
-                                                                label={getFieldLabel(field)} 
-                                                                value={formattedValue} 
-                                                                fullWidth={isFullWidth}
-                                                            />
-                                                        </AnimatedField>
-                                                    );
-                                                })}
+                                                        const legacyFieldsWithValues = legacyFields.filter((field) => {
+                                                            const value = getFieldValue(project, field.id);
+                                                            return hasValue(value);
+                                                        });
+
+                                                        if (legacyFieldsWithValues.length === 0) return null;
+
+                                                        return (
+                                                            <div className="mt-4">
+                                                                <h4 className="text-sm font-semibold text-gray-600 mb-2">
+                                                                    Additional Financial Information
+                                                                </h4>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                                                    {legacyFieldsWithValues.map((field) => {
+                                                                        const value = getFieldValue(project, field.id);
+                                                                        const formattedValue = formatFieldValue(
+                                                                            value,
+                                                                            field.type
+                                                                        );
+                                                                        const isFullWidth = field.type === 'Textarea';
+
+                                                                        return (
+                                                                            <AnimatedField key={field.id}>
+                                                                                <KeyValueDisplay
+                                                                                    label={field.label}
+                                                                                    value={formattedValue}
+                                                                                    fullWidth={isFullWidth}
+                                                                                />
+                                                                            </AnimatedField>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+
+                                                    {sectionId === 'market-context' && (() => {
+                                                        const rentComps = getFieldValue(project, 'rentComps');
+                                                        if (
+                                                            !hasValue(rentComps) ||
+                                                            !Array.isArray(rentComps) ||
+                                                            rentComps.length === 0
+                                                        )
+                                                            return null;
+
+                                                        return (
+                                                            <div className="mt-4">
+                                                                <h4 className="text-sm font-semibold text-gray-600 mb-2">
+                                                                    Rent Comparables
+                                                                </h4>
+                                                                <div className="overflow-x-auto">
+                                                                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                                                        <thead className="bg-gray-50">
+                                                                            <tr>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Property Name
+                                                                                </th>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Address
+                                                                                </th>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Distance
+                                                                                </th>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Year Built
+                                                                                </th>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Units
+                                                                                </th>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Occupancy
+                                                                                </th>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Avg Rent/Month
+                                                                                </th>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Rent/PSF
+                                                                                </th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody className="bg-white divide-y divide-gray-200">
+                                                                            {rentComps.map((comp: any, idx: number) => (
+                                                                                <tr key={idx}>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {comp.propertyName || 'N/A'}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {comp.address || 'N/A'}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {comp.distance
+                                                                                            ? `${comp.distance.toFixed(2)} mi`
+                                                                                            : 'N/A'}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {comp.yearBuilt || 'N/A'}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {comp.totalUnits?.toLocaleString() ||
+                                                                                            'N/A'}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {comp.occupancyPercent
+                                                                                            ? `${comp.occupancyPercent.toFixed(1)}%`
+                                                                                            : 'N/A'}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {formatCurrency(comp.avgRentMonth)}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {comp.rentPSF
+                                                                                            ? `$${comp.rentPSF.toFixed(2)}`
+                                                                                            : 'N/A'}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            ) : (
+                                                // Fallback: section without explicit subsections
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                                                    {allFieldMetas
+                                                        .filter((field) => {
+                                                            const value = getFieldValue(project, field.fieldId);
+                                                            if (sectionId === 'special-considerations') {
+                                                                return (
+                                                                    value !== undefined &&
+                                                                    (hasValue(value) || value === false)
+                                                                );
+                                                            }
+                                                            return hasValue(value);
+                                                        })
+                                                        .map((field) => {
+                                                            const value = getFieldValue(project, field.fieldId);
+                                                            const formattedValue = formatFieldValue(
+                                                                value,
+                                                                field.dataType
+                                                            );
+                                                            const isFullWidth =
+                                                                field.dataType === 'Textarea' ||
+                                                                field.fieldId === 'projectDescription' ||
+                                                                field.fieldId === 'businessPlanSummary' ||
+                                                                field.fieldId === 'marketOverviewSummary' ||
+                                                                field.fieldId === 'contactInfo';
+
+                                                            return (
+                                                                <AnimatedField key={field.fieldId}>
+                                                                    <KeyValueDisplay
+                                                                        label={getDisplayLabel(field.fieldId, field)}
+                                                                        value={formattedValue}
+                                                                        fullWidth={isFullWidth}
+                                                                    />
+                                                                </AnimatedField>
+                                                            );
+                                                        })}
                                             </div>
+                                            )}
                                         </motion.div>
                                     );
-                                })()}
+                                })}
                             </motion.div>
                         </div>
                     </motion.div>

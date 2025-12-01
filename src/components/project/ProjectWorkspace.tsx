@@ -745,24 +745,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.5 }}
-                    className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
                   >
-                    <div className="p-4">
-                      <EnhancedProjectForm
-                        key={`enhanced-form-${resumeRefreshKey}`}
-                        existingProject={activeProject}
-                        onComplete={() => setIsEditing(false)}
-                        onAskAI={(fieldId) => {
-                          setActiveFieldId(fieldId);
-                          void projectAskAi.activateField(fieldId, { autoSend: true });
-                          setChatTab("ai");
-                          setShouldExpandChat(true);
-                          setTimeout(() => setShouldExpandChat(false), 100);
-                        }}
-                        onFormDataChange={setCurrentFormData}
-                        onVersionChange={handleResumeVersionChange}
-                      />
-                    </div>
+                    <EnhancedProjectForm
+                      key={`enhanced-form-${resumeRefreshKey}`}
+                      existingProject={activeProject}
+                      onComplete={() => setIsEditing(false)}
+                      onAskAI={(fieldId) => {
+                        setActiveFieldId(fieldId);
+                        void projectAskAi.activateField(fieldId, { autoSend: true });
+                        setChatTab("ai");
+                        setShouldExpandChat(true);
+                        setTimeout(() => setShouldExpandChat(false), 100);
+                      }}
+                      onFormDataChange={setCurrentFormData}
+                      onVersionChange={handleResumeVersionChange}
+                    />
                   </motion.div>
                 ) : (
                   <>

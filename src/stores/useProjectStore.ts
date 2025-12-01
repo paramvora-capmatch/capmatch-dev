@@ -336,45 +336,16 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				)
 			);
 
-			// Convert the database project to ProjectProfile format.
-			// When a new project is created, ONLY the project name should be pre-filled by default.
-			// All other resume fields should start empty so the borrower can enter them explicitly.
 			const newProjectData: ProjectProfile = {
 				id: data.project.id,
 				owner_org_id: data.project.owner_org_id,
 				assignedAdvisorUserId: data.project.assigned_advisor_id,
 				projectName: data.project.name,
-				assetType: "",
-				projectStatus: "",
 				createdAt: data.project.created_at,
 				updatedAt: data.project.updated_at,
-				propertyAddressStreet: "",
-				propertyAddressCity: "",
-				propertyAddressState: "",
-				propertyAddressCounty: "",
-				propertyAddressZip: "",
-				projectDescription: "",
-				loanAmountRequested: null,
-				loanType: "",
-				targetLtvPercent: null,
-				targetLtcPercent: null,
-				amortizationYears: null,
-				interestOnlyPeriodMonths: null,
-				interestRateType: "",
-				targetCloseDate: null,
-				useOfProceeds: "",
-				recoursePreference: "",
-				purchasePrice: null,
-				totalProjectCost: null,
-				capexBudget: null,
-				propertyNoiT12: null,
-				stabilizedNoiProjected: null,
-				exitStrategy: "",
-				businessPlanSummary: "",
-				marketOverviewSummary: "",
-				equityCommittedPercent: null,
+				// All other resume fields should start undefined/empty and only be created
+				// in project_resumes.content once the user explicitly interacts with them.
 				completenessPercent: 0,
-				internalAdvisorNotes: "",
 				borrowerProgress: normalizedBorrowerProgress,
 				borrowerSections: borrowerResumeContent,
 				projectSections:
@@ -389,16 +360,19 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				...newProjectData,
 				...progressResult,
 				completenessPercent: progressResult.completenessPercent,
-				borrowerProgress: normalizedBorrowerProgress,
+				borrowerProgress: normalizedBorrowerProgress, // keep borrower progress from resume
 				borrowerSections: borrowerResumeContent,
 			};
 
-			// Save initial completenessPercent (0) to project_resumes.content JSONB
+			// Save ONLY the initial project name (and completeness) into project_resumes.content.
+			// This prevents untouched fields from being created with `user_input` source,
+			// which would incorrectly show them as "blue" in the UI.
 			try {
 				const resumeContent = {
-					...projectProfileToResumeContent(newProjectData),
+					projectName: newProjectData.projectName,
 					completenessPercent: progressResult.completenessPercent,
-				};
+				} as Partial<ProjectResumeContent>;
+
 				await supabase.functions.invoke('update-project', {
 					body: {
 						project_id: data.project.id,

@@ -473,58 +473,69 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		| "select"
 		| "button-select";
 
-	const sectionIconComponents: Record<
-		string,
-		React.ComponentType<{ className?: string }>
-	> = {
-		FileText,
-		DollarSign,
-		Building,
-		Globe,
-		Calendar,
-		Map,
-		Users,
-		Calculator,
-		AlertTriangle,
-		Info,
-		BarChart,
-	};
+	const sectionIconComponents = useMemo<
+		Record<string, React.ComponentType<{ className?: string }>>
+	>(
+		() => ({
+			FileText,
+			DollarSign,
+			Building,
+			Globe,
+			Calendar,
+			Map,
+			Users,
+			Calculator,
+			AlertTriangle,
+			Info,
+			BarChart,
+		}),
+		[]
+	);
 
-	const fieldControlOverrides: Record<string, ControlKind> = {
-		assetType: "button-select",
-		projectPhase: "button-select",
-		loanType: "button-select",
-		interestRateType: "button-select",
-		recoursePreference: "button-select",
-		exitStrategy: "button-select",
-	};
+	const fieldControlOverrides = useMemo<Record<string, ControlKind>>(
+		() => ({
+			assetType: "button-select",
+			projectPhase: "button-select",
+			loanType: "button-select",
+			interestRateType: "button-select",
+			recoursePreference: "button-select",
+			exitStrategy: "button-select",
+		}),
+		[]
+	);
 
-	const fieldOptionsRegistry: Record<string, any[]> = {
-		assetType: assetTypeOptions,
-		projectPhase: projectPhaseOptions,
-		loanType: capitalTypeOptions,
-		interestRateType: interestRateTypeOptions,
-		recoursePreference: recourseOptions,
-		exitStrategy: exitStrategyOptions,
-	};
+	const fieldOptionsRegistry = useMemo<Record<string, any[]>>(
+		() => ({
+			assetType: assetTypeOptions,
+			projectPhase: projectPhaseOptions,
+			loanType: capitalTypeOptions,
+			interestRateType: interestRateTypeOptions,
+			recoursePreference: recourseOptions,
+			exitStrategy: exitStrategyOptions,
+		}),
+		[]
+	);
 
-	const getDefaultControlForDataType = (dataType?: string): ControlKind => {
-		if (!dataType) return "input";
-		switch (dataType.toLowerCase()) {
-			case "textarea":
-				return "textarea";
-			case "dropdown":
-				return "select";
-			case "currency":
-			case "integer":
-			case "numeric":
-				return "number";
-			case "date":
-				return "input";
-			default:
-				return "input";
-		}
-	};
+	const getDefaultControlForDataType = useCallback(
+		(dataType?: string): ControlKind => {
+			if (!dataType) return "input";
+			switch (dataType.toLowerCase()) {
+				case "textarea":
+					return "textarea";
+				case "dropdown":
+					return "select";
+				case "currency":
+				case "integer":
+				case "numeric":
+					return "number";
+				case "date":
+					return "input";
+				default:
+					return "input";
+			}
+		},
+		[]
+	);
 
 	const renderDynamicField = useCallback(
 		(fieldId: string, sectionId: string) => {
@@ -736,12 +747,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		},
 		[
 			formData,
-			isFieldDisabled,
 			getFieldStylingClasses,
 			handleInputChange,
 			onAskAI,
 			renderFieldLabel,
-			isFieldLocked
+			isFieldLocked,
+			fieldControlOverrides,
+			fieldOptionsRegistry,
+			getDefaultControlForDataType,
 		]
 	);
 
@@ -815,7 +828,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					};
 				}
 			),
-		[lockedSections, renderDynamicField, toggleSectionLock]
+		[lockedSections, renderDynamicField, toggleSectionLock, sectionIconComponents]
 	);
 
 	const handleFormSubmit = useCallback(
@@ -933,4 +946,4 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 };
 
-export default EnhancedProjectForm;
+export default EnhancedProjectForm;
