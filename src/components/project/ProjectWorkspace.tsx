@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { ProjectSummaryCard } from "./ProjectSummaryCard"; // Borrower progress
 import { ProjectCompletionCard } from "./ProjectCompletionCard"; // Project progress moved below docs
-import { EnhancedProjectForm } from "../forms/EnhancedProjectForm";
+import EnhancedProjectForm from "../forms/EnhancedProjectForm";
 import { Loader2, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { ProjectProfile } from "@/types/enhanced-types";
@@ -32,7 +32,18 @@ import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 import { useAutofill } from "@/hooks/useAutofill";
 
+const unwrapValue = (val: any) => {
+  if (val && typeof val === "object" && "value" in val) {
+    return (val as any).value;
+  }
+  if (val && typeof val === "object" && "original_value" in val) {
+    return (val as any).original_value;
+  }
+  return val;
+};
+
 const clampPercentage = (value: unknown): number => {
+  const unwrapped = unwrapValue(value);
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.max(0, Math.min(100, Math.round(value)));
   }
@@ -75,7 +86,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         )
         .map((proj) => ({
           value: proj.id,
-          label: proj.projectName || "Untitled Project",
+          label: (unwrapValue(proj.projectName) as string) || "Untitled Project",
         })),
     [projects, projectId, activeProject?.owner_org_id]
   );
@@ -612,7 +623,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   transition={{ duration: 0.3 }}
                   className="text-3xl font-bold text-gray-900 mb-5"
                 >
-                  {activeProject?.projectName || "Project"}
+                  {(unwrapValue(activeProject?.projectName) as string) || "Project"}
                 </motion.h1>
 
                 {/* Project Progress Card */}
