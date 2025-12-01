@@ -45,7 +45,10 @@ import {
 } from "@/types/enhanced-types";
 import { PROJECT_REQUIRED_FIELDS } from "@/utils/resumeCompletion";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
-import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
+import {
+	projectResumeFieldMetadata,
+	FieldMetadata as ProjectFieldMeta,
+} from "@/lib/project-resume-field-metadata";
 import { normalizeSource } from "@/utils/sourceNormalizer";
 
 interface EnhancedProjectFormProps {
@@ -252,6 +255,48 @@ const isProjectValueProvided = (value: unknown): boolean => {
 	return false;
 };
 
+// Sanitize incoming ProjectProfile / metadata so obviously wrong legacy values
+// (e.g. boolean `true` where dataType is Integer/Percent/Text) are nulled out
+// before they ever hit the form state or get written back to the DB again.
+const sanitizeProjectProfile = (
+	profile: ProjectProfile
+): ProjectProfile => {
+	const next: any = { ...profile };
+
+	// Fix flat field values
+	for (const [fieldId, meta] of Object.entries(projectResumeFieldMetadata)) {
+		const dataType = (meta as ProjectFieldMeta).dataType;
+		if (!dataType || dataType === "Boolean") continue;
+
+		const current = (next as any)[fieldId];
+		if (typeof current === "boolean") {
+			(next as any)[fieldId] = null;
+		}
+	}
+
+	// Fix rich metadata container on the profile itself
+	if (next._metadata && typeof next._metadata === "object") {
+		const fixedMeta: Record<string, any> = { ...next._metadata };
+		for (const [fieldId, meta] of Object.entries(fixedMeta)) {
+			const fieldConfig = projectResumeFieldMetadata[fieldId];
+			const dataType = fieldConfig?.dataType;
+			if (!dataType || dataType === "Boolean") continue;
+
+			if (meta && typeof meta === "object") {
+				if (typeof meta.value === "boolean") {
+					meta.value = null;
+				}
+				if (typeof meta.original_value === "boolean") {
+					meta.original_value = null;
+				}
+			}
+		}
+		next._metadata = fixedMeta;
+	}
+
+	return next as ProjectProfile;
+};
+
 const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	existingProject,
 	onComplete,
@@ -261,7 +306,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	initialFocusFieldId,
 	onVersionChange,
 }) => {
-	const [formData, setFormData] = useState<ProjectProfile>(existingProject);
+	const [formData, setFormData] = useState<ProjectProfile>(
+		sanitizeProjectProfile(existingProject)
+	);
 	const [fieldMetadata, setFieldMetadata] = useState<Record<string, any>>(
 		existingProject._metadata || {}
 	);
@@ -570,8 +617,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	// Effect to handle updates from parent (e.g. after Autofill)
 	useEffect(() => {
-		setFormData(existingProject);
-		const metadata = existingProject._metadata || {};
+		const sanitized = sanitizeProjectProfile(existingProject);
+		setFormData(sanitized);
+		const metadata = sanitized._metadata || {};
 		setFieldMetadata(metadata);
 
 		// Update locks based on source
