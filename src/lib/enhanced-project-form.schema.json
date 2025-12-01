@@ -2,8 +2,36 @@
   "steps": [
     {
       "id": "basic-info",
-      "title": "Basic Info",
+      "title": "Project Identification & Basic Info",
       "icon": "FileText",
+      "subsections": [
+        {
+          "id": "project-identity",
+          "title": "1.1 Project Identity",
+          "fields": [
+            "projectName",
+            "propertyAddressStreet",
+            "propertyAddressCity",
+            "propertyAddressState",
+            "propertyAddressZip",
+            "propertyAddressCounty",
+            "dealStatus"
+          ]
+        },
+        {
+          "id": "classification",
+          "title": "1.2 Classification",
+          "fields": [
+            "assetType",
+            "constructionType",
+            "projectPhase",
+            "projectDescription",
+            "parcelNumber",
+            "zoningDesignation",
+            "expectedZoningChanges"
+          ]
+        }
+      ],
       "fields": [
         "projectName",
         "propertyAddressStreet",
@@ -11,55 +39,239 @@
         "propertyAddressState",
         "propertyAddressZip",
         "propertyAddressCounty",
+        "dealStatus",
         "assetType",
+        "constructionType",
         "projectPhase",
         "projectDescription",
-        "constructionType",
-        "groundbreakingDate",
-        "completionDate",
-        "dealStatus",
-        "expectedZoningChanges",
         "parcelNumber",
-        "zoningDesignation"
+        "zoningDesignation",
+        "expectedZoningChanges"
       ]
     },
     {
-      "id": "loan-info",
-      "title": "Loan Request",
+      "id": "property-specs",
+      "title": "Property Specifications",
+      "icon": "Building",
+      "subsections": [
+        {
+          "id": "physical-structure",
+          "title": "2.1 Physical Structure",
+          "fields": [
+            "totalResidentialUnits",
+            "totalResidentialNRSF",
+            "averageUnitSize",
+            "totalCommercialGRSF",
+            "buildingEfficiency",
+            "buildingType",
+            "grossBuildingArea",
+            "numberOfStories"
+          ]
+        },
+        {
+          "id": "amenities-unit-details",
+          "title": "2.2 Amenities & Unit Details",
+          "fields": [
+            "parkingSpaces",
+            "parkingRatio",
+            "amenityList",
+            "furnishedUnits",
+            "lossToLease",
+            "studioCount",
+            "oneBedCount",
+            "twoBedCount",
+            "threeBedCount"
+          ]
+        },
+        {
+          "id": "systems-esg-compliance",
+          "title": "2.3 Systems, ESG & Compliance",
+          "fields": [
+            "adaCompliantPercent",
+            "hvacSystem",
+            "roofTypeAge",
+            "solarCapacity",
+            "evChargingStations",
+            "leedGreenRating"
+          ]
+        }
+      ],
+      "fields": [
+        "totalResidentialUnits",
+        "totalResidentialNRSF",
+        "averageUnitSize",
+        "totalCommercialGRSF",
+        "buildingEfficiency",
+        "buildingType",
+        "grossBuildingArea",
+        "numberOfStories",
+        "parkingSpaces",
+        "parkingRatio",
+        "amenityList",
+        "furnishedUnits",
+        "lossToLease",
+        "studioCount",
+        "oneBedCount",
+        "twoBedCount",
+        "threeBedCount",
+        "adaCompliantPercent",
+        "hvacSystem",
+        "roofTypeAge",
+        "solarCapacity",
+        "evChargingStations",
+        "leedGreenRating"
+      ]
+    },
+    {
+      "id": "financial-details",
+      "title": "Financial Details",
       "icon": "DollarSign",
+      "subsections": [
+        {
+          "id": "uses-of-funds",
+          "title": "3.1 Uses of Funds (Budget)",
+          "fields": [
+            "totalDevelopmentCost",
+            "landAcquisition",
+            "baseConstruction",
+            "contingency",
+            "constructionFees",
+            "aeFees",
+            "thirdPartyReports",
+            "legalAndOrg",
+            "titleAndRecording",
+            "taxesDuringConstruction",
+            "developerFee",
+            "loanFees",
+            "interestReserve",
+            "ffe",
+            "workingCapital",
+            "opDeficitEscrow",
+            "leaseUpEscrow",
+            "relocationCosts",
+            "syndicationCosts",
+            "enviroRemediation",
+            "pfcStructuringFee"
+          ]
+        },
+        {
+          "id": "sources-of-funds",
+          "title": "3.2 Sources of Funds",
+          "fields": [
+            "seniorLoanAmount",
+            "sponsorEquity",
+            "taxCreditEquity",
+            "gapFinancing"
+          ]
+        },
+        {
+          "id": "loan-terms-structure",
+          "title": "3.3 Loan Terms & Structure",
+          "fields": [
+            "loanAmountRequested",
+            "loanType",
+            "requestedTerm",
+            "amortization",
+            "amortizationYears",
+            "interestRate",
+            "underwritingRate",
+            "interestRateType",
+            "targetLtvPercent",
+            "targetLtcPercent",
+            "prepaymentPremium",
+            "prepaymentTerms",
+            "recourse",
+            "recoursePreference",
+            "permTakeoutPlanned",
+            "allInRate",
+            "targetCloseDate"
+          ]
+        },
+        {
+          "id": "operating-expenses",
+          "title": "3.4 Operating Expenses (Proforma)",
+          "fields": [
+            "realEstateTaxes",
+            "insurance",
+            "utilitiesCosts",
+            "repairsAndMaintenance",
+            "managementFee",
+            "generalAndAdmin",
+            "payroll",
+            "reserves",
+            "marketingLeasing",
+            "serviceCoordination"
+          ]
+        },
+        {
+          "id": "investment-metrics-exit",
+          "title": "3.5 Investment Metrics & Exit",
+          "fields": [
+            "exitStrategy",
+            "expectedHoldPeriod",
+            "noiYear1",
+            "yieldOnCost",
+            "capRate",
+            "stabilizedValue",
+            "ltv",
+            "debtYield",
+            "dscr",
+            "trendedNOIYear1",
+            "untrendedNOIYear1",
+            "trendedYield",
+            "untrendedYield",
+            "inflationAssumption",
+            "dscrStressTest",
+            "ltvStressMax",
+            "dscrStressMin",
+            "portfolioLTV",
+            "portfolioDSCR"
+          ]
+        }
+      ],
       "fields": [
-        "loanAmountRequested",
-        "loanType",
-        "targetLtvPercent",
-        "targetLtcPercent",
-        "amortizationYears",
-        "interestOnlyPeriodMonths",
-        "interestRateType",
-        "targetCloseDate",
-        "recoursePreference",
-        "useOfProceeds"
-      ]
-    },
-    {
-      "id": "financials",
-      "title": "Financials",
-      "icon": "BarChart",
-      "fields": [
-        "purchasePrice",
-        "totalProjectCost",
-        "capexBudget",
         "totalDevelopmentCost",
-        "equityCommittedPercent",
-        "propertyNoiT12",
-        "stabilizedNoiProjected",
-        "exitStrategy",
+        "landAcquisition",
+        "baseConstruction",
+        "contingency",
+        "constructionFees",
+        "aeFees",
+        "thirdPartyReports",
+        "legalAndOrg",
+        "titleAndRecording",
+        "taxesDuringConstruction",
+        "developerFee",
+        "loanFees",
+        "interestReserve",
+        "ffe",
+        "workingCapital",
+        "opDeficitEscrow",
+        "leaseUpEscrow",
+        "relocationCosts",
+        "syndicationCosts",
+        "enviroRemediation",
+        "pfcStructuringFee",
+        "seniorLoanAmount",
+        "sponsorEquity",
+        "taxCreditEquity",
+        "gapFinancing",
         "loanAmountRequested",
         "loanType",
         "requestedTerm",
+        "amortization",
         "amortizationYears",
+        "interestRate",
+        "underwritingRate",
+        "interestRateType",
+        "targetLtvPercent",
+        "targetLtcPercent",
         "prepaymentPremium",
-        "businessPlanSummary",
-        "marketOverviewSummary",
+        "prepaymentTerms",
+        "recourse",
+        "recoursePreference",
+        "permTakeoutPlanned",
+        "allInRate",
+        "targetCloseDate",
         "realEstateTaxes",
         "insurance",
         "utilitiesCosts",
@@ -70,6 +282,8 @@
         "reserves",
         "marketingLeasing",
         "serviceCoordination",
+        "exitStrategy",
+        "expectedHoldPeriod",
         "noiYear1",
         "yieldOnCost",
         "capRate",
@@ -77,108 +291,80 @@
         "ltv",
         "debtYield",
         "dscr",
-        "dscrStressTest",
-        "inflationAssumption",
-        "portfolioLTV",
         "trendedNOIYear1",
         "untrendedNOIYear1",
         "trendedYield",
         "untrendedYield",
-        "portfolioDSCR",
-        "expectedHoldPeriod",
+        "inflationAssumption",
+        "dscrStressTest",
         "ltvStressMax",
-        "dscrStressMin"
-      ]
-    },
-    {
-      "id": "property-specs",
-      "title": "Property Specs",
-      "icon": "Building",
-      "fields": [
-        "totalResidentialUnits",
-        "totalResidentialNRSF",
-        "averageUnitSize",
-        "totalCommercialGRSF",
-        "grossBuildingArea",
-        "numberOfStories",
-        "parkingSpaces",
-        "parkingRatio",
-        "buildingEfficiency",
-        "buildingType",
-        "studioCount",
-        "oneBedCount",
-        "twoBedCount",
-        "threeBedCount",
-        "furnishedUnits",
-        "lossToLease",
-        "hvacSystem",
-        "roofTypeAge",
-        "solarCapacity",
-        "evChargingStations",
-        "leedGreenRating",
-        "adaCompliantPercent"
-      ]
-    },
-    {
-      "id": "dev-budget",
-      "title": "Development Budget",
-      "icon": "Calculator",
-      "fields": [
-        "landAcquisition",
-        "baseConstruction",
-        "contingency",
-        "ffe",
-        "aeFees",
-        "constructionFees",
-        "thirdPartyReports",
-        "legalAndOrg",
-        "titleAndRecording",
-        "taxesDuringConstruction",
-        "loanFees",
-        "developerFee",
-        "interestReserve",
-        "workingCapital",
-        "relocationCosts",
-        "syndicationCosts",
-        "enviroRemediation",
-        "pfcStructuringFee",
-        "seniorLoanAmount",
-        "sponsorEquity",
-        "taxCreditEquity",
-        "gapFinancing",
-        "interestRate",
-        "underwritingRate",
-        "amortization",
-        "prepaymentTerms",
-        "recourse",
-        "permTakeoutPlanned",
-        "allInRate"
+        "dscrStressMin",
+        "portfolioLTV",
+        "portfolioDSCR"
       ]
     },
     {
       "id": "market-context",
       "title": "Market Context",
       "icon": "Globe",
+      "subsections": [
+        {
+          "id": "demographics-economy",
+          "title": "4.1 Demographics & Economy",
+          "fields": [
+            "msaName",
+            "population3Mi",
+            "projGrowth202429",
+            "medianHHIncome",
+            "renterOccupiedPercent",
+            "unemploymentRate",
+            "largestEmployer",
+            "employerConcentration",
+            "crimeRiskLevel"
+          ]
+        },
+        {
+          "id": "location-connectivity",
+          "title": "4.2 Location & Connectivity",
+          "fields": [
+            "submarketName",
+            "walkabilityScore",
+            "infrastructureCatalyst",
+            "broadbandSpeed"
+          ]
+        },
+        {
+          "id": "supply-demand",
+          "title": "4.3 Supply & Demand",
+          "fields": [
+            "submarketAbsorption",
+            "supplyPipeline",
+            "monthsOfSupply",
+            "captureRate",
+            "marketConcessions",
+            "northStarComp"
+          ]
+        }
+      ],
       "fields": [
-        "submarketName",
-        "walkabilityScore",
+        "msaName",
         "population3Mi",
+        "projGrowth202429",
         "medianHHIncome",
         "renterOccupiedPercent",
-        "popGrowth201020",
-        "msaName",
-        "projGrowth202429",
         "unemploymentRate",
         "largestEmployer",
         "employerConcentration",
+        "crimeRiskLevel",
+        "submarketName",
+        "walkabilityScore",
+        "infrastructureCatalyst",
+        "broadbandSpeed",
         "submarketAbsorption",
         "supplyPipeline",
         "monthsOfSupply",
         "captureRate",
         "marketConcessions",
-        "infrastructureCatalyst",
-        "broadbandSpeed",
-        "crimeRiskLevel",
         "northStarComp"
       ]
     },
@@ -186,13 +372,52 @@
       "id": "special-considerations",
       "title": "Special Considerations",
       "icon": "AlertTriangle",
+      "subsections": [
+        {
+          "id": "affordable-housing-compliance",
+          "title": "5.1 Affordable Housing & Compliance",
+          "fields": [
+            "affordableHousing",
+            "affordableUnitsNumber",
+            "amiTargetPercent",
+            "relocationPlan"
+          ]
+        },
+        {
+          "id": "incentives-tax-credits",
+          "title": "5.2 Incentives & Tax Credits",
+          "fields": [
+            "opportunityZone",
+            "taxExemption",
+            "exemptionStructure",
+            "sponsoringEntity",
+            "exemptionTerm",
+            "incentiveStacking",
+            "tifDistrict",
+            "taxAbatement",
+            "paceFinancing",
+            "historicTaxCredits",
+            "newMarketsCredits",
+            "seismicPMLRisk"
+          ]
+        }
+      ],
       "fields": [
+        "affordableHousing",
         "affordableUnitsNumber",
         "amiTargetPercent",
+        "relocationPlan",
+        "opportunityZone",
+        "taxExemption",
         "exemptionStructure",
         "sponsoringEntity",
         "exemptionTerm",
-        "relocationPlan",
+        "incentiveStacking",
+        "tifDistrict",
+        "taxAbatement",
+        "paceFinancing",
+        "historicTaxCredits",
+        "newMarketsCredits",
         "seismicPMLRisk"
       ]
     },
@@ -200,634 +425,972 @@
       "id": "timeline",
       "title": "Timeline & Milestones",
       "icon": "Calendar",
+      "subsections": [
+        {
+          "id": "key-dates",
+          "title": "6.1 Key Dates",
+          "fields": [
+            "landAcqClose",
+            "groundbreakingDate",
+            "verticalStart",
+            "substantialComp",
+            "firstOccupancy",
+            "stabilization",
+            "completionDate"
+          ]
+        },
+        {
+          "id": "entitlements-permitting",
+          "title": "6.2 Entitlements & Permitting",
+          "fields": [
+            "entitlements",
+            "finalPlans",
+            "permitsIssued"
+          ]
+        },
+        {
+          "id": "construction-lease-up-status",
+          "title": "6.3 Construction & Lease-Up Status",
+          "fields": [
+            "preLeasedSF",
+            "drawSchedule",
+            "absorptionProjection"
+          ]
+        }
+      ],
       "fields": [
-        "groundbreakingDate",
-        "completionDate",
-        "firstOccupancy",
-        "stabilization",
-        "entitlements",
-        "permitsIssued",
         "landAcqClose",
-        "finalPlans",
+        "groundbreakingDate",
         "verticalStart",
         "substantialComp",
+        "firstOccupancy",
+        "stabilization",
+        "completionDate",
+        "entitlements",
+        "finalPlans",
+        "permitsIssued",
         "preLeasedSF",
-        "absorptionProjection",
-        "opDeficitEscrow",
-        "leaseUpEscrow"
+        "drawSchedule",
+        "absorptionProjection"
       ]
     },
     {
       "id": "site-context",
-      "title": "Site Context",
+      "title": "Site & Context",
       "icon": "Map",
+      "subsections": [
+        {
+          "id": "land-zoning",
+          "title": "7.1 Land & Zoning",
+          "fields": [
+            "parcelNumber",
+            "zoningDesignation",
+            "expectedZoningChanges",
+            "totalSiteAcreage",
+            "buildableAcreage",
+            "allowableFAR",
+            "farUtilizedPercent",
+            "densityBonus"
+          ]
+        },
+        {
+          "id": "physical-characteristics-access",
+          "title": "7.2 Physical Characteristics & Access",
+          "fields": [
+            "currentSiteStatus",
+            "topography",
+            "soilConditions",
+            "accessPoints",
+            "adjacentLandUse",
+            "viewCorridors"
+          ]
+        },
+        {
+          "id": "environmental-hazards",
+          "title": "7.3 Environmental & Hazards",
+          "fields": [
+            "floodZone",
+            "wetlandsPresent",
+            "seismicRisk",
+            "seismicPMLRisk",
+            "phaseIESAFinding",
+            "noiseFactors"
+          ]
+        },
+        {
+          "id": "infrastructure-utilities",
+          "title": "7.4 Infrastructure & Utilities",
+          "fields": [
+            "utilityAvailability",
+            "easements"
+          ]
+        }
+      ],
       "fields": [
-        "totalSiteAcreage",
-        "currentSiteStatus",
         "parcelNumber",
         "zoningDesignation",
         "expectedZoningChanges",
-        "siteAccess",
-        "proximityShopping",
+        "totalSiteAcreage",
         "buildableAcreage",
         "allowableFAR",
         "farUtilizedPercent",
         "densityBonus",
+        "currentSiteStatus",
+        "topography",
         "soilConditions",
-        "wetlandsPresent",
-        "seismicRisk",
-        "phaseIESAFinding",
-        "utilityAvailability",
-        "easements",
         "accessPoints",
         "adjacentLandUse",
-        "noiseFactors",
         "viewCorridors",
-        "topography",
-        "floodZone"
+        "floodZone",
+        "wetlandsPresent",
+        "seismicRisk",
+        "seismicPMLRisk",
+        "phaseIESAFinding",
+        "noiseFactors",
+        "utilityAvailability",
+        "easements"
       ]
     },
     {
       "id": "sponsor-info",
-      "title": "Sponsor & Borrower",
+      "title": "Sponsor Information",
       "icon": "Users",
+      "subsections": [
+        {
+          "id": "entity-structure",
+          "title": "8.1 Entity Structure",
+          "fields": [
+            "sponsorEntityName",
+            "sponsorStructure",
+            "equityPartner",
+            "syndicationStatus",
+            "contactInfo"
+          ]
+        },
+        {
+          "id": "track-record",
+          "title": "8.2 Track Record",
+          "fields": [
+            "sponsorExperience",
+            "sponsorExpScore",
+            "priorDevelopments",
+            "portfolioDSCR"
+          ]
+        },
+        {
+          "id": "financial-strength",
+          "title": "8.3 Financial Strength",
+          "fields": [
+            "borrowerNetWorth",
+            "netWorth",
+            "guarantorLiquidity"
+          ]
+        }
+      ],
       "fields": [
         "sponsorEntityName",
         "sponsorStructure",
         "equityPartner",
-        "contactInfo",
         "syndicationStatus",
+        "contactInfo",
         "sponsorExperience",
-        "borrowerNetWorth",
         "sponsorExpScore",
         "priorDevelopments",
+        "portfolioDSCR",
+        "borrowerNetWorth",
         "netWorth",
-        "guarantorLiquidity",
-        "portfolioDSCR"
+        "guarantorLiquidity"
       ]
     }
   ],
   "fields": {
     "projectName": {
-      "label": "Project Name"
+      "label": "Project Name",
+      "required": true
     },
     "propertyAddressStreet": {
-      "label": "Street Address"
+      "label": "Street Address",
+      "required": true
     },
     "propertyAddressCity": {
-      "label": "City"
+      "label": "City",
+      "required": true
     },
     "propertyAddressState": {
-      "label": "State"
+      "label": "State",
+      "required": true
     },
     "propertyAddressZip": {
-      "label": "ZIP Code"
+      "label": "ZIP Code",
+      "required": true
     },
     "propertyAddressCounty": {
-      "label": "County"
+      "label": "County",
+      "required": true
     },
     "assetType": {
-      "label": "Asset Type"
+      "label": "Asset Type",
+      "required": true
     },
     "projectPhase": {
-      "label": "Project Phase / Deal Type"
+      "label": "Project Phase / Deal Type",
+      "required": true
     },
     "projectDescription": {
-      "label": "Project Description"
+      "label": "Project Description",
+      "required": true
     },
     "constructionType": {
-      "label": "Construction Type"
+      "label": "Construction Type",
+      "required": true
     },
     "groundbreakingDate": {
-      "label": "Groundbreaking Date"
+      "label": "Groundbreaking Date",
+      "required": true
     },
     "completionDate": {
-      "label": "Completion Date"
+      "label": "Completion Date",
+      "required": true
     },
     "dealStatus": {
-      "label": "Deal Status"
+      "label": "Deal Status",
+      "required": true
     },
     "expectedZoningChanges": {
-      "label": "Expected Zoning Changes"
+      "label": "Expected Zoning Changes",
+      "required": false
     },
     "parcelNumber": {
-      "label": "Parcel Number"
+      "label": "Parcel Number(s)",
+      "required": true
     },
     "zoningDesignation": {
-      "label": "Zoning Designation"
+      "label": "Zoning Designation",
+      "required": true
     },
     "loanAmountRequested": {
-      "label": "Loan Amount Requested ($)"
+      "label": "Loan Amount Requested ($)",
+      "required": true
     },
     "loanType": {
-      "label": "Loan Type"
+      "label": "Loan Type",
+      "required": true
     },
     "targetLtvPercent": {
-      "label": "Target LTV (%)"
+      "label": "Target LTV (%)",
+      "required": true
     },
     "targetLtcPercent": {
-      "label": "Target LTC (%)"
+      "label": "Target LTC (%)",
+      "required": false
     },
     "amortizationYears": {
-      "label": "Amortization (Years)"
+      "label": "Amortization (Years)",
+      "required": true
     },
     "interestOnlyPeriodMonths": {
-      "label": "Interest-Only Period (Months)"
+      "label": "Interest-Only Period (Months)",
+      "required": false
     },
     "interestRateType": {
-      "label": "Interest Rate Type"
+      "label": "Interest Rate Type",
+      "required": false
     },
     "targetCloseDate": {
-      "label": "Target Close Date"
+      "label": "Target Close Date",
+      "required": true
     },
     "recoursePreference": {
-      "label": "Recourse Preference"
+      "label": "Recourse Preference",
+      "required": true
     },
     "useOfProceeds": {
-      "label": "Use of Proceeds"
+      "label": "Use of Proceeds",
+      "required": false
     },
     "purchasePrice": {
-      "label": "Purchase Price / Current Basis ($)"
+      "label": "Purchase Price / Current Basis ($)",
+      "required": false
     },
     "totalProjectCost": {
-      "label": "Total Project Cost ($)"
+      "label": "Total Project Cost ($)",
+      "required": true
     },
     "capexBudget": {
-      "label": "CapEx Budget ($)"
+      "label": "CapEx Budget ($)",
+      "required": false
     },
     "totalDevelopmentCost": {
-      "label": "Total Development Cost (TDC) ($)"
+      "label": "Total Dev Cost (TDC)",
+      "required": true
     },
     "equityCommittedPercent": {
-      "label": "Equity Committed (%)"
+      "label": "Equity Committed (%)",
+      "required": false
     },
     "propertyNoiT12": {
-      "label": "Current/T12 NOI ($)"
+      "label": "Current/T12 NOI ($)",
+      "required": false
     },
     "stabilizedNoiProjected": {
-      "label": "Projected Stabilized NOI ($)"
+      "label": "Projected Stabilized NOI ($)",
+      "required": false
     },
     "exitStrategy": {
-      "label": "Exit Strategy"
+      "label": "Exit Strategy",
+      "required": true
     },
     "requestedTerm": {
-      "label": "Requested Term"
+      "label": "Requested Term",
+      "required": true
     },
     "prepaymentPremium": {
-      "label": "Prepayment Premium"
+      "label": "Prepayment Premium",
+      "required": false
     },
     "businessPlanSummary": {
-      "label": "Business Plan Summary"
+      "label": "Business Plan Summary",
+      "required": true
     },
     "marketOverviewSummary": {
-      "label": "Market Overview"
+      "label": "Market Overview",
+      "required": false
     },
     "realEstateTaxes": {
-      "label": "Real Estate Taxes"
+      "label": "Real Estate Taxes",
+      "required": true
     },
     "insurance": {
-      "label": "Insurance"
+      "label": "Insurance",
+      "required": true
     },
     "utilitiesCosts": {
-      "label": "Utilities"
+      "label": "Utilities",
+      "required": true
     },
     "repairsAndMaintenance": {
-      "label": "Repairs & Maintenance"
+      "label": "Repairs & Maintenance",
+      "required": true
     },
     "managementFee": {
-      "label": "Management Fee"
+      "label": "Management Fee",
+      "required": true
     },
     "generalAndAdmin": {
-      "label": "General & Administrative"
+      "label": "General & Administrative",
+      "required": true
     },
     "payroll": {
-      "label": "Payroll"
+      "label": "Payroll",
+      "required": true
     },
     "reserves": {
-      "label": "Reserves"
+      "label": "Reserves",
+      "required": true
     },
     "marketingLeasing": {
-      "label": "Marketing & Leasing"
+      "label": "Marketing/Leasing",
+      "required": true
     },
     "serviceCoordination": {
-      "label": "Service Coordination"
+      "label": "Service Coordination",
+      "required": false
     },
     "noiYear1": {
-      "label": "Year 1 NOI"
+      "label": "NOI (Year 1)",
+      "required": true
     },
     "yieldOnCost": {
-      "label": "Yield on Cost"
+      "label": "Yield on Cost",
+      "required": true
     },
     "capRate": {
-      "label": "Exit Cap Rate"
+      "label": "Cap Rate",
+      "required": true
     },
     "stabilizedValue": {
-      "label": "Stabilized Value"
+      "label": "Stabilized Value",
+      "required": true
     },
     "ltv": {
-      "label": "LTV"
+      "label": "LTV",
+      "required": true
     },
     "debtYield": {
-      "label": "Debt Yield"
+      "label": "Debt Yield",
+      "required": true
     },
     "dscr": {
-      "label": "DSCR"
+      "label": "DSCR",
+      "required": true
     },
     "dscrStressTest": {
-      "label": "DSCR Stress Test"
+      "label": "DSCR Stress Test",
+      "required": true
     },
     "inflationAssumption": {
-      "label": "Inflation Assumption"
+      "label": "Inflation Assumption",
+      "required": true
     },
     "portfolioLTV": {
-      "label": "Portfolio LTV"
+      "label": "Portfolio LTV",
+      "required": false
     },
     "trendedNOIYear1": {
-      "label": "Trended NOI Year 1"
+      "label": "Trended NOI (Yr 1)",
+      "required": false
     },
     "untrendedNOIYear1": {
-      "label": "Untrended NOI Year 1"
+      "label": "Untrended NOI (Yr 1)",
+      "required": true
     },
     "trendedYield": {
-      "label": "Trended Yield"
+      "label": "Trended Yield",
+      "required": false
     },
     "untrendedYield": {
-      "label": "Untrended Yield"
+      "label": "Untrended Yield",
+      "required": true
     },
     "portfolioDSCR": {
-      "label": "Portfolio DSCR"
+      "label": "Portfolio DSCR",
+      "required": false
     },
     "expectedHoldPeriod": {
-      "label": "Expected Hold Period (Years)"
+      "label": "Expected Hold Period (Years)",
+      "required": true
     },
     "ltvStressMax": {
-      "label": "Max LTV Stress"
+      "label": "LTV Stress Max",
+      "required": false
     },
     "dscrStressMin": {
-      "label": "Min DSCR Stress"
+      "label": "DSCR Stress Min",
+      "required": false
     },
     "totalResidentialUnits": {
-      "label": "Total Residential Units"
+      "label": "Total Units",
+      "required": true
     },
     "totalResidentialNRSF": {
-      "label": "Total Residential NRSF"
+      "label": "Net Rentable SF (NRSF)",
+      "required": true
     },
     "averageUnitSize": {
-      "label": "Average Unit Size (SF)"
+      "label": "Avg Unit Size (SF)",
+      "required": true
     },
     "totalCommercialGRSF": {
-      "label": "Total Commercial GRSF"
+      "label": "Commercial GRSF",
+      "required": false
     },
     "grossBuildingArea": {
-      "label": "Gross Building Area (SF)"
+      "label": "Gross Building Area (SF)",
+      "required": true
     },
     "numberOfStories": {
-      "label": "Number of Stories"
+      "label": "Number of Stories",
+      "required": true
     },
     "parkingSpaces": {
-      "label": "Parking Spaces"
+      "label": "Parking Spaces",
+      "required": true
     },
     "parkingRatio": {
-      "label": "Parking Ratio"
+      "label": "Parking Ratio",
+      "required": true
     },
     "buildingEfficiency": {
-      "label": "Building Efficiency (%)"
+      "label": "Building Efficiency (%)",
+      "required": true
     },
     "buildingType": {
-      "label": "Building Type"
+      "label": "Building Type",
+      "required": true
+    },
+    "amenityList": {
+      "label": "Amenity List",
+      "required": false
     },
     "studioCount": {
-      "label": "Studio Units"
+      "label": "Studio Count",
+      "required": false
     },
     "oneBedCount": {
-      "label": "1-Bed Units"
+      "label": "1-Bed Count",
+      "required": false
     },
     "twoBedCount": {
-      "label": "2-Bed Units"
+      "label": "2-Bed Count",
+      "required": false
     },
     "threeBedCount": {
-      "label": "3+ Bed Units"
+      "label": "3-Bed Count",
+      "required": false
     },
     "furnishedUnits": {
-      "label": "Furnished Units"
+      "label": "Furnished Units?",
+      "required": false
     },
     "lossToLease": {
-      "label": "Loss to Lease"
+      "label": "Loss to Lease %",
+      "required": false
     },
     "hvacSystem": {
-      "label": "HVAC System"
+      "label": "HVAC System",
+      "required": false
     },
     "roofTypeAge": {
-      "label": "Roof Type & Age"
+      "label": "Roof Type/Age",
+      "required": false
     },
     "solarCapacity": {
-      "label": "Solar Capacity"
+      "label": "Solar Capacity (kW)",
+      "required": false
     },
     "evChargingStations": {
-      "label": "EV Charging Stations"
+      "label": "EV Charging Stations",
+      "required": false
     },
     "leedGreenRating": {
-      "label": "LEED/Green Rating"
+      "label": "LEED/Green Rating",
+      "required": false
     },
     "adaCompliantPercent": {
-      "label": "ADA Compliant Units (%)"
+      "label": "ADA Compliant %",
+      "required": true
     },
     "landAcquisition": {
-      "label": "Land Acquisition"
+      "label": "Land Acquisition",
+      "required": true
     },
     "baseConstruction": {
-      "label": "Base Construction"
+      "label": "Base Construction",
+      "required": true
     },
     "contingency": {
-      "label": "Contingency"
+      "label": "Contingency",
+      "required": true
     },
     "ffe": {
-      "label": "FF&E"
+      "label": "FF&E",
+      "required": false
     },
     "aeFees": {
-      "label": "A&E Fees"
+      "label": "A&E Fees",
+      "required": true
     },
     "constructionFees": {
-      "label": "Construction Fees"
+      "label": "Construction Fees",
+      "required": true
     },
     "thirdPartyReports": {
-      "label": "Third-Party Reports"
+      "label": "Third Party Reports",
+      "required": true
     },
     "legalAndOrg": {
-      "label": "Legal & Organizational"
+      "label": "Legal & Org",
+      "required": true
     },
     "titleAndRecording": {
-      "label": "Title & Recording"
+      "label": "Title & Recording",
+      "required": true
     },
     "taxesDuringConstruction": {
-      "label": "Taxes During Construction"
+      "label": "Taxes During Const.",
+      "required": true
     },
     "loanFees": {
-      "label": "Loan Fees"
+      "label": "Loan Fees",
+      "required": true
     },
     "developerFee": {
-      "label": "Developer Fee"
+      "label": "Developer Fee",
+      "required": true
     },
     "interestReserve": {
-      "label": "Interest Reserve"
+      "label": "Interest Reserve",
+      "required": true
     },
     "workingCapital": {
-      "label": "Working Capital"
+      "label": "Working Capital",
+      "required": false
     },
     "relocationCosts": {
-      "label": "Relocation Costs"
+      "label": "Relocation Costs",
+      "required": false
     },
     "syndicationCosts": {
-      "label": "Syndication Costs"
+      "label": "Syndication Costs",
+      "required": false
     },
     "enviroRemediation": {
-      "label": "Environmental Remediation"
+      "label": "Enviro. Remediation",
+      "required": false
     },
     "pfcStructuringFee": {
-      "label": "PFC/Structuring Fee"
+      "label": "PFC/Structure Fee",
+      "required": false
     },
     "seniorLoanAmount": {
-      "label": "Senior Loan Amount"
+      "label": "Senior Loan Amount",
+      "required": true
     },
     "sponsorEquity": {
-      "label": "Sponsor Equity"
+      "label": "Sponsor Equity",
+      "required": true
     },
     "taxCreditEquity": {
-      "label": "Tax Credit Equity"
+      "label": "Tax Credit Equity",
+      "required": false
     },
     "gapFinancing": {
-      "label": "Gap Financing"
+      "label": "Gap Financing",
+      "required": false
     },
     "interestRate": {
-      "label": "Interest Rate"
+      "label": "Interest Rate",
+      "required": true
     },
     "underwritingRate": {
-      "label": "Underwriting Rate"
+      "label": "Underwriting Rate",
+      "required": true
     },
     "amortization": {
-      "label": "Amortization"
+      "label": "Amortization",
+      "required": true
     },
     "prepaymentTerms": {
-      "label": "Prepayment Terms"
+      "label": "Prepayment Terms",
+      "required": false
     },
     "recourse": {
-      "label": "Recourse"
+      "label": "Recourse",
+      "required": true
     },
     "permTakeoutPlanned": {
-      "label": "Perm Takeout Planned"
+      "label": "Perm Takeout Planned",
+      "required": true
     },
     "allInRate": {
-      "label": "All-in Rate"
+      "label": "All-In Rate",
+      "required": true
     },
     "submarketName": {
-      "label": "Submarket Name"
+      "label": "Submarket Name",
+      "required": true
     },
     "walkabilityScore": {
-      "label": "Walkability Score"
+      "label": "Walkability Score",
+      "required": false
     },
     "population3Mi": {
-      "label": "Population (3-Mile Radius)"
+      "label": "Population (3-mi)",
+      "required": true
     },
     "medianHHIncome": {
-      "label": "Median Household Income"
+      "label": "Median HH Income",
+      "required": true
     },
     "renterOccupiedPercent": {
-      "label": "Renter-Occupied (%)"
+      "label": "Renter Occupied %",
+      "required": true
     },
     "popGrowth201020": {
-      "label": "Population Growth 2010-2020"
+      "label": "Pop Growth 2010-2020",
+      "required": false
     },
     "msaName": {
-      "label": "MSA Name"
+      "label": "MSA Name",
+      "required": true
     },
     "projGrowth202429": {
-      "label": "Projected Growth 2024-2029"
+      "label": "Pop Growth (5-yr Proj)",
+      "required": true
     },
     "unemploymentRate": {
-      "label": "Unemployment Rate"
+      "label": "Unemployment Rate",
+      "required": true
     },
     "largestEmployer": {
-      "label": "Largest Employer"
+      "label": "Largest Employer",
+      "required": false
     },
     "employerConcentration": {
-      "label": "Employer Concentration"
+      "label": "Employer Concentration",
+      "required": false
     },
     "submarketAbsorption": {
-      "label": "Submarket Absorption"
+      "label": "Submarket Absorption",
+      "required": true
     },
     "supplyPipeline": {
-      "label": "Supply Pipeline"
+      "label": "Supply Pipeline (Units)",
+      "required": true
     },
     "monthsOfSupply": {
-      "label": "Months of Supply"
+      "label": "Months of Supply",
+      "required": true
     },
     "captureRate": {
-      "label": "Capture Rate"
+      "label": "Capture Rate",
+      "required": true
     },
     "marketConcessions": {
-      "label": "Market Concessions"
+      "label": "Market Concessions",
+      "required": false
     },
     "infrastructureCatalyst": {
-      "label": "Infrastructure Catalysts"
+      "label": "Infra. Catalyst",
+      "required": false
     },
     "broadbandSpeed": {
-      "label": "Broadband Speed"
+      "label": "Broadband Speed",
+      "required": false
     },
     "crimeRiskLevel": {
-      "label": "Crime Risk Level"
+      "label": "Crime Risk Level",
+      "required": false
     },
     "northStarComp": {
-      "label": "North Star Comp"
+      "label": "North Star Comp",
+      "required": false
+    },
+    "affordableHousing": {
+      "label": "Affordable Housing?",
+      "required": true
     },
     "affordableUnitsNumber": {
-      "label": "Affordable Units (Number)"
+      "label": "Affordable Units #",
+      "required": false
     },
     "amiTargetPercent": {
-      "label": "AMI Target (%)"
+      "label": "AMI Target %",
+      "required": false
+    },
+    "taxExemption": {
+      "label": "Tax Exemption?",
+      "required": true
     },
     "exemptionStructure": {
-      "label": "Exemption Structure"
+      "label": "Exemption Structure",
+      "required": false
     },
     "sponsoringEntity": {
-      "label": "Sponsoring Entity"
+      "label": "Sponsoring Entity",
+      "required": false
     },
     "exemptionTerm": {
-      "label": "Exemption Term"
+      "label": "Exemption Term",
+      "required": false
     },
     "relocationPlan": {
-      "label": "Relocation Plan"
+      "label": "Relocation Plan",
+      "required": false
     },
     "seismicPMLRisk": {
-      "label": "Seismic/PML Risk"
+      "label": "Seismic/PML Risk",
+      "required": false
+    },
+    "opportunityZone": {
+      "label": "Opportunity Zone?",
+      "required": true
+    },
+    "incentiveStacking": {
+      "label": "Incentive Stacking",
+      "required": false
+    },
+    "tifDistrict": {
+      "label": "TIF District",
+      "required": false
+    },
+    "taxAbatement": {
+      "label": "Tax Abatement",
+      "required": false
+    },
+    "paceFinancing": {
+      "label": "PACE Financing",
+      "required": false
+    },
+    "historicTaxCredits": {
+      "label": "Historic Tax Credits",
+      "required": false
+    },
+    "newMarketsCredits": {
+      "label": "New Markets Credits",
+      "required": false
     },
     "firstOccupancy": {
-      "label": "First Occupancy"
+      "label": "First Occupancy",
+      "required": true
     },
     "stabilization": {
-      "label": "Stabilization"
+      "label": "Stabilization",
+      "required": true
     },
     "entitlements": {
-      "label": "Entitlements"
+      "label": "Entitlements",
+      "required": true
     },
     "permitsIssued": {
-      "label": "Permits Issued"
+      "label": "Permits Issued",
+      "required": true
     },
     "landAcqClose": {
-      "label": "Land Acquisition Close"
+      "label": "Land Acq. Close",
+      "required": true
     },
     "finalPlans": {
-      "label": "Final Plans"
+      "label": "Final Plans",
+      "required": true
     },
     "verticalStart": {
-      "label": "Vertical Construction Start"
+      "label": "Vertical Start",
+      "required": true
     },
     "substantialComp": {
-      "label": "Substantial Completion"
+      "label": "Substantial Comp",
+      "required": true
     },
     "preLeasedSF": {
-      "label": "Pre-Leased SF"
+      "label": "Pre-Leased SF",
+      "required": false
     },
     "absorptionProjection": {
-      "label": "Absorption Projection"
+      "label": "Absorption Projection",
+      "required": true
     },
     "opDeficitEscrow": {
-      "label": "Operating Deficit Escrow"
+      "label": "Op. Deficit Escrow",
+      "required": false
     },
     "leaseUpEscrow": {
-      "label": "Lease-Up Escrow"
+      "label": "Lease-Up Escrow",
+      "required": false
     },
     "totalSiteAcreage": {
-      "label": "Total Site Acreage"
+      "label": "Total Site Acreage",
+      "required": true
     },
     "currentSiteStatus": {
-      "label": "Current Site Status"
+      "label": "Current Site Status",
+      "required": true
     },
     "siteAccess": {
-      "label": "Site Access"
+      "label": "Site Access",
+      "required": false
     },
     "proximityShopping": {
-      "label": "Proximity to Shopping"
+      "label": "Proximity to Shopping",
+      "required": false
     },
     "buildableAcreage": {
-      "label": "Buildable Acreage"
+      "label": "Buildable Acreage",
+      "required": true
     },
     "allowableFAR": {
-      "label": "Allowable FAR"
+      "label": "Allowable FAR",
+      "required": true
     },
     "farUtilizedPercent": {
-      "label": "FAR Utilized (%)"
+      "label": "FAR Utilized %",
+      "required": false
     },
     "densityBonus": {
-      "label": "Density Bonus"
+      "label": "Density Bonus?",
+      "required": false
     },
     "soilConditions": {
-      "label": "Soil Conditions"
+      "label": "Soil Conditions",
+      "required": false
     },
     "wetlandsPresent": {
-      "label": "Wetlands Present"
+      "label": "Wetlands Present?",
+      "required": true
     },
     "seismicRisk": {
-      "label": "Seismic Risk"
+      "label": "Seismic Risk",
+      "required": true
     },
     "phaseIESAFinding": {
-      "label": "Phase I ESA Finding"
+      "label": "Phase I ESA Finding",
+      "required": true
     },
     "utilityAvailability": {
-      "label": "Utility Availability"
+      "label": "Utility Availability",
+      "required": true
     },
     "easements": {
-      "label": "Easements"
+      "label": "Easements",
+      "required": true
     },
     "accessPoints": {
-      "label": "Access Points"
+      "label": "Access Points",
+      "required": false
     },
     "adjacentLandUse": {
-      "label": "Adjacent Land Use"
+      "label": "Adjacent Land Use",
+      "required": true
     },
     "noiseFactors": {
-      "label": "Noise Factors"
+      "label": "Noise Factors",
+      "required": false
     },
     "viewCorridors": {
-      "label": "View Corridors"
+      "label": "View Corridors",
+      "required": false
     },
     "topography": {
-      "label": "Topography"
+      "label": "Topography",
+      "required": true
     },
     "floodZone": {
-      "label": "Flood Zone"
+      "label": "Flood Zone",
+      "required": true
     },
     "sponsorEntityName": {
-      "label": "Sponsor/Borrower Entity Name"
+      "label": "Sponsor Entity Name",
+      "required": true
     },
     "sponsorStructure": {
-      "label": "Sponsor Structure"
+      "label": "Sponsor Structure",
+      "required": true
     },
     "equityPartner": {
-      "label": "Equity Partner"
+      "label": "Equity Partner",
+      "required": false
     },
     "contactInfo": {
-      "label": "Primary Contact Info"
+      "label": "Contact Info",
+      "required": true
     },
     "syndicationStatus": {
-      "label": "Syndication Status"
+      "label": "Syndication Status",
+      "required": true
     },
     "sponsorExperience": {
-      "label": "Sponsor Experience"
+      "label": "Sponsor Experience",
+      "required": true
     },
     "borrowerNetWorth": {
-      "label": "Borrower Net Worth"
+      "label": "Borrower Net Worth",
+      "required": true
     },
     "sponsorExpScore": {
-      "label": "Sponsor Experience Score"
+      "label": "Sponsor Exp. Score",
+      "required": false
     },
     "priorDevelopments": {
-      "label": "Prior Developments"
+      "label": "Prior Developments",
+      "required": false
     },
     "netWorth": {
-      "label": "Guarantor Net Worth"
+      "label": "Guarantor Net Worth",
+      "required": false
     },
     "guarantorLiquidity": {
-      "label": "Guarantor Liquidity"
+      "label": "Guarantor Liquidity",
+      "required": true
     }
   }
 }

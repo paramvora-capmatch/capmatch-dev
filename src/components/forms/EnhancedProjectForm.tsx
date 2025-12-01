@@ -41,7 +41,6 @@ import {
 	InterestRateType,
 	RecoursePreference,
 	ExitStrategy,
-	FieldMetadata,
 } from "@/types/enhanced-types";
 import { PROJECT_REQUIRED_FIELDS } from "@/utils/resumeCompletion";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
@@ -133,7 +132,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 }) => {
 	const [formData, setFormData] = useState<ProjectProfile>(existingProject);
 	const [fieldMetadata, setFieldMetadata] = useState<
-		Record<string, FieldMetadata>
+		Record<string, any>
 	>(existingProject._metadata || {});
 
 	// Initialize locked state from props
@@ -563,6 +562,28 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		}
 	};
 
+	const getFieldConfig = useCallback(
+		(fieldId: string) => {
+			const fieldsConfig = (formSchema as any).fields || {};
+			return fieldsConfig[fieldId] || {};
+		},
+		[]
+	);
+
+	const isFieldRequiredFromSchema = useCallback(
+		(fieldId: string): boolean => {
+			const config = getFieldConfig(fieldId);
+			if (typeof config.required === "boolean") {
+				return config.required;
+			}
+			// Fallback to PROJECT_REQUIRED_FIELDS for backwards compatibility
+			return (PROJECT_REQUIRED_FIELDS as readonly string[]).includes(
+				fieldId
+			);
+		},
+		[getFieldConfig]
+	);
+
 	const renderDynamicField = useCallback(
 		(fieldId: string, sectionId: string) => {
 			const fieldConfig =
@@ -570,7 +591,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const label: string = fieldConfig.label ?? fieldId;
 			const metadata = projectResumeFieldMetadata[fieldId];
 			const dataType = metadata?.dataType;
-			const required = PROJECT_REQUIRED_FIELDS.includes(fieldId);
+			const required = isFieldRequiredFromSchema(fieldId);
 			// Field is disabled only if UI logic requires it, but here we want users to be able to unlock and edit.
 			// So we generally don't disable the input unless specific logic applies.
 			// However, locked fields (Green) should probably be editable ONLY after unlocking.
@@ -770,76 +791,159 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			onAskAI,
 			renderFieldLabel,
 			isFieldLocked,
+			isFieldRequiredFromSchema,
 		]
 	);
 
-	const steps: Step[] = useMemo(
-		() =>
-			(formSchema as any).steps.map(
-				(step: {
-					id: string;
-					title: string;
-					icon?: string;
-					fields: string[];
-				}) => {
-					const sectionId = step.id;
-					const IconComponent =
-						(step.icon &&
-							sectionIconComponents[step.icon as string]) ||
-						FileText;
+	// Track which subsections have their optional fields expanded
+	const [expandedSubsections, setExpandedSubsections] = useState<
+		Set<string>
+	>(new Set());
 
-					return {
-						id: sectionId,
-						title: step.title,
-						component: (
-							<div className="space-y-6">
-								<div className="mb-2 flex items-center justify-between">
-									<h2 className="text-xl font-semibold text-gray-800 flex items-center">
-										<IconComponent className="h-5 w-5 mr-2 text-blue-600" />{" "}
-										{step.title}
-									</h2>
-									<button
-										type="button"
-										onClick={() =>
-											toggleSectionLock(sectionId)
-										}
-										className={cn(
-											"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-											lockedSections.has(sectionId)
-												? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-												: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
-										)}
-										title={
-											lockedSections.has(sectionId)
-												? "Unlock section"
-												: "Lock section"
-										}
-									>
-										{lockedSections.has(sectionId) ? (
-											<>
-												<Lock className="h-4 w-4" />
-												<span>Unlock Section</span>
-											</>
-										) : (
-											<>
-												<Unlock className="h-4 w-4" />
-												<span>Lock Section</span>
-											</>
-										)}
-									</button>
-								</div>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-									{step.fields.map((fieldId: string) =>
-										renderDynamicField(fieldId, sectionId)
-									)}
-								</div>
+	const toggleSubsectionOptional = useCallback((subsectionKey: string) => {
+		setExpandedSubsections((prev) => {
+			const next = new Set(prev);
+			if (next.has(subsectionKey)) {
+				next.delete(subsectionKey);
+			} else {
+				next.add(subsectionKey);
+			}
+		 return next;
+		});
+	}, []);
+
+	const steps: Step[] = useMemo(() => {
+		const schemaSteps: any[] = (formSchema as any).steps || [];
+
+		return schemaSteps.map((step) => {
+			const sectionId: string = step.id;
+			const IconComponent =
+				(step.icon && sectionIconComponents[step.icon as string]) ||
+				FileText;
+			const subsections: any[] = step.subsections || [];
+
+			const renderSubsection = (subsection: any) => {
+				const subsectionId: string = subsection.id;
+				const subsectionKey = `${sectionId}::${subsectionId}`;
+				const showOptional = expandedSubsections.has(subsectionKey);
+
+				const allFieldIds: string[] = subsection.fields || [];
+
+				const requiredFields: string[] = [];
+				const optionalFields: string[] = [];
+
+				allFieldIds.forEach((fieldId) => {
+					if (isFieldRequiredFromSchema(fieldId)) {
+						requiredFields.push(fieldId);
+					} else {
+						optionalFields.push(fieldId);
+					}
+				});
+
+				const visibleFieldIds = showOptional
+					? allFieldIds
+					: requiredFields;
+
+				const hasOptional = optionalFields.length > 0;
+
+				return (
+					<div
+						key={subsectionId}
+						className="space-y-3 rounded-md border border-gray-100 bg-gray-50/60 p-3"
+					>
+						<div className="flex items-center justify-between">
+							<h3 className="text-sm font-semibold text-gray-800">
+								{subsection.title}
+							</h3>
+							{hasOptional && (
+								<button
+									type="button"
+									onClick={() =>
+										toggleSubsectionOptional(subsectionKey)
+									}
+									className="text-xs font-medium text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline"
+								>
+									{showOptional
+										? "Hide optional fields"
+										: `Show ${optionalFields.length} optional field${
+												optionalFields.length > 1
+													? "s"
+													: ""
+										  }`}
+								</button>
+							)}
+						</div>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							{visibleFieldIds.map((fieldId) =>
+								renderDynamicField(fieldId, sectionId)
+							)}
+						</div>
+					</div>
+				);
+			};
+
+			return {
+				id: sectionId,
+				title: step.title,
+				component: (
+					<div className="space-y-6">
+						<div className="mb-2 flex items-center justify-between">
+							<h2 className="text-xl font-semibold text-gray-800 flex items-center">
+								<IconComponent className="h-5 w-5 mr-2 text-blue-600" />{" "}
+								{step.title}
+							</h2>
+							<button
+								type="button"
+								onClick={() => toggleSectionLock(sectionId)}
+								className={cn(
+									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+									lockedSections.has(sectionId)
+										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+								)}
+								title={
+									lockedSections.has(sectionId)
+										? "Unlock section"
+										: "Lock section"
+								}
+							>
+								{lockedSections.has(sectionId) ? (
+									<>
+										<Lock className="h-4 w-4" />
+										<span>Unlock Section</span>
+									</>
+								) : (
+									<>
+										<Unlock className="h-4 w-4" />
+										<span>Lock Section</span>
+									</>
+								)}
+							</button>
+						</div>
+						{Array.isArray(subsections) && subsections.length > 0 ? (
+							<div className="space-y-4">
+								{subsections.map((subsection: any) =>
+									renderSubsection(subsection)
+								)}
 							</div>
-						),
-					};
-				}
-			),
-		[lockedSections, renderDynamicField, toggleSectionLock]
-	);
+						) : (
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+								{(step.fields || []).map((fieldId: string) =>
+									renderDynamicField(fieldId, sectionId)
+								)}
+							</div>
+						)}
+					</div>
+				),
+			};
+		});
+	}, [
+		expandedSubsections,
+		isFieldRequiredFromSchema,
+		lockedSections,
+		renderDynamicField,
+		toggleSectionLock,
+	]);
 
 	const handleFormSubmit = useCallback(
 		async (finalData?: ProjectProfile) => {
