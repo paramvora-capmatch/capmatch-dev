@@ -841,15 +841,35 @@ export const saveProjectResume = async (
 		if (key === "_metadata" || key === "_lockedFields" || key === "_lockedSections" || key === "_fieldStates") continue; // Skip metadata and state containers
 
 		const currentValue = (content as any)[key];
-		const meta = metadata[key];
+		const meta = metadata[key] as import("@/types/source-metadata").SourceMetadata[] | undefined;
+
+		// Normalize any legacy `source`/`sources` fields into a proper `sources` array
+		const toSourcesArray = (input: any): any[] => {
+			if (!input) return [];
+			if (Array.isArray(input)) return input;
+			if (typeof input === "string") {
+				const normalized = input.toLowerCase().trim();
+				if (normalized === "user_input" || normalized === "user input") {
+					return [{ type: "user_input" }];
+				}
+				return [{ type: "document", name: input }];
+			}
+			if (typeof input === "object" && input !== null && "type" in input) {
+				return [input];
+			}
+			return [];
+		};
 
 		if (meta) {
-			// If we have metadata, save the full structure
+			// If we have metadata, save the full structure using ONLY `sources`
+			const metaAny: any = metadata[key];
+			const metaSources =
+				metaAny?.sources !== undefined ? metaAny.sources : metaAny?.source;
+
 			finalContent[key] = {
 				value: currentValue,
-				source: meta.source,
-				warnings: meta.warnings,
-				// We don't save original_value/source to DB, those are runtime helpers
+				sources: toSourcesArray(metaSources),
+				warnings: metaAny?.warnings || [],
 			};
 		} else {
 			// Check if existing content has rich format for this field
@@ -857,13 +877,23 @@ export const saveProjectResume = async (
 			if (
 				existingItem &&
 				typeof existingItem === "object" &&
-				"source" in existingItem
+				("value" in existingItem ||
+					"source" in existingItem ||
+					"sources" in existingItem)
 			) {
-				// Preserve existing metadata structure if no new metadata provided
+				const existingObj: any = existingItem;
+				const existingSources =
+					"sources" in existingObj
+						? existingObj.sources
+						: "source" in existingObj
+						? toSourcesArray(existingObj.source)
+						: undefined;
+
+				// Preserve existing metadata structure (normalized to `sources`) if no new metadata provided
 				finalContent[key] = {
 					value: currentValue,
-					source: existingItem.source,
-					warnings: existingItem.warnings || [],
+					sources: existingSources ?? [{ type: "user_input" }],
+					warnings: existingObj.warnings || [],
 				};
 			} else {
 				// Save flat value if no metadata exists

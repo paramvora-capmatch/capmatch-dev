@@ -23,6 +23,11 @@ interface ButtonSelectProps {
   isAutofilled?: boolean; // Deprecated: use isLocked instead
   isLocked?: boolean; // Use lock status for color coding (green = locked, blue = unlocked)
   hasAutofillBeenRun?: boolean; // Deprecated: colors are now driven purely by lock + value
+  /**
+   * Marks the field as "touched" even when there is no selected value.
+   * Used when AI/user has interacted (e.g. sources set) but no choice picked yet.
+   */
+  isTouched?: boolean;
 }
 
 export const ButtonSelect: React.FC<ButtonSelectProps> = ({
@@ -38,6 +43,7 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   isAutofilled = false, // Deprecated
   isLocked,
   hasAutofillBeenRun = true,
+  isTouched = false,
 }) => {
   // Handler that checks if onSelect exists before calling it
   const handleClick = (option: string) => {
@@ -58,8 +64,12 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
     selectedValue !== undefined &&
     selectedValue !== "";
 
-  const containerBgClass = !hasSelection
-    ? "" // Initial empty state: white background, no accent border
+  // Field is considered "active" (needs color) if it either has a selection
+  // or has been "touched" (e.g. AI/user set sources but left value empty).
+  const hasSignal = hasSelection || isTouched;
+
+  const containerBgClass = !hasSignal
+    ? "" // Initial untouched state: white background, no accent border
     : isLockedState
     ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
     : "bg-blue-50 p-3 rounded-lg border border-blue-200";

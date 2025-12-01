@@ -619,6 +619,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                                                 } => !!m
                                                             )
                                                             .filter((field) => {
+                                                                // Special-case: drawSchedule is rendered as its own table later
+                                                                if (field.fieldId === 'drawSchedule') {
+                                                                    return false;
+                                                                }
                                                                 const value = getFieldValue(project, field.fieldId);
                                                                 if (sectionId === 'special-considerations') {
                                                                     return (
@@ -931,6 +935,57 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                                     })()}
 
                                                     {sectionId === 'market-context' && (() => {
+                                                    {sectionId === 'timeline' && (() => {
+                                                        const drawSchedule = getFieldValue(project, 'drawSchedule');
+                                                        if (!hasValue(drawSchedule) || !Array.isArray(drawSchedule) || drawSchedule.length === 0) {
+                                                            return null;
+                                                        }
+
+                                                        return (
+                                                            <div className="mt-4">
+                                                                <h4 className="text-sm font-semibold text-gray-600 mb-2">
+                                                                    Draw Schedule
+                                                                </h4>
+                                                                <div className="overflow-x-auto">
+                                                                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                                                        <thead className="bg-gray-50">
+                                                                            <tr>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Draw #
+                                                                                </th>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    % Complete
+                                                                                </th>
+                                                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                                                    Amount
+                                                                                </th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody className="bg-white divide-y divide-gray-200">
+                                                                            {drawSchedule.map((row: any, idx: number) => (
+                                                                                <tr key={idx}>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {row.drawNumber ?? 'N/A'}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {typeof row.percentComplete === 'number'
+                                                                                            ? `${row.percentComplete.toFixed(0)}%`
+                                                                                            : 'N/A'}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 whitespace-nowrap">
+                                                                                        {typeof row.amount === 'number'
+                                                                                            ? formatCurrency(row.amount)
+                                                                                            : 'N/A'}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+
                                                         const rentComps = getFieldValue(project, 'rentComps');
                                                         if (
                                                             !hasValue(rentComps) ||

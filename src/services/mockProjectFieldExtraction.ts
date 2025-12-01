@@ -6,6 +6,7 @@
 
 import { SourceMetadata } from "@/types/source-metadata";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
+import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 
 /**
  * Section-wise field extraction response structure
@@ -108,6 +109,24 @@ export const extractProjectFields = async (
 		warnings,
 		original_value: value,
 	});
+
+	/**
+	 * Best-effort type sanitizer to prevent obviously wrong mock values
+	 * (e.g. boolean `true` for numeric/text fields).
+	 */
+	const sanitizeMockValue = (fieldId: string, value: any): any => {
+		if (value === null || value === undefined) return value;
+
+		const meta = projectResumeFieldMetadata[fieldId];
+		const dataType = meta?.dataType;
+
+		// If we somehow end up with a boolean for a non-Boolean field, drop it.
+		if (typeof value === "boolean" && dataType && dataType !== "Boolean") {
+			return null;
+		}
+
+		return value;
+	};
 
 	// Return project field extraction results in section-wise format
 	// Format: { section_1: { fieldId: { value, sources, warnings, original_value } } }
@@ -610,6 +629,26 @@ export const extractProjectFields = async (
 						"User Input"
 					);
 				}
+			}
+		}
+	}
+
+	// Final pass: sanitize values to ensure they match expected data types
+	for (const [sectionId, fields] of Object.entries(sectionWiseFields)) {
+		if (!fields) continue;
+		for (const [fieldId, fieldData] of Object.entries(fields)) {
+			if (
+				!fieldData ||
+				typeof fieldData !== "object" ||
+				!("value" in fieldData)
+			) {
+				continue;
+			}
+			const cleaned = sanitizeMockValue(fieldId, fieldData.value);
+			if (cleaned !== fieldData.value) {
+				(fieldData as any).value = cleaned;
+				(fieldData as any).original_value =
+					(fieldData as any).original_value ?? cleaned;
 			}
 		}
 	}

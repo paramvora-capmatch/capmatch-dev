@@ -812,8 +812,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const fieldConfig =
 				(formSchema as any).fields?.[fieldId] ?? ({} as any);
 			const label: string = fieldConfig.label ?? fieldId;
-			const metadata = projectResumeFieldMetadata[fieldId];
-			const dataType = metadata?.dataType;
+			const fieldMetaConfig = projectResumeFieldMetadata[fieldId];
+			const dataType = fieldMetaConfig?.dataType;
 			const required = isFieldRequiredFromSchema(fieldId);
 			// Field is disabled only if UI logic requires it, but here we want users to be able to unlock and edit.
 			// So we generally don't disable the input unless specific logic applies.
@@ -824,6 +824,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const disabled = isLocked;
 
 			const value = (formData as any)[fieldId] ?? "";
+
+			// Determine if this field has any source metadata (e.g. touched by AI/user)
+			const metaFromState = fieldMetadata[fieldId];
+			const hasSources =
+				metaFromState &&
+				Array.isArray(metaFromState.sources) &&
+				metaFromState.sources.length > 0;
+			const hasValue = isProjectValueProvided(value);
 
 			const controlKind: ControlKind =
 				fieldControlOverrides[fieldId] ??
@@ -868,6 +876,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								disabled={disabled}
 								// Use lock status to color the selection container
 								isLocked={isLocked}
+								// Mark as "touched" when we have either a value or any sources.
+								// This makes fields like assetType turn blue after AI sets sources
+								// to user_input even when the user hasn't picked a value yet.
+								isTouched={hasValue || hasSources}
 							/>
 						</div>
 					);
