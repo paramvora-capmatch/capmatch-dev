@@ -46,6 +46,7 @@ import {
 import { PROJECT_REQUIRED_FIELDS } from "@/utils/resumeCompletion";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
+import { normalizeSource } from "@/utils/sourceNormalizer";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -134,19 +135,19 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [fieldMetadata, setFieldMetadata] = useState<
 		Record<string, FieldMetadata>
 	>(existingProject._metadata || {});
-	const [lockedFields, setLockedFields] = useState<Set<string>>(
-		new Set(
-			Object.keys(existingProject._lockedFields || {}).filter(
-				(k) => existingProject._lockedFields?.[k]
-			)
-		)
-	);
-	const [lockedSections, setLockedSections] = useState<Set<string>>(
-		new Set(
-			Object.keys(existingProject._lockedSections || {}).filter(
-				(k) => existingProject._lockedSections?.[k]
-			)
-		)
+
+	// Initialize locked state from props
+	const [lockedFields, setLockedFields] = useState<Set<string>>(() => {
+		const saved = existingProject._lockedFields || {};
+		return new Set(Object.keys(saved).filter((key) => saved[key] === true));
+	});
+	const [lockedSections, setLockedSections] = useState<Set<string>>(() => {
+		const saved = existingProject._lockedSections || {};
+		return new Set(Object.keys(saved).filter((key) => saved[key] === true));
+	});
+
+	const [unlockedFields, setUnlockedFields] = useState<Set<string>>(
+		new Set()
 	);
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
@@ -178,6 +179,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		};
 	}, []);
 
+	// Helper function to update metadata when user inputs data
 	const handleInputChange = useCallback(
 		(fieldId: string, value: any) => {
 			setFormData((prev) => {
@@ -185,27 +187,83 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				onFormDataChange?.(next);
 				return next;
 			});
+
+			// Update metadata to mark source as User Input
+			setFieldMetadata((prev) => {
+				const currentMeta = prev[fieldId] || {
+					value: value,
+					sources: [],
+					warnings: [],
+					original_value: value,
+				};
+
+				return {
+					...prev,
+					[fieldId]: {
+						...currentMeta,
+						value: value,
+						// Force source to user_input when edited manually
+						sources: [{ type: "user_input" } as any], // Cast to any to match SourceMetadata if needed
+						original_source: null,
+					},
+				};
+			});
 		},
 		[onFormDataChange]
 	);
 
-	const isFieldDisabled = useCallback(
+	const isFieldLocked = useCallback(
 		(fieldId: string, sectionId?: string) => {
+			// Explicitly unlocked fields override section locks
+			if (unlockedFields.has(fieldId)) return false;
+			// Explicitly locked fields
 			if (lockedFields.has(fieldId)) return true;
+			// Section-level locks
 			if (sectionId && lockedSections.has(sectionId)) return true;
 			return false;
 		},
-		[lockedFields, lockedSections]
+		[lockedFields, lockedSections, unlockedFields]
 	);
 
-	const toggleFieldLock = useCallback((fieldId: string) => {
-		setLockedFields((prev) => {
-			const next = new Set(prev);
-			if (next.has(fieldId)) next.delete(fieldId);
-			else next.add(fieldId);
-			return next;
-		});
-	}, []);
+	const toggleFieldLock = useCallback(
+		(fieldId: string) => {
+			// If currently locked (either explicitly or via section)
+			const currentlyLocked = (() => {
+				if (unlockedFields.has(fieldId)) return false;
+				if (lockedFields.has(fieldId)) return true;
+				// Need section ID to check section lock, but simple toggle relies on explicit field lock
+				// For this component we will manage explicit field locks primarily
+				return false;
+			})();
+
+			if (currentlyLocked) {
+				// Unlock
+				setLockedFields((prev) => {
+					const next = new Set(prev);
+					next.delete(fieldId);
+					return next;
+				});
+				setUnlockedFields((prev) => {
+					const next = new Set(prev);
+					next.add(fieldId);
+					return next;
+				});
+			} else {
+				// Lock
+				setLockedFields((prev) => {
+					const next = new Set(prev);
+					next.add(fieldId);
+					return next;
+				});
+				setUnlockedFields((prev) => {
+					const next = new Set(prev);
+					next.delete(fieldId);
+					return next;
+				});
+			}
+		},
+		[unlockedFields, lockedFields]
+	);
 
 	const toggleSectionLock = useCallback((sectionId: string) => {
 		setLockedSections((prev) => {
@@ -214,26 +272,64 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			else next.add(sectionId);
 			return next;
 		});
+		// Clear field-level overrides for this section when toggling section lock
+		// This is a simplification; robust impl would iterate fields in section
 	}, []);
 
+	// Styling Logic:
+	// White: Empty
+	// Blue: Filled + Unlocked (User Input)
+	// Green: Filled + Locked (AI or User Locked)
 	const getFieldStylingClasses = useCallback(
-		(fieldId: string) => {
+		(fieldId: string, sectionId?: string) => {
 			const value = (formData as any)[fieldId];
-			const provided = isProjectValueProvided(value);
+			const hasValue = isProjectValueProvided(value);
+			const locked = isFieldLocked(fieldId, sectionId);
+
+			const baseClasses =
+				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
+
+			if (!hasValue) {
+				// White - Empty
+				return cn(
+					baseClasses,
+					"border-gray-200 bg-white focus:ring-blue-200 hover:border-gray-300"
+				);
+			}
+
+			if (locked) {
+				// Green - Filled & Locked
+				return cn(
+					baseClasses,
+					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
+				);
+			}
+
+			// Blue - Filled & Unlocked
 			return cn(
-				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm",
-				provided
-					? "border-emerald-300 bg-emerald-50 focus:ring-emerald-200"
-					: "border-gray-200 bg-white focus:ring-blue-200"
+				baseClasses,
+				"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
 			);
 		},
-		[formData]
+		[formData, isFieldLocked]
 	);
 
 	const isFieldAutofilled = useCallback(
 		(fieldId: string) => {
 			const meta = fieldMetadata[fieldId];
-			return !!meta?.sources && meta.sources.length > 0;
+			if (!meta?.sources || meta.sources.length === 0) return false;
+
+			// Check if source is NOT user input
+			const isUserInput = meta.sources.some((src: any) => {
+				if (typeof src === "string")
+					return (
+						src.toLowerCase() === "user_input" ||
+						src.toLowerCase() === "user input"
+					);
+				return src.type === "user_input";
+			});
+
+			return !isUserInput;
 		},
 		[fieldMetadata]
 	);
@@ -249,7 +345,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const renderFieldLockButton = useCallback(
 		(fieldId: string, sectionId: string) => {
-			const locked = isFieldDisabled(fieldId, sectionId);
+			const locked = isFieldLocked(fieldId, sectionId);
 			return (
 				<button
 					type="button"
@@ -259,18 +355,22 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						toggleFieldLock(fieldId);
 					}}
 					className={cn(
-						"flex items-center justify-center p-1 rounded transition-colors",
+						"flex items-center justify-center p-1 rounded transition-colors cursor-pointer z-10",
 						locked
-							? "text-amber-600 hover:text-amber-700"
-							: "text-gray-500 hover:text-gray-600"
+							? "text-emerald-600 hover:text-emerald-700"
+							: "text-gray-400 hover:text-blue-600"
 					)}
 					title={locked ? "Unlock field" : "Lock field"}
 				>
-					{locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+					{locked ? (
+						<Lock className="h-4 w-4" />
+					) : (
+						<Unlock className="h-4 w-4" />
+					)}
 				</button>
 			);
 		},
-		[isFieldDisabled, toggleFieldLock]
+		[isFieldLocked, toggleFieldLock]
 	);
 
 	const renderFieldLabel = useCallback(
@@ -283,12 +383,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const warning = getFieldWarning(fieldId);
 			return (
 				<div className="mb-1">
-					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field">
+					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
 						<span>
 							{labelText}
-							{required && <span className="text-red-500 ml-1">*</span>}
+							{required && (
+								<span className="text-red-500 ml-1">*</span>
+							)}
 						</span>
-						<FieldHelpTooltip fieldId={fieldId} />
+						<FieldHelpTooltip
+							fieldId={fieldId}
+							fieldMetadata={fieldMetadata[fieldId]}
+						/>
 						{warning && (
 							<span className="text-xs text-amber-700 flex items-center gap-1">
 								<AlertTriangle className="h-3 w-3" />
@@ -299,7 +404,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							<button
 								type="button"
 								onClick={() => (onAskAI || (() => {}))(fieldId)}
-								className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity"
+								className="px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-medium text-blue-600 opacity-0 group-hover/field:opacity-100 transition-opacity"
 							>
 								Ask AI
 							</button>
@@ -309,12 +414,48 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				</div>
 			);
 		},
-		[onAskAI, getFieldWarning, renderFieldLockButton]
+		[onAskAI, getFieldWarning, renderFieldLockButton, fieldMetadata]
 	);
 
+	// Effect to handle updates from parent (e.g. after Autofill)
 	useEffect(() => {
 		setFormData(existingProject);
-		setFieldMetadata(existingProject._metadata || {});
+		const metadata = existingProject._metadata || {};
+		setFieldMetadata(metadata);
+
+		// Update locks based on source
+		// If a field has a value AND source is not user_input -> Lock it (Green)
+		const newLockedFields = new Set(
+			Object.keys(existingProject._lockedFields || {}).filter(
+				(k) => existingProject._lockedFields?.[k]
+			)
+		);
+
+		Object.entries(metadata).forEach(([fieldId, meta]) => {
+			// Check if source is AI/Document
+			const isAiSourced =
+				meta.sources &&
+				meta.sources.some((src: any) => {
+					if (typeof src === "string")
+						return (
+							src.toLowerCase() !== "user_input" &&
+							src.toLowerCase() !== "user input"
+						);
+					return src.type !== "user_input";
+				});
+
+			const hasValue = isProjectValueProvided(
+				(existingProject as any)[fieldId]
+			);
+
+			// Auto-lock if AI sourced and has value, unless explicitly unlocked previously?
+			// We'll trust the incoming _lockedFields from DB mostly, but ensure AI fields are locked
+			if (isAiSourced && hasValue) {
+				newLockedFields.add(fieldId);
+			}
+		});
+
+		setLockedFields(newLockedFields);
 	}, [existingProject]);
 
 	useEffect(() => {
@@ -330,6 +471,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		}
 	}, [initialFocusFieldId]);
 
+	// Autosave
 	useEffect(() => {
 		if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
 		debounceTimeout.current = setTimeout(async () => {
@@ -429,17 +571,21 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const metadata = projectResumeFieldMetadata[fieldId];
 			const dataType = metadata?.dataType;
 			const required = PROJECT_REQUIRED_FIELDS.includes(fieldId);
-			const disabled = isFieldDisabled(fieldId, sectionId);
+			// Field is disabled only if UI logic requires it, but here we want users to be able to unlock and edit.
+			// So we generally don't disable the input unless specific logic applies.
+			// However, locked fields (Green) should probably be editable ONLY after unlocking.
+			const isLocked = isFieldLocked(fieldId, sectionId);
+			// We allow editing if unlocked. If locked, user must click unlock icon first.
+			// So 'disabled' = isLocked.
+			const disabled = isLocked;
+
 			const value = (formData as any)[fieldId] ?? "";
 
 			const controlKind: ControlKind =
 				fieldControlOverrides[fieldId] ??
 				getDefaultControlForDataType(dataType);
 
-			const commonClassName = cn(
-				getFieldStylingClasses(fieldId),
-				disabled && "bg-emerald-50 border-emerald-200 cursor-not-allowed"
-			);
+			const commonClassName = getFieldStylingClasses(fieldId, sectionId);
 
 			const renderControl = () => {
 				if (controlKind === "textarea") {
@@ -451,10 +597,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								handleInputChange(fieldId, e.target.value)
 							}
 							disabled={disabled}
-							className={cn(
-								commonClassName,
-								"w-full h-24 px-4 py-2 rounded-md focus:outline-none focus:ring-2"
-							)}
+							className={cn(commonClassName, "h-24")}
 							data-field-id={fieldId}
 							data-field-type="textarea"
 							data-field-section={sectionId}
@@ -479,7 +622,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									handleInputChange(fieldId, selected)
 								}
 								disabled={disabled}
-								isAutofilled={isFieldAutofilled(fieldId)}
+								// Use lock status to color the selection container
+								isLocked={isLocked}
 							/>
 						</div>
 					);
@@ -565,9 +709,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 				const inputType =
 					controlKind === "number" ||
-					["Currency", "Integer", "Numeric"].includes(
-						dataType ?? ""
-					)
+					["Currency", "Integer", "Numeric"].includes(dataType ?? "")
 						? "number"
 						: dataType?.toLowerCase() === "date"
 						? "date"
@@ -578,10 +720,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				) => {
 					if (inputType === "number") {
 						const raw = e.target.value;
-						handleInputChange(
-							fieldId,
-							raw ? Number(raw) : null
-						);
+						handleInputChange(fieldId, raw ? Number(raw) : null);
 					} else {
 						handleInputChange(fieldId, e.target.value);
 					}
@@ -626,26 +765,23 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		},
 		[
 			formData,
-			isFieldDisabled,
 			getFieldStylingClasses,
-			isFieldAutofilled,
 			handleInputChange,
 			onAskAI,
 			renderFieldLabel,
+			isFieldLocked,
 		]
 	);
 
 	const steps: Step[] = useMemo(
 		() =>
 			(formSchema as any).steps.map(
-				(
-					step: {
-						id: string;
-						title: string;
-						icon?: string;
-						fields: string[];
-					}
-				) => {
+				(step: {
+					id: string;
+					title: string;
+					icon?: string;
+					fields: string[];
+				}) => {
 					const sectionId = step.id;
 					const IconComponent =
 						(step.icon &&
@@ -670,7 +806,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										className={cn(
 											"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
 											lockedSections.has(sectionId)
-												? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+												? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
 												: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
 										)}
 										title={
@@ -682,22 +818,19 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										{lockedSections.has(sectionId) ? (
 											<>
 												<Lock className="h-4 w-4" />
-												<span>Unlock</span>
+												<span>Unlock Section</span>
 											</>
 										) : (
 											<>
 												<Unlock className="h-4 w-4" />
-												<span>Lock</span>
+												<span>Lock Section</span>
 											</>
 										)}
 									</button>
 								</div>
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 									{step.fields.map((fieldId: string) =>
-										renderDynamicField(
-											fieldId,
-											sectionId
-										)
+										renderDynamicField(fieldId, sectionId)
 									)}
 								</div>
 							</div>
@@ -805,8 +938,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					<div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-800 flex gap-2">
 						<Info className="h-4 w-4 mt-0.5" />
 						<span>
-							Autofill complete. Lock fields you’ve manually
-							edited to prevent future overwrites.
+							Autofill complete. Data from documents has been
+							applied.
 						</span>
 					</div>
 				)}
@@ -825,5 +958,3 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 };
 
 export default EnhancedProjectForm;
-
-

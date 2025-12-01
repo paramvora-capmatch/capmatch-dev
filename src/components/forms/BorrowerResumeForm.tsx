@@ -1,4 +1,3 @@
-// src/components/forms/BorrowerResumeForm.tsx
 "use client";
 
 import React, {
@@ -247,7 +246,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	// Sync locked fields from saved data when it changes
 	useEffect(() => {
 		if (savedLockedFields) {
-			const newLockedFields = new Set(Object.keys(savedLockedFields).filter((key) => savedLockedFields[key] === true));
+			const newLockedFields = new Set(
+				Object.keys(savedLockedFields).filter(
+					(key) => savedLockedFields[key] === true
+				)
+			);
 			setLockedFields(newLockedFields);
 		}
 	}, [savedLockedFields]);
@@ -255,7 +258,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	// Sync locked sections from saved data when it changes
 	useEffect(() => {
 		if (savedLockedSections) {
-			const newLockedSections = new Set(Object.keys(savedLockedSections).filter((key) => savedLockedSections[key] === true));
+			const newLockedSections = new Set(
+				Object.keys(savedLockedSections).filter(
+					(key) => savedLockedSections[key] === true
+				)
+			);
 			setLockedSections(newLockedSections);
 		}
 	}, [savedLockedSections]);
@@ -322,7 +329,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			if (currentlyLocked) {
 				// Unlocking the field
 				// If section is locked, add to unlockedFields (override section lock)
-				// This doesn't need to be saved as it's just an in-memory override
 				if (sectionId && lockedSections.has(sectionId)) {
 					setUnlockedFields((prev) => {
 						const next = new Set(prev);
@@ -468,7 +474,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		setLockedSections((prev) => {
 			const next = new Set(prev);
 			// Check each section to see if all fields are locked
-			for (const [sectionId, fieldIds] of Object.entries(sectionFieldMap)) {
+			for (const [sectionId, fieldIds] of Object.entries(
+				sectionFieldMap
+			)) {
 				const allFieldsLocked = fieldIds.every((fieldId) => {
 					// Field is locked if it's in lockedFields (and not explicitly unlocked)
 					if (unlockedFields.has(fieldId)) return false; // Explicitly unlocked
@@ -483,7 +491,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			}
 
 			// Save to database if changed (use setTimeout to avoid blocking)
-			if (JSON.stringify(Array.from(next).sort()) !== JSON.stringify(Array.from(prev).sort())) {
+			if (
+				JSON.stringify(Array.from(next).sort()) !==
+				JSON.stringify(Array.from(prev).sort())
+			) {
 				setTimeout(() => {
 					const lockedSectionsMap: Record<string, boolean> = {};
 					next.forEach((id) => {
@@ -568,6 +579,54 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		[getSectionFieldIds, save, isFieldLocked]
 	);
 
+	// Helper function to check if a field value is valid (not null, empty, or invalid)
+	const isValidFieldValue = useCallback((value: any): boolean => {
+		if (value === null || value === undefined) return false;
+		if (typeof value === "string" && value.trim() === "") return false;
+		if (Array.isArray(value) && value.length === 0) return false;
+		if (typeof value === "object" && Object.keys(value).length === 0)
+			return false;
+		return true;
+	}, []);
+
+	// Helper function to get field styling classes based on lock status
+	// Green: Locked & Filled
+	// Blue: Unlocked & Filled
+	// White: Empty
+	const getFieldStylingClasses = useCallback(
+		(fieldId: string, sectionId?: string): string => {
+			const value = formData[fieldId as keyof BorrowerResumeContent];
+			const hasValue = isValidFieldValue(value);
+			const isLocked = isFieldLocked(fieldId, sectionId);
+
+			const baseClasses =
+				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
+
+			// Empty fields are White
+			if (!hasValue) {
+				return cn(
+					baseClasses,
+					"border-gray-200 bg-white focus:ring-blue-200 hover:border-gray-300"
+				);
+			}
+
+			// Filled & Locked -> Green
+			if (isLocked) {
+				return cn(
+					baseClasses,
+					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
+				);
+			}
+
+			// Filled & Unlocked -> Blue
+			return cn(
+				baseClasses,
+				"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
+			);
+		},
+		[formData, isFieldLocked, isValidFieldValue]
+	);
+
 	// Helper function to render field lock button - always visible, positioned next to Ask AI button
 	const renderFieldLockButton = useCallback(
 		(fieldId: string, sectionId: string) => {
@@ -586,8 +645,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					className={cn(
 						"flex items-center justify-center p-1 rounded transition-colors relative z-30 cursor-pointer",
 						locked
-							? "text-amber-600 hover:text-amber-700"
-							: "text-gray-500 hover:text-gray-600"
+							? "text-emerald-600 hover:text-emerald-700"
+							: "text-gray-400 hover:text-blue-600"
 					)}
 					title={locked ? "Unlock field" : "Lock field"}
 				>
@@ -627,7 +686,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						<button
 							type="button"
 							onClick={() => (onAskAI || (() => {}))(fieldId)}
-							className="px-2 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-xs font-medium text-blue-700 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
+							className="px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-medium text-blue-600 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
 							title="Ask AI for help with this field"
 						>
 							Ask AI
@@ -668,16 +727,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		}
 	}, [isEditing, collapsed, autofillAnimationKey, startAutofill]);
 
-	// Helper function to check if a field value is valid (not null, empty, or invalid)
-	const isValidFieldValue = useCallback((value: any): boolean => {
-		if (value === null || value === undefined) return false;
-		if (typeof value === "string" && value.trim() === "") return false;
-		if (Array.isArray(value) && value.length === 0) return false;
-		if (typeof value === "object" && Object.keys(value).length === 0)
-			return false;
-		return true;
-	}, []);
-
 	// Helper function to check if a field is autofilled (has source that's not user_input AND has valid value)
 	const isFieldAutofilled = useCallback(
 		(fieldId: string): boolean => {
@@ -690,11 +739,14 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			if (!source) return false;
 
 			// Normalize source to check against "User Input"
-			const normalizedSource = normalizeSource(source);
+			const normalizedSource = normalizeSource(source as string);
 			const isUserInput =
 				normalizedSource.toLowerCase() === "user input" ||
-				source.toLowerCase() === "user_input" ||
-				source.toLowerCase() === "user input";
+				(typeof source === "string" &&
+					source.toLowerCase() === "user_input") ||
+				(typeof source === "string" &&
+					source.toLowerCase() === "user input") ||
+				(source as any).type === "user_input";
 
 			// If source is "User Input", it can't be autofilled by AI
 			if (isUserInput) return false;
@@ -747,7 +799,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				],
 			};
 
-			for (const [sectionId, fieldIds] of Object.entries(sectionFieldMap)) {
+			for (const [sectionId, fieldIds] of Object.entries(
+				sectionFieldMap
+			)) {
 				if (fieldIds.includes(fieldId)) {
 					return sectionId;
 				}
@@ -760,54 +814,93 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	// Check if autofill has ever been run (has any field with non-user-input source)
 	const hasAutofillBeenRun = useMemo(() => {
 		if (!borrowerResume) return false;
-		
+
 		// Check all fields for any non-user-input source
 		// Only return true if we find an actual autofilled field with a valid non-user-input source
 		for (const [key, value] of Object.entries(borrowerResume)) {
-			if (key === "_metadata" || key === "_lockedFields" || key === "_lockedSections" || key === "completenessPercent") continue;
-			
+			if (
+				key === "_metadata" ||
+				key === "_lockedFields" ||
+				key === "_lockedSections" ||
+				key === "completenessPercent"
+			)
+				continue;
+
 			// Skip if value is empty/null/undefined
 			if (!value) continue;
-			
+
 			// Check fieldMetadata first (more reliable) - this comes from the database
 			const meta = fieldMetadata[key];
 			if (meta && meta.sources && meta.sources.length > 0) {
 				const hasNonUserInput = meta.sources.some((src: any) => {
-					if (typeof src === "object" && src !== null && "type" in src) {
+					if (
+						typeof src === "object" &&
+						src !== null &&
+						"type" in src
+					) {
 						return src.type !== "user_input";
 					} else if (typeof src === "string") {
 						const normalizedSource = normalizeSource(src);
-						return normalizedSource.toLowerCase() !== "user input" && src.toLowerCase() !== "user_input";
+						return (
+							normalizedSource.toLowerCase() !== "user input" &&
+							src.toLowerCase() !== "user_input"
+						);
 					}
 					return false;
 				});
 				if (hasNonUserInput) {
 					// Verify the field actually has a value (not just empty)
-					const fieldValue = formData[key as keyof typeof formData] ?? value;
-					if (fieldValue && (typeof fieldValue !== "string" || fieldValue.trim() !== "")) {
+					const fieldValue =
+						formData[key as keyof typeof formData] ?? value;
+					if (
+						fieldValue &&
+						(typeof fieldValue !== "string" ||
+							fieldValue.trim() !== "")
+					) {
 						return true;
 					}
 				}
 			}
-			
+
 			// Also check value object structure from borrowerResume directly
-			if (value && typeof value === "object" && "value" in value && !Array.isArray(value)) {
-				const richValue = value as { value: any; sources?: any[]; source?: any };
+			if (
+				value &&
+				typeof value === "object" &&
+				"value" in value &&
+				!Array.isArray(value)
+			) {
+				const richValue = value as {
+					value: any;
+					sources?: any[];
+					source?: any;
+				};
 				const fieldVal = richValue.value;
-				
+
 				// Skip if the actual value is empty
-				if (!fieldVal || (typeof fieldVal === "string" && fieldVal.trim() === "")) continue;
-				
+				if (
+					!fieldVal ||
+					(typeof fieldVal === "string" && fieldVal.trim() === "")
+				)
+					continue;
+
 				const sources = richValue.sources;
-				
+
 				// Check sources array only; primary source is at index 0
 				if (sources && Array.isArray(sources) && sources.length > 0) {
 					const hasNonUserInput = sources.some((src: any) => {
-						if (typeof src === "object" && src !== null && "type" in src) {
+						if (
+							typeof src === "object" &&
+							src !== null &&
+							"type" in src
+						) {
 							return src.type !== "user_input";
 						} else if (typeof src === "string") {
 							const normalizedSource = normalizeSource(src);
-							return normalizedSource.toLowerCase() !== "user input" && src.toLowerCase() !== "user_input";
+							return (
+								normalizedSource.toLowerCase() !==
+									"user input" &&
+								src.toLowerCase() !== "user_input"
+							);
 						}
 						return false;
 					});
@@ -815,48 +908,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				}
 			}
 		}
-		
+
 		return false;
 	}, [borrowerResume, fieldMetadata, formData]);
-
-	// Helper function to get field styling classes based on lock status
-	const getFieldStylingClasses = useCallback(
-		(fieldId: string, baseClasses?: string): string => {
-			const sectionId = getSectionIdFromFieldId(fieldId);
-			const isLocked = isFieldLocked(fieldId, sectionId);
-			const value = formData[fieldId as keyof BorrowerResumeContent];
-			const hasValue =
-				value !== null &&
-				value !== undefined &&
-				!(typeof value === "string" && value.trim() === "") &&
-				!(
-					Array.isArray(value) &&
-					(value as unknown[]).length === 0
-				);
-
-			// If field has no value at all, keep it white/unaccented
-			if (!hasValue) {
-				return cn(baseClasses);
-			}
-
-			if (isLocked) {
-				// Green styling for locked fields - matches View OM button (emerald-600/700)
-				return cn(
-					baseClasses,
-					"border-emerald-500 bg-emerald-50 focus:ring-emerald-500 focus:border-emerald-600",
-					"hover:border-emerald-600 transition-colors"
-				);
-			} else {
-				// Blue styling for unlocked fields - matches send button (blue-600)
-				return cn(
-					baseClasses,
-					"border-blue-600 bg-blue-50 focus:ring-blue-600 focus:border-blue-600",
-					"hover:border-blue-700 transition-colors"
-				);
-			}
-		},
-		[isFieldLocked, getSectionIdFromFieldId, formData]
-	);
 
 	// Initialize form once on first load (avoid resetting on each store update)
 	// Don't reset formData if user is editing (preserves their work in progress)
@@ -1032,7 +1086,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		const initialData = { ...defaultData, ...extractedData };
 		const snapshotKey = JSON.stringify(initialData);
 		// Only skip if snapshot matches AND we're not forcing a refresh (snapshot is null means force refresh)
-		if (snapshotKey === lastInitializedSnapshot.current && lastInitializedSnapshot.current !== null) {
+		if (
+			snapshotKey === lastInitializedSnapshot.current &&
+			lastInitializedSnapshot.current !== null
+		) {
 			return;
 		}
 		lastInitializedSnapshot.current = snapshotKey;
@@ -1143,11 +1200,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			// Reload the borrower resume to get the latest data
 			await reloadBorrowerResume();
-			
+
 			// Force formData refresh by clearing the last initialized snapshot
 			// This will cause the initialization effect to run again and reload formData
 			lastInitializedSnapshot.current = null;
-			
+
 			// Wait a moment for the reload to complete and trigger form refresh
 			setTimeout(() => {
 				// Trigger animation update to show new data
@@ -1174,7 +1231,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		if (!borrowerResume) return;
 
 		// Check if this is a seeded project (check if borrower name is "Hoque Global" or completeness is 100)
-		const isSeededProject = borrowerResume.fullLegalName === "Hoque Global" || 
+		const isSeededProject =
+			borrowerResume.fullLegalName === "Hoque Global" ||
 			(borrowerResume as any).completenessPercent === 100;
 
 		// Lock all fields that are autofilled (have a source that's not "User Input") or are complete in seeded projects
@@ -1280,7 +1338,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				}
 
 				// For seeded projects, also lock fields that have valid values (are complete)
-				if (isSeededProject && isValidFieldValue(value) && !shouldLock) {
+				if (
+					isSeededProject &&
+					isValidFieldValue(value) &&
+					!shouldLock
+				) {
 					shouldLock = true;
 				}
 
@@ -1304,7 +1366,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			return next;
 		});
-	}, [borrowerResume, isValidFieldValue, fieldMetadata, unlockedFields, save]);
+	}, [
+		borrowerResume,
+		isValidFieldValue,
+		fieldMetadata,
+		unlockedFields,
+		save,
+	]);
 
 	// Input change handlers
 	const handleInputChange = useCallback(
@@ -1574,7 +1642,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								className={cn(
 									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
 									lockedSections.has("basic-info")
-										? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
 										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
 								)}
 								title={
@@ -1586,12 +1654,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								{lockedSections.has("basic-info") ? (
 									<>
 										<Lock className="h-4 w-4" />
-										<span>Unlock</span>
+										<span>Unlock Section</span>
 									</>
 								) : (
 									<>
 										<Unlock className="h-4 w-4" />
-										<span>Lock</span>
+										<span>Lock Section</span>
 									</>
 								)}
 							</button>
@@ -1636,13 +1704,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												)
 											}
 											className={cn(
-												isFieldLocked(
-													"fullLegalName",
-													"basic-info"
-												) && "cursor-not-allowed",
 												isEditing &&
 													getFieldStylingClasses(
-														"fullLegalName"
+														"fullLegalName",
+														"basic-info"
 													)
 											)}
 										/>
@@ -1689,13 +1754,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												)
 											}
 											className={cn(
-												isFieldLocked(
-													"primaryEntityName",
-													"basic-info"
-												) && "cursor-not-allowed",
 												isEditing &&
 													getFieldStylingClasses(
-														"primaryEntityName"
+														"primaryEntityName",
+														"basic-info"
 													)
 											)}
 										/>
@@ -1746,7 +1808,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"primaryEntityStructure",
 												"basic-info"
 											)}
-											hasAutofillBeenRun={hasAutofillBeenRun}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -1790,13 +1854,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												)
 											}
 											className={cn(
-												isFieldLocked(
-													"contactEmail",
-													"basic-info"
-												) && "cursor-not-allowed",
 												isEditing &&
 													getFieldStylingClasses(
-														"contactEmail"
+														"contactEmail",
+														"basic-info"
 													)
 											)}
 										/>
@@ -1841,13 +1902,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												)
 											}
 											className={cn(
-												isFieldLocked(
-													"contactPhone",
-													"basic-info"
-												) && "cursor-not-allowed",
 												isEditing &&
 													getFieldStylingClasses(
-														"contactPhone"
+														"contactPhone",
+														"basic-info"
 													)
 											)}
 										/>
@@ -1894,13 +1952,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												)
 											}
 											className={cn(
-												isFieldLocked(
-													"contactAddress",
-													"basic-info"
-												) && "cursor-not-allowed",
 												isEditing &&
 													getFieldStylingClasses(
-														"contactAddress"
+														"contactAddress",
+														"basic-info"
 													)
 											)}
 										/>
@@ -1927,7 +1982,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								className={cn(
 									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
 									lockedSections.has("experience")
-										? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
 										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
 								)}
 								title={
@@ -1939,12 +1994,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								{lockedSections.has("experience") ? (
 									<>
 										<Lock className="h-4 w-4" />
-										<span>Unlock</span>
+										<span>Unlock Section</span>
 									</>
 								) : (
 									<>
 										<Unlock className="h-4 w-4" />
-										<span>Lock</span>
+										<span>Lock Section</span>
 									</>
 								)}
 							</button>
@@ -1994,7 +2049,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"yearsCREExperienceRange",
 												"experience"
 											)}
-											hasAutofillBeenRun={hasAutofillBeenRun}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -2043,7 +2100,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"assetClassesExperience",
 												"experience"
 											)}
-											hasAutofillBeenRun={hasAutofillBeenRun}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -2091,7 +2150,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"geographicMarketsExperience",
 												"experience"
 											)}
-											hasAutofillBeenRun={hasAutofillBeenRun}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -2133,7 +2194,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"totalDealValueClosedRange",
 												"experience"
 											)}
-											hasAutofillBeenRun={hasAutofillBeenRun}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -2174,7 +2237,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											className={cn(
 												isEditing &&
 													getFieldStylingClasses(
-														"existingLenderRelationships"
+														"existingLenderRelationships",
+														"experience"
 													)
 											)}
 										/>
@@ -2211,15 +2275,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											}
 											disabled={!isEditing}
 											className={cn(
-												"w-full h-24 rounded-md p-2 disabled:bg-gray-50 disabled:cursor-not-allowed",
-												isFieldLocked(
+												getFieldStylingClasses(
 													"bioNarrative",
 													"experience"
-												) && "cursor-not-allowed",
-												isEditing &&
-													getFieldStylingClasses(
-														"bioNarrative"
-													)
+												),
+												"h-24"
 											)}
 										/>
 									</div>
@@ -2247,7 +2307,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								className={cn(
 									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
 									lockedSections.has("borrower-financials")
-										? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
 										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
 								)}
 								title={
@@ -2259,12 +2319,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								{lockedSections.has("borrower-financials") ? (
 									<>
 										<Lock className="h-4 w-4" />
-										<span>Unlock</span>
+										<span>Unlock Section</span>
 									</>
 								) : (
 									<>
 										<Unlock className="h-4 w-4" />
-										<span>Lock</span>
+										<span>Lock Section</span>
 									</>
 								)}
 							</button>
@@ -2314,7 +2374,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"creditScoreRange",
 												"borrower-financials"
 											)}
-											hasAutofillBeenRun={hasAutofillBeenRun}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -2355,7 +2417,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"netWorthRange",
 												"borrower-financials"
 											)}
-											hasAutofillBeenRun={hasAutofillBeenRun}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -2397,7 +2461,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												"liquidityRange",
 												"borrower-financials"
 											)}
-											hasAutofillBeenRun={hasAutofillBeenRun}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -2577,7 +2643,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								className={cn(
 									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
 									lockedSections.has("online-presence")
-										? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
 										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
 								)}
 								title={
@@ -2589,12 +2655,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								{lockedSections.has("online-presence") ? (
 									<>
 										<Lock className="h-4 w-4" />
-										<span>Unlock</span>
+										<span>Unlock Section</span>
 									</>
 								) : (
 									<>
 										<Unlock className="h-4 w-4" />
-										<span>Lock</span>
+										<span>Lock Section</span>
 									</>
 								)}
 							</button>
@@ -2637,13 +2703,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												)
 											}
 											className={cn(
-												isFieldLocked(
-													"linkedinUrl",
-													"online-presence"
-												) && "cursor-not-allowed",
 												isEditing &&
 													getFieldStylingClasses(
-														"linkedinUrl"
+														"linkedinUrl",
+														"online-presence"
 													)
 											)}
 										/>
@@ -2687,13 +2750,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												)
 											}
 											className={cn(
-												isFieldLocked(
-													"websiteUrl",
-													"online-presence"
-												) && "cursor-not-allowed",
 												isEditing &&
 													getFieldStylingClasses(
-														"websiteUrl"
+														"websiteUrl",
+														"online-presence"
 													)
 											)}
 										/>
@@ -2721,7 +2781,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								className={cn(
 									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
 									lockedSections.has("principals")
-										? "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
 										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
 								)}
 								title={
@@ -2733,12 +2793,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								{lockedSections.has("principals") ? (
 									<>
 										<Lock className="h-4 w-4" />
-										<span>Unlock</span>
+										<span>Unlock Section</span>
 									</>
 								) : (
 									<>
 										<Unlock className="h-4 w-4" />
-										<span>Lock</span>
+										<span>Lock Section</span>
 									</>
 								)}
 							</button>
@@ -2790,13 +2850,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												)
 											}
 											className={cn(
-												isFieldLocked(
-													"principalLegalName",
-													"principals"
-												) && "cursor-not-allowed",
 												isEditing &&
 													getFieldStylingClasses(
-														"principalLegalName"
+														"principalLegalName",
+														"principals"
 													)
 											)}
 										/>
@@ -2840,7 +2897,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											disabled={!isEditing}
 											buttonClassName="text-sm"
 											gridCols="grid-cols-8"
-											hasAutofillBeenRun={hasAutofillBeenRun}
+											hasAutofillBeenRun={
+												hasAutofillBeenRun
+											}
 										/>
 									</div>
 								</AskAIButton>
@@ -2977,15 +3036,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											rows={2}
 											disabled={!isEditing}
 											className={cn(
-												"w-full rounded-md p-2 disabled:bg-gray-50 disabled:cursor-not-allowed",
-												isFieldLocked(
+												getFieldStylingClasses(
 													"principalBio",
 													"principals"
-												) && "cursor-not-allowed",
-												isEditing &&
-													getFieldStylingClasses(
-														"principalBio"
-													)
+												),
+												"h-24"
 											)}
 										/>
 									</div>
@@ -3373,5 +3428,3 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		</div>
 	);
 };
-
-
