@@ -16707,6 +16707,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			handleTableRowAdd,
 			handleTableRowDelete,
 			handleTableRowUpdate,
+			hasAutofillBeenRun,
+			isFieldLocked,
 		]
 	);
 	return (
