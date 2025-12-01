@@ -325,6 +325,11 @@ export interface BorrowerResumeContent {
 	masterProfileId?: string;
 	lastSyncedAt?: string;
 	customFields?: string[];
+	
+	// Field states container (fieldId -> { state: "WHITE" | "BLUE" | "GREEN", locked: boolean, source: "ai" | "user_input" | null })
+	_fieldStates?: Record<string, { state: "WHITE" | "BLUE" | "GREEN"; locked: boolean; source: "ai" | "user_input" | null }>;
+	_lockedFields?: Record<string, boolean>;
+	_lockedSections?: Record<string, boolean>;
 }
 
 /**
@@ -830,9 +835,14 @@ export const saveProjectResume = async (
 	const metadata = (content as any)._metadata || {};
 	const finalContent: any = {};
 
+	// Extract reserved keys that should be preserved at root level
+	const lockedFields = (content as any)._lockedFields || {};
+	const lockedSections = (content as any)._lockedSections || {};
+	const fieldStates = (content as any)._fieldStates || {};
+
 	// Iterate over fields to construct the JSONB object
 	for (const key in content) {
-		if (key === "_metadata") continue; // Skip metadata container
+		if (key === "_metadata" || key === "_lockedFields" || key === "_lockedSections" || key === "_fieldStates") continue; // Skip metadata and state containers
 
 		const currentValue = (content as any)[key];
 		const meta = metadata[key];
@@ -870,7 +880,13 @@ export const saveProjectResume = async (
 		// 2a. Update in Place: Modify the current version directly
 		// This ensures manual edits don't create new history entries
 		// Merge with existing content to preserve fields not in the update
-		const mergedContent = { ...existing.content, ...finalContent };
+		const mergedContent = {
+			...existing.content,
+			...finalContent,
+			_lockedFields: lockedFields,
+			_lockedSections: lockedSections,
+			_fieldStates: fieldStates,
+		};
 
 		const { error } = await supabase
 			.from("project_resumes")
@@ -887,11 +903,17 @@ export const saveProjectResume = async (
 		// We also need to initialize the resource pointer if it doesn't exist,
 		// but typically the backend might handle that.
 		// For now, we just insert the resume row.
+		const contentToInsert = {
+			...finalContent,
+			_lockedFields: lockedFields,
+			_lockedSections: lockedSections,
+			_fieldStates: fieldStates,
+		};
 		const { data: newResume, error } = await supabase
 			.from("project_resumes")
 			.insert({
 				project_id: projectId,
-				content: finalContent as any,
+				content: contentToInsert as any,
 			})
 			.select("id")
 			.single();
@@ -1097,20 +1119,22 @@ export const saveProjectBorrowerResume = async (
 		contentToSave = convertToSectionWise(mergedContent);
 	}
 
-	// Extract _lockedFields and _lockedSections from content if present
+	// Extract _lockedFields, _lockedSections, and _fieldStates from content if present
 	const lockedFieldsFromContent = (content as any)._lockedFields || {};
 	const lockedSectionsFromContent = (content as any)._lockedSections || {};
+	const fieldStatesFromContent = (content as any)._fieldStates || {};
 
 	const lockedFieldsToSave =
 		lockedFields || lockedFieldsFromContent || {};
 	const lockedSectionsToSave =
 		lockedSections || lockedSectionsFromContent || {};
 
-	// Ensure lock state is stored inside the JSONB content at the root
+	// Ensure lock state and field states are stored inside the JSONB content at the root
 	const finalContentToSave: any = {
 		...contentToSave,
 		_lockedFields: lockedFieldsToSave,
 		_lockedSections: lockedSectionsToSave,
+		_fieldStates: fieldStatesFromContent,
 	};
 
 	const { data: resource, error: resourceError } = await supabase

@@ -573,6 +573,8 @@ export interface ProjectProfile {
 	_lockedFields?: Record<string, boolean>;
 	// Locked sections container (sectionId -> true)
 	_lockedSections?: Record<string, boolean>;
+	// Field states container (fieldId -> { state: "WHITE" | "BLUE" | "GREEN", locked: boolean, source: "ai" | "user_input" | null })
+	_fieldStates?: Record<string, { state: "WHITE" | "BLUE" | "GREEN"; locked: boolean; source: "ai" | "user_input" | null }>;
 }
 
 // Project Principal Types
