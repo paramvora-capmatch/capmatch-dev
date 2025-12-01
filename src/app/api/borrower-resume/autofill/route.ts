@@ -50,27 +50,127 @@ export async function POST(request: Request) {
 				// Add a delay to simulate processing time and allow animation to play
 				await new Promise((resolve) => setTimeout(resolve, 2000));
 
+				// Check for existing resource pointer and load existing content
+				const { data: resource, error: resourceError } =
+					await supabaseAdmin
+						.from("resources")
+						.select("id, current_version_id")
+						.eq("project_id", project_id)
+						.eq("resource_type", "BORROWER_RESUME")
+						.maybeSingle();
+
+				if (resourceError && resourceError.code !== "PGRST116") {
+					console.warn(
+						"[saveProjectBorrowerResume] Failed to read resource pointer:",
+						resourceError
+					);
+				}
+
+				// Load existing resume content to get locked fields
+				let existingContent: any = {};
+				let lockedFields: Record<string, boolean> = {};
+				let lockedSections: Record<string, boolean> = {};
+
+				if (resource?.current_version_id) {
+					const { data: existingResume, error: fetchError } =
+						await supabaseAdmin
+							.from("borrower_resumes")
+							.select("content")
+							.eq("id", resource.current_version_id)
+							.single();
+
+					if (!fetchError && existingResume?.content) {
+						existingContent = existingResume.content;
+						lockedFields = (existingContent._lockedFields as Record<string, boolean>) || {};
+						lockedSections = (existingContent._lockedSections as Record<string, boolean>) || {};
+					}
+				}
+
 				// Extract fields using mock service (now returns section-wise format)
 				const extractedFields = await extractBorrowerFields(
 					project_id,
 					document_paths
 				);
 
+				// Helper function to check if a field is locked
+				const isFieldLocked = (fieldId: string, sectionId: string): boolean => {
+					// Check if field is explicitly locked
+					if (lockedFields[fieldId] === true) {
+						return true;
+					}
+					// Check if field belongs to a locked section
+					// Map section keys (section_1, section_2, etc.) to section IDs (basic-info, experience, etc.)
+					const sectionIdMap: Record<string, string> = {
+						section_1: "basic-info",
+						section_2: "experience",
+						section_3: "borrower-financials",
+						section_4: "online-presence",
+						section_5: "principals",
+					};
+					const mappedSectionId = sectionIdMap[sectionId] || sectionId;
+					if (lockedSections[mappedSectionId] === true) {
+						return true;
+					}
+					return false;
+				};
+
 				// Keep section-wise structure - don't flatten
 				// Format: { section_1: { fieldId: { value, sources, warnings, original_value } } }
 				// Convert to database format (still section-wise, but ensure all fields have proper structure)
 				const finalContent: any = {};
 
-				// Iterate through sections
+				// Start with existing content structure (preserve existing fields)
+				if (existingContent) {
+					for (const [key, value] of Object.entries(existingContent)) {
+						// Skip metadata keys - we'll handle them separately
+						if (key === "_lockedFields" || key === "_lockedSections" || key === "_fieldStates" || key === "_metadata") {
+							continue;
+						}
+						// Preserve existing section structure
+						if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+							finalContent[key] = { ...value };
+						} else {
+							finalContent[key] = value;
+						}
+					}
+				}
+
+				// Iterate through sections from extracted fields
 				for (const [sectionId, sectionFields] of Object.entries(
 					extractedFields
 				)) {
-					finalContent[sectionId] = {};
+					// Initialize section if it doesn't exist
+					if (!finalContent[sectionId]) {
+						finalContent[sectionId] = {};
+					}
 
 					// Iterate through fields in each section
 					for (const [fieldId, fieldData] of Object.entries(
 						sectionFields
 					)) {
+						// Check if field is locked - if so, preserve existing value
+						if (isFieldLocked(fieldId, sectionId)) {
+							console.log(`[Autofill] Field '${fieldId}' is locked, preserving existing value`);
+							// Preserve existing field value if it exists
+							if (finalContent[sectionId][fieldId]) {
+								// Keep existing value but merge warnings if needed
+								const existingField = finalContent[sectionId][fieldId];
+								if (typeof existingField === "object" && existingField !== null && "value" in existingField) {
+									const newWarnings = (fieldData as any)?.warnings || [];
+									const existingWarnings = existingField.warnings || [];
+									const combinedWarnings = Array.from(new Set([...existingWarnings, ...newWarnings]));
+									finalContent[sectionId][fieldId] = {
+										...existingField,
+										warnings: combinedWarnings,
+									};
+								}
+								// If not in rich format, keep as-is
+							}
+							// If field doesn't exist, skip it (locked field with no value)
+							continue;
+						}
+
+						// Field is not locked - apply extracted value
 						if (
 							fieldData &&
 							typeof fieldData === "object" &&
@@ -97,24 +197,11 @@ export async function POST(request: Request) {
 					}
 				}
 
-				// Check for existing resource pointer
-				const { data: resource, error: resourceError } =
-					await supabaseAdmin
-						.from("resources")
-						.select("id, current_version_id")
-						.eq("project_id", project_id)
-						.eq("resource_type", "BORROWER_RESUME")
-						.maybeSingle();
+				// Preserve locked fields and locked sections metadata
+				finalContent._lockedFields = lockedFields;
+				finalContent._lockedSections = lockedSections;
 
-				if (resourceError && resourceError.code !== "PGRST116") {
-					console.warn(
-						"[saveProjectBorrowerResume] Failed to read resource pointer:",
-						resourceError
-					);
-				}
-
-				// finalContent is already in section-wise format, ready to save
-
+				// Save the updated content
 				if (resource?.current_version_id) {
 					// Update existing resume
 					const { error } = await supabaseAdmin
@@ -128,7 +215,15 @@ export async function POST(request: Request) {
 						);
 					}
 				} else {
-					// Insert new resume
+					// Insert new resume (no existing locked fields for new resumes)
+					// Ensure _lockedFields and _lockedSections are initialized
+					if (!finalContent._lockedFields) {
+						finalContent._lockedFields = {};
+					}
+					if (!finalContent._lockedSections) {
+						finalContent._lockedSections = {};
+					}
+
 					const { data: inserted, error: insertError } =
 						await supabaseAdmin
 							.from("borrower_resumes")
