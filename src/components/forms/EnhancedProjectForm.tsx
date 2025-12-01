@@ -284,12 +284,33 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const value = (formData as any)[fieldId];
 			const hasValue = isProjectValueProvided(value);
 			const locked = isFieldLocked(fieldId, sectionId);
+			const meta = fieldMetadata[fieldId];
+			const hasSources =
+				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
 
 			const baseClasses =
 				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
 
 			if (!hasValue) {
-				// White - Empty
+				// If there's metadata/sources (e.g. after autofill), treat the field
+				// as "touched" even if the value is currently empty.
+				if (hasSources) {
+					if (locked) {
+						// Green - Locked but currently empty (user locked an empty field)
+						return cn(
+							baseClasses,
+							"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
+						);
+					}
+
+					// Blue - Touched/unlocked but empty (e.g. user_input placeholder)
+					return cn(
+						baseClasses,
+						"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
+					);
+				}
+
+				// White - Truly untouched/empty
 				return cn(
 					baseClasses,
 					"border-gray-200 bg-white focus:ring-blue-200 hover:border-gray-300"
@@ -310,7 +331,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
 			);
 		},
-		[formData, isFieldLocked]
+		[formData, fieldMetadata, isFieldLocked]
 	);
 
 	const isFieldAutofilled = useCallback(

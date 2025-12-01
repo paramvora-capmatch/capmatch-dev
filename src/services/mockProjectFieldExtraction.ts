@@ -5,6 +5,7 @@
  */
 
 import { SourceMetadata } from "@/types/source-metadata";
+import formSchema from "@/lib/enhanced-project-form.schema.json";
 
 /**
  * Section-wise field extraction response structure
@@ -564,6 +565,54 @@ export const extractProjectFields = async (
 			portfolioDSCR: createField(1.35, "Sponsor FS"),
 		},
 	};
+
+	// ---------------------------------------------------------------------------
+	// Schema Alignment:
+	// Ensure that every field defined in the enhanced project form schema
+	// has a corresponding entry in the mock extraction response.
+	// This guarantees that after autofill runs, all fields are at least
+	// initialized with metadata (User Input source) so the UI can treat
+	// them as "touched" (blue/unlocked) or "filled by AI" (green/locked).
+	// ---------------------------------------------------------------------------
+
+	const STEP_ID_TO_SECTION_KEY: Record<string, string> = {
+		"basic-info": "section_1",
+		"property-specs": "section_2",
+		"financial-details": "section_3",
+		"market-context": "section_4",
+		"special-considerations": "section_5",
+		"timeline": "section_6",
+		"site-context": "section_7",
+		"sponsor-info": "section_8",
+	};
+
+	const schemaAny = formSchema as any;
+	if (Array.isArray(schemaAny.steps)) {
+		for (const step of schemaAny.steps) {
+			const stepId = step?.id as string | undefined;
+			const sectionKey =
+				(stepId && STEP_ID_TO_SECTION_KEY[stepId]) || undefined;
+			if (!sectionKey) continue;
+
+			if (!sectionWiseFields[sectionKey]) {
+				sectionWiseFields[sectionKey] = {};
+			}
+
+			const stepFields: string[] = Array.isArray(step.fields)
+				? step.fields
+				: [];
+
+			for (const fieldId of stepFields) {
+				if (!fieldId || typeof fieldId !== "string") continue;
+				if (!sectionWiseFields[sectionKey][fieldId]) {
+					sectionWiseFields[sectionKey][fieldId] = createField(
+						null,
+						"User Input"
+					);
+				}
+			}
+		}
+	}
 
 	return sectionWiseFields;
 };
