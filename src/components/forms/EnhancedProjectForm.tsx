@@ -113,6 +113,136 @@ const exitStrategyOptions: ExitStrategy[] = [
 	"Long-Term Hold",
 ];
 
+// State mapping: abbreviation -> full name
+const STATE_MAP: Record<string, string> = {
+	AL: "Alabama",
+	AK: "Alaska",
+	AZ: "Arizona",
+	AR: "Arkansas",
+	CA: "California",
+	CO: "Colorado",
+	CT: "Connecticut",
+	DE: "Delaware",
+	FL: "Florida",
+	GA: "Georgia",
+	HI: "Hawaii",
+	ID: "Idaho",
+	IL: "Illinois",
+	IN: "Indiana",
+	IA: "Iowa",
+	KS: "Kansas",
+	KY: "Kentucky",
+	LA: "Louisiana",
+	ME: "Maine",
+	MD: "Maryland",
+	MA: "Massachusetts",
+	MI: "Michigan",
+	MN: "Minnesota",
+	MS: "Mississippi",
+	MO: "Missouri",
+	MT: "Montana",
+	NE: "Nebraska",
+	NV: "Nevada",
+	NH: "New Hampshire",
+	NJ: "New Jersey",
+	NM: "New Mexico",
+	NY: "New York",
+	NC: "North Carolina",
+	ND: "North Dakota",
+	OH: "Ohio",
+	OK: "Oklahoma",
+	OR: "Oregon",
+	PA: "Pennsylvania",
+	RI: "Rhode Island",
+	SC: "South Carolina",
+	SD: "South Dakota",
+	TN: "Tennessee",
+	TX: "Texas",
+	UT: "Utah",
+	VT: "Vermont",
+	VA: "Virginia",
+	WA: "Washington",
+	WV: "West Virginia",
+	WI: "Wisconsin",
+	WY: "Wyoming",
+};
+
+// Reverse mapping: full name -> abbreviation
+const STATE_REVERSE_MAP: Record<string, string> = Object.fromEntries(
+	Object.entries(STATE_MAP).map(([abbr, full]) => [full, abbr])
+);
+
+const stateOptionsFullNames = Object.values(STATE_MAP).sort();
+
+// Dropdown field options
+const amortizationOptions = ["IO", "30yr", "25yr"];
+const recourseFieldOptions = ["Full", "Partial", "Non"]; // For 'recourse' field (different from recoursePreference)
+const prepaymentPremiumOptions = [
+	"Yield Maint",
+	"Defeasance",
+	"Step-down",
+	"Open",
+];
+const dealStatusOptions = [
+	"Inquiry",
+	"Underwriting",
+	"Pre-Submission",
+	"Submitted",
+	"Closed",
+];
+const expectedZoningChangesOptions = ["None", "Variance", "PUD", "Re-Zoning"];
+const syndicationStatusOptions = ["Committed", "In Process", "TBD"];
+const sponsorExperienceOptions = [
+	"First-Time",
+	"Emerging (1-3)",
+	"Seasoned (3+)",
+];
+const loanTypeOptions = [
+	"Construction",
+	"Permanent",
+	"Bridge",
+	"Mezzanine",
+	"Preferred Equity",
+	"Other",
+];
+const constructionTypeOptions = ["Ground-Up", "Renovation", "Adaptive Reuse"];
+const primaryAssetClassOptions = [
+	"Multifamily",
+	"Office",
+	"Retail",
+	"Industrial",
+	"Hospitality",
+	"Land",
+	"Mixed-Use",
+	"Self-Storage",
+	"Data Center",
+	"Medical Office",
+	"Senior Housing",
+	"Student Housing",
+	"Other",
+];
+const buildingTypeOptions = ["High-rise", "Mid-rise", "Garden", "Podium"];
+const hvacSystemOptions = ["Central", "Split System", "PTAC", "VRF"];
+const leedGreenRatingOptions = [
+	"Certified",
+	"Silver",
+	"Gold",
+	"Platinum",
+	"NGBS",
+];
+const crimeRiskLevelOptions = ["Low", "Moderate", "High"];
+const exemptionStructureOptions = ["PFC", "MMD", "PILOT"];
+const relocationPlanOptions = ["Complete", "In Process", "N/A"];
+const entitlementsOptions = ["Approved", "Pending"];
+const finalPlansOptions = ["Approved", "Pending"];
+const permitsIssuedOptions = ["Issued", "Pending"];
+const currentSiteStatusOptions = ["Vacant", "Existing"];
+const topographyOptions = ["Flat", "Sloped"];
+const environmentalOptions = ["Clean", "Remediation"];
+const utilitiesOptions = ["Available", "None"];
+const seismicRiskOptions = ["Low", "Moderate", "High"];
+const phaseIESAFindingOptions = ["Clean", "REC", "HREC"];
+
 const isProjectValueProvided = (value: unknown): boolean => {
 	if (value === null || value === undefined) return false;
 	if (typeof value === "string") return value.trim().length > 0;
@@ -132,9 +262,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	onVersionChange,
 }) => {
 	const [formData, setFormData] = useState<ProjectProfile>(existingProject);
-	const [fieldMetadata, setFieldMetadata] = useState<
-		Record<string, any>
-	>(existingProject._metadata || {});
+	const [fieldMetadata, setFieldMetadata] = useState<Record<string, any>>(
+		existingProject._metadata || {}
+	);
 
 	// Initialize locked state from props
 	const [lockedFields, setLockedFields] = useState<Set<string>>(() => {
@@ -573,6 +703,30 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			interestRateType: "button-select",
 			recoursePreference: "button-select",
 			exitStrategy: "button-select",
+			// Convert all dropdown fields to button-select (except state which stays as dropdown)
+			primaryAssetClass: "button-select",
+			amortization: "button-select",
+			recourse: "button-select",
+			prepaymentPremium: "button-select",
+			dealStatus: "button-select",
+			expectedZoningChanges: "button-select",
+			syndicationStatus: "button-select",
+			sponsorExperience: "button-select",
+			buildingType: "button-select",
+			hvacSystem: "button-select",
+			leedGreenRating: "button-select",
+			crimeRiskLevel: "button-select",
+			exemptionStructure: "button-select",
+			relocationPlan: "button-select",
+			entitlements: "button-select",
+			finalPlans: "button-select",
+			permitsIssued: "button-select",
+			currentSiteStatus: "button-select",
+			topography: "button-select",
+			environmental: "button-select",
+			utilities: "button-select",
+			seismicRisk: "button-select",
+			phaseIESAFinding: "button-select",
 		}),
 		[]
 	);
@@ -585,6 +739,30 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			interestRateType: interestRateTypeOptions,
 			recoursePreference: recourseOptions,
 			exitStrategy: exitStrategyOptions,
+			// Dropdown field options
+			primaryAssetClass: primaryAssetClassOptions,
+			amortization: amortizationOptions,
+			recourse: recourseFieldOptions,
+			prepaymentPremium: prepaymentPremiumOptions,
+			dealStatus: dealStatusOptions,
+			expectedZoningChanges: expectedZoningChangesOptions,
+			syndicationStatus: syndicationStatusOptions,
+			sponsorExperience: sponsorExperienceOptions,
+			buildingType: buildingTypeOptions,
+			hvacSystem: hvacSystemOptions,
+			leedGreenRating: leedGreenRatingOptions,
+			crimeRiskLevel: crimeRiskLevelOptions,
+			exemptionStructure: exemptionStructureOptions,
+			relocationPlan: relocationPlanOptions,
+			entitlements: entitlementsOptions,
+			finalPlans: finalPlansOptions,
+			permitsIssued: permitsIssuedOptions,
+			currentSiteStatus: currentSiteStatusOptions,
+			topography: topographyOptions,
+			environmental: environmentalOptions,
+			utilities: utilitiesOptions,
+			seismicRisk: seismicRiskOptions,
+			phaseIESAFinding: phaseIESAFindingOptions,
 		}),
 		[]
 	);
@@ -610,13 +788,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[]
 	);
 
-	const getFieldConfig = useCallback(
-		(fieldId: string) => {
-			const fieldsConfig = (formSchema as any).fields || {};
-			return fieldsConfig[fieldId] || {};
-		},
-		[]
-	);
+	const getFieldConfig = useCallback((fieldId: string) => {
+		const fieldsConfig = (formSchema as any).fields || {};
+		return fieldsConfig[fieldId] || {};
+	}, []);
 
 	const isFieldRequiredFromSchema = useCallback(
 		(fieldId: string): boolean => {
@@ -687,9 +862,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								label=""
 								options={options}
 								selectedValue={value || ""}
-								onSelect={(selected) =>
-									handleInputChange(fieldId, selected)
-								}
+								onSelect={(selected) => {
+									handleInputChange(fieldId, selected);
+								}}
 								disabled={disabled}
 								// Use lock status to color the selection container
 								isLocked={isLocked}
@@ -699,65 +874,49 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				}
 
 				if (controlKind === "select") {
-					const stateOptions =
-						fieldId === "propertyAddressState"
-							? [
-									"AL",
-									"AK",
-									"AZ",
-									"AR",
-									"CA",
-									"CO",
-									"CT",
-									"DE",
-									"FL",
-									"GA",
-									"HI",
-									"ID",
-									"IL",
-									"IN",
-									"IA",
-									"KS",
-									"KY",
-									"LA",
-									"ME",
-									"MD",
-									"MA",
-									"MI",
-									"MN",
-									"MS",
-									"MO",
-									"MT",
-									"NE",
-									"NV",
-									"NH",
-									"NJ",
-									"NM",
-									"NY",
-									"NC",
-									"ND",
-									"OH",
-									"OK",
-									"OR",
-									"PA",
-									"RI",
-									"SC",
-									"SD",
-									"TN",
-									"TX",
-									"UT",
-									"VT",
-									"VA",
-									"WA",
-									"WV",
-									"WI",
-									"WY",
-							  ]
-							: fieldOptionsRegistry[fieldId] ?? [];
-					const options = stateOptions.map((s) => ({
-						label: s,
-						value: s,
-					}));
+					// Special handling for state field: show full names but store abbreviations
+					if (fieldId === "propertyAddressState") {
+						const options = stateOptionsFullNames.map(
+							(fullName) => ({
+								label: fullName,
+								value: STATE_REVERSE_MAP[fullName] || fullName, // Store abbreviation
+							})
+						);
+						// Convert current value (abbreviation) to full name for display
+						const displayValue =
+							value &&
+							typeof value === "string" &&
+							value.length === 2
+								? STATE_MAP[value.toUpperCase()] || value
+								: value || "";
+						return (
+							<Select
+								id={fieldId}
+								value={displayValue}
+								onChange={(e) => {
+									// Convert selected full name back to abbreviation
+									const abbr =
+										STATE_REVERSE_MAP[e.target.value] ||
+										e.target.value;
+									handleInputChange(fieldId, abbr);
+								}}
+								options={options}
+								required={required}
+								disabled={disabled}
+								className={commonClassName}
+								data-field-id={fieldId}
+								data-field-type="select"
+								data-field-section={sectionId}
+							/>
+						);
+					}
+					// For other select fields
+					const options = (fieldOptionsRegistry[fieldId] ?? []).map(
+						(s) => ({
+							label: s,
+							value: s,
+						})
+					);
 					return (
 						<Select
 							id={fieldId}
@@ -847,9 +1006,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 
 	// Track which subsections have their optional fields expanded
-	const [expandedSubsections, setExpandedSubsections] = useState<
-		Set<string>
-	>(new Set());
+	const [expandedSubsections, setExpandedSubsections] = useState<Set<string>>(
+		new Set()
+	);
 
 	const toggleSubsectionOptional = useCallback((subsectionKey: string) => {
 		setExpandedSubsections((prev) => {
@@ -859,7 +1018,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			} else {
 				next.add(subsectionKey);
 			}
-		 return next;
+			return next;
 		});
 	}, []);
 
@@ -916,7 +1075,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								>
 									{showOptional
 										? "Hide optional fields"
-										: `Show ${optionalFields.length} optional field${
+										: `Show ${
+												optionalFields.length
+										  } optional field${
 												optionalFields.length > 1
 													? "s"
 													: ""
@@ -971,7 +1132,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								)}
 							</button>
 						</div>
-						{Array.isArray(subsections) && subsections.length > 0 ? (
+						{Array.isArray(subsections) &&
+						subsections.length > 0 ? (
 							<div className="space-y-4">
 								{subsections.map((subsection: any) =>
 									renderSubsection(subsection)
@@ -1056,7 +1218,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							<HelpCircle className="h-4 w-4 text-gray-400 hover:text-blue-600 cursor-help" />
 							<div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-72 -translate-x-1/2 transform opacity-0 transition-opacity duration-150 group-hover:opacity-100">
 								<div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-lg">
-									Fill out the key details for your project. Fields can be autofilled from documents and locked to prevent overwrites.
+									Fill out the key details for your project.
+									Fields can be autofilled from documents and
+									locked to prevent overwrites.
 								</div>
 							</div>
 						</div>
