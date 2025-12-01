@@ -799,9 +799,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				if (!fieldVal || (typeof fieldVal === "string" && fieldVal.trim() === "")) continue;
 				
 				const sources = richValue.sources;
-				const source = richValue.source;
 				
-				// Check sources array
+				// Check sources array only; primary source is at index 0
 				if (sources && Array.isArray(sources) && sources.length > 0) {
 					const hasNonUserInput = sources.some((src: any) => {
 						if (typeof src === "object" && src !== null && "type" in src) {
@@ -814,18 +813,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					});
 					if (hasNonUserInput) return true;
 				}
-				
-				// Check single source
-				if (source) {
-					if (typeof source === "object" && source !== null && "type" in source) {
-						if (source.type !== "user_input") return true;
-					} else if (typeof source === "string") {
-						const normalizedSource = normalizeSource(source);
-						if (normalizedSource.toLowerCase() !== "user input" && source.toLowerCase() !== "user_input") {
-							return true;
-						}
-					}
-				}
 			}
 		}
 		
@@ -835,13 +822,22 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	// Helper function to get field styling classes based on lock status
 	const getFieldStylingClasses = useCallback(
 		(fieldId: string, baseClasses?: string): string => {
-			// If autofill has never been run, return white (no special styling)
-			if (!hasAutofillBeenRun) {
-				return cn(baseClasses);
-			}
-			
 			const sectionId = getSectionIdFromFieldId(fieldId);
 			const isLocked = isFieldLocked(fieldId, sectionId);
+			const value = formData[fieldId as keyof BorrowerResumeContent];
+			const hasValue =
+				value !== null &&
+				value !== undefined &&
+				!(typeof value === "string" && value.trim() === "") &&
+				!(
+					Array.isArray(value) &&
+					(value as unknown[]).length === 0
+				);
+
+			// If field has no value at all, keep it white/unaccented
+			if (!hasValue) {
+				return cn(baseClasses);
+			}
 
 			if (isLocked) {
 				// Green styling for locked fields - matches View OM button (emerald-600/700)
@@ -859,7 +855,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				);
 			}
 		},
-		[isFieldLocked, getSectionIdFromFieldId, hasAutofillBeenRun]
+		[isFieldLocked, getSectionIdFromFieldId, formData]
 	);
 
 	// Initialize form once on first load (avoid resetting on each store update)

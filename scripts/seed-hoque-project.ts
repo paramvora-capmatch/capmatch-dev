@@ -103,7 +103,6 @@ const hoqueProjectResume: ProjectResumeContent & Record<string, any> = {
   propertyAddressZip: '75215',
   parcelNumber: '000472000A01B0100',
   zoningDesignation: 'PD317',
-  projectType: 'Mixed-Use (Retail, Office and Multifamily)',
   primaryAssetClass: 'Multifamily',
   constructionType: 'Ground-Up',
   groundbreakingDate: '2025-08-01',

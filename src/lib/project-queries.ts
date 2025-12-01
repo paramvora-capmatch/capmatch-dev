@@ -29,7 +29,6 @@ export interface ProjectResumeContent {
 	zoningDesignation?: string;
 	currentZoning?: string;
 	expectedZoningChanges?: string; // None, Variance, PUD
-	projectType?: string; // Multi-select: Mixed-Use, Retail, Office, etc.
 	primaryAssetClass?: string;
 	constructionType?: string; // Ground-Up, Renovation, Adaptive Reuse
 	groundbreakingDate?: string;
@@ -541,13 +540,10 @@ export const getProjectsWithResumes = async (
 		throw new Error(`Failed to fetch projects: ${projectsError.message}`);
 	}
 
-	// Fetch all resume data
 	// Fetch all resume data, sorted by newest first
 	const { data: resumes, error: resumesError } = await supabase
 		.from("project_resumes")
-		.select(
-			"project_id, content, locked_fields, locked_sections, created_at"
-		)
+		.select("project_id, content, created_at")
 		.in("project_id", projectIds)
 		.order("created_at", { ascending: false });
 
@@ -581,7 +577,23 @@ export const getProjectsWithResumes = async (
 
 	resumes?.forEach((resume: any) => {
 		if (!resumeMap.has(resume.project_id)) {
-			let rawContent = resume.content || {};
+			let rawContent = (resume.content || {}) as any;
+
+			// Extract lock state from JSONB root (backfilled by migration)
+			const rawLockedFields =
+				(rawContent._lockedFields as Record<string, boolean> | undefined) ||
+				{};
+			const rawLockedSections =
+				(rawContent._lockedSections as Record<string, boolean> | undefined) ||
+				{};
+
+			// Store locks in separate maps for the returned ProjectProfile
+			lockedFieldsMap.set(resume.project_id, rawLockedFields);
+			lockedSectionsMap.set(resume.project_id, rawLockedSections);
+
+			// Remove reserved keys so they are not treated as regular fields below
+			delete rawContent._lockedFields;
+			delete rawContent._lockedSections;
 
 			// Check if content is in section-grouped format and ungroup if needed
 			if (isGroupedFormat(rawContent)) {
@@ -692,12 +704,6 @@ export const getProjectsWithResumes = async (
 
 			resumeMap.set(resume.project_id, flatContent);
 			metadataMap.set(resume.project_id, metadata);
-			// Store locked_fields and locked_sections
-			lockedFieldsMap.set(resume.project_id, resume.locked_fields || {});
-			lockedSectionsMap.set(
-				resume.project_id,
-				resume.locked_sections || {}
-			);
 		}
 	});
 
@@ -941,9 +947,7 @@ export const getProjectBorrowerResume = async (
 		);
 	}
 
-	let query = supabase
-		.from("borrower_resumes")
-		.select("content, locked_fields, locked_sections");
+	let query = supabase.from("borrower_resumes").select("content");
 
 	if (resource?.current_version_id) {
 		query = query.eq("id", resource.current_version_id);
@@ -962,12 +966,9 @@ export const getProjectBorrowerResume = async (
 
 	if (!data) return null;
 
-	// Attach locked_fields and locked_sections to the content object as _lockedFields and _lockedSections
-	const content = data.content || {};
-	(content as any)._lockedFields = data.locked_fields || {};
-	(content as any)._lockedSections = data.locked_sections || {};
-
-	return content as BorrowerResumeContent;
+	// Lock state now lives inside the JSONB content under _lockedFields / _lockedSections
+	const content = (data.content || {}) as BorrowerResumeContent;
+	return content;
 };
 
 // Helper to map borrower resume fields to sections
@@ -1097,14 +1098,20 @@ export const saveProjectBorrowerResume = async (
 	}
 
 	// Extract _lockedFields and _lockedSections from content if present
-	const lockedFieldsToSave =
-		lockedFields || (content as any)._lockedFields || {};
-	const lockedSectionsToSave =
-		lockedSections || (content as any)._lockedSections || {};
+	const lockedFieldsFromContent = (content as any)._lockedFields || {};
+	const lockedSectionsFromContent = (content as any)._lockedSections || {};
 
-	// Remove _lockedFields and _lockedSections from content before saving (they're stored in separate columns)
-	const { _lockedFields, _lockedSections, ...finalContentToSave } =
-		contentToSave;
+	const lockedFieldsToSave =
+		lockedFields || lockedFieldsFromContent || {};
+	const lockedSectionsToSave =
+		lockedSections || lockedSectionsFromContent || {};
+
+	// Ensure lock state is stored inside the JSONB content at the root
+	const finalContentToSave: any = {
+		...contentToSave,
+		_lockedFields: lockedFieldsToSave,
+		_lockedSections: lockedSectionsToSave,
+	};
 
 	const { data: resource, error: resourceError } = await supabase
 		.from("resources")
@@ -1125,8 +1132,6 @@ export const saveProjectBorrowerResume = async (
 			.from("borrower_resumes")
 			.update({
 				content: finalContentToSave,
-				locked_fields: lockedFieldsToSave,
-				locked_sections: lockedSectionsToSave,
 			})
 			.eq("id", resource.current_version_id);
 
@@ -1144,8 +1149,6 @@ export const saveProjectBorrowerResume = async (
 		.insert({
 			project_id: projectId,
 			content: finalContentToSave,
-			locked_fields: lockedFieldsToSave,
-			locked_sections: lockedSectionsToSave,
 		})
 		.select("id")
 		.single();

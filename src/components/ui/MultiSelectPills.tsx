@@ -45,11 +45,13 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
   };
 
   // Apply background color based on lock status (green = locked, blue = unlocked)
-  // Only show colors if autofill has been run
-  // Fall back to isAutofilled for backward compatibility
+  // Only show colors once at least one value is selected; otherwise keep white.
+  // Fall back to isAutofilled for backward compatibility.
   const isLockedState = isLocked !== undefined ? isLocked : (isAutofilled || disabled);
-  const containerBgClass = !hasAutofillBeenRun
-    ? "" // White by default (no special styling)
+  const hasSelection = Array.isArray(selectedValues) && selectedValues.length > 0;
+
+  const containerBgClass = !hasSelection
+    ? "" // Initial empty state: white background, no accent border
     : isLockedState
     ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
     : "bg-blue-50 p-3 rounded-lg border border-blue-200";

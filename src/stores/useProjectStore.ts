@@ -461,15 +461,15 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					(resumeContent as any)._metadata = (updates as any)._metadata;
 				}
 
-				// Extract locked_fields and locked_sections if present (separate columns, not part of content)
+				// Extract lock state if present on the updated ProjectProfile and embed into resume content JSON
 				const lockedFields = (updates as any)._lockedFields;
 				const lockedSections = (updates as any)._lockedSections;
-				
+
 				if (lockedFields !== undefined) {
-					console.log(`[ProjectStore] Saving locked_fields for project ${id}:`, lockedFields);
+					(resumeContent as any)._lockedFields = lockedFields;
 				}
 				if (lockedSections !== undefined) {
-					console.log(`[ProjectStore] Saving locked_sections for project ${id}:`, lockedSections);
+					(resumeContent as any)._lockedSections = lockedSections;
 				}
 
 				const { error } = await supabase.functions.invoke('update-project', {
@@ -477,8 +477,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						project_id: id,
 						core_updates: coreUpdates,
 						resume_updates: resumeContent,
-						locked_fields: lockedFields,
-						locked_sections: lockedSections,
 					},
 				});
 				if (error) throw error;

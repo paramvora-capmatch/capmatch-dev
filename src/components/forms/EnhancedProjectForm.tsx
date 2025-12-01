@@ -93,21 +93,6 @@ const assetTypeOptions = [
 	"Student Housing",
 	"Other",
 ];
-const projectTypeOptions = [
-	"Multifamily",
-	"Mixed-Use",
-	"Office",
-	"Retail",
-	"Industrial",
-	"Hospitality",
-	"Self-Storage",
-	"Senior Housing",
-	"Student Housing",
-	"Medical Office",
-	"Data Center",
-	"Land",
-	"Other",
-];
 const amenityListOptions = [
 	"Fitness Center",
 	"Swimming Pool",
@@ -1027,29 +1012,83 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				if (meta && typeof meta === "object") {
 					const validatedMeta: any = { ...meta };
 
-					// Validate and filter sources array
-					if (meta.sources && Array.isArray(meta.sources)) {
-						validatedMeta.sources = meta.sources.filter(
-							(src: any) =>
+					// Normalize legacy `source` / `sources` into a single ordered `sources` array
+					const normalizedSources: any[] = [];
+
+					// 1) Start from any structured sources array
+					if (Array.isArray(meta.sources)) {
+						for (const src of meta.sources) {
+							if (
 								src &&
 								typeof src === "object" &&
-								src !== null &&
 								"type" in src
-						);
+							) {
+								normalizedSources.push(src);
+							} else if (typeof src === "string") {
+								// Legacy string source in array – map to structured metadata
+								const lower = src.toLowerCase();
+								if (
+									lower === "user_input" ||
+									normalizeSource(src).toLowerCase() ===
+										"user input"
+								) {
+									normalizedSources.push({
+										type: "user_input",
+									});
+								} else {
+									normalizedSources.push({
+										type: "document",
+										name: src,
+									});
+								}
+							}
+						}
 					}
 
-					// Validate single source
+					// 2) Fold in legacy `source` (string or object) as primary if present
 					if (meta.source) {
+						let primary: any = null;
 						if (
 							typeof meta.source === "object" &&
 							meta.source !== null &&
 							"type" in meta.source
 						) {
-							validatedMeta.source = meta.source;
-						} else {
-							validatedMeta.source = null;
+							primary = meta.source;
+						} else if (typeof meta.source === "string") {
+							const lower = meta.source.toLowerCase();
+							if (
+								lower === "user_input" ||
+								normalizeSource(meta.source).toLowerCase() ===
+									"user input"
+							) {
+								primary = { type: "user_input" };
+							} else {
+								primary = {
+									type: "document",
+									name: meta.source,
+								};
+							}
+						}
+
+						if (primary) {
+							// If we already have sources, put primary at the front
+							// and keep existing order behind it (avoid simple duplicates).
+							const deduped = normalizedSources.filter(
+								(s) =>
+									!(
+										s.type === primary.type &&
+										("name" in s
+											? s.name === primary.name
+											: false)
+									)
+							);
+							normalizedSources.splice(0, normalizedSources.length, primary, ...deduped);
 						}
 					}
+
+					// Apply normalized sources and drop legacy `source`
+					validatedMeta.sources = normalizedSources;
+					delete validatedMeta.source;
 
 					validatedMetadata[key] = validatedMeta as FieldMetadata;
 				}
@@ -1276,42 +1315,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		}
 	}, [existingProject._lockedSections, lockedSections]);
 
-	// Calculate if autofill has ever been run (any field has source != "User Input")
-	const hasAutofillBeenRun = useMemo(() => {
-		// Check fieldMetadata state instead of just existingProject._metadata
-		return Object.values(fieldMetadata).some((meta) => {
-			if (!meta) return false;
-			// Check sources array
-			if (
-				meta.sources &&
-				Array.isArray(meta.sources) &&
-				meta.sources.length > 0
-			) {
-				const hasNonUserInput = meta.sources.some((src: any) => {
-					if (
-						typeof src === "object" &&
-						src !== null &&
-						"type" in src
-					) {
-						return src.type !== "user_input";
-					}
-					if (typeof src === "string") {
-						const norm = normalizeSource(src);
-						return norm.toLowerCase() !== "user input";
-					}
-					return false;
-				});
-				if (hasNonUserInput) return true;
-			}
-			// Check legacy source
-			if (meta.source) {
-				const norm = normalizeSource(meta.source);
-				return norm.toLowerCase() !== "user input";
-			}
-			return false;
-		});
-	}, [fieldMetadata]);
-
 	// Helper function to check if a field is locked
 	const isFieldLocked = useCallback(
 		(fieldId: string, sectionId?: string): boolean => {
@@ -1379,49 +1382,13 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		return true;
 	}, []);
 
-	// Lock autofilled fields after existingProject is updated (which happens after autofill)
-	// This runs when autofill completes (notification shows) OR when autofill has been triggered
-	// and there are autofilled fields in the metadata
+	// Lock autofilled fields based on sources + value
+	// Runs whenever project/metadata change so it works for both mock and real autofill flows.
 	useEffect(() => {
-		// Only lock fields if autofill has been triggered
-		if (!hasAutofillBeenTriggered) return;
 		if (!existingProject) return;
 
 		// Check if there are any autofilled fields (to avoid unnecessary work)
 		const metadata = existingProject._metadata || {};
-		const hasAutofilledFields = Object.values(metadata).some((meta) => {
-			if (!meta) return false;
-			const sources = meta.sources;
-			if (sources && Array.isArray(sources) && sources.length > 0) {
-				return sources.some((src: any) => {
-					if (
-						typeof src === "object" &&
-						src !== null &&
-						"type" in src
-					) {
-						return src.type !== "user_input";
-					} else if (typeof src === "string") {
-						const normalizedSource = normalizeSource(src);
-						return (
-							normalizedSource.toLowerCase() !== "user input" &&
-							src.toLowerCase() !== "user_input"
-						);
-					}
-					return false;
-				});
-			}
-			if (meta.source) {
-				const normalizedSource = normalizeSource(meta.source);
-				return (
-					normalizedSource.toLowerCase() !== "user input" &&
-					meta.source.toLowerCase() !== "user_input"
-				);
-			}
-			return false;
-		});
-
-		// Only proceed if there are autofilled fields or if notification is showing
-		if (!hasAutofilledFields && !showAutofillNotification) return;
 
 		// Lock autofilled fields that are filled, unlock fields that are empty
 		setLockedFields((prev) => {
@@ -1463,13 +1430,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						}
 						return false;
 					});
-				} else if (meta.source) {
-					// Legacy source check
-					const normalizedSource = normalizeSource(meta.source);
-					const isUserInput =
-						normalizedSource.toLowerCase() === "user input" ||
-						meta.source.toLowerCase() === "user_input";
-					isAutofilled = !isUserInput;
 				}
 
 				// Check if field has a valid value in formData or existingProject
@@ -1607,7 +1567,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					"propertyAddressZip",
 					"propertyAddressCounty",
 					"assetType",
-					"projectType",
 					"parcelNumber",
 					"zoningDesignation",
 					"expectedZoningChanges",
@@ -1840,13 +1799,30 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	// Helper function to get field styling classes based on lock status
 	const getFieldStylingClasses = useCallback(
 		(fieldId: string, baseClasses?: string): string => {
-			// Only apply color coding after autofill has been triggered at least once
-			if (!hasAutofillBeenTriggered) {
-				return cn(baseClasses);
-			}
-
 			const sectionId = getSectionIdFromFieldId(fieldId);
 			const isLocked = isFieldLocked(fieldId, sectionId);
+			const value = formData[fieldId as keyof ProjectProfile];
+			const hasValue =
+				value !== null &&
+				value !== undefined &&
+				!(typeof value === "string" && value.trim() === "");
+
+			// Determine primary source (if any)
+			const meta = fieldMetadata[fieldId];
+			const primarySource =
+				meta && Array.isArray(meta.sources) && meta.sources.length > 0
+					? meta.sources[0]
+					: null;
+			const isPrimaryUserInput =
+				primarySource &&
+				typeof primarySource === "object" &&
+				(primarySource as any).type === "user_input";
+
+			// If field has no value and primary source is NOT user_input, keep it white/unaccented
+			// If primary source is user_input (AI looked but couldn't fill), show blue/unlocked styling.
+			if (!hasValue && !isPrimaryUserInput) {
+				return cn(baseClasses);
+			}
 
 			if (isLocked) {
 				// Green styling for locked fields - matches View OM button (emerald-600/700)
@@ -1864,7 +1840,7 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				);
 			}
 		},
-		[isFieldLocked, getSectionIdFromFieldId, hasAutofillBeenTriggered]
+		[isFieldLocked, getSectionIdFromFieldId, formData]
 	);
 
 	// Helper function to check if a table field is autofilled
@@ -2592,36 +2568,33 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							? currentMeta.original_value
 							: value; // If no original_value exists, set it to current value (first time)
 
-					// IMMEDIATELY update source to user_input when user types (regardless of whether it changed)
-					// This ensures color changes to blue instantly
-					const wasUserInput =
-						normalizeSource(
-							currentMeta.source || ""
-						).toLowerCase() === "user input" ||
-						currentMeta.source === "user_input";
+					// IMMEDIATELY update sources so that the latest writer (user) becomes primary
+					// This ensures color changes to blue instantly and we preserve previous sources in order.
+					const currentSources = Array.isArray(currentMeta.sources)
+						? (currentMeta.sources as any[])
+						: [];
+					const wasUserInputPrimary =
+						currentSources[0]?.type === "user_input";
 
-					if (!wasUserInput) {
-						// Field was autofilled - mark as user input immediately
-						updatedMeta.source = "user_input";
+					if (!wasUserInputPrimary) {
+						// Field was originally AI/derived – move previous primary to index 1 and
+						// insert user_input as the new primary at index 0.
+						const previous = [...currentSources];
+						const userSource = { type: "user_input" as const };
+						updatedMeta.sources = [userSource, ...previous];
 
-						// Preserve original_source if not set
-						if (
-							!updatedMeta.original_source &&
-							currentMeta.source
-						) {
-							// Normalize source to original_source format
-							const sourceLower =
-								currentMeta.source.toLowerCase();
+						// Preserve original_source if not set, based on previous primary type
+						if (!updatedMeta.original_source && previous[0]) {
 							if (
-								sourceLower.includes("census") ||
-								sourceLower.includes("knowledge")
+								(typeof previous[0] === "object" &&
+									(previous[0] as any).type === "external") ||
+								(typeof previous[0] === "object" &&
+									(previous[0] as any).type === "derived")
 							) {
 								updatedMeta.original_source = "knowledge_base";
 							} else if (
-								sourceLower.includes("document") ||
-								currentMeta.source.endsWith(".pdf") ||
-								currentMeta.source.endsWith(".xlsx") ||
-								currentMeta.source.endsWith(".docx")
+								typeof previous[0] === "object" &&
+								(previous[0] as any).type === "document"
 							) {
 								updatedMeta.original_source = "document";
 							} else {
@@ -2645,32 +2618,30 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									: String(value);
 
 							if (
-								currentMeta.original_source ===
+								updatedMeta.original_source ===
 									"knowledge_base" ||
-								(currentMeta.source &&
-									currentMeta.source
-										.toLowerCase()
-										.includes("census"))
+								(typeof currentSources[0] === "object" &&
+									((currentSources[0] as any).type ===
+										"external" ||
+										(currentSources[0] as any).type ===
+											"derived"))
 							) {
 								divergenceWarnings.push(
 									`Value differs from market data (original: ${originalValueStr}, current: ${currentValueStr})`
 								);
 							} else if (
-								currentMeta.original_source === "document" ||
-								(currentMeta.source &&
-									(currentMeta.source
-										.toLowerCase()
-										.includes("document") ||
-										currentMeta.source.endsWith(".pdf") ||
-										currentMeta.source.endsWith(".xlsx") ||
-										currentMeta.source.endsWith(".docx")))
+								updatedMeta.original_source === "document" ||
+								(typeof currentSources[0] === "object" &&
+									(currentSources[0] as any).type ===
+										"document")
 							) {
 								divergenceWarnings.push(
 									`Value differs from extracted document data (original: ${originalValueStr}, current: ${currentValueStr})`
 								);
 							} else if (
-								currentMeta.source &&
-								currentMeta.source !== "user_input"
+								typeof currentSources[0] === "object" &&
+								(currentSources[0] as any).type !==
+									"user_input"
 							) {
 								divergenceWarnings.push(
 									`Value changed from original (original: ${originalValueStr}, current: ${currentValueStr})`
@@ -2690,9 +2661,23 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							updatedMeta.warnings = currentMeta.warnings || [];
 						}
 					} else if (!isChanged && hasOriginalValue) {
-						// User typed back the original value - revert to original state
-						updatedMeta.source =
-							currentMeta.original_source || "user_input";
+						// User typed back the original value - revert primary source to original_source if present
+						if (updatedMeta.original_source) {
+							const rest = (currentSources as any[]).slice(1);
+							if (updatedMeta.original_source === "document") {
+								updatedMeta.sources = [
+									{ type: "document" },
+									...rest,
+								];
+							} else if (
+								updatedMeta.original_source === "knowledge_base"
+							) {
+								updatedMeta.sources = [
+									{ type: "external" },
+									...rest,
+								];
+							}
+						}
 						// Keep original warnings (from backend) but remove divergence warnings
 						const originalWarnings = currentMeta.warnings || [];
 						updatedMeta.warnings = originalWarnings.filter(
@@ -2702,8 +2687,16 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								!w.includes("Value changed from original")
 						);
 					} else {
-						// Already user input or no original value - just update value
-						updatedMeta.source = "user_input";
+						// Already user input or no original value - just ensure user_input is primary
+						const rest = (currentSources as any[]).filter(
+							(s: any) =>
+								typeof s === "object" &&
+								(s as any).type !== "user_input"
+						);
+						updatedMeta.sources = [
+							{ type: "user_input" as const },
+							...rest,
+						];
 						// Keep existing warnings if any
 						updatedMeta.warnings = currentMeta.warnings || [];
 						// Set original_value to current value if not set
@@ -3300,63 +3293,11 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"assetType"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
 								</FormGroup>
 								{/* Project Type uses MultiSelect */}
-								<FormGroup className="mt-4">
-									<AskAIButton
-										id="projectType"
-										onAskAI={onAskAI || (() => {})}
-									>
-										<div
-											data-field-id="projectType"
-											data-field-type="multi-select"
-											data-field-section="basic-info"
-											data-field-label="Project Type"
-											className="relative group/field"
-										>
-											{renderFieldLabel(
-												"projectType",
-												"basic-info",
-												"Project Type",
-												false
-											)}
-											<MultiSelectPills
-												label=""
-												options={projectTypeOptions}
-												selectedValues={
-													Array.isArray(
-														formData.projectType
-													)
-														? formData.projectType
-														: []
-												}
-												onSelect={(values) =>
-													handleInputChange(
-														"projectType",
-														values
-													)
-												}
-												disabled={isFieldDisabled(
-													"projectType",
-													"basic-info"
-												)}
-												isLocked={isFieldLocked(
-													"projectType",
-													"basic-info"
-												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
-											/>
-										</div>
-									</AskAIButton>
-								</FormGroup>
 								{/* Project Phase uses ButtonSelect */}
 								<FormGroup className="mt-4">
 									<AskAIButton
@@ -3399,9 +3340,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"projectPhase"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -3480,55 +3418,34 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"Construction Type",
 													false
 												)}
-												<Select
-													id="constructionType"
-													value={
+												<ButtonSelect
+													label=""
+													options={[
+														"Ground-Up",
+														"Renovation",
+														"Adaptive Reuse",
+													]}
+													selectedValue={
 														formData.constructionType ||
 														""
 													}
-													onChange={(e) =>
+													onSelect={(value) =>
 														handleInputChange(
 															"constructionType",
-															e.target.value
+															value
 														)
 													}
-													options={[
-														{
-															value: "",
-															label: "Select...",
-														},
-														{
-															value: "Ground-Up",
-															label: "Ground-Up",
-														},
-														{
-															value: "Renovation",
-															label: "Renovation",
-														},
-														{
-															value: "Adaptive Reuse",
-															label: "Adaptive Reuse",
-														},
-													]}
 													disabled={isFieldDisabled(
 														"constructionType",
 														"basic-info"
 													)}
-													className={cn(
-														getFieldStylingClasses(
-															"constructionType"
-														),
-														isFieldDisabled(
-															"constructionType",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													isAutofilled={isFieldAutofilled(
+														"constructionType"
 													)}
-													data-field-id="constructionType"
-													data-field-type="select"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Construction Type"
+													isLocked={isFieldLocked(
+														"constructionType",
+														"basic-info"
+													)}
 												/>
 											</div>
 										</AskAIButton>
@@ -3547,63 +3464,35 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													"Deal Status",
 													false
 												)}
-												<Select
-													id="dealStatus"
-													value={
-														formData.dealStatus ||
-														""
+												<ButtonSelect
+													label=""
+													options={[
+														"Inquiry",
+														"Underwriting",
+														"Pre-Submission",
+														"Submitted",
+														"Closed",
+													]}
+													selectedValue={
+														formData.dealStatus || ""
 													}
-													onChange={(e) =>
+													onSelect={(value) =>
 														handleInputChange(
 															"dealStatus",
-															e.target.value
+															value
 														)
 													}
-													options={[
-														{
-															value: "",
-															label: "Select...",
-														},
-														{
-															value: "Inquiry",
-															label: "Inquiry",
-														},
-														{
-															value: "Underwriting",
-															label: "Underwriting",
-														},
-														{
-															value: "Pre-Submission",
-															label: "Pre-Submission",
-														},
-														{
-															value: "Submitted",
-															label: "Submitted",
-														},
-														{
-															value: "Closed",
-															label: "Closed",
-														},
-													]}
 													disabled={isFieldDisabled(
 														"dealStatus",
 														"basic-info"
 													)}
-													className={cn(
-														getFieldStylingClasses(
-															"dealStatus"
-														),
-														isFieldDisabled(
-															"dealStatus",
-															"basic-info"
-														) &&
-															"bg-emerald-50 border-emerald-200 cursor-not-allowed"
+													isAutofilled={isFieldAutofilled(
+														"dealStatus"
 													)}
-													data-field-id="dealStatus"
-													data-field-type="select"
-													data-field-section="basic-info"
-													data-field-required="false"
-													data-field-label="Deal Status"
+													isLocked={isFieldLocked(
+														"dealStatus",
+														"basic-info"
+													)}
 												/>
 											</div>
 										</AskAIButton>
@@ -3757,9 +3646,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"loanType"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -4041,9 +3927,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"interestRateType"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -4142,9 +4025,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											isAutofilled={isFieldAutofilled(
 												"recoursePreference"
 											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
 										/>
 									</div>
 								</AskAIButton>
@@ -4689,9 +4569,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											isAutofilled={isFieldAutofilled(
 												"exitStrategy"
 											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
 										/>
 									</div>
 								</AskAIButton>
@@ -8047,11 +7924,8 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													)}
 													isLocked={isFieldLocked(
 														"amenityList",
-														"property-specs"
-													)}
-													hasAutofillBeenRun={
-														hasAutofillBeenRun
-													}
+													"property-specs"
+												)}
 												/>
 											</div>
 										</AskAIButton>
@@ -12703,9 +12577,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"opportunityZone"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -12749,9 +12620,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"affordableHousing"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -12915,9 +12783,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"taxExemption"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -12961,9 +12826,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"taxAbatement"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -13309,9 +13171,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														"incentiveStacking",
 														"special-considerations"
 													)}
-													hasAutofillBeenRun={
-														hasAutofillBeenRun
-													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13356,9 +13215,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													isAutofilled={isFieldAutofilled(
 														"tifDistrict"
 													)}
-													hasAutofillBeenRun={
-														hasAutofillBeenRun
-													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13405,9 +13261,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													isAutofilled={isFieldAutofilled(
 														"paceFinancing"
 													)}
-													hasAutofillBeenRun={
-														hasAutofillBeenRun
-													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13452,9 +13305,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													isAutofilled={isFieldAutofilled(
 														"historicTaxCredits"
 													)}
-													hasAutofillBeenRun={
-														hasAutofillBeenRun
-													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13501,9 +13351,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													isAutofilled={isFieldAutofilled(
 														"newMarketsCredits"
 													)}
-													hasAutofillBeenRun={
-														hasAutofillBeenRun
-													}
 												/>
 											</div>
 										</AskAIButton>
@@ -13797,9 +13644,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"entitlements"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -13848,9 +13692,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"permitsIssued"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -14688,9 +14529,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												isAutofilled={isFieldAutofilled(
 													"currentSiteStatus"
 												)}
-												hasAutofillBeenRun={
-													hasAutofillBeenRun
-												}
 											/>
 										</div>
 									</AskAIButton>
@@ -16707,7 +16545,6 @@ export const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			handleTableRowAdd,
 			handleTableRowDelete,
 			handleTableRowUpdate,
-			hasAutofillBeenRun,
 			isFieldLocked,
 		]
 	);

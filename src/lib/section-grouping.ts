@@ -30,7 +30,6 @@ const FIELD_TO_SECTION: Record<string, string> = {
   "propertyAddressCounty": "basic-info",
   "parcelNumber": "basic-info",
   "zoningDesignation": "basic-info",
-  "projectType": "basic-info",
   "primaryAssetClass": "basic-info",
   "constructionType": "basic-info",
   "groundbreakingDate": "basic-info",

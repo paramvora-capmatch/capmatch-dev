@@ -223,7 +223,6 @@ const getFieldLabel = (field: { fieldId: string; description: string }): string 
         'propertyAddressCounty': 'County',
         'parcelNumber': 'Parcel Number',
         'zoningDesignation': 'Zoning Designation',
-        'projectType': 'Project Type',
         'assetType': 'Asset Type',
         'primaryAssetClass': 'Primary Asset Class',
         'projectPhase': 'Project Phase',

@@ -131,10 +131,6 @@ export const extractProjectFields = async (
 			zoningDesignation: createField("MU-3", "Zoning Letter"),
 			currentZoning: createField("MU-3", "Zoneomics API"),
 			expectedZoningChanges: createField(null, "User Input"),
-			projectType: createField(
-				["Multifamily", "Mixed-Use"],
-				"User Input"
-			),
 			primaryAssetClass: createField(null, "User Input"),
 			constructionType: createField("Ground-Up", "Arch Plans"),
 			projectPhase: createField(null, "User Input"),

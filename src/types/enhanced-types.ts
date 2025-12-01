@@ -330,7 +330,6 @@ export interface ProjectProfile {
 	zoningDesignation?: string;
 	currentZoning?: string;
 	expectedZoningChanges?: string;
-	projectType?: string;
 	primaryAssetClass?: string;
 	constructionType?: string;
 	groundbreakingDate?: string;

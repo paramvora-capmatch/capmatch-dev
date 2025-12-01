@@ -110,17 +110,6 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Text",
 		section: "basic-info",
 	},
-	projectType: {
-		fieldId: "projectType",
-		description:
-			"Type(s) of project. You can select multiple types if the project is mixed-use.",
-		primarySource: "User Input",
-		backupSource: "N/A",
-		expectedValue: "Multifamily, Mixed-Use, Retail, Office (multi-select)",
-		fieldType: "direct",
-		dataType: "Multi-select",
-		section: "basic-info",
-	},
 	assetType: {
 		fieldId: "assetType",
 		description:
