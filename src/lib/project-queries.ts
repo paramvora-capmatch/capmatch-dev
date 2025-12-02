@@ -10,6 +10,7 @@ import {
 	isGroupedFormat,
 	groupBySections,
 } from "./section-grouping";
+import { computeProjectCompletion } from "@/utils/resumeCompletion";
 
 // =============================================================================
 // JSONB Content Type Definitions
@@ -1025,10 +1026,14 @@ export const saveProjectResume = async (
 		// 2b. Insert New: Brand new project resume
 		// Convert flat content to section-grouped format for new resumes
 		const groupedContent = groupBySections(finalContent);
+		// Calculate completion based on the full project profile snapshot.
+		// We only compute and store this when a new version is created.
+		const completionPercent = computeProjectCompletion(content);
 		const contentToInsert = {
 			...groupedContent,
 			_lockedFields: lockedFields,
 			_fieldStates: fieldStates,
+			completenessPercent: completionPercent,
 		};
 
 		// Mark all existing versions as superseded before inserting the new one

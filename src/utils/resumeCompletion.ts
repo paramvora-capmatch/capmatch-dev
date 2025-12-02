@@ -1,6 +1,11 @@
 // src/utils/resumeCompletion.ts
-import { AdvisorResumeContent, BorrowerResumeContent, ProjectResumeContent } from "@/lib/project-queries";
+import {
+  AdvisorResumeContent,
+  BorrowerResumeContent,
+  ProjectResumeContent,
+} from "@/lib/project-queries";
 import { ProjectProfile } from "@/types/enhanced-types";
+import formSchema from "@/lib/enhanced-project-form.schema.json";
 
 const clampPercent = (value: number): number => {
   if (!Number.isFinite(value)) return 0;
@@ -100,51 +105,25 @@ export const computeBorrowerCompletion = (
   return clampPercent((answered / total) * 100);
 };
 
-export const PROJECT_REQUIRED_FIELDS: (keyof ProjectProfile)[] = [
-  // Section 1: Basic Info (existing critical fields)
-  "projectName",
-  "propertyAddressStreet",
-  "propertyAddressCity",
-  "propertyAddressState",
-  "propertyAddressZip",
-  "assetType",
-  "projectDescription",
-  "projectPhase",
-  
-  // Section 1: Additional Basic Info (new critical fields)
-  "parcelNumber",
-  "zoningDesignation",
-  "constructionType",
-  "groundbreakingDate",
-  "completionDate",
-  "totalDevelopmentCost",
-  
-  // Section 2: Loan Info (existing critical fields)
-  "loanAmountRequested",
-  "loanType",
-  "targetLtvPercent",
-  "targetCloseDate",
-  "useOfProceeds",
-  "recoursePreference",
-  
-  // Section 2: Property Specifications (new critical fields)
-  "totalResidentialUnits",
-  "grossBuildingArea",
-  "numberOfStories",
-  "parkingSpaces",
-  
-  // Section 3: Financial Details (existing critical fields)
-  "exitStrategy",
-  "businessPlanSummary",
-  
-  // Section 3: Development Budget (new critical fields)
-  "landAcquisition",
-  "baseConstruction",
-  "totalProjectCost",
-  
-  // Section 5: Sponsor Information (new critical fields)
-  "sponsorEntityName",
-];
+/**
+ * Derive the list of required project fields from the enhanced project form schema.
+ * This keeps the completion percentage in sync with the actual form configuration.
+ */
+const getProjectRequiredFieldsFromSchema = (): (keyof ProjectProfile)[] => {
+  const fieldsConfig = (formSchema as any).fields || {};
+
+  const requiredFieldIds = Object.entries(fieldsConfig)
+    .filter(([, cfg]) => {
+      if (!cfg || typeof cfg !== "object") return false;
+      return (cfg as any).required === true;
+    })
+    .map(([fieldId]) => fieldId);
+
+  return requiredFieldIds as (keyof ProjectProfile)[];
+};
+
+export const PROJECT_REQUIRED_FIELDS: (keyof ProjectProfile)[] =
+  getProjectRequiredFieldsFromSchema();
 
 export const PROJECT_PLACEHOLDER_VALUES: Partial<
   Record<keyof ProjectProfile, unknown>
