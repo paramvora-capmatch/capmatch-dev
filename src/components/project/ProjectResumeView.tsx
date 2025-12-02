@@ -359,9 +359,6 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
     const router = useRouter();
     const [showAutofillSuccess, setShowAutofillSuccess] = React.useState(false);
     const [autofillAnimationKey, setAutofillAnimationKey] = React.useState(0);
-    const [expandedSubsections, setExpandedSubsections] = React.useState<Set<string>>(
-        () => new Set()
-    );
     
     // Use the shared autofill hook
     const projectAddress = project.propertyAddressStreet && project.propertyAddressCity && project.propertyAddressState
@@ -392,17 +389,6 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
     setCollapsed(false);
   }, []);
 
-    const toggleSubsectionOptional = React.useCallback((subsectionKey: string) => {
-        setExpandedSubsections((prev) => {
-            const next = new Set(prev);
-            if (next.has(subsectionKey)) {
-                next.delete(subsectionKey);
-            } else {
-                next.add(subsectionKey);
-            }
-            return next;
-        });
-    }, []);
 
     const sectionIconComponents: Record<string, React.ComponentType<{ className?: string }>> = {
         FileText,
@@ -570,6 +556,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                         .map((id) => projectResumeFieldMetadata[id])
                                         .filter((m): m is { fieldId: string; description: string; dataType?: string } => !!m);
 
+                                    // Check if section has any values (fields or special tables)
                                     const hasAnyValueInSection = allFieldMetas.some((field) => {
                                         const value = getFieldValue(project, field.fieldId);
                                         if (sectionId === 'special-considerations') {
@@ -578,7 +565,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                         return hasValue(value);
                                     });
 
-                                    // Also check for special table data per section
+                                    // Check for special table data per section
                                     const hasUnitMix =
                                         sectionId === 'property-specs' &&
                                         Array.isArray(getFieldValue(project, 'residentialUnitMix')) &&
@@ -591,8 +578,29 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                         sectionId === 'market-context' &&
                                         Array.isArray(getFieldValue(project, 'rentComps')) &&
                                         (getFieldValue(project, 'rentComps') as any[]).length > 0;
+                                    const hasDrawSchedule =
+                                        sectionId === 'timeline' &&
+                                        Array.isArray(getFieldValue(project, 'drawSchedule')) &&
+                                        (getFieldValue(project, 'drawSchedule') as any[]).length > 0;
 
-                                    if (!hasAnyValueInSection && !hasUnitMix && !hasCommercialMix && !hasRentComps) {
+                                    // Also check subsections for any values
+                                    const hasValuesInSubsections = Array.isArray(step.subsections) && step.subsections.some((subsection: any) => {
+                                        const subsectionFieldIds: string[] = subsection.fields || [];
+                                        return subsectionFieldIds.some((fieldId: string) => {
+                                            // Skip special table fields - they're checked separately
+                                            if (fieldId === 'drawSchedule' || fieldId === 'residentialUnitMix' || 
+                                                fieldId === 'commercialSpaceMix' || fieldId === 'rentComps') {
+                                                return false;
+                                            }
+                                            const value = getFieldValue(project, fieldId);
+                                            if (sectionId === 'special-considerations') {
+                                                return value !== undefined && (hasValue(value) || value === false);
+                                            }
+                                            return hasValue(value);
+                                        });
+                                    });
+
+                                    if (!hasAnyValueInSection && !hasUnitMix && !hasCommercialMix && !hasRentComps && !hasDrawSchedule && !hasValuesInSubsections) {
                                         return null;
                                     }
 
@@ -612,22 +620,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                                 <div className="space-y-4">
                                                     {step.subsections.map((subsection: any) => {
                                                         const subsectionId = subsection.id as string;
-                                                        const subsectionKey = `${sectionId}::${subsectionId}`;
                                                         const subsectionFieldIds: string[] = subsection.fields || [];
 
-                                                        const requiredFieldIds = subsectionFieldIds.filter((id) =>
-                                                            isFieldRequiredFromSchema(id)
-                                                        );
-                                                        const optionalFieldIds = subsectionFieldIds.filter(
-                                                            (id) => !isFieldRequiredFromSchema(id)
-                                                        );
-
-                                                        const showOptional = expandedSubsections.has(subsectionKey);
-                                                        const visibleFieldIds = showOptional
-                                                            ? subsectionFieldIds
-                                                            : requiredFieldIds;
-
-                                                        const visibleFieldMetas = visibleFieldIds
+                                                        const visibleFieldMetas = subsectionFieldIds
                                                             .map((id) => projectResumeFieldMetadata[id])
                                                             .filter(
                                                                 (
@@ -641,6 +636,14 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                                             .filter((field) => {
                                                                 // Special-case: drawSchedule is rendered as its own table later
                                                                 if (field.fieldId === 'drawSchedule') {
+                                                                    return false;
+                                                                }
+                                                                // Special-case: residentialUnitMix and commercialSpaceMix are rendered as tables
+                                                                if (field.fieldId === 'residentialUnitMix' || field.fieldId === 'commercialSpaceMix') {
+                                                                    return false;
+                                                                }
+                                                                // Special-case: rentComps is rendered as its own table later
+                                                                if (field.fieldId === 'rentComps') {
                                                                     return false;
                                                                 }
                                                                 const value = getFieldValue(project, field.fieldId);
@@ -657,33 +660,14 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                                             return null;
                                                         }
 
-                                                        const optionalCount = optionalFieldIds.length;
-
                                                         return (
                                                             <div
                                                                 key={subsectionId}
                                                                 className="space-y-3 rounded-md border border-gray-100 bg-gray-50/60 p-3"
                                                             >
-                                                                <div className="flex items-center justify-between">
-                                                                    <h4 className="text-sm font-semibold text-gray-800">
-                                                                        {subsection.title}
-                                                                    </h4>
-                                                                    {optionalCount > 0 && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                toggleSubsectionOptional(subsectionKey)
-                                                                            }
-                                                                            className="text-xs font-medium text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline"
-                                                                        >
-                                                                            {showOptional
-                                                                                ? 'Hide optional fields'
-                                                                                : `Show ${optionalCount} optional field${
-                                                                                      optionalCount > 1 ? 's' : ''
-                                                                                  }`}
-                                                                        </button>
-                                                                    )}
-                                                                </div>
+                                                                <h4 className="text-sm font-semibold text-gray-800">
+                                                                    {subsection.title}
+                                                                </h4>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                                                                     {visibleFieldMetas.map((field) => {
                                                                         const value = getFieldValue(project, field.fieldId);
@@ -954,7 +938,6 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                                         );
                                                     })()}
 
-                                                    {sectionId === 'market-context' && (() => {
                                                     {sectionId === 'timeline' && (() => {
                                                         const drawSchedule = getFieldValue(project, 'drawSchedule');
                                                         if (!hasValue(drawSchedule) || !Array.isArray(drawSchedule) || drawSchedule.length === 0) {
@@ -1006,6 +989,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                                         );
                                                     })()}
 
+                                                    {sectionId === 'market-context' && (() => {
                                                         const rentComps = getFieldValue(project, 'rentComps');
                                                         if (
                                                             !hasValue(rentComps) ||
