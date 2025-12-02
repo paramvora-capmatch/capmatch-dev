@@ -861,8 +861,14 @@ export const getProjectMessages = async (
  */
 export const saveProjectResume = async (
 	projectId: string,
-	content: Partial<ProjectProfile> // Changed to ProjectProfile to access _metadata
+	content: Partial<ProjectProfile>, // Changed to ProjectProfile to access _metadata
+	options?: { createNewVersion?: boolean }
 ): Promise<void> => {
+	// Resolve the current user so we can attribute new versions correctly
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
 	// 1. Find the latest existing row for this project
 	const { data: existing } = await supabase
 		.from("project_resumes")
@@ -967,7 +973,7 @@ export const saveProjectResume = async (
 	// Check if existing content is in section-grouped format
 	const isExistingSectionGrouped = isGroupedFormat(existing?.content || {});
 
-	if (existing) {
+	if (existing && !options?.createNewVersion) {
 		// 2a. Update in Place: Modify the current version directly
 		// This ensures manual edits don't create new history entries
 
@@ -1025,13 +1031,21 @@ export const saveProjectResume = async (
 			_fieldStates: fieldStates,
 		};
 
+		// Mark all existing versions as superseded before inserting the new one
+		await supabase
+			.from("project_resumes")
+			.update({ status: "superseded" })
+			.eq("project_id", projectId);
+
 		const { data: newResume, error } = await supabase
 			.from("project_resumes")
 			.insert({
 				project_id: projectId,
 				content: contentToInsert as any,
+				status: "active",
+				created_by: user?.id ?? null,
 			})
-			.select("id")
+			.select("id, project_id, version_number")
 			.single();
 
 		if (error) {
@@ -1040,18 +1054,17 @@ export const saveProjectResume = async (
 			);
 		}
 
-		// Optional: We could try to update/create the resource pointer here to be safe,
-		// ensuring the new resume is marked as current.
+		// Ensure the PROJECT_RESUME resource pointer is updated to this version
 		const { error: resourceError } = await supabase
 			.from("resources")
 			.upsert(
 				{
 					project_id: projectId,
-					type: "PROJECT_RESUME",
+					resource_type: "PROJECT_RESUME",
 					current_version_id: newResume.id,
 				},
-				{ onConflict: "project_id, type" }
-			); // Assuming composite unique key or similar
+				{ onConflict: "project_id,resource_type" }
+			);
 
 		// We don't throw on resource error strictly, as the table might not be fully set up
 		// or permissions might vary, but it's good practice to try.

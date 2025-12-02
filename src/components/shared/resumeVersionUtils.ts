@@ -46,11 +46,28 @@ export const flattenResumeContent = (rawContent: Record<string, any> | null | un
   const flat: Record<string, unknown> = {};
   Object.entries(content).forEach(([key, value]) => {
     if (key.startsWith("_")) return;
+    let normalized: unknown;
+
     if (value && typeof value === "object" && "value" in value) {
-      flat[key] = (value as any).value;
+      normalized = (value as any).value;
     } else {
-      flat[key] = value;
+      normalized = value;
     }
+
+    // Defensive fix: if a field is defined in project resume metadata as a
+    // non-Boolean type, but the stored value is a bare boolean (e.g. `true`),
+    // treat it as missing instead of showing "true" in diffs (legacy bug).
+    const fieldMeta = projectResumeFieldMetadata[key];
+    if (
+      fieldMeta &&
+      fieldMeta.dataType &&
+      fieldMeta.dataType !== "Boolean" &&
+      typeof normalized === "boolean"
+    ) {
+      normalized = null;
+    }
+
+    flat[key] = normalized;
   });
   return flat;
 };

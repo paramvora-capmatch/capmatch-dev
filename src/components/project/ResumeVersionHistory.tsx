@@ -12,6 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatDate, flattenResumeContent, getFieldLabel, stringifyValue } from "../shared/resumeVersionUtils";
+import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 
 interface ResumeVersionHistoryProps {
   projectId: string;
@@ -173,7 +174,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
         creatorDisplayName:
           creatorMap.get(version.created_by ?? "")?.full_name ||
           creatorMap.get(version.created_by ?? "")?.email ||
-          (version.created_by ? version.created_by : "Autofill Bot"),
+          (version.created_by ? version.created_by : "System"),
       }));
 
       setResource({
@@ -522,9 +523,16 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
         const leftFlat = flattenResumeContent(left.content);
         const rightFlat = flattenResumeContent(right.content);
 
-        const keys = Array.from(
+        // Only compare fields that are part of the structured project resume
+        // schema. This avoids showing internal/project-level fields like
+        // borrowerProgress or assignedAdvisorUserId in the diff view.
+        const allKeys = Array.from(
           new Set([...Object.keys(leftFlat), ...Object.keys(rightFlat)])
         );
+        const resumeFieldIds = new Set(
+          Object.keys(projectResumeFieldMetadata)
+        );
+        const keys = allKeys.filter((key) => resumeFieldIds.has(key));
 
         const rows = keys
           .map((key) => {
