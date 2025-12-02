@@ -604,14 +604,24 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 			const isCurrentlyFullyLocked = isSubsectionFullyLocked(fieldIds);
 
-			// Lock or unlock all fields in the subsection
+			// Lock or unlock fields in the subsection.
+			// When locking, only lock fields that currently have values; leave empty
+			// fields unlocked so they follow the same rules as individual field locks.
 			setLockedFields((prev) => {
 				const next = new Set(prev);
 				fieldIds.forEach((fieldId) => {
 					if (isCurrentlyFullyLocked) {
+						// Unlock all fields when the subsection is already fully locked.
 						next.delete(fieldId);
 					} else {
-						next.add(fieldId);
+						const value = (formData as any)[fieldId];
+						const hasValue = isProjectValueProvided(value);
+						if (hasValue) {
+							next.add(fieldId);
+						} else {
+							// Ensure empty fields are not marked as locked.
+							next.delete(fieldId);
+						}
 					}
 				});
 				return next;
@@ -624,7 +634,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				return next;
 			});
 		},
-		[isSubsectionFullyLocked]
+		[formData, isSubsectionFullyLocked]
 	);
 
 	// Styling Logic: White, Blue, Green
@@ -745,31 +755,53 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const renderFieldLockButton = useCallback(
 		(fieldId: string, sectionId: string) => {
 			const locked = isFieldLocked(fieldId, sectionId);
+			const value = (formData as any)[fieldId];
+			const hasValue = isProjectValueProvided(value);
+			// Only allow locking when the field has a value; still allow unlocking
+			// even if the value is now empty so users are never stuck with a locked
+			// empty field.
+			const isDisabled = !hasValue && !locked;
+
+			const tooltipTitle = isDisabled
+				? "Cannot lock an empty field. Please fill in a value first."
+				: locked
+				? "Unlock field"
+				: "Lock field";
+
 			return (
-				<button
-					type="button"
-					onClick={(e) => {
-						e.stopPropagation();
-						e.preventDefault();
-						toggleFieldLock(fieldId);
-					}}
-					className={cn(
-						"flex items-center justify-center p-1 rounded transition-colors cursor-pointer z-10",
-						locked
-							? "text-emerald-600 hover:text-emerald-700"
-							: "text-gray-400 hover:text-blue-600"
-					)}
-					title={locked ? "Unlock field" : "Lock field"}
+				<div
+					className="flex items-center"
+					title={tooltipTitle}
 				>
-					{locked ? (
-						<Lock className="h-4 w-4" />
-					) : (
-						<Unlock className="h-4 w-4" />
-					)}
-				</button>
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							e.preventDefault();
+							if (isDisabled) return;
+							toggleFieldLock(fieldId);
+						}}
+						disabled={isDisabled}
+						className={cn(
+							"flex items-center justify-center p-1 rounded transition-colors z-10",
+							isDisabled
+								? "cursor-not-allowed text-gray-300"
+								: "cursor-pointer",
+							locked
+								? "text-emerald-600 hover:text-emerald-700"
+								: "text-gray-400 hover:text-blue-600"
+						)}
+					>
+						{locked ? (
+							<Lock className="h-4 w-4" />
+						) : (
+							<Unlock className="h-4 w-4" />
+						)}
+					</button>
+				</div>
 			);
 		},
-		[isFieldLocked, toggleFieldLock]
+		[formData, isFieldLocked, toggleFieldLock]
 	);
 
 	const renderFieldLabel = useCallback(
@@ -1301,23 +1333,22 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								value: STATE_REVERSE_MAP[fullName] || fullName, // Store abbreviation
 							})
 						);
-						// Convert current value (abbreviation) to full name for display
-						const displayValue =
+						// Ensure the select's value matches the option values (abbreviations).
+						// Handle legacy data that may have stored full state names by mapping
+						// them back to abbreviations when possible.
+						const effectiveValue =
 							value &&
 							typeof value === "string" &&
-							value.length === 2
-								? STATE_MAP[value.toUpperCase()] || value
+							value.length > 2
+								? STATE_REVERSE_MAP[value] || value
 								: value || "";
 						return (
 							<Select
 								id={fieldId}
-								value={displayValue}
+								value={effectiveValue}
 								onChange={(e) => {
-									// Convert selected full name back to abbreviation
-									const abbr =
-										STATE_REVERSE_MAP[e.target.value] ||
-										e.target.value;
-									handleInputChange(fieldId, abbr);
+									// Store the abbreviation (option value) directly
+									handleInputChange(fieldId, e.target.value);
 								}}
 								options={options}
 								required={required}
@@ -1617,6 +1648,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					allFieldIds.length > 0 && allGreen && !hasBlue;
 				const showNeedsInput = hasBlue;
 
+				// A subsection can only be locked when all fields that should be part of it
+				// are non-empty. If any field is empty, we prevent locking the subsection
+				// and instead show a tooltip explaining why.
+				const hasEmptyField = fieldStates.some(
+					(state) => !state.hasValue
+				);
+				const subsectionLockDisabled = !subsectionLocked && hasEmptyField;
+
+				const subsectionLockTitle = subsectionLockDisabled
+					? "Cannot lock subsection because one or more fields are empty. Please fill in all fields first."
+					: subsectionLocked
+					? "Unlock subsection"
+					: "Lock subsection";
+
 				return (
 					<div
 						key={subsectionId}
@@ -1641,19 +1686,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								<div
 									onClick={(e) => {
 										e.stopPropagation();
+										if (subsectionLockDisabled) return;
 										toggleSubsectionLock(allFieldIds);
 									}}
 									className={cn(
-										"flex cursor-pointer items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
-										subsectionLocked
-											? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-											: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+										"flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
+										subsectionLockDisabled
+											? "cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200"
+											: "cursor-pointer",
+										!subsectionLockDisabled &&
+											(subsectionLocked
+												? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+												: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100")
 									)}
-									title={
-										subsectionLocked
-											? "Unlock subsection"
-											: "Lock subsection"
-									}
+									title={subsectionLockTitle}
 								>
 									{subsectionLocked ? (
 										<>
