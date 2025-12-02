@@ -1,5 +1,6 @@
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 import { isGroupedFormat, ungroupFromSections } from "@/lib/section-grouping";
+import formSchema from "@/lib/enhanced-project-form.schema.json";
 
 export const formatDate = (dateString: string): string => {
   try {
@@ -16,23 +17,103 @@ export const formatDate = (dateString: string): string => {
   }
 };
 
-export const stringifyValue = (value: unknown): string => {
-  if (value === undefined || value === null) return "—";
-  if (typeof value === "object") {
+/**
+ * Normalizes a value for comparison to avoid false positives.
+ * Handles empty strings, null, undefined, and rich object formats consistently.
+ */
+export const normalizeValueForComparison = (value: unknown): unknown => {
+  // Handle null/undefined
+  if (value === undefined || value === null) return null;
+  
+  // Handle empty strings - treat as null for comparison
+  if (typeof value === "string" && value.trim() === "") return null;
+  
+  // Handle rich objects with value property
+  if (value && typeof value === "object" && "value" in value) {
+    const richValue = (value as any).value;
+    // Recursively normalize the inner value
+    return normalizeValueForComparison(richValue);
+  }
+  
+  // Handle arrays - normalize each element
+  if (Array.isArray(value)) {
+    return value.map(normalizeValueForComparison);
+  }
+  
+  return value;
+};
+
+/**
+ * Checks if two values are effectively the same (after normalization).
+ */
+export const valuesAreEqual = (a: unknown, b: unknown): boolean => {
+  const normalizedA = normalizeValueForComparison(a);
+  const normalizedB = normalizeValueForComparison(b);
+  
+  // Both null/undefined/empty
+  if (normalizedA === null && normalizedB === null) return true;
+  
+  // One is null, other isn't
+  if (normalizedA === null || normalizedB === null) return false;
+  
+  // Deep equality for objects/arrays
+  if (typeof normalizedA === "object" || typeof normalizedB === "object") {
     try {
-      return JSON.stringify(value);
+      return JSON.stringify(normalizedA) === JSON.stringify(normalizedB);
     } catch {
-      return String(value);
+      return String(normalizedA) === String(normalizedB);
     }
   }
-  return String(value);
+  
+  // Primitive comparison
+  return normalizedA === normalizedB;
+};
+
+export const stringifyValue = (value: unknown): string => {
+  const normalized = normalizeValueForComparison(value);
+  
+  if (normalized === null || normalized === undefined) return "—";
+  
+  if (Array.isArray(normalized)) {
+    if (normalized.length === 0) return "—";
+    // For arrays, show a summary
+    try {
+      return JSON.stringify(normalized, null, 2);
+    } catch {
+      return "[Array]";
+    }
+  }
+  
+  if (typeof normalized === "object") {
+    try {
+      return JSON.stringify(normalized, null, 2);
+    } catch {
+      return String(normalized);
+    }
+  }
+  
+  if (typeof normalized === "boolean") {
+    return normalized ? "Yes" : "No";
+  }
+  
+  return String(normalized);
 };
 
 export const getFieldLabel = (fieldId: string): string => {
+  // First, try to get the label from the form schema (matches form exactly)
+  const schemaFields = (formSchema as any)?.fields || {};
+  const schemaField = schemaFields[fieldId];
+  if (schemaField?.label) {
+    return schemaField.label;
+  }
+  
+  // Fall back to metadata description (first sentence)
   const metadata = projectResumeFieldMetadata[fieldId];
   if (metadata) {
     return metadata.description.split(".")[0] || metadata.fieldId;
   }
+  
+  // Last resort: return fieldId
   return fieldId;
 };
 
@@ -71,4 +152,5 @@ export const flattenResumeContent = (rawContent: Record<string, any> | null | un
   });
   return flat;
 };
+
 

@@ -196,72 +196,72 @@ export async function POST(request: Request) {
 				finalContent._lockedFields = lockedFields;
 
 				// Save the updated content
-				if (resource?.current_version_id) {
-					// Update existing resume
-					const { error } = await supabaseAdmin
-						.from("project_resumes")
-						.update({ content: finalContent })
-						.eq("id", resource.current_version_id);
+				// IMPORTANT: For consistency with the production pipeline, autofill
+				// should ALWAYS create a new project resume version when changes are
+				// applied, rather than mutating the existing row in place.
+				//
+				// 1) Mark existing versions as superseded for this project.
+				await supabaseAdmin
+					.from("project_resumes")
+					.update({ status: "superseded" })
+					.eq("project_id", project_id);
 
-					if (error) {
-						throw new Error(
-							`Failed to update project resume: ${error.message}`
+				// 2) Ensure _lockedFields is initialized on the new snapshot.
+				if (!finalContent._lockedFields) {
+					finalContent._lockedFields = lockedFields || {};
+				}
+
+				// 3) Insert a brand new resume row with the merged content.
+				const { data: inserted, error: insertError } = await supabaseAdmin
+					.from("project_resumes")
+					.insert({
+						project_id,
+						content: finalContent,
+						status: "active",
+						created_by: user_id ?? null,
+					})
+					.select("id, version_number")
+					.single();
+
+				if (insertError || !inserted) {
+					throw new Error(
+						`Failed to create project resume version: ${
+							insertError?.message || "Unknown error"
+						}`
+					);
+				}
+
+				// 4) Update/create resource pointer so current_version_id points at
+				// the new version row.
+				if (resource?.id) {
+					const { error: pointerError } = await supabaseAdmin
+						.from("resources")
+						.update({ current_version_id: inserted.id })
+						.eq("id", resource.id);
+
+					if (pointerError) {
+						console.warn(
+							"[project-resume autofill] Failed to update resource pointer:",
+							pointerError
 						);
 					}
 				} else {
-					// Insert new resume (no existing locked fields for new resumes)
-					// Ensure _lockedFields is initialized
-					if (!finalContent._lockedFields) {
-						finalContent._lockedFields = {};
-					}
-
-					const { data: inserted, error: insertError } =
-						await supabaseAdmin
-							.from("project_resumes")
-							.insert({
+					const { error: resourceError } = await supabaseAdmin
+						.from("resources")
+						.upsert(
+							{
 								project_id,
-								content: finalContent,
-							})
-							.select("id")
-							.single();
-
-					if (insertError) {
-						throw new Error(
-							`Failed to create project resume: ${insertError.message}`
+								resource_type: "PROJECT_RESUME",
+								current_version_id: inserted.id,
+							},
+							{ onConflict: "project_id,resource_type" }
 						);
-					}
 
-					// Update/create resource pointer
-					if (resource?.id) {
-						const { error: pointerError } = await supabaseAdmin
-							.from("resources")
-							.update({ current_version_id: inserted.id })
-							.eq("id", resource.id);
-
-						if (pointerError) {
-							console.warn(
-								"[saveProjectResume] Failed to update resource pointer:",
-								pointerError
-							);
-						}
-					} else {
-						const { error: resourceError } = await supabaseAdmin
-							.from("resources")
-							.upsert(
-								{
-									project_id,
-									resource_type: "PROJECT_RESUME",
-									current_version_id: inserted.id,
-								},
-								{ onConflict: "project_id,resource_type" }
-							);
-
-						if (resourceError) {
-							console.warn(
-								"[saveProjectResume] Failed to create resource pointer:",
-								resourceError
-							);
-						}
+					if (resourceError) {
+						console.warn(
+							"[project-resume autofill] Failed to create resource pointer:",
+							resourceError
+						);
 					}
 				}
 
