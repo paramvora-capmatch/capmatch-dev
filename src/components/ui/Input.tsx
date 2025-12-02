@@ -52,8 +52,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 			/>
 		);
 
+		// Extract className from props to apply to input element, and remove it from props
+		const { className: propsClassName, ...inputProps } = props;
+		// Use className prop if provided, otherwise use className from props spread
+		const inputClassName = className || propsClassName;
+
 		return (
-			<div className={cn(fullWidth && "w-full", className)}>
+			<div className={cn(fullWidth && "w-full")}>
 				{label && (
 					<label
 						htmlFor={inputId}
@@ -76,11 +81,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 							"h-10 px-3 py-2 block rounded-md sm:text-sm border shadow-sm transition-colors",
 							leftIcon && "pl-10",
 							(rightIcon || isPassword) && "pr-10",
-							error &&
+							// Only apply default border classes if no custom className is provided
+							!inputClassName && error &&
 								"border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50/50",
-							!error &&
+							!inputClassName && !error &&
 								"border-gray-300 focus:ring-blue-500 focus:border-blue-500",
-							fullWidth && "w-full"
+							fullWidth && "w-full",
+							// Apply custom className last to override defaults
+							inputClassName
 						)}
 						aria-invalid={error ? "true" : "false"}
 						aria-describedby={
@@ -90,7 +98,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 								? `${inputId}-helper`
 								: undefined
 						}
-						{...props}
+						{...inputProps}
 					/>
 					{(rightIcon || isPassword) && (
 						<div className="absolute inset-y-0 right-0 pr-3 flex items-center">
