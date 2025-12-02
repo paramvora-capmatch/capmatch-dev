@@ -1126,7 +1126,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		new Set()
 	);
 
+	const [manuallyToggledSubsections, setManuallyToggledSubsections] = useState<Set<string>>(
+		new Set()
+	);
+
 	const toggleSubsection = useCallback((subsectionKey: string) => {
+		setManuallyToggledSubsections((prev) => {
+			const next = new Set(prev);
+			next.add(subsectionKey);
+			return next;
+		});
 		setExpandedSubsections((prev) => {
 			const next = new Set(prev);
 			if (next.has(subsectionKey)) {
@@ -1196,9 +1205,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		setExpandedSubsections((prev) => {
 			const next = new Set(prev);
 			// Auto-open subsections with blue fields
-			autoOpenSubsections.forEach((key) => next.add(key));
+			autoOpenSubsections.forEach((key) => {
+				if (!manuallyToggledSubsections.has(key)) next.add(key);
+			});
 			// Auto-close subsections that are all green or all white
-			autoCloseSubsections.forEach((key) => next.delete(key));
+			autoCloseSubsections.forEach((key) => {
+				if (!manuallyToggledSubsections.has(key)) next.delete(key);
+			});
 			return next;
 		});
 	}, [
@@ -1209,6 +1222,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isFieldBlue,
 		isFieldGreen,
 		isFieldWhite,
+		manuallyToggledSubsections,
 	]);
 
 	const steps: Step[] = useMemo(() => {
