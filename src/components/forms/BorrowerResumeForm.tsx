@@ -56,6 +56,7 @@ import {
 	computeBorrowerCompletion,
 } from "@/utils/resumeCompletion";
 import { normalizeSource } from "@/utils/sourceNormalizer";
+import borrowerFormSchema from "@/lib/borrower-resume-form.schema.json";
 
 interface BorrowerResumeFormProps {
 	projectId: string;
@@ -161,6 +162,26 @@ const geographicMarketsOptions = [
 	"National",
 ];
 
+// Section -> field IDs, derived from the borrower resume schema
+const BORROWER_SECTION_FIELD_MAP: Record<string, string[]> = (() => {
+	const schemaAny = borrowerFormSchema as any;
+	const map: Record<string, string[]> = {};
+
+	if (Array.isArray(schemaAny.steps)) {
+		for (const step of schemaAny.steps) {
+			const stepId = step?.id as string | undefined;
+			if (!stepId) continue;
+
+			const fields: string[] = Array.isArray(step.fields)
+				? step.fields
+				: [];
+			map[stepId] = fields;
+		}
+	}
+
+	return map;
+})();
+
 export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	projectId,
 	onComplete,
@@ -229,6 +250,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const prevIsSavingRef = useRef<boolean>(false);
 	const lastInitializedSnapshot = useRef<string | null>(null);
+	const lastSavedSnapshotRef = useRef<string | null>(null);
 
 	// Lock state management - initialize from saved data
 	const [lockedFields, setLockedFields] = useState<Set<string>>(() => {
@@ -395,87 +417,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 	// Get all field IDs in a section (needed for section lock visual feedback)
 	const getSectionFieldIds = useCallback((sectionId: string): string[] => {
-		// Map of section IDs to their field IDs based on data-field-section attributes
-		const sectionFieldMap: Record<string, string[]> = {
-			"basic-info": [
-				"fullLegalName",
-				"primaryEntityName",
-				"primaryEntityStructure",
-				"contactEmail",
-				"contactPhone",
-				"contactAddress",
-			],
-			experience: [
-				"yearsCREExperienceRange",
-				"assetClassesExperience",
-				"geographicMarketsExperience",
-				"totalDealValueClosedRange",
-				"existingLenderRelationships",
-				"bioNarrative",
-			],
-			"borrower-financials": [
-				"creditScoreRange",
-				"netWorthRange",
-				"liquidityRange",
-				"bankruptcyHistory",
-				"foreclosureHistory",
-				"litigationHistory",
-			],
-			"online-presence": ["linkedinUrl", "websiteUrl"],
-			principals: [
-				"principalLegalName",
-				"principalRoleDefault",
-				"principalEmail",
-				"ownershipPercentage",
-				"principalBio",
-			],
-		};
-		return sectionFieldMap[sectionId] || [];
+		return BORROWER_SECTION_FIELD_MAP[sectionId] || [];
 	}, []);
 
 	// Sync section lock state based on individual field locks
 	// A section is locked if all its fields are individually locked
 	useEffect(() => {
-		const sectionFieldMap: Record<string, string[]> = {
-			"basic-info": [
-				"fullLegalName",
-				"primaryEntityName",
-				"primaryEntityStructure",
-				"contactEmail",
-				"contactPhone",
-				"contactAddress",
-			],
-			experience: [
-				"yearsCREExperienceRange",
-				"assetClassesExperience",
-				"geographicMarketsExperience",
-				"totalDealValueClosedRange",
-				"existingLenderRelationships",
-				"bioNarrative",
-			],
-			"borrower-financials": [
-				"creditScoreRange",
-				"netWorthRange",
-				"liquidityRange",
-				"bankruptcyHistory",
-				"foreclosureHistory",
-				"litigationHistory",
-			],
-			"online-presence": ["linkedinUrl", "websiteUrl"],
-			principals: [
-				"principalLegalName",
-				"principalRoleDefault",
-				"principalEmail",
-				"ownershipPercentage",
-				"principalBio",
-			],
-		};
-
 		setLockedSections((prev) => {
 			const next = new Set(prev);
 			// Check each section to see if all fields are locked
 			for (const [sectionId, fieldIds] of Object.entries(
-				sectionFieldMap
+				BORROWER_SECTION_FIELD_MAP
 			)) {
 				const allFieldsLocked = fieldIds.every((fieldId) => {
 					// Field is locked if it's in lockedFields (and not explicitly unlocked)
@@ -764,43 +716,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	// Helper function to get sectionId from fieldId
 	const getSectionIdFromFieldId = useCallback(
 		(fieldId: string): string | undefined => {
-			const sectionFieldMap: Record<string, string[]> = {
-				"basic-info": [
-					"fullLegalName",
-					"primaryEntityName",
-					"primaryEntityStructure",
-					"contactEmail",
-					"contactPhone",
-					"contactAddress",
-				],
-				experience: [
-					"yearsCREExperienceRange",
-					"assetClassesExperience",
-					"geographicMarketsExperience",
-					"totalDealValueClosedRange",
-					"existingLenderRelationships",
-					"bioNarrative",
-				],
-				"borrower-financials": [
-					"creditScoreRange",
-					"netWorthRange",
-					"liquidityRange",
-					"bankruptcyHistory",
-					"foreclosureHistory",
-					"litigationHistory",
-				],
-				"online-presence": ["linkedinUrl", "websiteUrl"],
-				principals: [
-					"principalLegalName",
-					"principalRoleDefault",
-					"principalEmail",
-					"ownershipPercentage",
-					"principalBio",
-				],
-			};
-
 			for (const [sectionId, fieldIds] of Object.entries(
-				sectionFieldMap
+				BORROWER_SECTION_FIELD_MAP
 			)) {
 				if (fieldIds.includes(fieldId)) {
 					return sectionId;
@@ -1093,6 +1010,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			return;
 		}
 		lastInitializedSnapshot.current = snapshotKey;
+		lastSavedSnapshotRef.current = snapshotKey;
 		setFormData(initialData);
 		setFieldMetadata(extractedMetadata);
 	}, [borrowerResume, user?.email, projectId, isEditing]);
@@ -1111,6 +1029,18 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 	const showLoadingState = resumeLoading && !borrowerResume;
 
+	// Track whether there are unsaved changes relative to the last saved snapshot
+	const hasUnsavedChanges = useCallback((): boolean => {
+		if (!lastSavedSnapshotRef.current) return false;
+		try {
+			const currentSnapshot = JSON.stringify(formData);
+			return currentSnapshot !== lastSavedSnapshotRef.current;
+		} catch {
+			// If comparison fails, err on the side of caution
+			return true;
+		}
+	}, [formData]);
+
 	// Debounced auto-save effect for profile form
 	useEffect(() => {
 		if (debounceTimeout.current) {
@@ -1127,10 +1057,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			try {
 				const completenessPercent = computeBorrowerCompletion(formData);
 				onProgressChange?.(completenessPercent);
-				await save({
+				const payload = {
 					...formData,
 					completenessPercent,
-				});
+				};
+				await save(payload);
+				// Update last saved snapshot after a successful auto-save
+				lastSavedSnapshotRef.current = JSON.stringify(payload);
 			} catch (error) {
 				console.error("[ProfileForm] Auto-save failed:", error);
 			}
@@ -1182,6 +1115,36 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			}
 		};
 	}, [isSaving]);
+
+	// Warn user before closing the tab if there are unsaved changes
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!hasUnsavedChanges()) return;
+			event.preventDefault();
+			event.returnValue = "";
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+		};
+	}, [hasUnsavedChanges]);
+
+	// Best-effort save on unmount if there are unsaved changes
+	useEffect(() => {
+		return () => {
+			if (!hasUnsavedChanges()) return;
+			const completenessPercent = computeBorrowerCompletion(formData);
+			const payload = {
+				...formData,
+				completenessPercent,
+			};
+			// Fire-and-forget; any error will be logged by the hook
+			void save(payload);
+		};
+	}, [formData, hasUnsavedChanges, save]);
 
 	// Listen for autofill completion and lock autofilled fields
 	useEffect(() => {
@@ -1570,10 +1533,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			setFormSaved(true);
 			const completenessPercent = computeBorrowerCompletion(formData);
 			onProgressChange?.(completenessPercent);
-			await save({
+			const payload = {
 				...formData,
 				completenessPercent,
-			});
+			};
+			await save(payload);
+			// Update baseline snapshot after explicit submit
+			lastSavedSnapshotRef.current = JSON.stringify(payload);
 
 			if (onComplete) {
 				// Pass the updated formData as the profile
@@ -2291,7 +2257,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			},
 			// Step 3: Financial Info (JSX using ButtonSelect & Checkboxes)
 			{
-				id: "financial",
+				id: "borrower-financials",
 				title: "Financial Info",
 				component: (
 					<div className="space-y-6">

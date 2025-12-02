@@ -9,6 +9,8 @@ import { resolve } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { ProjectResumeContent } from '../src/lib/project-queries';
+import formSchema from '../src/lib/enhanced-project-form.schema.json';
+import { projectResumeFieldMetadata } from '../src/lib/project-resume-field-metadata';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -92,9 +94,46 @@ const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
 
 const HOQUE_PROJECT_NAME = 'SoGood Apartments';
 
-const hoqueProjectResume: ProjectResumeContent & Record<string, any> = {
+/**
+ * Default value helper so that EVERY field rendered by EnhancedProjectForm
+ * has a non-empty value in the seeded resume. This guarantees:
+ * - all fields are "filled" according to form logic
+ * - when paired with _lockedFields they render as green/locked.
+ */
+function getDefaultValueForField(fieldId: string): any {
+  const meta = projectResumeFieldMetadata[fieldId];
+  const dataType = meta?.dataType?.toLowerCase();
+
+  switch (dataType) {
+    case 'boolean':
+      return false;
+    case 'currency':
+    case 'integer':
+    case 'numeric':
+      return 0;
+    case 'percent':
+    case 'decimal':
+      return 0;
+    case 'date':
+      // Reasonable generic ISO date; UI just needs non-empty.
+      return '2025-01-01';
+    case 'table':
+      return [];
+    case 'checklist':
+    case 'multi-select':
+      return [];
+    default:
+      // Fallback for text / dropdown-like fields – a non-empty placeholder.
+      return 'TBD';
+  }
+}
+
+// Base Hoque project resume – we'll later ensure ALL EnhancedProjectForm /
+// metadata fields are present and locked using the schema + metadata.
+const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   projectName: 'SoGood Apartments',
-  assetType: 'Mixed-Use (Retail, Office, Multifamily)',
+  assetType: 'Mixed-Use',
+  dealStatus: 'Underwriting',
   projectStatus: 'Advisor Review',
   propertyAddressStreet: '2300 Hickory St',
   propertyAddressCity: 'Dallas',
@@ -108,11 +147,14 @@ const hoqueProjectResume: ProjectResumeContent & Record<string, any> = {
   groundbreakingDate: '2025-08-01',
   completionDate: '2027-09-30',
   totalDevelopmentCost: 29800000,
+  // Keep legacy requestedLoanTerm and also populate schema field requestedTerm
   requestedLoanTerm: '2 Years',
+  requestedTerm: '2 Years',
   masterPlanName: 'SoGood Master Planned Development',
   phaseNumber: 'Building B',
   projectDescription: 'Ground-up development of Building B within the SoGood master plan, delivering 116 units over activated ground-floor innovation space between the Dallas Farmers Market and Deep Ellum.',
   projectPhase: 'Construction',
+  expectedZoningChanges: 'None',
   
   // Property Specifications
   totalResidentialUnits: 116,
@@ -120,27 +162,107 @@ const hoqueProjectResume: ProjectResumeContent & Record<string, any> = {
   averageUnitSize: 513,
   totalCommercialGRSF: 49569,
   grossBuildingArea: 127406,
+  buildingEfficiency: 82.0,
   numberOfStories: 6,
-  buildingType: 'Mid-rise / Podium',
+  buildingType: 'Mid-rise',
   parkingSpaces: 180,
   parkingRatio: 1.55,
   parkingType: 'Structured',
   amenityList: ['Fitness center', 'Shared working space', 'Lounge', 'Outdoor terrace', 'Swimming pool'],
   amenitySF: 35264,
+  // Explicit unit counts by type (in addition to detailed mix)
+  studioCount: 84,
+  oneBedCount: 24,
+  twoBedCount: 8,
+  threeBedCount: 0,
+  furnishedUnits: false,
+  lossToLease: 5.0,
+  adaCompliantPercent: 5.0,
+  hvacSystem: 'Central',
+  roofTypeAge: 'TPO, new construction',
+  solarCapacity: 100,
+  evChargingStations: 8,
+  leedGreenRating: 'Certified',
   residentialUnitMix: [
-    { unitType: 'S1', type: 'Studio', units: 48, avgSF: 374 },
-    { unitType: 'S2', type: 'Studio', units: 28, avgSF: 380 },
-    { unitType: 'S3', type: 'Studio', units: 8, avgSF: 470 },
-    { unitType: 'A1', type: '1BR', units: 8, avgSF: 720 },
-    { unitType: 'A2', type: '1BR', units: 8, avgSF: 736 },
-    { unitType: 'A3', type: '1BR', units: 8, avgSF: 820 },
-    { unitType: 'B1', type: '2BR', units: 8, avgSF: 1120 },
+    {
+      unitType: 'S1',
+      unitCount: 48,
+      avgSF: 374,
+      monthlyRent: 1550,
+      totalSF: 48 * 374,
+    },
+    {
+      unitType: 'S2',
+      unitCount: 28,
+      avgSF: 380,
+      monthlyRent: 1600,
+      totalSF: 28 * 380,
+    },
+    {
+      unitType: 'S3',
+      unitCount: 8,
+      avgSF: 470,
+      monthlyRent: 1750,
+      totalSF: 8 * 470,
+    },
+    {
+      unitType: 'A1',
+      unitCount: 8,
+      avgSF: 720,
+      monthlyRent: 2100,
+      totalSF: 8 * 720,
+    },
+    {
+      unitType: 'A2',
+      unitCount: 8,
+      avgSF: 736,
+      monthlyRent: 2150,
+      totalSF: 8 * 736,
+    },
+    {
+      unitType: 'A3',
+      unitCount: 8,
+      avgSF: 820,
+      monthlyRent: 2300,
+      totalSF: 8 * 820,
+    },
+    {
+      unitType: 'B1',
+      unitCount: 8,
+      avgSF: 1120,
+      monthlyRent: 2800,
+      totalSF: 8 * 1120,
+    },
   ],
   commercialSpaceMix: [
-    { spaceType: 'Innovation Center', squareFootage: 30000, tenant: 'GSV Holdings LLC' },
-    { spaceType: 'Office 1', squareFootage: 6785 },
-    { spaceType: 'Office 2', squareFootage: 5264 },
-    { spaceType: 'Retail', squareFootage: 745 },
+    {
+      spaceType: 'Innovation Center',
+      squareFootage: 30000,
+      tenant: 'GSV Holdings LLC',
+      leaseTerm: '15-year lease, pre-leased',
+      annualRent: 900000,
+    },
+    {
+      spaceType: 'Office 1',
+      squareFootage: 6785,
+      tenant: 'TBD – Creative Office',
+      leaseTerm: 'To be leased',
+      annualRent: 0,
+    },
+    {
+      spaceType: 'Office 2',
+      squareFootage: 5264,
+      tenant: 'TBD – Professional Services',
+      leaseTerm: 'To be leased',
+      annualRent: 0,
+    },
+    {
+      spaceType: 'Retail',
+      squareFootage: 745,
+      tenant: 'Future F&B Operator',
+      leaseTerm: 'To be leased',
+      annualRent: 0,
+    },
   ],
   
   // Financial Details - Development Budget
@@ -159,26 +281,35 @@ const hoqueProjectResume: ProjectResumeContent & Record<string, any> = {
   pfcStructuringFee: 116000,
   loanFees: 360000,
   interestReserve: 1147500,
+  opDeficitEscrow: 650000,
+  leaseUpEscrow: 1300000,
+  relocationCosts: 0,
+  syndicationCosts: 150000,
+  enviroRemediation: 0,
   
   // Sources of Funds & Loan Terms
-  seniorLoanAmount: 18000000,
   sponsorEquity: 11800000,
-  interestRate: 8.00,
-  underwritingRate: 8.00,
-  amortization: 'Interest-Only for Construction',
+  taxCreditEquity: 0,
+  gapFinancing: 0,
+  interestRate: 8.0,
+  underwritingRate: 8.0,
+  loanType: 'Senior Debt',
   prepaymentTerms: 'Minimum interest',
-  recourse: 'Partial Recourse',
   permTakeoutPlanned: true,
+  allInRate: 8.25,
   
   // Operating Expenses & Investment Metrics
   realEstateTaxes: 34200,
   insurance: 92800,
   utilities: 23200,
+  utilitiesCosts: 23200,
   repairsAndMaintenance: 46400,
   managementFee: 85000,
   generalAndAdmin: 40600,
   payroll: 174000,
   reserves: 23200,
+  marketingLeasing: 68040,
+  serviceCoordination: 10000,
   noiYear1: 2268000,
   yieldOnCost: 7.6,
   capRate: 5.50,
@@ -186,6 +317,17 @@ const hoqueProjectResume: ProjectResumeContent & Record<string, any> = {
   ltv: 44,
   debtYield: 12.6,
   dscr: 1.25,
+  expectedHoldPeriod: 7,
+  untrendedNOIYear1: 2222640,
+  trendedNOIYear1: 2313360,
+  untrendedYield: 7.45,
+  trendedYield: 7.76,
+  inflationAssumption: 2.0,
+  dscrStressTest: 1.1,
+  ltvStressMax: 50.0,
+  dscrStressMin: 1.1,
+  portfolioLTV: 60.0,
+  portfolioDSCR: 1.3,
   
   // Loan Info
   loanAmountRequested: 18000000,
@@ -212,12 +354,88 @@ const hoqueProjectResume: ProjectResumeContent & Record<string, any> = {
   
   // Market Context
   submarketName: 'Downtown Dallas',
+  msaName: 'Dallas-Fort Worth-Arlington, TX',
   population3Mi: 174270,
   popGrowth201020: 23.3,
   projGrowth202429: 6.9,
   medianHHIncome: 85906,
   renterOccupiedPercent: 76.7,
   bachelorsDegreePercent: 50.2,
+  unemploymentRate: 3.5,
+  largestEmployer: 'Downtown Dallas CBD employers',
+  employerConcentration: 15.0,
+  crimeRiskLevel: 'Moderate',
+  distanceToCBD: 0.5,
+  distanceToEmployment: '0.5 miles to Dallas CBD and Farmers Market',
+  distanceToTransit: 0.4,
+  walkabilityScore: 92,
+  infrastructureCatalyst: 'DART expansion and I-30/I-45 interchange improvements',
+  broadbandSpeed: 'Fiber 1 Gbps available',
+  submarketAbsorption: 500,
+  supplyPipeline: 4000,
+  monthsOfSupply: 7.5,
+  captureRate: 2.1,
+  marketConcessions: '1 month free on select units',
+  northStarComp: 'SoGood Phase A and nearby Class A multifamily',
+  absorptionRate: 15,
+  penetrationRate: 2.5,
+  infrastructureProject: 'I-30 Canyon Reconstruction',
+  projectBudget: 150000000,
+  infraCompletion: '2028',
+  // Seed basic rent comps so the Market Context table is populated
+  rentComps: [
+    {
+      propertyName: 'Farmers Market Lofts',
+      address: '1010 S Pearl Expy, Dallas, TX',
+      distance: 0.4,
+      yearBuilt: 2018,
+      totalUnits: 220,
+      occupancyPercent: 95,
+      avgRentMonth: 1900,
+      rentPSF: 2.75,
+    },
+    {
+      propertyName: 'Deep Ellum Flats',
+      address: '2400 Commerce St, Dallas, TX',
+      distance: 0.7,
+      yearBuilt: 2020,
+      totalUnits: 180,
+      occupancyPercent: 94,
+      avgRentMonth: 1850,
+      rentPSF: 2.65,
+    },
+    {
+      propertyName: 'Downtown Exchange',
+      address: '1400 Main St, Dallas, TX',
+      distance: 0.9,
+      yearBuilt: 2017,
+      totalUnits: 250,
+      occupancyPercent: 93,
+      avgRentMonth: 2000,
+      rentPSF: 2.85,
+    },
+  ],
+  // Sale comparables
+  saleComps: [
+    {
+      saleCompPropertyName: 'SoGood Phase A',
+      saleDate: '2023-06-01',
+      salePricePerUnit: 260000,
+      saleCompCapRate: 4.75,
+    },
+    {
+      saleCompPropertyName: 'South Side Flats',
+      saleDate: '2022-11-15',
+      salePricePerUnit: 245000,
+      saleCompCapRate: 5.0,
+    },
+    {
+      saleCompPropertyName: 'Hamilton Station Lofts',
+      saleDate: '2021-09-30',
+      salePricePerUnit: 235000,
+      saleCompCapRate: 5.1,
+    },
+  ],
   
   // Special Considerations
   opportunityZone: true,
@@ -225,26 +443,75 @@ const hoqueProjectResume: ProjectResumeContent & Record<string, any> = {
   affordableUnitsNumber: 58,
   amiTargetPercent: 80,
   taxExemption: true,
+  exemptionStructure: 'PFC',
+  sponsoringEntity: 'Dallas Housing Finance Corporation PFC',
+  exemptionTerm: 99,
+  incentiveStacking: ['PFC Tax Exemption', 'Opportunity Zone'],
+  tifDistrict: false,
   taxAbatement: true,
   paceFinancing: false,
   historicTaxCredits: false,
   newMarketsCredits: false,
+  relocationPlan: 'N/A',
+  seismicPMLRisk: '2.5% PML',
+  environmental: 'Clean',
   
   // Timeline & Milestones & Site & Context
+  landAcqClose: '2024-07-12',
   firstOccupancy: '2027-10-15',
   stabilization: '2028-03-31',
   preLeasedSF: 30000,
   entitlements: 'Approved',
+  finalPlans: 'Pending',
   permitsIssued: 'Issued',
+  verticalStart: '2025-08-01',
   totalSiteAcreage: 2.5,
   currentSiteStatus: 'Vacant',
   siteAccess: 'Hickory St, Ferris St',
   proximityShopping: 'Farmers Market, Deep Ellum nearby',
+  topography: 'Flat',
+  proximityRestaurants: 'Walking distance to Deep Ellum dining district',
+  proximityParks: '0.3 miles to Farmers Market Park',
+  proximitySchools: '1.2 miles to CityLab High School',
+  proximityHospitals: '1.5 miles to Baylor University Medical Center',
+  // Seeded draw schedule so the Timeline table renders with rows
+  drawSchedule: [
+    { drawNumber: 1, percentComplete: 10, amount: 2500000 },
+    { drawNumber: 2, percentComplete: 30, amount: 5000000 },
+    { drawNumber: 3, percentComplete: 60, amount: 6500000 },
+    { drawNumber: 4, percentComplete: 90, amount: 5500000 },
+  ],
+  absorptionProjection: 12,
+  buildableAcreage: 2.3,
+  allowableFAR: 3.5,
+  farUtilizedPercent: 85.0,
+  densityBonus: true,
+  soilConditions: 'Urban fill over clay; deep foundations recommended',
+  accessPoints: 'Curb cuts on Hickory St and Ferris St',
+  adjacentLandUse: 'Mixed-use, residential, and light industrial',
+  viewCorridors: 'Downtown Dallas skyline and Farmers Market',
+  floodZone: 'Zone X',
+  wetlandsPresent: false,
+  seismicRisk: 'Low',
+  phaseIESAFinding: 'Clean',
+  noiseFactors: ['Highway', 'Rail'],
+  utilityAvailability: 'Available',
+  easements: 'Utility easement along northern property line',
+  utilityCapacity: 'Sufficient electric, water, and sewer capacity confirmed',
+  geotechSoilsRep: 'No critical issues; driven piles recommended for podium structure',
+  topEmployers: 'AT&T, Baylor Scott & White, JP Morgan Chase',
   
   // Sponsor Information & Metadata
   sponsorEntityName: 'Hoque Global',
   sponsorStructure: 'General Partner',
   equityPartner: 'ACARA',
+  syndicationStatus: 'In Process',
+  sponsorExperience: 'Seasoned (3+)',
+  sponsorExpScore: 8,
+  priorDevelopments: 1000,
+  netWorth: 50000000,
+  guarantorLiquidity: 7500000,
+  guarantorNames: 'Mike Hoque; Joel Heikenfeld',
   contactInfo: 'Cody Field (415.202.3258), Joel Heikenfeld (972.455.1943)',
   completenessPercent: 100,
   internalAdvisorNotes: 'Seeded via scripts/seed-hoque-project.ts',
@@ -308,6 +575,51 @@ const hoqueProjectResume: ProjectResumeContent & Record<string, any> = {
     ],
   },
 };
+
+/**
+ * Build a complete resume object that:
+ * - includes ALL fields used by EnhancedProjectForm (from schema.fields)
+ *   and all project resume metadata fields
+ * - gives every field a non-empty value
+ * - locks every such field via _lockedFields so they render green.
+ */
+const SCHEMA_FIELD_IDS: string[] = Object.keys(
+  (formSchema as any)?.fields || {}
+);
+
+const METADATA_FIELD_IDS: string[] = Object.keys(projectResumeFieldMetadata);
+
+const ALL_RELEVANT_FIELD_IDS: string[] = Array.from(
+  new Set([...SCHEMA_FIELD_IDS, ...METADATA_FIELD_IDS])
+);
+
+const hoqueProjectResume: ProjectResumeContent & Record<string, any> = (() => {
+  const result: Record<string, any> = { ...hoqueProjectResumeBase };
+
+  // Ensure every form field has a non-empty value.
+  for (const fieldId of ALL_RELEVANT_FIELD_IDS) {
+    const current = result[fieldId];
+    const isEmptyString =
+      typeof current === 'string' && current.trim().length === 0;
+    const isUnset = current === undefined || current === null;
+
+    if (isUnset || isEmptyString) {
+      result[fieldId] = getDefaultValueForField(fieldId);
+    }
+  }
+
+  // Lock all form fields so they show as green/locked in the UI.
+  const lockedFields: Record<string, boolean> = {};
+  for (const fieldId of ALL_RELEVANT_FIELD_IDS) {
+    lockedFields[fieldId] = true;
+  }
+
+  // Preserve any existing _lockedFields, but override for form fields.
+  const existingLocked = (result._lockedFields || {}) as Record<string, boolean>;
+  result._lockedFields = { ...existingLocked, ...lockedFields };
+
+  return result as ProjectResumeContent & Record<string, any>;
+})();
 
 const hoqueBorrowerResume = {
   fullLegalName: 'Hoque Global',
@@ -1719,7 +2031,7 @@ async function seedHoqueProject(): Promise<void> {
       .upsert(
         {
           project_id: projectId,
-          content: hoqueProjectResume as any, // OM uses same content as project resume
+        content: hoqueProjectResume as any, // OM uses same fully-populated content as project resume
         },
         { onConflict: 'project_id' }
       );

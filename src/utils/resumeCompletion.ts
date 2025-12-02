@@ -6,6 +6,7 @@ import {
 } from "@/lib/project-queries";
 import { ProjectProfile } from "@/types/enhanced-types";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
+import borrowerFormSchema from "@/lib/borrower-resume-form.schema.json";
 
 const clampPercent = (value: number): number => {
   if (!Number.isFinite(value)) return 0;
@@ -41,28 +42,25 @@ const valueProvided = (value: unknown): boolean => {
   return false;
 };
 
-export const BORROWER_REQUIRED_FIELDS: (keyof BorrowerResumeContent)[] = [
-  "fullLegalName",
-  "primaryEntityName",
-  "primaryEntityStructure",
-  "contactEmail",
-  "contactPhone",
-  "contactAddress",
-  "bioNarrative",
-  "linkedinUrl",
-  "websiteUrl",
-  "yearsCREExperienceRange",
-  "assetClassesExperience",
-  "geographicMarketsExperience",
-  "totalDealValueClosedRange",
-  "existingLenderRelationships",
-  "creditScoreRange",
-  "netWorthRange",
-  "liquidityRange",
-  "bankruptcyHistory",
-  "foreclosureHistory",
-  "litigationHistory",
-];
+/**
+ * Derive the list of required borrower fields from the borrower resume schema.
+ * This keeps borrower completion in sync with the actual form configuration.
+ */
+const getBorrowerRequiredFieldsFromSchema = (): (keyof BorrowerResumeContent)[] => {
+  const fieldsConfig = (borrowerFormSchema as any).fields || {};
+
+  const requiredFieldIds = Object.entries(fieldsConfig)
+    .filter(([, cfg]) => {
+      if (!cfg || typeof cfg !== "object") return false;
+      return (cfg as any).required === true;
+    })
+    .map(([fieldId]) => fieldId);
+
+  return requiredFieldIds as (keyof BorrowerResumeContent)[];
+};
+
+export const BORROWER_REQUIRED_FIELDS: (keyof BorrowerResumeContent)[] =
+  getBorrowerRequiredFieldsFromSchema();
 
 export const BORROWER_PLACEHOLDER_VALUES: Partial<
   Record<keyof BorrowerResumeContent, unknown>
