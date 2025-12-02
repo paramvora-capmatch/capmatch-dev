@@ -526,8 +526,11 @@ export const getProjectWithResume = async (
 		}
 	}
 
-	// Combine core project fields with resume content
-	return {
+	// Build the combined profile first so we can compute a fresh completion
+	// percentage from the latest data. This allows us to recover gracefully
+	// if older resume versions were saved with a stale or missing
+	// `completenessPercent` (e.g. 0 despite many required fields being filled).
+	const combinedProfile: ProjectProfile = {
 		// Core project fields (from projects table)
 		id: project.id,
 		owner_org_id: project.owner_org_id,
@@ -565,6 +568,22 @@ export const getProjectWithResume = async (
 		// Resource pointer helpers
 		projectResumeResourceId: resource?.id ?? null,
 	} as ProjectProfile;
+
+	// Recompute completion from the combined snapshot. If the stored value is
+	// missing or zero but the freshly computed value is greater than zero,
+	// prefer the computed value so the UI doesn't get stuck at 0% after
+	// autofill or Save & Exit flows.
+	const recomputedCompletion = computeProjectCompletion(combinedProfile);
+	const storedCompletion = combinedProfile.completenessPercent;
+	const finalCompletion =
+		typeof storedCompletion === "number" && storedCompletion > 0
+			? storedCompletion
+			: recomputedCompletion;
+
+	return {
+		...combinedProfile,
+		completenessPercent: finalCompletion,
+	};
 };
 
 /**
@@ -775,7 +794,11 @@ export const getProjectsWithResumes = async (
 					| undefined) ?? 0
 			);
 
-			return {
+			// Build the combined profile first so we can compute a fresh
+			// completion percentage from the latest data. This mirrors the
+			// single-project loader and prevents stale 0% values from older
+			// resume versions from overriding a correct computed value.
+			const combinedProfile: ProjectProfile = {
 				// Core project fields
 				id: project.id,
 				owner_org_id: project.owner_org_id,
@@ -814,6 +837,20 @@ export const getProjectsWithResumes = async (
 				// Legacy field
 				borrowerProfileId: undefined,
 			} as ProjectProfile;
+
+			const recomputedCompletion =
+				computeProjectCompletion(combinedProfile);
+			const storedCompletion = combinedProfile.completenessPercent;
+			const finalCompletion =
+				typeof storedCompletion === "number" &&
+				storedCompletion > 0
+					? storedCompletion
+					: recomputedCompletion;
+
+			return {
+				...combinedProfile,
+				completenessPercent: finalCompletion,
+			};
 		}) || []
 	);
 };
