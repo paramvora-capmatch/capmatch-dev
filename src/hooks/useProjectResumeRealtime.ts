@@ -40,11 +40,8 @@ const getProjectResumeContent = async (
     );
   }
 
-  let query = supabase
-    .from("project_resumes")
-    .select("content")
-    .eq("project_id", projectId);
-
+  let query;
+  
   if (resource?.current_version_id) {
     // Use the explicit pointer when available
     query = supabase
@@ -55,7 +52,10 @@ const getProjectResumeContent = async (
       .maybeSingle();
   } else {
     // Prefer the row marked active; otherwise fall back to latest by created_at
-    query = query
+    query = supabase
+      .from("project_resumes")
+      .select("content")
+      .eq("project_id", projectId)
       .order("status", { ascending: false }) // 'active' > 'superseded' lexicographically
       .order("created_at", { ascending: false })
       .limit(1)

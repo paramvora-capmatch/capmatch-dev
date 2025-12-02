@@ -554,7 +554,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                     const allFieldIds: string[] = step.fields || [];
                                     const allFieldMetas = allFieldIds
                                         .map((id) => projectResumeFieldMetadata[id])
-                                        .filter((m): m is { fieldId: string; description: string; dataType?: string } => !!m);
+                                        .filter((m): m is typeof projectResumeFieldMetadata[string] => !!m);
 
                                     // Check if section has any values (fields or special tables)
                                     const hasAnyValueInSection = allFieldMetas.some((field) => {
@@ -625,13 +625,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                                         const visibleFieldMetas = subsectionFieldIds
                                                             .map((id) => projectResumeFieldMetadata[id])
                                                             .filter(
-                                                                (
-                                                                    m
-                                                                ): m is {
-                                                                    fieldId: string;
-                                                                    description: string;
-                                                                    dataType?: string;
-                                                                } => !!m
+                                                                (m): m is typeof projectResumeFieldMetadata[string] => !!m
                                                             )
                                                             .filter((field) => {
                                                                 // Special-case: drawSchedule is rendered as its own table later

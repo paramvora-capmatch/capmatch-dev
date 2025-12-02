@@ -1,11 +1,8 @@
-import { FieldMetadata } from "@/types/enhanced-types";
+import { FieldMetadata } from "@/lib/project-resume-field-metadata";
 
 export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
   // Section 1: Basic Info
   fullLegalName: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "fullLegalName",
     description: "The full legal name of the borrower entity or individual sponsor.",
     primarySource: "User Input",
@@ -16,9 +13,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "basic-info",
   },
   primaryEntityName: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "primaryEntityName",
     description: "Name of the primary borrowing entity.",
     primarySource: "User Input",
@@ -29,9 +23,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "basic-info",
   },
   primaryEntityStructure: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "primaryEntityStructure",
     description: "Legal structure of the borrowing entity (LLC, LP, etc.).",
     primarySource: "Document (Operating Agmt)",
@@ -42,9 +33,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "basic-info",
   },
   contactEmail: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "contactEmail",
     description: "Primary contact email for the borrower.",
     primarySource: "User Input",
@@ -55,9 +43,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "basic-info",
   },
   contactPhone: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "contactPhone",
     description: "Primary phone number for the borrower.",
     primarySource: "User Input",
@@ -68,9 +53,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "basic-info",
   },
   contactAddress: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "contactAddress",
     description: "Mailing address for the borrowing entity.",
     primarySource: "User Input",
@@ -83,9 +65,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
 
   // Section 2: Experience
   yearsCREExperienceRange: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "yearsCREExperienceRange",
     description: "Number of years the sponsor has been active in CRE.",
     primarySource: "Document (Bio)",
@@ -96,9 +75,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "experience",
   },
   assetClassesExperience: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "assetClassesExperience",
     description: "Types of assets the sponsor has developed or managed.",
     primarySource: "Document (Track Record)",
@@ -109,9 +85,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "experience",
   },
   geographicMarketsExperience: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "geographicMarketsExperience",
     description: "Regions where the sponsor has experience.",
     primarySource: "Document (Track Record)",
@@ -122,9 +95,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "experience",
   },
   totalDealValueClosedRange: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "totalDealValueClosedRange",
     description: "Total value of real estate transactions closed to date.",
     primarySource: "Document (Track Record)",
@@ -135,9 +105,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "experience",
   },
   existingLenderRelationships: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "existingLenderRelationships",
     description: "Banks or institutions the borrower has worked with previously.",
     primarySource: "User Input",
@@ -148,9 +115,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "experience",
   },
   bioNarrative: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "bioNarrative",
     description: "Short biography of the sponsor/company.",
     primarySource: "Document (Marketing Deck)",
@@ -163,9 +127,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
 
   // Section 3: Financial Info
   creditScoreRange: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "creditScoreRange",
     description: "Estimated credit score range of the key guarantor.",
     primarySource: "User Input",
@@ -176,9 +137,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "borrower-financials",
   },
   netWorthRange: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "netWorthRange",
     description: "Estimated net worth range of the key guarantor.",
     primarySource: "Document (PFS)",
@@ -189,9 +147,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "borrower-financials",
   },
   liquidityRange: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "liquidityRange",
     description: "Estimated liquid assets available.",
     primarySource: "Document (Bank Statements)",
@@ -202,9 +157,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "borrower-financials",
   },
   bankruptcyHistory: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "bankruptcyHistory",
     description: "History of bankruptcy in the last 7 years.",
     primarySource: "User Input",
@@ -215,9 +167,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "borrower-financials",
   },
   foreclosureHistory: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "foreclosureHistory",
     description: "History of foreclosure in the last 7 years.",
     primarySource: "User Input",
@@ -228,9 +177,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "borrower-financials",
   },
   litigationHistory: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "litigationHistory",
     description: "Current or past significant litigation.",
     primarySource: "User Input",
@@ -243,9 +189,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
 
   // Section 4: Online Presence
   linkedinUrl: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "linkedinUrl",
     description: "Link to LinkedIn profile.",
     primarySource: "User Input",
@@ -256,9 +199,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "online-presence",
   },
   websiteUrl: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "websiteUrl",
     description: "Link to company website.",
     primarySource: "User Input",
@@ -271,9 +211,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
 
   // Section 5: Principals
   principalLegalName: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "principalLegalName",
     description: "Name of a key principal.",
     primarySource: "User Input",
@@ -284,9 +221,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "principals",
   },
   principalRoleDefault: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "principalRoleDefault",
     description: "Role of the principal (e.g., Sponsor, Guarantor).",
     primarySource: "User Input",
@@ -297,9 +231,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "principals",
   },
   principalEmail: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "principalEmail",
     description: "Email of the principal.",
     primarySource: "User Input",
@@ -310,9 +241,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "principals",
   },
   ownershipPercentage: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "ownershipPercentage",
     description: "Percentage of ownership in the borrowing entity.",
     primarySource: "Document (Org Chart)",
@@ -323,9 +251,6 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
     section: "principals",
   },
   principalBio: {
-    value: null,
-    source: "User Input",
-    warnings: [],
     fieldId: "principalBio",
     description: "Short bio for the principal.",
     primarySource: "Document (Bio)",

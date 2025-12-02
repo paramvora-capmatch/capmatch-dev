@@ -402,6 +402,8 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				owner_org_id: data.project.owner_org_id,
 				assignedAdvisorUserId: data.project.assigned_advisor_id,
 				projectName: data.project.name,
+				assetType: data.project.asset_type || projectData.assetType || '',
+				projectStatus: data.project.project_status || projectData.projectStatus || 'draft',
 				createdAt: data.project.created_at,
 				updatedAt: data.project.updated_at,
 				// All other resume fields should start undefined/empty and only be created

@@ -160,7 +160,7 @@ export const useAutofill = (
 				}
 			}, POLL_INTERVAL);
 		},
-		[checkCompletion, clearAutofillState, loadUserProjects, context]
+		[checkCompletion, clearAutofillState, context, refreshProject]
 	);
 
 	// Load any in-flight autofill state on mount so the UI can resume

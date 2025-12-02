@@ -293,7 +293,6 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   gapFinancing: 0,
   interestRate: 8.0,
   underwritingRate: 8.0,
-  loanType: 'Senior Debt',
   prepaymentTerms: 'Minimum interest',
   permTakeoutPlanned: true,
   allInRate: 8.25,
@@ -301,7 +300,6 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   // Operating Expenses & Investment Metrics
   realEstateTaxes: 34200,
   insurance: 92800,
-  utilities: 23200,
   utilitiesCosts: 23200,
   repairsAndMaintenance: 46400,
   managementFee: 85000,
@@ -418,22 +416,22 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   // Sale comparables
   saleComps: [
     {
-      saleCompPropertyName: 'SoGood Phase A',
+      propertyName: 'SoGood Phase A',
       saleDate: '2023-06-01',
       salePricePerUnit: 260000,
-      saleCompCapRate: 4.75,
+      capRate: 4.75,
     },
     {
-      saleCompPropertyName: 'South Side Flats',
+      propertyName: 'South Side Flats',
       saleDate: '2022-11-15',
       salePricePerUnit: 245000,
-      saleCompCapRate: 5.0,
+      capRate: 5.0,
     },
     {
-      saleCompPropertyName: 'Hamilton Station Lofts',
+      propertyName: 'Hamilton Station Lofts',
       saleDate: '2021-09-30',
       salePricePerUnit: 235000,
-      saleCompCapRate: 5.1,
+      capRate: 5.1,
     },
   ],
   
@@ -692,47 +690,87 @@ interface OnboardResponse {
 async function callOnboardBorrower(
   email: string,
   password: string,
-  fullName: string
+  fullName: string,
+  retries = 3
 ): Promise<OnboardResponse> {
-  try {
-    console.log(`[onboard-borrower] Calling edge function for ${email}...`);
-    const { data, error } = await supabaseAdmin.functions.invoke('onboard-borrower', {
-      body: { email, password, full_name: fullName },
-    });
-
-    if (error) {
-      let actualErrorMessage = error.message || String(error);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      if (attempt > 1) {
+        console.log(`[onboard-borrower] Retry attempt ${attempt}/${retries} for ${email}...`);
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      } else {
+        console.log(`[onboard-borrower] Calling edge function for ${email}...`);
+      }
       
-      if (data) {
-        if (typeof data === 'object' && 'error' in data) {
-          const dataError = (data as any).error;
-          return { error: typeof dataError === 'string' ? dataError : JSON.stringify(dataError) };
+      const { data, error } = await supabaseAdmin.functions.invoke('onboard-borrower', {
+        body: { email, password, full_name: fullName },
+      });
+
+      if (error) {
+        let actualErrorMessage = error.message || String(error);
+        
+        // Check if it's a retryable error (502, 503, 504, or AuthRetryableFetchError)
+        const isRetryable = 
+          error.status === 502 || 
+          error.status === 503 || 
+          error.status === 504 ||
+          (error as any).name === 'AuthRetryableFetchError' ||
+          actualErrorMessage.includes('502') ||
+          actualErrorMessage.includes('503') ||
+          actualErrorMessage.includes('504');
+        
+        if (isRetryable && attempt < retries) {
+          console.warn(`[onboard-borrower] Retryable error for ${email} (attempt ${attempt}): ${actualErrorMessage}`);
+          continue; // Retry
+        }
+        
+        if (data) {
+          if (typeof data === 'object' && 'error' in data) {
+            const dataError = (data as any).error;
+            return { error: typeof dataError === 'string' ? dataError : JSON.stringify(dataError) };
+          }
+        }
+        
+        return { error: actualErrorMessage };
+      }
+
+      if (data && typeof data === 'object') {
+        if ('error' in data) {
+          const responseError = (data as any).error;
+          return { 
+            error: typeof responseError === 'string' 
+              ? responseError 
+              : JSON.stringify(responseError) 
+          };
+        }
+        
+        if ('user' in data) {
+          return data as OnboardResponse;
         }
       }
-      
-      return { error: actualErrorMessage };
-    }
 
-    if (data && typeof data === 'object') {
-      if ('error' in data) {
-        const responseError = (data as any).error;
-        return { 
-          error: typeof responseError === 'string' 
-            ? responseError 
-            : JSON.stringify(responseError) 
-        };
+      return data as OnboardResponse;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const isRetryable = 
+        errorMessage.includes('502') ||
+        errorMessage.includes('503') ||
+        errorMessage.includes('504') ||
+        errorMessage.includes('AuthRetryableFetchError') ||
+        errorMessage.includes('fetch');
+      
+      if (isRetryable && attempt < retries) {
+        console.warn(`[onboard-borrower] Retryable exception for ${email} (attempt ${attempt}): ${errorMessage}`);
+        continue; // Retry
       }
       
-      if ('user' in data) {
-        return data as OnboardResponse;
-      }
+      console.error(`[onboard-borrower] Exception for ${email}:`, err);
+      return { error: errorMessage };
     }
-
-    return data as OnboardResponse;
-  } catch (err) {
-    console.error(`[onboard-borrower] Exception for ${email}:`, err);
-    return { error: err instanceof Error ? err.message : String(err) };
   }
+  
+  return { error: `Failed after ${retries} attempts` };
 }
 
 async function createAdvisorAccount(): Promise<{ userId: string; orgId: string } | null> {

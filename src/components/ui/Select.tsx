@@ -46,10 +46,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 			lg: "h-12 text-base",
 		};
 
-		// Extract className from props to apply to select element, and remove it from props
-		const { className: propsClassName, ...selectProps } = props;
-		// Use className prop if provided, otherwise use className from props spread
-		const selectClassName = className || propsClassName;
+		// className is already extracted in function parameters, so just use it
+		const selectClassName = className;
 
 		return (
 			<div className={cn(fullWidth && "w-full")}>
@@ -86,7 +84,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 								? `${inputId}-helper`
 								: undefined
 						}
-						{...selectProps}
+						{...props}
 					>
 						{placeholder && (
 							<option value="" disabled hidden>

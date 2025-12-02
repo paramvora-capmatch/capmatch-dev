@@ -1455,6 +1455,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			fieldControlOverrides,
 			fieldOptionsRegistry,
 			getDefaultControlForDataType,
+			fieldMetadata,
 		]
 	);
 
@@ -1557,6 +1558,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isFieldBlue,
 		isFieldGreen,
 		isFieldWhite,
+		isFieldLocked,
 		manuallyToggledSubsections,
 	]);
 
@@ -3325,7 +3327,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		});
 	}, [
 		expandedSubsections,
-		isFieldRequiredFromSchema,
 		renderDynamicField,
 		sectionIconComponents,
 		getTableWrapperClasses,
@@ -3338,8 +3339,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isFieldWhite,
 		isSubsectionFullyLocked,
 		toggleSubsectionLock,
-		lockedFields,
-		unlockedFields,
 		formData,
 		fieldMetadata,
 	]);

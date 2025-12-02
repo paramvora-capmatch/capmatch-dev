@@ -52,10 +52,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 			/>
 		);
 
-		// Extract className from props to apply to input element, and remove it from props
-		const { className: propsClassName, ...inputProps } = props;
-		// Use className prop if provided, otherwise use className from props spread
-		const inputClassName = className || propsClassName;
+		// className is already extracted in function parameters, so just use it
+		const inputClassName = className;
 
 		return (
 			<div className={cn(fullWidth && "w-full")}>
@@ -98,7 +96,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 								? `${inputId}-helper`
 								: undefined
 						}
-						{...inputProps}
+						{...props}
 					/>
 					{(rightIcon || isPassword) && (
 						<div className="absolute inset-y-0 right-0 pr-3 flex items-center">
