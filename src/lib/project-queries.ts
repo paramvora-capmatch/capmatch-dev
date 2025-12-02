@@ -1054,23 +1054,22 @@ export const saveProjectResume = async (
 			);
 		}
 
-		// Ensure the PROJECT_RESUME resource pointer is updated to this version
+		// Ensure the PROJECT_RESUME resource pointer is updated to this version.
+		// NOTE: The resources table does not currently have a UNIQUE(project_id, resource_type)
+		// constraint, so an UPSERT with an onConflict target will fail. Instead, we issue a
+		// straight UPDATE scoped by project_id + resource_type. This will reliably move the
+		// pointer for existing resources without relying on constraint metadata.
 		const { error: resourceError } = await supabase
 			.from("resources")
-			.upsert(
-				{
-					project_id: projectId,
-					resource_type: "PROJECT_RESUME",
-					current_version_id: newResume.id,
-				},
-				{ onConflict: "project_id,resource_type" }
-			);
+			.update({ current_version_id: newResume.id })
+			.eq("project_id", projectId)
+			.eq("resource_type", "PROJECT_RESUME");
 
-		// We don't throw on resource error strictly, as the table might not be fully set up
-		// or permissions might vary, but it's good practice to try.
+		// We don't throw on resource error strictly, as permissions or seed state may vary,
+		// but log so we can diagnose issues in non-local environments.
 		if (resourceError) {
 			console.warn(
-				"Failed to update resource pointer:",
+				"[saveProjectResume] Failed to update PROJECT_RESUME resource pointer:",
 				resourceError.message
 			);
 		}

@@ -16,17 +16,58 @@ interface UseProjectResumeRealtimeResult {
 }
 
 /**
- * Hook to fetch project resume content directly from project_resumes table
+ * Fetches the *current* project resume content.
+ *
+ * Priority:
+ *  1. Use the resource pointer (resources.current_version_id for PROJECT_RESUME)
+ *  2. Fallback to the row marked as status = 'active'
+ *  3. Fallback to the latest row by created_at
  */
-const getProjectResumeContent = async (projectId: string): Promise<ProjectResumeContent | null> => {
-  const { data, error } = await supabase
-    .from('project_resumes')
-    .select('content')
-    .eq('project_id', projectId)
+const getProjectResumeContent = async (
+  projectId: string
+): Promise<ProjectResumeContent | null> => {
+  // First, try to resolve the resource pointer
+  const { data: resource, error: resourceError } = await supabase
+    .from("resources")
+    .select("current_version_id")
+    .eq("project_id", projectId)
+    .eq("resource_type", "PROJECT_RESUME")
     .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
-    throw new Error(`Failed to load project resume: ${error.message}`);
+  if (resourceError && resourceError.code !== "PGRST116") {
+    throw new Error(
+      `[useProjectResumeRealtime] Failed to load project resume resource pointer: ${resourceError.message}`
+    );
+  }
+
+  let query = supabase
+    .from("project_resumes")
+    .select("content")
+    .eq("project_id", projectId);
+
+  if (resource?.current_version_id) {
+    // Use the explicit pointer when available
+    query = supabase
+      .from("project_resumes")
+      .select("content")
+      .eq("id", resource.current_version_id)
+      .limit(1)
+      .maybeSingle();
+  } else {
+    // Prefer the row marked active; otherwise fall back to latest by created_at
+    query = query
+      .order("status", { ascending: false }) // 'active' > 'superseded' lexicographically
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+  }
+
+  const { data, error } = await query;
+
+  if (error && error.code !== "PGRST116") {
+    throw new Error(
+      `[useProjectResumeRealtime] Failed to load project resume: ${error.message}`
+    );
   }
 
   return (data?.content as ProjectResumeContent) || null;

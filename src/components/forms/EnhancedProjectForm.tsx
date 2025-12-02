@@ -838,8 +838,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}, [initialFocusFieldId]);
 
 	// Save Logic (Explicit or Unmount)
-	// Use a ref to access the latest state when checking for dirtiness
+	// Use refs to access the latest state and track in-flight saves when checking for dirtiness.
 	const stateRef = useRef({ formData, fieldMetadata, lockedFields });
+	const isSavingRef = useRef(false);
 	useEffect(() => {
 		stateRef.current = { formData, fieldMetadata, lockedFields };
 	}, [formData, fieldMetadata, lockedFields]);
@@ -888,6 +889,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			}
 
 			setFormSaved(true);
+			isSavingRef.current = true;
 			try {
 				await saveProjectResume(finalData.id, finalData, {
 					createNewVersion,
@@ -910,6 +912,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					lockedFields: snapshotLocked,
 				};
 				lastSavedSnapshotRef.current = snapshot;
+				// Also sync the "current" in-memory state to this snapshot so that
+				// a subsequent unmount doesn't see the old pre-save formData and
+				// incorrectly conclude there are unsaved changes, which would
+				// create a duplicate version.
+				stateRef.current = snapshot;
 
 				// Clear local storage after successful save
 				if (typeof window !== "undefined") {
@@ -919,6 +926,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			} catch (err) {
 				console.error("[EnhancedProjectForm] Save failed:", err);
 			} finally {
+				isSavingRef.current = false;
 				setTimeout(() => setFormSaved(false), 1500);
 			}
 		},
@@ -957,6 +965,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	// Save on Unmount
 	useEffect(() => {
 		return () => {
+			// If an explicit save is currently in-flight, skip the unmount save to
+			// avoid creating duplicate versions with identical content (e.g. when
+			// navigating away immediately after clicking "Save & Exit").
+			if (isSavingRef.current) {
+				return;
+			}
+
 			// If there are no unsaved changes relative to our last saved snapshot,
 			// don't create another version on unmount.
 			if (!hasUnsavedChanges()) {
