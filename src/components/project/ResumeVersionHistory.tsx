@@ -10,8 +10,9 @@ import {
   AlertCircle,
   GitCompare,
   Loader2,
+  Lock,
 } from "lucide-react";
-import { formatDate, flattenResumeContent, getFieldLabel, stringifyValue } from "../shared/resumeVersionUtils";
+import { formatDate, flattenResumeContent, getFieldLabel, stringifyValue, normalizeValueForComparison, valuesAreEqual } from "../shared/resumeVersionUtils";
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 
 interface ResumeVersionHistoryProps {
@@ -468,6 +469,58 @@ interface ResumeVersionDiffModalProps {
   onClose: () => void;
 }
 
+interface DiffField {
+  fieldId: string;
+  label: string;
+  section: string;
+  before: unknown;
+  after: unknown;
+  beforeLocked?: boolean;
+  afterLocked?: boolean;
+  isTable: boolean;
+}
+
+interface DiffSection {
+  sectionId: string;
+  sectionName: string;
+  fields: DiffField[];
+}
+
+// Section order and display names
+const SECTION_ORDER = [
+  "basic-info",
+  "property-specs",
+  "loan-info",
+  "dev-budget",
+  "financials",
+  "market-context",
+  "special-considerations",
+  "timeline",
+  "site-context",
+  "sponsor-info",
+];
+
+const SECTION_NAMES: Record<string, string> = {
+  "basic-info": "Project Identification & Basic Info",
+  "property-specs": "Property Specifications",
+  "loan-info": "Loan Information",
+  "dev-budget": "Development Budget",
+  "financials": "Financial Details",
+  "market-context": "Market Context",
+  "special-considerations": "Special Considerations",
+  "timeline": "Timeline & Milestones",
+  "site-context": "Site & Context",
+  "sponsor-info": "Sponsor Information",
+};
+
+// Table field IDs that should be handled specially
+const TABLE_FIELDS = new Set([
+  "residentialUnitMix",
+  "commercialSpaceMix",
+  "rentComps",
+  "drawSchedule",
+]);
+
 const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
   versionIdA,
   versionIdB,
@@ -476,9 +529,7 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [diffRows, setDiffRows] = useState<
-    { fieldId: string; label: string; before: string; after: string }[]
-  >([]);
+  const [diffSections, setDiffSections] = useState<DiffSection[]>([]);
   const [title, setTitle] = useState("Comparing versions");
 
   useEffect(() => {
@@ -523,9 +574,11 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
         const leftFlat = flattenResumeContent(left.content);
         const rightFlat = flattenResumeContent(right.content);
 
-        // Only compare fields that are part of the structured project resume
-        // schema. This avoids showing internal/project-level fields like
-        // borrowerProgress or assignedAdvisorUserId in the diff view.
+        // Extract lock states
+        const leftLocked = (left.content as any)?._lockedFields || {};
+        const rightLocked = (right.content as any)?._lockedFields || {};
+
+        // Only compare fields that are part of the structured project resume schema
         const allKeys = Array.from(
           new Set([...Object.keys(leftFlat), ...Object.keys(rightFlat)])
         );
@@ -534,29 +587,80 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
         );
         const keys = allKeys.filter((key) => resumeFieldIds.has(key));
 
-        const rows = keys
-          .map((key) => {
-            const before = stringifyValue(leftFlat[key]);
-            const after = stringifyValue(rightFlat[key]);
-            if (before === after) return null;
-            return {
-              fieldId: key,
-              label: getFieldLabel(key),
-              before,
-              after,
-            };
-          })
-          .filter(Boolean) as {
-          fieldId: string;
-          label: string;
-          before: string;
-          after: string;
-        }[];
+        // Build diff fields
+        const diffFields: DiffField[] = [];
+
+        for (const key of keys) {
+          const beforeValue = leftFlat[key];
+          const afterValue = rightFlat[key];
+
+          // Use proper value comparison to avoid false positives
+          if (valuesAreEqual(beforeValue, afterValue)) {
+            continue;
+          }
+
+          const metadata = projectResumeFieldMetadata[key];
+          const section = metadata?.section || "unknown";
+          const isTable = TABLE_FIELDS.has(key);
+
+          diffFields.push({
+            fieldId: key,
+            label: getFieldLabel(key),
+            section,
+            before: beforeValue,
+            after: afterValue,
+            beforeLocked: leftLocked[key] === true,
+            afterLocked: rightLocked[key] === true,
+            isTable,
+          });
+        }
+
+        // Group by section and sort
+        const sectionsMap = new Map<string, DiffField[]>();
+        for (const field of diffFields) {
+          if (!sectionsMap.has(field.section)) {
+            sectionsMap.set(field.section, []);
+          }
+          sectionsMap.get(field.section)!.push(field);
+        }
+
+        // Create sections in proper order
+        const sections: DiffSection[] = [];
+        for (const sectionId of SECTION_ORDER) {
+          const fields = sectionsMap.get(sectionId);
+          if (fields && fields.length > 0) {
+            // Sort fields within section by their order in metadata
+            const sortedFields = fields.sort((a, b) => {
+              const metaA = projectResumeFieldMetadata[a.fieldId];
+              const metaB = projectResumeFieldMetadata[b.fieldId];
+              // Try to maintain order by comparing field IDs (fallback to label)
+              if (metaA && metaB) {
+                return a.label.localeCompare(b.label);
+              }
+              return a.fieldId.localeCompare(b.fieldId);
+            });
+
+            sections.push({
+              sectionId,
+              sectionName: SECTION_NAMES[sectionId] || sectionId,
+              fields: sortedFields,
+            });
+          }
+        }
+
+        // Add any remaining sections not in the standard order
+        for (const [sectionId, fields] of sectionsMap.entries()) {
+          if (!SECTION_ORDER.includes(sectionId)) {
+            sections.push({
+              sectionId,
+              sectionName: SECTION_NAMES[sectionId] || sectionId,
+              fields: fields.sort((a, b) => a.label.localeCompare(b.label)),
+            });
+          }
+        }
 
         if (!cancelled) {
-          setDiffRows(
-            rows.sort((a, b) => a.label.localeCompare(b.label))
-          );
+          setDiffSections(sections);
         }
       } catch (err) {
         if (!cancelled) {
@@ -596,37 +700,219 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
           <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
         </div>
       ) : (
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-          {diffRows.length === 0 ? (
-            <p className="text-sm text-gray-600">
-              No differences detected between these versions.
-            </p>
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+          {diffSections.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-gray-600">
+                No differences detected between these versions.
+              </p>
+            </div>
           ) : (
-            diffRows.map((row) => (
-              <div key={row.fieldId} className="border-b last:border-b-0 pb-3">
-                <p className="text-xs text-gray-500 uppercase tracking-wide">
-                  {row.label}
-                </p>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="bg-gray-50 border border-gray-200 rounded p-2 text-gray-700">
-                    <p className="text-[10px] text-gray-400 mb-1">Before</p>
-                    <p>{row.before}</p>
-                  </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded p-2 text-gray-700">
-                    <p className="text-[10px] text-gray-400 mb-1">After</p>
-                    <p>{row.after}</p>
-                  </div>
-                </div>
+            diffSections.map((section) => (
+              <div key={section.sectionId} className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                  {section.sectionName}
+                </h3>
+                {section.fields.map((field) => (
+                  <DiffFieldRow key={field.fieldId} field={field} />
+                ))}
               </div>
             ))
           )}
         </div>
       )}
 
-      <div className="mt-6 flex justify-end">
+      <div className="mt-6 flex justify-end border-t border-gray-200 pt-4">
         <Button onClick={onClose}>Close</Button>
       </div>
     </Modal>
+  );
+};
+
+// Component to render a single diff field row
+const DiffFieldRow: React.FC<{ field: DiffField }> = ({ field }) => {
+  const beforeStr = stringifyValue(field.before);
+  const afterStr = stringifyValue(field.after);
+
+  const isRemoved = beforeStr !== "—" && afterStr === "—";
+  const isAdded = beforeStr === "—" && afterStr !== "—";
+  const isModified = !isRemoved && !isAdded;
+
+  // Format table data if needed
+  const formatTableValue = (value: unknown): string => {
+    if (!Array.isArray(value) || value.length === 0) return "—";
+    return `${value.length} row${value.length !== 1 ? "s" : ""}`;
+  };
+
+  const beforeDisplay = field.isTable ? formatTableValue(field.before) : beforeStr;
+  const afterDisplay = field.isTable ? formatTableValue(field.after) : afterStr;
+
+  return (
+    <div className="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors">
+      <div className="flex items-start justify-between mb-2">
+        <p className="text-sm font-medium text-gray-900">{field.label}</p>
+        {(field.beforeLocked || field.afterLocked) && (
+          <div className="flex gap-1 items-center">
+            {field.beforeLocked && (
+              <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded flex items-center gap-1">
+                <Lock className="h-3 w-3" />
+                Version A
+              </span>
+            )}
+            {field.afterLocked && (
+              <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded flex items-center gap-1">
+                <Lock className="h-3 w-3" />
+                Version B
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div
+          className={`rounded-md p-3 border ${
+            isRemoved || isModified
+              ? "bg-red-50 border-red-200"
+              : "bg-gray-50 border-gray-200"
+          }`}
+        >
+          <p className="text-xs font-medium text-gray-500 mb-1">Version A</p>
+          <p
+            className={`text-sm whitespace-pre-wrap break-words ${
+              isRemoved ? "line-through text-red-700" : "text-gray-900"
+            }`}
+          >
+            {beforeDisplay}
+          </p>
+        </div>
+        <div
+          className={`rounded-md p-3 border ${
+            isAdded || isModified
+              ? "bg-green-50 border-green-200"
+              : "bg-gray-50 border-gray-200"
+          }`}
+        >
+          <p className="text-xs font-medium text-gray-500 mb-1">Version B</p>
+          <p
+            className={`text-sm whitespace-pre-wrap break-words ${
+              isAdded ? "text-green-700 font-medium" : "text-gray-900"
+            }`}
+          >
+            {afterDisplay}
+          </p>
+        </div>
+      </div>
+      {field.isTable && (field.before !== null || field.after !== null) && (
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <TableDiffView before={field.before} after={field.after} fieldId={field.fieldId} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Component to show table diffs in detail
+const TableDiffView: React.FC<{
+  before: unknown;
+  after: unknown;
+  fieldId: string;
+}> = ({ before, after }) => {
+  const beforeArray = Array.isArray(before) ? before : [];
+  const afterArray = Array.isArray(after) ? after : [];
+
+  if (beforeArray.length === 0 && afterArray.length === 0) {
+    return null;
+  }
+
+  const rowCountChanged = beforeArray.length !== afterArray.length;
+
+  // Try to detect changes in table structure
+  const beforeKeys = beforeArray.length > 0 && typeof beforeArray[0] === "object" 
+    ? Object.keys(beforeArray[0] as Record<string, unknown>)
+    : [];
+  const afterKeys = afterArray.length > 0 && typeof afterArray[0] === "object"
+    ? Object.keys(afterArray[0] as Record<string, unknown>)
+    : [];
+
+  const keysChanged = JSON.stringify(beforeKeys.sort()) !== JSON.stringify(afterKeys.sort());
+
+  // Simple deep equality check for arrays
+  const arraysEqual = (a: unknown[], b: unknown[]): boolean => {
+    if (a.length !== b.length) return false;
+    try {
+      return JSON.stringify(a) === JSON.stringify(b);
+    } catch {
+      return false;
+    }
+  };
+
+  const hasDataChanges = !arraysEqual(beforeArray, afterArray);
+
+  return (
+    <div className="text-xs space-y-2">
+      <div className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+        <div className="flex gap-4">
+          <div>
+            <span className="font-medium text-gray-700">Version A:</span>{" "}
+            <span className="text-gray-600">{beforeArray.length} row{beforeArray.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div>
+            <span className="font-medium text-gray-700">Version B:</span>{" "}
+            <span className="text-gray-600">{afterArray.length} row{afterArray.length !== 1 ? "s" : ""}</span>
+          </div>
+        </div>
+      </div>
+      
+      {hasDataChanges && (
+        <div className="space-y-1 text-gray-600">
+          {rowCountChanged && (
+            <p className="flex items-center gap-1 text-amber-600">
+              <AlertCircle className="h-3 w-3" />
+              Row count changed ({beforeArray.length} → {afterArray.length})
+            </p>
+          )}
+          {keysChanged && !rowCountChanged && (
+            <p className="flex items-center gap-1 text-amber-600">
+              <AlertCircle className="h-3 w-3" />
+              Table structure changed
+            </p>
+          )}
+          {!rowCountChanged && !keysChanged && (
+            <p className="flex items-center gap-1 text-blue-600">
+              <GitCompare className="h-3 w-3" />
+              Data values changed in table
+            </p>
+          )}
+        </div>
+      )}
+      
+      {/* Show preview of first few rows if small */}
+      {beforeArray.length <= 3 && afterArray.length <= 3 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-gray-600 hover:text-gray-900 text-xs font-medium">
+            View table data
+          </summary>
+          <div className="mt-2 space-y-2">
+            {beforeArray.length > 0 && (
+              <div className="p-2 bg-red-50 border border-red-200 rounded">
+                <p className="text-xs font-medium text-red-700 mb-1">Version A:</p>
+                <pre className="text-xs text-gray-700 whitespace-pre-wrap overflow-x-auto">
+                  {JSON.stringify(beforeArray, null, 2)}
+                </pre>
+              </div>
+            )}
+            {afterArray.length > 0 && (
+              <div className="p-2 bg-green-50 border border-green-200 rounded">
+                <p className="text-xs font-medium text-green-700 mb-1">Version B:</p>
+                <pre className="text-xs text-gray-700 whitespace-pre-wrap overflow-x-auto">
+                  {JSON.stringify(afterArray, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </details>
+      )}
+    </div>
   );
 };
 
