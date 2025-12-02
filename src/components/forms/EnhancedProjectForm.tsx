@@ -1638,14 +1638,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								</h3>
 							</div>
 							<div className="flex items-center gap-2">
-								<button
-									type="button"
+								<div
 									onClick={(e) => {
 										e.stopPropagation();
 										toggleSubsectionLock(allFieldIds);
 									}}
 									className={cn(
-										"flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
+										"flex cursor-pointer items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
 										subsectionLocked
 											? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
 											: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
@@ -1667,7 +1666,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											<span>Lock</span>
 										</>
 									)}
-								</button>
+								</div>
 								{showComplete && (
 									<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
 										Complete
@@ -3301,11 +3300,39 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const wrappedHandleAutofill = useCallback(async () => {
 		try {
+			// Before triggering autofill, persist the latest lock state (and any
+			// current form values) so the backend can respect locked fields.
+			// We update the existing resume in place (no new version); the
+			// autofill pipeline will create a new version only if it detects
+			// actual changes.
+			const lockedFieldsObj: Record<string, boolean> = {};
+			lockedFields.forEach((id) => {
+				lockedFieldsObj[id] = true;
+			});
+
+			const dataToSave: ProjectProfile = {
+				...formData,
+				_metadata: fieldMetadata,
+				_lockedFields: lockedFieldsObj,
+			};
+
+			try {
+				await saveProjectResume(dataToSave.id, dataToSave, {
+					createNewVersion: false,
+				});
+			} catch (saveErr) {
+				// Log but don't block autofill – better to proceed than silently fail.
+				console.error(
+					"[EnhancedProjectForm] Failed to persist locks before autofill:",
+					saveErr
+				);
+			}
+
 			await startAutofill();
 		} catch (err) {
 			console.error("Autofill failed:", err);
 		}
-	}, [startAutofill]);
+	}, [startAutofill, formData, fieldMetadata, lockedFields]);
 
 	return (
 		<div

@@ -257,105 +257,76 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [projectId, setActiveProject, loadUserProjects, getProject]);
 
   // useEffect for loading and setting active project
+  // Always fetch the latest project + resume snapshot for this workspace on mount
+  // so that users never see stale resume content after background saves.
   useEffect(() => {
     const loadProjectData = async () => {
       if (!projectId) return;
 
-      // Don't proceed if still in initial loading phase
-      // Use the stricter check here to ensure we don't race
-      if (authLoading || (projectsLoading && !activeProject)) {
+      // Avoid running while auth is still resolving
+      if (authLoading) {
         return;
       }
 
-      // Only check for project existence after initial loading is complete
-      if (!activeProject || activeProject.id !== projectId) {
-        let projectData = getProject(projectId);
-        
-        // If project not in store, try loading all user projects first
-        if (!projectData) {
-          console.log(`[ProjectWorkspace] Project ${projectId} not in store, loading user projects...`);
+      try {
+        // Always fetch a fresh project with its current resume version
+        const fetchedProject = await getProjectWithResume(projectId);
+
+        // Also fetch resources for the project so we can attach IDs needed by other components
+        const { data: resourcesData } = await supabase
+          .from("resources")
+          .select("id, resource_type")
+          .eq("project_id", projectId);
+
+        const projectDocsResource = resourcesData?.find(
+          (r: any) => r.resource_type === "PROJECT_DOCS_ROOT"
+        );
+        const projectResumeResource = resourcesData?.find(
+          (r: any) => r.resource_type === "PROJECT_RESUME"
+        );
+
+        const projectWithResources = {
+          ...fetchedProject,
+          projectDocsResourceId: projectDocsResource?.id || null,
+          projectResumeResourceId:
+            projectResumeResource?.id ||
+            fetchedProject.projectResumeResourceId ||
+            null,
+        };
+
+        // Update active project for this workspace
+        setActiveProject(projectWithResources);
+
+        // Keep the project list in sync so other views see the same data
+        const { projects } = useProjectStore.getState();
+        if (!projects.find((p) => p.id === projectId)) {
+          useProjectStore.setState({
+            projects: [...projects, projectWithResources],
+          });
+        }
+
+        // Load org data for permission checks (skip for advisors)
+        if (projectWithResources.owner_org_id && user?.role !== "advisor") {
           try {
-            await loadUserProjects();
-            projectData = getProject(projectId);
+            await loadOrg(projectWithResources.owner_org_id);
           } catch (error) {
-            console.error("[ProjectWorkspace] Failed to load user projects:", error);
+            console.warn(
+              `[ProjectWorkspace] Failed to load org (non-fatal):`,
+              error
+            );
           }
         }
-
-        // If still not found, try fetching directly from database
-        if (!projectData) {
-          console.log(`[ProjectWorkspace] Project ${projectId} still not found, fetching directly...`);
-          try {
-            const fetchedProject = await getProjectWithResume(projectId);
-            
-            // Also fetch resources for the project
-            const { data: resourcesData } = await supabase
-              .from("resources")
-              .select("id, resource_type")
-              .eq("project_id", projectId);
-            
-            const projectDocsResource = resourcesData?.find((r: any) => r.resource_type === 'PROJECT_DOCS_ROOT');
-            const projectResumeResource = resourcesData?.find((r: any) => r.resource_type === 'PROJECT_RESUME');
-            
-            // Add resource IDs to the project
-            const projectWithResources = {
-              ...fetchedProject,
-              projectDocsResourceId: projectDocsResource?.id || null,
-              projectResumeResourceId: projectResumeResource?.id || fetchedProject.projectResumeResourceId || null,
-            };
-            
-            // Add the project to the store so it's available for other components
-            const { projects } = useProjectStore.getState();
-            // Only add if not already in the store
-            if (!projects.find((p) => p.id === projectId)) {
-              useProjectStore.setState({
-                projects: [...projects, projectWithResources],
-              });
-            }
-            
-            projectData = projectWithResources;
-            console.log(`[ProjectWorkspace] Successfully fetched and added project ${projectId} to store`);
-          } catch (error) {
-            console.error(`[ProjectWorkspace] Failed to fetch project ${projectId}:`, error);
-            // Only redirect if we're confident the project doesn't exist
-            router.push("/dashboard");
-            return;
-          }
-        }
-
-        if (projectData) {
-          setActiveProject(projectData);
-
-          // Load org data for permission checks (skip for advisors)
-          if (projectData.owner_org_id && user?.role !== "advisor") {
-            try {
-              await loadOrg(projectData.owner_org_id);
-            } catch (error) {
-              // Log but don't throw - org loading is optional for some users
-              console.warn(`[ProjectWorkspace] Failed to load org (non-fatal):`, error);
-            }
-          }
-        } else {
-          // Only show error if we're confident the project doesn't exist
-          console.error(`Project ${projectId} not found.`);
-          router.push("/dashboard");
-        }
+      } catch (error) {
+        console.error(
+          `[ProjectWorkspace] Failed to fetch project ${projectId}:`,
+          error
+        );
+        router.push("/dashboard");
       }
     };
 
     loadProjectData();
-  }, [
-    projectId,
-    activeProject,
-    setActiveProject,
-    getProject,
-    authLoading,
-    projectsLoading,
-    router,
-    loadOrg,
-    loadUserProjects,
-    user?.role,
-  ]);
+  }, [projectId, authLoading, setActiveProject, router, loadOrg, user?.role]);
 
   // Subscribe to realtime changes for project resume
   useEffect(() => {
