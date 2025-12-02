@@ -167,9 +167,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const { isAutofilling, handleAutofill } = useAutofill(projectId, { projectAddress });
 
   // Calculate if we're still in initial loading phase
-  const isInitialLoading =
-    authLoading ||
-    projectsLoading;
+  // We only show full loader if we don't have the project data yet
+  // If we have data and are just refreshing, we keep the UI mounted
+  const hasActiveProject = activeProject && activeProject.id === projectId;
+  // Show loader only if we are loading AND we don't have the project data yet
+  const shouldShowLoader = (authLoading || projectsLoading) && !hasActiveProject;
 
   useEffect(() => {
     if (borrowerResumeData) {
@@ -260,7 +262,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       if (!projectId) return;
 
       // Don't proceed if still in initial loading phase
-      if (isInitialLoading) {
+      // Use the stricter check here to ensure we don't race
+      if (authLoading || (projectsLoading && !activeProject)) {
         return;
       }
 
@@ -346,7 +349,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     activeProject,
     setActiveProject,
     getProject,
-    isInitialLoading,
+    authLoading,
+    projectsLoading,
     router,
     loadOrg,
     loadUserProjects,
@@ -418,7 +422,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }, [projectId, user?.id, isEditing, activeProject?.id, setActiveProject, loadUserProjects]);
 
   // Loading state render - show loading during initial loading or if project doesn't match
-  if (isInitialLoading || !activeProject || activeProject.id !== projectId) {
+  if (shouldShowLoader || !activeProject || activeProject.id !== projectId) {
     return (
       <div className="flex justify-center items-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

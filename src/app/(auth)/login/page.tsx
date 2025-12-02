@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../hooks/useAuth";
 
 import AuthLayout from "../../../components/layout/AuthLayout";
@@ -154,6 +154,29 @@ const LoginForm = () => {
 
 // Main page component with Suspense boundary
 export default function LoginPage() {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  // If a user is already authenticated (including after Google OAuth redirect),
+  // immediately send them to the correct dashboard based on their role.
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || !user) return;
+
+    switch (user.role) {
+      case "borrower":
+        router.replace("/dashboard");
+        break;
+      case "advisor":
+        router.replace("/advisor/dashboard");
+        break;
+      case "lender":
+        router.replace("/lender/dashboard");
+        break;
+      default:
+        router.replace("/dashboard");
+    }
+  }, [isLoading, isAuthenticated, user, router]);
+
   return (
     <AuthLayout>
       <Suspense
