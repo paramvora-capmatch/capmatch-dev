@@ -231,16 +231,6 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Text",
 		section: "basic-info",
 	},
-	prepaymentPremium: {
-		fieldId: "prepaymentPremium",
-		description: "Prepayment penalty or yield maintenance structure.",
-		primarySource: "Document (Term Sheet)",
-		backupSource: "User Input",
-		expectedValue: "Yield Maint, Defeasance, Step-down, Open",
-		fieldType: "direct",
-		dataType: "Dropdown",
-		section: "basic-info",
-	},
 	expectedHoldPeriod: {
 		fieldId: "expectedHoldPeriod",
 		description: "Anticipated holding period for the asset in years.",
@@ -269,16 +259,6 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		expectedValue: "First-Time, Emerging (1-3), Seasoned (3+)",
 		fieldType: "direct",
 		dataType: "Dropdown",
-		section: "basic-info",
-	},
-	borrowerNetWorth: {
-		fieldId: "borrowerNetWorth",
-		description: "Combined net worth of the borrowing entity/guarantors.",
-		primarySource: "Document (Personal FS)",
-		backupSource: "User Input",
-		expectedValue: "Currency, e.g., $45,000,000",
-		fieldType: "direct",
-		dataType: "Currency",
 		section: "basic-info",
 	},
 	ltvStressMax: {
@@ -842,16 +822,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Currency",
 		section: "financial-details",
 	},
-	seniorLoanAmount: {
-		fieldId: "seniorLoanAmount",
-		description: "Amount of senior debt in the capital stack.",
-		primarySource: "Document (Sources & Uses)",
-		backupSource: "User Input",
-		expectedValue: "Currency, e.g., $18,000,000",
-		fieldType: "direct",
-		dataType: "Currency",
-		section: "financial-details",
-	},
+
 	sponsorEquity: {
 		fieldId: "sponsorEquity",
 		description: "Equity contributed by the sponsor.",
@@ -882,16 +853,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Percent",
 		section: "loan-terms",
 	},
-	amortization: {
-		fieldId: "amortization",
-		description: "Amortization structure (IO, 30yr, etc.).",
-		primarySource: "Document (Term Sheet)",
-		backupSource: "User Input",
-		expectedValue: "IO, 30yr, 25yr",
-		fieldType: "direct",
-		dataType: "Dropdown",
-		section: "loan-terms",
-	},
+
 	prepaymentTerms: {
 		fieldId: "prepaymentTerms",
 		description: "Terms governing loan prepayment penalties.",
@@ -902,16 +864,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Text",
 		section: "loan-terms",
 	},
-	recourse: {
-		fieldId: "recourse",
-		description: "Recourse level required.",
-		primarySource: "Document (Term Sheet)",
-		backupSource: "User Input",
-		expectedValue: "Full, Partial, Non",
-		fieldType: "direct",
-		dataType: "Dropdown",
-		section: "loan-terms",
-	},
+
 	permTakeoutPlanned: {
 		fieldId: "permTakeoutPlanned",
 		description: "Is permanent financing takeout planned?",
@@ -1774,16 +1727,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Integer",
 		section: "timeline",
 	},
-	substantialComp: {
-		fieldId: "substantialComp",
-		description: "Date of substantial completion.",
-		primarySource: "Document (Schedule)",
-		backupSource: "User Input",
-		expectedValue: "Date, e.g., 2027-08-15",
-		fieldType: "direct",
-		dataType: "Date",
-		section: "timeline",
-	},
+
 	drawSchedule: {
 		fieldId: "drawSchedule",
 		description: "Construction draw schedule.",
@@ -2260,6 +2204,20 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		section: "financials",
 	},
 
+	// Residential Unit Mix Table (container)
+	residentialUnitMix: {
+		fieldId: "residentialUnitMix",
+		description:
+			"Breakdown of residential unit types, counts, sizes, and rents.",
+		primarySource: "Document (Arch Plans / Rent Roll)",
+		backupSource: "User Input",
+		expectedValue:
+			"Array of rows with unitType, unitCount, avgSF, monthlyRent, totalSF",
+		fieldType: "direct",
+		dataType: "Table",
+		section: "property-specs",
+	},
+
 	// Residential Unit Mix Table - Column Fields
 	unitType: {
 		fieldId: "unitType",
@@ -2332,6 +2290,20 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		section: "property-specs",
 	},
 
+	// Commercial Space Mix Table (container)
+	commercialSpaceMix: {
+		fieldId: "commercialSpaceMix",
+		description:
+			"Breakdown of commercial space types, square footage, tenants, lease terms and rents.",
+		primarySource: "Document (Arch Plans / Lease Agmts)",
+		backupSource: "User Input",
+		expectedValue:
+			"Array of rows with spaceType, squareFootage, tenant, leaseTerm, annualRent",
+		fieldType: "direct",
+		dataType: "Table",
+		section: "property-specs",
+	},
+
 	// Commercial Space Mix Table - Column Fields
 	spaceType: {
 		fieldId: "spaceType",
@@ -2392,6 +2364,20 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		fieldType: "direct",
 		dataType: "Currency",
 		section: "property-specs",
+	},
+
+	// Rent Comps Table (container)
+	rentComps: {
+		fieldId: "rentComps",
+		description:
+			"Comparable rent properties used to benchmark subject rents.",
+		primarySource: "Document (Market Study)",
+		backupSource: "External (CoStar)",
+		expectedValue:
+			"Array of rows with propertyName, address, distance, yearBuilt, totalUnits, occupancyPercent, avgRentMonth, rentPSF",
+		fieldType: "direct",
+		dataType: "Table",
+		section: "market-context",
 	},
 
 	// Rent Comps Table - Column Fields

@@ -109,7 +109,6 @@ export interface ProjectResumeContent {
 	enviroRemediation?: number; // Environmental remediation
 
 	// Section 3.2: Sources of Funds
-	seniorLoanAmount?: number;
 	sponsorEquity?: number;
 	taxCreditEquity?: number;
 	gapFinancing?: number; // e.g., TIF grants
@@ -117,9 +116,7 @@ export interface ProjectResumeContent {
 	// Section 3.3: Loan Terms
 	interestRate?: number; // Percentage
 	underwritingRate?: number; // Percentage
-	amortization?: string; // IO, 30yr, 25yr
 	prepaymentTerms?: string;
-	recourse?: string; // Full, Partial, Non
 	permTakeoutPlanned?: boolean;
 	allInRate?: number; // Percentage - includes origination/MIP
 
@@ -235,7 +232,6 @@ export interface ProjectResumeContent {
 	finalPlans?: string; // Approved/Pending
 	permitsIssued?: string; // Issued/Pending
 	verticalStart?: string; // Date
-	substantialComp?: string; // Date
 	firstOccupancy?: string; // Date
 	stabilization?: string; // Date
 	preLeasedSF?: number;

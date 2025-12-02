@@ -158,7 +158,6 @@
           "id": "sources-of-funds",
           "title": "3.2 Sources of Funds",
           "fields": [
-            "seniorLoanAmount",
             "sponsorEquity",
             "taxCreditEquity",
             "gapFinancing"
@@ -171,16 +170,13 @@
             "loanAmountRequested",
             "loanType",
             "requestedTerm",
-            "amortization",
             "amortizationYears",
             "interestRate",
             "underwritingRate",
             "interestRateType",
             "targetLtvPercent",
             "targetLtcPercent",
-            "prepaymentPremium",
             "prepaymentTerms",
-            "recourse",
             "recoursePreference",
             "permTakeoutPlanned",
             "allInRate",
@@ -251,23 +247,19 @@
         "syndicationCosts",
         "enviroRemediation",
         "pfcStructuringFee",
-        "seniorLoanAmount",
         "sponsorEquity",
         "taxCreditEquity",
         "gapFinancing",
         "loanAmountRequested",
         "loanType",
         "requestedTerm",
-        "amortization",
         "amortizationYears",
         "interestRate",
         "underwritingRate",
         "interestRateType",
         "targetLtvPercent",
         "targetLtcPercent",
-        "prepaymentPremium",
         "prepaymentTerms",
-        "recourse",
         "recoursePreference",
         "permTakeoutPlanned",
         "allInRate",
@@ -433,7 +425,6 @@
             "landAcqClose",
             "groundbreakingDate",
             "verticalStart",
-            "substantialComp",
             "firstOccupancy",
             "stabilization",
             "completionDate"
@@ -462,7 +453,6 @@
         "landAcqClose",
         "groundbreakingDate",
         "verticalStart",
-        "substantialComp",
         "firstOccupancy",
         "stabilization",
         "completionDate",
@@ -581,7 +571,6 @@
           "id": "financial-strength",
           "title": "8.3 Financial Strength",
           "fields": [
-            "borrowerNetWorth",
             "netWorth",
             "guarantorLiquidity"
           ]
@@ -597,7 +586,6 @@
         "sponsorExpScore",
         "priorDevelopments",
         "portfolioDSCR",
-        "borrowerNetWorth",
         "netWorth",
         "guarantorLiquidity"
       ]
@@ -1032,10 +1020,6 @@
       "label": "PFC/Structure Fee",
       "required": false
     },
-    "seniorLoanAmount": {
-      "label": "Senior Loan Amount",
-      "required": true
-    },
     "sponsorEquity": {
       "label": "Sponsor Equity",
       "required": true
@@ -1056,17 +1040,9 @@
       "label": "Underwriting Rate",
       "required": true
     },
-    "amortization": {
-      "label": "Amortization",
-      "required": true
-    },
     "prepaymentTerms": {
       "label": "Prepayment Terms",
       "required": false
-    },
-    "recourse": {
-      "label": "Recourse",
-      "required": true
     },
     "permTakeoutPlanned": {
       "label": "Perm Takeout Planned",
@@ -1370,10 +1346,6 @@
     },
     "sponsorExperience": {
       "label": "Sponsor Experience",
-      "required": true
-    },
-    "borrowerNetWorth": {
-      "label": "Borrower Net Worth",
       "required": true
     },
     "sponsorExpScore": {

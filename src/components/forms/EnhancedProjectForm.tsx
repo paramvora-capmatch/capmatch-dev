@@ -181,14 +181,6 @@ const STATE_REVERSE_MAP: Record<string, string> = Object.fromEntries(
 const stateOptionsFullNames = Object.values(STATE_MAP).sort();
 
 // Dropdown field options
-const amortizationOptions = ["IO", "30yr", "25yr"];
-const recourseFieldOptions = ["Full", "Partial", "Non"]; // For 'recourse' field (different from recoursePreference)
-const prepaymentPremiumOptions = [
-	"Yield Maint",
-	"Defeasance",
-	"Step-down",
-	"Open",
-];
 const dealStatusOptions = [
 	"Inquiry",
 	"Underwriting",
@@ -261,9 +253,7 @@ const isProjectValueProvided = (value: unknown): boolean => {
 // Sanitize incoming ProjectProfile / metadata so obviously wrong legacy values
 // (e.g. boolean `true` where dataType is Integer/Percent/Text) are nulled out
 // before they ever hit the form state or get written back to the DB again.
-const sanitizeProjectProfile = (
-	profile: ProjectProfile
-): ProjectProfile => {
+const sanitizeProjectProfile = (profile: ProjectProfile): ProjectProfile => {
 	const next: any = { ...profile };
 
 	// Fix flat field values
@@ -395,12 +385,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const sectionFieldIds = Object.keys(FIELD_TO_SECTION).filter(
 				(fieldId) => FIELD_TO_SECTION[fieldId] === sectionId
 			);
-			
+
 			if (sectionFieldIds.length === 0) return false;
-			
+
 			// Check if all fields in section are locked (and not explicitly unlocked)
 			return sectionFieldIds.every(
-				(fieldId) => !unlockedFields.has(fieldId) && lockedFields.has(fieldId)
+				(fieldId) =>
+					!unlockedFields.has(fieldId) && lockedFields.has(fieldId)
 			);
 		},
 		[lockedFields, unlockedFields]
@@ -459,34 +450,37 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[unlockedFields, lockedFields]
 	);
 
-	const toggleSectionLock = useCallback((sectionId: string) => {
-		// Get all fields in this section
-		const sectionFieldIds = Object.keys(FIELD_TO_SECTION).filter(
-			(fieldId) => FIELD_TO_SECTION[fieldId] === sectionId
-		);
-		
-		const isCurrentlyFullyLocked = isSectionFullyLocked(sectionId);
-		
-		// Lock or unlock all fields in the section
-		setLockedFields((prev) => {
-			const next = new Set(prev);
-			sectionFieldIds.forEach((fieldId) => {
-				if (isCurrentlyFullyLocked) {
-					next.delete(fieldId);
-				} else {
-					next.add(fieldId);
-				}
+	const toggleSectionLock = useCallback(
+		(sectionId: string) => {
+			// Get all fields in this section
+			const sectionFieldIds = Object.keys(FIELD_TO_SECTION).filter(
+				(fieldId) => FIELD_TO_SECTION[fieldId] === sectionId
+			);
+
+			const isCurrentlyFullyLocked = isSectionFullyLocked(sectionId);
+
+			// Lock or unlock all fields in the section
+			setLockedFields((prev) => {
+				const next = new Set(prev);
+				sectionFieldIds.forEach((fieldId) => {
+					if (isCurrentlyFullyLocked) {
+						next.delete(fieldId);
+					} else {
+						next.add(fieldId);
+					}
+				});
+				return next;
 			});
-			return next;
-		});
-		
-		// Clear unlocked fields for this section when toggling
-		setUnlockedFields((prev) => {
-			const next = new Set(prev);
-			sectionFieldIds.forEach((fieldId) => next.delete(fieldId));
-			return next;
-		});
-	}, [isSectionFullyLocked]);
+
+			// Clear unlocked fields for this section when toggling
+			setUnlockedFields((prev) => {
+				const next = new Set(prev);
+				sectionFieldIds.forEach((fieldId) => next.delete(fieldId));
+				return next;
+			});
+		},
+		[isSectionFullyLocked]
+	);
 
 	// Styling Logic:
 	// White: Empty
@@ -838,9 +832,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			exitStrategy: "button-select",
 			// Convert all dropdown fields to button-select (except state which stays as dropdown)
 			primaryAssetClass: "button-select",
-			amortization: "button-select",
-			recourse: "button-select",
-			prepaymentPremium: "button-select",
 			dealStatus: "button-select",
 			expectedZoningChanges: "button-select",
 			syndicationStatus: "button-select",
@@ -874,9 +865,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			exitStrategy: exitStrategyOptions,
 			// Dropdown field options
 			primaryAssetClass: primaryAssetClassOptions,
-			amortization: amortizationOptions,
-			recourse: recourseFieldOptions,
-			prepaymentPremium: prepaymentPremiumOptions,
 			dealStatus: dealStatusOptions,
 			expectedZoningChanges: expectedZoningChangesOptions,
 			syndicationStatus: syndicationStatusOptions,
@@ -916,6 +904,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					return "number";
 				case "date":
 					return "input";
+				case "table":
+					return "textarea";
 				default:
 					return "input";
 			}
@@ -955,7 +945,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			// However, locked fields (Green) should probably be editable ONLY after unlocking.
 			const isLocked = isFieldLocked(fieldId, sectionId);
 			// We allow editing if unlocked. If locked, user must click unlock icon first.
-			// So 'disabled' = isLocked.
 			const disabled = isLocked;
 
 			const value = (formData as any)[fieldId] ?? "";
@@ -976,18 +965,41 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 			const renderControl = () => {
 				if (controlKind === "textarea") {
+					const displayValue =
+						typeof value === "object" && value !== null
+							? JSON.stringify(value, null, 2)
+							: value;
+
+					const handleTextareaChange = (
+						e: React.ChangeEvent<HTMLTextAreaElement>
+					) => {
+						const val = e.target.value;
+						if (dataType === "Table") {
+							try {
+								const parsed = JSON.parse(val);
+								handleInputChange(fieldId, parsed);
+							} catch {
+								handleInputChange(fieldId, val);
+							}
+						} else {
+							handleInputChange(fieldId, val);
+						}
+					};
+
 					return (
 						<textarea
 							id={fieldId}
-							value={value ?? ""}
-							onChange={(e) =>
-								handleInputChange(fieldId, e.target.value)
-							}
+							value={displayValue ?? ""}
+							onChange={handleTextareaChange}
 							disabled={disabled}
-							className={cn(commonClassName, "h-24")}
+							className={cn(
+								commonClassName,
+								"h-24 font-mono text-xs"
+							)}
 							data-field-id={fieldId}
 							data-field-type="textarea"
 							data-field-section={sectionId}
+							data-field-label={label}
 						/>
 					);
 				}
@@ -996,10 +1008,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					let options = fieldOptionsRegistry[fieldId] ?? [];
 
 					// Default options for Boolean fields if not in registry
-					if (options.length === 0 && dataType === 'Boolean') {
+					if (options.length === 0 && dataType === "Boolean") {
 						options = [
-							{ label: 'Yes', value: true },
-							{ label: 'No', value: false }
+							{ label: "Yes", value: true },
+							{ label: "No", value: false },
 						];
 					}
 
@@ -1008,6 +1020,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							data-field-id={fieldId}
 							data-field-type="button-select"
 							data-field-section={sectionId}
+							data-field-label={label}
 							className="relative group/field"
 						>
 							<ButtonSelect
@@ -1063,6 +1076,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								data-field-id={fieldId}
 								data-field-type="select"
 								data-field-section={sectionId}
+								data-field-label={label}
 							/>
 						);
 					}
@@ -1087,6 +1101,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							data-field-id={fieldId}
 							data-field-type="select"
 							data-field-section={sectionId}
+							data-field-label={label}
 						/>
 					);
 				}
@@ -1127,6 +1142,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						data-field-id={fieldId}
 						data-field-type={inputType}
 						data-field-section={sectionId}
+						data-field-label={label}
 					/>
 				);
 			};
@@ -1166,9 +1182,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		new Set()
 	);
 
-	const [manuallyToggledSubsections, setManuallyToggledSubsections] = useState<Set<string>>(
-		new Set()
-	);
+	const [manuallyToggledSubsections, setManuallyToggledSubsections] =
+		useState<Set<string>>(new Set());
 
 	const toggleSubsection = useCallback((subsectionKey: string) => {
 		setManuallyToggledSubsections((prev) => {
@@ -1212,7 +1227,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					isBlue: isFieldBlue(fieldId, sectionId),
 					isGreen: isFieldGreen(fieldId, sectionId),
 					isWhite: isFieldWhite(fieldId, sectionId),
-					hasValue: isProjectValueProvided((formData as any)[fieldId]),
+					hasValue: isProjectValueProvided(
+						(formData as any)[fieldId]
+					),
 					isLocked: isFieldLocked(fieldId, sectionId),
 				}));
 
@@ -1221,10 +1238,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					fieldIds.length > 0 &&
 					fieldStates.every(
 						(s) =>
-							s.isGreen &&
-							!s.isBlue &&
-							!s.isWhite &&
-							s.isLocked
+							s.isGreen && !s.isBlue && !s.isWhite && s.isLocked
 					);
 				const allWhite =
 					fieldIds.length > 0 &&
@@ -1264,6 +1278,40 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isFieldWhite,
 		manuallyToggledSubsections,
 	]);
+
+	// Helper to get blue/green/white styling for complex table wrappers (arrays like unit mix, rent comps, etc.)
+	const getTableWrapperClasses = useCallback(
+		(fieldId: string, sectionId: string) => {
+			const value = (formData as any)[fieldId];
+			const hasValue = isProjectValueProvided(
+				Array.isArray(value) ? value : value ?? null
+			);
+			const locked = isFieldLocked(fieldId, sectionId);
+
+			const base =
+				"w-full border rounded-md text-sm transition-colors duration-200";
+
+			if (!hasValue) {
+				return cn(
+					base,
+					"border-gray-200 bg-white hover:border-gray-300"
+				);
+			}
+
+			if (locked) {
+				return cn(
+					base,
+					"border-emerald-500 bg-emerald-50 hover:border-emerald-600"
+				);
+			}
+
+			return cn(
+				base,
+				"border-blue-600 bg-blue-50 hover:border-blue-700"
+			);
+		},
+		[formData, isFieldLocked]
+	);
 
 	const steps: Step[] = useMemo(() => {
 		const schemaSteps: any[] = (formSchema as any).steps || [];
@@ -1308,7 +1356,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				const allWhite =
 					fieldStates.length > 0 &&
 					fieldStates.every(
-						(state) => state.isWhite && !state.isBlue && !state.isGreen
+						(state) =>
+							state.isWhite && !state.isBlue && !state.isGreen
 					);
 				const hasBlue = fieldStates.some((state) => state.isBlue);
 
@@ -1354,12 +1403,1479 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							</div>
 						</button>
 						{isExpanded && (
-							<div className="p-3 pt-0">
+							<div className="p-3 pt-0 space-y-4">
 								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-									{allFieldIds.map((fieldId) =>
-										renderDynamicField(fieldId, sectionId)
-									)}
+									{allFieldIds
+										// drawSchedule is rendered as a structured table below
+										.filter(
+											(fieldId) =>
+												!(
+													sectionId === "timeline" &&
+													fieldId === "drawSchedule"
+												)
+										)
+										.map((fieldId) =>
+											renderDynamicField(fieldId, sectionId)
+										)}
 								</div>
+
+								{/* Section-specific tables in edit mode */}
+								{sectionId === "property-specs" &&
+									subsectionId === "physical-structure" && (
+										<>
+											{/* Residential Unit Mix */}
+											<div
+												className={cn(
+													getTableWrapperClasses(
+														"residentialUnitMix",
+														sectionId
+													),
+													"p-4"
+												)}
+											>
+												<div className="mb-3 flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+															Residential Unit Mix
+														</h4>
+														<FieldHelpTooltip
+															fieldId="residentialUnitMix"
+															fieldMetadata={
+																fieldMetadata[
+																	"residentialUnitMix"
+																]
+															}
+														/>
+													</div>
+													<div className="flex items-center gap-1">
+														{renderFieldLockButton(
+															"residentialUnitMix",
+															sectionId
+														)}
+													</div>
+												</div>
+												<div className="overflow-x-auto">
+													<table className="min-w-full divide-y divide-gray-200 text-sm">
+														<thead className="bg-gray-50">
+															<tr>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Unit Type
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Count
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Avg SF
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Monthly Rent
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Total SF
+																</th>
+															</tr>
+														</thead>
+														<tbody className="bg-white divide-y divide-gray-100">
+															{(() => {
+																const value =
+																	(formData as any)
+																		.residentialUnitMix;
+																const rows: any[] =
+																	Array.isArray(
+																		value
+																	)
+																		? value
+																		: [];
+																const isLocked =
+																	isFieldLocked(
+																		"residentialUnitMix",
+																		sectionId
+																	);
+
+																const handleRowChange =
+																	(
+																		index: number,
+																		key:
+																			| "unitType"
+																			| "unitCount"
+																			| "avgSF"
+																			| "monthlyRent"
+																			| "totalSF",
+																		raw: string
+																	) => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		const current =
+																			next[
+																				index
+																			] ||
+																			{};
+																		let v: any =
+																			raw;
+																		if (
+																			[
+																				"unitCount",
+																				"avgSF",
+																				"monthlyRent",
+																				"totalSF",
+																			].includes(
+																				key
+																			)
+																		) {
+																			v =
+																				raw.trim() ===
+																				""
+																					? undefined
+																					: Number(
+																							raw
+																					  );
+																			if (
+																				Number.isNaN(
+																					v
+																				)
+																			) {
+																				v =
+																					undefined;
+																			}
+																		}
+																		next[
+																			index
+																		] = {
+																			...current,
+																			[
+																				key
+																			]:
+																				v,
+																		};
+																		handleInputChange(
+																			"residentialUnitMix",
+																			next
+																		);
+																	};
+
+																const handleAddRow =
+																	() => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		next.push(
+																			{
+																				unitType:
+																					"",
+																				unitCount:
+																					undefined,
+																				avgSF: undefined,
+																				monthlyRent:
+																					undefined,
+																				totalSF:
+																					undefined,
+																			}
+																		);
+																		handleInputChange(
+																			"residentialUnitMix",
+																			next
+																		);
+																	};
+
+																const handleRemoveRow =
+																	(
+																		index: number
+																	) => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		next.splice(
+																			index,
+																			1
+																		);
+																		handleInputChange(
+																			"residentialUnitMix",
+																			next
+																		);
+																	};
+
+																const displayRows =
+																	rows.length >
+																	0
+																		? rows
+																		: [{}];
+
+																return (
+																	<>
+																		{displayRows.map(
+																			(
+																				row,
+																				idx
+																			) => (
+																				<tr key={idx}>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="text"
+																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.unitType ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"unitType",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="number"
+																							min={0}
+																							className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.unitCount ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"unitCount",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="number"
+																							min={0}
+																							className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.avgSF ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"avgSF",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="number"
+																							min={0}
+																							className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.monthlyRent ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"monthlyRent",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="number"
+																							min={0}
+																							className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.totalSF ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"totalSF",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 text-right align-middle">
+																						<Button
+																							type="button"
+																							variant="ghost"
+																							size="xs"
+																							onClick={() =>
+																								handleRemoveRow(
+																									idx
+																								)
+																							}
+																							disabled={
+																								isLocked ||
+																								rows.length <=
+																									1
+																							}
+																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																						>
+																							Remove
+																						</Button>
+																					</td>
+																				</tr>
+																			)
+																		)}
+																		<tr>
+																			<td colSpan={6} className="px-3 pt-3">
+																				<Button
+																					type="button"
+																					variant="outline"
+																					size="xs"
+																					onClick={
+																						handleAddRow
+																					}
+																					disabled={
+																						isLocked
+																					}
+																					className="text-xs px-3 py-1"
+																				>
+																					Add Row
+																				</Button>
+																			</td>
+																		</tr>
+																	</>
+																);
+															})()}
+														</tbody>
+													</table>
+												</div>
+											</div>
+
+											{/* Commercial Space Mix */}
+											<div
+												className={cn(
+													getTableWrapperClasses(
+														"commercialSpaceMix",
+														sectionId
+													),
+													"p-4"
+												)}
+											>
+												<div className="mb-3 flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+															Commercial Space Mix
+														</h4>
+														<FieldHelpTooltip
+															fieldId="commercialSpaceMix"
+															fieldMetadata={
+																fieldMetadata[
+																	"commercialSpaceMix"
+																]
+															}
+														/>
+													</div>
+													<div className="flex items-center gap-1">
+														{renderFieldLockButton(
+															"commercialSpaceMix",
+															sectionId
+														)}
+													</div>
+												</div>
+												<div className="overflow-x-auto">
+													<table className="min-w-full divide-y divide-gray-200 text-sm">
+														<thead className="bg-gray-50">
+															<tr>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Space Type
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Square Footage
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Tenant
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Lease Term
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Annual Rent
+																</th>
+															</tr>
+														</thead>
+														<tbody className="bg-white divide-y divide-gray-100">
+															{(() => {
+																const value =
+																	(formData as any)
+																		.commercialSpaceMix;
+																const rows: any[] =
+																	Array.isArray(
+																		value
+																	)
+																		? value
+																		: [];
+																const isLocked =
+																	isFieldLocked(
+																		"commercialSpaceMix",
+																		sectionId
+																	);
+
+																const handleRowChange =
+																	(
+																		index: number,
+																		key:
+																			| "spaceType"
+																			| "squareFootage"
+																			| "tenant"
+																			| "leaseTerm"
+																			| "annualRent",
+																		raw: string
+																	) => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		const current =
+																			next[
+																				index
+																			] ||
+																			{};
+																		let v: any =
+																			raw;
+																		if (
+																			[
+																				"squareFootage",
+																				"annualRent",
+																			].includes(
+																				key
+																			)
+																		) {
+																			v =
+																				raw.trim() ===
+																				""
+																					? undefined
+																					: Number(
+																							raw
+																					  );
+																			if (
+																				Number.isNaN(
+																					v
+																				)
+																			) {
+																				v =
+																					undefined;
+																			}
+																		}
+																		next[
+																			index
+																		] = {
+																			...current,
+																			[
+																				key
+																			]:
+																				v,
+																		};
+																		handleInputChange(
+																			"commercialSpaceMix",
+																			next
+																		);
+																	};
+
+																const handleAddRow =
+																	() => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		next.push(
+																			{
+																				spaceType:
+																					"",
+																				squareFootage:
+																					undefined,
+																				tenant:
+																					"",
+																				leaseTerm:
+																					"",
+																				annualRent:
+																					undefined,
+																			}
+																		);
+																		handleInputChange(
+																			"commercialSpaceMix",
+																			next
+																		);
+																	};
+
+																const handleRemoveRow =
+																	(
+																		index: number
+																	) => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		next.splice(
+																			index,
+																			1
+																		);
+																		handleInputChange(
+																			"commercialSpaceMix",
+																			next
+																		);
+																	};
+
+																const displayRows =
+																	rows.length >
+																	0
+																		? rows
+																		: [{}];
+
+																return (
+																	<>
+																		{displayRows.map(
+																			(
+																				row,
+																				idx
+																			) => (
+																				<tr key={idx}>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="text"
+																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.spaceType ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"spaceType",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="number"
+																							min={0}
+																							className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.squareFootage ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"squareFootage",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="text"
+																							className="w-36 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.tenant ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"tenant",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="text"
+																							className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.leaseTerm ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"leaseTerm",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="number"
+																							min={0}
+																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.annualRent ??
+																								""
+																							}
+																							onChange={(e) =>
+																								handleRowChange(
+																									idx,
+																									"annualRent",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 text-right align-middle">
+																						<Button
+																							type="button"
+																							variant="ghost"
+																							size="xs"
+																							onClick={() =>
+																								handleRemoveRow(
+																									idx
+																								)
+																							}
+																							disabled={
+																								isLocked ||
+																								rows.length <=
+																									1
+																							}
+																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																						>
+																							Remove
+																						</Button>
+																					</td>
+																				</tr>
+																			)
+																		)}
+																		<tr>
+																			<td colSpan={6} className="px-3 pt-3">
+																				<Button
+																					type="button"
+																					variant="outline"
+																					size="xs"
+																					onClick={
+																						handleAddRow
+																					}
+																					disabled={
+																						isLocked
+																					}
+																					className="text-xs px-3 py-1"
+																				>
+																					Add Row
+																				</Button>
+																			</td>
+																		</tr>
+																	</>
+																);
+															})()}
+														</tbody>
+													</table>
+												</div>
+											</div>
+										</>
+									)}
+
+								{sectionId === "timeline" &&
+									subsectionId ===
+										"construction-lease-up-status" && (
+										<div
+											className={cn(
+												getTableWrapperClasses(
+													"drawSchedule",
+													sectionId
+												),
+												"p-4"
+											)}
+										>
+											<div className="mb-3 flex items-center justify-between">
+												<div className="flex items-center gap-2">
+													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+														Draw Schedule
+													</h4>
+													<FieldHelpTooltip
+														fieldId="drawSchedule"
+														fieldMetadata={
+															fieldMetadata[
+																"drawSchedule"
+															]
+														}
+													/>
+												</div>
+												<div className="flex items-center gap-1">
+													{renderFieldLockButton(
+														"drawSchedule",
+														sectionId
+													)}
+												</div>
+											</div>
+											<div className="overflow-x-auto">
+												<table className="min-w-full divide-y divide-gray-200 text-sm">
+													<thead className="bg-gray-50">
+														<tr>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Draw #
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																% Complete
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Amount
+															</th>
+														</tr>
+													</thead>
+														<tbody className="bg-white divide-y divide-gray-100">
+														{(() => {
+															const value =
+																(formData as any)
+																	.drawSchedule;
+															const rows: any[] =
+																Array.isArray(
+																	value
+																)
+																	? value
+																	: [];
+															const isLocked =
+																isFieldLocked(
+																	"drawSchedule",
+																	sectionId
+																);
+
+															const handleRowChange =
+																(
+																	index: number,
+																	key:
+																		| "drawNumber"
+																		| "percentComplete"
+																		| "amount",
+																	raw: string
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	const current =
+																		next[
+																			index
+																		] || {};
+																	let v: any =
+																		raw.trim() ===
+																		""
+																			? undefined
+																			: Number(
+																					raw
+																			  );
+																	if (
+																		Number.isNaN(
+																			v
+																		)
+																	) {
+																		v =
+																			undefined;
+																	}
+																	next[
+																		index
+																	] = {
+																		...current,
+																		[key]: v,
+																	};
+																	handleInputChange(
+																		"drawSchedule",
+																		next
+																	);
+																};
+
+															const handleAddRow =
+																() => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.push({
+																		drawNumber:
+																			(next.length ||
+																				0) +
+																			1,
+																		percentComplete:
+																			undefined,
+																		amount: undefined,
+																	});
+																	handleInputChange(
+																		"drawSchedule",
+																		next
+																	);
+																};
+
+															const handleRemoveRow =
+																(
+																	index: number
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.splice(
+																		index,
+																		1
+																	);
+																	handleInputChange(
+																		"drawSchedule",
+																		next
+																	);
+																};
+
+															const displayRows =
+																rows.length > 0
+																	? rows
+																	: [{}];
+
+															return (
+																<>
+																	{displayRows.map(
+																		(
+																			row,
+																			idx
+																		) => (
+																			<tr key={idx}>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						min={1}
+																						className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.drawNumber ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"drawNumber",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<div className="flex items-center gap-1">
+																						<input
+																							type="number"
+																							min={0}
+																							max={100}
+																							className="w-20 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.percentComplete ??
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"percentComplete",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																						<span className="text-gray-500">
+																							%
+																						</span>
+																					</div>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<div className="flex items-center gap-1">
+																						<span className="text-gray-500">
+																							$
+																						</span>
+																						<input
+																							type="number"
+																							min={0}
+																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.amount ??
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"amount",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</div>
+																				</td>
+																				<td className="px-3 py-2 text-right align-middle">
+																					<Button
+																						type="button"
+																						variant="ghost"
+																						size="xs"
+																						onClick={() =>
+																							handleRemoveRow(
+																								idx
+																							)
+																						}
+																						disabled={
+																							isLocked ||
+																							rows.length <=
+																								1
+																						}
+																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																					>
+																						Remove
+																					</Button>
+																				</td>
+																			</tr>
+																		)
+																	)}
+																	<tr>
+																		<td colSpan={4} className="px-3 pt-3">
+																			<Button
+																				type="button"
+																				variant="outline"
+																				size="xs"
+																				onClick={
+																					handleAddRow
+																				}
+																				disabled={
+																					isLocked
+																				}
+																				className="text-xs px-3 py-1"
+																			>
+																				Add Row
+																			</Button>
+																		</td>
+																	</tr>
+																</>
+															);
+														})()}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									)}
+
+								{sectionId === "market-context" &&
+									subsectionId === "supply-demand" && (
+										<div
+											className={cn(
+												getTableWrapperClasses(
+													"rentComps",
+													sectionId
+												),
+												"p-4"
+											)}
+										>
+											<div className="mb-3 flex items-center justify-between">
+												<div className="flex items-center gap-2">
+													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+														Rent Comparables
+													</h4>
+													<FieldHelpTooltip
+														fieldId="rentComps"
+														fieldMetadata={
+															fieldMetadata[
+																"rentComps"
+															]
+														}
+													/>
+												</div>
+												<div className="flex items-center gap-1">
+													{renderFieldLockButton(
+														"rentComps",
+														sectionId
+													)}
+												</div>
+											</div>
+											<div className="overflow-x-auto">
+												<table className="min-w-full divide-y divide-gray-200 text-sm">
+													<thead className="bg-gray-50">
+														<tr>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Property Name
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Address
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Distance (mi)
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Year Built
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Units
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Occupancy %
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Avg Rent/Month
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Rent/PSF
+															</th>
+														</tr>
+													</thead>
+													<tbody className="bg-white divide-y divide-gray-100">
+														{(() => {
+															const value =
+																(formData as any)
+																	.rentComps;
+															const rows: any[] =
+																Array.isArray(
+																	value
+																)
+																	? value
+																	: [];
+															const isLocked =
+																isFieldLocked(
+																	"rentComps",
+																	sectionId
+																);
+
+															const handleRowChange =
+																(
+																	index: number,
+																	key:
+																		| "propertyName"
+																		| "address"
+																		| "distance"
+																		| "yearBuilt"
+																		| "totalUnits"
+																		| "occupancyPercent"
+																		| "avgRentMonth"
+																		| "rentPSF",
+																	raw: string
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	const current =
+																		next[
+																			index
+																		] || {};
+																	let v: any =
+																		raw;
+																	if (
+																		[
+																			"distance",
+																			"yearBuilt",
+																			"totalUnits",
+																			"occupancyPercent",
+																			"avgRentMonth",
+																			"rentPSF",
+																		].includes(
+																			key
+																		)
+																	) {
+																		v =
+																			raw.trim() ===
+																			""
+																				? undefined
+																				: Number(
+																						raw
+																				  );
+																		if (
+																			Number.isNaN(
+																				v
+																			)
+																		) {
+																			v =
+																				undefined;
+																		}
+																	}
+																	next[
+																		index
+																	] = {
+																		...current,
+																		[key]: v,
+																	};
+																	handleInputChange(
+																		"rentComps",
+																		next
+																	);
+																};
+
+															const handleAddRow =
+																() => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.push({
+																		propertyName:
+																			"",
+																		address:
+																			"",
+																		distance:
+																			undefined,
+																		yearBuilt:
+																			undefined,
+																		totalUnits:
+																			undefined,
+																		occupancyPercent:
+																			undefined,
+																		avgRentMonth:
+																			undefined,
+																		rentPSF:
+																			undefined,
+																	});
+																	handleInputChange(
+																		"rentComps",
+																		next
+																	);
+																};
+
+															const handleRemoveRow =
+																(
+																	index: number
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.splice(
+																		index,
+																		1
+																	);
+																	handleInputChange(
+																		"rentComps",
+																		next
+																	);
+																};
+
+															const displayRows =
+																rows.length > 0
+																	? rows
+																	: [{}];
+
+															return (
+																<>
+																	{displayRows.map(
+																		(
+																			row,
+																			idx
+																		) => (
+																			<tr key={idx}>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="text"
+																						className="w-40 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.propertyName ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"propertyName",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="text"
+																						className="w-56 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.address ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"address",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						min={0}
+																						step="0.01"
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.distance ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"distance",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.yearBuilt ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"yearBuilt",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						min={0}
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.totalUnits ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"totalUnits",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						min={0}
+																						step="0.1"
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.occupancyPercent ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"occupancyPercent",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						min={0}
+																						className="w-28 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.avgRentMonth ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"avgRentMonth",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						min={0}
+																						step="0.01"
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.rentPSF ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"rentPSF",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																				</td>
+																				<td className="px-3 py-2 text-right align-middle">
+																					<Button
+																						type="button"
+																						variant="ghost"
+																						size="xs"
+																						onClick={() =>
+																							handleRemoveRow(
+																								idx
+																							)
+																						}
+																						disabled={
+																							isLocked ||
+																							rows.length <=
+																								1
+																						}
+																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																					>
+																						Remove
+																					</Button>
+																				</td>
+																			</tr>
+																		)
+																	)}
+																	<tr>
+																		<td colSpan={9} className="px-3 pt-3">
+																			<Button
+																				type="button"
+																				variant="outline"
+																				size="xs"
+																				onClick={
+																					handleAddRow
+																				}
+																				disabled={
+																					isLocked
+																				}
+																				className="text-xs px-3 py-1"
+																			>
+																				Add Row
+																			</Button>
+																		</td>
+																	</tr>
+																</>
+															);
+														})()}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									)}
 							</div>
 						)}
 					</div>
@@ -1429,6 +2945,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		renderDynamicField,
 		toggleSectionLock,
 		sectionIconComponents,
+		getTableWrapperClasses,
+		isFieldLocked,
+		handleInputChange,
+		renderFieldLockButton,
 		toggleSubsection,
 		isFieldBlue,
 		isFieldGreen,
@@ -1441,17 +2961,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const handleFormSubmit = useCallback(
 		async (finalData?: ProjectProfile) => {
-		const lockedFieldsObj: Record<string, boolean> = {};
-		lockedFields.forEach((id) => {
-			lockedFieldsObj[id] = true;
-		});
+			const lockedFieldsObj: Record<string, boolean> = {};
+			lockedFields.forEach((id) => {
+				lockedFieldsObj[id] = true;
+			});
 
-		const dataToSave: ProjectProfile = {
-			...(finalData || formData),
-			_metadata: fieldMetadata,
-			_lockedFields: lockedFieldsObj,
-			// No _lockedSections - derive from field locks
-		};
+			const dataToSave: ProjectProfile = {
+				...(finalData || formData),
+				_metadata: fieldMetadata,
+				_lockedFields: lockedFieldsObj,
+				// No _lockedSections - derive from field locks
+			};
 			await updateProject(formData.id, dataToSave);
 			onComplete?.(dataToSave);
 			onVersionChange?.();

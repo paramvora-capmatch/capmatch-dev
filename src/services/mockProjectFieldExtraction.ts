@@ -137,7 +137,10 @@ export const extractProjectFields = async (
 			projectName: createField(null, "User Input"), // Empty field 1
 			assetType: createField("Multifamily", "Marketing Brochure"),
 			projectStatus: createField("Pre-Construction", "Project Status"),
-			propertyAddressStreet: createField("2800 Commerce Street", "ALTA Survey"),
+			propertyAddressStreet: createField(
+				"2800 Commerce Street",
+				"ALTA Survey"
+			),
 			propertyAddressCity: createField("Dallas", "Extract from Address"),
 			propertyAddressState: createField("TX", "Extract from Address"),
 			propertyAddressZip: createField("75215", "Extract from Address"),
@@ -173,10 +176,8 @@ export const extractProjectFields = async (
 			dealStatus: createField("Pre-Submission", "Deal Status"),
 			syndicationStatus: createField("Committed", "Equity Commitment"),
 			sponsorExperience: createField("Seasoned (3+)", "Track Record"),
-			borrowerNetWorth: createField(45000000, "Personal FS"),
 			ltvStressMax: createField(50.0, "Underwriting Parameters"),
 			dscrStressMin: createField(1.1, "Underwriting Parameters"),
-			prepaymentPremium: createField("Yield Maint", "Term Sheet"),
 			expectedHoldPeriod: createField(5, "Inv. Memo"),
 			guarantorNames: createField(null, "User Input"), // Empty field 2
 			projectDescription: createField(
@@ -302,19 +303,16 @@ export const extractProjectFields = async (
 			syndicationCosts: createField(238000, "Equity Commit"),
 			enviroRemediation: createField(0, "Phase II ESA"),
 			// Sources of Funds
-			seniorLoanAmount: createField(18000000, "Sources & Uses"),
 			sponsorEquity: createField(11807800, "Sources & Uses"),
 			taxCreditEquity: createField(0, "Equity Commit"),
 			gapFinancing: createField(0, "Sources & Uses"),
 			// Loan Terms
 			interestRate: createField(6.5, "Term Sheet"),
 			underwritingRate: createField(8.5, "Term Sheet"),
-			amortization: createField("IO", "Term Sheet"),
 			prepaymentTerms: createField(
 				"No prepayment penalty after year 1",
 				"Term Sheet"
 			),
-			recourse: createField("Full Recourse", "Term Sheet"),
 			permTakeoutPlanned: createField(true, "Term Sheet"),
 			allInRate: createField(7.2, "Term Sheet"),
 			// Legacy Financial Fields
@@ -350,7 +348,6 @@ export const extractProjectFields = async (
 			loanAmountRequested: createField(18000000, "Sources & Uses"), // Also in section_1
 			loanType: createField("Construction Loan", "Term Sheet"), // Also in section_1
 			requestedTerm: createField("3 Years + 1 Year Ext", "Term Sheet"), // Also in section_1
-			prepaymentPremium: createField("Yield Maint", "Term Sheet"), // Also in section_1
 			expectedHoldPeriod: createField(5, "Inv. Memo"), // Also in section_1
 			ltvStressMax: createField(50.0, "Underwriting Parameters"), // Also in section_1
 			dscrStressMin: createField(1.1, "Underwriting Parameters"), // Also in section_1
@@ -500,7 +497,6 @@ export const extractProjectFields = async (
 			finalPlans: createField("Approved", "Arch Contract"),
 			permitsIssued: createField("Issued", "Building Permits"),
 			verticalStart: createField("2025-10-01", "Schedule"),
-			substantialComp: createField("2027-08-15", "Schedule"),
 			firstOccupancy: createField("2027-10-15", "Schedule"),
 			stabilization: createField("2028-03-31", "Proforma"),
 			preLeasedSF: createField(19669, "Lease Agmt"),
@@ -518,7 +514,10 @@ export const extractProjectFields = async (
 			opDeficitEscrow: createField(null, "User Input"), // Empty field 1
 			leaseUpEscrow: createField(null, "User Input"), // Empty field 2
 			// Also include groundbreakingDate and completionDate here (they're also in section_1)
-			groundbreakingDate: createField("2025-08-01", "Construction Schedule"),
+			groundbreakingDate: createField(
+				"2025-08-01",
+				"Construction Schedule"
+			),
 			completionDate: createField("2027-09-30", "Construction Schedule"),
 		},
 		section_7: {
@@ -596,7 +595,6 @@ export const extractProjectFields = async (
 			// Also include fields that are in section_1 but should also be here
 			syndicationStatus: createField("Committed", "Equity Commitment"),
 			sponsorExperience: createField("Seasoned (3+)", "Track Record"),
-			borrowerNetWorth: createField(45000000, "Personal FS"),
 		},
 	};
 
@@ -615,7 +613,7 @@ export const extractProjectFields = async (
 		"financial-details": "section_3",
 		"market-context": "section_4",
 		"special-considerations": "section_5",
-		"timeline": "section_6",
+		timeline: "section_6",
 		"site-context": "section_7",
 		"sponsor-info": "section_8",
 	};
@@ -641,10 +639,13 @@ export const extractProjectFields = async (
 				// Only initialize if field doesn't exist - don't overwrite existing values
 				// IMPORTANT: Check if field exists and has a value before overwriting
 				const existingField = sectionWiseFields[sectionKey]?.[fieldId];
-				if (!existingField || 
-				    (typeof existingField === "object" && 
-				     "value" in existingField && 
-				     (existingField.value === null || existingField.value === undefined))) {
+				if (
+					!existingField ||
+					(typeof existingField === "object" &&
+						"value" in existingField &&
+						(existingField.value === null ||
+							existingField.value === undefined))
+				) {
 					// Field doesn't exist or has null value - initialize with User Input
 					// The explicit definitions above handle all fields that should have AI values
 					sectionWiseFields[sectionKey][fieldId] = createField(
@@ -680,18 +681,28 @@ export const extractProjectFields = async (
 	// Final verification: Ensure critical fields have values (not null)
 	// These fields should always have values from the mock API
 	const criticalFields = {
-		"section_1": ["parcelNumber", "zoningDesignation", "expectedZoningChanges"],
-		"section_5": ["seismicPMLRisk"]
+		section_1: [
+			"parcelNumber",
+			"zoningDesignation",
+			"expectedZoningChanges",
+		],
+		section_5: ["seismicPMLRisk"],
 	};
-	
+
 	for (const [sectionId, fieldIds] of Object.entries(criticalFields)) {
 		if (!sectionWiseFields[sectionId]) continue;
 		for (const fieldId of fieldIds) {
 			const fieldData = sectionWiseFields[sectionId][fieldId];
-			if (fieldData && typeof fieldData === "object" && "value" in fieldData) {
+			if (
+				fieldData &&
+				typeof fieldData === "object" &&
+				"value" in fieldData
+			) {
 				// Check if value is null/undefined - if so, ensure it's explicitly set (shouldn't happen if mock is correct)
 				if (fieldData.value === null || fieldData.value === undefined) {
-					console.warn(`[Mock API] Warning: Field ${sectionId}.${fieldId} has null value but should have a value`);
+					console.warn(
+						`[Mock API] Warning: Field ${sectionId}.${fieldId} has null value but should have a value`
+					);
 				}
 			}
 		}
