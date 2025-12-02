@@ -35,6 +35,8 @@ import {
 	Sparkles,
 	Loader2,
 	BarChart,
+	ChevronDown,
+	ChevronRight,
 } from "lucide-react";
 import {
 	ProjectProfile,
@@ -539,6 +541,60 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			return meta.warnings.join(" ");
 		},
 		[fieldMetadata]
+	);
+
+	// Helper to determine if a field is "blue" (filled/unlocked or touched)
+	// Blue fields should keep subsections open
+	const isFieldBlue = useCallback(
+		(fieldId: string, sectionId?: string): boolean => {
+			const value = (formData as any)[fieldId];
+			const hasValue = isProjectValueProvided(value);
+			const locked = isFieldLocked(fieldId, sectionId);
+			const meta = fieldMetadata[fieldId];
+			const hasSources =
+				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+
+			// Blue: has value and unlocked, OR has sources but no value (touched but empty)
+			if (!hasValue) {
+				// Empty field is blue only if it has sources and is unlocked
+				return hasSources && !locked;
+			}
+
+			// Field has value - is blue only if unlocked
+			return !locked;
+		},
+		[formData, fieldMetadata, isFieldLocked]
+	);
+
+	// Helper to determine if a field is "white" (truly empty/untouched)
+	const isFieldWhite = useCallback(
+		(fieldId: string, sectionId?: string): boolean => {
+			const value = (formData as any)[fieldId];
+			const hasValue = isProjectValueProvided(value);
+			const meta = fieldMetadata[fieldId];
+			const hasSources =
+				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+
+			// White: no value and no sources
+			return !hasValue && !hasSources;
+		},
+		[formData, fieldMetadata]
+	);
+
+	// Helper to determine if a field is "green" (filled and locked)
+	const isFieldGreen = useCallback(
+		(fieldId: string, sectionId?: string): boolean => {
+			const value = (formData as any)[fieldId];
+			const hasValue = isProjectValueProvided(value);
+			const locked = isFieldLocked(fieldId, sectionId);
+			const meta = fieldMetadata[fieldId];
+			const hasSources =
+				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+
+			// Green: (has value or has sources) and is locked
+			return (hasValue || hasSources) && locked;
+		},
+		[formData, fieldMetadata, isFieldLocked]
 	);
 
 	const renderFieldLockButton = useCallback(
@@ -1065,12 +1121,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		]
 	);
 
-	// Track which subsections have their optional fields expanded
+	// Track which subsections are open (collapsed/expanded)
 	const [expandedSubsections, setExpandedSubsections] = useState<Set<string>>(
 		new Set()
 	);
 
-	const toggleSubsectionOptional = useCallback((subsectionKey: string) => {
+	const toggleSubsection = useCallback((subsectionKey: string) => {
 		setExpandedSubsections((prev) => {
 			const next = new Set(prev);
 			if (next.has(subsectionKey)) {
@@ -1081,6 +1137,79 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			return next;
 		});
 	}, []);
+
+	// Auto-update subsection state when fields change
+	// Rules:
+	// - Open if any field is blue (filled/unlocked or touched)
+	// - Close if all fields are green and locked
+	// - Close if all fields are white (empty/untouched)
+	useEffect(() => {
+		const schemaSteps: any[] = (formSchema as any).steps || [];
+		const autoOpenSubsections = new Set<string>();
+		const autoCloseSubsections = new Set<string>();
+
+		schemaSteps.forEach((step) => {
+			const sectionId: string = step.id;
+			const subsections: any[] = step.subsections || [];
+
+			subsections.forEach((subsection: any) => {
+				const subsectionKey = `${sectionId}::${subsection.id}`;
+				const fieldIds: string[] = subsection.fields || [];
+
+				if (fieldIds.length === 0) return;
+
+				// Check field states
+				const fieldStates = fieldIds.map((fieldId) => ({
+					isBlue: isFieldBlue(fieldId, sectionId),
+					isGreen: isFieldGreen(fieldId, sectionId),
+					isWhite: isFieldWhite(fieldId, sectionId),
+					hasValue: isProjectValueProvided((formData as any)[fieldId]),
+					isLocked: isFieldLocked(fieldId, sectionId),
+				}));
+
+				// All green: all fields have values AND are locked
+				const allGreen =
+					fieldIds.length > 0 &&
+					fieldStates.every(
+						(s) =>
+							s.isGreen &&
+							!s.isBlue &&
+							!s.isWhite &&
+							s.isLocked
+					);
+				const allWhite =
+					fieldIds.length > 0 &&
+					fieldStates.every(
+						(s) => s.isWhite && !s.isBlue && !s.isGreen
+					);
+				const hasBlue = fieldStates.some((s) => s.isBlue);
+
+				// Determine auto-state
+				if (hasBlue) {
+					autoOpenSubsections.add(subsectionKey);
+				} else if (allGreen || allWhite) {
+					autoCloseSubsections.add(subsectionKey);
+				}
+			});
+		});
+
+		setExpandedSubsections((prev) => {
+			const next = new Set(prev);
+			// Auto-open subsections with blue fields
+			autoOpenSubsections.forEach((key) => next.add(key));
+			// Auto-close subsections that are all green or all white
+			autoCloseSubsections.forEach((key) => next.delete(key));
+			return next;
+		});
+	}, [
+		formData,
+		fieldMetadata,
+		lockedFields,
+		unlockedFields,
+		isFieldBlue,
+		isFieldGreen,
+		isFieldWhite,
+	]);
 
 	const steps: Step[] = useMemo(() => {
 		const schemaSteps: any[] = (formSchema as any).steps || [];
@@ -1095,61 +1224,90 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const renderSubsection = (subsection: any) => {
 				const subsectionId: string = subsection.id;
 				const subsectionKey = `${sectionId}::${subsectionId}`;
-				const showOptional = expandedSubsections.has(subsectionKey);
+				const isExpanded = expandedSubsections.has(subsectionKey);
 
 				const allFieldIds: string[] = subsection.fields || [];
 
-				const requiredFields: string[] = [];
-				const optionalFields: string[] = [];
+				// Determine subsection state for visual indication
+				const fieldStates =
+					allFieldIds.length > 0
+						? allFieldIds.map((fieldId) => ({
+								isBlue: isFieldBlue(fieldId, sectionId),
+								isGreen: isFieldGreen(fieldId, sectionId),
+								isWhite: isFieldWhite(fieldId, sectionId),
+								hasValue: isProjectValueProvided(
+									(formData as any)[fieldId]
+								),
+								isLocked: isFieldLocked(fieldId, sectionId),
+						  }))
+						: [];
 
-				allFieldIds.forEach((fieldId) => {
-					if (isFieldRequiredFromSchema(fieldId)) {
-						requiredFields.push(fieldId);
-					} else {
-						optionalFields.push(fieldId);
-					}
-				});
+				const allGreen =
+					fieldStates.length > 0 &&
+					fieldStates.every(
+						(state) =>
+							state.isGreen &&
+							!state.isBlue &&
+							!state.isWhite &&
+							state.isLocked
+					);
+				const allWhite =
+					fieldStates.length > 0 &&
+					fieldStates.every(
+						(state) => state.isWhite && !state.isBlue && !state.isGreen
+					);
+				const hasBlue = fieldStates.some((state) => state.isBlue);
 
-				const visibleFieldIds = showOptional
-					? allFieldIds
-					: requiredFields;
-
-				const hasOptional = optionalFields.length > 0;
+				// Determine badge state
+				// Show "Complete" only if: all fields have values AND are locked (all green)
+				// Show "Needs Input" only if: at least one field is blue
+				// Show no badge in all other cases (all white, empty, mixed, etc.)
+				const showComplete =
+					allFieldIds.length > 0 && allGreen && !hasBlue;
+				const showNeedsInput = hasBlue;
 
 				return (
 					<div
 						key={subsectionId}
-						className="space-y-3 rounded-md border border-gray-100 bg-gray-50/60 p-3"
+						className="rounded-md border border-gray-100 bg-gray-50/60 overflow-hidden"
 					>
-						<div className="flex items-center justify-between">
-							<h3 className="text-sm font-semibold text-gray-800">
-								{subsection.title}
-							</h3>
-							{hasOptional && (
-								<button
-									type="button"
-									onClick={() =>
-										toggleSubsectionOptional(subsectionKey)
-									}
-									className="text-xs font-medium text-blue-600 hover:text-blue-700 underline-offset-2 hover:underline"
-								>
-									{showOptional
-										? "Hide optional fields"
-										: `Show ${
-												optionalFields.length
-										  } optional field${
-												optionalFields.length > 1
-													? "s"
-													: ""
-										  }`}
-								</button>
-							)}
-						</div>
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-							{visibleFieldIds.map((fieldId) =>
-								renderDynamicField(fieldId, sectionId)
-							)}
-						</div>
+						<button
+							type="button"
+							onClick={() => toggleSubsection(subsectionKey)}
+							className="w-full flex items-center justify-between p-3 hover:bg-gray-100/60 transition-colors"
+						>
+							<div className="flex items-center gap-2">
+								{isExpanded ? (
+									<ChevronDown className="h-4 w-4 text-gray-500" />
+								) : (
+									<ChevronRight className="h-4 w-4 text-gray-500" />
+								)}
+								<h3 className="text-sm font-semibold text-gray-800">
+									{subsection.title}
+								</h3>
+							</div>
+							<div className="flex items-center gap-2">
+								{showComplete && (
+									<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
+										Complete
+									</span>
+								)}
+								{showNeedsInput && (
+									<span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
+										Needs Input
+									</span>
+								)}
+							</div>
+						</button>
+						{isExpanded && (
+							<div className="p-3 pt-0">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									{allFieldIds.map((fieldId) =>
+										renderDynamicField(fieldId, sectionId)
+									)}
+								</div>
+							</div>
+						)}
 					</div>
 				);
 			};
@@ -1217,7 +1375,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		renderDynamicField,
 		toggleSectionLock,
 		sectionIconComponents,
-		toggleSubsectionOptional,
+		toggleSubsection,
+		isFieldBlue,
+		isFieldGreen,
+		isFieldWhite,
+		lockedFields,
+		unlockedFields,
+		formData,
+		fieldMetadata,
 	]);
 
 	const handleFormSubmit = useCallback(
