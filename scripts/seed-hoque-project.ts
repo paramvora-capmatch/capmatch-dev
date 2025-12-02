@@ -6,7 +6,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import { resolve } from 'path';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { ProjectResumeContent } from '../src/lib/project-queries';
 import formSchema from '../src/lib/enhanced-project-form.schema.json';
@@ -1411,13 +1411,42 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     console.warn(`[seed] Warning: Failed to ensure borrower root resources:`, rootError.message);
   }
 
+  // Build _lockedFields: lock all fields that have non-empty values
+  const lockedFields: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(hoqueBorrowerResume)) {
+    // Skip reserved keys
+    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata' || key === 'completenessPercent') {
+      continue;
+    }
+    
+    // Lock field if it has a meaningful value
+    if (value !== null && value !== undefined) {
+      if (typeof value === 'string' && value.trim() !== '') {
+        lockedFields[key] = true;
+      } else if (typeof value === 'number' && value !== 0) {
+        lockedFields[key] = true;
+      } else if (typeof value === 'boolean') {
+        lockedFields[key] = true;
+      } else if (Array.isArray(value) && value.length > 0) {
+        lockedFields[key] = true;
+      } else if (typeof value === 'object' && Object.keys(value).length > 0) {
+        lockedFields[key] = true;
+      }
+    }
+  }
+
+  const borrowerResumeWithLocks = {
+    ...hoqueBorrowerResume,
+    _lockedFields: lockedFields,
+  };
+
   // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
-      content: hoqueBorrowerResume as any,
+      content: borrowerResumeWithLocks as any,
       created_by: createdById,
     });
 
@@ -1426,7 +1455,7 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     return false;
   }
 
-  console.log(`[seed] ✅ Updated borrower resume`);
+  console.log(`[seed] ✅ Updated borrower resume (locked fields: ${Object.keys(lockedFields).length})`);
   return true;
 }
 
@@ -1549,6 +1578,141 @@ async function seedDocuments(
 
   console.log(`[seed] ✅ Seeded ${Object.keys(documents).length} documents`);
   return documents;
+}
+
+async function seedImages(
+  projectId: string,
+  orgId: string
+): Promise<void> {
+  console.log(`[seed] Seeding images for SoGood Apartments...`);
+
+  // Possible base paths for hoque-images directory
+  const possibleImagePaths = [
+    resolve(process.cwd(), '../../hoque-images'),
+    resolve(process.cwd(), '../hoque-images'),
+    resolve(process.cwd(), './hoque-images'),
+  ];
+
+  let hoqueImagesPath: string | null = null;
+  for (const path of possibleImagePaths) {
+    if (existsSync(path)) {
+      hoqueImagesPath = path;
+      console.log(`[seed] Found hoque-images directory: ${path}`);
+      break;
+    }
+  }
+
+  if (!hoqueImagesPath) {
+    console.log(`[seed] ⚠️  No hoque-images directory found. Skipping image upload.`);
+    console.log(`[seed]    To upload images, place them in one of:`);
+    possibleImagePaths.forEach(p => console.log(`[seed]    - ${p}`));
+    return;
+  }
+
+  // Supported image extensions
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  
+  // Upload architectural diagrams
+  const archDiagramsPath = join(hoqueImagesPath, 'architectural-diagrams');
+  if (existsSync(archDiagramsPath)) {
+    console.log(`[seed] Uploading architectural diagrams...`);
+    const archFiles = readdirSync(archDiagramsPath).filter(file => {
+      const ext = file.toLowerCase().substring(file.lastIndexOf('.'));
+      return imageExtensions.includes(ext);
+    });
+
+    for (const file of archFiles) {
+      const filePath = join(archDiagramsPath, file);
+      const stats = statSync(filePath);
+      if (stats.isFile()) {
+        try {
+          const fileBuffer = readFileSync(filePath);
+          const storagePath = `${projectId}/architectural-diagrams/${file}`;
+          
+          // Detect content type
+          const lastDot = file.toLowerCase().lastIndexOf('.');
+          const ext = lastDot >= 0 ? file.toLowerCase().substring(lastDot) : '';
+          let contentType = 'image/jpeg';
+          if (ext === '.png') contentType = 'image/png';
+          else if (ext === '.gif') contentType = 'image/gif';
+          else if (ext === '.webp') contentType = 'image/webp';
+
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from(orgId)
+            .upload(storagePath, fileBuffer, {
+              contentType,
+              upsert: false,
+            });
+
+          if (uploadError) {
+            if (uploadError.message?.toLowerCase().includes('already exists')) {
+              console.log(`[seed]   ⚠️  ${file} already exists, skipping`);
+            } else {
+              console.error(`[seed]   ❌ Failed to upload ${file}:`, uploadError.message);
+            }
+          } else {
+            console.log(`[seed]   ✅ Uploaded: ${file}`);
+          }
+        } catch (err) {
+          console.error(`[seed]   ❌ Exception uploading ${file}:`, err);
+        }
+      }
+    }
+  } else {
+    console.log(`[seed] ⚠️  architectural-diagrams folder not found in hoque-images directory`);
+  }
+
+  // Upload site images
+  const siteImagesPath = join(hoqueImagesPath, 'site-images');
+  if (existsSync(siteImagesPath)) {
+    console.log(`[seed] Uploading site images...`);
+    const siteFiles = readdirSync(siteImagesPath).filter(file => {
+      const ext = file.toLowerCase().substring(file.lastIndexOf('.'));
+      return imageExtensions.includes(ext);
+    });
+
+    for (const file of siteFiles) {
+      const filePath = join(siteImagesPath, file);
+      const stats = statSync(filePath);
+      if (stats.isFile()) {
+        try {
+          const fileBuffer = readFileSync(filePath);
+          const storagePath = `${projectId}/site-images/${file}`;
+          
+          // Detect content type
+          const lastDot = file.toLowerCase().lastIndexOf('.');
+          const ext = lastDot >= 0 ? file.toLowerCase().substring(lastDot) : '';
+          let contentType = 'image/jpeg';
+          if (ext === '.png') contentType = 'image/png';
+          else if (ext === '.gif') contentType = 'image/gif';
+          else if (ext === '.webp') contentType = 'image/webp';
+
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from(orgId)
+            .upload(storagePath, fileBuffer, {
+              contentType,
+              upsert: false,
+            });
+
+          if (uploadError) {
+            if (uploadError.message?.toLowerCase().includes('already exists')) {
+              console.log(`[seed]   ⚠️  ${file} already exists, skipping`);
+            } else {
+              console.error(`[seed]   ❌ Failed to upload ${file}:`, uploadError.message);
+            }
+          } else {
+            console.log(`[seed]   ✅ Uploaded: ${file}`);
+          }
+        } catch (err) {
+          console.error(`[seed]   ❌ Exception uploading ${file}:`, err);
+        }
+      }
+    }
+  } else {
+    console.log(`[seed] ⚠️  site-images folder not found in hoque-images directory`);
+  }
+
+  console.log(`[seed] ✅ Completed image upload`);
 }
 
 async function seedChatMessages(
@@ -1803,7 +1967,7 @@ async function createProject(
       return null;
     }
 
-    // 3. Create storage folder
+    // 3. Create storage folders (project root, architectural-diagrams, site-images)
     const { error: storageError } = await supabaseAdmin.storage
       .from(ownerOrgId)
       .upload(`${projectId}/.placeholder`, new Blob([''], { type: 'text/plain' }), {
@@ -1812,6 +1976,28 @@ async function createProject(
 
     if (storageError && !storageError.message?.toLowerCase().includes('already exists')) {
       console.warn(`[seed] Warning: Storage folder creation failed (non-critical):`, storageError.message);
+    }
+
+    // Create architectural-diagrams folder
+    const { error: archDiagramsError } = await supabaseAdmin.storage
+      .from(ownerOrgId)
+      .upload(`${projectId}/architectural-diagrams/.keep`, new Blob([''], { type: 'text/plain' }), {
+        contentType: 'text/plain;charset=UTF-8',
+      });
+
+    if (archDiagramsError && !archDiagramsError.message?.toLowerCase().includes('already exists')) {
+      console.warn(`[seed] Warning: architectural-diagrams folder creation failed (non-critical):`, archDiagramsError.message);
+    }
+
+    // Create site-images folder
+    const { error: siteImagesError } = await supabaseAdmin.storage
+      .from(ownerOrgId)
+      .upload(`${projectId}/site-images/.keep`, new Blob([''], { type: 'text/plain' }), {
+        contentType: 'text/plain;charset=UTF-8',
+      });
+
+    if (siteImagesError && !siteImagesError.message?.toLowerCase().includes('already exists')) {
+      console.warn(`[seed] Warning: site-images folder creation failed (non-critical):`, siteImagesError.message);
     }
 
     // 4. Create PROJECT_RESUME resource
@@ -2025,13 +2211,19 @@ async function seedHoqueProject(): Promise<void> {
     await seedBorrowerResume(projectId, borrowerId);
 
     // Step 4.5: Seed OM data (single row per project, no versioning)
+    // OM uses same content as project resume but without _lockedFields
     console.log('\n📋 Step 4.5: Seeding OM data...');
+    const omContent = { ...hoqueProjectResume };
+    // Remove _lockedFields and _fieldStates from OM content (OM doesn't track locks)
+    delete (omContent as any)._lockedFields;
+    delete (omContent as any)._fieldStates;
+    
     const { error: omError } = await supabaseAdmin
       .from('om')
       .upsert(
         {
           project_id: projectId,
-        content: hoqueProjectResume as any, // OM uses same fully-populated content as project resume
+          content: omContent as any,
         },
         { onConflict: 'project_id' }
       );
@@ -2045,6 +2237,10 @@ async function seedHoqueProject(): Promise<void> {
     // Step 5: Seed documents
     console.log('\n📋 Step 5: Seeding documents...');
     const documents = await seedDocuments(projectId, borrowerOrgId, borrowerId);
+
+    // Step 5.5: Seed images
+    console.log('\n📋 Step 5.5: Seeding images...');
+    await seedImages(projectId, borrowerOrgId);
 
     // Step 6: Seed team members
     console.log('\n📋 Step 6: Seeding team members...');
