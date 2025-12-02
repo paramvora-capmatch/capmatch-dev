@@ -12,8 +12,10 @@ import {
   Loader2,
   Lock,
 } from "lucide-react";
-import { formatDate, flattenResumeContent, getFieldLabel, stringifyValue, normalizeValueForComparison, valuesAreEqual } from "../shared/resumeVersionUtils";
+import { formatDate, getFieldLabel, stringifyValue, normalizeValueForComparison, valuesAreEqual } from "../shared/resumeVersionUtils";
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
+import formSchema from "@/lib/enhanced-project-form.schema.json";
+import { getFormFieldOrder, getFieldOrderMap, getSubsectionsForSection } from "../shared/getFormFieldOrder";
 
 interface ResumeVersionHistoryProps {
   projectId: string;
@@ -571,92 +573,228 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
           }`
         );
 
-        const leftFlat = flattenResumeContent(left.content);
-        const rightFlat = flattenResumeContent(right.content);
+        // Work with EXACT JSONB structure from DB - NO FLATTENING
+        const leftContent = left.content || {};
+        const rightContent = right.content || {};
 
-        // Extract lock states
-        const leftLocked = (left.content as any)?._lockedFields || {};
-        const rightLocked = (right.content as any)?._lockedFields || {};
+        // Extract lock states from root level
+        const leftLocked = (leftContent as any)?._lockedFields || {};
+        const rightLocked = (rightContent as any)?._lockedFields || {};
 
-        // Only compare fields that are part of the structured project resume schema
-        const allKeys = Array.from(
-          new Set([...Object.keys(leftFlat), ...Object.keys(rightFlat)])
-        );
-        const resumeFieldIds = new Set(
-          Object.keys(projectResumeFieldMetadata)
-        );
-        const keys = allKeys.filter((key) => resumeFieldIds.has(key));
-
-        // Build diff fields
-        const diffFields: DiffField[] = [];
-
-        for (const key of keys) {
-          const beforeValue = leftFlat[key];
-          const afterValue = rightFlat[key];
-
-          // Use proper value comparison to avoid false positives
-          if (valuesAreEqual(beforeValue, afterValue)) {
+        // Get exact field order from form schema
+        const fieldOrderMap = getFieldOrderMap();
+        const formFieldOrder = getFormFieldOrder();
+        
+        // Get all possible fields from metadata
+        const resumeFieldIds = new Set(Object.keys(projectResumeFieldMetadata));
+        
+        // Helper to extract field value from JSONB structure (handles section grouping)
+        const getFieldValue = (content: any, fieldId: string): any => {
+          // Check if content is in section-grouped format
+          const isGrouped = Object.keys(content || {}).some(key => key.startsWith('section_'));
+          
+          if (isGrouped) {
+            // Find which section this field belongs to
+            const metadata = projectResumeFieldMetadata[fieldId];
+            if (!metadata) return undefined;
+            
+            const sectionId = metadata.section;
+            const SECTION_ID_TO_NUMBER: Record<string, string> = {
+              "basic-info": "section_1",
+              "property-specs": "section_2",
+              "dev-budget": "section_3_1",
+              "loan-info": "section_3_2",
+              "financials": "section_3_3",
+              "market-context": "section_4",
+              "special-considerations": "section_5",
+              "timeline": "section_6",
+              "site-context": "section_7",
+              "sponsor-info": "section_8",
+            };
+            
+            const sectionKey = SECTION_ID_TO_NUMBER[sectionId];
+            if (!sectionKey || !content[sectionKey]) return undefined;
+            
+            const fieldData = content[sectionKey][fieldId];
+            if (fieldData === undefined) return undefined;
+            
+            // Extract value from rich object format if needed
+            if (fieldData && typeof fieldData === "object" && "value" in fieldData) {
+              return fieldData.value;
+            }
+            
+            return fieldData;
+          } else {
+            // Flat format - get directly
+            const fieldData = content[fieldId];
+            if (fieldData === undefined) return undefined;
+            
+            // Extract value from rich object format if needed
+            if (fieldData && typeof fieldData === "object" && "value" in fieldData) {
+              return fieldData.value;
+            }
+            
+            return fieldData;
+          }
+        };
+        
+        // Build diff fields map by comparing JSONB structures directly
+        const diffFieldsMap = new Map<string, DiffField>();
+        
+        // Get all fields from schema order
+        for (const fieldOrder of formFieldOrder) {
+          const fieldId = fieldOrder.fieldId;
+          
+          // Only process valid resume fields
+          if (!resumeFieldIds.has(fieldId)) {
             continue;
           }
+          
+          // Get values directly from JSONB structure
+          const beforeValue = getFieldValue(leftContent, fieldId);
+          const afterValue = getFieldValue(rightContent, fieldId);
+          
+          // Check if values are different - compare raw JSONB values directly
+          // CRITICAL: Use strict equality first, then normalize for edge cases
+          let areEqual = false;
+          
+          // Direct comparison
+          if (beforeValue === afterValue) {
+            areEqual = true;
+          } else {
+            // Normalize and compare (handles boolean/string conversions)
+            areEqual = valuesAreEqual(beforeValue, afterValue);
+          }
+          
+          if (areEqual) {
+            continue;
+          }
+          
+          // Normalize for display
+          const normalizedBefore = normalizeValueForComparison(beforeValue);
+          const normalizedAfter = normalizeValueForComparison(afterValue);
 
-          const metadata = projectResumeFieldMetadata[key];
-          const section = metadata?.section || "unknown";
-          const isTable = TABLE_FIELDS.has(key);
+          const metadata = projectResumeFieldMetadata[fieldId];
+          const isTable = TABLE_FIELDS.has(fieldId);
 
-          diffFields.push({
-            fieldId: key,
-            label: getFieldLabel(key),
-            section,
-            before: beforeValue,
-            after: afterValue,
-            beforeLocked: leftLocked[key] === true,
-            afterLocked: rightLocked[key] === true,
+          diffFieldsMap.set(fieldId, {
+            fieldId,
+            label: getFieldLabel(fieldId),
+            section: metadata?.section || "unknown",
+            before: normalizedBefore,
+            after: normalizedAfter,
+            beforeLocked: leftLocked[fieldId] === true,
+            afterLocked: rightLocked[fieldId] === true,
             isTable,
           });
         }
 
-        // Group by section and sort
-        const sectionsMap = new Map<string, DiffField[]>();
-        for (const field of diffFields) {
-          if (!sectionsMap.has(field.section)) {
-            sectionsMap.set(field.section, []);
+        // Group by section and subsection using exact form schema order
+        const sectionsMap = new Map<string, Map<string, DiffField[]>>();
+        
+        // Initialize structure from form schema
+        for (const fieldOrder of formFieldOrder) {
+          if (!diffFieldsMap.has(fieldOrder.fieldId)) {
+            continue; // Skip fields with no differences
           }
-          sectionsMap.get(field.section)!.push(field);
+          
+          const field = diffFieldsMap.get(fieldOrder.fieldId)!;
+          const sectionId = fieldOrder.sectionId;
+          
+          if (!sectionsMap.has(sectionId)) {
+            sectionsMap.set(sectionId, new Map());
+          }
+          
+          const subsectionMap = sectionsMap.get(sectionId)!;
+          const subsectionKey = fieldOrder.subsectionId || "__no_subsection__";
+          
+          if (!subsectionMap.has(subsectionKey)) {
+            subsectionMap.set(subsectionKey, []);
+          }
+          
+          subsectionMap.get(subsectionKey)!.push(field);
         }
-
-        // Create sections in proper order
+        
+        // Create sections in exact form order
         const sections: DiffSection[] = [];
-        for (const sectionId of SECTION_ORDER) {
-          const fields = sectionsMap.get(sectionId);
-          if (fields && fields.length > 0) {
-            // Sort fields within section by their order in metadata
-            const sortedFields = fields.sort((a, b) => {
-              const metaA = projectResumeFieldMetadata[a.fieldId];
-              const metaB = projectResumeFieldMetadata[b.fieldId];
-              // Try to maintain order by comparing field IDs (fallback to label)
-              if (metaA && metaB) {
+        const schemaSteps = (formSchema as any).steps || [];
+        
+        for (const step of schemaSteps) {
+          const sectionId = step.id;
+          const subsectionMap = sectionsMap.get(sectionId);
+          
+          if (!subsectionMap || subsectionMap.size === 0) {
+            continue;
+          }
+          
+          // Sort fields within subsections by their exact order in the schema
+          const sortedFields: DiffField[] = [];
+          
+          if (step.subsections && Array.isArray(step.subsections)) {
+            // Has subsections - process in subsection order
+            for (const subsection of step.subsections) {
+              const subsectionKey = subsection.id;
+              const fields = subsectionMap.get(subsectionKey) || [];
+              
+              // Sort fields by their order in the subsection
+              const sortedSubsectionFields = fields.sort((a, b) => {
+                const orderA = fieldOrderMap.get(a.fieldId);
+                const orderB = fieldOrderMap.get(b.fieldId);
+                if (orderA && orderB) {
+                  return orderA.fieldIndex - orderB.fieldIndex;
+                }
                 return a.label.localeCompare(b.label);
+              });
+              
+              sortedFields.push(...sortedSubsectionFields);
+            }
+          } else {
+            // No subsections - just sort all fields in the section
+            const allFields = Array.from(subsectionMap.values()).flat();
+            sortedFields.push(...allFields.sort((a, b) => {
+              const orderA = fieldOrderMap.get(a.fieldId);
+              const orderB = fieldOrderMap.get(b.fieldId);
+              if (orderA && orderB) {
+                return orderA.fieldIndex - orderB.fieldIndex;
               }
-              return a.fieldId.localeCompare(b.fieldId);
-            });
-
+              return a.label.localeCompare(b.label);
+            }));
+          }
+          
+          if (sortedFields.length > 0) {
             sections.push({
               sectionId,
-              sectionName: SECTION_NAMES[sectionId] || sectionId,
+              sectionName: step.title || SECTION_NAMES[sectionId] || sectionId,
               fields: sortedFields,
             });
           }
         }
-
-        // Add any remaining sections not in the standard order
-        for (const [sectionId, fields] of sectionsMap.entries()) {
-          if (!SECTION_ORDER.includes(sectionId)) {
-            sections.push({
+        
+        // Handle any remaining fields not in schema (safety check - shouldn't normally happen)
+        const processedFieldIds = new Set<string>();
+        for (const section of sections) {
+          for (const field of section.fields) {
+            processedFieldIds.add(field.fieldId);
+          }
+        }
+        
+        for (const [fieldId, field] of diffFieldsMap.entries()) {
+          if (processedFieldIds.has(fieldId)) {
+            continue; // Already processed
+          }
+          
+          // Field exists in diff but not in form schema - add to appropriate section
+          const sectionId = field.section;
+          let section = sections.find((s) => s.sectionId === sectionId);
+          if (!section) {
+            section = {
               sectionId,
               sectionName: SECTION_NAMES[sectionId] || sectionId,
-              fields: fields.sort((a, b) => a.label.localeCompare(b.label)),
-            });
+              fields: [],
+            };
+            sections.push(section);
           }
+          section.fields.push(field);
         }
 
         if (!cancelled) {

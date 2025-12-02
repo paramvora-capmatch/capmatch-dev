@@ -19,7 +19,7 @@ export const formatDate = (dateString: string): string => {
 
 /**
  * Normalizes a value for comparison to avoid false positives.
- * Handles empty strings, null, undefined, and rich object formats consistently.
+ * Handles empty strings, null, undefined, rich object formats, and boolean conversions consistently.
  */
 export const normalizeValueForComparison = (value: unknown): unknown => {
   // Handle null/undefined
@@ -29,10 +29,27 @@ export const normalizeValueForComparison = (value: unknown): unknown => {
   if (typeof value === "string" && value.trim() === "") return null;
   
   // Handle rich objects with value property
-  if (value && typeof value === "object" && "value" in value) {
+  if (value && typeof value === "object" && "value" in value && !Array.isArray(value)) {
     const richValue = (value as any).value;
     // Recursively normalize the inner value
     return normalizeValueForComparison(richValue);
+  }
+  
+  // Handle boolean string conversions - CRITICAL for data integrity
+  if (typeof value === "string") {
+    const normalizedStr = value.trim().toLowerCase();
+    // Convert "yes"/"no" strings to booleans for consistent comparison
+    if (normalizedStr === "yes" || normalizedStr === "true") {
+      return true;
+    }
+    if (normalizedStr === "no" || normalizedStr === "false") {
+      return false;
+    }
+  }
+  
+  // Handle actual boolean values (keep as-is)
+  if (typeof value === "boolean") {
+    return value;
   }
   
   // Handle arrays - normalize each element
@@ -45,19 +62,38 @@ export const normalizeValueForComparison = (value: unknown): unknown => {
 
 /**
  * Checks if two values are effectively the same (after normalization).
+ * CRITICAL: Must handle boolean false correctly - false is a valid value, not missing!
  */
 export const valuesAreEqual = (a: unknown, b: unknown): boolean => {
+  // Handle undefined - means field doesn't exist
+  const aUndefined = a === undefined;
+  const bUndefined = b === undefined;
+  
+  // If both are undefined, they're equal (field doesn't exist in either)
+  if (aUndefined && bUndefined) return true;
+  
+  // If one is undefined and the other isn't, they're different
+  if (aUndefined || bUndefined) return false;
+  
+  // Normalize values for comparison
   const normalizedA = normalizeValueForComparison(a);
   const normalizedB = normalizeValueForComparison(b);
   
-  // Both null/undefined/empty
+  // Both null/empty (after normalization)
   if (normalizedA === null && normalizedB === null) return true;
   
   // One is null, other isn't
   if (normalizedA === null || normalizedB === null) return false;
   
-  // Deep equality for objects/arrays
-  if (typeof normalizedA === "object" || typeof normalizedB === "object") {
+  // CRITICAL: Handle boolean values explicitly
+  // false === false should return true, true === true should return true
+  if (typeof normalizedA === "boolean" && typeof normalizedB === "boolean") {
+    return normalizedA === normalizedB;
+  }
+  
+  // Deep equality for objects/arrays (but not booleans)
+  if ((typeof normalizedA === "object" && normalizedA !== null) || 
+      (typeof normalizedB === "object" && normalizedB !== null)) {
     try {
       return JSON.stringify(normalizedA) === JSON.stringify(normalizedB);
     } catch {
@@ -65,7 +101,7 @@ export const valuesAreEqual = (a: unknown, b: unknown): boolean => {
     }
   }
   
-  // Primitive comparison
+  // Primitive comparison (numbers, strings, etc.)
   return normalizedA === normalizedB;
 };
 

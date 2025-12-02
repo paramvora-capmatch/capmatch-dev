@@ -1023,16 +1023,52 @@ export const saveProjectResume = async (
 			);
 		}
 	} else {
-		// 2b. Insert New: Brand new project resume
-		// Convert flat content to section-grouped format for new resumes
-		const groupedContent = groupBySections(finalContent);
-		// Calculate completion based on the full project profile snapshot.
-		// We only compute and store this when a new version is created.
-		const completionPercent = computeProjectCompletion(content);
+		// 2b. Insert New: Brand new project resume OR create new version
+		// CRITICAL: When creating a new version, we MUST merge with existing content
+		// to preserve all fields that weren't explicitly changed
+		
+		// Get existing content to merge with (if it exists)
+		let existingContentFlat: Record<string, any> = {};
+		if (existing?.content) {
+			existingContentFlat = isGroupedFormat(existing.content)
+				? ungroupFromSections(existing.content)
+				: existing.content;
+			
+			// Remove reserved keys from existing content
+			const { _lockedFields, _fieldStates, _metadata, completenessPercent, ...cleanExisting } = existingContentFlat;
+			existingContentFlat = cleanExisting;
+		}
+		
+		// Merge existing content with new content - existing fields are preserved unless overwritten
+		const mergedContent = {
+			...existingContentFlat,
+			...finalContent, // New/changed fields take precedence
+		};
+		
+		// Convert merged content to section-grouped format for new resumes
+		const groupedContent = groupBySections(mergedContent);
+		
+		// Preserve existing lock states, merging with new ones
+		const mergedLockedFields = {
+			...(existing?.content?._lockedFields || {}),
+			...lockedFields,
+		};
+		
+		const mergedFieldStates = {
+			...(existing?.content?._fieldStates || {}),
+			...fieldStates,
+		};
+		
+		// Calculate completion based on the full merged project profile snapshot
+		const completionPercent = computeProjectCompletion({
+			...content,
+			...mergedContent, // Include all merged fields for accurate completion
+		});
+		
 		const contentToInsert = {
 			...groupedContent,
-			_lockedFields: lockedFields,
-			_fieldStates: fieldStates,
+			_lockedFields: mergedLockedFields,
+			_fieldStates: mergedFieldStates,
 			completenessPercent: completionPercent,
 		};
 
