@@ -53,6 +53,7 @@ import {
 	FieldMetadata as ProjectFieldMeta,
 } from "@/lib/project-resume-field-metadata";
 import { normalizeSource } from "@/utils/sourceNormalizer";
+import { saveProjectResume } from "@/lib/project-queries";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -309,6 +310,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	initialFocusFieldId,
 	onVersionChange,
 }) => {
+	// 1. Initialize state with sanitized data
 	const [formData, setFormData] = useState<ProjectProfile>(
 		sanitizeProjectProfile(existingProject)
 	);
@@ -328,8 +330,22 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
 	const [formSaved, setFormSaved] = useState(false);
-	const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+	const [isRestoring, setIsRestoring] = useState(false);
+	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 	const { updateProject } = useProjects();
+
+	// Track the last state that was successfully persisted to the DB
+	// so we can detect "unsaved changes" (dirty state) on any kind of exit.
+	const initialSnapshotRef = useRef<{
+		formData: ProjectProfile;
+		fieldMetadata: Record<string, any>;
+		lockedFields: Set<string>;
+	} | null>(null);
+	const lastSavedSnapshotRef = useRef<{
+		formData: ProjectProfile;
+		fieldMetadata: Record<string, any>;
+		lockedFields: Set<string>;
+	} | null>(null);
 
 	const {
 		isAutofilling,
@@ -337,6 +353,139 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		handleAutofill: startAutofill,
 	} = useAutofill(existingProject.id, { context: "project" });
 
+	// Effect to handle updates from parent (e.g. after Autofill)
+	useEffect(() => {
+		// If we are restoring from local storage, don't overwrite with props
+		if (isRestoring) return;
+
+		const sanitized = sanitizeProjectProfile(existingProject);
+		setFormData(sanitized);
+		const metadata = sanitized._metadata || {};
+		setFieldMetadata(metadata);
+
+		// Update locks based on source
+		// If a field has a value AND source is not user_input -> Lock it (Green)
+		const newLockedFields = new Set(
+			Object.keys(existingProject._lockedFields || {}).filter(
+				(k) => existingProject._lockedFields?.[k]
+			)
+		);
+
+		Object.entries(metadata).forEach(([fieldId, meta]) => {
+			// Check if source is AI/Document.
+			// Be defensive: sources array can contain null/undefined or non-standard entries.
+			const isAiSourced =
+				Array.isArray((meta as any)?.sources) &&
+				(meta as any).sources.some((src: any) => {
+					if (!src) return false;
+
+					if (typeof src === "string") {
+						const normalized = src.toLowerCase();
+						return (
+							normalized !== "user_input" &&
+							normalized !== "user input"
+						);
+					}
+
+					if (
+						typeof src === "object" &&
+						"type" in src &&
+						typeof (src as any).type === "string"
+					) {
+						return (src as any).type !== "user_input";
+					}
+
+					// Unknown shape – treat as non-user-input but do not crash
+					return false;
+				});
+
+			const hasValue = isProjectValueProvided(
+				(existingProject as any)[fieldId]
+			);
+
+			// Auto-lock if AI sourced and has value, unless explicitly unlocked previously?
+			// We'll trust the incoming _lockedFields from DB mostly, but ensure AI fields are locked
+			if (isAiSourced && hasValue) {
+				newLockedFields.add(fieldId);
+			}
+		});
+
+		setLockedFields(newLockedFields);
+
+		// Establish / refresh the baseline snapshot from the DB-backed project.
+		// We treat this as the "saved" state until an explicit or implicit save succeeds.
+		const snapshotLocked = new Set(newLockedFields);
+		const snapshot: {
+			formData: ProjectProfile;
+			fieldMetadata: Record<string, any>;
+			lockedFields: Set<string>;
+		} = {
+			formData: sanitized,
+			fieldMetadata: metadata,
+			lockedFields: snapshotLocked,
+		};
+		initialSnapshotRef.current = snapshot;
+		lastSavedSnapshotRef.current = snapshot;
+	}, [existingProject, isRestoring]);
+
+	// Local Storage Autosave Key
+	const storageKey = useMemo(() => `capmatch_resume_draft_${existingProject.id}`, [existingProject.id]);
+
+	// Restore from Local Storage on Mount (in-memory only; no automatic DB flush)
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		try {
+			const saved = localStorage.getItem(storageKey);
+			if (saved) {
+				const draft = JSON.parse(saved);
+				// Basic check to ensure draft belongs to this project (though key already ensures it)
+				if (draft.projectId === existingProject.id) {
+					console.log("[EnhancedProjectForm] Restoring draft from local storage");
+					setIsRestoring(true); // Prevent prop updates from overwriting restored state temporarily
+					
+					setFormData(draft.formData);
+					setFieldMetadata(draft.fieldMetadata || {});
+					if (draft.lockedFields) {
+						setLockedFields(new Set(draft.lockedFields));
+					}
+					setLastSavedAt(draft.updatedAt);
+					
+					// Clear restoring flag after a tick to allow subsequent prop updates (e.g. real remote changes)
+					// Ideally we only restore once on mount.
+					setTimeout(() => setIsRestoring(false), 100);
+				}
+			}
+		} catch (err) {
+			console.warn("[EnhancedProjectForm] Failed to restore draft:", err);
+		}
+	}, [existingProject.id, storageKey]);
+
+	// Save to Local Storage on Change (Debounced)
+	useEffect(() => {
+		// Don't autosave while restoring
+		if (isRestoring) return;
+
+		const handler = setTimeout(() => {
+			if (typeof window === "undefined") return;
+			try {
+				const draft = {
+					projectId: existingProject.id,
+					formData,
+					fieldMetadata,
+					lockedFields: Array.from(lockedFields),
+					updatedAt: Date.now(),
+				};
+				localStorage.setItem(storageKey, JSON.stringify(draft));
+				setLastSavedAt(Date.now());
+			} catch (err) {
+				console.warn("[EnhancedProjectForm] Failed to save draft:", err);
+			}
+		}, 1000); // 1 second debounce
+
+		return () => clearTimeout(handler);
+	}, [formData, fieldMetadata, lockedFields, existingProject.id, storageKey, isRestoring]);
+
+	// Autosave notification handler (from autofill)
 	useEffect(() => {
 		const handler = () => {
 			setShowAutofillNotification(true);
@@ -360,7 +509,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		(fieldId: string, value: any) => {
 			setFormData((prev) => {
 				const next = { ...prev, [fieldId]: value };
-				onFormDataChange?.(next);
 				return next;
 			});
 
@@ -379,26 +527,27 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						...currentMeta,
 						value: value,
 						// Force source to user_input when edited manually
-						sources: [{ type: "user_input" } as any], // Cast to any to match SourceMetadata if needed
+						sources: [{ type: "user_input" } as any], 
 						original_source: null,
 					},
 				};
 			});
 		},
-		[onFormDataChange]
+		[]
 	);
+
+	// Propagate form data changes to parent
+	useEffect(() => {
+		onFormDataChange?.(formData);
+	}, [formData, onFormDataChange]);
 
 	// Helper to derive section lock status from field locks
 	const isSectionFullyLocked = useCallback(
 		(sectionId: string) => {
-			// Get all fields in this section
 			const sectionFieldIds = Object.keys(FIELD_TO_SECTION).filter(
 				(fieldId) => FIELD_TO_SECTION[fieldId] === sectionId
 			);
-			
 			if (sectionFieldIds.length === 0) return false;
-			
-			// Check if all fields in section are locked (and not explicitly unlocked)
 			return sectionFieldIds.every(
 				(fieldId) => !unlockedFields.has(fieldId) && lockedFields.has(fieldId)
 			);
@@ -408,11 +557,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const isFieldLocked = useCallback(
 		(fieldId: string, sectionId?: string) => {
-			// Explicitly unlocked fields override everything
 			if (unlockedFields.has(fieldId)) return false;
-			// Explicitly locked fields
 			if (lockedFields.has(fieldId)) return true;
-			// Check if section is fully locked (all fields locked)
 			if (sectionId && isSectionFullyLocked(sectionId)) return true;
 			return false;
 		},
@@ -421,17 +567,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const toggleFieldLock = useCallback(
 		(fieldId: string) => {
-			// If currently locked (either explicitly or via section)
 			const currentlyLocked = (() => {
 				if (unlockedFields.has(fieldId)) return false;
 				if (lockedFields.has(fieldId)) return true;
-				// Need section ID to check section lock, but simple toggle relies on explicit field lock
-				// For this component we will manage explicit field locks primarily
 				return false;
 			})();
 
 			if (currentlyLocked) {
-				// Unlock
 				setLockedFields((prev) => {
 					const next = new Set(prev);
 					next.delete(fieldId);
@@ -443,7 +585,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					return next;
 				});
 			} else {
-				// Lock
 				setLockedFields((prev) => {
 					const next = new Set(prev);
 					next.add(fieldId);
@@ -460,14 +601,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 
 	const toggleSectionLock = useCallback((sectionId: string) => {
-		// Get all fields in this section
 		const sectionFieldIds = Object.keys(FIELD_TO_SECTION).filter(
 			(fieldId) => FIELD_TO_SECTION[fieldId] === sectionId
 		);
-		
 		const isCurrentlyFullyLocked = isSectionFullyLocked(sectionId);
 		
-		// Lock or unlock all fields in the section
 		setLockedFields((prev) => {
 			const next = new Set(prev);
 			sectionFieldIds.forEach((fieldId) => {
@@ -480,7 +618,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			return next;
 		});
 		
-		// Clear unlocked fields for this section when toggling
 		setUnlockedFields((prev) => {
 			const next = new Set(prev);
 			sectionFieldIds.forEach((fieldId) => next.delete(fieldId));
@@ -488,10 +625,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		});
 	}, [isSectionFullyLocked]);
 
-	// Styling Logic:
-	// White: Empty
-	// Blue: Filled + Unlocked (User Input)
-	// Green: Filled + Locked (AI or User Locked)
+	// Styling Logic: White, Blue, Green
 	const getFieldStylingClasses = useCallback(
 		(fieldId: string, sectionId?: string) => {
 			const value = (formData as any)[fieldId];
@@ -505,25 +639,18 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
 
 			if (!hasValue) {
-				// If there's metadata/sources (e.g. after autofill), treat the field
-				// as "touched" even if the value is currently empty.
 				if (hasSources) {
 					if (locked) {
-						// Green - Locked but currently empty (user locked an empty field)
 						return cn(
 							baseClasses,
 							"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
 						);
 					}
-
-					// Blue - Touched/unlocked but empty (e.g. user_input placeholder)
 					return cn(
 						baseClasses,
 						"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
 					);
 				}
-
-				// White - Truly untouched/empty
 				return cn(
 					baseClasses,
 					"border-gray-200 bg-white focus:ring-blue-200 hover:border-gray-300"
@@ -531,14 +658,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			}
 
 			if (locked) {
-				// Green - Filled & Locked
 				return cn(
 					baseClasses,
 					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
 				);
 			}
 
-			// Blue - Filled & Unlocked
 			return cn(
 				baseClasses,
 				"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
@@ -551,8 +676,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		(fieldId: string) => {
 			const meta = fieldMetadata[fieldId];
 			if (!meta?.sources || meta.sources.length === 0) return false;
-
-			// Check if source is NOT user input
 			const isUserInput = meta.sources.some((src: any) => {
 				if (typeof src === "string")
 					return (
@@ -561,7 +684,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					);
 				return src.type === "user_input";
 			});
-
 			return !isUserInput;
 		},
 		[fieldMetadata]
@@ -576,8 +698,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[fieldMetadata]
 	);
 
-	// Helper to determine if a field is "blue" (filled/unlocked or touched)
-	// Blue fields should keep subsections open
 	const isFieldBlue = useCallback(
 		(fieldId: string, sectionId?: string): boolean => {
 			const value = (formData as any)[fieldId];
@@ -587,19 +707,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const hasSources =
 				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
 
-			// Blue: has value and unlocked, OR has sources but no value (touched but empty)
 			if (!hasValue) {
-				// Empty field is blue only if it has sources and is unlocked
 				return hasSources && !locked;
 			}
-
-			// Field has value - is blue only if unlocked
 			return !locked;
 		},
 		[formData, fieldMetadata, isFieldLocked]
 	);
 
-	// Helper to determine if a field is "white" (truly empty/untouched)
 	const isFieldWhite = useCallback(
 		(fieldId: string, sectionId?: string): boolean => {
 			const value = (formData as any)[fieldId];
@@ -607,14 +722,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const meta = fieldMetadata[fieldId];
 			const hasSources =
 				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
-
-			// White: no value and no sources
 			return !hasValue && !hasSources;
 		},
 		[formData, fieldMetadata]
 	);
 
-	// Helper to determine if a field is "green" (filled and locked)
 	const isFieldGreen = useCallback(
 		(fieldId: string, sectionId?: string): boolean => {
 			const value = (formData as any)[fieldId];
@@ -623,8 +735,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const meta = fieldMetadata[fieldId];
 			const hasSources =
 				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
-
-			// Green: (has value or has sources) and is locked
 			return (hasValue || hasSources) && locked;
 		},
 		[formData, fieldMetadata, isFieldLocked]
@@ -704,63 +814,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[onAskAI, getFieldWarning, renderFieldLockButton, fieldMetadata]
 	);
 
-	// Effect to handle updates from parent (e.g. after Autofill)
-	useEffect(() => {
-		const sanitized = sanitizeProjectProfile(existingProject);
-		setFormData(sanitized);
-		const metadata = sanitized._metadata || {};
-		setFieldMetadata(metadata);
-
-		// Update locks based on source
-		// If a field has a value AND source is not user_input -> Lock it (Green)
-		const newLockedFields = new Set(
-			Object.keys(existingProject._lockedFields || {}).filter(
-				(k) => existingProject._lockedFields?.[k]
-			)
-		);
-
-		Object.entries(metadata).forEach(([fieldId, meta]) => {
-			// Check if source is AI/Document.
-			// Be defensive: sources array can contain null/undefined or non-standard entries.
-			const isAiSourced =
-				Array.isArray((meta as any)?.sources) &&
-				(meta as any).sources.some((src: any) => {
-					if (!src) return false;
-
-					if (typeof src === "string") {
-						const normalized = src.toLowerCase();
-						return (
-							normalized !== "user_input" &&
-							normalized !== "user input"
-						);
-					}
-
-					if (
-						typeof src === "object" &&
-						"type" in src &&
-						typeof (src as any).type === "string"
-					) {
-						return (src as any).type !== "user_input";
-					}
-
-					// Unknown shape – treat as non-user-input but do not crash
-					return false;
-				});
-
-			const hasValue = isProjectValueProvided(
-				(existingProject as any)[fieldId]
-			);
-
-			// Auto-lock if AI sourced and has value, unless explicitly unlocked previously?
-			// We'll trust the incoming _lockedFields from DB mostly, but ensure AI fields are locked
-			if (isAiSourced && hasValue) {
-				newLockedFields.add(fieldId);
-			}
-		});
-
-		setLockedFields(newLockedFields);
-	}, [existingProject]);
-
 	useEffect(() => {
 		if (!initialFocusFieldId) return;
 		const selector = `[data-field-id="${initialFocusFieldId}"], #${initialFocusFieldId}`;
@@ -774,33 +827,207 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		}
 	}, [initialFocusFieldId]);
 
-	// Autosave
+	// Save Logic (Explicit or Unmount)
+	// Use a ref to access the latest state when checking for dirtiness
+	const stateRef = useRef({ formData, fieldMetadata, lockedFields });
 	useEffect(() => {
-		if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-		debounceTimeout.current = setTimeout(async () => {
+		stateRef.current = { formData, fieldMetadata, lockedFields };
+	}, [formData, fieldMetadata, lockedFields]);
+
+	// Helper to determine if there are unsaved changes compared to the last
+	// known persisted snapshot (or the initial DB snapshot if none).
+	const hasUnsavedChanges = useCallback((): boolean => {
+		const baseline =
+			lastSavedSnapshotRef.current || initialSnapshotRef.current;
+		if (!baseline) return true;
+
+		const current = stateRef.current;
+
+		const lockedToArray = (s: Set<string>) =>
+			Array.from(s).sort((a, b) => a.localeCompare(b));
+
+		try {
+			const formEqual =
+				JSON.stringify(current.formData) ===
+				JSON.stringify(baseline.formData);
+			const metaEqual =
+				JSON.stringify(current.fieldMetadata) ===
+				JSON.stringify(baseline.fieldMetadata);
+			const locksEqual =
+				JSON.stringify(lockedToArray(current.lockedFields)) ===
+				JSON.stringify(lockedToArray(baseline.lockedFields));
+
+			return !(formEqual && metaEqual && locksEqual);
+		} catch {
+			// If comparison fails for any reason, err on the side of treating
+			// the form as dirty so changes are not lost.
+			return true;
+		}
+	}, []);
+
+	const saveToDatabase = useCallback(
+		async (finalData: ProjectProfile, createNewVersion: boolean) => {
+			// If there are no unsaved changes relative to our baseline, skip creating
+			// another version row. Still clear any local draft.
+			if (!hasUnsavedChanges()) {
+				if (typeof window !== "undefined") {
+					localStorage.removeItem(storageKey);
+					setLastSavedAt(null);
+				}
+				return;
+			}
+
+			setFormSaved(true);
 			try {
-				const lockedFieldsObj: Record<string, boolean> = {};
-				lockedFields.forEach((id) => {
-					lockedFieldsObj[id] = true;
+				await saveProjectResume(finalData.id, finalData, {
+					createNewVersion,
 				});
-				const dataToSave: ProjectProfile = {
-					...formData,
-					_metadata: fieldMetadata,
-					_lockedFields: lockedFieldsObj,
-					// No _lockedSections - derive from field locks
+
+				// After a successful save, update the baseline snapshot so subsequent
+				// exits only create new versions when there are further edits.
+				const snapshotLocked = new Set(
+					Object.keys(finalData._lockedFields || {}).filter(
+						(k) => finalData._lockedFields?.[k]
+					)
+				);
+				const snapshot: {
+					formData: ProjectProfile;
+					fieldMetadata: Record<string, any>;
+					lockedFields: Set<string>;
+				} = {
+					formData: finalData,
+					fieldMetadata: (finalData as any)._metadata || {},
+					lockedFields: snapshotLocked,
 				};
-				await updateProject(formData.id, dataToSave);
-				setFormSaved(true);
+				lastSavedSnapshotRef.current = snapshot;
+
+				// Clear local storage after successful save
+				if (typeof window !== "undefined") {
+					localStorage.removeItem(storageKey);
+					setLastSavedAt(null);
+				}
 			} catch (err) {
-				console.error("[EnhancedProjectForm] Auto-save failed:", err);
+				console.error("[EnhancedProjectForm] Save failed:", err);
 			} finally {
 				setTimeout(() => setFormSaved(false), 1500);
 			}
-		}, 1500);
+		},
+		[hasUnsavedChanges, storageKey]
+	);
+
+	const handleFormSubmit = useCallback(
+		async (finalData?: ProjectProfile) => {
+			const lockedFieldsObj: Record<string, boolean> = {};
+			lockedFields.forEach((id) => {
+				lockedFieldsObj[id] = true;
+			});
+
+			const dataToSave: ProjectProfile = {
+				...(finalData || formData),
+				_metadata: fieldMetadata,
+				_lockedFields: lockedFieldsObj,
+			};
+			
+			// Explicit Save & Exit should create a new version only when there
+			// are unsaved changes. The helper will no-op if nothing changed.
+			await saveToDatabase(dataToSave, true);
+			onComplete?.(dataToSave);
+			onVersionChange?.();
+		},
+		[
+			formData,
+			fieldMetadata,
+			lockedFields,
+			saveToDatabase,
+			onComplete,
+			onVersionChange,
+		]
+	);
+
+	// Save on Unmount
+	useEffect(() => {
 		return () => {
-			if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+			// If there are no unsaved changes relative to our last saved snapshot,
+			// don't create another version on unmount.
+			if (!hasUnsavedChanges()) {
+				return;
+			}
+
+			const {
+				formData: currentFormData,
+				fieldMetadata: currentMeta,
+				lockedFields: currentLocks,
+			} = stateRef.current;
+
+			const lockedFieldsObj: Record<string, boolean> = {};
+			currentLocks.forEach((id) => {
+				lockedFieldsObj[id] = true;
+			});
+
+			const dataToSave: ProjectProfile = {
+				...currentFormData,
+				_metadata: currentMeta,
+				_lockedFields: lockedFieldsObj,
+			};
+
+			// Fire and forget save on unmount. We always create a new version
+			// here when dirty, since this represents an exit with draft changes.
+			void saveProjectResume(dataToSave.id, dataToSave, {
+				createNewVersion: true,
+			})
+				.then(() => {
+					// Update baseline snapshot after successful background save
+					const snapshotLocked = new Set(
+						Object.keys(lockedFieldsObj).filter(
+							(k) => lockedFieldsObj[k]
+						)
+					);
+					const snapshot: {
+						formData: ProjectProfile;
+						fieldMetadata: Record<string, any>;
+						lockedFields: Set<string>;
+					} = {
+						formData: dataToSave,
+						fieldMetadata: currentMeta,
+						lockedFields: snapshotLocked,
+					};
+					lastSavedSnapshotRef.current = snapshot;
+
+					// Also clear local storage so the same draft isn't re-applied.
+					if (typeof window !== "undefined") {
+						localStorage.removeItem(storageKey);
+					}
+				})
+				.catch((err) =>
+					console.error(
+						"[EnhancedProjectForm] Unmount save failed",
+						err
+					)
+				);
 		};
-	}, [formData, fieldMetadata, lockedFields, updateProject]);
+	}, [hasUnsavedChanges, storageKey]);
+
+	// Warn the user when attempting to close/refresh the tab or navigate away
+	// from the page entirely while there are unsaved changes. Browsers only
+	// allow a generic confirmation dialog here – we can't customize the text
+	// or add buttons, but this at least nudges the user to use Save & Exit.
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			// If nothing has changed, allow navigation without warning.
+			if (!hasUnsavedChanges()) return;
+
+			event.preventDefault();
+			// Some browsers require setting returnValue for the prompt to appear.
+			event.returnValue = "";
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+		};
+	}, [hasUnsavedChanges]);
 
 	type ControlKind =
 		| "input"
@@ -1439,33 +1666,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		fieldMetadata,
 	]);
 
-	const handleFormSubmit = useCallback(
-		async (finalData?: ProjectProfile) => {
-		const lockedFieldsObj: Record<string, boolean> = {};
-		lockedFields.forEach((id) => {
-			lockedFieldsObj[id] = true;
-		});
-
-		const dataToSave: ProjectProfile = {
-			...(finalData || formData),
-			_metadata: fieldMetadata,
-			_lockedFields: lockedFieldsObj,
-			// No _lockedSections - derive from field locks
-		};
-			await updateProject(formData.id, dataToSave);
-			onComplete?.(dataToSave);
-			onVersionChange?.();
-		},
-		[
-			formData,
-			fieldMetadata,
-			lockedFields,
-			updateProject,
-			onComplete,
-			onVersionChange,
-		]
-	);
-
 	const wrappedHandleAutofill = useCallback(async () => {
 		try {
 			await startAutofill();
@@ -1501,6 +1701,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					</div>
 				</div>
 				<div className="flex items-center gap-2">
+					{lastSavedAt && (
+						<span className="text-xs text-gray-500 mr-2 hidden sm:inline-block">
+							Draft saved {new Date(lastSavedAt).toLocaleTimeString()}
+						</span>
+					)}
 					<Button
 						variant="outline"
 						size="sm"

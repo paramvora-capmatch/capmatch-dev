@@ -163,39 +163,12 @@ export const useAutofill = (
 		[checkCompletion, clearAutofillState, loadUserProjects, context]
 	);
 
-	// Set up realtime subscription to detect when other users trigger autofill
+	// Load any in-flight autofill state on mount so the UI can resume
+	// a previously started autofill (e.g. user refreshed or navigated).
+	// NOTE: We intentionally do NOT subscribe to realtime INSERT events here.
+	// Treating any new resume row as an "autofill in progress" was causing
+	// false positives when users simply edited/saved the resume.
 	useEffect(() => {
-		// Subscribe to project_resumes changes for this project
-		const channel = supabase
-			.channel(getChannelName(context, projectId))
-			.on(
-				"postgres_changes",
-				{
-					event: "INSERT",
-					schema: "public",
-					table: resumeTable,
-					filter: `project_id=eq.${projectId}`,
-				},
-				(payload) => {
-					// When a new resume is created, check if it's from autofill
-					// We can't directly know, but if it's recent (within last 30 seconds), assume autofill
-					const createdTime = new Date(payload.new.created_at);
-					const now = new Date();
-					const elapsed = now.getTime() - createdTime.getTime();
-
-					// If a new resume was created very recently, show autofilling status
-					if (elapsed < 30000) {
-						// 30 seconds
-						setIsAutofilling(true);
-						setShowSparkles(true);
-						// Start polling to detect completion
-						startPolling(projectId, createdTime.toISOString());
-					}
-				}
-			)
-			.subscribe();
-
-		// Load persisted state on mount
 		try {
 			const stored = localStorage.getItem(storageKey);
 			if (stored) {
@@ -224,11 +197,7 @@ export const useAutofill = (
 		} catch (error) {
 			console.error("Error loading autofill state:", error);
 		}
-
-		return () => {
-			supabase.removeChannel(channel);
-		};
-	}, [projectId, startPolling, context, resumeTable, storageKey]);
+	}, [projectId, startPolling, context, storageKey]);
 
 	// Cleanup on unmount
 	useEffect(() => {
