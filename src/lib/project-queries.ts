@@ -1072,18 +1072,11 @@ export const saveProjectResume = async (
 			completenessPercent: completionPercent,
 		};
 
-		// Mark all existing versions as superseded before inserting the new one
-		await supabase
-			.from("project_resumes")
-			.update({ status: "superseded" })
-			.eq("project_id", projectId);
-
 		const { data: newResume, error } = await supabase
 			.from("project_resumes")
 			.insert({
 				project_id: projectId,
 				content: contentToInsert as any,
-				status: "active",
 				created_by: user?.id ?? null,
 			})
 			.select("id, project_id, version_number")

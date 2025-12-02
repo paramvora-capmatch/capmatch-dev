@@ -280,13 +280,11 @@ async function createProject(
     console.log(`[seed] ✅ Created project record: ${projectId}`);
 
     // 2. Create empty project resume (will be updated later)
-    // Note: With versioning, we need to include status and created_by
     const { error: resumeError } = await supabaseAdmin
       .from('project_resumes')
       .insert({
         project_id: projectId,
         content: {},
-        status: 'active',
         created_by: creatorId,
       });
 
@@ -427,21 +425,13 @@ async function updateProjectResume(
     completenessPercent,
   };
 
-  // Mark any existing active resumes as superseded (project resumes now support versioning)
-  await supabaseAdmin
-    .from('project_resumes')
-    .update({ status: 'superseded' })
-    .eq('project_id', projectId)
-    .eq('status', 'active');
-
-  // Insert new resume with versioning fields
+  // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('project_resumes')
     .insert({
       project_id: projectId,
       content: resumeWithProgress as any,
-      status: 'active',
       created_by: createdById,
     });
 
@@ -477,21 +467,13 @@ async function updateBorrowerResume(
     completenessPercent: 100, // Explicitly set to 100% since all fields are filled
   };
 
-  // Mark any existing active resumes as superseded (borrower resumes now support versioning)
-  await supabaseAdmin
-    .from('borrower_resumes')
-    .update({ status: 'superseded' })
-    .eq('project_id', projectId)
-    .eq('status', 'active');
-
-  // Insert new resume with versioning fields
+  // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
       content: borrowerResumeWithProgress as any,
-      status: 'active',
       created_by: createdById,
     });
 

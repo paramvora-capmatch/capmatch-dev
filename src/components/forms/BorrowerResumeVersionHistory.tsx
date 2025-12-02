@@ -35,7 +35,6 @@ interface BorrowerVersionRow {
   version_number: number | null;
   created_at: string;
   created_by: string | null;
-  status: string | null;
   creatorDisplayName: string;
 }
 
@@ -76,7 +75,7 @@ export const BorrowerResumeVersionHistory: React.FC<BorrowerVersionHistoryProps>
 
       const { data: versionRows, error: versionsError } = await supabase
         .from("borrower_resumes")
-        .select("id, version_number, created_at, created_by, status")
+        .select("id, version_number, created_at, created_by")
         .eq("project_id", projectId)
         .order("version_number", { ascending: false });
       if (versionsError) throw versionsError;
@@ -226,7 +225,7 @@ export const BorrowerResumeVersionHistory: React.FC<BorrowerVersionHistoryProps>
                 ) : (
                   versions.map((version) => {
                     const isActive = version.id === resource?.current_version_id;
-                    const status = version.status || (isActive ? "active" : "superseded");
+                    const status = isActive ? "active" : "superseded";
                     return (
                       <div
                         key={version.id}

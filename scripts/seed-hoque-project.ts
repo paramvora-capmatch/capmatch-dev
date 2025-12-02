@@ -1068,21 +1068,13 @@ async function grantMemberProjectAccess(
 async function seedProjectResume(projectId: string, createdById: string): Promise<boolean> {
   console.log(`[seed] Updating project resume for SoGood Apartments...`);
 
-  // Mark any existing active resumes as superseded (project resumes now support versioning)
-  await supabaseAdmin
-    .from('project_resumes')
-    .update({ status: 'superseded' })
-    .eq('project_id', projectId)
-    .eq('status', 'active');
-
-  // Insert new resume with versioning fields
+  // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('project_resumes')
     .insert({
       project_id: projectId,
       content: hoqueProjectResume as any,
-      status: 'active',
       created_by: createdById,
     });
 
@@ -1107,21 +1099,13 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     console.warn(`[seed] Warning: Failed to ensure borrower root resources:`, rootError.message);
   }
 
-  // Mark any existing active resumes as superseded (borrower resumes now support versioning)
-  await supabaseAdmin
-    .from('borrower_resumes')
-    .update({ status: 'superseded' })
-    .eq('project_id', projectId)
-    .eq('status', 'active');
-
-  // Insert new resume with versioning fields
+  // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
       content: hoqueBorrowerResume as any,
-      status: 'active',
       created_by: createdById,
     });
 

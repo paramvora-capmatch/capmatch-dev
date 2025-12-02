@@ -200,24 +200,17 @@ export async function POST(request: Request) {
 				// should ALWAYS create a new project resume version when changes are
 				// applied, rather than mutating the existing row in place.
 				//
-				// 1) Mark existing versions as superseded for this project.
-				await supabaseAdmin
-					.from("project_resumes")
-					.update({ status: "superseded" })
-					.eq("project_id", project_id);
-
-				// 2) Ensure _lockedFields is initialized on the new snapshot.
+				// 1) Ensure _lockedFields is initialized on the new snapshot.
 				if (!finalContent._lockedFields) {
 					finalContent._lockedFields = lockedFields || {};
 				}
 
-				// 3) Insert a brand new resume row with the merged content.
+				// 2) Insert a brand new resume row with the merged content.
 				const { data: inserted, error: insertError } = await supabaseAdmin
 					.from("project_resumes")
 					.insert({
 						project_id,
 						content: finalContent,
-						status: "active",
 						created_by: user_id ?? null,
 					})
 					.select("id, version_number")

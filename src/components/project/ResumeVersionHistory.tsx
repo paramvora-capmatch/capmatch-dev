@@ -29,7 +29,6 @@ interface ResumeVersionRow {
   version_number: number | null;
   created_at: string;
   created_by: string | null;
-  status: string | null;
   creatorDisplayName: string;
 }
 
@@ -63,11 +62,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
     // Priority 1: Explicit current version pointer from resource
     if (resource?.current_version_id) return resource.current_version_id;
 
-    // Priority 2: Version marked as 'active'
-    const active = versions.find((v) => v.status === "active");
-    if (active) return active.id;
-
-    // Priority 3: Latest version (first in the list as it's sorted desc)
+    // Priority 2: Latest version (first in the list as it's sorted desc)
     return versions.length > 0 ? versions[0].id : null;
   }, [resource, versions]);
 
@@ -113,7 +108,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 
       const { data: versionRows, error: versionsError } = await supabase
         .from("project_resumes")
-        .select("id, version_number, created_at, created_by, status")
+        .select("id, version_number, created_at, created_by")
         .eq("project_id", projectId)
         .order("version_number", { ascending: false });
 
@@ -327,10 +322,8 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
                     // Determine if this is the current version
                     // First check if it matches the current_version_id, otherwise check if it's the first/latest version
                     const isCurrentVersion = version.id === currentVersionId;
-                    const isActive =
-                      isCurrentVersion || version.status === "active";
-                    const status =
-                      version.status || (isActive ? "active" : "superseded");
+                    const isActive = isCurrentVersion;
+                    const status = isActive ? "active" : "superseded";
                     
                     // Show buttons on all versions except the current one
                     // If currentVersionId is null, we'll show buttons on all versions (safer than hiding them all)

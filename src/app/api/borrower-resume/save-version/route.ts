@@ -110,11 +110,6 @@ export async function POST(request: Request) {
     );
   }
 
-  await supabaseAdmin
-    .from("borrower_resumes")
-    .update({ status: "superseded" })
-    .eq("project_id", projectId);
-
   const { data: inserted, error: insertError } = await supabaseAdmin
     .from("borrower_resumes")
     .insert({
