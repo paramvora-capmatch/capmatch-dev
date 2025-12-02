@@ -133,10 +133,11 @@ export const extractProjectFields = async (
 	const sectionWiseFields: SectionWiseExtractionResponse = {
 		section_1: {
 			// Basic Info - Project Identification
-			projectName: createField(null, "User Input"),
-			assetType: createField(null, "User Input"),
-			projectStatus: createField(null, "User Input"),
-			propertyAddressStreet: createField(null, "User Input"),
+			// Only 2 fields are empty (User Input): projectName and guarantorNames
+			projectName: createField(null, "User Input"), // Empty field 1
+			assetType: createField("Multifamily", "Marketing Brochure"),
+			projectStatus: createField("Pre-Construction", "Project Status"),
+			propertyAddressStreet: createField("2800 Commerce Street", "ALTA Survey"),
 			propertyAddressCity: createField("Dallas", "Extract from Address"),
 			propertyAddressState: createField("TX", "Extract from Address"),
 			propertyAddressZip: createField("75215", "Extract from Address"),
@@ -150,10 +151,10 @@ export const extractProjectFields = async (
 			),
 			zoningDesignation: createField("MU-3", "Zoning Letter"),
 			currentZoning: createField("MU-3", "Zoneomics API"),
-			expectedZoningChanges: createField(null, "User Input"),
-			primaryAssetClass: createField(null, "User Input"),
+			expectedZoningChanges: createField("None", "Zoning Letter"), // "None" is a valid value, not null
+			primaryAssetClass: createField("Mixed-Use", "Arch Plans"),
 			constructionType: createField("Ground-Up", "Arch Plans"),
-			projectPhase: createField(null, "User Input"),
+			projectPhase: createField("Construction", "Project Status"),
 			groundbreakingDate: createField(
 				"2025-08-01",
 				"Construction Schedule"
@@ -161,7 +162,7 @@ export const extractProjectFields = async (
 			completionDate: createField("2027-09-30", "Construction Schedule"),
 			totalDevelopmentCost: createField(29807800, "Sum of Budget"),
 			loanAmountRequested: createField(18000000, "Sources & Uses"),
-			loanType: createField(null, "User Input"),
+			loanType: createField("Construction Loan", "Term Sheet"),
 			requestedLoanTerm: createField("2 years", "Term Sheet"),
 			requestedTerm: createField("3 Years + 1 Year Ext", "Term Sheet"),
 			masterPlanName: createField(
@@ -169,19 +170,23 @@ export const extractProjectFields = async (
 				"Marketing Brochure"
 			),
 			phaseNumber: createField("Building B", "Site Plan"),
-			dealStatus: createField("Pre-Submission", "User Input"),
+			dealStatus: createField("Pre-Submission", "Deal Status"),
 			syndicationStatus: createField("Committed", "Equity Commitment"),
 			sponsorExperience: createField("Seasoned (3+)", "Track Record"),
 			borrowerNetWorth: createField(45000000, "Personal FS"),
-			ltvStressMax: createField(50.0, "User Input"),
-			dscrStressMin: createField(1.1, "User Input"),
+			ltvStressMax: createField(50.0, "Underwriting Parameters"),
+			dscrStressMin: createField(1.1, "Underwriting Parameters"),
 			prepaymentPremium: createField("Yield Maint", "Term Sheet"),
 			expectedHoldPeriod: createField(5, "Inv. Memo"),
-			guarantorNames: createField(null, "User Input"),
-			projectDescription: createField(null, "User Input"),
+			guarantorNames: createField(null, "User Input"), // Empty field 2
+			projectDescription: createField(
+				"116-unit mixed-use development in Deep Ellum featuring retail and office components",
+				"Marketing Brochure"
+			),
 		},
 		section_2: {
 			// Property Specifications
+			// Only 2 fields are empty (User Input): furnishedUnits and buildingEfficiency
 			totalResidentialUnits: createField(116, "Sum of Unit Mix"),
 			totalResidentialNRSF: createField(59520, "Sum of Unit SF"),
 			averageUnitSize: createField(513, "NRSF / Units"),
@@ -197,12 +202,12 @@ export const extractProjectFields = async (
 				"Arch Plans"
 			),
 			amenitySF: createField(8500, "Sum of Areas"),
-			buildingEfficiency: createField(82.0, "NRSF/GBA"),
+			buildingEfficiency: createField(null, "User Input"), // Empty field 1
 			studioCount: createField(12, "Arch Plans"),
 			oneBedCount: createField(46, "Arch Plans"),
 			twoBedCount: createField(58, "Arch Plans"),
 			threeBedCount: createField(0, "Arch Plans"),
-			furnishedUnits: createField(false, "User Input"),
+			furnishedUnits: createField(null, "User Input"), // Empty field 2
 			lossToLease: createField(5.0, "Rent Roll"),
 			adaCompliantUnitsPercent: createField(5.0, "Arch Plans"),
 			adaCompliantPercent: createField(5.0, "Arch Plans"),
@@ -277,6 +282,7 @@ export const extractProjectFields = async (
 		},
 		section_3: {
 			// Development Budget & Financial Details
+			// Only 2 fields are empty (User Input): internalAdvisorNotes and marketOverviewSummary
 			landAcquisition: createField(3500000, "Purchase Agmt"),
 			baseConstruction: createField(18500000, "Budget"),
 			contingency: createField(925000, "Budget"),
@@ -325,6 +331,7 @@ export const extractProjectFields = async (
 			recoursePreference: createField("Full Recourse", "Term Sheet"),
 			purchasePrice: createField(3500000, "Purchase Agmt"),
 			totalProjectCost: createField(29807800, "Sum of Budget"),
+			totalDevelopmentCost: createField(29807800, "Sum of Budget"), // TDC - also in section_1
 			capexBudget: createField(450000, "Budget"),
 			propertyNoiT12: createField(0, "N/A - New Construction"),
 			stabilizedNoiProjected: createField(2268000, "Proforma"),
@@ -336,15 +343,17 @@ export const extractProjectFields = async (
 				"Develop and operate a high-quality mixed-use property in the rapidly growing Deep Ellum submarket. Target market-rate and affordable units (80% AMI) with strong retail and office components. Projected stabilization within 18 months of first occupancy.",
 				"Business Plan"
 			),
-			marketOverviewSummary: createField(
-				"Deep Ellum/Farmers Market submarket is experiencing strong population growth (12.5% 2010-2020, 8.3% projected 2024-2029) with high renter occupancy (68.5%). The area benefits from proximity to downtown Dallas employment centers, excellent walkability (Walk Score 85), and upcoming infrastructure improvements including DART Rail Extension.",
-				"Market Study"
-			),
+			marketOverviewSummary: createField(null, "User Input"), // Empty field 2
 			equityCommittedPercent: createField(39.6, "Equity Commit"),
-			internalAdvisorNotes: createField(
-				"Strong sponsor with proven track record. Project benefits from tax abatement and affordable housing incentives. Market fundamentals are solid with strong absorption projections.",
-				"Advisor Notes"
-			),
+			internalAdvisorNotes: createField(null, "User Input"), // Empty field 1
+			// Additional fields that should be in section_3
+			loanAmountRequested: createField(18000000, "Sources & Uses"), // Also in section_1
+			loanType: createField("Construction Loan", "Term Sheet"), // Also in section_1
+			requestedTerm: createField("3 Years + 1 Year Ext", "Term Sheet"), // Also in section_1
+			prepaymentPremium: createField("Yield Maint", "Term Sheet"), // Also in section_1
+			expectedHoldPeriod: createField(5, "Inv. Memo"), // Also in section_1
+			ltvStressMax: createField(50.0, "Underwriting Parameters"), // Also in section_1
+			dscrStressMin: createField(1.1, "Underwriting Parameters"), // Also in section_1
 			// Operating Expenses
 			realEstateTaxes: createField(450000, "Proforma"),
 			insurance: createField(125000, "Proforma"),
@@ -375,6 +384,7 @@ export const extractProjectFields = async (
 		},
 		section_4: {
 			// Market Context
+			// Only 2 fields are empty (User Input): northStarComp and infraCompletion
 			submarketName: createField(
 				"Deep Ellum / Farmers Market",
 				"Market Study"
@@ -403,7 +413,7 @@ export const extractProjectFields = async (
 			marketConcessions: createField("1 Month Free", "CoStar"),
 			absorptionRate: createField(12, "Market Study"),
 			penetrationRate: createField(2.1, "Market Study"),
-			northStarComp: createField("The Alexan Deep Ellum", "User Input"),
+			northStarComp: createField(null, "User Input"), // Empty field 1
 			infrastructureProject: createField(
 				"DART Rail Extension",
 				"Market Study"
@@ -415,7 +425,7 @@ export const extractProjectFields = async (
 			broadbandSpeed: createField("Fiber 1Gbps Available", "FCC Map"),
 			crimeRiskLevel: createField("Low", "Crime Data"),
 			projectBudget: createField(250000000, "Market Study"),
-			infraCompletion: createField("2026", "Market Study"),
+			infraCompletion: createField(null, "User Input"), // Empty field 2
 			rentComps: createField(
 				[
 					{
@@ -463,6 +473,7 @@ export const extractProjectFields = async (
 		},
 		section_5: {
 			// Special Considerations
+			// Only 2 fields are empty (User Input): paceFinancing and incentiveStacking
 			opportunityZone: createField(false, "US Treasury"),
 			affordableHousing: createField(true, "Reg Agreement"),
 			affordableUnitsNumber: createField(58, "Reg Agreement"),
@@ -472,13 +483,10 @@ export const extractProjectFields = async (
 			sponsoringEntity: createField("SoGood MMD", "Incentive Agmt"),
 			structuringFee: createField(250000, "Budget"),
 			exemptionTerm: createField(15, "Incentive Agmt"),
-			incentiveStacking: createField(
-				["LIHTC", "Section 8"],
-				"Incentive Agmt"
-			),
+			incentiveStacking: createField(null, "User Input"), // Empty field 1
 			tifDistrict: createField(false, "City GIS"),
 			taxAbatement: createField(true, "Incentive Agmt"),
-			paceFinancing: createField(null, "User Input"),
+			paceFinancing: createField(null, "User Input"), // Empty field 2
 			historicTaxCredits: createField(false, "NPS Cert"),
 			newMarketsCredits: createField(false, "CDFI Fund"),
 			relocationPlan: createField("N/A", "Relocation Plan"),
@@ -486,6 +494,7 @@ export const extractProjectFields = async (
 		},
 		section_6: {
 			// Timeline & Milestones
+			// Only 2 fields are empty (User Input): opDeficitEscrow and leaseUpEscrow
 			landAcqClose: createField("2024-12-15", "Settlement Stmt"),
 			entitlements: createField("Approved", "Zoning Letter"),
 			finalPlans: createField("Approved", "Arch Contract"),
@@ -506,11 +515,15 @@ export const extractProjectFields = async (
 				"Const Contract"
 			),
 			absorptionProjection: createField(12, "Market Study"),
-			opDeficitEscrow: createField(650000, "6 Mos OpEx"),
-			leaseUpEscrow: createField(1300000, "6-12 Mos"),
+			opDeficitEscrow: createField(null, "User Input"), // Empty field 1
+			leaseUpEscrow: createField(null, "User Input"), // Empty field 2
+			// Also include groundbreakingDate and completionDate here (they're also in section_1)
+			groundbreakingDate: createField("2025-08-01", "Construction Schedule"),
+			completionDate: createField("2027-09-30", "Construction Schedule"),
 		},
 		section_7: {
 			// Site & Context
+			// Only 2 fields are empty (User Input): viewCorridors and topEmployers
 			totalSiteAcreage: createField(2.85, "ALTA Survey"),
 			currentSiteStatus: createField("Vacant", "Phase I ESA"),
 			topography: createField("Flat", "Survey"),
@@ -541,7 +554,7 @@ export const extractProjectFields = async (
 			accessPoints: createField("1 Curb Cut on Main St", "Civil Plans"),
 			adjacentLandUse: createField("Mixed-Use", "Zoning"),
 			noiseFactors: createField(["Highway"], "Env Report"),
-			viewCorridors: createField(["Skyline"], "User Input"),
+			viewCorridors: createField(null, "User Input"), // Empty field 1
 			siteAccess: createField(
 				"Primary access from Hickory St, secondary from Commerce St",
 				"Civil Plans"
@@ -566,22 +579,24 @@ export const extractProjectFields = async (
 				"1.5 miles to Baylor University Medical Center",
 				"Market Study"
 			),
-			topEmployers: createField(
-				"Downtown Dallas (0.5 mi), Deep Ellum tech companies (0.3 mi)",
-				"Market Study"
-			),
+			topEmployers: createField(null, "User Input"), // Empty field 2
 		},
 		section_8: {
 			// Sponsor Information
+			// Only 2 fields are empty (User Input): contactInfo and priorDevelopments
 			sponsorEntityName: createField("Hoque Global", "Org Chart"),
 			sponsorStructure: createField("General Partner", "Org Chart"),
 			equityPartner: createField("ACARA", "Org Chart"),
-			contactInfo: createField(null, "User Input"),
+			contactInfo: createField(null, "User Input"), // Empty field 1
 			sponsorExpScore: createField(8, "Prior Units"),
-			priorDevelopments: createField(null, "User Input"),
+			priorDevelopments: createField(null, "User Input"), // Empty field 2
 			netWorth: createField(45000000, "Financials"),
 			guarantorLiquidity: createField(2500000, "Guarantor FS"),
 			portfolioDSCR: createField(1.35, "Sponsor FS"),
+			// Also include fields that are in section_1 but should also be here
+			syndicationStatus: createField("Committed", "Equity Commitment"),
+			sponsorExperience: createField("Seasoned (3+)", "Track Record"),
+			borrowerNetWorth: createField(45000000, "Personal FS"),
 		},
 	};
 
@@ -623,12 +638,21 @@ export const extractProjectFields = async (
 
 			for (const fieldId of stepFields) {
 				if (!fieldId || typeof fieldId !== "string") continue;
-				if (!sectionWiseFields[sectionKey][fieldId]) {
+				// Only initialize if field doesn't exist - don't overwrite existing values
+				// IMPORTANT: Check if field exists and has a value before overwriting
+				const existingField = sectionWiseFields[sectionKey]?.[fieldId];
+				if (!existingField || 
+				    (typeof existingField === "object" && 
+				     "value" in existingField && 
+				     (existingField.value === null || existingField.value === undefined))) {
+					// Field doesn't exist or has null value - initialize with User Input
+					// The explicit definitions above handle all fields that should have AI values
 					sectionWiseFields[sectionKey][fieldId] = createField(
 						null,
 						"User Input"
 					);
 				}
+				// If field already exists with a value, preserve it (don't overwrite)
 			}
 		}
 	}
@@ -649,6 +673,26 @@ export const extractProjectFields = async (
 				(fieldData as any).value = cleaned;
 				(fieldData as any).original_value =
 					(fieldData as any).original_value ?? cleaned;
+			}
+		}
+	}
+
+	// Final verification: Ensure critical fields have values (not null)
+	// These fields should always have values from the mock API
+	const criticalFields = {
+		"section_1": ["parcelNumber", "zoningDesignation", "expectedZoningChanges"],
+		"section_5": ["seismicPMLRisk"]
+	};
+	
+	for (const [sectionId, fieldIds] of Object.entries(criticalFields)) {
+		if (!sectionWiseFields[sectionId]) continue;
+		for (const fieldId of fieldIds) {
+			const fieldData = sectionWiseFields[sectionId][fieldId];
+			if (fieldData && typeof fieldData === "object" && "value" in fieldData) {
+				// Check if value is null/undefined - if so, ensure it's explicitly set (shouldn't happen if mock is correct)
+				if (fieldData.value === null || fieldData.value === undefined) {
+					console.warn(`[Mock API] Warning: Field ${sectionId}.${fieldId} has null value but should have a value`);
+				}
 			}
 		}
 	}

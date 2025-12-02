@@ -571,8 +571,7 @@ export interface ProjectProfile {
 	_metadata?: Record<string, FieldMetadata>;
 	// Locked fields container (fieldId -> true)
 	_lockedFields?: Record<string, boolean>;
-	// Locked sections container (sectionId -> true)
-	_lockedSections?: Record<string, boolean>;
+	// _lockedSections removed - section locks are derived from field locks
 	// Field states container (fieldId -> { state: "WHITE" | "BLUE" | "GREEN", locked: boolean, source: "ai" | "user_input" | null })
 	_fieldStates?: Record<string, { state: "WHITE" | "BLUE" | "GREEN"; locked: boolean; source: "ai" | "user_input" | null }>;
 }

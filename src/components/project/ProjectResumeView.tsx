@@ -45,8 +45,19 @@ const formatDecimal = (value: number | null | undefined, decimals: number = 2): 
     return value.toFixed(decimals);
 };
 
-const formatBoolean = (value: boolean | null | undefined): string => {
+const formatBoolean = (value: boolean | string | null | undefined): string => {
     if (value === null || value === undefined) return 'N/A';
+    
+    // Handle string "true"/"false" from backend/mockAPI
+    if (typeof value === 'string') {
+        const normalized = value.toLowerCase().trim();
+        if (normalized === 'true') return 'Yes';
+        if (normalized === 'false') return 'No';
+        // If it's not a boolean string, return as-is (shouldn't happen for Boolean fields)
+        return value;
+    }
+    
+    // Handle actual boolean values
     return value ? 'Yes' : 'No';
 };
 
@@ -121,6 +132,17 @@ const isFieldRequiredFromSchema = (fieldId: string): boolean => {
 
 // Helper to format field value based on data type
 const formatFieldValue = (value: any, dataType?: string): string => {
+    // Handle boolean values first, including false (which is a valid value)
+    // Check this before hasValue() because false is falsy but is a valid boolean value
+    if (typeof value === 'boolean') {
+        if (dataType && dataType !== 'Boolean') {
+            // Data type mismatch – underlying data is likely stale/incorrect.
+            // Hide the bad value by treating it as missing.
+            return 'N/A';
+        }
+        return formatBoolean(value);
+    }
+    
     if (!hasValue(value)) return 'N/A';
     
     // First, check the actual runtime type of the value
@@ -129,17 +151,6 @@ const formatFieldValue = (value: any, dataType?: string): string => {
     // If it's actually an array, format as array
     if (Array.isArray(value)) {
         return formatArray(value);
-    }
-    
-    // If it's actually a boolean, format as boolean only when metadata says Boolean.
-    // If metadata expects a different type (Integer, Percent, etc.), treat boolean as invalid/mismatched.
-    if (typeof value === 'boolean') {
-        if (dataType && dataType !== 'Boolean') {
-            // Data type mismatch – underlying data is likely stale/incorrect.
-            // Hide the bad value by treating it as missing.
-            return 'N/A';
-        }
-        return formatBoolean(value);
     }
     
     // If it's actually a number, use metadata for specific formatting
@@ -163,6 +174,9 @@ const formatFieldValue = (value: any, dataType?: string): string => {
         switch (dataType) {
             case 'Date':
                 return formatDate(value);
+            case 'Boolean':
+                // Handle string "true"/"false" from backend/mockAPI
+                return formatBoolean(value);
             case 'Currency':
             case 'Percent':
             case 'Decimal':
@@ -180,6 +194,12 @@ const formatFieldValue = (value: any, dataType?: string): string => {
                 // Return as-is (might be comma-separated or single value)
                 return value;
             default:
+                // Check if string is "true" or "false" even if dataType is not explicitly Boolean
+                // This handles cases where backend returns boolean as string without proper metadata
+                const normalized = value.toLowerCase().trim();
+                if (normalized === 'true' || normalized === 'false') {
+                    return formatBoolean(value);
+                }
                 return value;
         }
     }

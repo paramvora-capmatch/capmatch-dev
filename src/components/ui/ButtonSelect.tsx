@@ -3,9 +3,10 @@ import React from 'react';
 import { cn } from '@/utils/cn';
 import { Button } from './Button';
 
-type ButtonOption = string | { label: string; value: string };
+export type ButtonOptionValue = string | number | boolean;
+export type ButtonOption = string | { label: string; value: ButtonOptionValue };
 
-const normalizeOption = (option: ButtonOption) =>
+const normalizeOption = (option: ButtonOption): { label: string; value: ButtonOptionValue } =>
   typeof option === "string"
     ? { label: option, value: option }
     : option;
@@ -13,8 +14,8 @@ const normalizeOption = (option: ButtonOption) =>
 interface ButtonSelectProps {
   label: string;
   options: ReadonlyArray<ButtonOption>;
-  selectedValue: string | null | undefined;
-  onSelect?: (value: string) => void; // *** Make onSelect optional ***
+  selectedValue: ButtonOptionValue | null | undefined;
+  onSelect?: (value: any) => void; // Relaxed to allow boolean/number/string
   required?: boolean;
   className?: string;
   buttonClassName?: string;
@@ -46,7 +47,7 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   isTouched = false,
 }) => {
   // Handler that checks if onSelect exists before calling it
-  const handleClick = (option: string) => {
+  const handleClick = (option: ButtonOptionValue) => {
     if (disabled) return;
     if (onSelect) {
       onSelect(option);
@@ -86,7 +87,7 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
 
           return (
           <Button
-            key={option.value}
+            key={String(option.value)}
             type="button"
             variant={isSelected ? 'primary' : 'outline'}
             // Use the safe handler

@@ -19,6 +19,7 @@ import { HelpCircle } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
 import { useAutofill } from "@/hooks/useAutofill";
 import { cn } from "@/utils/cn";
+import { FIELD_TO_SECTION } from "@/lib/section-grouping";
 import {
 	FileText,
 	DollarSign,
@@ -320,10 +321,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		const saved = existingProject._lockedFields || {};
 		return new Set(Object.keys(saved).filter((key) => saved[key] === true));
 	});
-	const [lockedSections, setLockedSections] = useState<Set<string>>(() => {
-		const saved = existingProject._lockedSections || {};
-		return new Set(Object.keys(saved).filter((key) => saved[key] === true));
-	});
 
 	const [unlockedFields, setUnlockedFields] = useState<Set<string>>(
 		new Set()
@@ -391,17 +388,35 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[onFormDataChange]
 	);
 
+	// Helper to derive section lock status from field locks
+	const isSectionFullyLocked = useCallback(
+		(sectionId: string) => {
+			// Get all fields in this section
+			const sectionFieldIds = Object.keys(FIELD_TO_SECTION).filter(
+				(fieldId) => FIELD_TO_SECTION[fieldId] === sectionId
+			);
+			
+			if (sectionFieldIds.length === 0) return false;
+			
+			// Check if all fields in section are locked (and not explicitly unlocked)
+			return sectionFieldIds.every(
+				(fieldId) => !unlockedFields.has(fieldId) && lockedFields.has(fieldId)
+			);
+		},
+		[lockedFields, unlockedFields]
+	);
+
 	const isFieldLocked = useCallback(
 		(fieldId: string, sectionId?: string) => {
-			// Explicitly unlocked fields override section locks
+			// Explicitly unlocked fields override everything
 			if (unlockedFields.has(fieldId)) return false;
 			// Explicitly locked fields
 			if (lockedFields.has(fieldId)) return true;
-			// Section-level locks
-			if (sectionId && lockedSections.has(sectionId)) return true;
+			// Check if section is fully locked (all fields locked)
+			if (sectionId && isSectionFullyLocked(sectionId)) return true;
 			return false;
 		},
-		[lockedFields, lockedSections, unlockedFields]
+		[lockedFields, unlockedFields, isSectionFullyLocked]
 	);
 
 	const toggleFieldLock = useCallback(
@@ -445,15 +460,33 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 
 	const toggleSectionLock = useCallback((sectionId: string) => {
-		setLockedSections((prev) => {
+		// Get all fields in this section
+		const sectionFieldIds = Object.keys(FIELD_TO_SECTION).filter(
+			(fieldId) => FIELD_TO_SECTION[fieldId] === sectionId
+		);
+		
+		const isCurrentlyFullyLocked = isSectionFullyLocked(sectionId);
+		
+		// Lock or unlock all fields in the section
+		setLockedFields((prev) => {
 			const next = new Set(prev);
-			if (next.has(sectionId)) next.delete(sectionId);
-			else next.add(sectionId);
+			sectionFieldIds.forEach((fieldId) => {
+				if (isCurrentlyFullyLocked) {
+					next.delete(fieldId);
+				} else {
+					next.add(fieldId);
+				}
+			});
 			return next;
 		});
-		// Clear field-level overrides for this section when toggling section lock
-		// This is a simplification; robust impl would iterate fields in section
-	}, []);
+		
+		// Clear unlocked fields for this section when toggling
+		setUnlockedFields((prev) => {
+			const next = new Set(prev);
+			sectionFieldIds.forEach((fieldId) => next.delete(fieldId));
+			return next;
+		});
+	}, [isSectionFullyLocked]);
 
 	// Styling Logic:
 	// White: Empty
@@ -750,15 +783,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				lockedFields.forEach((id) => {
 					lockedFieldsObj[id] = true;
 				});
-				const lockedSectionsObj: Record<string, boolean> = {};
-				lockedSections.forEach((id) => {
-					lockedSectionsObj[id] = true;
-				});
 				const dataToSave: ProjectProfile = {
 					...formData,
 					_metadata: fieldMetadata,
 					_lockedFields: lockedFieldsObj,
-					_lockedSections: lockedSectionsObj,
+					// No _lockedSections - derive from field locks
 				};
 				await updateProject(formData.id, dataToSave);
 				setFormSaved(true);
@@ -771,7 +800,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		return () => {
 			if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
 		};
-	}, [formData, fieldMetadata, lockedFields, lockedSections, updateProject]);
+	}, [formData, fieldMetadata, lockedFields, updateProject]);
 
 	type ControlKind =
 		| "input"
@@ -879,6 +908,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					return "textarea";
 				case "dropdown":
 					return "select";
+				case "boolean":
+					return "button-select";
 				case "currency":
 				case "integer":
 				case "numeric":
@@ -962,7 +993,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				}
 
 				if (controlKind === "button-select") {
-					const options = fieldOptionsRegistry[fieldId] ?? [];
+					let options = fieldOptionsRegistry[fieldId] ?? [];
+
+					// Default options for Boolean fields if not in registry
+					if (options.length === 0 && dataType === 'Boolean') {
+						options = [
+							{ label: 'Yes', value: true },
+							{ label: 'No', value: false }
+						];
+					}
+
 					return (
 						<div
 							data-field-id={fieldId}
@@ -973,7 +1013,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							<ButtonSelect
 								label=""
 								options={options}
-								selectedValue={value || ""}
+								selectedValue={value} // Pass value directly (supports boolean)
 								onSelect={(selected) => {
 									handleInputChange(fieldId, selected);
 								}}
@@ -1341,17 +1381,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								onClick={() => toggleSectionLock(sectionId)}
 								className={cn(
 									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-									lockedSections.has(sectionId)
+									isSectionFullyLocked(sectionId)
 										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
 										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
 								)}
 								title={
-									lockedSections.has(sectionId)
+									isSectionFullyLocked(sectionId)
 										? "Unlock section"
 										: "Lock section"
 								}
 							>
-								{lockedSections.has(sectionId) ? (
+								{isSectionFullyLocked(sectionId) ? (
 									<>
 										<Lock className="h-4 w-4" />
 										<span>Unlock Section</span>
@@ -1385,7 +1425,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}, [
 		expandedSubsections,
 		isFieldRequiredFromSchema,
-		lockedSections,
+		isSectionFullyLocked,
 		renderDynamicField,
 		toggleSectionLock,
 		sectionIconComponents,
@@ -1401,21 +1441,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const handleFormSubmit = useCallback(
 		async (finalData?: ProjectProfile) => {
-			const lockedFieldsObj: Record<string, boolean> = {};
-			lockedFields.forEach((id) => {
-				lockedFieldsObj[id] = true;
-			});
-			const lockedSectionsObj: Record<string, boolean> = {};
-			lockedSections.forEach((id) => {
-				lockedSectionsObj[id] = true;
-			});
+		const lockedFieldsObj: Record<string, boolean> = {};
+		lockedFields.forEach((id) => {
+			lockedFieldsObj[id] = true;
+		});
 
-			const dataToSave: ProjectProfile = {
-				...(finalData || formData),
-				_metadata: fieldMetadata,
-				_lockedFields: lockedFieldsObj,
-				_lockedSections: lockedSectionsObj,
-			};
+		const dataToSave: ProjectProfile = {
+			...(finalData || formData),
+			_metadata: fieldMetadata,
+			_lockedFields: lockedFieldsObj,
+			// No _lockedSections - derive from field locks
+		};
 			await updateProject(formData.id, dataToSave);
 			onComplete?.(dataToSave);
 			onVersionChange?.();
@@ -1424,7 +1460,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			formData,
 			fieldMetadata,
 			lockedFields,
-			lockedSections,
 			updateProject,
 			onComplete,
 			onVersionChange,

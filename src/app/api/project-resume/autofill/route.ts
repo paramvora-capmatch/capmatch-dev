@@ -69,7 +69,6 @@ export async function POST(request: Request) {
 				// Load existing resume content to get locked fields
 				let existingContent: any = {};
 				let lockedFields: Record<string, boolean> = {};
-				let lockedSections: Record<string, boolean> = {};
 
 				if (resource?.current_version_id) {
 					const { data: existingResume, error: fetchError } =
@@ -82,7 +81,6 @@ export async function POST(request: Request) {
 					if (!fetchError && existingResume?.content) {
 						existingContent = existingResume.content;
 						lockedFields = (existingContent._lockedFields as Record<string, boolean>) || {};
-						lockedSections = (existingContent._lockedSections as Record<string, boolean>) || {};
 					}
 				}
 
@@ -93,31 +91,9 @@ export async function POST(request: Request) {
 				);
 
 				// Helper function to check if a field is locked
-				const isFieldLocked = (fieldId: string, sectionId: string): boolean => {
+				const isFieldLocked = (fieldId: string): boolean => {
 					// Check if field is explicitly locked
-					if (lockedFields[fieldId] === true) {
-						return true;
-					}
-					// Check if field belongs to a locked section
-					// Map section keys (section_1, section_2, etc.) to section IDs (basic-info, property-specs, etc.)
-					const sectionIdMap: Record<string, string> = {
-						section_1: "basic-info",
-						section_2: "property-specs",
-						section_3: "dev-budget",
-						section_3_1: "dev-budget",
-						section_3_2: "loan-info",
-						section_3_3: "financials",
-						section_4: "market-context",
-						section_5: "special-considerations",
-						section_6: "timeline",
-						section_7: "site-context",
-						section_8: "sponsor-info",
-					};
-					const mappedSectionId = sectionIdMap[sectionId] || sectionId;
-					if (lockedSections[mappedSectionId] === true) {
-						return true;
-					}
-					return false;
+					return lockedFields[fieldId] === true;
 				};
 
 				// Keep section-wise structure - don't flatten
@@ -129,7 +105,7 @@ export async function POST(request: Request) {
 				if (existingContent) {
 					for (const [key, value] of Object.entries(existingContent)) {
 						// Skip metadata keys - we'll handle them separately
-						if (key === "_lockedFields" || key === "_lockedSections" || key === "_fieldStates" || key === "_metadata") {
+						if (key === "_lockedFields" || key === "_fieldStates" || key === "_metadata") {
 							continue;
 						}
 						// Preserve existing section structure
@@ -155,7 +131,7 @@ export async function POST(request: Request) {
 						sectionFields
 					)) {
 						// Check if field is locked - if so, preserve existing value
-						if (isFieldLocked(fieldId, sectionId)) {
+						if (isFieldLocked(fieldId)) {
 							console.log(`[Autofill] Field '${fieldId}' is locked, preserving existing value`);
 							// Preserve existing field value if it exists
 							if (finalContent[sectionId][fieldId]) {
@@ -176,7 +152,7 @@ export async function POST(request: Request) {
 							continue;
 						}
 
-						// Field is not locked - apply extracted value
+						// Field is not locked - apply extracted value (overwrite any existing null values)
 						if (
 							fieldData &&
 							typeof fieldData === "object" &&
@@ -188,6 +164,19 @@ export async function POST(request: Request) {
 								: fieldData.sources
 								? [fieldData.sources]
 								: [];
+
+							// Always apply the extracted value - this will overwrite any existing null values
+							// Check if existing value is null and new value is not null - force apply
+							const existingFieldValue = finalContent[sectionId]?.[fieldId];
+							const existingIsNull = existingFieldValue && 
+								typeof existingFieldValue === "object" && 
+								"value" in existingFieldValue && 
+								(existingFieldValue.value === null || existingFieldValue.value === undefined);
+							
+							if (existingIsNull && fieldData.value !== null && fieldData.value !== undefined) {
+								// Force overwrite null values with extracted values
+								console.log(`[Autofill] Overwriting null value for field '${fieldId}' with extracted value:`, fieldData.value);
+							}
 
 							finalContent[sectionId][fieldId] = {
 								value: fieldData.value,
@@ -203,9 +192,8 @@ export async function POST(request: Request) {
 					}
 				}
 
-				// Preserve locked fields and locked sections metadata
+				// Preserve locked fields metadata (no _lockedSections - derive from field locks)
 				finalContent._lockedFields = lockedFields;
-				finalContent._lockedSections = lockedSections;
 
 				// Save the updated content
 				if (resource?.current_version_id) {
@@ -222,12 +210,9 @@ export async function POST(request: Request) {
 					}
 				} else {
 					// Insert new resume (no existing locked fields for new resumes)
-					// Ensure _lockedFields and _lockedSections are initialized
+					// Ensure _lockedFields is initialized
 					if (!finalContent._lockedFields) {
 						finalContent._lockedFields = {};
-					}
-					if (!finalContent._lockedSections) {
-						finalContent._lockedSections = {};
 					}
 
 					const { data: inserted, error: insertError } =

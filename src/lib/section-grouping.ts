@@ -20,7 +20,7 @@ const SECTION_ID_TO_NUMBER: Record<string, string> = {
 };
 
 // Map field IDs to section IDs (from EnhancedProjectForm.tsx getSectionFieldIds)
-const FIELD_TO_SECTION: Record<string, string> = {
+export const FIELD_TO_SECTION: Record<string, string> = {
   // Section 1: Project Identification & Basic Info
   "projectName": "basic-info",
   "propertyAddressStreet": "basic-info",
