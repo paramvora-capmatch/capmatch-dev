@@ -18,7 +18,6 @@ import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
 import { HelpCircle } from "lucide-react";
 import { useAutofill } from "@/hooks/useAutofill";
 import { cn } from "@/utils/cn";
-import { FIELD_TO_SECTION } from "@/lib/section-grouping";
 import {
 	FileText,
 	DollarSign,
@@ -541,16 +540,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		onFormDataChange?.(formData);
 	}, [formData, onFormDataChange]);
 
-	// Helper to derive section lock status from field locks
-	const isSectionFullyLocked = useCallback(
-		(sectionId: string) => {
-			const sectionFieldIds = Object.keys(FIELD_TO_SECTION).filter(
-				(fieldId) => FIELD_TO_SECTION[fieldId] === sectionId
-			);
-			if (sectionFieldIds.length === 0) return false;
+	// Helper to derive subsection lock status from its field locks
+	const isSubsectionFullyLocked = useCallback(
+		(fieldIds: string[]) => {
+			if (fieldIds.length === 0) return false;
 
-			// Check if all fields in section are locked (and not explicitly unlocked)
-			return sectionFieldIds.every(
+			// Check if all fields in subsection are locked (and not explicitly unlocked)
+			return fieldIds.every(
 				(fieldId) =>
 					!unlockedFields.has(fieldId) && lockedFields.has(fieldId)
 			);
@@ -559,13 +555,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	);
 
 	const isFieldLocked = useCallback(
-		(fieldId: string, sectionId?: string) => {
+		(fieldId: string, _sectionId?: string) => {
 			if (unlockedFields.has(fieldId)) return false;
 			if (lockedFields.has(fieldId)) return true;
-			if (sectionId && isSectionFullyLocked(sectionId)) return true;
 			return false;
 		},
-		[lockedFields, unlockedFields, isSectionFullyLocked]
+		[lockedFields, unlockedFields]
 	);
 
 	const toggleFieldLock = useCallback(
@@ -603,19 +598,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[unlockedFields, lockedFields]
 	);
 
-	const toggleSectionLock = useCallback(
-		(sectionId: string) => {
-			// Get all fields in this section
-			const sectionFieldIds = Object.keys(FIELD_TO_SECTION).filter(
-				(fieldId) => FIELD_TO_SECTION[fieldId] === sectionId
-			);
+	const toggleSubsectionLock = useCallback(
+		(fieldIds: string[]) => {
+			if (fieldIds.length === 0) return;
 
-			const isCurrentlyFullyLocked = isSectionFullyLocked(sectionId);
+			const isCurrentlyFullyLocked = isSubsectionFullyLocked(fieldIds);
 
-			// Lock or unlock all fields in the section
+			// Lock or unlock all fields in the subsection
 			setLockedFields((prev) => {
 				const next = new Set(prev);
-				sectionFieldIds.forEach((fieldId) => {
+				fieldIds.forEach((fieldId) => {
 					if (isCurrentlyFullyLocked) {
 						next.delete(fieldId);
 					} else {
@@ -625,14 +617,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				return next;
 			});
 
-			// Clear unlocked fields for this section when toggling
+			// Clear unlocked flags for this subsection when toggling
 			setUnlockedFields((prev) => {
 				const next = new Set(prev);
-				sectionFieldIds.forEach((fieldId) => next.delete(fieldId));
+				fieldIds.forEach((fieldId) => next.delete(fieldId));
 				return next;
 			});
 		},
-		[isSectionFullyLocked]
+		[isSubsectionFullyLocked]
 	);
 
 	// Styling Logic: White, Blue, Green
@@ -1586,6 +1578,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				const allFieldIds: string[] = subsection.fields || [];
 
 				// Determine subsection state for visual indication
+				const subsectionLocked = isSubsectionFullyLocked(allFieldIds);
 				const fieldStates =
 					allFieldIds.length > 0
 						? allFieldIds.map((fieldId) => ({
@@ -1645,6 +1638,36 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								</h3>
 							</div>
 							<div className="flex items-center gap-2">
+								<button
+									type="button"
+									onClick={(e) => {
+										e.stopPropagation();
+										toggleSubsectionLock(allFieldIds);
+									}}
+									className={cn(
+										"flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
+										subsectionLocked
+											? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+											: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+									)}
+									title={
+										subsectionLocked
+											? "Unlock subsection"
+											: "Lock subsection"
+									}
+								>
+									{subsectionLocked ? (
+										<>
+											<Lock className="h-3 w-3" />
+											<span>Unlock</span>
+										</>
+									) : (
+										<>
+											<Unlock className="h-3 w-3" />
+											<span>Lock</span>
+										</>
+									)}
+								</button>
 								{showComplete && (
 									<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
 										Complete
@@ -3236,33 +3259,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								<IconComponent className="h-5 w-5 mr-2 text-blue-600" />{" "}
 								{step.title}
 							</h2>
-							<button
-								type="button"
-								onClick={() => toggleSectionLock(sectionId)}
-								className={cn(
-									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-									isSectionFullyLocked(sectionId)
-										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
-								)}
-								title={
-									isSectionFullyLocked(sectionId)
-										? "Unlock section"
-										: "Lock section"
-								}
-							>
-								{isSectionFullyLocked(sectionId) ? (
-									<>
-										<Lock className="h-4 w-4" />
-										<span>Unlock Section</span>
-									</>
-								) : (
-									<>
-										<Unlock className="h-4 w-4" />
-										<span>Lock Section</span>
-									</>
-								)}
-							</button>
 						</div>
 						{Array.isArray(subsections) &&
 						subsections.length > 0 ? (
@@ -3285,9 +3281,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}, [
 		expandedSubsections,
 		isFieldRequiredFromSchema,
-		isSectionFullyLocked,
 		renderDynamicField,
-		toggleSectionLock,
 		sectionIconComponents,
 		getTableWrapperClasses,
 		isFieldLocked,
@@ -3297,6 +3291,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isFieldBlue,
 		isFieldGreen,
 		isFieldWhite,
+		isSubsectionFullyLocked,
+		toggleSubsectionLock,
 		lockedFields,
 		unlockedFields,
 		formData,
