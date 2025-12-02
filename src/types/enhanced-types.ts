@@ -330,7 +330,6 @@ export interface ProjectProfile {
 	zoningDesignation?: string;
 	currentZoning?: string;
 	expectedZoningChanges?: string;
-	projectType?: string;
 	primaryAssetClass?: string;
 	constructionType?: string;
 	groundbreakingDate?: string;
@@ -343,10 +342,8 @@ export interface ProjectProfile {
 	dealStatus?: string;
 	syndicationStatus?: string;
 	sponsorExperience?: string;
-	borrowerNetWorth?: number;
 	ltvStressMax?: number;
 	dscrStressMin?: number;
-	prepaymentPremium?: string;
 	expectedHoldPeriod?: number;
 	guarantorNames?: string;
 	totalResidentialUnits?: number;
@@ -414,15 +411,12 @@ export interface ProjectProfile {
 	relocationCosts?: number;
 	syndicationCosts?: number;
 	enviroRemediation?: number;
-	seniorLoanAmount?: number;
 	sponsorEquity?: number;
 	taxCreditEquity?: number;
 	gapFinancing?: number;
 	interestRate?: number;
 	underwritingRate?: number;
-	amortization?: string;
 	prepaymentTerms?: string;
-	recourse?: string;
 	permTakeoutPlanned?: boolean;
 	allInRate?: number;
 	realEstateTaxes?: number;
@@ -517,7 +511,6 @@ export interface ProjectProfile {
 	finalPlans?: string;
 	permitsIssued?: string;
 	verticalStart?: string;
-	substantialComp?: string;
 	firstOccupancy?: string;
 	stabilization?: string;
 	preLeasedSF?: number;
@@ -572,8 +565,9 @@ export interface ProjectProfile {
 	_metadata?: Record<string, FieldMetadata>;
 	// Locked fields container (fieldId -> true)
 	_lockedFields?: Record<string, boolean>;
-	// Locked sections container (sectionId -> true)
-	_lockedSections?: Record<string, boolean>;
+	// _lockedSections removed - section locks are derived from field locks
+	// Field states container (fieldId -> { state: "WHITE" | "BLUE" | "GREEN", locked: boolean, source: "ai" | "user_input" | null })
+	_fieldStates?: Record<string, { state: "WHITE" | "BLUE" | "GREEN"; locked: boolean; source: "ai" | "user_input" | null }>;
 }
 
 // Project Principal Types

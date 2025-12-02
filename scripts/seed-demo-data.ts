@@ -280,13 +280,11 @@ async function createProject(
     console.log(`[seed] ✅ Created project record: ${projectId}`);
 
     // 2. Create empty project resume (will be updated later)
-    // Note: With versioning, we need to include status and created_by
     const { error: resumeError } = await supabaseAdmin
       .from('project_resumes')
       .insert({
         project_id: projectId,
         content: {},
-        status: 'active',
         created_by: creatorId,
       });
 
@@ -422,26 +420,44 @@ async function updateProjectResume(
   // For partial project, calculate it
   const isCompleteProject = resumeContent.projectName === 'Downtown Highrise Acquisition';
   const completenessPercent = isCompleteProject ? 100 : calculateProjectProgress(resumeContent);
-  const resumeWithProgress: ProjectResumeContent = {
+  
+  // Build _lockedFields: lock all fields that have non-empty values
+  const lockedFields: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(resumeContent)) {
+    // Skip reserved keys
+    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata' || key === 'completenessPercent') {
+      continue;
+    }
+    
+    // Lock field if it has a meaningful value
+    if (value !== null && value !== undefined) {
+      if (typeof value === 'string' && value.trim() !== '') {
+        lockedFields[key] = true;
+      } else if (typeof value === 'number' && value !== 0) {
+        lockedFields[key] = true;
+      } else if (typeof value === 'boolean') {
+        lockedFields[key] = true;
+      } else if (Array.isArray(value) && value.length > 0) {
+        lockedFields[key] = true;
+      } else if (typeof value === 'object' && Object.keys(value).length > 0) {
+        lockedFields[key] = true;
+      }
+    }
+  }
+  
+  const resumeWithProgress: ProjectResumeContent & Record<string, any> = {
     ...resumeContent,
     completenessPercent,
+    _lockedFields: lockedFields,
   };
 
-  // Mark any existing active resumes as superseded (project resumes now support versioning)
-  await supabaseAdmin
-    .from('project_resumes')
-    .update({ status: 'superseded' })
-    .eq('project_id', projectId)
-    .eq('status', 'active');
-
-  // Insert new resume with versioning fields
+  // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('project_resumes')
     .insert({
       project_id: projectId,
       content: resumeWithProgress as any,
-      status: 'active',
       created_by: createdById,
     });
 
@@ -450,7 +466,7 @@ async function updateProjectResume(
     return false;
   }
 
-  console.log(`[seed] ✅ Updated project resume (completeness: ${completenessPercent}%)`);
+  console.log(`[seed] ✅ Updated project resume (completeness: ${completenessPercent}%, locked fields: ${Object.keys(lockedFields).length})`);
   return true;
 }
 
@@ -470,28 +486,45 @@ async function updateBorrowerResume(
     console.warn(`[seed] Warning: Failed to ensure borrower root resources:`, rootError.message);
   }
 
+  // Build _lockedFields: lock all fields that have non-empty values
+  const lockedFields: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(resumeContent)) {
+    // Skip reserved keys
+    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata' || key === 'completenessPercent') {
+      continue;
+    }
+    
+    // Lock field if it has a meaningful value
+    if (value !== null && value !== undefined) {
+      if (typeof value === 'string' && value.trim() !== '') {
+        lockedFields[key] = true;
+      } else if (typeof value === 'number' && value !== 0) {
+        lockedFields[key] = true;
+      } else if (typeof value === 'boolean') {
+        lockedFields[key] = true;
+      } else if (Array.isArray(value) && value.length > 0) {
+        lockedFields[key] = true;
+      } else if (typeof value === 'object' && Object.keys(value).length > 0) {
+        lockedFields[key] = true;
+      }
+    }
+  }
+
   // Ensure completenessPercent is set to 100 for complete projects
   // The calculation logic only counts booleans when true, but we want to show 100% for complete data
   const borrowerResumeWithProgress = {
     ...resumeContent,
     completenessPercent: 100, // Explicitly set to 100% since all fields are filled
+    _lockedFields: lockedFields,
   };
 
-  // Mark any existing active resumes as superseded (borrower resumes now support versioning)
-  await supabaseAdmin
-    .from('borrower_resumes')
-    .update({ status: 'superseded' })
-    .eq('project_id', projectId)
-    .eq('status', 'active');
-
-  // Insert new resume with versioning fields
+  // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
       content: borrowerResumeWithProgress as any,
-      status: 'active',
       created_by: createdById,
     });
 
@@ -500,7 +533,7 @@ async function updateBorrowerResume(
     return false;
   }
 
-  console.log(`[seed] ✅ Updated borrower resume`);
+  console.log(`[seed] ✅ Updated borrower resume (locked fields: ${Object.keys(lockedFields).length})`);
   return true;
 }
 
@@ -1387,6 +1420,26 @@ async function seedDemoData() {
     // Update borrower resume for complete project
     await updateBorrowerResume(completeProjectId, demoBorrowerResume, borrowerUserId);
 
+    // Seed OM data for complete project
+    console.log(`[seed] Seeding OM data for complete project...`);
+    const completeOMContent = { ...completeProjectResume, completenessPercent: 100 };
+    delete (completeOMContent as any)._lockedFields;
+    delete (completeOMContent as any)._fieldStates;
+    const { error: completeOMError } = await supabaseAdmin
+      .from('om')
+      .upsert(
+        {
+          project_id: completeProjectId,
+          content: completeOMContent as any,
+        },
+        { onConflict: 'project_id' }
+      );
+    if (completeOMError) {
+      console.warn(`[seed] ⚠️  Failed to seed OM data for complete project:`, completeOMError.message);
+    } else {
+      console.log(`[seed] ✅ Seeded OM data for complete project`);
+    }
+
     // Step 6: Create partial project (Warehouse Development)
     console.log('\n📋 Step 6: Creating partial project...');
     const partialProjectId = await createProject(
@@ -1407,6 +1460,27 @@ async function seedDemoData() {
 
     // Update borrower resume for partial project
     await updateBorrowerResume(partialProjectId, demoBorrowerResume, borrowerUserId);
+
+    // Seed OM data for partial project
+    console.log(`[seed] Seeding OM data for partial project...`);
+    const partialProgress = calculateProjectProgress(partialProjectResume);
+    const partialOMContent = { ...partialProjectResume, completenessPercent: partialProgress };
+    delete (partialOMContent as any)._lockedFields;
+    delete (partialOMContent as any)._fieldStates;
+    const { error: partialOMError } = await supabaseAdmin
+      .from('om')
+      .upsert(
+        {
+          project_id: partialProjectId,
+          content: partialOMContent as any,
+        },
+        { onConflict: 'project_id' }
+      );
+    if (partialOMError) {
+      console.warn(`[seed] ⚠️  Failed to seed OM data for partial project:`, partialOMError.message);
+    } else {
+      console.log(`[seed] ✅ Seeded OM data for partial project`);
+    }
 
     // Step 7: Upload documents to complete project
     console.log('\n📋 Step 7: Uploading documents to complete project...');

@@ -52,8 +52,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 			/>
 		);
 
+		// className is already extracted in function parameters, so just use it
+		const inputClassName = className;
+
 		return (
-			<div className={cn(fullWidth && "w-full", className)}>
+			<div className={cn(fullWidth && "w-full")}>
 				{label && (
 					<label
 						htmlFor={inputId}
@@ -76,11 +79,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 							"h-10 px-3 py-2 block rounded-md sm:text-sm border shadow-sm transition-colors",
 							leftIcon && "pl-10",
 							(rightIcon || isPassword) && "pr-10",
-							error &&
+							// Only apply default border classes if no custom className is provided
+							!inputClassName && error &&
 								"border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500 bg-red-50/50",
-							!error &&
+							!inputClassName && !error &&
 								"border-gray-300 focus:ring-blue-500 focus:border-blue-500",
-							fullWidth && "w-full"
+							fullWidth && "w-full",
+							// Apply custom className last to override defaults
+							inputClassName
 						)}
 						aria-invalid={error ? "true" : "false"}
 						aria-describedby={

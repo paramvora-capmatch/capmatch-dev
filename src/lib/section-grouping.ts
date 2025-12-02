@@ -20,7 +20,7 @@ const SECTION_ID_TO_NUMBER: Record<string, string> = {
 };
 
 // Map field IDs to section IDs (from EnhancedProjectForm.tsx getSectionFieldIds)
-const FIELD_TO_SECTION: Record<string, string> = {
+export const FIELD_TO_SECTION: Record<string, string> = {
   // Section 1: Project Identification & Basic Info
   "projectName": "basic-info",
   "propertyAddressStreet": "basic-info",
@@ -30,7 +30,6 @@ const FIELD_TO_SECTION: Record<string, string> = {
   "propertyAddressCounty": "basic-info",
   "parcelNumber": "basic-info",
   "zoningDesignation": "basic-info",
-  "projectType": "basic-info",
   "primaryAssetClass": "basic-info",
   "constructionType": "basic-info",
   "groundbreakingDate": "basic-info",
@@ -76,13 +75,10 @@ const FIELD_TO_SECTION: Record<string, string> = {
   "pfcStructuringFee": "dev-budget",
   "financingCosts": "dev-budget",
   "interestReserve": "dev-budget",
-  "seniorLoanAmount": "financials",
   "sponsorEquity": "financials",
   "interestRate": "loan-info",
   "underwritingRate": "loan-info",
-  "amortization": "loan-info",
   "prepaymentTerms": "loan-info",
-  "recourse": "loan-info",
   "permTakeoutPlanned": "loan-info",
   "realEstateTaxes": "financials",
   "insurance": "financials",

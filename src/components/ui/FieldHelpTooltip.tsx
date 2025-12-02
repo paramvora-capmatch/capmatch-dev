@@ -8,6 +8,7 @@ import {
 	getFieldMetadata,
 	FieldMetadata,
 } from "@/lib/project-resume-field-metadata";
+import { borrowerResumeFieldMetadata } from "@/lib/borrower-resume-field-metadata";
 import {
 	SourceMetadata,
 	formatSourceForDisplay,
@@ -36,8 +37,11 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 	const [isOpen, setIsOpen] = useState(false);
 	const [position, setPosition] = useState({ top: 0, left: 0 });
 	const triggerRef = useRef<HTMLDivElement>(null);
-	const staticMetadata = getFieldMetadata(fieldId);
-	
+	const staticMetadata: FieldMetadata | undefined =
+		getFieldMetadata(fieldId) ||
+		// Fallback to borrower resume metadata when project metadata is missing
+		(borrowerResumeFieldMetadata as any)[fieldId];
+
 	// Use static metadata for description and field type, but API metadata for sources
 	const metadata = staticMetadata;
 

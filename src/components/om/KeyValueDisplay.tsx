@@ -4,7 +4,7 @@ import { cn } from '@/utils/cn';
 
 interface KeyValueDisplayProps {
   label: string;
-  value: string | number | null | undefined;
+  value: any;
   className?: string;
   isLarge?: boolean; // For prominent values like loan amount
   fullWidth?: boolean; // Span full width in grid
@@ -17,7 +17,28 @@ export const KeyValueDisplay: React.FC<KeyValueDisplayProps> = ({
   isLarge = false,
   fullWidth = false
 }) => {
-  const val = value ?? 'N/A'; // Handle null/undefined
+  const unwrapValue = (val: any): any => {
+    if (val && typeof val === "object") {
+      if ("value" in val) {
+        return (val as any).value;
+      }
+      if ("original_value" in val) {
+        return (val as any).original_value;
+      }
+    }
+    return val;
+  };
+
+  let raw = unwrapValue(value);
+
+  if (Array.isArray(raw)) {
+    raw = raw.join(", ");
+  }
+
+  const val =
+    raw === null || raw === undefined || raw === ""
+      ? "N/A"
+      : String(raw); // Ensure we never render objects directly
 
   return (
     <div className={cn(

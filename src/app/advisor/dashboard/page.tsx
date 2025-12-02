@@ -111,12 +111,11 @@ export default function AdvisorDashboardPage() {
               const projectIds = assignedProjects.map((p) => p.id);
               console.log('[AdvisorDashboard] Fetching borrower resumes for projects:', projectIds);
               
-              // Fetch borrower resumes - get the latest active one for each project
+              // Fetch borrower resumes - get the latest version for each project
               const { data: borrowerResumes, error: borrowerResumesError } = await supabase
                 .from("borrower_resumes")
-                .select("project_id, content, status, created_at")
+                .select("project_id, content, created_at")
                 .in("project_id", projectIds)
-                .eq("status", "active")
                 .order("created_at", { ascending: false });
 
               if (borrowerResumesError) {
@@ -193,12 +192,11 @@ export default function AdvisorDashboardPage() {
               const projectIds = assignedProjects.map((p) => p.id);
               console.log('[AdvisorDashboard] Fetching borrower resumes for projects:', projectIds);
               
-              // Fetch borrower resumes - get the latest active one for each project
+              // Fetch borrower resumes - get the latest version for each project
               const { data: borrowerResumes, error: borrowerResumesError } = await supabase
                 .from("borrower_resumes")
-                .select("project_id, content, status, created_at")
+                .select("project_id, content, created_at")
                 .in("project_id", projectIds)
-                .eq("status", "active")
                 .order("created_at", { ascending: false });
 
               if (borrowerResumesError) {

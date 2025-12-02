@@ -66,8 +66,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const rawProjectProgress = project.completenessPercent ?? 0;
-  const rawBorrowerProgress = project.borrowerProgress ?? 0;
+  const unwrapValue = (val: any) => {
+    if (val && typeof val === "object" && "value" in val) {
+      return (val as any).value;
+    }
+    if (
+      val &&
+      typeof val === "object" &&
+      !("value" in val) &&
+      "original_value" in val
+    ) {
+      return (val as any).original_value;
+    }
+    return val;
+  };
+
+  const rawProjectProgress = Number(unwrapValue(project.completenessPercent)) || 0;
+  const rawBorrowerProgress = Number(unwrapValue(project.borrowerProgress)) || 0;
   const overallProgress = Math.round(
     (rawProjectProgress + rawBorrowerProgress) / 2
   );
@@ -363,9 +378,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           <div className="flex justify-between items-start mb-4 gap-2">
             <h3
               className="text-2xl font-bold text-gray-800 truncate mr-3"
-              title={project.projectName || "Unnamed Project"}
+              title={
+                (unwrapValue(project.projectName) as string) ||
+                "Unnamed Project"
+              }
             >
-              {project.projectName || "Unnamed Project"}
+              {unwrapValue(project.projectName) || "Unnamed Project"}
               {unread && (
                 <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-semibold">
                   New Messages
@@ -426,7 +444,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 <Building className={`h-4 w-4 ${isComplete ? 'text-green-600' : 'text-blue-600'}`} />
               </div>
               <span className="font-medium">
-                {project.assetType || "Asset Type TBD"}
+                {unwrapValue(project.assetType) || "Asset Type TBD"}
               </span>
             </div>
 
@@ -437,7 +455,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               <span>
                 Updated:{" "}
                 <span className="font-medium">
-                  {formatDate(project.updatedAt)}
+                  {formatDate(
+                    unwrapValue(project.updatedAt) as string | undefined
+                  )}
                 </span>
               </span>
             </div>

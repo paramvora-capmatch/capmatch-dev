@@ -3,9 +3,10 @@ import React from 'react';
 import { cn } from '@/utils/cn';
 import { Button } from './Button';
 
-type ButtonOption = string | { label: string; value: string };
+export type ButtonOptionValue = string | number | boolean;
+export type ButtonOption = string | { label: string; value: ButtonOptionValue };
 
-const normalizeOption = (option: ButtonOption) =>
+const normalizeOption = (option: ButtonOption): { label: string; value: ButtonOptionValue } =>
   typeof option === "string"
     ? { label: option, value: option }
     : option;
@@ -13,8 +14,8 @@ const normalizeOption = (option: ButtonOption) =>
 interface ButtonSelectProps {
   label: string;
   options: ReadonlyArray<ButtonOption>;
-  selectedValue: string | null | undefined;
-  onSelect?: (value: string) => void; // *** Make onSelect optional ***
+  selectedValue: ButtonOptionValue | null | undefined;
+  onSelect?: (value: any) => void; // Relaxed to allow boolean/number/string
   required?: boolean;
   className?: string;
   buttonClassName?: string;
@@ -22,6 +23,12 @@ interface ButtonSelectProps {
   disabled?: boolean;
   isAutofilled?: boolean; // Deprecated: use isLocked instead
   isLocked?: boolean; // Use lock status for color coding (green = locked, blue = unlocked)
+  hasAutofillBeenRun?: boolean; // Deprecated: colors are now driven purely by lock + value
+  /**
+   * Marks the field as "touched" even when there is no selected value.
+   * Used when AI/user has interacted (e.g. sources set) but no choice picked yet.
+   */
+  isTouched?: boolean;
 }
 
 export const ButtonSelect: React.FC<ButtonSelectProps> = ({
@@ -36,9 +43,11 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   disabled = false,
   isAutofilled = false, // Deprecated
   isLocked,
+  hasAutofillBeenRun = true,
+  isTouched = false,
 }) => {
   // Handler that checks if onSelect exists before calling it
-  const handleClick = (option: string) => {
+  const handleClick = (option: ButtonOptionValue) => {
     if (disabled) return;
     if (onSelect) {
       onSelect(option);
@@ -48,9 +57,21 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
   };
 
   // Apply background color based on lock status (green = locked, blue = unlocked)
-  // Fall back to isAutofilled for backward compatibility
+  // Only show colors once a value has been selected; otherwise keep white.
+  // Fall back to isAutofilled for backward compatibility.
   const isLockedState = isLocked !== undefined ? isLocked : (isAutofilled || disabled);
-  const containerBgClass = isLockedState
+  const hasSelection =
+    selectedValue !== null &&
+    selectedValue !== undefined &&
+    selectedValue !== "";
+
+  // Field is considered "active" (needs color) if it either has a selection
+  // or has been "touched" (e.g. AI/user set sources but left value empty).
+  const hasSignal = hasSelection || isTouched;
+
+  const containerBgClass = !hasSignal
+    ? "" // Initial untouched state: white background, no accent border
+    : isLockedState
     ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
     : "bg-blue-50 p-3 rounded-lg border border-blue-200";
 
@@ -66,7 +87,7 @@ export const ButtonSelect: React.FC<ButtonSelectProps> = ({
 
           return (
           <Button
-            key={option.value}
+            key={String(option.value)}
             type="button"
             variant={isSelected ? 'primary' : 'outline'}
             // Use the safe handler

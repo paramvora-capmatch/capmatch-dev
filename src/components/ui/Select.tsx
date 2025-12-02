@@ -46,8 +46,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 			lg: "h-12 text-base",
 		};
 
+		// className is already extracted in function parameters, so just use it
+		const selectClassName = className;
+
 		return (
-			<div className={cn(fullWidth && "w-full", className)}>
+			<div className={cn(fullWidth && "w-full")}>
 				{label && (
 					<label
 						htmlFor={inputId}
@@ -63,12 +66,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
 						className={cn(
 							"block rounded-md border shadow-sm transition-colors pr-8",
 							sizeClasses[size],
-							error &&
+							// Only apply default border classes if no custom className is provided
+							!selectClassName && error &&
 								"border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500 bg-red-50/50",
-							!error &&
+							!selectClassName && !error &&
 								"border-gray-300 focus:ring-blue-500 focus:border-blue-500",
 							fullWidth && "w-full",
-							"px-3 py-2 appearance-none"
+							"px-3 py-2 appearance-none",
+							// Apply custom className last to override defaults
+							selectClassName
 						)}
 						aria-invalid={error ? "true" : "false"}
 						aria-describedby={

@@ -69,14 +69,12 @@ export async function POST(request: Request) {
 
   let resumeRow: {
     content: Record<string, unknown> | null;
-    locked_fields: Record<string, boolean> | null;
-    locked_sections: Record<string, boolean> | null;
   } | null = null;
 
   if (resource.current_version_id) {
     const { data, error: resumeError } = await supabaseAdmin
       .from("borrower_resumes")
-      .select("content, locked_fields, locked_sections")
+      .select("content")
       .eq("id", resource.current_version_id)
       .maybeSingle();
     if (resumeError) {
@@ -91,7 +89,7 @@ export async function POST(request: Request) {
   if (!resumeRow) {
     const { data, error: latestError } = await supabaseAdmin
       .from("borrower_resumes")
-      .select("content, locked_fields, locked_sections")
+      .select("content")
       .eq("project_id", projectId)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -112,18 +110,11 @@ export async function POST(request: Request) {
     );
   }
 
-  await supabaseAdmin
-    .from("borrower_resumes")
-    .update({ status: "superseded" })
-    .eq("project_id", projectId);
-
   const { data: inserted, error: insertError } = await supabaseAdmin
     .from("borrower_resumes")
     .insert({
       project_id: projectId,
       content: resumeRow.content || {},
-      locked_fields: resumeRow.locked_fields || {},
-      locked_sections: resumeRow.locked_sections || {},
       created_by: userId ?? null,
     })
     .select("id, version_number")

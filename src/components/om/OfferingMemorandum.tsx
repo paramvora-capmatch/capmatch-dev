@@ -243,8 +243,8 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
             value={project.underwritingRate ? `${project.underwritingRate}%` : "N/A"}
           />
           <KeyValueDisplay
-            label="Amortization"
-            value={project.amortization || "N/A"}
+            label="Amortization (Years)"
+            value={project.amortizationYears != null ? `${project.amortizationYears} years` : "N/A"}
           />
           <KeyValueDisplay
             label="Prepayment Terms"
@@ -252,7 +252,7 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
           />
           <KeyValueDisplay
             label="Recourse"
-            value={project.recourse || project.recoursePreference || "N/A"}
+            value={project.recoursePreference || "N/A"}
           />
           <KeyValueDisplay
             label="All-In Rate"
@@ -382,8 +382,8 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mb-6">
           <KeyValueDisplay
-            label="Senior Loan Amount"
-            value={formatCurrency(project.seniorLoanAmount)}
+            label="Loan Amount Requested"
+            value={formatCurrency(project.loanAmountRequested)}
           />
           <KeyValueDisplay
             label="Sponsor Equity"
@@ -821,8 +821,8 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
               value={formatDate(project.verticalStart)}
             />
             <KeyValueDisplay
-              label="Substantial Comp"
-              value={formatDate(project.substantialComp)}
+              label="Completion Date"
+              value={formatDate(project.completionDate)}
             />
             <KeyValueDisplay
               label="First Occupancy"

@@ -13,7 +13,9 @@ interface MultiSelectPillsProps {
   buttonClassName?: string;
   gridCols?: string;
   disabled?: boolean;
-  isAutofilled?: boolean; // Add autofill status prop
+  isAutofilled?: boolean; // Deprecated: use isLocked instead
+  isLocked?: boolean; // Use lock status for color coding (green = locked, blue = unlocked)
+  hasAutofillBeenRun?: boolean; // Whether autofill has ever been run (affects styling)
 }
 
 export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
@@ -26,7 +28,9 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
   buttonClassName = "text-xs md:text-sm",
   gridCols = "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
   disabled = false,
-  isAutofilled = false,
+  isAutofilled = false, // Deprecated
+  isLocked,
+  hasAutofillBeenRun = true,
 }) => {
   const handleClick = (option: string) => {
     if (disabled) return;
@@ -40,8 +44,15 @@ export const MultiSelectPills: React.FC<MultiSelectPillsProps> = ({
     }
   };
 
-  // Apply background color based on autofill status
-  const containerBgClass = isAutofilled
+  // Apply background color based on lock status (green = locked, blue = unlocked)
+  // Only show colors once at least one value is selected; otherwise keep white.
+  // Fall back to isAutofilled for backward compatibility.
+  const isLockedState = isLocked !== undefined ? isLocked : (isAutofilled || disabled);
+  const hasSelection = Array.isArray(selectedValues) && selectedValues.length > 0;
+
+  const containerBgClass = !hasSelection
+    ? "" // Initial empty state: white background, no accent border
+    : isLockedState
     ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200"
     : "bg-blue-50 p-3 rounded-lg border border-blue-200";
 

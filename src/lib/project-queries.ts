@@ -5,7 +5,12 @@ import {
 	ProjectMessage,
 	Principal,
 } from "@/types/enhanced-types";
-import { ungroupFromSections, isGroupedFormat } from "./section-grouping";
+import {
+	ungroupFromSections,
+	isGroupedFormat,
+	groupBySections,
+} from "./section-grouping";
+import { computeProjectCompletion } from "@/utils/resumeCompletion";
 
 // =============================================================================
 // JSONB Content Type Definitions
@@ -29,7 +34,6 @@ export interface ProjectResumeContent {
 	zoningDesignation?: string;
 	currentZoning?: string;
 	expectedZoningChanges?: string; // None, Variance, PUD
-	projectType?: string; // Multi-select: Mixed-Use, Retail, Office, etc.
 	primaryAssetClass?: string;
 	constructionType?: string; // Ground-Up, Renovation, Adaptive Reuse
 	groundbreakingDate?: string;
@@ -106,7 +110,6 @@ export interface ProjectResumeContent {
 	enviroRemediation?: number; // Environmental remediation
 
 	// Section 3.2: Sources of Funds
-	seniorLoanAmount?: number;
 	sponsorEquity?: number;
 	taxCreditEquity?: number;
 	gapFinancing?: number; // e.g., TIF grants
@@ -114,9 +117,7 @@ export interface ProjectResumeContent {
 	// Section 3.3: Loan Terms
 	interestRate?: number; // Percentage
 	underwritingRate?: number; // Percentage
-	amortization?: string; // IO, 30yr, 25yr
 	prepaymentTerms?: string;
-	recourse?: string; // Full, Partial, Non
 	permTakeoutPlanned?: boolean;
 	allInRate?: number; // Percentage - includes origination/MIP
 
@@ -232,7 +233,6 @@ export interface ProjectResumeContent {
 	finalPlans?: string; // Approved/Pending
 	permitsIssued?: string; // Issued/Pending
 	verticalStart?: string; // Date
-	substantialComp?: string; // Date
 	firstOccupancy?: string; // Date
 	stabilization?: string; // Date
 	preLeasedSF?: number;
@@ -326,6 +326,18 @@ export interface BorrowerResumeContent {
 	masterProfileId?: string;
 	lastSyncedAt?: string;
 	customFields?: string[];
+
+	// Field states container (fieldId -> { state: "WHITE" | "BLUE" | "GREEN", locked: boolean, source: "ai" | "user_input" | null })
+	_fieldStates?: Record<
+		string,
+		{
+			state: "WHITE" | "BLUE" | "GREEN";
+			locked: boolean;
+			source: "ai" | "user_input" | null;
+		}
+	>;
+	_lockedFields?: Record<string, boolean>;
+	// _lockedSections removed - section locks are derived from field locks
 }
 
 /**
@@ -429,7 +441,25 @@ export const getProjectWithResume = async (
 		);
 	}
 
-	const rawContent = (resume?.content || {}) as any;
+	let rawContent = (resume?.content || {}) as any;
+
+	// Extract reserved keys that should be preserved at root level but not flattened
+	const _lockedFields =
+		(rawContent._lockedFields as Record<string, boolean> | undefined) || {};
+	const _fieldStates = (rawContent._fieldStates as any) || {};
+
+	// Create a copy for manipulation
+	rawContent = { ...rawContent };
+
+	// Remove reserved keys to prevent them from being treated as sections/fields during ungrouping
+	delete rawContent._lockedFields;
+	delete rawContent._fieldStates;
+	delete rawContent._metadata; // Should be handled if it exists, but typically built during processing
+
+	// Check if content is in section-grouped format and ungroup if needed
+	if (isGroupedFormat(rawContent)) {
+		rawContent = ungroupFromSections(rawContent);
+	}
 
 	const { data: borrowerResume, error: borrowerResumeError } = await supabase
 		.from("borrower_resumes")
@@ -459,20 +489,33 @@ export const getProjectWithResume = async (
 	for (const key in rawContent) {
 		const item = rawContent[key];
 
-		// If item is in { value, source, warnings } format (rich data)
+		// If item is in { value, source/sources, warnings } format (rich data)
 		if (
 			item &&
 			typeof item === "object" &&
-			"source" in item &&
+			("source" in item || "sources" in item) &&
 			"value" in item
 		) {
 			// Extract value for the flat form
 			(resumeContent as any)[key] = item.value;
 
+			// Determine source for metadata (prefer singular source, fallback to first of sources)
+			let sourceValue = item.source;
+			if (!sourceValue && item.sources && Array.isArray(item.sources) && item.sources.length > 0) {
+				const first = item.sources[0];
+				// If first source is an object (SourceMetadata), extract name or type
+				if (typeof first === 'object' && first !== null) {
+					sourceValue = first.name || first.type;
+				} else {
+					sourceValue = first;
+				}
+			}
+
 			// Store rich metadata
 			_metadata[key] = {
 				value: item.value,
-				source: item.source || null,
+				source: sourceValue || null,
+				sources: item.sources || (item.source ? [item.source] : []),
 				original_source: item.source || null, // Snapshot the original source
 				original_value: item.value, // Snapshot the original value
 				warnings: item.warnings || [],
@@ -483,8 +526,11 @@ export const getProjectWithResume = async (
 		}
 	}
 
-	// Combine core project fields with resume content
-	return {
+	// Build the combined profile first so we can compute a fresh completion
+	// percentage from the latest data. This allows us to recover gracefully
+	// if older resume versions were saved with a stale or missing
+	// `completenessPercent` (e.g. 0 despite many required fields being filled).
+	const combinedProfile: ProjectProfile = {
 		// Core project fields (from projects table)
 		id: project.id,
 		owner_org_id: project.owner_org_id,
@@ -498,13 +544,11 @@ export const getProjectWithResume = async (
 		// Override with fallbacks for key fields
 		projectName: resumeContent.projectName || project.name, // Fallback to core name
 		assetType: resumeContent.assetType || "",
-		projectStatus: resumeContent.projectStatus || "Draft",
+		projectStatus: (resumeContent.projectStatus as any) || "",
 
-		// Type-safe overrides for enum fields
-		interestRateType:
-			(resumeContent.interestRateType as any) || "Not Specified",
-		recoursePreference:
-			(resumeContent.recoursePreference as any) || "Flexible",
+		// Type-safe overrides for enum fields (no UX defaults – start empty)
+		interestRateType: (resumeContent.interestRateType as any) || "",
+		recoursePreference: (resumeContent.recoursePreference as any) || "",
 		exitStrategy: resumeContent.exitStrategy as any,
 
 		// Load completenessPercent from DB, fallback to 0 if not stored
@@ -517,9 +561,29 @@ export const getProjectWithResume = async (
 		// Add metadata container
 		_metadata,
 
+		// Restore locked fields and field states
+		_lockedFields,
+		_fieldStates,
+
 		// Resource pointer helpers
 		projectResumeResourceId: resource?.id ?? null,
 	} as ProjectProfile;
+
+	// Recompute completion from the combined snapshot. If the stored value is
+	// missing or zero but the freshly computed value is greater than zero,
+	// prefer the computed value so the UI doesn't get stuck at 0% after
+	// autofill or Save & Exit flows.
+	const recomputedCompletion = computeProjectCompletion(combinedProfile);
+	const storedCompletion = combinedProfile.completenessPercent;
+	const finalCompletion =
+		typeof storedCompletion === "number" && storedCompletion > 0
+			? storedCompletion
+			: recomputedCompletion;
+
+	return {
+		...combinedProfile,
+		completenessPercent: finalCompletion,
+	};
 };
 
 /**
@@ -541,13 +605,10 @@ export const getProjectsWithResumes = async (
 		throw new Error(`Failed to fetch projects: ${projectsError.message}`);
 	}
 
-	// Fetch all resume data
 	// Fetch all resume data, sorted by newest first
 	const { data: resumes, error: resumesError } = await supabase
 		.from("project_resumes")
-		.select(
-			"project_id, content, locked_fields, locked_sections, created_at"
-		)
+		.select("project_id, content, created_at")
 		.in("project_id", projectIds)
 		.order("created_at", { ascending: false });
 
@@ -577,11 +638,29 @@ export const getProjectsWithResumes = async (
 		Record<string, import("@/types/enhanced-types").FieldMetadata>
 	>();
 	const lockedFieldsMap = new Map<string, Record<string, boolean>>();
-	const lockedSectionsMap = new Map<string, Record<string, boolean>>();
+	const fieldStatesMap = new Map<string, any>();
 
 	resumes?.forEach((resume: any) => {
 		if (!resumeMap.has(resume.project_id)) {
-			let rawContent = resume.content || {};
+			let rawContent = (resume.content || {}) as any;
+
+			// Extract lock state from JSONB root
+			const rawLockedFields =
+				(rawContent._lockedFields as
+					| Record<string, boolean>
+					| undefined) || {};
+
+			const rawFieldStates = (rawContent._fieldStates as any) || {};
+
+			// Store locks and states in separate map for the returned ProjectProfile
+			lockedFieldsMap.set(resume.project_id, rawLockedFields);
+			fieldStatesMap.set(resume.project_id, rawFieldStates);
+
+			// Remove reserved keys so they are not treated as regular fields below
+			// Create copy to avoid mutation issues if object reused
+			rawContent = { ...rawContent };
+			delete rawContent._lockedFields;
+			delete rawContent._fieldStates;
 
 			// Check if content is in section-grouped format and ungroup if needed
 			if (isGroupedFormat(rawContent)) {
@@ -692,12 +771,6 @@ export const getProjectsWithResumes = async (
 
 			resumeMap.set(resume.project_id, flatContent);
 			metadataMap.set(resume.project_id, metadata);
-			// Store locked_fields and locked_sections
-			lockedFieldsMap.set(resume.project_id, resume.locked_fields || {});
-			lockedSectionsMap.set(
-				resume.project_id,
-				resume.locked_sections || {}
-			);
 		}
 	});
 
@@ -721,7 +794,11 @@ export const getProjectsWithResumes = async (
 					| undefined) ?? 0
 			);
 
-			return {
+			// Build the combined profile first so we can compute a fresh
+			// completion percentage from the latest data. This mirrors the
+			// single-project loader and prevents stale 0% values from older
+			// resume versions from overriding a correct computed value.
+			const combinedProfile: ProjectProfile = {
 				// Core project fields
 				id: project.id,
 				owner_org_id: project.owner_org_id,
@@ -735,13 +812,12 @@ export const getProjectsWithResumes = async (
 				// Override with fallbacks for key fields
 				projectName: resumeContent.projectName || project.name,
 				assetType: resumeContent.assetType || "",
-				projectStatus: resumeContent.projectStatus || "Draft",
+				projectStatus: (resumeContent.projectStatus as any) || "",
 
-				// Type-safe overrides for enum fields
-				interestRateType:
-					(resumeContent.interestRateType as any) || "Not Specified",
+				// Type-safe overrides for enum fields (no UX defaults – start empty)
+				interestRateType: (resumeContent.interestRateType as any) || "",
 				recoursePreference:
-					(resumeContent.recoursePreference as any) || "Flexible",
+					(resumeContent.recoursePreference as any) || "",
 				exitStrategy: resumeContent.exitStrategy as any,
 
 				// Load completenessPercent from DB, fallback to 0 if not stored
@@ -754,13 +830,27 @@ export const getProjectsWithResumes = async (
 				// Add metadata container
 				_metadata: metadata,
 
-				// Add locked_fields and locked_sections
+				// Add locked_fields (no _lockedSections - derive from field locks)
 				_lockedFields: lockedFieldsMap.get(project.id) || {},
-				_lockedSections: lockedSectionsMap.get(project.id) || {},
+				_fieldStates: fieldStatesMap.get(project.id) || {},
 
 				// Legacy field
 				borrowerProfileId: undefined,
 			} as ProjectProfile;
+
+			const recomputedCompletion =
+				computeProjectCompletion(combinedProfile);
+			const storedCompletion = combinedProfile.completenessPercent;
+			const finalCompletion =
+				typeof storedCompletion === "number" &&
+				storedCompletion > 0
+					? storedCompletion
+					: recomputedCompletion;
+
+			return {
+				...combinedProfile,
+				completenessPercent: finalCompletion,
+			};
 		}) || []
 	);
 };
@@ -809,8 +899,14 @@ export const getProjectMessages = async (
  */
 export const saveProjectResume = async (
 	projectId: string,
-	content: Partial<ProjectProfile> // Changed to ProjectProfile to access _metadata
+	content: Partial<ProjectProfile>, // Changed to ProjectProfile to access _metadata
+	options?: { createNewVersion?: boolean }
 ): Promise<void> => {
+	// Resolve the current user so we can attribute new versions correctly
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
 	// 1. Find the latest existing row for this project
 	const { data: existing } = await supabase
 		.from("project_resumes")
@@ -824,20 +920,61 @@ export const saveProjectResume = async (
 	const metadata = (content as any)._metadata || {};
 	const finalContent: any = {};
 
+	// Extract reserved keys that should be preserved at root level
+	const lockedFields = (content as any)._lockedFields || {};
+	const fieldStates = (content as any)._fieldStates || {};
+
 	// Iterate over fields to construct the JSONB object
 	for (const key in content) {
-		if (key === "_metadata") continue; // Skip metadata container
+		if (
+			key === "_metadata" ||
+			key === "_lockedFields" ||
+			key === "_fieldStates"
+		)
+			continue; // Skip metadata and state containers
 
 		const currentValue = (content as any)[key];
-		const meta = metadata[key];
+		const meta = metadata[key] as
+			| import("@/types/source-metadata").SourceMetadata[]
+			| undefined;
+
+		// Normalize any legacy `source`/`sources` fields into a proper `sources` array
+		const toSourcesArray = (input: any): any[] => {
+			if (!input) return [];
+			if (Array.isArray(input)) return input;
+			if (typeof input === "string") {
+				const normalized = input.toLowerCase().trim();
+				if (
+					normalized === "user_input" ||
+					normalized === "user input"
+				) {
+					return [{ type: "user_input" }];
+				}
+				return [{ type: "document", name: input }];
+			}
+			if (
+				typeof input === "object" &&
+				input !== null &&
+				"type" in input
+			) {
+				return [input];
+			}
+			return [];
+		};
 
 		if (meta) {
-			// If we have metadata, save the full structure
+			// If we have metadata, save the full structure using ONLY `sources`
+			const metaAny: any = metadata[key];
+			const metaSources =
+				metaAny?.sources !== undefined
+					? metaAny.sources
+					: metaAny?.source;
+
 			finalContent[key] = {
 				value: currentValue,
-				source: meta.source,
-				warnings: meta.warnings,
-				// We don't save original_value/source to DB, those are runtime helpers
+				sources: toSourcesArray(metaSources),
+				warnings: metaAny?.warnings || [],
+				original_value: metaAny?.original_value ?? currentValue,
 			};
 		} else {
 			// Check if existing content has rich format for this field
@@ -845,13 +982,24 @@ export const saveProjectResume = async (
 			if (
 				existingItem &&
 				typeof existingItem === "object" &&
-				"source" in existingItem
+				("value" in existingItem ||
+					"source" in existingItem ||
+					"sources" in existingItem)
 			) {
-				// Preserve existing metadata structure if no new metadata provided
+				const existingObj: any = existingItem;
+				const existingSources =
+					"sources" in existingObj
+						? existingObj.sources
+						: "source" in existingObj
+						? toSourcesArray(existingObj.source)
+						: undefined;
+
+				// Preserve existing metadata structure (normalized to `sources`) if no new metadata provided
 				finalContent[key] = {
 					value: currentValue,
-					source: existingItem.source,
-					warnings: existingItem.warnings || [],
+					sources: existingSources ?? [{ type: "user_input" }],
+					warnings: existingObj.warnings || [],
+					original_value: existingObj.original_value ?? currentValue,
 				};
 			} else {
 				// Save flat value if no metadata exists
@@ -860,15 +1008,50 @@ export const saveProjectResume = async (
 		}
 	}
 
-	if (existing) {
+	// Check if existing content is in section-grouped format
+	const isExistingSectionGrouped = isGroupedFormat(existing?.content || {});
+
+	if (existing && !options?.createNewVersion) {
 		// 2a. Update in Place: Modify the current version directly
 		// This ensures manual edits don't create new history entries
-		// Merge with existing content to preserve fields not in the update
-		const mergedContent = { ...existing.content, ...finalContent };
+
+		let contentToSave: any;
+
+		if (isExistingSectionGrouped) {
+			// Existing content is section-grouped, need to merge flat updates into it
+			// First, convert flat finalContent to section-grouped format
+			const groupedUpdates = groupBySections(finalContent);
+
+			// Merge into existing section-grouped structure
+			contentToSave = { ...existing.content };
+			for (const [sectionKey, sectionFields] of Object.entries(
+				groupedUpdates
+			)) {
+				if (!contentToSave[sectionKey]) {
+					contentToSave[sectionKey] = {};
+				}
+				contentToSave[sectionKey] = {
+					...contentToSave[sectionKey],
+					...sectionFields,
+				};
+			}
+
+			// Preserve root-level metadata fields
+			contentToSave._lockedFields = lockedFields;
+			contentToSave._fieldStates = fieldStates;
+		} else {
+			// Existing content is flat, merge flat with flat
+			contentToSave = {
+				...existing.content,
+				...finalContent,
+				_lockedFields: lockedFields,
+				_fieldStates: fieldStates,
+			};
+		}
 
 		const { error } = await supabase
 			.from("project_resumes")
-			.update({ content: mergedContent as any })
+			.update({ content: contentToSave as any })
 			.eq("id", existing.id);
 
 		if (error) {
@@ -877,17 +1060,63 @@ export const saveProjectResume = async (
 			);
 		}
 	} else {
-		// 2b. Insert New: Brand new project resume
-		// We also need to initialize the resource pointer if it doesn't exist,
-		// but typically the backend might handle that.
-		// For now, we just insert the resume row.
+		// 2b. Insert New: Brand new project resume OR create new version
+		// CRITICAL: When creating a new version, we MUST merge with existing content
+		// to preserve all fields that weren't explicitly changed
+		
+		// Get existing content to merge with (if it exists)
+		let existingContentFlat: Record<string, any> = {};
+		if (existing?.content) {
+			existingContentFlat = isGroupedFormat(existing.content)
+				? ungroupFromSections(existing.content)
+				: existing.content;
+			
+			// Remove reserved keys from existing content
+			const { _lockedFields, _fieldStates, _metadata, completenessPercent, ...cleanExisting } = existingContentFlat;
+			existingContentFlat = cleanExisting;
+		}
+		
+		// Merge existing content with new content - existing fields are preserved unless overwritten
+		const mergedContent = {
+			...existingContentFlat,
+			...finalContent, // New/changed fields take precedence
+		};
+		
+		// Convert merged content to section-grouped format for new resumes
+		const groupedContent = groupBySections(mergedContent);
+		
+		// Preserve existing lock states, merging with new ones
+		const mergedLockedFields = {
+			...(existing?.content?._lockedFields || {}),
+			...lockedFields,
+		};
+		
+		const mergedFieldStates = {
+			...(existing?.content?._fieldStates || {}),
+			...fieldStates,
+		};
+		
+		// Calculate completion based on the full merged project profile snapshot
+		const completionPercent = computeProjectCompletion({
+			...content,
+			...mergedContent, // Include all merged fields for accurate completion
+		});
+		
+		const contentToInsert = {
+			...groupedContent,
+			_lockedFields: mergedLockedFields,
+			_fieldStates: mergedFieldStates,
+			completenessPercent: completionPercent,
+		};
+
 		const { data: newResume, error } = await supabase
 			.from("project_resumes")
 			.insert({
 				project_id: projectId,
-				content: finalContent as any,
+				content: contentToInsert as any,
+				created_by: user?.id ?? null,
 			})
-			.select("id")
+			.select("id, project_id, version_number")
 			.single();
 
 		if (error) {
@@ -896,24 +1125,22 @@ export const saveProjectResume = async (
 			);
 		}
 
-		// Optional: We could try to update/create the resource pointer here to be safe,
-		// ensuring the new resume is marked as current.
+		// Ensure the PROJECT_RESUME resource pointer is updated to this version.
+		// NOTE: The resources table does not currently have a UNIQUE(project_id, resource_type)
+		// constraint, so an UPSERT with an onConflict target will fail. Instead, we issue a
+		// straight UPDATE scoped by project_id + resource_type. This will reliably move the
+		// pointer for existing resources without relying on constraint metadata.
 		const { error: resourceError } = await supabase
 			.from("resources")
-			.upsert(
-				{
-					project_id: projectId,
-					type: "PROJECT_RESUME",
-					current_version_id: newResume.id,
-				},
-				{ onConflict: "project_id, type" }
-			); // Assuming composite unique key or similar
+			.update({ current_version_id: newResume.id })
+			.eq("project_id", projectId)
+			.eq("resource_type", "PROJECT_RESUME");
 
-		// We don't throw on resource error strictly, as the table might not be fully set up
-		// or permissions might vary, but it's good practice to try.
+		// We don't throw on resource error strictly, as permissions or seed state may vary,
+		// but log so we can diagnose issues in non-local environments.
 		if (resourceError) {
 			console.warn(
-				"Failed to update resource pointer:",
+				"[saveProjectResume] Failed to update PROJECT_RESUME resource pointer:",
 				resourceError.message
 			);
 		}
@@ -941,9 +1168,7 @@ export const getProjectBorrowerResume = async (
 		);
 	}
 
-	let query = supabase
-		.from("borrower_resumes")
-		.select("content, locked_fields, locked_sections");
+	let query = supabase.from("borrower_resumes").select("content");
 
 	if (resource?.current_version_id) {
 		query = query.eq("id", resource.current_version_id);
@@ -962,12 +1187,9 @@ export const getProjectBorrowerResume = async (
 
 	if (!data) return null;
 
-	// Attach locked_fields and locked_sections to the content object as _lockedFields and _lockedSections
-	const content = data.content || {};
-	(content as any)._lockedFields = data.locked_fields || {};
-	(content as any)._lockedSections = data.locked_sections || {};
-
-	return content as BorrowerResumeContent;
+	// Lock state now lives inside the JSONB content under _lockedFields (section locks derived from field locks)
+	const content = (data.content || {}) as BorrowerResumeContent;
+	return content;
 };
 
 // Helper to map borrower resume fields to sections
@@ -1096,15 +1318,18 @@ export const saveProjectBorrowerResume = async (
 		contentToSave = convertToSectionWise(mergedContent);
 	}
 
-	// Extract _lockedFields and _lockedSections from content if present
-	const lockedFieldsToSave =
-		lockedFields || (content as any)._lockedFields || {};
-	const lockedSectionsToSave =
-		lockedSections || (content as any)._lockedSections || {};
+	// Extract _lockedFields and _fieldStates from content if present
+	const lockedFieldsFromContent = (content as any)._lockedFields || {};
+	const fieldStatesFromContent = (content as any)._fieldStates || {};
 
-	// Remove _lockedFields and _lockedSections from content before saving (they're stored in separate columns)
-	const { _lockedFields, _lockedSections, ...finalContentToSave } =
-		contentToSave;
+	const lockedFieldsToSave = lockedFields || lockedFieldsFromContent || {};
+
+	// Ensure lock state and field states are stored inside the JSONB content at the root
+	const finalContentToSave: any = {
+		...contentToSave,
+		_lockedFields: lockedFieldsToSave,
+		_fieldStates: fieldStatesFromContent,
+	};
 
 	const { data: resource, error: resourceError } = await supabase
 		.from("resources")
@@ -1125,8 +1350,6 @@ export const saveProjectBorrowerResume = async (
 			.from("borrower_resumes")
 			.update({
 				content: finalContentToSave,
-				locked_fields: lockedFieldsToSave,
-				locked_sections: lockedSectionsToSave,
 			})
 			.eq("id", resource.current_version_id);
 
@@ -1144,8 +1367,6 @@ export const saveProjectBorrowerResume = async (
 		.insert({
 			project_id: projectId,
 			content: finalContentToSave,
-			locked_fields: lockedFieldsToSave,
-			locked_sections: lockedSectionsToSave,
 		})
 		.select("id")
 		.single();

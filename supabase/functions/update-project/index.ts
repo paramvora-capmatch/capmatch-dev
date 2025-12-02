@@ -14,7 +14,7 @@ function groupBySections(flatData: Record<string, unknown>): Record<string, Reco
   const FIELD_TO_SECTION: Record<string, string> = {
     "projectName": "basic-info", "propertyAddressStreet": "basic-info", "propertyAddressCity": "basic-info",
     "propertyAddressState": "basic-info", "propertyAddressZip": "basic-info", "propertyAddressCounty": "basic-info",
-    "parcelNumber": "basic-info", "zoningDesignation": "basic-info", "projectType": "basic-info",
+    "parcelNumber": "basic-info", "zoningDesignation": "basic-info",
     "primaryAssetClass": "basic-info", "constructionType": "basic-info", "groundbreakingDate": "basic-info",
     "completionDate": "basic-info", "totalDevelopmentCost": "basic-info", "loanAmountRequested": "basic-info",
     "loanType": "basic-info", "requestedLoanTerm": "basic-info", "masterPlanName": "basic-info",
@@ -116,12 +116,10 @@ serve(async (req) => {
     if (!authHeader) throw new Error("Authorization header required");
     const jwt = authHeader.replace("Bearer ", "");
 
-    const { project_id, core_updates, resume_updates, locked_fields, locked_sections } = (await req.json()) as {
+    const { project_id, core_updates, resume_updates } = (await req.json()) as {
       project_id: string;
       core_updates?: CoreUpdates;
       resume_updates?: ResumeUpdates;
-      locked_fields?: Record<string, boolean>;
-      locked_sections?: Record<string, boolean>;
     };
 
     if (!project_id) throw new Error("project_id is required");
@@ -196,48 +194,106 @@ serve(async (req) => {
       // If resume_updates contains _metadata, convert it to rich format
       const metadata = (resume_updates as any)._metadata;
       let finalContentFlat: Record<string, unknown> = { ...existingContent };
+      const rootKeys: Record<string, unknown> = {};
+      
+      // Helper to normalize any legacy `source`/`sources` into a proper sources array
+      const toSourcesArray = (input: any): any[] => {
+        if (!input) return [];
+
+        // Already an array (e.g. SourceMetadata[])
+        if (Array.isArray(input)) {
+          return input;
+        }
+
+        // Legacy string source
+        if (typeof input === "string") {
+          const normalized = input.toLowerCase().trim();
+          if (normalized === "user_input" || normalized === "user input") {
+            return [{ type: "user_input" }];
+          }
+          // Default: treat as document name
+          return [{ type: "document", name: input }];
+        }
+
+        // Already a SourceMetadata-like object
+        if (typeof input === "object" && input !== null && "type" in input) {
+          return [input];
+        }
+
+        return [];
+      };
       
       if (metadata) {
         // Convert metadata to rich format and merge
         for (const key in resume_updates) {
           if (key === '_metadata') continue;
+
+          // Reserved root-level keys (e.g. _lockedFields / _lockedSections) should stay at the top level
+          if (key.startsWith('_') || key === 'projectSections' || key === 'borrowerSections') {
+            rootKeys[key] = resume_updates[key];
+            continue;
+          }
           
           const value = resume_updates[key];
           const meta = metadata[key];
           
           if (meta) {
-            // Save in rich format
+            // Save in rich format using ONLY `sources` (array of SourceMetadata)
             const existingItem = existingContent[key];
-            const existingOriginalValue = (existingItem && typeof existingItem === 'object' && 'original_value' in existingItem) 
-              ? (existingItem as any).original_value 
-              : undefined;
-            
+            const existingOriginalValue =
+              existingItem &&
+              typeof existingItem === "object" &&
+              "original_value" in existingItem
+                ? (existingItem as any).original_value
+                : undefined;
+
+            const metaSources =
+              (meta as any).sources !== undefined
+                ? (meta as any).sources
+                : (meta as any).source;
+
             finalContentFlat[key] = {
-              value: value,
-              source: meta.source,
-              original_value: meta.original_value !== undefined ? meta.original_value : (existingOriginalValue || value), // Preserve original_value
-              warnings: meta.warnings || []
+              value,
+              sources: toSourcesArray(metaSources),
+              original_value:
+                meta.original_value !== undefined
+                  ? meta.original_value
+                  : existingOriginalValue || value,
+              warnings: meta.warnings || [],
             };
           } else {
             // Check if existing content has rich format for this field
             const existingItem = existingContent[key];
-            if (existingItem && typeof existingItem === 'object' && 'source' in existingItem) {
-              // Preserve existing metadata structure, update value but keep original_value
+            if (
+              existingItem &&
+              typeof existingItem === "object" &&
+              ("value" in existingItem || "source" in existingItem || "sources" in existingItem)
+            ) {
+              const existingObj = existingItem as any;
+              const existingSources =
+                "sources" in existingObj
+                  ? existingObj.sources
+                  : "source" in existingObj
+                  ? toSourcesArray(existingObj.source)
+                  : undefined;
+
+              // Preserve existing metadata structure (but normalize to `sources`) and update value
               finalContentFlat[key] = {
-                ...(existingItem as any),
-                value: value,
-                // Preserve original_value if it exists, otherwise set to current value if this is first time
-                original_value: (existingItem as any).original_value !== undefined 
-                  ? (existingItem as any).original_value 
-                  : value
+                value,
+                sources: existingSources ?? [{ type: "user_input" }],
+                original_value:
+                  existingObj.original_value !== undefined
+                    ? existingObj.original_value
+                    : value,
+                warnings: existingObj.warnings || [],
               };
             } else {
               // Convert to rich format - this is user input without existing rich format
               finalContentFlat[key] = {
-                value: value,
-                source: 'user_input',
+                value,
+                sources: [{ type: "user_input" }],
                 original_value: value, // First time user sets this value
-                warnings: []
+                warnings: [],
               };
             }
           }
@@ -246,27 +302,45 @@ serve(async (req) => {
         // No metadata - merge flat values, but preserve existing rich format
         for (const key in resume_updates) {
           if (key === '_metadata') continue;
+
+          if (key.startsWith('_') || key === 'projectSections' || key === 'borrowerSections') {
+            rootKeys[key] = resume_updates[key];
+            continue;
+          }
           
           const value = resume_updates[key];
           const existingItem = existingContent[key];
           
-          if (existingItem && typeof existingItem === 'object' && 'source' in existingItem) {
-            // Preserve existing rich format, update value but keep original_value
+          if (
+            existingItem &&
+            typeof existingItem === "object" &&
+            ("value" in existingItem || "source" in existingItem || "sources" in existingItem)
+          ) {
+            const existingObj = existingItem as any;
+            const existingSources =
+              "sources" in existingObj
+                ? existingObj.sources
+                : "source" in existingObj
+                ? toSourcesArray(existingObj.source)
+                : undefined;
+
+            // Preserve existing rich format (normalized to `sources`), update value but keep original_value
             finalContentFlat[key] = {
-              ...(existingItem as any),
-              value: value,
-              // Preserve original_value if it exists
-              original_value: (existingItem as any).original_value !== undefined 
-                ? (existingItem as any).original_value 
-                : value
+              value,
+              sources: existingSources ?? [{ type: "user_input" }],
+              original_value:
+                existingObj.original_value !== undefined
+                  ? existingObj.original_value
+                  : value,
+              warnings: existingObj.warnings || [],
             };
           } else {
             // Convert to rich format - this is user input without existing rich format
             finalContentFlat[key] = {
-              value: value,
-              source: 'user_input',
+              value,
+              sources: [{ type: "user_input" }],
               original_value: value, // First time user sets this value
-              warnings: []
+              warnings: [],
             };
           }
         }
@@ -276,65 +350,48 @@ serve(async (req) => {
       // Convert any remaining flat values to rich format
       for (const key in finalContentFlat) {
         const item = finalContentFlat[key];
-        // Check if it's a flat value (not an object with 'value' property)
-        if (item !== null && typeof item === 'object' && 'value' in item) {
-          // Already in rich format, ensure it has all required fields
-          if (!('source' in item)) {
-            finalContentFlat[key] = {
-              ...(item as any),
-              source: 'user_input'
-            };
-          }
-          if (!('original_value' in item)) {
-            finalContentFlat[key] = {
-              ...(item as any),
-              original_value: (item as any).value
-            };
-          }
-          if (!('warnings' in item)) {
-            finalContentFlat[key] = {
-              ...(item as any),
-              warnings: []
-            };
-          }
-        } else if (item !== null && item !== undefined && typeof item !== 'object') {
+        // Ensure objects with `value` are normalized to { value, sources, original_value, warnings }
+        if (item !== null && typeof item === "object" && "value" in item) {
+          const obj = item as any;
+          const normalized: any = {
+            value: obj.value,
+            sources: obj.sources
+              ? toSourcesArray(obj.sources)
+              : obj.source
+              ? toSourcesArray(obj.source)
+              : [{ type: "user_input" }],
+            original_value:
+              obj.original_value !== undefined ? obj.original_value : obj.value,
+            warnings: obj.warnings || [],
+          };
+          finalContentFlat[key] = normalized;
+        } else if (
+          item !== null &&
+          item !== undefined &&
+          typeof item !== "object"
+        ) {
           // Flat value - convert to rich format
           finalContentFlat[key] = {
             value: item,
-            source: 'user_input',
+            sources: [{ type: "user_input" }],
             original_value: item,
-            warnings: []
+            warnings: [],
           };
         }
       }
       
       // Group data by sections before saving
-      const finalContent = groupBySections(finalContentFlat);
+      const finalContent = {
+        ...rootKeys,
+        ...groupBySections(finalContentFlat),
+      };
 
       // Prepare update payload
       const updatePayload: { 
         content: Record<string, unknown>; 
-        locked_fields?: Record<string, boolean>;
-        locked_sections?: Record<string, boolean>;
       } = {
         content: finalContent
       };
-      
-      // Include locked_fields if provided (even if empty object to clear locks)
-      if (locked_fields !== undefined) {
-        updatePayload.locked_fields = locked_fields;
-        console.log(`[update-project] Saving locked_fields:`, JSON.stringify(locked_fields));
-      } else {
-        console.log(`[update-project] No locked_fields provided, skipping update`);
-      }
-      
-      // Include locked_sections if provided (even if empty object to clear locks)
-      if (locked_sections !== undefined) {
-        updatePayload.locked_sections = locked_sections;
-        console.log(`[update-project] Saving locked_sections:`, JSON.stringify(locked_sections));
-      } else {
-        console.log(`[update-project] No locked_sections provided, skipping update`);
-      }
 
       // Update the existing row (update in place, don't create new version)
       if (existing?.id) {
@@ -348,18 +405,10 @@ serve(async (req) => {
         const insertPayload: { 
           project_id: string; 
           content: Record<string, unknown>; 
-          locked_fields?: Record<string, boolean>;
-          locked_sections?: Record<string, boolean>;
         } = {
           project_id,
           content: finalContent
         };
-        if (locked_fields !== undefined) {
-          insertPayload.locked_fields = locked_fields;
-        }
-        if (locked_sections !== undefined) {
-          insertPayload.locked_sections = locked_sections;
-        }
         const { error: insertError } = await supabase
           .from("project_resumes")
           .insert(insertPayload);

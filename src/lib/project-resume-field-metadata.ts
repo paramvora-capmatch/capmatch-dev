@@ -25,9 +25,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	projectName: {
 		fieldId: "projectName",
 		description:
-			"The official name of your project. This is used for identification and marketing purposes.",
+			"The official name of your project. Used for identification in the dashboard and marketing materials.",
 		primarySource: "User Input",
-		backupSource: "N/A",
+		backupSource: "Document (OM/Executive Summary)",
 		expectedValue: "e.g., SoGood Apartments",
 		fieldType: "direct",
 		dataType: "Text",
@@ -36,8 +36,8 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	propertyAddressStreet: {
 		fieldId: "propertyAddressStreet",
 		description:
-			"The street address of the property. On selection, this will trigger backend API jobs to auto-populate related fields.",
-		primarySource: "User Input (Google Places Autocomplete)",
+			"The street address of the property. Selection triggers auto-population of city, state, and zip.",
+		primarySource: "User Input (Google Places)",
 		backupSource: "External (Google Maps API)",
 		expectedValue: "e.g., 2300 Hickory St",
 		fieldType: "direct",
@@ -47,7 +47,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	propertyAddressCity: {
 		fieldId: "propertyAddressCity",
 		description:
-			"City where the property is located. This is auto-populated from the address selection.",
+			"City where the property is located. Auto-populated from the address selection.",
 		primarySource: "Derived (Extract from Address)",
 		backupSource: "External (Google Maps API)",
 		expectedValue: "e.g., Dallas",
@@ -58,7 +58,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	propertyAddressState: {
 		fieldId: "propertyAddressState",
 		description:
-			"State where the property is located. This is auto-populated from the address selection.",
+			"State where the property is located. Auto-populated from the address selection.",
 		primarySource: "Derived (Extract from Address)",
 		backupSource: "External (Google Maps API)",
 		expectedValue: "2-letter state code, e.g., TX",
@@ -69,7 +69,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	propertyAddressZip: {
 		fieldId: "propertyAddressZip",
 		description:
-			"ZIP code of the property location. This is auto-populated from the address selection.",
+			"ZIP code of the property location. Auto-populated from the address selection.",
 		primarySource: "Derived (Extract from Address)",
 		backupSource: "External (USPS API)",
 		expectedValue: "e.g., 75215",
@@ -91,7 +91,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	parcelNumber: {
 		fieldId: "parcelNumber",
 		description:
-			"Legal property identifier(s). Allow multiple comma-separated values if the property spans multiple parcels.",
+			"Legal property identifier(s). Comma-separated if multiple parcels.",
 		primarySource: "Document (ALTA Survey)",
 		backupSource: "External (Regrid API)",
 		expectedValue: "e.g., 000472000A01B0100",
@@ -102,7 +102,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	zoningDesignation: {
 		fieldId: "zoningDesignation",
 		description:
-			"Zoning designation that determines development rights and building requirements.",
+			"Zoning designation determining development rights (e.g., density, height, use).",
 		primarySource: "Document (Zoning Letter)",
 		backupSource: "External (Zoneomics API)",
 		expectedValue: "e.g., PD317",
@@ -110,23 +110,12 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Text",
 		section: "basic-info",
 	},
-	projectType: {
-		fieldId: "projectType",
-		description:
-			"Type(s) of project. You can select multiple types if the project is mixed-use.",
-		primarySource: "User Input",
-		backupSource: "N/A",
-		expectedValue: "Multifamily, Mixed-Use, Retail, Office (multi-select)",
-		fieldType: "direct",
-		dataType: "Multi-select",
-		section: "basic-info",
-	},
 	assetType: {
 		fieldId: "assetType",
 		description:
-			"Primary asset type classification. This helps match your project with appropriate lenders and determines loan product eligibility.",
-		primarySource: "User Input",
-		backupSource: "N/A",
+			"Primary asset type classification. Matches project with appropriate lenders.",
+		primarySource: "Document (Appraisal/OM)",
+		backupSource: "User Input",
 		expectedValue:
 			"Multifamily, Office, Retail, Industrial, Mixed-Use, etc.",
 		fieldType: "direct",
@@ -136,9 +125,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	primaryAssetClass: {
 		fieldId: "primaryAssetClass",
 		description:
-			"Primary asset class for loan product matching. This determines the type of lenders who will see your project.",
-		primarySource: "User Input",
-		backupSource: "N/A",
+			"Primary asset class for loan product matching and risk assessment.",
+		primarySource: "Document (Appraisal)",
+		backupSource: "User Input",
 		expectedValue: "e.g., Multifamily",
 		fieldType: "direct",
 		dataType: "Dropdown",
@@ -147,9 +136,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	projectPhase: {
 		fieldId: "projectPhase",
 		description:
-			"Current phase or deal type of the project. This indicates what stage the project is in and what type of financing is needed.",
-		primarySource: "User Input",
-		backupSource: "N/A",
+			"Current phase of the project life cycle. Determines available financing types.",
+		primarySource: "Document (Business Plan)",
+		backupSource: "User Input",
 		expectedValue:
 			"Acquisition, Refinance, Construction, Bridge, Development, Value-Add, Other",
 		fieldType: "direct",
@@ -159,9 +148,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	projectDescription: {
 		fieldId: "projectDescription",
 		description:
-			"A brief narrative description of the project, its location, and key features. This helps lenders understand the project context.",
-		primarySource: "User Input",
-		backupSource: "N/A",
+			"Brief narrative of the project, location, and key features for lender review.",
+		primarySource: "Document (Executive Summary)",
+		backupSource: "User Input",
 		expectedValue:
 			'Text description, e.g., "Ground-up development of Building B within the SoGood master plan..."',
 		fieldType: "direct",
@@ -171,7 +160,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	constructionType: {
 		fieldId: "constructionType",
 		description:
-			"Type of construction work. This affects risk profile and lender preferences.",
+			"Type of construction work involved. Affects risk profile and loan sizing.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
 		expectedValue: "Ground-Up, Renovation, Adaptive Reuse",
@@ -181,7 +170,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	groundbreakingDate: {
 		fieldId: "groundbreakingDate",
-		description: "Planned date for construction to begin.",
+		description: "Planned date for construction start.",
 		primarySource: "Document (Construction Schedule)",
 		backupSource: "User Input",
 		expectedValue: "Date, e.g., Q3 2025",
@@ -191,7 +180,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	completionDate: {
 		fieldId: "completionDate",
-		description: "Expected project completion date.",
+		description: "Expected project completion / CO date.",
 		primarySource: "Document (Construction Schedule)",
 		backupSource: "User Input",
 		expectedValue: "Date, e.g., Q3 2027",
@@ -202,7 +191,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	totalDevelopmentCost: {
 		fieldId: "totalDevelopmentCost",
 		description:
-			"Total development cost (TDC). This is automatically calculated as the sum of all budget line items.",
+			"Total development cost (TDC). Sum of all budget line items.",
 		primarySource: "Derived (Sum of Budget)",
 		backupSource: "Document (Dev Budget)",
 		expectedValue: "Currency, e.g., $29,800,000",
@@ -213,7 +202,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	dealStatus: {
 		fieldId: "dealStatus",
 		description:
-			"Current status of the deal. Controls field visibility and workflow logic.",
+			"Current workflow status of the deal (e.g. actively underwriting vs. closed).",
 		primarySource: "User Input",
 		backupSource: "N/A",
 		expectedValue:
@@ -224,9 +213,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	expectedZoningChanges: {
 		fieldId: "expectedZoningChanges",
-		description: "Expected zoning changes for the project.",
-		primarySource: "User Input",
-		backupSource: "Document (Entitlements)",
+		description: "Any zoning changes required for the project.",
+		primarySource: "Document (Zoning Report)",
+		backupSource: "User Input",
 		expectedValue: "None, Variance, PUD, Re-Zoning",
 		fieldType: "direct",
 		dataType: "Dropdown",
@@ -242,19 +231,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Text",
 		section: "basic-info",
 	},
-	prepaymentPremium: {
-		fieldId: "prepaymentPremium",
-		description: "Prepayment premium structure.",
-		primarySource: "Document (Term Sheet)",
-		backupSource: "User Input",
-		expectedValue: "Yield Maint, Defeasance, Step-down, Open",
-		fieldType: "direct",
-		dataType: "Dropdown",
-		section: "basic-info",
-	},
 	expectedHoldPeriod: {
 		fieldId: "expectedHoldPeriod",
-		description: "Expected hold period in years.",
+		description: "Anticipated holding period for the asset in years.",
 		primarySource: "Document (Inv. Memo)",
 		backupSource: "User Input",
 		expectedValue: "Integer, e.g., 5",
@@ -264,7 +243,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	syndicationStatus: {
 		fieldId: "syndicationStatus",
-		description: "Status of equity syndication.",
+		description: "Status of equity syndication or capital raising.",
 		primarySource: "Document (Equity Letter)",
 		backupSource: "User Input",
 		expectedValue: "Committed, In Process, TBD",
@@ -274,7 +253,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	sponsorExperience: {
 		fieldId: "sponsorExperience",
-		description: "Sponsor experience level.",
+		description: "Sponsor's level of experience with similar projects.",
 		primarySource: "Document (Track Record)",
 		backupSource: "User Input",
 		expectedValue: "First-Time, Emerging (1-3), Seasoned (3+)",
@@ -282,21 +261,11 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Dropdown",
 		section: "basic-info",
 	},
-	borrowerNetWorth: {
-		fieldId: "borrowerNetWorth",
-		description: "Borrower net worth. Must be ≥ Loan Amount (typically).",
-		primarySource: "Document (Personal FS)",
-		backupSource: "User Input",
-		expectedValue: "Currency, e.g., $45,000,000",
-		fieldType: "direct",
-		dataType: "Currency",
-		section: "basic-info",
-	},
 	ltvStressMax: {
 		fieldId: "ltvStressMax",
 		description: "Maximum LTV if Cap Rate expands +50bps.",
-		primarySource: "User Input",
-		backupSource: "Derived (Lender Rules)",
+		primarySource: "Derived (Stress Calc)",
+		backupSource: "User Input",
 		expectedValue: "Percentage, e.g., 50%",
 		fieldType: "direct",
 		dataType: "Percent",
@@ -305,8 +274,8 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	dscrStressMin: {
 		fieldId: "dscrStressMin",
 		description: "Minimum DSCR if Vacancy increases 5%.",
-		primarySource: "User Input",
-		backupSource: "Derived (Lender Rules)",
+		primarySource: "Derived (Stress Calc)",
+		backupSource: "User Input",
 		expectedValue: "Decimal, e.g., 1.10",
 		fieldType: "direct",
 		dataType: "Decimal",
@@ -314,10 +283,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	loanAmountRequested: {
 		fieldId: "loanAmountRequested",
-		description:
-			"The loan amount you are requesting from the lender. This is the primary ask in your financing request.",
+		description: "Total loan amount requested from the lender.",
 		primarySource: "Document (Sources & Uses)",
-		backupSource: "User Input",
+		backupSource: "Document (Term Sheet)",
 		expectedValue: "Currency, e.g., $18,000,000",
 		fieldType: "direct",
 		dataType: "Currency",
@@ -325,10 +293,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	loanType: {
 		fieldId: "loanType",
-		description:
-			"Type of loan product you are seeking. This determines which lenders will see your project and what loan products they can offer.",
-		primarySource: "User Input",
-		backupSource: "N/A",
+		description: "Specific type of loan product being requested.",
+		primarySource: "Document (Term Sheet)",
+		backupSource: "User Input",
 		expectedValue:
 			"Senior Debt, Mezzanine, Preferred Equity, Common Equity, JV Equity, Other",
 		fieldType: "direct",
@@ -337,10 +304,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	targetLtvPercent: {
 		fieldId: "targetLtvPercent",
-		description:
-			"Target Loan-to-Value ratio as a percentage. This is the loan amount divided by the property value.",
+		description: "Target Loan-to-Value ratio (Loan / Appraised Value).",
 		primarySource: "Document (Term Sheet)",
-		backupSource: "User Input",
+		backupSource: "Derived (Loan / Value)",
 		expectedValue: "Percentage, e.g., 70%",
 		fieldType: "direct",
 		dataType: "Percent",
@@ -348,10 +314,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	targetLtcPercent: {
 		fieldId: "targetLtcPercent",
-		description:
-			"Target Loan-to-Cost ratio as a percentage. Used for construction/development projects. This is the loan amount divided by total project cost.",
+		description: "Target Loan-to-Cost ratio (Loan / Total Project Cost).",
 		primarySource: "Document (Term Sheet)",
-		backupSource: "User Input",
+		backupSource: "Derived (Loan / Cost)",
 		expectedValue: "Percentage, e.g., 80%",
 		fieldType: "direct",
 		dataType: "Percent",
@@ -359,8 +324,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	amortizationYears: {
 		fieldId: "amortizationYears",
-		description:
-			"Amortization period in years. This is the number of years over which the loan principal is repaid.",
+		description: "Amortization schedule in years (e.g. 30 years).",
 		primarySource: "Document (Term Sheet)",
 		backupSource: "User Input",
 		expectedValue: "Number of years, e.g., 30",
@@ -370,8 +334,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	interestOnlyPeriodMonths: {
 		fieldId: "interestOnlyPeriodMonths",
-		description:
-			"Number of months during which only interest payments are required (no principal payments).",
+		description: "Interest-only period in months.",
 		primarySource: "Document (Term Sheet)",
 		backupSource: "User Input",
 		expectedValue: "Number of months, e.g., 36",
@@ -381,7 +344,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	interestRateType: {
 		fieldId: "interestRateType",
-		description: "Type of interest rate structure for the loan.",
+		description: "Fixed vs Floating interest rate.",
 		primarySource: "Document (Term Sheet)",
 		backupSource: "User Input",
 		expectedValue: "Fixed, Floating, Not Specified",
@@ -391,9 +354,8 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	targetCloseDate: {
 		fieldId: "targetCloseDate",
-		description:
-			"Target date for loan closing. This helps lenders understand your timeline and urgency.",
-		primarySource: "Document (Term Sheet)",
+		description: "Target date for closing the loan.",
+		primarySource: "Document (PSA / Term Sheet)",
 		backupSource: "User Input",
 		expectedValue: "Date, e.g., 2025-08-15",
 		fieldType: "direct",
@@ -403,7 +365,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	recoursePreference: {
 		fieldId: "recoursePreference",
 		description:
-			"Your preference for recourse structure. Full recourse means personal guarantee, non-recourse means no personal guarantee.",
+			"Preferred recourse structure (Full, Limited, Non-Recourse).",
 		primarySource: "Document (Term Sheet)",
 		backupSource: "User Input",
 		expectedValue:
@@ -414,8 +376,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	useOfProceeds: {
 		fieldId: "useOfProceeds",
-		description:
-			"Description of how the loan proceeds will be used. This helps lenders understand the purpose and risk profile of the loan.",
+		description: "Breakdown of how loan proceeds will be utilized.",
 		primarySource: "Document (Sources & Uses)",
 		backupSource: "User Input",
 		expectedValue:
@@ -426,7 +387,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	requestedLoanTerm: {
 		fieldId: "requestedLoanTerm",
-		description: "Requested loan term length.",
+		description: "Requested loan term length (alternate field).",
 		primarySource: "Document (Term Sheet)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "2 years"',
@@ -436,8 +397,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	masterPlanName: {
 		fieldId: "masterPlanName",
-		description:
-			"Name of the master planned development if this project is part of a larger development.",
+		description: "Name of the master planned development, if applicable.",
 		primarySource: "Document (Marketing Brochure)",
 		backupSource: "User Input",
 		expectedValue: "e.g., SoGood Master Planned Development",
@@ -447,8 +407,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	phaseNumber: {
 		fieldId: "phaseNumber",
-		description:
-			"Phase number if this project is part of a phased development.",
+		description: "Phase number/identifier within the master plan.",
 		primarySource: "Document (Site Plan)",
 		backupSource: "User Input",
 		expectedValue: "e.g., Building B",
@@ -461,7 +420,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	totalResidentialUnits: {
 		fieldId: "totalResidentialUnits",
 		description:
-			"Total number of residential units. This is automatically calculated from the unit mix.",
+			"Total number of residential units. Automatically summed from unit mix.",
 		primarySource: "Derived (Sum of Unit Mix)",
 		backupSource: "Document (Arch Plans)",
 		expectedValue: "Integer, e.g., 116",
@@ -472,7 +431,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	totalResidentialNRSF: {
 		fieldId: "totalResidentialNRSF",
 		description:
-			"Total net rentable square feet for residential units. This is automatically calculated from unit sizes.",
+			"Total Net Rentable Square Feet (NRSF) for residential component.",
 		primarySource: "Derived (Sum of Unit SF)",
 		backupSource: "Document (Arch Plans)",
 		expectedValue: "Integer, e.g., 59,520",
@@ -482,8 +441,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	averageUnitSize: {
 		fieldId: "averageUnitSize",
-		description:
-			"Average unit size. This is automatically calculated as NRSF divided by number of units.",
+		description: "Average size per unit (NRSF / Total Units).",
 		primarySource: "Derived (NRSF / Units)",
 		backupSource: "N/A",
 		expectedValue: "Integer, e.g., 513 SF",
@@ -493,7 +451,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	totalCommercialGRSF: {
 		fieldId: "totalCommercialGRSF",
-		description: "Total gross rentable square feet for commercial space.",
+		description: "Total Gross Rentable Square Feet for commercial space.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
 		expectedValue: "Integer, e.g., 49,569",
@@ -503,7 +461,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	grossBuildingArea: {
 		fieldId: "grossBuildingArea",
-		description: "Total gross building area including all floors.",
+		description: "Total Gross Building Area (GBA) including common areas.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
 		expectedValue: "Integer, e.g., 127,406",
@@ -513,7 +471,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	numberOfStories: {
 		fieldId: "numberOfStories",
-		description: "Number of stories in the building.",
+		description: "Number of stories above grade.",
 		primarySource: "Document (Elevations)",
 		backupSource: "User Input",
 		expectedValue: "Integer, e.g., 6",
@@ -523,7 +481,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	buildingType: {
 		fieldId: "buildingType",
-		description: "Classification of the building type.",
+		description: "Structural building type classification.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
 		expectedValue: "High-rise, Mid-rise, Garden, Podium",
@@ -533,7 +491,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	parkingSpaces: {
 		fieldId: "parkingSpaces",
-		description: "Total number of parking spaces.",
+		description: "Total number of parking spaces provided.",
 		primarySource: "Document (Site Plan)",
 		backupSource: "User Input",
 		expectedValue: "Integer, e.g., 180",
@@ -543,8 +501,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	parkingRatio: {
 		fieldId: "parkingRatio",
-		description:
-			"Parking spaces per unit. This is automatically calculated as spaces divided by units.",
+		description: "Parking spaces per unit (Spaces / Units).",
 		primarySource: "Derived (Spaces / Units)",
 		backupSource: "N/A",
 		expectedValue: "Decimal, e.g., 1.55",
@@ -554,7 +511,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	parkingType: {
 		fieldId: "parkingType",
-		description: "Type of parking configuration.",
+		description: "Configuration of parking (Surface, Garage, etc.).",
 		primarySource: "Document (Site Plan)",
 		backupSource: "User Input",
 		expectedValue: "Surface, Structured, Underground (checkbox)",
@@ -564,8 +521,8 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	amenityList: {
 		fieldId: "amenityList",
-		description: "List of building amenities available to residents.",
-		primarySource: "Document (Arch Plans)",
+		description: "Key amenities available to tenants.",
+		primarySource: "Document (Marketing Brochure)",
 		backupSource: "User Input",
 		expectedValue: "Pool, Gym, Coworking, etc. (multi-select)",
 		fieldType: "direct",
@@ -574,7 +531,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	amenitySF: {
 		fieldId: "amenitySF",
-		description: "Total square footage dedicated to amenities.",
+		description: "Total square footage allocated to amenities.",
 		primarySource: "Derived (Sum of Areas)",
 		backupSource: "Document (Arch Plans)",
 		expectedValue: "Integer, e.g., 35,264 SF",
@@ -584,8 +541,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	buildingEfficiency: {
 		fieldId: "buildingEfficiency",
-		description:
-			"Building efficiency percentage (NRSF/GBA). Target 80-85%.",
+		description: "Efficiency ratio (NRSF / GBA). Target >80%.",
 		primarySource: "Derived (NRSF/GBA)",
 		backupSource: "Document (Arch Plans)",
 		expectedValue: "Percentage, e.g., 82%",
@@ -635,9 +591,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	furnishedUnits: {
 		fieldId: "furnishedUnits",
-		description: "Whether units are furnished.",
-		primarySource: "User Input",
-		backupSource: "N/A",
+		description: "Whether units are offered furnished.",
+		primarySource: "Document (Appraisal/OM)",
+		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
 		fieldType: "direct",
 		dataType: "Boolean",
@@ -645,8 +601,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	lossToLease: {
 		fieldId: "lossToLease",
-		description:
-			"Loss to lease percentage. Gap between Market and Actual rent.",
+		description: "Loss to lease percentage (Market Rent vs Actual Rent).",
 		primarySource: "Document (Rent Roll)",
 		backupSource: "Derived",
 		expectedValue: "Percentage, e.g., 5%",
@@ -657,7 +612,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	adaCompliantPercent: {
 		fieldId: "adaCompliantPercent",
 		description:
-			"ADA compliant percentage. Required for HUD/Fannie (min 5%).",
+			"Percentage of units compliant with ADA. (Min 5% for some programs).",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
 		expectedValue: "Percentage, e.g., 5%",
@@ -667,7 +622,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	hvacSystem: {
 		fieldId: "hvacSystem",
-		description: "HVAC system type.",
+		description: "HVAC system type used in the building.",
 		primarySource: "Document (MEP Plans)",
 		backupSource: "User Input",
 		expectedValue: "Central, Split System, PTAC, VRF",
@@ -677,7 +632,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	roofTypeAge: {
 		fieldId: "roofTypeAge",
-		description: "Roof type and age.",
+		description: "Roof material type and age.",
 		primarySource: "Document (Eng. Report)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "TPO, 2 years old"',
@@ -687,7 +642,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	solarCapacity: {
 		fieldId: "solarCapacity",
-		description: "Solar capacity in kilowatts (if applicable).",
+		description: "Solar energy capacity in kW.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
 		expectedValue: "Numeric, e.g., 100 kW",
@@ -697,7 +652,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	evChargingStations: {
 		fieldId: "evChargingStations",
-		description: "Number of EV charging stations.",
+		description: "Number of electric vehicle charging stations.",
 		primarySource: "Document (Site Plan)",
 		backupSource: "User Input",
 		expectedValue: "Integer, e.g., 8",
@@ -707,7 +662,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	leedGreenRating: {
 		fieldId: "leedGreenRating",
-		description: "LEED or green building rating.",
+		description: "Sustainability certification level (LEED, NGBS).",
 		primarySource: "Document (Specs)",
 		backupSource: "User Input",
 		expectedValue: "Certified, Silver, Gold, Platinum, NGBS",
@@ -719,7 +674,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Section 3: Financial Details
 	landAcquisition: {
 		fieldId: "landAcquisition",
-		description: "Cost of land acquisition.",
+		description: "Cost to acquire the land.",
 		primarySource: "Document (Purchase Agmt)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $6,000,000",
@@ -729,7 +684,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	baseConstruction: {
 		fieldId: "baseConstruction",
-		description: "Base construction cost (hard costs).",
+		description: "Hard construction costs.",
 		primarySource: "Document (Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $16,950,000",
@@ -739,7 +694,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	contingency: {
 		fieldId: "contingency",
-		description: "Construction contingency as a risk buffer.",
+		description: "Budget buffer for cost overruns.",
 		primarySource: "Document (Budget)",
 		backupSource: "Derived (5% of Hard Cost)",
 		expectedValue: "Currency, e.g., $847,500",
@@ -759,7 +714,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	constructionFees: {
 		fieldId: "constructionFees",
-		description: "General contractor fees and general conditions.",
+		description: "General Contractor fees/General Conditions.",
 		primarySource: "Document (Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $174,000",
@@ -769,7 +724,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	aeFees: {
 		fieldId: "aeFees",
-		description: "Architecture & Engineering fees.",
+		description: "Architecture and Engineering fees.",
 		primarySource: "Document (Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $859,800",
@@ -779,8 +734,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	thirdPartyReports: {
 		fieldId: "thirdPartyReports",
-		description:
-			"Costs for third-party reports (environmental, appraisal, etc.).",
+		description: "Costs for appraisal, environmental, etc.",
 		primarySource: "Document (Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $50,000",
@@ -790,7 +744,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	legalAndOrg: {
 		fieldId: "legalAndOrg",
-		description: "Legal and organizational fees.",
+		description: "Legal and organizational formation costs.",
 		primarySource: "Document (Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $50,000",
@@ -810,7 +764,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	taxesDuringConstruction: {
 		fieldId: "taxesDuringConstruction",
-		description: "Property taxes during construction period.",
+		description: "Property taxes payable during construction period.",
 		primarySource: "Document (Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $20,000",
@@ -820,7 +774,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	workingCapital: {
 		fieldId: "workingCapital",
-		description: "Operating cash reserve for construction period.",
+		description: "Operating reserve for construction period.",
 		primarySource: "Document (Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $1,900,000",
@@ -830,7 +784,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	developerFee: {
 		fieldId: "developerFee",
-		description: "Developer fee or sponsor profit.",
+		description: "Developer fee amount.",
 		primarySource: "Document (Budget)",
 		backupSource: "Derived (4% of TDC)",
 		expectedValue: "Currency, e.g., $678,000",
@@ -840,7 +794,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	pfcStructuringFee: {
 		fieldId: "pfcStructuringFee",
-		description: "PFC structuring fee (specific to tax exemption deals).",
+		description: "Fee for structuring PFC/Tax Exemption.",
 		primarySource: "Document (Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $116,000",
@@ -850,7 +804,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	loanFees: {
 		fieldId: "loanFees",
-		description: "Loan origination fees.",
+		description: "Origination and other loan fees.",
 		primarySource: "Document (Budget)",
 		backupSource: "Derived (1-2% of Loan)",
 		expectedValue: "Currency, e.g., $360,000",
@@ -860,7 +814,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	interestReserve: {
 		fieldId: "interestReserve",
-		description: "Interest reserve for debt service during construction.",
+		description: "Reserve to pay interest during construction.",
 		primarySource: "Document (Budget)",
 		backupSource: "Derived (Calculated)",
 		expectedValue: "Currency, e.g., $1,147,500",
@@ -868,19 +822,10 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Currency",
 		section: "financial-details",
 	},
-	seniorLoanAmount: {
-		fieldId: "seniorLoanAmount",
-		description: "Senior loan amount in the capital stack.",
-		primarySource: "Document (Sources & Uses)",
-		backupSource: "User Input",
-		expectedValue: "Currency, e.g., $18,000,000",
-		fieldType: "direct",
-		dataType: "Currency",
-		section: "financial-details",
-	},
+
 	sponsorEquity: {
 		fieldId: "sponsorEquity",
-		description: "Sponsor equity contribution.",
+		description: "Equity contributed by the sponsor.",
 		primarySource: "Document (Sources & Uses)",
 		backupSource: "Derived (TDC - Loan)",
 		expectedValue: "Currency, e.g., $11,800,000",
@@ -890,7 +835,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	interestRate: {
 		fieldId: "interestRate",
-		description: "Interest rate for the loan.",
+		description: "Loan interest rate.",
 		primarySource: "Document (Term Sheet)",
 		backupSource: "User Input",
 		expectedValue: "Percentage, e.g., 8.00%",
@@ -900,7 +845,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	underwritingRate: {
 		fieldId: "underwritingRate",
-		description: "Underwriting/stress test interest rate.",
+		description: "Stressed interest rate used for underwriting.",
 		primarySource: "Document (Term Sheet)",
 		backupSource: "Derived (Rate + 2%)",
 		expectedValue: "Percentage, e.g., 10.00%",
@@ -908,19 +853,10 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Percent",
 		section: "loan-terms",
 	},
-	amortization: {
-		fieldId: "amortization",
-		description: "Amortization schedule.",
-		primarySource: "Document (Term Sheet)",
-		backupSource: "User Input",
-		expectedValue: "IO, 30yr, 25yr",
-		fieldType: "direct",
-		dataType: "Dropdown",
-		section: "loan-terms",
-	},
+
 	prepaymentTerms: {
 		fieldId: "prepaymentTerms",
-		description: "Prepayment terms and penalties.",
+		description: "Terms governing loan prepayment penalties.",
 		primarySource: "Document (Term Sheet)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "Minimum interest"',
@@ -928,20 +864,10 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Text",
 		section: "loan-terms",
 	},
-	recourse: {
-		fieldId: "recourse",
-		description: "Recourse structure for the loan.",
-		primarySource: "Document (Term Sheet)",
-		backupSource: "User Input",
-		expectedValue: "Full, Partial, Non",
-		fieldType: "direct",
-		dataType: "Dropdown",
-		section: "loan-terms",
-	},
+
 	permTakeoutPlanned: {
 		fieldId: "permTakeoutPlanned",
-		description:
-			"Whether permanent takeout financing is planned after construction.",
+		description: "Is permanent financing takeout planned?",
 		primarySource: "Document (Term Sheet)",
 		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
@@ -951,8 +877,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	allInRate: {
 		fieldId: "allInRate",
-		description:
-			"All-in rate including origination/MIP fees. Used for DSCR calculation.",
+		description: "All-in interest rate including spreads and fees.",
 		primarySource: "Derived (Base + Fees)",
 		backupSource: "Document (Term Sheet)",
 		expectedValue: "Percentage, e.g., 7.2%",
@@ -962,7 +887,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	taxCreditEquity: {
 		fieldId: "taxCreditEquity",
-		description: "Tax credit equity amount. Auto-estimated from basis.",
+		description: "Equity from tax credits (LIHTC, HTC, etc.).",
 		primarySource: "Document (Equity Commit)",
 		backupSource: "External (LIHTC Pricing)",
 		expectedValue: "Currency, e.g., $0",
@@ -972,8 +897,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	gapFinancing: {
 		fieldId: "gapFinancing",
-		description:
-			"Gap financing amount (e.g., TIF grants). Ensure subordination.",
+		description: "Additional gap funding sources (TIF, grants).",
 		primarySource: "Document (Sources & Uses)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $0",
@@ -985,7 +909,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Operating Expenses
 	realEstateTaxes: {
 		fieldId: "realEstateTaxes",
-		description: "Annual real estate taxes.",
+		description: "Projected annual real estate taxes.",
 		primarySource: "Document (Proforma)",
 		backupSource: "External (Tax Assessor)",
 		expectedValue: "Currency, e.g., $34,200",
@@ -995,7 +919,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	insurance: {
 		fieldId: "insurance",
-		description: "Annual property insurance costs.",
+		description: "Projected annual insurance premium.",
 		primarySource: "Document (Proforma)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $92,800",
@@ -1005,7 +929,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	utilitiesCosts: {
 		fieldId: "utilitiesCosts",
-		description: "Annual utility costs.",
+		description: "Projected annual utility costs.",
 		primarySource: "Document (Proforma)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $23,200",
@@ -1015,7 +939,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	repairsAndMaintenance: {
 		fieldId: "repairsAndMaintenance",
-		description: "Annual repairs and maintenance budget.",
+		description: "Projected annual R&M.",
 		primarySource: "Document (Proforma)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $46,400",
@@ -1025,7 +949,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	managementFee: {
 		fieldId: "managementFee",
-		description: "Annual property management fee.",
+		description: "Projected annual property management fees.",
 		primarySource: "Document (Proforma)",
 		backupSource: "Derived (3-5% EGI)",
 		expectedValue: "Currency, e.g., $85,000",
@@ -1035,7 +959,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	generalAndAdmin: {
 		fieldId: "generalAndAdmin",
-		description: "Annual general and administrative expenses.",
+		description: "Projected annual G&A expenses.",
 		primarySource: "Document (Proforma)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $40,600",
@@ -1045,7 +969,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	payroll: {
 		fieldId: "payroll",
-		description: "Annual payroll expenses.",
+		description: "Projected annual payroll expenses.",
 		primarySource: "Document (Proforma)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $174,000",
@@ -1055,7 +979,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	reserves: {
 		fieldId: "reserves",
-		description: "Annual reserve contribution.",
+		description: "Projected annual replacement reserves.",
 		primarySource: "Document (Proforma)",
 		backupSource: "Derived ($250/unit)",
 		expectedValue: "Currency, e.g., $23,200",
@@ -1065,8 +989,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	marketingLeasing: {
 		fieldId: "marketingLeasing",
-		description:
-			"Marketing and leasing expenses. For lease-up; trend at 2%.",
+		description: "Projected marketing and leasing costs.",
 		primarySource: "Document (Proforma)",
 		backupSource: "Derived (2% GPR)",
 		expectedValue: "Currency, e.g., $68,040",
@@ -1076,8 +999,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	serviceCoordination: {
 		fieldId: "serviceCoordination",
-		description:
-			"Service coordination costs. Specific to supportive housing.",
+		description: "Cost for resident services (if applicable).",
 		primarySource: "Document (Proforma)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $0",
@@ -1089,8 +1011,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Investment Metrics
 	noiYear1: {
 		fieldId: "noiYear1",
-		description:
-			"Net Operating Income for Year 1. This is automatically calculated as EGI minus Total Expenses.",
+		description: "Year 1 Net Operating Income. (EGI - Expenses).",
 		primarySource: "Derived (EGI - Total Exp)",
 		backupSource: "Document (Proforma)",
 		expectedValue: "Currency, e.g., $2,268,000",
@@ -1100,8 +1021,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	yieldOnCost: {
 		fieldId: "yieldOnCost",
-		description:
-			"Yield on cost percentage. This is automatically calculated as NOI divided by TDC.",
+		description: "Yield on Cost (NOI / TDC).",
 		primarySource: "Derived (NOI / TDC)",
 		backupSource: "N/A",
 		expectedValue: "Percentage, e.g., 7.6%",
@@ -1111,7 +1031,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	capRate: {
 		fieldId: "capRate",
-		description: "Cap rate used for valuation.",
+		description: "Market Cap Rate used for valuation.",
 		primarySource: "Document (Appraisal)",
 		backupSource: "External (CoStar)",
 		expectedValue: "Percentage, e.g., 5.50%",
@@ -1121,8 +1041,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	stabilizedValue: {
 		fieldId: "stabilizedValue",
-		description:
-			"Stabilized property value. This is automatically calculated as NOI divided by Cap Rate.",
+		description: "Projected value at stabilization (NOI / Cap Rate).",
 		primarySource: "Derived (NOI / Cap Rate)",
 		backupSource: "Document (Appraisal)",
 		expectedValue: "Currency, e.g., $41,200,000",
@@ -1132,8 +1051,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	ltv: {
 		fieldId: "ltv",
-		description:
-			"Loan-to-value ratio. This is automatically calculated as Loan divided by Value.",
+		description: "Loan-to-Value Ratio (Loan / Stabilized Value).",
 		primarySource: "Derived (Loan / Value)",
 		backupSource: "N/A",
 		expectedValue: "Percentage, e.g., 44%",
@@ -1143,8 +1061,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	debtYield: {
 		fieldId: "debtYield",
-		description:
-			"Debt yield percentage. This is automatically calculated as NOI divided by Loan.",
+		description: "Debt Yield (NOI / Loan Amount).",
 		primarySource: "Derived (NOI / Loan)",
 		backupSource: "N/A",
 		expectedValue: "Percentage, e.g., 12.6%",
@@ -1154,8 +1071,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	dscr: {
 		fieldId: "dscr",
-		description:
-			"Debt service coverage ratio. This is automatically calculated as NOI divided by Debt Service.",
+		description: "Debt Service Coverage Ratio (NOI / Debt Service).",
 		primarySource: "Derived (NOI / Debt Svc)",
 		backupSource: "N/A",
 		expectedValue: "Decimal, e.g., 1.25x",
@@ -1165,7 +1081,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	trendedNOIYear1: {
 		fieldId: "trendedNOIYear1",
-		description: "Trended NOI for Year 1. Inflation set at ~2%.",
+		description: "Year 1 NOI with inflation trending applied.",
 		primarySource: "Document (Proforma)",
 		backupSource: "Derived (Untrended * Inf)",
 		expectedValue: "Currency, e.g., $2,313,360",
@@ -1175,7 +1091,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	untrendedNOIYear1: {
 		fieldId: "untrendedNOIYear1",
-		description: "Untrended NOI for Year 1. Base case; borrower verifies.",
+		description: "Year 1 NOI in current dollars (untrended).",
 		primarySource: "Document (Proforma)",
 		backupSource: "Derived (NOI / Inf)",
 		expectedValue: "Currency, e.g., $2,222,640",
@@ -1185,7 +1101,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	trendedYield: {
 		fieldId: "trendedYield",
-		description: "Trended yield percentage. Read-only calculated.",
+		description: "Yield based on trended NOI.",
 		primarySource: "Derived (Trended / TDC)",
 		backupSource: "Document (Proforma)",
 		expectedValue: "Percentage, e.g., 7.76%",
@@ -1195,7 +1111,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	untrendedYield: {
 		fieldId: "untrendedYield",
-		description: "Untrended yield percentage. Read-only calculated.",
+		description: "Yield based on untrended NOI.",
 		primarySource: "Derived (Untrended / TDC)",
 		backupSource: "Document (Proforma)",
 		expectedValue: "Percentage, e.g., 7.45%",
@@ -1205,7 +1121,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	inflationAssumption: {
 		fieldId: "inflationAssumption",
-		description: "Inflation assumption for modeling.",
+		description: "Annual inflation rate assumption.",
 		primarySource: "Document (Proforma)",
 		backupSource: "External (FRED CPI)",
 		expectedValue: "Percentage, e.g., 2.0%",
@@ -1215,7 +1131,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	dscrStressTest: {
 		fieldId: "dscrStressTest",
-		description: "DSCR stress test. Calculated at Rate + 2%.",
+		description: "DSCR at stressed interest rate.",
 		primarySource: "Derived (Stress Calc)",
 		backupSource: "N/A",
 		expectedValue: "Decimal, e.g., 1.08",
@@ -1225,7 +1141,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	portfolioLTV: {
 		fieldId: "portfolioLTV",
-		description: "Portfolio LTV for sponsor. Max 75%.",
+		description: "Sponsor's portfolio-wide LTV.",
 		primarySource: "Derived (Debt / Port Value)",
 		backupSource: "Document (Sponsor FS)",
 		expectedValue: "Percentage, e.g., 65%",
@@ -1237,8 +1153,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Legacy/Additional Financial Fields
 	purchasePrice: {
 		fieldId: "purchasePrice",
-		description:
-			"Purchase price for acquisition deals, or current basis for existing properties.",
+		description: "Purchase price for acquisition, or basis for refi.",
 		primarySource: "Document (Purchase Agreement)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $15,000,000",
@@ -1248,8 +1163,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	totalProjectCost: {
 		fieldId: "totalProjectCost",
-		description:
-			"Total project cost including all hard and soft costs. For development projects, this is the same as Total Development Cost (TDC).",
+		description: "Total cost of the project (TDC).",
 		primarySource: "Document (Dev Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $29,800,000",
@@ -1259,8 +1173,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	capexBudget: {
 		fieldId: "capexBudget",
-		description:
-			"Capital expenditure budget for improvements, renovations, or value-add work.",
+		description: "Budget for capital improvements.",
 		primarySource: "Document (Budget)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $1,500,000",
@@ -1270,8 +1183,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	propertyNoiT12: {
 		fieldId: "propertyNoiT12",
-		description:
-			"Net Operating Income for the trailing 12 months. Used for existing properties to show current performance.",
+		description: "Trailing 12-month Net Operating Income.",
 		primarySource: "Document (Operating Statement)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $450,000",
@@ -1281,8 +1193,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	stabilizedNoiProjected: {
 		fieldId: "stabilizedNoiProjected",
-		description:
-			"Projected Net Operating Income at stabilization. This is the expected NOI once the property is fully leased and operating normally.",
+		description: "Projected NOI at stabilization.",
 		primarySource: "Document (Proforma)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $2,268,000",
@@ -1292,10 +1203,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	exitStrategy: {
 		fieldId: "exitStrategy",
-		description:
-			"Planned exit strategy for the investment. This helps lenders understand your long-term plans.",
-		primarySource: "User Input",
-		backupSource: "N/A",
+		description: "Planned strategy for exiting the investment.",
+		primarySource: "Document (Business Plan)",
+		backupSource: "User Input",
 		expectedValue: "Sale, Refinance, Long-Term Hold, Undecided",
 		fieldType: "direct",
 		dataType: "Dropdown",
@@ -1303,30 +1213,27 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	businessPlanSummary: {
 		fieldId: "businessPlanSummary",
-		description:
-			"Summary of your business plan and strategy for the project. This should outline your approach to development, leasing, and operations.",
-		primarySource: "User Input",
-		backupSource: "N/A",
-		expectedValue: "Text description of business plan and strategy",
+		description: "Summary of the business plan and value-add strategy.",
+		primarySource: "Document (Business Plan)",
+		backupSource: "User Input",
+		expectedValue: "Text description of business plan",
 		fieldType: "direct",
 		dataType: "Textarea",
 		section: "financials",
 	},
 	marketOverviewSummary: {
 		fieldId: "marketOverviewSummary",
-		description:
-			"Overview of the market conditions, demographics, and trends that support the project.",
+		description: "Summary of market conditions and trends.",
 		primarySource: "Document (Market Study)",
 		backupSource: "User Input",
-		expectedValue: "Text description of market conditions and trends",
+		expectedValue: "Text description of market",
 		fieldType: "direct",
 		dataType: "Textarea",
 		section: "financials",
 	},
 	equityCommittedPercent: {
 		fieldId: "equityCommittedPercent",
-		description:
-			"Percentage of total equity that has been committed to the project.",
+		description: "Percentage of equity already committed.",
 		primarySource: "Document (Sources & Uses)",
 		backupSource: "User Input",
 		expectedValue: "Percentage, e.g., 100%",
@@ -1338,7 +1245,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Section 4: Market Context
 	submarketName: {
 		fieldId: "submarketName",
-		description: "Name of the submarket where the property is located.",
+		description: "Name of the submarket.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
 		expectedValue: "e.g., Downtown Dallas",
@@ -1348,8 +1255,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	distanceToCBD: {
 		fieldId: "distanceToCBD",
-		description:
-			"Distance to central business district. This is automatically calculated from geographic data.",
+		description: "Distance to the Central Business District.",
 		primarySource: "Derived (Geo-calc)",
 		backupSource: "External (Google Maps)",
 		expectedValue: "Decimal, e.g., 2.1 miles",
@@ -1359,7 +1265,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	distanceToEmployment: {
 		fieldId: "distanceToEmployment",
-		description: "Distance to major employment centers.",
+		description: "Distance to major employment hubs.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (Google Maps)",
 		expectedValue: 'Text, e.g., "2.1 miles"',
@@ -1369,8 +1275,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	distanceToTransit: {
 		fieldId: "distanceToTransit",
-		description:
-			"Distance to public transit. This is automatically calculated from geographic data.",
+		description: "Distance to nearest public transit.",
 		primarySource: "Derived (Geo-calc)",
 		backupSource: "External (Walk Score)",
 		expectedValue: "Decimal, e.g., 0.5 miles",
@@ -1380,7 +1285,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	walkabilityScore: {
 		fieldId: "walkabilityScore",
-		description: "Walk Score for the property location.",
+		description: "Walk Score (0-100).",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (Walk Score)",
 		expectedValue: "Integer, 0-100, e.g., 85",
@@ -1390,7 +1295,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	population3Mi: {
 		fieldId: "population3Mi",
-		description: "Population within 3 miles of the property.",
+		description: "Population within a 3-mile radius.",
 		primarySource: "External (Census ACS)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Integer, e.g., 174,270",
@@ -1400,7 +1305,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	popGrowth201020: {
 		fieldId: "popGrowth201020",
-		description: "Population growth from 2010-2020.",
+		description: "Historical population growth (2010-2020).",
 		primarySource: "External (Census ACS)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Percentage, e.g., 23.3%",
@@ -1410,7 +1315,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	projGrowth202429: {
 		fieldId: "projGrowth202429",
-		description: "Projected population growth from 2024-2029.",
+		description: "Projected population growth (2024-2029).",
 		primarySource: "External (Census ACS)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Percentage, e.g., 6.9%",
@@ -1420,7 +1325,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	medianHHIncome: {
 		fieldId: "medianHHIncome",
-		description: "Median household income within 3 miles.",
+		description: "Median Household Income within 3 miles.",
 		primarySource: "External (Census ACS)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Currency, e.g., $85,906",
@@ -1430,8 +1335,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	renterOccupiedPercent: {
 		fieldId: "renterOccupiedPercent",
-		description:
-			"Percentage of households that are renter-occupied within 3 miles.",
+		description: "Percentage of renter-occupied households.",
 		primarySource: "External (Census ACS)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Percentage, e.g., 76.7%",
@@ -1441,8 +1345,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	bachelorsDegreePercent: {
 		fieldId: "bachelorsDegreePercent",
-		description:
-			"Percentage of population with bachelor's degree within 3 miles.",
+		description: "Percentage of population with a bachelor's degree.",
 		primarySource: "External (Census ACS)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Percentage, e.g., 50.2%",
@@ -1452,7 +1355,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	msaName: {
 		fieldId: "msaName",
-		description: "Metropolitan Statistical Area name.",
+		description: "Metropolitan Statistical Area (MSA) name.",
 		primarySource: "Derived (Geo)",
 		backupSource: "External (Census)",
 		expectedValue: 'Text, e.g., "Dallas-Fort Worth-Arlington, TX"',
@@ -1472,7 +1375,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	largestEmployer: {
 		fieldId: "largestEmployer",
-		description: "Name of top employer in the area.",
+		description: "Name of the largest employer in the area.",
 		primarySource: "Document (Market Study)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "Downtown Dallas"',
@@ -1482,7 +1385,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	employerConcentration: {
 		fieldId: "employerConcentration",
-		description: "Percentage of jobs from top employer (<25% ideal).",
+		description: "Percent of jobs from top employer.",
 		primarySource: "Document (Market Study)",
 		backupSource: "Derived",
 		expectedValue: "Percentage, e.g., 15%",
@@ -1492,7 +1395,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	submarketAbsorption: {
 		fieldId: "submarketAbsorption",
-		description: "Net units absorbed per year in submarket.",
+		description: "Annual net absorption in submarket.",
 		primarySource: "External (CoStar)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Integer, e.g., 500",
@@ -1502,7 +1405,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	supplyPipeline: {
 		fieldId: "supplyPipeline",
-		description: "Units under construction + planned in submarket.",
+		description: "Total units under construction + planned.",
 		primarySource: "External (CoStar)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Integer, e.g., 1200",
@@ -1512,8 +1415,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	monthsOfSupply: {
 		fieldId: "monthsOfSupply",
-		description:
-			"Months of supply (Supply/Absorption). <12 months preferred.",
+		description: "Months of supply based on absorption.",
 		primarySource: "Derived (Supply/Absorp)",
 		backupSource: "External (CoStar)",
 		expectedValue: "Decimal, e.g., 8.5",
@@ -1523,7 +1425,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	captureRate: {
 		fieldId: "captureRate",
-		description: "Project's required share of demand.",
+		description: "Project's required capture rate of demand.",
 		primarySource: "Derived (Subj Units/Demand)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Percentage, e.g., 2.1%",
@@ -1533,7 +1435,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	marketConcessions: {
 		fieldId: "marketConcessions",
-		description: "Market concessions being offered.",
+		description: "Typical concessions in the market.",
 		primarySource: "External (CoStar)",
 		backupSource: "Document (Market Study)",
 		expectedValue: 'Text, e.g., "1 Month Free"',
@@ -1543,9 +1445,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	northStarComp: {
 		fieldId: "northStarComp",
-		description: "The 1 comp sponsor wants to beat.",
-		primarySource: "User Input",
-		backupSource: "Document (Market Study)",
+		description: "The primary competitor/comparable property.",
+		primarySource: "Document (Market Study)",
+		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "The Alexan Deep Ellum"',
 		fieldType: "direct",
 		dataType: "Text",
@@ -1553,7 +1455,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	infrastructureCatalyst: {
 		fieldId: "infrastructureCatalyst",
-		description: "Infrastructure catalyst for demand.",
+		description: "Key infrastructure project driving demand.",
 		primarySource: "Document (Market Study)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "New Light Rail Station"',
@@ -1563,7 +1465,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	broadbandSpeed: {
 		fieldId: "broadbandSpeed",
-		description: "Broadband speed available.",
+		description: "Available broadband speed.",
 		primarySource: "External (FCC Map)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "Fiber 1Gbps Available"',
@@ -1573,7 +1475,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	crimeRiskLevel: {
 		fieldId: "crimeRiskLevel",
-		description: "Crime risk level in the area.",
+		description: "Crime risk level for the area.",
 		primarySource: "External (Crime Data)",
 		backupSource: "Document (Market Study)",
 		expectedValue: "Low, Moderate, High",
@@ -1585,7 +1487,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Section 5: Special Considerations
 	opportunityZone: {
 		fieldId: "opportunityZone",
-		description: "Whether the property is located in an Opportunity Zone.",
+		description: "Is the property in a Qualified Opportunity Zone?",
 		primarySource: "External (US Treasury)",
 		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
@@ -1595,7 +1497,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	affordableHousing: {
 		fieldId: "affordableHousing",
-		description: "Whether the project includes affordable housing units.",
+		description: "Does the project include affordable housing?",
 		primarySource: "Document (Reg Agreement)",
 		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
@@ -1605,7 +1507,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	affordableUnitsNumber: {
 		fieldId: "affordableUnitsNumber",
-		description: "Number of affordable housing units.",
+		description: "Number of affordable units.",
 		primarySource: "Document (Reg Agreement)",
 		backupSource: "User Input",
 		expectedValue: "Integer, e.g., 58",
@@ -1615,8 +1517,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	amiTargetPercent: {
 		fieldId: "amiTargetPercent",
-		description:
-			"Area Median Income (AMI) target percentage for affordable units.",
+		description: "AMI target for affordable units.",
 		primarySource: "Document (Reg Agreement)",
 		backupSource: "User Input",
 		expectedValue: "Percentage, e.g., 80% AMI",
@@ -1626,7 +1527,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	taxExemption: {
 		fieldId: "taxExemption",
-		description: "Whether the project has tax exemption status.",
+		description: "Is there a tax exemption?",
 		primarySource: "Document (Incentive Agmt)",
 		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
@@ -1636,8 +1537,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	tifDistrict: {
 		fieldId: "tifDistrict",
-		description:
-			"Whether the property is in a TIF (Tax Increment Financing) district.",
+		description: "Is the property in a TIF District?",
 		primarySource: "External (City GIS)",
 		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
@@ -1647,7 +1547,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	taxAbatement: {
 		fieldId: "taxAbatement",
-		description: "Whether the project has tax abatement benefits.",
+		description: "Is there a tax abatement?",
 		primarySource: "Document (Incentive Agmt)",
 		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
@@ -1657,10 +1557,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	paceFinancing: {
 		fieldId: "paceFinancing",
-		description:
-			"Whether PACE (Property Assessed Clean Energy) financing is used.",
-		primarySource: "User Input",
-		backupSource: "N/A",
+		description: "Is PACE financing being used?",
+		primarySource: "Document (Sources & Uses)",
+		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
 		fieldType: "direct",
 		dataType: "Boolean",
@@ -1668,7 +1567,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	historicTaxCredits: {
 		fieldId: "historicTaxCredits",
-		description: "Whether historic tax credits are being utilized.",
+		description: "Are Historic Tax Credits (HTC) being used?",
 		primarySource: "Document (NPS Cert)",
 		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
@@ -1678,7 +1577,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	newMarketsCredits: {
 		fieldId: "newMarketsCredits",
-		description: "Whether New Markets Tax Credits are being utilized.",
+		description: "Are New Markets Tax Credits (NMTC) being used?",
 		primarySource: "External (CDFI Fund)",
 		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
@@ -1688,7 +1587,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	exemptionStructure: {
 		fieldId: "exemptionStructure",
-		description: "Tax exemption structure type.",
+		description: "Structure of the tax exemption.",
 		primarySource: "Document (Incentive Agmt)",
 		backupSource: "User Input",
 		expectedValue: "PFC, MMD, PILOT",
@@ -1698,7 +1597,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	sponsoringEntity: {
 		fieldId: "sponsoringEntity",
-		description: 'Sponsoring entity name (e.g., "SoGood MMD").',
+		description: "Public sponsoring entity for the exemption.",
 		primarySource: "Document (Incentive Agmt)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "SoGood MMD"',
@@ -1708,7 +1607,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	exemptionTerm: {
 		fieldId: "exemptionTerm",
-		description: "Exemption term in years.",
+		description: "Term of the tax exemption.",
 		primarySource: "Document (Incentive Agmt)",
 		backupSource: "User Input",
 		expectedValue: "Integer, e.g., 15",
@@ -1718,8 +1617,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	incentiveStacking: {
 		fieldId: "incentiveStacking",
-		description:
-			"Incentive stacking options. Select multiple if applicable.",
+		description: "List of stacked incentives.",
 		primarySource: "Document (Incentive Agmt)",
 		backupSource: "User Input",
 		expectedValue: "LIHTC, Section 8, HOME (checklist)",
@@ -1729,7 +1627,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	relocationPlan: {
 		fieldId: "relocationPlan",
-		description: "Relocation plan status.",
+		description: "Status of tenant relocation plan.",
 		primarySource: "Document (Relocation Plan)",
 		backupSource: "User Input",
 		expectedValue: "Complete, In Process, N/A",
@@ -1739,7 +1637,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	seismicPMLRisk: {
 		fieldId: "seismicPMLRisk",
-		description: "Seismic/PML risk percentage. Required in seismic zones.",
+		description: "Seismic Probable Maximum Loss (PML) percentage.",
 		primarySource: "Document (Eng Report)",
 		backupSource: "External (USGS API)",
 		expectedValue: 'Text, e.g., "2.5% PML"',
@@ -1751,7 +1649,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Section 6: Timeline & Milestones
 	landAcqClose: {
 		fieldId: "landAcqClose",
-		description: "Land acquisition closing date.",
+		description: "Date of land acquisition closing.",
 		primarySource: "Document (Settlement Stmt)",
 		backupSource: "User Input",
 		expectedValue: "Date",
@@ -1761,7 +1659,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	entitlements: {
 		fieldId: "entitlements",
-		description: "Entitlement approval status.",
+		description: "Status of entitlements.",
 		primarySource: "Document (Zoning Letter)",
 		backupSource: "User Input",
 		expectedValue: "Approved/Pending",
@@ -1771,7 +1669,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	finalPlans: {
 		fieldId: "finalPlans",
-		description: "Final plans approval status.",
+		description: "Status of final architectural plans.",
 		primarySource: "Document (Arch Contract)",
 		backupSource: "User Input",
 		expectedValue: "Approved/Pending",
@@ -1781,7 +1679,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	permitsIssued: {
 		fieldId: "permitsIssued",
-		description: "Building permits issuance status.",
+		description: "Status of building permits.",
 		primarySource: "Document (Building Permits)",
 		backupSource: "External (Census BPS)",
 		expectedValue: "Issued/Pending",
@@ -1791,7 +1689,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	verticalStart: {
 		fieldId: "verticalStart",
-		description: "Date for vertical construction start.",
+		description: "Date for start of vertical construction.",
 		primarySource: "Document (Schedule)",
 		backupSource: "User Input",
 		expectedValue: "Date",
@@ -1801,7 +1699,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	firstOccupancy: {
 		fieldId: "firstOccupancy",
-		description: "First occupancy date.",
+		description: "Date of first occupancy.",
 		primarySource: "Document (Schedule)",
 		backupSource: "User Input",
 		expectedValue: "Date",
@@ -1829,19 +1727,10 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Integer",
 		section: "timeline",
 	},
-	substantialComp: {
-		fieldId: "substantialComp",
-		description: "Substantial completion date.",
-		primarySource: "Document (Schedule)",
-		backupSource: "User Input",
-		expectedValue: "Date, e.g., 2027-08-15",
-		fieldType: "direct",
-		dataType: "Date",
-		section: "timeline",
-	},
+
 	drawSchedule: {
 		fieldId: "drawSchedule",
-		description: "Draw schedule table. Draw #, % Complete, Amount.",
+		description: "Construction draw schedule.",
 		primarySource: "Document (Const Contract)",
 		backupSource: "User Input",
 		expectedValue: "Table/Object with drawNumber, percentComplete, amount",
@@ -1851,7 +1740,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	absorptionProjection: {
 		fieldId: "absorptionProjection",
-		description: "Absorption projection. Units/Month forecast.",
+		description: "Projected monthly absorption (units/month).",
 		primarySource: "Document (Market Study)",
 		backupSource: "Derived",
 		expectedValue: "Integer, e.g., 12",
@@ -1861,8 +1750,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	opDeficitEscrow: {
 		fieldId: "opDeficitEscrow",
-		description:
-			"Operating deficit escrow. For lease-up shortfalls (6 Mos OpEx).",
+		description: "Escrow for operating deficits during lease-up.",
 		primarySource: "Derived (6 Mos OpEx)",
 		backupSource: "Document (Proforma)",
 		expectedValue: "Currency, e.g., $650,000",
@@ -1872,7 +1760,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	leaseUpEscrow: {
 		fieldId: "leaseUpEscrow",
-		description: "Lease-up escrow. Calculated coverage (6-12 Mos).",
+		description: "Lease-up escrow amount.",
 		primarySource: "Derived (6-12 Mos)",
 		backupSource: "Document (Proforma)",
 		expectedValue: "Currency, e.g., $1,300,000",
@@ -1884,7 +1772,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Section 7: Site & Context
 	totalSiteAcreage: {
 		fieldId: "totalSiteAcreage",
-		description: "Total site acreage.",
+		description: "Total acreage of the site.",
 		primarySource: "Document (ALTA Survey)",
 		backupSource: "External (Regrid API)",
 		expectedValue: "Decimal, e.g., 2.5 acres",
@@ -1894,7 +1782,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	currentSiteStatus: {
 		fieldId: "currentSiteStatus",
-		description: "Current status of the site.",
+		description: "Current condition of the site.",
 		primarySource: "Document (Phase I ESA)",
 		backupSource: "External (Street View)",
 		expectedValue: "Vacant/Existing",
@@ -1904,7 +1792,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	topography: {
 		fieldId: "topography",
-		description: "Site topography.",
+		description: "Topography of the site.",
 		primarySource: "Document (Survey)",
 		backupSource: "External (USGS API)",
 		expectedValue: "Flat/Sloped",
@@ -1914,7 +1802,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	environmental: {
 		fieldId: "environmental",
-		description: "Environmental status of the site.",
+		description: "Environmental status summary.",
 		primarySource: "Document (Phase I ESA)",
 		backupSource: "External (EPA API)",
 		expectedValue: "Clean/Remediation",
@@ -1924,7 +1812,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	utilities: {
 		fieldId: "utilities",
-		description: "Utility availability on site.",
+		description: "Availability of utilities at the site.",
 		primarySource: "Document (Civil Plans)",
 		backupSource: "User Input",
 		expectedValue: "Available/None",
@@ -1934,7 +1822,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	siteAccess: {
 		fieldId: "siteAccess",
-		description: "Site access points and streets.",
+		description: "Description of site access and egress.",
 		primarySource: "Document (Civil Plans)",
 		backupSource: "External (Google Maps)",
 		expectedValue: 'Text, e.g., "Hickory St, Ferris St"',
@@ -1944,7 +1832,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	proximityShopping: {
 		fieldId: "proximityShopping",
-		description: "Nearby shopping areas and retail.",
+		description: "Proximity to shopping centers.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (Google Maps)",
 		expectedValue: 'Text, e.g., "Farmers Market, Deep Ellum nearby"',
@@ -1954,7 +1842,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	proximityRestaurants: {
 		fieldId: "proximityRestaurants",
-		description: "Nearby restaurants and dining.",
+		description: "Proximity to restaurants.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (Google Maps)",
 		expectedValue: "Text",
@@ -1964,7 +1852,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	proximityParks: {
 		fieldId: "proximityParks",
-		description: "Nearby parks and recreational areas.",
+		description: "Proximity to parks.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (Google Maps)",
 		expectedValue: "Text",
@@ -1974,7 +1862,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	proximitySchools: {
 		fieldId: "proximitySchools",
-		description: "Nearby schools and educational institutions.",
+		description: "Proximity to schools.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (Google Maps)",
 		expectedValue: "Text",
@@ -1984,7 +1872,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	proximityHospitals: {
 		fieldId: "proximityHospitals",
-		description: "Nearby hospitals and healthcare facilities.",
+		description: "Proximity to hospitals.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (Google Maps)",
 		expectedValue: "Text",
@@ -1994,7 +1882,8 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	buildableAcreage: {
 		fieldId: "buildableAcreage",
-		description: "Buildable acreage (excludes wetlands/easements).",
+		description:
+			"Acreage suitable for building (net of wetlands/easements).",
 		primarySource: "Document (ALTA Survey)",
 		backupSource: "Derived",
 		expectedValue: "Decimal, e.g., 2.3 acres",
@@ -2004,7 +1893,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	allowableFAR: {
 		fieldId: "allowableFAR",
-		description: "Allowable Floor Area Ratio limit.",
+		description: "Allowable Floor Area Ratio per zoning.",
 		primarySource: "Document (Zoning Letter)",
 		backupSource: "External (Zoneomics)",
 		expectedValue: "Decimal, e.g., 3.5",
@@ -2014,7 +1903,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	farUtilizedPercent: {
 		fieldId: "farUtilizedPercent",
-		description: "FAR utilized percentage (GBA/Land Area).",
+		description: "Percentage of allowable FAR utilized.",
 		primarySource: "Derived (GBA/Land Area)",
 		backupSource: "N/A",
 		expectedValue: "Percentage, e.g., 85%",
@@ -2024,7 +1913,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	densityBonus: {
 		fieldId: "densityBonus",
-		description: "Whether eligible for density bonus (extra units).",
+		description: "Is a density bonus being utilized?",
 		primarySource: "Document (Zoning)",
 		backupSource: "User Input",
 		expectedValue: "Yes/No (Boolean)",
@@ -2034,7 +1923,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	soilConditions: {
 		fieldId: "soilConditions",
-		description: "Soil conditions and foundation requirements.",
+		description: "Summary of soil conditions.",
 		primarySource: "Document (Geotech)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "Expansive Clay, req Piles"',
@@ -2044,7 +1933,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	floodZone: {
 		fieldId: "floodZone",
-		description: "FEMA flood zone designation.",
+		description: "FEMA Flood Zone designation.",
 		primarySource: "Document (ALTA/FEMA)",
 		backupSource: "External (FEMA API)",
 		expectedValue: 'Text, e.g., "Zone X" or "Zone AE"',
@@ -2054,7 +1943,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	wetlandsPresent: {
 		fieldId: "wetlandsPresent",
-		description: "Whether wetlands are present (USACE jurisdiction).",
+		description: "Presence of wetlands.",
 		primarySource: "Document (Env Report)",
 		backupSource: "External (US FWS)",
 		expectedValue: "Yes/No (Boolean)",
@@ -2064,7 +1953,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	seismicRisk: {
 		fieldId: "seismicRisk",
-		description: "Seismic risk level.",
+		description: "Seismic risk category.",
 		primarySource: "Document (Eng Report)",
 		backupSource: "External (USGS)",
 		expectedValue: "Low, Moderate, High",
@@ -2074,7 +1963,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	phaseIESAFinding: {
 		fieldId: "phaseIESAFinding",
-		description: "Phase I ESA finding.",
+		description: "Findings from Phase I ESA.",
 		primarySource: "Document (Phase I ESA)",
 		backupSource: "User Input",
 		expectedValue: "Clean, REC, HREC",
@@ -2084,7 +1973,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	utilityAvailability: {
 		fieldId: "utilityAvailability",
-		description: "Utility availability status.",
+		description: "Detailed utility availability status.",
 		primarySource: "Document (Will Serve)",
 		backupSource: "User Input",
 		expectedValue: "All Available, Extension Req, None",
@@ -2094,7 +1983,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	easements: {
 		fieldId: "easements",
-		description: "Summary of major easements.",
+		description: "Description of easements affecting the site.",
 		primarySource: "Document (Title/ALTA)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "Utility easement on north side"',
@@ -2104,7 +1993,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	accessPoints: {
 		fieldId: "accessPoints",
-		description: "Site access points.",
+		description: "Number/location of access points.",
 		primarySource: "Document (Civil Plans)",
 		backupSource: "External (Maps)",
 		expectedValue: 'Text, e.g., "1 Curb Cut on Main St"',
@@ -2114,7 +2003,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	adjacentLandUse: {
 		fieldId: "adjacentLandUse",
-		description: "Adjacent land use.",
+		description: "Usage of adjacent land.",
 		primarySource: "Document (Zoning)",
 		backupSource: "External (Maps)",
 		expectedValue: 'Text, e.g., "Heavy Industrial" (Risk)',
@@ -2124,7 +2013,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	noiseFactors: {
 		fieldId: "noiseFactors",
-		description: "Noise factors affecting the site.",
+		description: "Sources of noise pollution.",
 		primarySource: "Document (Env Report)",
 		backupSource: "User Input",
 		expectedValue: "Highway, Rail, Airport, None (multi-select)",
@@ -2134,19 +2023,79 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	viewCorridors: {
 		fieldId: "viewCorridors",
-		description: "View corridors from the property.",
-		primarySource: "User Input",
-		backupSource: "External (Maps)",
+		description: "Significant views from the property.",
+		primarySource: "Document (Site Plan/OM)",
+		backupSource: "User Input",
 		expectedValue: "Skyline, Water, Park, None (multi-select)",
 		fieldType: "direct",
 		dataType: "Multi-select",
+		section: "site-context",
+	},
+	topEmployers: {
+		fieldId: "topEmployers",
+		description: "Major employers near the site.",
+		primarySource: "Document (Market Study)",
+		backupSource: "User Input",
+		expectedValue: "Text, e.g., 'Hospital, University'",
+		fieldType: "direct",
+		dataType: "Text",
+		section: "market-context",
+	},
+	infrastructureProject: {
+		fieldId: "infrastructureProject",
+		description: "Major nearby infrastructure project.",
+		primarySource: "Document (Market Study)",
+		backupSource: "User Input",
+		expectedValue: "Text",
+		fieldType: "direct",
+		dataType: "Text",
+		section: "market-context",
+	},
+	infraCompletion: {
+		fieldId: "infraCompletion",
+		description: "Completion date for infrastructure project.",
+		primarySource: "Document (Market Study)",
+		backupSource: "User Input",
+		expectedValue: "Date/Year",
+		fieldType: "direct",
+		dataType: "Text",
+		section: "market-context",
+	},
+	projectBudget: {
+		fieldId: "projectBudget",
+		description: "Total budget for the infrastructure project.",
+		primarySource: "Document (Market Study)",
+		backupSource: "User Input",
+		expectedValue: "Currency",
+		fieldType: "direct",
+		dataType: "Currency",
+		section: "market-context",
+	},
+	utilityCapacity: {
+		fieldId: "utilityCapacity",
+		description: "Capacity details for utilities.",
+		primarySource: "Document (Civil Plans)",
+		backupSource: "User Input",
+		expectedValue: "Text",
+		fieldType: "direct",
+		dataType: "Text",
+		section: "site-context",
+	},
+	geotechSoilsRep: {
+		fieldId: "geotechSoilsRep",
+		description: "Summary of geotechnical report findings.",
+		primarySource: "Document (Geotech Report)",
+		backupSource: "User Input",
+		expectedValue: "Text",
+		fieldType: "direct",
+		dataType: "Text",
 		section: "site-context",
 	},
 
 	// Section 8: Sponsor Information
 	sponsorEntityName: {
 		fieldId: "sponsorEntityName",
-		description: "Name of the sponsor/borrower entity.",
+		description: "Name of the sponsor entity.",
 		primarySource: "Document (Org Chart)",
 		backupSource: "User Input",
 		expectedValue: "e.g., Hoque Global",
@@ -2156,7 +2105,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	sponsorStructure: {
 		fieldId: "sponsorStructure",
-		description: "Legal structure of the sponsor entity.",
+		description: "Legal structure of the sponsor.",
 		primarySource: "Document (Org Chart)",
 		backupSource: "User Input",
 		expectedValue: 'Text, e.g., "General Partner"',
@@ -2166,7 +2115,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	equityPartner: {
 		fieldId: "equityPartner",
-		description: "Equity partner or investor name.",
+		description: "Name of equity partner.",
 		primarySource: "Document (Org Chart)",
 		backupSource: "User Input",
 		expectedValue: "e.g., ACARA",
@@ -2176,20 +2125,18 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	contactInfo: {
 		fieldId: "contactInfo",
-		description: "Primary contact information for the project.",
-		primarySource: "User Input",
-		backupSource: "N/A",
-		expectedValue:
-			'Text, e.g., "Cody Field (415.202.3258), Joel Heikenfeld (972.455.1943)"',
+		description: "Contact information for sponsor key principals.",
+		primarySource: "Document (Sponsor Bio)",
+		backupSource: "User Input",
+		expectedValue: 'Text, e.g., "Name (Phone), Name (Phone)"',
 		fieldType: "direct",
 		dataType: "Text",
 		section: "sponsor-info",
 	},
 	sponsorExpScore: {
 		fieldId: "sponsorExpScore",
-		description:
-			"Sponsor experience score. 0-10 scale based on track record.",
-		primarySource: "Derived (Prior Units)",
+		description: "Calculated sponsor experience score (0-10).",
+		primarySource: "Derived (Track Record)",
 		backupSource: "Document (Bio)",
 		expectedValue: "Integer, 0-10, e.g., 8",
 		fieldType: "derived",
@@ -2198,10 +2145,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	priorDevelopments: {
 		fieldId: "priorDevelopments",
-		description:
-			"Number of multifamily units completed in prior developments.",
-		primarySource: "User Input",
-		backupSource: "Document (Track Record)",
+		description: "Number of prior development units completed.",
+		primarySource: "Document (Track Record)",
+		backupSource: "User Input",
 		expectedValue: "Integer, e.g., 500",
 		fieldType: "direct",
 		dataType: "Integer",
@@ -2209,7 +2155,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	netWorth: {
 		fieldId: "netWorth",
-		description: "Sponsor net worth. Audited; supports guaranty.",
+		description: "Sponsor/Guarantor Net Worth.",
 		primarySource: "Document (Financials)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $45,000,000",
@@ -2219,8 +2165,7 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	guarantorLiquidity: {
 		fieldId: "guarantorLiquidity",
-		description:
-			"Guarantor liquidity. ≥10% of loan; 3-yr audited statements.",
+		description: "Liquidity of guarantor(s).",
 		primarySource: "Document (Guarantor FS)",
 		backupSource: "User Input",
 		expectedValue: "Currency, e.g., $2,500,000",
@@ -2230,242 +2175,298 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	},
 	portfolioDSCR: {
 		fieldId: "portfolioDSCR",
-		description: "Portfolio DSCR. Min 1.20x; overall sponsor health.",
-		primarySource: "Derived (Port NOI/Debt)",
-		backupSource: "Document (Sponsor FS)",
+		description: "Global DSCR of sponsor's portfolio.",
+		primarySource: "Document (Sponsor Financials)",
+		backupSource: "Derived (Port NOI/Debt)",
 		expectedValue: "Decimal, e.g., 1.35",
 		fieldType: "derived",
 		dataType: "Decimal",
 		section: "sponsor-info",
 	},
+	guarantorNames: {
+		fieldId: "guarantorNames",
+		description: "Names of loan guarantors.",
+		primarySource: "Document (Term Sheet)",
+		backupSource: "User Input",
+		expectedValue: "Text",
+		fieldType: "direct",
+		dataType: "Text",
+		section: "sponsor-info",
+	},
+	internalAdvisorNotes: {
+		fieldId: "internalAdvisorNotes",
+		description: "Internal notes for advisor use.",
+		primarySource: "User Input",
+		backupSource: "N/A",
+		expectedValue: "Text",
+		fieldType: "direct",
+		dataType: "Textarea",
+		section: "financials",
+	},
+
+	// Residential Unit Mix Table (container)
+	residentialUnitMix: {
+		fieldId: "residentialUnitMix",
+		description:
+			"Breakdown of residential unit types, counts, sizes, and rents.",
+		primarySource: "Document (Arch Plans / Rent Roll)",
+		backupSource: "User Input",
+		expectedValue:
+			"Array of rows with unitType, unitCount, avgSF, monthlyRent, totalSF",
+		fieldType: "direct",
+		dataType: "Table",
+		section: "property-specs",
+	},
 
 	// Residential Unit Mix Table - Column Fields
 	unitType: {
 		fieldId: "unitType",
-		description: "Type of residential unit (e.g., Studio, 1BR, 2BR, 3BR).",
+		description: "Unit type identifier.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "Studio", "1BR", "2BR"',
+		expectedValue: 'Text, e.g., "Studio", "1BR"',
 		fieldType: "direct",
 		dataType: "Text",
 		section: "property-specs",
 	},
 	unitCount: {
 		fieldId: "unitCount",
-		description:
-			"Number of units of this type in the residential unit mix.",
+		description: "Count of units.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
-		expectedValue: "Integer, e.g., 12",
+		expectedValue: "Integer",
 		fieldType: "direct",
 		dataType: "Integer",
 		section: "property-specs",
 	},
 	avgSF: {
 		fieldId: "avgSF",
-		description: "Average square footage for this unit type.",
+		description: "Average square footage.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
-		expectedValue: "Integer, e.g., 513",
+		expectedValue: "Integer",
 		fieldType: "direct",
 		dataType: "Integer",
 		section: "property-specs",
 	},
 	monthlyRent: {
 		fieldId: "monthlyRent",
-		description: "Monthly rent for this unit type.",
+		description: "Monthly rent per unit.",
 		primarySource: "Document (Rent Roll)",
 		backupSource: "User Input",
-		expectedValue: "Currency, e.g., 1200",
+		expectedValue: "Currency",
 		fieldType: "direct",
 		dataType: "Currency",
 		section: "property-specs",
 	},
 	affordabilityStatus: {
 		fieldId: "affordabilityStatus",
-		description:
-			"Affordability status for this unit type (e.g., Market Rate, 80% AMI).",
+		description: "Affordability designation.",
 		primarySource: "Document (Reg Agreement)",
 		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "Market Rate", "80% AMI"',
+		expectedValue: 'Text, e.g., "Market Rate"',
 		fieldType: "direct",
 		dataType: "Text",
 		section: "property-specs",
 	},
 	amiTargetPercentColumn: {
 		fieldId: "amiTargetPercentColumn",
-		description:
-			"Area Median Income (AMI) target percentage for this unit type in the residential unit mix table.",
+		description: "AMI Target %.",
 		primarySource: "Document (Reg Agreement)",
 		backupSource: "User Input",
-		expectedValue: "Percentage, e.g., 80%",
+		expectedValue: "Percentage",
 		fieldType: "direct",
 		dataType: "Percent",
 		section: "property-specs",
 	},
 	rentBumpSchedule: {
 		fieldId: "rentBumpSchedule",
-		description:
-			"Rent bump schedule for this unit type (e.g., annual increases, step-ups).",
+		description: "Planned rent increases.",
 		primarySource: "Document (Lease Agmt)",
 		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "3% Annual", "Step-up Year 3"',
+		expectedValue: "Text",
 		fieldType: "direct",
 		dataType: "Text",
+		section: "property-specs",
+	},
+
+	// Commercial Space Mix Table (container)
+	commercialSpaceMix: {
+		fieldId: "commercialSpaceMix",
+		description:
+			"Breakdown of commercial space types, square footage, tenants, lease terms and rents.",
+		primarySource: "Document (Arch Plans / Lease Agmts)",
+		backupSource: "User Input",
+		expectedValue:
+			"Array of rows with spaceType, squareFootage, tenant, leaseTerm, annualRent",
+		fieldType: "direct",
+		dataType: "Table",
 		section: "property-specs",
 	},
 
 	// Commercial Space Mix Table - Column Fields
 	spaceType: {
 		fieldId: "spaceType",
-		description:
-			"Type of commercial space (e.g., Retail, Office, Restaurant).",
+		description: "Type of commercial space.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "Retail", "Office"',
+		expectedValue: 'Text, e.g., "Retail"',
 		fieldType: "direct",
 		dataType: "Text",
 		section: "property-specs",
 	},
 	squareFootage: {
 		fieldId: "squareFootage",
-		description: "Square footage of commercial space.",
+		description: "Square footage.",
 		primarySource: "Document (Arch Plans)",
 		backupSource: "User Input",
-		expectedValue: "Integer, e.g., 5000",
+		expectedValue: "Integer",
 		fieldType: "direct",
 		dataType: "Integer",
 		section: "property-specs",
 	},
 	tenant: {
 		fieldId: "tenant",
-		description: "Tenant name for this commercial space.",
+		description: "Tenant name.",
 		primarySource: "Document (Lease Agmt)",
 		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "Starbucks"',
+		expectedValue: "Text",
 		fieldType: "direct",
 		dataType: "Text",
 		section: "property-specs",
 	},
 	leaseTerm: {
 		fieldId: "leaseTerm",
-		description: "Lease term for this commercial space.",
+		description: "Lease term.",
 		primarySource: "Document (Lease Agmt)",
 		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "5 Years"',
+		expectedValue: "Text",
 		fieldType: "direct",
 		dataType: "Text",
 		section: "property-specs",
 	},
 	annualRent: {
 		fieldId: "annualRent",
-		description: "Annual rent for this commercial space.",
+		description: "Annual rent.",
 		primarySource: "Document (Lease Agmt)",
 		backupSource: "User Input",
-		expectedValue: "Currency, e.g., 50000",
+		expectedValue: "Currency",
 		fieldType: "direct",
 		dataType: "Currency",
 		section: "property-specs",
 	},
 	tiAllowance: {
 		fieldId: "tiAllowance",
-		description:
-			"Tenant improvement (TI) allowance for this commercial space.",
+		description: "Tenant Improvement Allowance.",
 		primarySource: "Document (Lease Agmt)",
 		backupSource: "User Input",
-		expectedValue: "Currency, e.g., 50000",
+		expectedValue: "Currency",
 		fieldType: "direct",
 		dataType: "Currency",
 		section: "property-specs",
 	},
 
+	// Rent Comps Table (container)
+	rentComps: {
+		fieldId: "rentComps",
+		description:
+			"Comparable rent properties used to benchmark subject rents.",
+		primarySource: "Document (Market Study)",
+		backupSource: "External (CoStar)",
+		expectedValue:
+			"Array of rows with propertyName, address, distance, yearBuilt, totalUnits, occupancyPercent, avgRentMonth, rentPSF",
+		fieldType: "direct",
+		dataType: "Table",
+		section: "market-context",
+	},
+
 	// Rent Comps Table - Column Fields
 	compPropertyName: {
 		fieldId: "compPropertyName",
-		description: "Name of the comparable rental property.",
+		description: "Comparable property name.",
 		primarySource: "Document (Market Study)",
 		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "The Alexan Deep Ellum"',
+		expectedValue: "Text",
 		fieldType: "direct",
 		dataType: "Text",
 		section: "market-context",
 	},
 	compAddress: {
 		fieldId: "compAddress",
-		description: "Address of the comparable rental property.",
+		description: "Comparable address.",
 		primarySource: "Document (Market Study)",
 		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "123 Main St, Dallas, TX"',
+		expectedValue: "Text",
 		fieldType: "direct",
 		dataType: "Text",
 		section: "market-context",
 	},
 	compDistance: {
 		fieldId: "compDistance",
-		description: "Distance from subject property to comparable in miles.",
+		description: "Distance to comparable.",
 		primarySource: "Derived (Geo-calc)",
 		backupSource: "User Input",
-		expectedValue: "Decimal, e.g., 0.5",
+		expectedValue: "Decimal",
 		fieldType: "direct",
 		dataType: "Decimal",
 		section: "market-context",
 	},
 	compYearBuilt: {
 		fieldId: "compYearBuilt",
-		description: "Year the comparable property was built.",
+		description: "Year built.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
-		expectedValue: "Integer, e.g., 2020",
+		expectedValue: "Integer",
 		fieldType: "direct",
 		dataType: "Integer",
 		section: "market-context",
 	},
 	compTotalUnits: {
 		fieldId: "compTotalUnits",
-		description: "Total number of units in the comparable property.",
+		description: "Total units.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
-		expectedValue: "Integer, e.g., 200",
+		expectedValue: "Integer",
 		fieldType: "direct",
 		dataType: "Integer",
 		section: "market-context",
 	},
 	compOccupancyPercent: {
 		fieldId: "compOccupancyPercent",
-		description: "Occupancy percentage for the comparable property.",
+		description: "Occupancy percentage.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
-		expectedValue: "Percentage, e.g., 95%",
+		expectedValue: "Percentage",
 		fieldType: "direct",
 		dataType: "Percent",
 		section: "market-context",
 	},
 	compAvgRentMonth: {
 		fieldId: "compAvgRentMonth",
-		description: "Average monthly rent for the comparable property.",
+		description: "Average monthly rent.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
-		expectedValue: "Currency, e.g., 1500",
+		expectedValue: "Currency",
 		fieldType: "direct",
 		dataType: "Currency",
 		section: "market-context",
 	},
 	compRentPSF: {
 		fieldId: "compRentPSF",
-		description: "Rent per square foot for the comparable property.",
+		description: "Rent per square foot.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
-		expectedValue: "Currency, e.g., 2.50",
+		expectedValue: "Currency",
 		fieldType: "direct",
 		dataType: "Currency",
 		section: "market-context",
 	},
 	compConcessions: {
 		fieldId: "compConcessions",
-		description: "Concessions offered at the comparable property.",
+		description: "Concessions offered.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
-		expectedValue: 'Text, e.g., "1 Month Free"',
+		expectedValue: "Text",
 		fieldType: "direct",
 		dataType: "Text",
 		section: "market-context",
@@ -2474,40 +2475,40 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Sale Comps Table - Column Fields
 	saleCompPropertyName: {
 		fieldId: "saleCompPropertyName",
-		description: "Name of the comparable sale property.",
+		description: "Comparable sale property name.",
 		primarySource: "Document (Market Study)",
 		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "The Alexan Deep Ellum"',
+		expectedValue: "Text",
 		fieldType: "direct",
 		dataType: "Text",
 		section: "market-context",
 	},
 	salePricePerUnit: {
 		fieldId: "salePricePerUnit",
-		description: "Sale price per unit for the comparable property.",
+		description: "Sale price per unit.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
-		expectedValue: "Currency, e.g., 200000",
+		expectedValue: "Currency",
 		fieldType: "direct",
 		dataType: "Currency",
 		section: "market-context",
 	},
 	saleCompCapRate: {
 		fieldId: "saleCompCapRate",
-		description: "Cap rate for the comparable sale.",
+		description: "Cap rate at sale.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
-		expectedValue: "Percentage, e.g., 5.50%",
+		expectedValue: "Percentage",
 		fieldType: "direct",
 		dataType: "Percent",
 		section: "market-context",
 	},
 	saleDate: {
 		fieldId: "saleDate",
-		description: "Date of the comparable sale.",
+		description: "Date of sale.",
 		primarySource: "Document (Market Study)",
 		backupSource: "External (CoStar)",
-		expectedValue: "Date, e.g., 2024-01-15",
+		expectedValue: "Date",
 		fieldType: "direct",
 		dataType: "Date",
 		section: "market-context",
@@ -2516,30 +2517,30 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 	// Draw Schedule Table - Column Fields
 	drawNumber: {
 		fieldId: "drawNumber",
-		description: "Draw number in the construction draw schedule.",
+		description: "Draw number.",
 		primarySource: "Document (Const Contract)",
 		backupSource: "User Input",
-		expectedValue: "Integer, e.g., 1",
+		expectedValue: "Integer",
 		fieldType: "direct",
 		dataType: "Integer",
 		section: "timeline",
 	},
 	percentComplete: {
 		fieldId: "percentComplete",
-		description: "Percentage of construction complete for this draw.",
+		description: "Percentage complete.",
 		primarySource: "Document (Const Contract)",
 		backupSource: "User Input",
-		expectedValue: "Percentage, e.g., 25%",
+		expectedValue: "Percentage",
 		fieldType: "direct",
 		dataType: "Percent",
 		section: "timeline",
 	},
 	drawAmount: {
 		fieldId: "drawAmount",
-		description: "Amount of the construction draw.",
+		description: "Draw amount.",
 		primarySource: "Document (Const Contract)",
 		backupSource: "User Input",
-		expectedValue: "Currency, e.g., 5000000",
+		expectedValue: "Currency",
 		fieldType: "direct",
 		dataType: "Currency",
 		section: "timeline",

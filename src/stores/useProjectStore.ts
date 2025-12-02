@@ -2,15 +2,14 @@
 import { create } from "zustand";
 import {
 	getProjectsWithResumes,
+	getProjectWithResume,
 	ProjectResumeContent,
 	BorrowerResumeContent,
 } from "@/lib/project-queries";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuthStore } from "./useAuthStore";
 import { usePermissionStore } from "./usePermissionStore"; // Import the new store
-import {
-	ProjectProfile,
-} from "@/types/enhanced-types";
+import { ProjectProfile } from "@/types/enhanced-types";
 import {
 	computeBorrowerCompletion,
 	computeProjectCompletion,
@@ -39,52 +38,39 @@ const projectProfileToResumeContent = (
 	profileData: Partial<ProjectProfile>
 ): Partial<ProjectResumeContent> => {
 	const resumeContent: Partial<ProjectResumeContent> = {};
-	const keyMap: { [key in keyof ProjectProfile]?: keyof ProjectResumeContent } = {
-		projectName: "projectName",
-		assetType: "assetType",
-		projectStatus: "projectStatus",
-		propertyAddressStreet: "propertyAddressStreet",
-		propertyAddressCity: "propertyAddressCity",
-		propertyAddressState: "propertyAddressState",
-		propertyAddressCounty: "propertyAddressCounty",
-		propertyAddressZip: "propertyAddressZip",
-		projectDescription: "projectDescription",
-		projectPhase: "projectPhase",
-		loanAmountRequested: "loanAmountRequested",
-		loanType: "loanType",
-		targetLtvPercent: "targetLtvPercent",
-		targetLtcPercent: "targetLtcPercent",
-		amortizationYears: "amortizationYears",
-		interestOnlyPeriodMonths: "interestOnlyPeriodMonths",
-		interestRateType: "interestRateType",
-		targetCloseDate: "targetCloseDate",
-		useOfProceeds: "useOfProceeds",
-		recoursePreference: "recoursePreference",
-		purchasePrice: "purchasePrice",
-		totalProjectCost: "totalProjectCost",
-		capexBudget: "capexBudget",
-		propertyNoiT12: "propertyNoiT12",
-		stabilizedNoiProjected: "stabilizedNoiProjected",
-		exitStrategy: "exitStrategy",
-		businessPlanSummary: "businessPlanSummary",
-		marketOverviewSummary: "marketOverviewSummary",
-		equityCommittedPercent: "equityCommittedPercent",
-		// Store completenessPercent in JSONB (similar to borrower resume)
-		completenessPercent: "completenessPercent",
-		internalAdvisorNotes: "internalAdvisorNotes",
-	};
+
+	// Skip these internal/metadata fields that shouldn't be saved to resume content
+	const skipFields = new Set([
+		"id",
+		"owner_org_id",
+		"assignedAdvisorUserId",
+		"createdAt",
+		"updatedAt",
+		"_metadata",
+		"_lockedFields",
+		"_fieldStates",
+		"_lockedSections",
+		"projectSections",
+		"borrowerSections",
+		"borrowerProgress",
+	]);
+
+	// Preserve ALL fields from profileData that are valid ProjectResumeContent fields
+	// This ensures autofilled fields are not lost during auto-save
 	for (const key in profileData) {
-		const mappedKey = keyMap[key as keyof ProjectProfile];
-		if (mappedKey) {
-			// Special handling for date field to convert empty string to null
-			if (
-				key === "targetCloseDate" &&
-				profileData.targetCloseDate === ""
-			) {
-				resumeContent[mappedKey] = null;
-			} else {
-				resumeContent[mappedKey] = profileData[key as keyof ProjectProfile] as any;
-			}
+		// Skip internal/metadata fields
+		if (skipFields.has(key)) continue;
+
+		// Skip functions and undefined values
+		const value = (profileData as any)[key];
+		if (typeof value === "function" || value === undefined) continue;
+
+		// Special handling for date field to convert empty string to null
+		if (key === "targetCloseDate" && value === "") {
+			(resumeContent as any)[key] = null;
+		} else {
+			// Preserve all fields - this ensures autofilled fields aren't lost
+			(resumeContent as any)[key] = value;
 		}
 	}
 	return resumeContent;
@@ -109,7 +95,10 @@ interface ProjectState {
 
 interface ProjectActions {
 	loadUserProjects: () => Promise<void>;
-	createProject: (projectData: Partial<ProjectProfile>) => Promise<ProjectProfile>;
+	refreshProject: (projectId: string) => Promise<void>;
+	createProject: (
+		projectData: Partial<ProjectProfile>
+	) => Promise<ProjectProfile>;
 	updateProject: (
 		id: string,
 		updates: Partial<ProjectProfile>
@@ -131,16 +120,18 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		isLoading: true,
 		activeProject: null,
 
-
 		resetProjectState: () => {
 			set({ projects: [], activeProject: null, isLoading: false });
 		},
 
 		calculateProgress: (project) => {
 			const projectResumeContent =
-				(project.projectSections as ProjectResumeContent | undefined) || null;
+				(project.projectSections as ProjectResumeContent | undefined) ||
+				null;
 			const borrowerContent =
-				(project.borrowerSections as BorrowerResumeContent | undefined) || null;
+				(project.borrowerSections as
+					| BorrowerResumeContent
+					| undefined) || null;
 
 			const completenessPercent = computeProjectCompletion(project);
 			const borrowerProgress = computeBorrowerCompletion(borrowerContent);
@@ -167,17 +158,18 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			try {
 				// RLS will only return projects the user has been granted access to.
 				// First, fetch projects without the resources join to avoid RLS issues
-				const { data: projectsData, error: projectsError } = await supabase
-					.from("projects")
-					.select("*");
+				const { data: projectsData, error: projectsError } =
+					await supabase.from("projects").select("*");
 
 				if (projectsError) {
-					const errorMessage = projectsError instanceof Error 
-						? projectsError.message 
-						: typeof projectsError === 'object' && projectsError !== null
+					const errorMessage =
+						projectsError instanceof Error
+							? projectsError.message
+							: typeof projectsError === "object" &&
+							  projectsError !== null
 							? JSON.stringify(projectsError)
 							: String(projectsError) || "Unknown error";
-					
+
 					console.error("[ProjectStore] ❌ Projects query failed:", {
 						message: errorMessage,
 						error: projectsError,
@@ -191,61 +183,86 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				// Then fetch resources separately for each project to avoid RLS join issues
 				const projectIds = projectsData?.map((p: any) => p.id) || [];
 				let resourcesMap: Record<string, any[]> = {};
-				
+
 				if (projectIds.length > 0) {
-					const { data: resourcesData, error: resourcesError } = await supabase
-						.from("resources")
-						.select("id, project_id, resource_type")
-						.in("project_id", projectIds)
-						.in("resource_type", ["PROJECT_DOCS_ROOT", "PROJECT_RESUME"]);
+					const { data: resourcesData, error: resourcesError } =
+						await supabase
+							.from("resources")
+							.select("id, project_id, resource_type")
+							.in("project_id", projectIds)
+							.in("resource_type", [
+								"PROJECT_DOCS_ROOT",
+								"PROJECT_RESUME",
+							]);
 
 					if (resourcesError) {
-						console.warn("[ProjectStore] ⚠️ Failed to fetch resources (non-fatal):", resourcesError);
+						console.warn(
+							"[ProjectStore] ⚠️ Failed to fetch resources (non-fatal):",
+							resourcesError
+						);
 						// Continue without resources - this is non-fatal
 					} else {
 						// Group resources by project_id
-						resourcesMap = (resourcesData || []).reduce((acc: Record<string, any[]>, resource: any) => {
-							if (!acc[resource.project_id]) {
-								acc[resource.project_id] = [];
-							}
-							acc[resource.project_id].push(resource);
-							return acc;
-						}, {});
+						resourcesMap = (resourcesData || []).reduce(
+							(acc: Record<string, any[]>, resource: any) => {
+								if (!acc[resource.project_id]) {
+									acc[resource.project_id] = [];
+								}
+								acc[resource.project_id].push(resource);
+								return acc;
+							},
+							{}
+						);
 					}
 				}
 
 				// Combine projects with their resources
-				const data = projectsData?.map((project: any) => ({
-					...project,
-					resources: resourcesMap[project.id] || [],
-				})) || [];
-				
+				const data =
+					projectsData?.map((project: any) => ({
+						...project,
+						resources: resourcesMap[project.id] || [],
+					})) || [];
 
 				// Get project IDs for the new query function (reuse the same variable)
-				const projectIdsForResumes = data?.map((project: any) => project.id) || [];
-				
+				const projectIdsForResumes =
+					data?.map((project: any) => project.id) || [];
+
 				// Use the new query function to get projects with resume content
-				const userProjects = await getProjectsWithResumes(projectIdsForResumes);
+				const userProjects = await getProjectsWithResumes(
+					projectIdsForResumes
+				);
 
 				// Add resource IDs to each project
-				const projectsWithResources = userProjects.map((project: any) => {
-					const projectData = data?.find((p: any) => p.id === project.id);
-					const projectDocsResource = projectData?.resources?.find((r: any) => r.resource_type === 'PROJECT_DOCS_ROOT');
-					const projectResumeResource = projectData?.resources?.find((r: any) => r.resource_type === 'PROJECT_RESUME');
+				const projectsWithResources = userProjects.map(
+					(project: any) => {
+						const projectData = data?.find(
+							(p: any) => p.id === project.id
+						);
+						const projectDocsResource =
+							projectData?.resources?.find(
+								(r: any) =>
+									r.resource_type === "PROJECT_DOCS_ROOT"
+							);
+						const projectResumeResource =
+							projectData?.resources?.find(
+								(r: any) => r.resource_type === "PROJECT_RESUME"
+							);
 
-					return {
-						...project,
-						projectDocsResourceId: projectDocsResource?.id || null,
-						projectResumeResourceId: projectResumeResource?.id || null,
-					};
-				});
+						return {
+							...project,
+							projectDocsResourceId:
+								projectDocsResource?.id || null,
+							projectResumeResourceId:
+								projectResumeResource?.id || null,
+						};
+					}
+				);
 
 				// Use stored completenessPercent from DB, with calculateProgress as fallback/validation
 				const projectsWithProgress = projectsWithResources.map((p) => {
 					const calculated = get().calculateProgress(p);
 					const completenessPercentValue =
-						p.completenessPercent ??
-						calculated.completenessPercent;
+						p.completenessPercent ?? calculated.completenessPercent;
 					const borrowerProgressValue =
 						p.borrowerProgress ?? calculated.borrowerProgress;
 					return {
@@ -253,19 +270,38 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						completenessPercent: completenessPercentValue,
 						borrowerProgress: borrowerProgressValue,
 						totalProgress: Math.round(
-							(completenessPercentValue + borrowerProgressValue) / 2
+							(completenessPercentValue + borrowerProgressValue) /
+								2
 						),
 					};
 				});
 
-				set({ projects: projectsWithProgress, isLoading: false });
+				// Update activeProject if it exists in the new list to keep UI in sync
+				const currentActive = get().activeProject;
+				let nextActiveProject = currentActive;
+
+				if (currentActive) {
+					const updatedActive = projectsWithProgress.find(
+						(p) => p.id === currentActive.id
+					);
+					if (updatedActive) {
+						nextActiveProject = updatedActive;
+					}
+				}
+
+				set({
+					projects: projectsWithProgress,
+					isLoading: false,
+					activeProject: nextActiveProject,
+				});
 			} catch (error) {
-				const errorMessage = error instanceof Error 
-					? error.message 
-					: typeof error === 'object' && error !== null
+				const errorMessage =
+					error instanceof Error
+						? error.message
+						: typeof error === "object" && error !== null
 						? JSON.stringify(error)
 						: String(error) || "Unknown error";
-				
+
 				console.error("[ProjectStore] Failed to load projects:", {
 					message: errorMessage,
 					error: error,
@@ -276,6 +312,37 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			}
 		},
 
+		refreshProject: async (projectId: string) => {
+			try {
+				// 1. Fetch latest project data
+				const updatedProject = await getProjectWithResume(projectId);
+				
+				// 2. Calculate progress
+				const progressResult = get().calculateProgress(updatedProject);
+				const finalProject = {
+					...updatedProject,
+					...progressResult,
+					completenessPercent: progressResult.completenessPercent,
+				};
+
+				// 3. Update state
+				set((state) => ({
+					// Update in projects list
+					projects: state.projects.map((p) =>
+						p.id === projectId ? finalProject : p
+					),
+					// Update activeProject if it matches
+					activeProject:
+						state.activeProject?.id === projectId
+							? finalProject
+							: state.activeProject,
+				}));
+			} catch (error) {
+				console.error(`[ProjectStore] Failed to refresh project ${projectId}:`, error);
+				// Don't throw, just log - this is a background refresh
+			}
+		},
+
 		getProject: (id) => get().projects.find((p) => p.id === id) || null,
 
 		setActiveProject: async (project) => {
@@ -283,7 +350,9 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 			// When a project becomes active, load its permissions
 			if (project) {
-				usePermissionStore.getState().loadPermissionsForProject(project.id);
+				usePermissionStore
+					.getState()
+					.loadPermissionsForProject(project.id);
 			} else {
 				usePermissionStore.getState().resetPermissions();
 			}
@@ -294,24 +363,27 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			if (!user)
 				throw new Error("User must be logged in to create a project.");
 			if (!activeOrg)
-				throw new Error(
-					"Must be part of an org to create a project."
-				);
+				throw new Error("Must be part of an org to create a project.");
 
 			// Use the create-project edge function (advisor auto-assignment happens server-side)
-			const { data, error } = await supabase.functions.invoke('create-project', {
-				body: {
-					name: projectData.projectName || `New Project ${get().projects.length + 1}`,
-					owner_org_id: activeOrg.id,
-					// assigned_advisor_id is optional - edge function will auto-assign if not provided
+			const { data, error } = await supabase.functions.invoke(
+				"create-project",
+				{
+					body: {
+						name:
+							projectData.projectName ||
+							`New Project ${get().projects.length + 1}`,
+						owner_org_id: activeOrg.id,
+						// assigned_advisor_id is optional - edge function will auto-assign if not provided
+					},
 				}
-			});
+			);
 
 			if (error) throw error;
-			if (!data?.project) throw new Error('Failed to create project');
+			if (!data?.project) throw new Error("Failed to create project");
 
-			const borrowerResumeContent =
-				(data.borrowerResumeContent ?? {}) as BorrowerResumeContent;
+			const borrowerResumeContent = (data.borrowerResumeContent ??
+				{}) as BorrowerResumeContent;
 			const normalizedBorrowerProgress = Math.max(
 				0,
 				Math.min(
@@ -325,48 +397,24 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				)
 			);
 
-			// Convert the database project to ProjectProfile format
 			const newProjectData: ProjectProfile = {
 				id: data.project.id,
 				owner_org_id: data.project.owner_org_id,
 				assignedAdvisorUserId: data.project.assigned_advisor_id,
 				projectName: data.project.name,
-				assetType: "Multifamily",
-				projectStatus: "Info Gathering",
+				assetType: data.project.asset_type || projectData.assetType || '',
+				projectStatus: data.project.project_status || projectData.projectStatus || 'draft',
 				createdAt: data.project.created_at,
 				updatedAt: data.project.updated_at,
-				propertyAddressStreet: "",
-				propertyAddressCity: "",
-				propertyAddressState: "",
-				propertyAddressCounty: "",
-				propertyAddressZip: "",
-				projectDescription: "",
-				loanAmountRequested: null,
-				loanType: "",
-				targetLtvPercent: null,
-				targetLtcPercent: null,
-				amortizationYears: null,
-				interestOnlyPeriodMonths: null,
-				interestRateType: "Not Specified",
-				targetCloseDate: null,
-				useOfProceeds: "",
-				recoursePreference: "Flexible",
-				purchasePrice: null,
-				totalProjectCost: null,
-				capexBudget: null,
-				propertyNoiT12: null,
-				stabilizedNoiProjected: null,
-				exitStrategy: "Undecided",
-				businessPlanSummary: "",
-				marketOverviewSummary: "",
-				equityCommittedPercent: null,
+				// All other resume fields should start undefined/empty and only be created
+				// in project_resumes.content once the user explicitly interacts with them.
 				completenessPercent: 0,
-				internalAdvisorNotes: "",
 				borrowerProgress: normalizedBorrowerProgress,
 				borrowerSections: borrowerResumeContent,
 				projectSections:
-					(projectData.projectSections as ProjectResumeContent | undefined) ||
-					{},
+					(projectData.projectSections as
+						| ProjectResumeContent
+						| undefined) || {},
 				// Spread the provided data to override defaults
 				...projectData,
 			};
@@ -376,17 +424,20 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				...newProjectData,
 				...progressResult,
 				completenessPercent: progressResult.completenessPercent,
-				borrowerProgress: normalizedBorrowerProgress,
+				borrowerProgress: normalizedBorrowerProgress, // keep borrower progress from resume
 				borrowerSections: borrowerResumeContent,
 			};
 
-			// Save initial completenessPercent (0) to project_resumes.content JSONB
+			// Save ONLY the initial project name (and completeness) into project_resumes.content.
+			// This prevents untouched fields from being created with `user_input` source,
+			// which would incorrectly show them as "blue" in the UI.
 			try {
 				const resumeContent = {
-					...projectProfileToResumeContent(newProjectData),
+					projectName: newProjectData.projectName,
 					completenessPercent: progressResult.completenessPercent,
-				};
-				await supabase.functions.invoke('update-project', {
+				} as Partial<ProjectResumeContent>;
+
+				await supabase.functions.invoke("update-project", {
 					body: {
 						project_id: data.project.id,
 						core_updates: {},
@@ -415,10 +466,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				...updates,
 				updatedAt: now,
 			};
-			
+
 			// Calculate progress (similar to borrower resume form)
 			const progressResult = get().calculateProgress(updatedData);
-			
+
 			const finalUpdatedProject = {
 				...updatedData,
 				...progressResult,
@@ -444,32 +495,36 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					...projectProfileToResumeContent(updates),
 					completenessPercent: progressResult.completenessPercent,
 				};
-				
+
 				// Include metadata if present in updates
 				if ((updates as any)._metadata) {
-					(resumeContent as any)._metadata = (updates as any)._metadata;
+					(resumeContent as any)._metadata = (
+						updates as any
+					)._metadata;
 				}
 
-				// Extract locked_fields and locked_sections if present (separate columns, not part of content)
+				// Extract lock state if present on the updated ProjectProfile and embed into resume content JSON
 				const lockedFields = (updates as any)._lockedFields;
-				const lockedSections = (updates as any)._lockedSections;
-				
+
 				if (lockedFields !== undefined) {
-					console.log(`[ProjectStore] Saving locked_fields for project ${id}:`, lockedFields);
+					(resumeContent as any)._lockedFields = lockedFields;
 				}
-				if (lockedSections !== undefined) {
-					console.log(`[ProjectStore] Saving locked_sections for project ${id}:`, lockedSections);
+				// _lockedSections removed - section locks are derived from field locks
+				// Remove any existing _lockedSections if present
+				if ((resumeContent as any)._lockedSections !== undefined) {
+					delete (resumeContent as any)._lockedSections;
 				}
 
-				const { error } = await supabase.functions.invoke('update-project', {
-					body: {
-						project_id: id,
-						core_updates: coreUpdates,
-						resume_updates: resumeContent,
-						locked_fields: lockedFields,
-						locked_sections: lockedSections,
-					},
-				});
+				const { error } = await supabase.functions.invoke(
+					"update-project",
+					{
+						body: {
+							project_id: id,
+							core_updates: coreUpdates,
+							resume_updates: resumeContent,
+						},
+					}
+				);
 				if (error) throw error;
 
 				return finalUpdatedProject;
@@ -502,7 +557,9 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 			const bucketId = project.owner_org_id;
 			if (!bucketId) {
-				console.error(`[ProjectStore] Project ${id} has no owner_org_id`);
+				console.error(
+					`[ProjectStore] Project ${id} has no owner_org_id`
+				);
 				return false;
 			}
 
@@ -516,7 +573,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 				while (stack.length > 0) {
 					const currentPrefix = stack.pop()!;
-					
+
 					// Handle pagination - list all items in the current prefix
 					let offset = 0;
 					const limit = 1000;
@@ -535,9 +592,9 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 							// If error is "not found", the prefix doesn't exist - skip it
 							if (error.message?.includes("not found")) {
 								hasMore = false;
-							continue;
-						}
-						hasMore = false;
+								continue;
+							}
+							hasMore = false;
 							continue;
 						}
 
@@ -550,12 +607,12 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 							const fullPath = currentPrefix
 								? `${currentPrefix}/${item.name}`
 								: item.name;
-							
+
 							// In Supabase storage:
 							// - Files have an `id` property (string)
 							// - Folders/prefixes don't have an `id` (it's null/undefined)
 							// We check for id first as it's the most reliable indicator
-							if (item.id && typeof item.id === 'string') {
+							if (item.id && typeof item.id === "string") {
 								// It's a file, add to list (include all files including .keep placeholders)
 								allFiles.push(fullPath);
 							} else {
@@ -579,7 +636,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			// Delete all storage files for this project
 			try {
 				const projectPrefix = `${id}/`;
-				
+
 				const filesToDelete = await listAllFilesRecursively(
 					bucketId,
 					projectPrefix
@@ -589,11 +646,11 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					// Delete files in chunks of 1000 (Supabase limit)
 					const chunkSize = 1000;
 					let deletedCount = 0;
-					
+
 					for (let i = 0; i < filesToDelete.length; i += chunkSize) {
 						const chunk = filesToDelete.slice(i, i + chunkSize);
 						const chunkNum = Math.floor(i / chunkSize) + 1;
-						
+
 						const { error: storageError } = await supabase.storage
 							.from(bucketId)
 							.remove(chunk);
@@ -608,12 +665,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 							deletedCount += chunk.length;
 						}
 					}
-					
+
 					// Verify deletion by listing the folder again
-					const { data: remainingFiles, error: verifyError } = await supabase.storage
-						.from(bucketId)
-						.list(projectPrefix, { limit: 10 });
-					
+					const { data: remainingFiles, error: verifyError } =
+						await supabase.storage
+							.from(bucketId)
+							.list(projectPrefix, { limit: 10 });
+
 					if (verifyError) {
 						// Could not list folder (likely deleted)
 					} else if (remainingFiles && remainingFiles.length > 0) {
@@ -666,16 +724,20 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						"BORROWER_DOCS_ROOT",
 						"OM",
 					];
-					
+
 					// Child resources are those that have a parent_id (nested under root resources)
 					// Root resources (with parent_id = null) will be cascade deleted when project is deleted
 					const childResources = resources.filter(
-						(r) => r.parent_id !== null && !rootResourceTypes.includes(r.resource_type)
+						(r) =>
+							r.parent_id !== null &&
+							!rootResourceTypes.includes(r.resource_type)
 					);
 					const rootResources = resources.filter(
-						(r) => r.parent_id === null || rootResourceTypes.includes(r.resource_type)
+						(r) =>
+							r.parent_id === null ||
+							rootResourceTypes.includes(r.resource_type)
 					);
-					
+
 					const allResourceIds = resources.map((r) => r.id);
 					const childResourceIds = childResources.map((r) => r.id);
 					const rootResourceIds = rootResources.map((r) => r.id);
@@ -701,7 +763,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 							.from("resources")
 							.delete()
 							.in("id", childResourceIds);
-						
+
 						if (childDeleteError) {
 							console.error(
 								`[ProjectStore] Error deleting child resources:`,
@@ -710,7 +772,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 							// Continue anyway - try to delete project which will cascade delete everything
 						}
 					}
-					
+
 					// Explicitly skip root resources - they will be cascade deleted
 					if (rootResourceIds.length > 0) {
 						console.log(
@@ -761,7 +823,9 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				);
 				// If the error is about root resources, it means the cascade delete trigger
 				// is not properly detecting the cascade. This might require a database fix.
-				if (error.message?.includes("Cannot delete root resource types")) {
+				if (
+					error.message?.includes("Cannot delete root resource types")
+				) {
 					console.error(
 						`[ProjectStore] Cascade delete trigger issue: Root resources should be automatically deleted when project is deleted. This may require a database migration fix.`
 					);
@@ -775,7 +839,6 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			}));
 			return true;
 		},
-
 	})
 );
 
@@ -808,14 +871,17 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 	const prevOrgMemberships = prevAuthState.orgMemberships;
 	const currentOrgMemberships = authState.orgMemberships;
 
-
 	// Trigger project loading when:
 	// 1. User is a borrower
 	// 2. Org memberships changed (loaded or updated)
 	// 3. User is authenticated
-	if (user?.role === "borrower" && user?.id && 
-		prevOrgMemberships !== currentOrgMemberships && 
-		currentOrgMemberships && currentOrgMemberships.length > 0) {
+	if (
+		user?.role === "borrower" &&
+		user?.id &&
+		prevOrgMemberships !== currentOrgMemberships &&
+		currentOrgMemberships &&
+		currentOrgMemberships.length > 0
+	) {
 		useProjectStore.getState().loadUserProjects();
 	}
 });
