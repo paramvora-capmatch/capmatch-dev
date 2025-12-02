@@ -55,7 +55,7 @@ export const useAutofill = (
 	const [showSparkles, setShowSparkles] = useState(false);
 	const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 	const startTimeRef = useRef<string | null>(null);
-	const { loadUserProjects } = useProjects();
+	const { loadUserProjects, refreshProject } = useProjects();
 	const context: AutofillContext = options?.context ?? "project";
 	const resumeTable = getResumeTable(context);
 	const storageKey = getAutofillStateKey(context);
@@ -140,7 +140,7 @@ export const useAutofill = (
 					clearAutofillState();
 					// Refresh project data so completion % and OM readiness update without full reload
 					try {
-						await loadUserProjects();
+						await refreshProject(projectId);
 
 						// Show notification encouraging field locking for non-deterministic fields
 						// This will be handled by the component using this hook

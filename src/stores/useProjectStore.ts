@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import {
 	getProjectsWithResumes,
+	getProjectWithResume,
 	ProjectResumeContent,
 	BorrowerResumeContent,
 } from "@/lib/project-queries";
@@ -94,6 +95,7 @@ interface ProjectState {
 
 interface ProjectActions {
 	loadUserProjects: () => Promise<void>;
+	refreshProject: (projectId: string) => Promise<void>;
 	createProject: (
 		projectData: Partial<ProjectProfile>
 	) => Promise<ProjectProfile>;
@@ -307,6 +309,37 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					userRole: user?.role,
 				});
 				set({ projects: [], isLoading: false });
+			}
+		},
+
+		refreshProject: async (projectId: string) => {
+			try {
+				// 1. Fetch latest project data
+				const updatedProject = await getProjectWithResume(projectId);
+				
+				// 2. Calculate progress
+				const progressResult = get().calculateProgress(updatedProject);
+				const finalProject = {
+					...updatedProject,
+					...progressResult,
+					completenessPercent: progressResult.completenessPercent,
+				};
+
+				// 3. Update state
+				set((state) => ({
+					// Update in projects list
+					projects: state.projects.map((p) =>
+						p.id === projectId ? finalProject : p
+					),
+					// Update activeProject if it matches
+					activeProject:
+						state.activeProject?.id === projectId
+							? finalProject
+							: state.activeProject,
+				}));
+			} catch (error) {
+				console.error(`[ProjectStore] Failed to refresh project ${projectId}:`, error);
+				// Don't throw, just log - this is a background refresh
 			}
 		},
 

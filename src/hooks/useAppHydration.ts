@@ -11,8 +11,9 @@ import { useProjectStore } from "@/stores/useProjectStore";
 export const useAppHydration = () => {
   // Get loading states from all relevant stores
   const isAuthLoading = useAuthStore((state) => state.isLoading);
-  const isProjectsLoading = useProjectStore((state) => state.isLoading);
   const user = useAuthStore((state) => state.user);
+  const orgMemberships = useAuthStore((state) => state.orgMemberships);
+  const isProjectsLoading = useProjectStore((state) => state.isLoading);
 
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -25,18 +26,21 @@ export const useAppHydration = () => {
 
     // 2. Once auth is done, check the user's role.
     if (user?.role === "borrower") {
-      // For borrowers, hydration completes after core project data loads.
-      if (!isProjectsLoading) {
+      // If the borrower has no org memberships yet, there are no projects to load.
+      // In that case, don't block hydration on the projects store.
+      if (!orgMemberships || orgMemberships.length === 0) {
         setIsHydrated(true);
-      } else {
-        setIsHydrated(false);
+        return;
       }
+
+      // For borrowers with orgs, hydration completes after core project data loads.
+      setIsHydrated(!isProjectsLoading);
     } else {
       // For non-borrowers (advisors, admins) or logged-out guests,
       // hydration is complete as soon as auth is resolved.
       setIsHydrated(true);
     }
-  }, [isAuthLoading, isProjectsLoading, user, isHydrated]);
+  }, [isAuthLoading, isProjectsLoading, user, orgMemberships]);
 
   return isHydrated;
 };

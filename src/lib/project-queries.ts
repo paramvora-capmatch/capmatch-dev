@@ -492,20 +492,33 @@ export const getProjectWithResume = async (
 	for (const key in rawContent) {
 		const item = rawContent[key];
 
-		// If item is in { value, source, warnings } format (rich data)
+		// If item is in { value, source/sources, warnings } format (rich data)
 		if (
 			item &&
 			typeof item === "object" &&
-			"source" in item &&
+			("source" in item || "sources" in item) &&
 			"value" in item
 		) {
 			// Extract value for the flat form
 			(resumeContent as any)[key] = item.value;
 
+			// Determine source for metadata (prefer singular source, fallback to first of sources)
+			let sourceValue = item.source;
+			if (!sourceValue && item.sources && Array.isArray(item.sources) && item.sources.length > 0) {
+				const first = item.sources[0];
+				// If first source is an object (SourceMetadata), extract name or type
+				if (typeof first === 'object' && first !== null) {
+					sourceValue = first.name || first.type;
+				} else {
+					sourceValue = first;
+				}
+			}
+
 			// Store rich metadata
 			_metadata[key] = {
 				value: item.value,
-				source: item.source || null,
+				source: sourceValue || null,
+				sources: item.sources || (item.source ? [item.source] : []),
 				original_source: item.source || null, // Snapshot the original source
 				original_value: item.value, // Snapshot the original value
 				warnings: item.warnings || [],
