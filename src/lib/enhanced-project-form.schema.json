@@ -1368,6 +1368,22 @@
     "guarantorLiquidity": {
       "label": "Guarantor Liquidity",
       "required": true
+    },
+    "residentialUnitMix": {
+      "label": "Residential Unit Mix",
+      "required": false
+    },
+    "commercialSpaceMix": {
+      "label": "Commercial Space Mix",
+      "required": false
+    },
+    "drawSchedule": {
+      "label": "Draw Schedule",
+      "required": false
+    },
+    "rentComps": {
+      "label": "Rent Comparables",
+      "required": false
     }
   }
 }

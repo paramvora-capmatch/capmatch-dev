@@ -3711,6 +3711,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
 														Rent Comparables
 													</h4>
+													{isFieldRequiredFromSchema(
+														"rentComps"
+													) && (
+														<span className="text-red-500 ml-1">
+															*
+														</span>
+													)}
 													<FieldHelpTooltip
 														fieldId="rentComps"
 														fieldMetadata={
