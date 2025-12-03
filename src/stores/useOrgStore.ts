@@ -18,6 +18,7 @@ interface OrgState {
   isLoading: boolean;
   isInviting: boolean;
   error: string | null;
+  loadingOrgId: string | null;
 }
 
 interface OrgActions {
@@ -70,10 +71,26 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
   isLoading: false,
   isInviting: false,
   error: null,
+  loadingOrgId: null,
 
   // Actions
   loadOrg: async (orgId: string) => {
-    set({ isLoading: true, error: null });
+    const { loadingOrgId, currentOrg } = get();
+
+    // Prevent duplicate loads for the same org
+    if (loadingOrgId === orgId) {
+      console.log(`[OrgStore] Already loading org: ${orgId}`);
+      return;
+    }
+
+    // If already loaded, we can skip unless we want to force refresh.
+    // For now, let's allow reload if it's not currently loading, 
+    // but maybe we should check if currentOrg.id === orgId too?
+    // The ProjectCard logic checks if (currentOrgState?.id !== project.owner_org_id).
+    // So if it's already loaded, ProjectCard won't call it.
+    // But if multiple cards call it simultaneously, loadingOrgId will catch it.
+
+    set({ isLoading: true, loadingOrgId: orgId, error: null });
 
     console.log(`[OrgStore] Loading org: ${orgId}`);
 
@@ -122,9 +139,9 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const { data: memberProfiles } =
         memberUserIds.length > 0
           ? await supabase
-              .from("profiles")
-              .select("id, app_role")
-              .in("id", memberUserIds)
+            .from("profiles")
+            .select("id, app_role")
+            .in("id", memberUserIds)
           : { data: [] };
 
       const basicById = new Map(
@@ -139,9 +156,9 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const { data: inviterProfiles } =
         inviterIds.length > 0
           ? await supabase
-              .from("profiles")
-              .select("id, full_name")
-              .in("id", inviterIds)
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", inviterIds)
           : { data: [] };
 
       // Process members data to include profile information
@@ -193,19 +210,21 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
         pendingInvites: processedInvites,
         isOwner,
         isLoading: false,
+        loadingOrgId: null,
       });
     } catch (error) {
       // Provide better error message
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : typeof error === 'object' && error !== null
           ? JSON.stringify(error)
           : String(error) || "Failed to load org";
-      
+
       console.error("Error loading org:", errorMessage, error);
       set({
         error: errorMessage,
         isLoading: false,
+        loadingOrgId: null,
       });
       // Don't throw - let the caller handle it gracefully
     }

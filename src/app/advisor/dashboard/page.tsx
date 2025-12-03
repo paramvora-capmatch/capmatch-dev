@@ -22,6 +22,7 @@ import { storageService } from "@/lib/storage";
 import { supabase } from "../../../../lib/supabaseClient";
 import { getProjectsWithResumes } from "@/lib/project-queries";
 import { ProjectCard } from "@/components/dashboard/ProjectCard";
+import { useProjectMembers } from "../../../hooks/useProjectMembers";
 
 const dbMessageToProjectMessage = (
   dbMessage: Record<string, any>
@@ -48,6 +49,9 @@ export default function AdvisorDashboardPage() {
   >({});
 
   const [unreadByProject, setUnreadByProject] = useState<Record<string, boolean>>({});
+
+  // Batch fetch project members for advisor view (disableOrgLoading=true)
+  const { membersByProjectId, isLoading: membersLoading } = useProjectMembers(activeProjects, true);
 
   useEffect(() => {
     const loadAdvisorData = async () => {
@@ -110,7 +114,7 @@ export default function AdvisorDashboardPage() {
               // Fetch borrower resumes to get fullLegalName for each project
               const projectIds = assignedProjects.map((p) => p.id);
               console.log('[AdvisorDashboard] Fetching borrower resumes for projects:', projectIds);
-              
+
               // Fetch borrower resumes - get the latest version for each project
               const { data: borrowerResumes, error: borrowerResumesError } = await supabase
                 .from("borrower_resumes")
@@ -136,16 +140,16 @@ export default function AdvisorDashboardPage() {
                 // Create a map from org_id -> borrower fullLegalName
                 // Map by org_id so we can look it up in ProjectCard using project.owner_org_id
                 const borrowerMap: Record<string, { name: string; email: string }> = {};
-                
+
                 assignedProjects.forEach((project) => {
                   if (!project.owner_org_id || !project.id) return;
-                  
+
                   const borrowerResumeContent = projectToBorrowerResume.get(project.id);
                   if (!borrowerResumeContent) {
                     console.log(`[AdvisorDashboard] No borrower resume found for project ${project.id}`);
                     return;
                   }
-                  
+
                   // Extract fullLegalName - handle both flat and rich data formats
                   let fullLegalName: string | undefined;
                   if (borrowerResumeContent.fullLegalName) {
@@ -157,7 +161,7 @@ export default function AdvisorDashboardPage() {
                       fullLegalName = borrowerResumeContent.fullLegalName;
                     }
                   }
-                  
+
                   // Only add to map if fullLegalName exists and is not empty
                   if (fullLegalName && typeof fullLegalName === 'string' && fullLegalName.trim()) {
                     // Use org_id as key - if multiple projects share the same org, use the first one found
@@ -171,7 +175,7 @@ export default function AdvisorDashboardPage() {
                           contactEmail = borrowerResumeContent.contactEmail;
                         }
                       }
-                      
+
                       borrowerMap[project.owner_org_id] = {
                         name: fullLegalName.trim(),
                         email: contactEmail,
@@ -181,7 +185,7 @@ export default function AdvisorDashboardPage() {
                     console.log(`[AdvisorDashboard] No fullLegalName found for project ${project.id} (or it's empty)`);
                   }
                 });
-                
+
                 console.log('[AdvisorDashboard] Borrower data map (from resumes):', borrowerMap);
                 setBorrowerData(borrowerMap);
               }
@@ -191,7 +195,7 @@ export default function AdvisorDashboardPage() {
               // Fetch borrower resumes to get fullLegalName for each project
               const projectIds = assignedProjects.map((p) => p.id);
               console.log('[AdvisorDashboard] Fetching borrower resumes for projects:', projectIds);
-              
+
               // Fetch borrower resumes - get the latest version for each project
               const { data: borrowerResumes, error: borrowerResumesError } = await supabase
                 .from("borrower_resumes")
@@ -217,16 +221,16 @@ export default function AdvisorDashboardPage() {
                 // Create a map from org_id -> borrower fullLegalName
                 // Map by org_id so we can look it up in ProjectCard using project.owner_org_id
                 const borrowerMap: Record<string, { name: string; email: string }> = {};
-                
+
                 assignedProjects.forEach((project) => {
                   if (!project.owner_org_id || !project.id) return;
-                  
+
                   const borrowerResumeContent = projectToBorrowerResume.get(project.id);
                   if (!borrowerResumeContent) {
                     console.log(`[AdvisorDashboard] No borrower resume found for project ${project.id}`);
                     return;
                   }
-                  
+
                   // Extract fullLegalName - handle both flat and rich data formats
                   let fullLegalName: string | undefined;
                   if (borrowerResumeContent.fullLegalName) {
@@ -238,7 +242,7 @@ export default function AdvisorDashboardPage() {
                       fullLegalName = borrowerResumeContent.fullLegalName;
                     }
                   }
-                  
+
                   // Only add to map if fullLegalName exists and is not empty
                   if (fullLegalName && typeof fullLegalName === 'string' && fullLegalName.trim()) {
                     // Use org_id as key - if multiple projects share the same org, use the first one found
@@ -252,7 +256,7 @@ export default function AdvisorDashboardPage() {
                           contactEmail = borrowerResumeContent.contactEmail;
                         }
                       }
-                      
+
                       borrowerMap[project.owner_org_id] = {
                         name: fullLegalName.trim(),
                         email: contactEmail,
@@ -262,7 +266,7 @@ export default function AdvisorDashboardPage() {
                     console.log(`[AdvisorDashboard] No fullLegalName found for project ${project.id} (or it's empty)`);
                   }
                 });
-                
+
                 console.log('[AdvisorDashboard] Borrower data map (from resumes):', borrowerMap);
                 setBorrowerData(borrowerMap);
               }
@@ -340,7 +344,7 @@ export default function AdvisorDashboardPage() {
 
   return (
     <RoleBasedRoute roles={["advisor"]}>
-      <DashboardLayout 
+      <DashboardLayout
         title="Dashboard"
         mainClassName="flex-1 overflow-auto pl-6 pr-3 sm:pr-4 lg:pr-6 pt-2 pb-6"
         hideTeamButton={true}
@@ -361,61 +365,62 @@ export default function AdvisorDashboardPage() {
           </div>
 
 
-        {/* Main Content - aligned with header spacing */}
-        <div className="relative z-[1] pt-6 pb-6">
-          {/* Darker background container with its own subtle grid */}
-          <div className="relative overflow-hidden">
-            <div className="pointer-events-none absolute inset-0 opacity-[0.25]">
-              <svg className="absolute inset-0 h-full w-full text-slate-300" aria-hidden="true">
-                <defs>
-                  <pattern id="inner-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#inner-grid)" />
-              </svg>
-            </div>
-
-            <div className="relative p-6 sm:p-8 lg:p-10">
-              <div className="space-y-10">
-            {/* Projects Section */}
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-bold text-gray-800">My Projects</h2>
-                  <p className="text-gray-600">Manage and track your assigned projects across all organizations</p>
-                </div>
+          {/* Main Content - aligned with header spacing */}
+          <div className="relative z-[1] pt-6 pb-6">
+            {/* Darker background container with its own subtle grid */}
+            <div className="relative overflow-hidden">
+              <div className="pointer-events-none absolute inset-0 opacity-[0.25]">
+                <svg className="absolute inset-0 h-full w-full text-slate-300" aria-hidden="true">
+                  <defs>
+                    <pattern id="inner-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#inner-grid)" />
+                </svg>
               </div>
 
-              {activeProjects.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {activeProjects.map((project, index) => (
-                    <div
-                      key={project.id}
-                      className="animate-fade-up h-full"
-                      style={{ animationDelay: `${(index + 1) * 80}ms` }}
-                    >
-                      <ProjectCard
-                        project={project}
-                        primaryCtaHref={`/advisor/project/${project.id}`}
-                        primaryCtaLabel="View Project"
-                        showDeleteButton={false}
-                        unread={!!unreadByProject[project.id]}
-                        disableOrgLoading={true}
-                        borrowerName={borrowerData[project.owner_org_id]?.name}
-                      />
+              <div className="relative p-6 sm:p-8 lg:p-10">
+                <div className="space-y-10">
+                  {/* Projects Section */}
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                      <div className="space-y-1">
+                        <h2 className="text-2xl font-bold text-gray-800">My Projects</h2>
+                        <p className="text-gray-600">Manage and track your assigned projects across all organizations</p>
+                      </div>
                     </div>
-                  ))}
+
+                    {activeProjects.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {activeProjects.map((project, index) => (
+                          <div
+                            key={project.id}
+                            className="animate-fade-up h-full"
+                            style={{ animationDelay: `${(index + 1) * 80}ms` }}
+                          >
+                            <ProjectCard
+                              project={project}
+                              primaryCtaHref={`/advisor/project/${project.id}`}
+                              primaryCtaLabel="View Project"
+                              showDeleteButton={false}
+                              unread={!!unreadByProject[project.id]}
+                              disableOrgLoading={true}
+                              borrowerName={borrowerData[project.owner_org_id]?.name}
+                              preFetchedMembers={membersLoading ? null : membersByProjectId[project.id]}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+                        <p className="text-gray-500">No active projects found</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div className="bg-white p-6 rounded-lg shadow-sm text-center">
-                  <p className="text-gray-500">No active projects found</p>
-                </div>
-              )}
-            </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
 

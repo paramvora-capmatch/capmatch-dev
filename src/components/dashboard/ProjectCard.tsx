@@ -35,6 +35,7 @@ interface ProjectCardProps {
   unread?: boolean;
   disableOrgLoading?: boolean;
   borrowerName?: string; // Borrower name for advisor view
+  preFetchedMembers?: ProjectMember[] | null; // Optional pre-fetched members. null = loading.
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -46,20 +47,36 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   unread = false,
   disableOrgLoading = false,
   borrowerName,
+  preFetchedMembers,
 }) => {
   const router = useRouter();
   const { deleteProject } = useProjects();
   const { isOwner, currentOrg, members: orgMembers, loadOrg, isLoading: orgLoading } = useOrgStore();
   const user = useAuthStore((state) => state.user);
   const isAdvisor = user?.role === "advisor";
-  
+
   // Debug logging for borrower name
   useEffect(() => {
     if (disableOrgLoading && isAdvisor) {
       console.log('[ProjectCard] Borrower name prop:', borrowerName, 'for project:', project.id, 'org:', project.owner_org_id);
     }
   }, [borrowerName, project.id, project.owner_org_id, disableOrgLoading, isAdvisor]);
-  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>(
+    Array.isArray(preFetchedMembers) ? preFetchedMembers : []
+  );
+
+  // Update members when preFetchedMembers changes
+  useEffect(() => {
+    if (preFetchedMembers !== undefined) {
+      if (preFetchedMembers === null) {
+        setIsLoadingMembers(true);
+      } else {
+        setProjectMembers(preFetchedMembers);
+        setIsLoadingMembers(false);
+      }
+    }
+  }, [preFetchedMembers]);
+
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -113,6 +130,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
   // Fetch project members if user is an owner or advisor
   useEffect(() => {
+    // Skip if members are pre-fetched
+    if (preFetchedMembers !== undefined) return;
+
     const fetchProjectMembers = async () => {
       if (!project.id) {
         setProjectMembers([]);
@@ -124,7 +144,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         setIsLoadingMembers(true);
         try {
           console.log('[ProjectCard] Fetching project members for advisor, project:', project.id);
-          
+
           // Get all users who have been granted access to this project
           const { data: grants, error: grantsError } = await supabase
             .from('project_access_grants')
@@ -143,7 +163,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           // Collect all user IDs from grants
           const userIdsFromGrants = new Set<string>(grants?.map(g => g.user_id) || []);
           console.log('[ProjectCard] User IDs from grants:', Array.from(userIdsFromGrants));
-          
+
           // Add assigned advisor if exists
           if (project.assignedAdvisorUserId) {
             userIdsFromGrants.add(project.assignedAdvisorUserId);
@@ -152,7 +172,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           // Fetch profile information for all members using edge function
           if (userIdsFromGrants.size > 0) {
             const userIdsArray = Array.from(userIdsFromGrants);
-            
+
             const { data: memberBasicData, error: basicDataError } = await supabase.functions.invoke(
               'get-user-data',
               {
@@ -198,7 +218,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         setProjectMembers([]);
         return;
       }
-      
+
       // Wait for org to be loaded and check ownership
       if (!currentOrg || !isOwner || currentOrg.id !== project.owner_org_id || !project.id) {
         console.log('[ProjectCard] Skipping member fetch:', {
@@ -236,7 +256,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
         // Collect all user IDs from grants - these are ALL members with explicit project access
         const userIdsFromGrants = new Set<string>(grants?.map(g => g.user_id) || []);
-        
+
         // Also include all org owners (they have implicit access even if not in grants)
         // This ensures owners are shown even if they don't have explicit grants
         orgMembers
@@ -244,7 +264,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           .forEach(m => {
             userIdsFromGrants.add(m.user_id);
           });
-        
+
         // Add assigned advisor if exists
         if (project.assignedAdvisorUserId) {
           userIdsFromGrants.add(project.assignedAdvisorUserId);
@@ -255,7 +275,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         // so we need to use the get-user-data edge function like the org store does
         if (userIdsFromGrants.size > 0) {
           const userIdsArray = Array.from(userIdsFromGrants);
-          
+
           const { data: memberBasicData, error: basicDataError } = await supabase.functions.invoke(
             'get-user-data',
             {
@@ -297,7 +317,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     };
 
     fetchProjectMembers();
-  }, [isOwner, currentOrg, project.id, project.owner_org_id, project.assignedAdvisorUserId, orgMembers, orgLoading, disableOrgLoading, isAdvisor, user]);
+  }, [isOwner, currentOrg, project.id, project.owner_org_id, project.assignedAdvisorUserId, orgMembers, orgLoading, disableOrgLoading, isAdvisor, user, preFetchedMembers]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -352,7 +372,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         aria-hidden
         className="pointer-events-none absolute -inset-x-3 bottom-3 h-8 rounded-2xl bg-blue-400/40 blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-70 -z-10"
       />
-      <Card 
+      <Card
         className="h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5 cursor-pointer min-h-[210px] md:min-h-[250px] lg:min-h-[280px]"
         onClick={() => {
           if (primaryCtaHref) {
@@ -365,11 +385,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         {/* Completion status indicator bar */}
         <div className="h-2 bg-gray-100">
           <div
-            className={`h-full transition-all duration-500 ${
-              isComplete
-                ? "bg-gradient-to-r from-emerald-500 to-green-500"
-                : "bg-blue-600"
-            }`}
+            className={`h-full transition-all duration-500 ${isComplete
+              ? "bg-gradient-to-r from-emerald-500 to-green-500"
+              : "bg-blue-600"
+              }`}
             style={{ width: `${overallProgress}%` }}
           />
         </div>
@@ -497,9 +516,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               <div className="flex justify-between items-center text-xs mb-1">
                 <span className="text-gray-500">Overall Progress</span>
                 <span
-                  className={`font-semibold ${
-                    isComplete ? "text-green-600" : "text-blue-600"
-                  }`}
+                  className={`font-semibold ${isComplete ? "text-green-600" : "text-blue-600"
+                    }`}
                 >
                   {overallProgress}%
                 </span>
@@ -507,11 +525,10 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
               <div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
                 <div
-                  className={`absolute top-0 left-0 h-full rounded-full transition-all duration-700 shadow-sm ${
-                    isComplete
-                      ? "bg-gradient-to-r from-emerald-500 to-green-500"
-                      : "bg-blue-600"
-                  }`}
+                  className={`absolute top-0 left-0 h-full rounded-full transition-all duration-700 shadow-sm ${isComplete
+                    ? "bg-gradient-to-r from-emerald-500 to-green-500"
+                    : "bg-blue-600"
+                    }`}
                   style={{ width: `${overallProgress}%` }}
                 />
               </div>
@@ -529,8 +546,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
           <div className="space-y-3 flex-shrink-0">
             {!isOmReady ? (
-              <span 
-                className="block w-full" 
+              <span
+                className="block w-full"
                 title="Complete the project resume to unlock the OM"
               >
                 <Button
