@@ -466,7 +466,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					...currentMeta,
 					value: value,
 					sources: [{ type: "user_input" }],
-					original_source: null,
 				},
 			};
 		});
