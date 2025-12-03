@@ -360,12 +360,29 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 												step.icon as string
 											]) ||
 										FileText;
-									const allFieldIds: string[] =
+
+									// Start with schema-defined fields for this section
+									const schemaFieldIds: string[] =
 										step.fields || [];
 
+									// Also include any fields from metadata that map to this section,
+									// in case schema.fields is incomplete or out of sync.
+									const metadataFieldIdsForSection = Object.values(
+										borrowerResumeFieldMetadata
+									)
+										.filter(
+											(meta) => meta.section === sectionId
+										)
+										.map((meta) => meta.fieldId);
+
+									const allFieldIds: string[] = Array.from(
+										new Set([
+											...schemaFieldIds,
+											...metadataFieldIdsForSection,
+										])
+									);
+
 									// Determine if this section has any visible value.
-									// Use the schema field IDs directly so we don't
-									// depend on metadata being present for every field.
 									const hasAnyValue = allFieldIds.some(
 										(fieldId: string) =>
 											hasValue(
