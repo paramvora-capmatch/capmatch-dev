@@ -1363,7 +1363,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								fieldStates.every((s) => s.isGreen);
 
 							const showComplete =
-								fields.length > 0 && allGreen && !hasBlue;
+								subsectionFields.length > 0 &&
+								allGreen &&
+								!hasBlue;
 							const showNeedsInput = hasBlue;
 
 							const hasEmptyField = fieldStates.some(
