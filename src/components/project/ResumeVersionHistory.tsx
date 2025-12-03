@@ -120,46 +120,21 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 
       let creatorProfiles: CreatorProfile[] = [];
       if (creatorIds.length > 0) {
-        // Use edge function to fetch user data (bypasses RLS, works for advisors)
         try {
-          const { data: profiles, error: profileError } = await supabase.functions.invoke(
-            'get-user-data',
-            {
-              body: { userIds: creatorIds },
-            }
-          );
+          const { data: directProfiles, error: directError } = await supabase
+            .from("profiles")
+            .select("id, full_name, email")
+            .in("id", creatorIds);
 
-          if (profileError) {
-            console.error('[ResumeVersionHistory] Failed to fetch creator profiles via edge function:', profileError);
-            // Fall back to direct query as a backup (may not work for advisors)
-            const { data: directProfiles, error: directError } = await supabase
-              .from("profiles")
-              .select("id, full_name, email")
-              .in("id", creatorIds);
-            if (!directError && directProfiles) {
-              creatorProfiles = directProfiles;
-            }
-          } else if (profiles && Array.isArray(profiles)) {
-            creatorProfiles = profiles.map((p: { id: string; full_name?: string | null; email?: string | null }) => ({
-              id: p.id,
-              full_name: p.full_name,
-              email: p.email,
-            }));
+          if (!directError && directProfiles) {
+            creatorProfiles = directProfiles as CreatorProfile[];
+          }
+
+          if (directError) {
+            console.error('[ResumeVersionHistory] Failed to fetch creator profiles:', directError);
           }
         } catch (err) {
           console.error('[ResumeVersionHistory] Error fetching creator profiles:', err);
-          // Fall back to direct query
-          try {
-            const { data: directProfiles, error: directError } = await supabase
-              .from("profiles")
-              .select("id, full_name, email")
-              .in("id", creatorIds);
-            if (!directError && directProfiles) {
-              creatorProfiles = directProfiles;
-            }
-          } catch (fallbackErr) {
-            console.error('[ResumeVersionHistory] Fallback profile fetch also failed:', fallbackErr);
-          }
         }
       }
 

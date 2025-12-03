@@ -125,27 +125,21 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const memberUserIds =
         members?.map((m) => m.user_id).filter(Boolean) || [];
 
-      // Use edge function to fetch email + full_name (bypasses RLS safely)
-      const { data: memberBasicData, error: basicDataError } = await supabase
-        .functions.invoke("get-user-data", {
-          body: { userIds: memberUserIds as string[] },
-        });
-
-      if (basicDataError) {
-        console.error("Error fetching user basic data:", basicDataError);
-      }
-
-      // Also fetch app_role from profiles (non-sensitive), if accessible
-      const { data: memberProfiles } =
+      // Fetch email + full_name + app_role directly from profiles (RLS now allows related profile access)
+      const { data: memberProfiles, error: memberProfilesError } =
         memberUserIds.length > 0
           ? await supabase
-            .from("profiles")
-            .select("id, app_role")
-            .in("id", memberUserIds)
-          : { data: [] };
+              .from("profiles")
+              .select("id, full_name, email, app_role")
+              .in("id", memberUserIds)
+          : { data: [], error: null };
+
+      if (memberProfilesError) {
+        console.error("Error fetching member profiles:", memberProfilesError);
+      }
 
       const basicById = new Map(
-        ((memberBasicData as { id: string; email: string | null; full_name: string | null }[]) || []).map(
+        ((memberProfiles as { id: string; email: string | null; full_name: string | null; app_role?: string | null }[]) || []).map(
           (u) => [u.id, u]
         )
       );
@@ -165,14 +159,13 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const processedMembers =
         members?.map((member) => {
           const basic = basicById.get(member.user_id) as
-            | { id: string; email: string | null; full_name: string | null }
+            | { id: string; email: string | null; full_name: string | null; app_role?: string | null }
             | undefined;
-          const profile = memberProfiles?.find((p) => p.id === member.user_id);
           return {
             ...member,
             userName: (basic?.full_name && basic.full_name.trim()) || "Unknown User",
             userEmail: basic?.email || "user@example.com",
-            userRole: profile?.app_role,
+            userRole: basic?.app_role,
           };
         }) || [];
 

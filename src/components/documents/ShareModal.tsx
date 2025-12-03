@@ -19,6 +19,8 @@ interface MemberPermission {
   user_id: string;
   full_name: string;
   permission: Permission | "none";
+  hasExplicitOverride: boolean;
+  effectivePermission: Permission | "none" | null;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
@@ -49,13 +51,53 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           const currentPermissions = new Map(
             (data || []).map((p: any) => [p.user_id, p.permission])
           );
-          const allMembersWithPerms = members.map((member) => ({
-            user_id: member.user_id,
-            full_name: member.userName || member.userEmail || "Unknown",
-            permission:
-              (currentPermissions.get(member.user_id) as Permission | "none") ||
-              "none",
-          }));
+          // Fetch effective/blanket permissions for all org members so we can
+          // show the true current access level even when there is no override.
+          const memberIds = members.map((m) => m.user_id);
+          const {
+            data: effectiveData,
+            error: effectiveError,
+          } = await supabase.rpc(
+            "get_effective_permissions_for_resource",
+            {
+              p_resource_id: resource.id,
+              p_user_ids: memberIds,
+            }
+          );
+
+          if (effectiveError) throw effectiveError;
+
+          const effectiveById = new Map<
+            string,
+            Permission | "none" | null
+          >(
+            (effectiveData || []).map((row: any) => [
+              row.user_id,
+              (row.effective_permission as Permission | "none" | null) ??
+                null,
+            ])
+          );
+
+          const allMembersWithPerms: MemberPermission[] = members.map(
+            (member) => {
+              const rawPerm = currentPermissions.get(
+                member.user_id
+              ) as Permission | "none" | undefined;
+              const effective =
+                (effectiveById.get(
+                  member.user_id
+                ) as Permission | "none" | null) ?? null;
+              return {
+                user_id: member.user_id,
+                full_name:
+                  member.userName || member.userEmail || "Unknown",
+                // Underlying explicit override value (or "none" if no row)
+                permission: rawPerm ?? "none",
+                hasExplicitOverride: rawPerm !== undefined,
+                effectivePermission: effective,
+              };
+            }
+          );
 
           setPermissions(allMembersWithPerms);
         } catch (err: any) {
@@ -85,7 +127,20 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       if (rpcError) throw rpcError;
 
       setPermissions((prev) =>
-        prev.map((p) => (p.user_id === userId ? { ...p, permission } : p))
+        prev.map((p) =>
+          p.user_id === userId
+            ? {
+                ...p,
+                permission,
+                hasExplicitOverride: true,
+                // Once there is an explicit override, it defines the effective permission
+                effectivePermission:
+                  permission === "none"
+                    ? null
+                    : (permission as Permission),
+              }
+            : p
+        )
       );
     } catch (err: any) {
       setError(`Failed to update permission: ${err.message}`);
@@ -127,31 +182,53 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   ) : (
                     <div className="flex gap-2 flex-shrink-0">
                       {(["none", "view", "edit"] as (Permission | "none")[]).map(
-                        (perm) => (
-                          <button
-                            key={perm}
-                            onClick={() => handlePermissionChange(p.user_id, perm)}
-                            className={cn(
-                              "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                              p.permission === perm
-                                ? perm === "edit"
-                                  ? "bg-blue-600 text-white border-blue-600"
-                                  : perm === "view"
-                                  ? "bg-gray-700 text-white border-gray-700"
-                                  : "bg-gray-400 text-white border-gray-400"
-                                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                            )}
-                            title={
-                              perm === "none"
-                                ? "No Access"
-                                : perm === "view"
-                                ? "Can View"
-                                : "Can Edit"
-                            }
-                          >
-                            {perm === "none" ? "None" : perm === "view" ? "View" : "Edit"}
-                          </button>
-                        )
+                        (perm) => {
+                          // Baseline selection:
+                          // - If there is an explicit override, use that.
+                          // - Otherwise, use the effective/blanket permission from the hierarchy.
+                          const baseline =
+                            p.hasExplicitOverride && p.permission
+                              ? p.permission
+                              : (p.effectivePermission ?? "none");
+                          const isActive = baseline === perm;
+                          const isHideOption = perm === "none";
+                          const label = isHideOption
+                            ? p.hasExplicitOverride
+                              ? "Hide"
+                              : "No override"
+                            : perm === "view"
+                            ? "View"
+                            : "Edit";
+                          const title = isHideOption
+                            ? p.hasExplicitOverride
+                              ? "Explicitly hide this document from this user (override default access)"
+                              : "No explicit override for this file; user may inherit access from project/org permissions"
+                            : perm === "view"
+                            ? "Grant explicit view access (override default)"
+                            : "Grant explicit edit access (override default)";
+
+                          return (
+                            <button
+                              key={perm}
+                              onClick={() =>
+                                handlePermissionChange(p.user_id, perm)
+                              }
+                              className={cn(
+                                "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
+                                isActive
+                                  ? perm === "edit"
+                                    ? "bg-blue-600 text-white border-blue-600"
+                                    : perm === "view"
+                                    ? "bg-gray-700 text-white border-gray-700"
+                                    : "bg-gray-400 text-white border-gray-400"
+                                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                              )}
+                              title={title}
+                            >
+                              {label}
+                            </button>
+                          );
+                        }
                       )}
                     </div>
                   )}

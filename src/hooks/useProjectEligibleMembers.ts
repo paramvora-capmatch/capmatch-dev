@@ -82,13 +82,15 @@ export function useProjectEligibleMembers({
 
     const fetchAdvisorProfile = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("get-user-data", {
-          body: { userIds: [advisorUserId] },
-        });
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .eq("id", advisorUserId)
+          .maybeSingle();
 
         if (!isCancelled) {
-          if (!error && Array.isArray(data) && data.length > 0) {
-            setAdvisorProfile(data[0]);
+          if (!error && data) {
+            setAdvisorProfile(data as AdvisorProfile);
           } else if (error) {
             console.error("[useProjectEligibleMembers] Failed to fetch advisor profile:", error);
             setAdvisorProfile(null);

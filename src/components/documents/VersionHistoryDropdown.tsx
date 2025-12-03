@@ -117,17 +117,19 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
         .filter((id): id is string => Boolean(id)))];
 
       if (userIds.length > 0) {
-        const { data: userData, error: userError } = await supabase.functions.invoke(
-          'get-user-data',
-          {
-            body: { userIds },
-          }
-        );
+        const { data: userData, error: userError } = await supabase
+          .from("profiles")
+          .select("id, email, full_name")
+          .in("id", userIds);
 
         if (!userError && Array.isArray(userData)) {
           const userMap = new Map<string, UserInfo>();
-          userData.forEach((user: UserInfo) => {
-            userMap.set(user.id, user);
+          (userData as any[]).forEach((user) => {
+            userMap.set(user.id, {
+              id: user.id,
+              email: user.email ?? null,
+              full_name: user.full_name ?? null,
+            });
           });
           setUserInfoMap(userMap);
         } else if (userError) {
