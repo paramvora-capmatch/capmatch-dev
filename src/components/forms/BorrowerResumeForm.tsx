@@ -1831,11 +1831,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												</div>
 											) : (
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-													{fields.map((fieldId) =>
-														renderDynamicField(
-															fieldId,
-															sectionId
-														)
+													{subsectionFields.map(
+														(fieldId) =>
+															renderDynamicField(
+																fieldId,
+																sectionId
+															)
 													)}
 												</div>
 											)}
