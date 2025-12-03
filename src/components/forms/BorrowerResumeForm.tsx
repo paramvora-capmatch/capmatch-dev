@@ -710,9 +710,18 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			setLockedFields((prev) => {
 				const next = new Set(prev);
 				fieldIds.forEach((id) => {
-					const value = (formData as any)[id];
+					let value = (formData as any)[id];
+					let hasValue = isValueProvided(value);
+
+					// Principals: require all rows to be complete before locking
+					if (id === "principals") {
+						hasValue = hasCompletePrincipals(
+							(formData as any).principals
+						);
+					}
+
 					if (isLocked) next.delete(id);
-					else if (isValueProvided(value)) next.add(id);
+					else if (hasValue) next.add(id);
 				});
 				return next;
 			});
@@ -810,7 +819,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		(fieldId: string, sectionId: string) => {
 			const locked = isFieldLocked(fieldId, sectionId);
 			const value = (formData as any)[fieldId];
-			const hasValue = isValueProvided(value);
+
+			let hasValue = isValueProvided(value);
+			// For principals table, require each row to be complete
+			if (fieldId === "principals") {
+				hasValue = hasCompletePrincipals((formData as any).principals);
+			}
+
 			const isDisabled = !hasValue && !locked;
 
 			const tooltipTitle = isDisabled
