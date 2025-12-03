@@ -7,149 +7,161 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error(
-    "Missing SUPABASE configuration. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set."
-  );
+	throw new Error(
+		"Missing SUPABASE configuration. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set."
+	);
 }
 
 const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
+	auth: { persistSession: false, autoRefreshToken: false },
 });
 
 interface SnapshotRequestBody {
-  projectId?: string;
-  userId?: string | null;
+	projectId?: string;
+	userId?: string | null;
 }
 
 export async function POST(request: Request) {
-  console.log("[API] Borrower resume save-version called");
-  const rawBody = await request.text();
-  let payload: SnapshotRequestBody = {};
-  if (rawBody) {
-    try {
-      payload = JSON.parse(rawBody);
-    } catch (error) {
-      console.error("[API] Failed to parse save-version request body:", error);
-      return NextResponse.json(
-        { error: "Invalid request body. Expected JSON." },
-        { status: 400 }
-      );
-    }
-  }
+	console.log("[API] Borrower resume save-version called");
+	const rawBody = await request.text();
+	let payload: SnapshotRequestBody = {};
+	if (rawBody) {
+		try {
+			payload = JSON.parse(rawBody);
+		} catch (error) {
+			console.error(
+				"[API] Failed to parse save-version request body:",
+				error
+			);
+			return NextResponse.json(
+				{ error: "Invalid request body. Expected JSON." },
+				{ status: 400 }
+			);
+		}
+	}
 
-  const { projectId, userId } = payload;
-  console.log("[API] Saving borrower resume version for project:", projectId, "user:", userId);
-  if (!projectId) {
-    return NextResponse.json(
-      { error: "projectId is required" },
-      { status: 400 }
-    );
-  }
+	const { projectId, userId } = payload;
+	console.log(
+		"[API] Saving borrower resume version for project:",
+		projectId,
+		"user:",
+		userId
+	);
+	if (!projectId) {
+		return NextResponse.json(
+			{ error: "projectId is required" },
+			{ status: 400 }
+		);
+	}
 
-  const { data: resource, error: resourceError } = await supabaseAdmin
-    .from("resources")
-    .select("id, current_version_id")
-    .eq("project_id", projectId)
-    .eq("resource_type", "BORROWER_RESUME")
-    .maybeSingle();
+	const { data: resource, error: resourceError } = await supabaseAdmin
+		.from("resources")
+		.select("id, current_version_id")
+		.eq("project_id", projectId)
+		.eq("resource_type", "BORROWER_RESUME")
+		.maybeSingle();
 
-  if (resourceError) {
-    return NextResponse.json(
-      { error: resourceError.message },
-      { status: 500 }
-    );
-  }
+	if (resourceError) {
+		return NextResponse.json(
+			{ error: resourceError.message },
+			{ status: 500 }
+		);
+	}
 
-  if (!resource?.id) {
-    return NextResponse.json(
-      { error: "Borrower resume resource not found" },
-      { status: 404 }
-    );
-  }
+	if (!resource?.id) {
+		return NextResponse.json(
+			{ error: "Borrower resume resource not found" },
+			{ status: 404 }
+		);
+	}
 
-  let resumeRow: {
-    content: Record<string, unknown> | null;
-  } | null = null;
+	let resumeRow: {
+		content: Record<string, unknown> | null;
+	} | null = null;
 
-  if (resource.current_version_id) {
-    const { data, error: resumeError } = await supabaseAdmin
-      .from("borrower_resumes")
-      .select("content")
-      .eq("id", resource.current_version_id)
-      .maybeSingle();
-    if (resumeError) {
-      return NextResponse.json(
-        { error: resumeError.message },
-        { status: 500 }
-      );
-    }
-    resumeRow = data;
-  }
+	if (resource.current_version_id) {
+		const { data, error: resumeError } = await supabaseAdmin
+			.from("borrower_resumes")
+			.select("content")
+			.eq("id", resource.current_version_id)
+			.maybeSingle();
+		if (resumeError) {
+			return NextResponse.json(
+				{ error: resumeError.message },
+				{ status: 500 }
+			);
+		}
+		resumeRow = data;
+	}
 
-  if (!resumeRow) {
-    const { data, error: latestError } = await supabaseAdmin
-      .from("borrower_resumes")
-      .select("content")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (latestError) {
-      return NextResponse.json(
-        { error: latestError.message },
-        { status: 500 }
-      );
-    }
-    resumeRow = data;
-  }
+	if (!resumeRow) {
+		const { data, error: latestError } = await supabaseAdmin
+			.from("borrower_resumes")
+			.select("content")
+			.eq("project_id", projectId)
+			.order("created_at", { ascending: false })
+			.limit(1)
+			.maybeSingle();
+		if (latestError) {
+			return NextResponse.json(
+				{ error: latestError.message },
+				{ status: 500 }
+			);
+		}
+		resumeRow = data;
+	}
 
-  if (!resumeRow) {
-    return NextResponse.json(
-      { error: "No resume data found for project" },
-      { status: 404 }
-    );
-  }
+	if (!resumeRow) {
+		return NextResponse.json(
+			{ error: "No resume data found for project" },
+			{ status: 404 }
+		);
+	}
 
-  const { data: inserted, error: insertError } = await supabaseAdmin
-    .from("borrower_resumes")
-    .insert({
-      project_id: projectId,
-      content: resumeRow.content || {},
-      created_by: userId ?? null,
-    })
-    .select("id, version_number")
-    .single();
+	// Create new version snapshot
+	const { data: inserted, error: insertError } = await supabaseAdmin
+		.from("borrower_resumes")
+		.insert({
+			project_id: projectId,
+			content: resumeRow.content || {},
+			created_by: userId ?? null,
+		})
+		.select("id, version_number")
+		.single();
 
-  if (insertError || !inserted) {
-    return NextResponse.json(
-      { error: insertError?.message || "Failed to snapshot resume" },
-      { status: 500 }
-    );
-  }
+	if (insertError || !inserted) {
+		return NextResponse.json(
+			{ error: insertError?.message || "Failed to snapshot resume" },
+			{ status: 500 }
+		);
+	}
 
-  const { error: updateResourceError } = await supabaseAdmin
-    .from("resources")
-    .update({ current_version_id: inserted.id })
-    .eq("id", resource.id);
+	// Update resource pointer to the new version
+	const { error: updateResourceError } = await supabaseAdmin
+		.from("resources")
+		.update({ current_version_id: inserted.id })
+		.eq("id", resource.id);
 
-  if (updateResourceError) {
-    console.error("[API] Failed to update resource pointer:", updateResourceError);
-    return NextResponse.json(
-      { error: updateResourceError.message },
-      { status: 500 }
-    );
-  }
+	if (updateResourceError) {
+		console.error(
+			"[API] Failed to update resource pointer:",
+			updateResourceError
+		);
+		return NextResponse.json(
+			{ error: updateResourceError.message },
+			{ status: 500 }
+		);
+	}
 
-  console.log("[API] Successfully saved borrower resume version:", {
-    versionId: inserted.id,
-    versionNumber: inserted.version_number,
-    projectId,
-  });
+	console.log("[API] Successfully saved borrower resume version:", {
+		versionId: inserted.id,
+		versionNumber: inserted.version_number,
+		projectId,
+	});
 
-  return NextResponse.json({
-    ok: true,
-    versionId: inserted.id,
-    versionNumber: inserted.version_number,
-  });
+	return NextResponse.json({
+		ok: true,
+		versionId: inserted.id,
+		versionNumber: inserted.version_number,
+	});
 }
-

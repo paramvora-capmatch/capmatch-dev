@@ -7,72 +7,76 @@ import React, {
 	useRef,
 	useCallback,
 } from "react";
-import { useAuth } from "../../hooks/useAuth";
-import { cn } from "../../utils/cn";
-
 import { FormWizard, Step } from "../ui/FormWizard";
 import { FormGroup } from "../ui/Form";
 import { Input } from "../ui/Input";
-import { ButtonSelect } from "../ui/ButtonSelect";
+import { Select } from "../ui/Select";
 import { Button } from "../ui/Button";
+import { ButtonSelect } from "../ui/ButtonSelect";
+import { AskAIButton } from "../ui/AskAIProvider";
+import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
+import { HelpCircle } from "lucide-react";
+import { useAutofill } from "@/hooks/useAutofill";
+import { cn } from "@/utils/cn";
 import {
-	User,
+	FileText,
 	DollarSign,
+	Building,
 	Globe,
-	Award,
-	Briefcase,
+	Calendar,
+	Map,
+	Users,
+	Calculator,
 	AlertTriangle,
-	Check,
-	Edit,
-	AlertCircle,
-	ChevronDown,
-	Copy,
+	Info,
 	Lock,
 	Unlock,
 	Sparkles,
+	Loader2,
+	BarChart,
+	ChevronDown,
+	ChevronRight,
+	Copy,
+	Briefcase,
+	Award,
+	Plus,
+	Trash2,
 } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { BorrowerResumeContent } from "@/lib/project-queries";
+import { saveProjectBorrowerResume } from "@/lib/project-queries";
 import {
-	EntityStructure,
-	ExperienceRange,
-	DealValueRange,
-	CreditScoreRange,
-	NetWorthRange,
-	LiquidityRange,
-	Principal,
-	PrincipalRole,
-} from "../../types/enhanced-types";
-import { BorrowerResumeContent } from "../../lib/project-queries";
-import { MultiSelectPills } from "../ui/MultiSelectPills";
-import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
-import { useAutofill } from "@/hooks/useAutofill";
-import { AskAIButton } from "../ui/AskAIProvider";
-import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
-import { BorrowerResumeVersionHistory } from "./BorrowerResumeVersionHistory";
-import { BorrowerResumeView } from "./BorrowerResumeView";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-	BORROWER_REQUIRED_FIELDS,
 	computeBorrowerCompletion,
+	BORROWER_REQUIRED_FIELDS,
 } from "@/utils/resumeCompletion";
-import { normalizeSource } from "@/utils/sourceNormalizer";
-import borrowerFormSchema from "@/lib/borrower-resume-form.schema.json";
+import formSchema from "@/lib/borrower-resume-form.schema.json";
+import {
+	borrowerResumeFieldMetadata,
+	FieldMetadata as BorrowerFieldMeta,
+} from "@/lib/borrower-resume-field-metadata";
+import { Principal, PrincipalRole } from "@/types/enhanced-types";
+import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
+import { BorrowerResumeView } from "./BorrowerResumeView";
+import { BorrowerResumeVersionHistory } from "./BorrowerResumeVersionHistory";
+import { MultiSelectPills } from "../ui/MultiSelectPills";
 
 interface BorrowerResumeFormProps {
 	projectId: string;
-	onComplete?: (profile: BorrowerResumeContent | null) => void; // Allow null in callback
-	onProgressChange?: (percent: number) => void;
-	onFormDataChange?: (formData: Partial<BorrowerResumeContent>) => void; // Emit form data for AskAI
-	onAskAI?: (fieldId: string) => void; // Trigger AskAI for a field
-	progressPercent?: number;
+	onComplete?: (profile: BorrowerResumeContent) => void;
+	compact?: boolean;
+	onAskAI?: (fieldId: string) => void;
+	onFormDataChange?: (formData: Partial<BorrowerResumeContent>) => void;
+	initialFocusFieldId?: string;
+	onVersionChange?: () => void;
+	// Borrower specific props
 	onCopyBorrowerResume?: () => void;
 	copyDisabled?: boolean;
 	copyLoading?: boolean;
-	unstyled?: boolean;
+	progressPercent?: number;
+	onProgressChange?: (percent: number) => void;
 }
 
-// Options definitions (no changes)
-const entityStructureOptions: EntityStructure[] = [
+// Options Arrays
+const entityStructureOptions = [
 	"LLC",
 	"LP",
 	"S-Corp",
@@ -81,14 +85,8 @@ const entityStructureOptions: EntityStructure[] = [
 	"Trust",
 	"Other",
 ];
-const experienceRangeOptions: ExperienceRange[] = [
-	"0-2",
-	"3-5",
-	"6-10",
-	"11-15",
-	"16+",
-];
-const dealValueRangeOptions: DealValueRange[] = [
+const experienceRangeOptions = ["0-2", "3-5", "6-10", "11-15", "16+"];
+const dealValueRangeOptions = [
 	"N/A",
 	"<$10M",
 	"$10M-$50M",
@@ -97,7 +95,7 @@ const dealValueRangeOptions: DealValueRange[] = [
 	"$250M-$500M",
 	"$500M+",
 ];
-const creditScoreRangeOptions: CreditScoreRange[] = [
+const creditScoreRangeOptions = [
 	"N/A",
 	"<600",
 	"600-649",
@@ -106,7 +104,7 @@ const creditScoreRangeOptions: CreditScoreRange[] = [
 	"750-799",
 	"800+",
 ];
-const netWorthRangeOptions: NetWorthRange[] = [
+const netWorthRangeOptions = [
 	"<$1M",
 	"$1M-$5M",
 	"$5M-$10M",
@@ -115,7 +113,7 @@ const netWorthRangeOptions: NetWorthRange[] = [
 	"$50M-$100M",
 	"$100M+",
 ];
-const liquidityRangeOptions: LiquidityRange[] = [
+const liquidityRangeOptions = [
 	"<$100k",
 	"$100k-$500k",
 	"$500k-$1M",
@@ -162,458 +160,733 @@ const geographicMarketsOptions = [
 	"National",
 ];
 
-// Section -> field IDs, derived from the borrower resume schema
-const BORROWER_SECTION_FIELD_MAP: Record<string, string[]> = (() => {
-	const schemaAny = borrowerFormSchema as any;
-	const map: Record<string, string[]> = {};
+const isValueProvided = (value: unknown): boolean => {
+	if (value === null || value === undefined) return false;
+	if (typeof value === "string") return value.trim().length > 0;
+	if (Array.isArray(value)) return value.length > 0;
+	if (typeof value === "number") return !Number.isNaN(value);
+	if (typeof value === "boolean") return true;
+	return false;
+};
 
-	if (Array.isArray(schemaAny.steps)) {
-		for (const step of schemaAny.steps) {
-			const stepId = step?.id as string | undefined;
-			if (!stepId) continue;
+// Sanitize incoming BorrowerContent
+const sanitizeBorrowerProfile = (
+	profile: Partial<BorrowerResumeContent>
+): Partial<BorrowerResumeContent> => {
+	const next: any = { ...profile };
 
-			const fields: string[] = Array.isArray(step.fields)
-				? step.fields
-				: [];
-			map[stepId] = fields;
+	for (const [fieldId, meta] of Object.entries(borrowerResumeFieldMetadata)) {
+		const dataType = (meta as any).dataType;
+		if (!dataType || dataType === "Boolean") continue;
+
+		const current = (next as any)[fieldId];
+		if (typeof current === "boolean") {
+			(next as any)[fieldId] = null;
 		}
 	}
 
-	return map;
-})();
+	if (next._metadata && typeof next._metadata === "object") {
+		const fixedMeta: Record<string, any> = { ...next._metadata };
+		for (const [fieldId, meta] of Object.entries(fixedMeta)) {
+			const fieldConfig = borrowerResumeFieldMetadata[fieldId];
+			const dataType = (fieldConfig as any)?.dataType;
+			if (!dataType || dataType === "Boolean") continue;
+
+			if (meta && typeof meta === "object") {
+				if (typeof meta.value === "boolean") {
+					meta.value = null;
+				}
+				if (typeof meta.original_value === "boolean") {
+					meta.original_value = null;
+				}
+			}
+		}
+		next._metadata = fixedMeta;
+	}
+
+	return next as Partial<BorrowerResumeContent>;
+};
 
 export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	projectId,
 	onComplete,
-	onProgressChange,
-	onFormDataChange,
+	compact,
 	onAskAI,
-	progressPercent,
+	onFormDataChange,
+	initialFocusFieldId,
+	onVersionChange,
 	onCopyBorrowerResume,
 	copyDisabled,
 	copyLoading,
-	unstyled = false,
+	onProgressChange,
 }) => {
-	const { user } = useAuth();
 	const {
 		content: borrowerResume,
 		isLoading: resumeLoading,
-		isSaving,
 		save,
-		isRemoteUpdate,
 		reload: reloadBorrowerResume,
-		lockedFields: savedLockedFields,
-		lockedSections: savedLockedSections,
+		isRemoteUpdate,
 	} = useProjectBorrowerResumeRealtime(projectId);
-	// Principals removed from new schema - kept as empty array for form compatibility
-	const principals: Principal[] = [];
 
-	// State variables
-	const [formSaved, setFormSaved] = useState(false);
-	const [justSaved, setJustSaved] = useState(false);
-	const [isEditing, setIsEditing] = useState(false); // Default to view mode
-	const [collapsed, setCollapsed] = useState<boolean>(() => {
-		try {
-			return JSON.parse(
-				typeof window !== "undefined"
-					? localStorage.getItem("borrowerResumeCollapsed") || "true"
-					: "true"
-			);
-		} catch {
-			return true;
-		}
-	});
+	// State
+	const [isEditing, setIsEditing] = useState(false);
 	const [formData, setFormData] = useState<Partial<BorrowerResumeContent>>(
-		{}
+		borrowerResume ? sanitizeBorrowerProfile(borrowerResume) : {}
 	);
-	const [principalFormData, setPrincipalFormData] = useState<
-		Partial<Principal>
-	>({ principalRoleDefault: "Key Principal" });
-	// Persist principals inside JSONB content via formData.principals
-	const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
+	const [fieldMetadata, setFieldMetadata] = useState<Record<string, any>>(
+		(borrowerResume as any)?._metadata || {}
+	);
 
-	// Metadata state for tracking sources and warnings (similar to EnhancedProjectForm)
-	const [fieldMetadata, setFieldMetadata] = useState<
-		Record<
-			string,
-			{
-				sources?: any[]; // Array of SourceMetadata objects (only format - no source field)
-				warnings?: string[];
-				value?: any;
-				original_value?: any;
-			}
-		>
-	>({});
-	const [showCompletionPercent, setShowCompletionPercent] = useState(true);
-	const completionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
-	const savedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	const prevIsSavingRef = useRef<boolean>(false);
-	const lastInitializedSnapshot = useRef<string | null>(null);
-	const lastSavedSnapshotRef = useRef<string | null>(null);
-
-	// Lock state management - initialize from saved data
+	// Initialize locked state from props/loaded data
 	const [lockedFields, setLockedFields] = useState<Set<string>>(() => {
-		const saved = savedLockedFields || {};
-		return new Set(Object.keys(saved).filter((key) => saved[key] === true));
-	});
-	const [lockedSections, setLockedSections] = useState<Set<string>>(() => {
-		const saved = savedLockedSections || {};
+		const saved = (borrowerResume as any)?._lockedFields || {};
 		return new Set(Object.keys(saved).filter((key) => saved[key] === true));
 	});
 	const [unlockedFields, setUnlockedFields] = useState<Set<string>>(
 		new Set()
-	); // Fields explicitly unlocked even when section is locked
+	);
 
-	// Sync locked fields from saved data when it changes
-	useEffect(() => {
-		if (savedLockedFields) {
-			const newLockedFields = new Set(
-				Object.keys(savedLockedFields).filter(
-					(key) => savedLockedFields[key] === true
-				)
-			);
-			setLockedFields(newLockedFields);
-		}
-	}, [savedLockedFields]);
+	// Separate state for the "Add Principal" form inputs
+	const [principalFormData, setPrincipalFormData] = useState<
+		Partial<Principal>
+	>({
+		principalRoleDefault: "Key Principal",
+	});
+	const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
 
-	// Sync locked sections from saved data when it changes
-	useEffect(() => {
-		if (savedLockedSections) {
-			const newLockedSections = new Set(
-				Object.keys(savedLockedSections).filter(
-					(key) => savedLockedSections[key] === true
-				)
-			);
-			setLockedSections(newLockedSections);
-		}
-	}, [savedLockedSections]);
+	const [showAutofillNotification, setShowAutofillNotification] =
+		useState(false);
+	const [formSaved, setFormSaved] = useState(false);
+	const [isRestoring, setIsRestoring] = useState(false);
+	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+	const [refreshKey, setRefreshKey] = useState(0);
 
-	// Autofill state
+	// Refs for autosave and dirty check
+	const initialSnapshotRef = useRef<{
+		formData: Partial<BorrowerResumeContent>;
+		fieldMetadata: Record<string, any>;
+		lockedFields: Set<string>;
+	} | null>(null);
+	const lastSavedSnapshotRef = useRef<{
+		formData: Partial<BorrowerResumeContent>;
+		fieldMetadata: Record<string, any>;
+		lockedFields: Set<string>;
+	} | null>(null);
+	const stateRef = useRef({
+		formData,
+		fieldMetadata,
+		lockedFields,
+	});
+	const isSavingRef = useRef(false);
+
 	const {
 		isAutofilling,
 		showSparkles,
 		handleAutofill: startAutofill,
-	} = useAutofill(projectId, {
-		context: "borrower",
-	});
-	const [showAutofillSuccess, setShowAutofillSuccess] = useState(false);
-	const [autofillAnimationKey, setAutofillAnimationKey] = useState(0);
+	} = useAutofill(projectId, { context: "borrower" });
 
-	const handleVersionRollbackSuccess = useCallback(async () => {
-		await reloadBorrowerResume();
-		setIsEditing(false);
-		// Trigger refresh animation similar to project resume
-		const newKey = autofillAnimationKey + 1;
-		setAutofillAnimationKey(newKey);
-		setShowAutofillSuccess(true);
-		setTimeout(() => {
-			setShowAutofillSuccess(false);
-		}, 4000);
-		// Ensure resume is expanded to show the animation
-		if (collapsed) {
-			setCollapsed(false);
-		}
-	}, [reloadBorrowerResume, setIsEditing, autofillAnimationKey, collapsed]);
+	// Effect to handle updates from parent/hook (e.g. after Autofill or Initial Load)
+	useEffect(() => {
+		if (isRestoring) return;
+		if (!borrowerResume) return;
 
-	const handleVersionHistoryOpen = useCallback(() => {
-		setCollapsed(false);
-	}, []);
+		const sanitized = sanitizeBorrowerProfile(borrowerResume);
+		setFormData(sanitized);
+		const metadata = (sanitized as any)._metadata || {};
+		setFieldMetadata(metadata);
 
-	// Helper function to check if a field is locked
-	const isFieldLocked = useCallback(
-		(fieldId: string, sectionId?: string): boolean => {
-			// If explicitly unlocked (overrides section lock), return false
-			if (unlockedFields.has(fieldId)) return false;
+		// Update locks based on source
+		const newLockedFields = new Set(
+			Object.keys((borrowerResume as any)._lockedFields || {}).filter(
+				(k) => (borrowerResume as any)._lockedFields?.[k]
+			)
+		);
 
-			// If explicitly locked, return true
-			if (lockedFields.has(fieldId)) return true;
+		Object.entries(metadata).forEach(([fieldId, meta]) => {
+			const isAiSourced =
+				Array.isArray((meta as any)?.sources) &&
+				(meta as any).sources.some((src: any) => {
+					if (!src) return false;
+					if (typeof src === "string") {
+						const normalized = src.toLowerCase();
+						return (
+							normalized !== "user_input" &&
+							normalized !== "user input"
+						);
+					}
+					if (
+						typeof src === "object" &&
+						"type" in src &&
+						typeof (src as any).type === "string"
+					) {
+						return (src as any).type !== "user_input";
+					}
+					return false;
+				});
 
-			// If section is locked and field is not explicitly unlocked, return true
-			if (sectionId && lockedSections.has(sectionId)) return true;
+			const hasValue = isValueProvided((sanitized as any)[fieldId]);
+			if (isAiSourced && hasValue) {
+				newLockedFields.add(fieldId);
+			}
+		});
 
-			return false;
-		},
-		[lockedFields, lockedSections, unlockedFields]
+		setLockedFields(newLockedFields);
+
+		const snapshot = {
+			formData: sanitized,
+			fieldMetadata: metadata,
+			lockedFields: newLockedFields,
+		};
+		initialSnapshotRef.current = snapshot;
+		lastSavedSnapshotRef.current = snapshot;
+	}, [borrowerResume, isRestoring]);
+
+	// Autosave Key
+	const storageKey = useMemo(
+		() => `capmatch_borrower_resume_draft_${projectId}`,
+		[projectId]
 	);
 
-	// Toggle lock for a single field
+	// Restore from Local Storage
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		try {
+			const saved = localStorage.getItem(storageKey);
+			if (saved) {
+				const draft = JSON.parse(saved);
+				if (draft.projectId === projectId) {
+					console.log(
+						"[BorrowerResumeForm] Restoring draft from local storage"
+					);
+					setIsRestoring(true);
+					setFormData(draft.formData);
+					setFieldMetadata(draft.fieldMetadata || {});
+					if (draft.lockedFields) {
+						setLockedFields(new Set(draft.lockedFields));
+					}
+					setLastSavedAt(draft.updatedAt);
+					setTimeout(() => setIsRestoring(false), 100);
+				}
+			}
+		} catch (err) {
+			console.warn("[BorrowerResumeForm] Failed to restore draft:", err);
+		}
+	}, [projectId, storageKey]);
+
+	// Update refs
+	useEffect(() => {
+		stateRef.current = { formData, fieldMetadata, lockedFields };
+		onFormDataChange?.(formData);
+
+		// Report progress
+		const completeness = computeBorrowerCompletion(formData);
+		onProgressChange?.(completeness);
+	}, [
+		formData,
+		fieldMetadata,
+		lockedFields,
+		onFormDataChange,
+		onProgressChange,
+	]);
+
+	// Save to Local Storage (Debounced)
+	useEffect(() => {
+		if (isRestoring) return;
+		const handler = setTimeout(() => {
+			if (typeof window === "undefined") return;
+			try {
+				const draft = {
+					projectId,
+					formData,
+					fieldMetadata,
+					lockedFields: Array.from(lockedFields),
+					updatedAt: Date.now(),
+				};
+				localStorage.setItem(storageKey, JSON.stringify(draft));
+				setLastSavedAt(Date.now());
+			} catch (err) {
+				console.warn("[BorrowerResumeForm] Failed to save draft:", err);
+			}
+		}, 1000);
+		return () => clearTimeout(handler);
+	}, [
+		formData,
+		fieldMetadata,
+		lockedFields,
+		projectId,
+		storageKey,
+		isRestoring,
+	]);
+
+	// Autosave notification handler
+	useEffect(() => {
+		const handler = async (e: any) => {
+			if (
+				e.detail?.projectId === projectId &&
+				e.detail?.context === "borrower"
+			) {
+				setShowAutofillNotification(true);
+				setTimeout(() => setShowAutofillNotification(false), 5000);
+				// Reload borrower resume data after autofill completes
+				await reloadBorrowerResume();
+			}
+		};
+		if (typeof window !== "undefined") {
+			window.addEventListener("autofill-completed", handler as any);
+		}
+		return () => {
+			if (typeof window !== "undefined") {
+				window.removeEventListener(
+					"autofill-completed",
+					handler as any
+				);
+			}
+		};
+	}, [projectId, reloadBorrowerResume]);
+
+	const handleInputChange = useCallback((fieldId: string, value: any) => {
+		setFormData((prev) => ({ ...prev, [fieldId]: value }));
+		setFieldMetadata((prev) => {
+			const currentMeta = prev[fieldId] || {
+				value: value,
+				sources: [],
+				warnings: [],
+				original_value: value,
+			};
+			return {
+				...prev,
+				[fieldId]: {
+					...currentMeta,
+					value: value,
+					sources: [{ type: "user_input" }],
+					original_source: null,
+				},
+			};
+		});
+	}, []);
+
+	// Principals Management
+	const handlePrincipalInputChange = useCallback(
+		(field: keyof Principal, value: any) => {
+			setPrincipalFormData((prev) => ({ ...prev, [field]: value }));
+		},
+		[]
+	);
+
+	const resetPrincipalForm = useCallback(() => {
+		setPrincipalFormData({ principalRoleDefault: "Key Principal" });
+	}, []);
+
+	const handleAddPrincipal = useCallback(() => {
+		const name = (principalFormData.principalLegalName || "").trim();
+		const role = (principalFormData.principalRoleDefault || "").trim();
+		if (!name || !role) return;
+
+		setIsAddingPrincipal(true);
+		const newPrincipal: Principal = {
+			id: Math.random().toString(36).slice(2),
+			...principalFormData,
+			principalLegalName: name,
+			principalRoleDefault: role as PrincipalRole,
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		} as Principal;
+
+		const currentPrincipals = Array.isArray(formData.principals)
+			? (formData.principals as Principal[])
+			: [];
+		const updatedPrincipals = [...currentPrincipals, newPrincipal];
+
+		handleInputChange("principals", updatedPrincipals);
+		resetPrincipalForm();
+		setIsAddingPrincipal(false);
+	}, [
+		principalFormData,
+		formData.principals,
+		handleInputChange,
+		resetPrincipalForm,
+	]);
+
+	const handleRemovePrincipal = useCallback(
+		(index: number) => {
+			const currentPrincipals = Array.isArray(formData.principals)
+				? (formData.principals as Principal[])
+				: [];
+			const updatedPrincipals = [...currentPrincipals];
+			updatedPrincipals.splice(index, 1);
+			handleInputChange("principals", updatedPrincipals);
+		},
+		[formData.principals, handleInputChange]
+	);
+
+	const hasUnsavedChanges = useCallback((): boolean => {
+		const baseline =
+			lastSavedSnapshotRef.current || initialSnapshotRef.current;
+		if (!baseline) return true;
+		const current = stateRef.current;
+		const lockedToArray = (s: Set<string>) => Array.from(s).sort();
+
+		try {
+			const formEqual =
+				JSON.stringify(current.formData) ===
+				JSON.stringify(baseline.formData);
+			const metaEqual =
+				JSON.stringify(current.fieldMetadata) ===
+				JSON.stringify(baseline.fieldMetadata);
+			const locksEqual =
+				JSON.stringify(lockedToArray(current.lockedFields)) ===
+				JSON.stringify(lockedToArray(baseline.lockedFields));
+			return !(formEqual && metaEqual && locksEqual);
+		} catch {
+			return true;
+		}
+	}, []);
+
+	const saveToDatabase = useCallback(
+		async (
+			finalData: Partial<BorrowerResumeContent>,
+			createNewVersion: boolean
+		) => {
+			if (!hasUnsavedChanges()) {
+				if (typeof window !== "undefined") {
+					localStorage.removeItem(storageKey);
+					setLastSavedAt(null);
+				}
+				return;
+			}
+
+			setFormSaved(true);
+			isSavingRef.current = true;
+			try {
+				const lockedFieldsObj: Record<string, boolean> = {};
+				lockedFields.forEach((id) => (lockedFieldsObj[id] = true));
+
+				// Calculate completeness before saving
+				const completenessPercent =
+					computeBorrowerCompletion(finalData);
+
+				const dataToSave = {
+					...finalData,
+					_metadata: fieldMetadata,
+					completenessPercent,
+				};
+
+				await save(
+					dataToSave,
+					lockedFieldsObj,
+					undefined,
+					createNewVersion
+				);
+
+				// Reload to get updated content
+				await reloadBorrowerResume();
+
+				const snapshot = {
+					formData: finalData,
+					fieldMetadata,
+					lockedFields: new Set(lockedFields),
+				};
+				lastSavedSnapshotRef.current = snapshot;
+				stateRef.current = snapshot;
+
+				if (typeof window !== "undefined") {
+					localStorage.removeItem(storageKey);
+					setLastSavedAt(null);
+				}
+			} catch (err) {
+				console.error("Save failed:", err);
+			} finally {
+				isSavingRef.current = false;
+				setTimeout(() => setFormSaved(false), 1500);
+			}
+		},
+		[
+			hasUnsavedChanges,
+			lockedFields,
+			fieldMetadata,
+			save,
+			storageKey,
+			reloadBorrowerResume,
+		]
+	);
+
+	const handleFormSubmit = useCallback(
+		async (finalData?: Partial<BorrowerResumeContent>) => {
+			const dataToSave = finalData || formData;
+			await saveToDatabase(dataToSave, true);
+			setIsEditing(false);
+			onComplete?.(dataToSave as BorrowerResumeContent);
+			reloadBorrowerResume();
+		},
+		[formData, saveToDatabase, onComplete, reloadBorrowerResume]
+	);
+
+	// Save on Unmount
+	useEffect(() => {
+		return () => {
+			if (isSavingRef.current) return;
+			if (!hasUnsavedChanges()) return;
+
+			const {
+				formData: currentData,
+				fieldMetadata: currentMeta,
+				lockedFields: currentLocks,
+			} = stateRef.current;
+
+			const lockedFieldsObj: Record<string, boolean> = {};
+			currentLocks.forEach((id) => (lockedFieldsObj[id] = true));
+
+			// Recompute completion for the background save
+			const completenessPercent = computeBorrowerCompletion(currentData);
+
+			const dataToSave = {
+				...currentData,
+				_metadata: currentMeta,
+				_lockedFields: lockedFieldsObj,
+				completenessPercent,
+			};
+
+			void saveProjectBorrowerResume(projectId, dataToSave, {
+				createNewVersion: true,
+			})
+				.then(() => {
+					if (typeof window !== "undefined") {
+						localStorage.removeItem(storageKey);
+					}
+				})
+				.catch((err) =>
+					console.error(
+						"[BorrowerResumeForm] Unmount save failed",
+						err
+					)
+				);
+		};
+	}, [hasUnsavedChanges, projectId, storageKey]);
+
+	// Warn on close
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!hasUnsavedChanges()) return;
+			event.preventDefault();
+			event.returnValue = "";
+		};
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => {
+			window.removeEventListener("beforeunload", handleBeforeUnload);
+		};
+	}, [hasUnsavedChanges]);
+
+	// Helpers for UI
+	const isFieldLocked = useCallback(
+		(fieldId: string, _sectionId?: string): boolean => {
+			if (unlockedFields.has(fieldId)) return false;
+			if (lockedFields.has(fieldId)) return true;
+			return false;
+		},
+		[lockedFields, unlockedFields]
+	);
+
 	const toggleFieldLock = useCallback(
-		(fieldId: string, sectionId?: string) => {
-			// Check current effective lock state
+		(fieldId: string) => {
 			const currentlyLocked = (() => {
 				if (unlockedFields.has(fieldId)) return false;
 				if (lockedFields.has(fieldId)) return true;
-				if (sectionId && lockedSections.has(sectionId)) return true;
 				return false;
 			})();
 
 			if (currentlyLocked) {
-				// Unlocking the field
-				// If section is locked, add to unlockedFields (override section lock)
-				if (sectionId && lockedSections.has(sectionId)) {
-					setUnlockedFields((prev) => {
-						const next = new Set(prev);
-						next.add(fieldId);
-						return next;
-					});
-					// Field is now effectively unlocked (override section lock)
-					return;
-				} else {
-					// Field was explicitly locked, remove from lockedFields
-					setLockedFields((prev) => {
-						const next = new Set(prev);
-						next.delete(fieldId);
-
-						// Save to database
-						const lockedFieldsMap: Record<string, boolean> = {};
-						next.forEach((id) => {
-							lockedFieldsMap[id] = true;
-						});
-						save({}, lockedFieldsMap, {}).catch((err) => {
-							console.error(
-								"Failed to save unlocked field:",
-								err
-							);
-						});
-
-						return next;
-					});
-					// Also remove from unlockedFields if it was there
-					setUnlockedFields((prev) => {
-						const next = new Set(prev);
-						next.delete(fieldId);
-						return next;
-					});
-				}
-			} else {
-				// Locking the field
-				// Remove from unlockedFields if it was there
-				setUnlockedFields((prev) => {
-					const next = new Set(prev);
-					next.delete(fieldId);
-					return next;
-				});
-				// Add to lockedFields
 				setLockedFields((prev) => {
-					const next = new Set(prev);
-					next.add(fieldId);
-
-					// Save to database
-					const lockedFieldsMap: Record<string, boolean> = {};
-					next.forEach((id) => {
-						lockedFieldsMap[id] = true;
-					});
-					save({}, lockedFieldsMap, {}).catch((err) => {
-						console.error("Failed to save locked field:", err);
-					});
-
-					return next;
+					const n = new Set(prev);
+					n.delete(fieldId);
+					return n;
+				});
+				setUnlockedFields((prev) => {
+					const n = new Set(prev);
+					n.add(fieldId);
+					return n;
+				});
+			} else {
+				setLockedFields((prev) => {
+					const n = new Set(prev);
+					n.add(fieldId);
+					return n;
+				});
+				setUnlockedFields((prev) => {
+					const n = new Set(prev);
+					n.delete(fieldId);
+					return n;
 				});
 			}
 		},
-		[lockedSections, unlockedFields, lockedFields, save]
+		[unlockedFields, lockedFields]
 	);
 
-	// Get all field IDs in a section (needed for section lock visual feedback)
-	const getSectionFieldIds = useCallback((sectionId: string): string[] => {
-		return BORROWER_SECTION_FIELD_MAP[sectionId] || [];
-	}, []);
-
-	// Sync section lock state based on individual field locks
-	// A section is locked if all its fields are individually locked
-	useEffect(() => {
-		setLockedSections((prev) => {
-			const next = new Set(prev);
-			// Check each section to see if all fields are locked
-			for (const [sectionId, fieldIds] of Object.entries(
-				BORROWER_SECTION_FIELD_MAP
-			)) {
-				const allFieldsLocked = fieldIds.every((fieldId) => {
-					// Field is locked if it's in lockedFields (and not explicitly unlocked)
-					if (unlockedFields.has(fieldId)) return false; // Explicitly unlocked
-					return lockedFields.has(fieldId); // Explicitly locked
-				});
-
-				if (allFieldsLocked && fieldIds.length > 0) {
-					next.add(sectionId);
-				} else {
-					next.delete(sectionId);
-				}
-			}
-
-			// Save to database if changed (use setTimeout to avoid blocking)
-			if (
-				JSON.stringify(Array.from(next).sort()) !==
-				JSON.stringify(Array.from(prev).sort())
-			) {
-				setTimeout(() => {
-					const lockedSectionsMap: Record<string, boolean> = {};
-					next.forEach((id) => {
-						lockedSectionsMap[id] = true;
-					});
-					save({}, {}, lockedSectionsMap).catch((err) => {
-						console.error("Failed to save locked sections:", err);
-					});
-				}, 0);
-			}
-
-			return next;
-		});
-	}, [lockedFields, unlockedFields, save]);
-
-	// Toggle lock for an entire section
-	const toggleSectionLock = useCallback(
-		(sectionId: string) => {
-			const sectionFields = getSectionFieldIds(sectionId);
-			const allCurrentlyLocked = sectionFields.every((fieldId) =>
-				isFieldLocked(fieldId, sectionId)
+	const isSubsectionFullyLocked = useCallback(
+		(fieldIds: string[]) => {
+			if (fieldIds.length === 0) return false;
+			return fieldIds.every(
+				(id) => !unlockedFields.has(id) && lockedFields.has(id)
 			);
-
-			if (allCurrentlyLocked) {
-				// Unlocking section - unlock all individual fields
-				setLockedFields((prev) => {
-					const next = new Set(prev);
-					sectionFields.forEach((fieldId) => {
-						next.delete(fieldId);
-					});
-
-					// Save to database
-					const lockedFieldsMap: Record<string, boolean> = {};
-					next.forEach((id) => {
-						lockedFieldsMap[id] = true;
-					});
-					save({}, lockedFieldsMap, {}).catch((err) => {
-						console.error("Failed to save unlocked fields:", err);
-					});
-
-					return next;
-				});
-
-				// Clear any unlocked field overrides for this section
-				setUnlockedFields((prev) => {
-					const next = new Set(prev);
-					sectionFields.forEach((fieldId) => {
-						next.delete(fieldId);
-					});
-					return next;
-				});
-			} else {
-				// Locking section - lock all individual fields
-				setLockedFields((prev) => {
-					const next = new Set(prev);
-					sectionFields.forEach((fieldId) => {
-						next.add(fieldId);
-					});
-
-					// Save to database
-					const lockedFieldsMap: Record<string, boolean> = {};
-					next.forEach((id) => {
-						lockedFieldsMap[id] = true;
-					});
-					save({}, lockedFieldsMap, {}).catch((err) => {
-						console.error("Failed to save locked fields:", err);
-					});
-
-					return next;
-				});
-
-				// Clear any unlocked field overrides for this section
-				setUnlockedFields((prev) => {
-					const next = new Set(prev);
-					sectionFields.forEach((fieldId) => {
-						next.delete(fieldId);
-					});
-					return next;
-				});
-			}
 		},
-		[getSectionFieldIds, save, isFieldLocked]
+		[lockedFields, unlockedFields]
 	);
 
-	// Helper function to check if a field value is valid (not null, empty, or invalid)
-	const isValidFieldValue = useCallback((value: any): boolean => {
-		if (value === null || value === undefined) return false;
-		if (typeof value === "string" && value.trim() === "") return false;
-		if (Array.isArray(value) && value.length === 0) return false;
-		if (typeof value === "object" && Object.keys(value).length === 0)
-			return false;
-		return true;
-	}, []);
+	const toggleSubsectionLock = useCallback(
+		(fieldIds: string[]) => {
+			const isLocked = isSubsectionFullyLocked(fieldIds);
+			setLockedFields((prev) => {
+				const next = new Set(prev);
+				fieldIds.forEach((id) => {
+					const value = (formData as any)[id];
+					if (isLocked) next.delete(id);
+					else if (isValueProvided(value)) next.add(id);
+				});
+				return next;
+			});
+			setUnlockedFields((prev) => {
+				const next = new Set(prev);
+				fieldIds.forEach((id) => next.delete(id));
+				return next;
+			});
+		},
+		[isSubsectionFullyLocked, formData]
+	);
 
-	// Helper function to get field styling classes based on lock status
-	// Green: Locked & Filled
-	// Blue: Unlocked & Filled
-	// White: Empty
 	const getFieldStylingClasses = useCallback(
-		(fieldId: string, sectionId?: string): string => {
-			const value = formData[fieldId as keyof BorrowerResumeContent];
-			const hasValue = isValidFieldValue(value);
-			const isLocked = isFieldLocked(fieldId, sectionId);
+		(fieldId: string, sectionId?: string) => {
+			const value = (formData as any)[fieldId];
+			const hasValue = isValueProvided(value);
+			const locked = isFieldLocked(fieldId, sectionId);
+			const meta = fieldMetadata[fieldId];
+			const hasSources =
+				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
 
-			const baseClasses =
+			const base =
 				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
 
-			// Empty fields are White
 			if (!hasValue) {
-				return cn(
-					baseClasses,
-					"border-gray-200 bg-white focus:ring-blue-200 hover:border-gray-300"
-				);
+				if (hasSources) {
+					if (locked)
+						return cn(
+							base,
+							"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 text-gray-800"
+						);
+					return cn(
+						base,
+						"border-blue-600 bg-blue-50 focus:ring-blue-200 text-gray-800"
+					);
+				}
+				return cn(base, "border-gray-200 bg-white focus:ring-blue-200");
 			}
-
-			// Filled & Locked -> Green
-			if (isLocked) {
+			if (locked)
 				return cn(
-					baseClasses,
-					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
+					base,
+					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 text-gray-800"
 				);
-			}
-
-			// Filled & Unlocked -> Blue
 			return cn(
-				baseClasses,
-				"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
+				base,
+				"border-blue-600 bg-blue-50 focus:ring-blue-200 text-gray-800"
 			);
 		},
-		[formData, isFieldLocked, isValidFieldValue]
+		[formData, fieldMetadata, isFieldLocked]
 	);
 
-	// Helper function to render field lock button - always visible, positioned next to Ask AI button
+	const isFieldBlue = useCallback(
+		(fieldId: string, sectionId?: string): boolean => {
+			const value = (formData as any)[fieldId];
+			const hasValue = isValueProvided(value);
+			const locked = isFieldLocked(fieldId, sectionId);
+			const meta = fieldMetadata[fieldId];
+			const hasSources =
+				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+
+			if (!hasValue) {
+				return !!(hasSources && !locked);
+			}
+			return !locked;
+		},
+		[formData, fieldMetadata, isFieldLocked]
+	);
+
+	const isFieldGreen = useCallback(
+		(fieldId: string, sectionId?: string): boolean => {
+			const value = (formData as any)[fieldId];
+			const hasValue = isValueProvided(value);
+			const locked = isFieldLocked(fieldId, sectionId);
+			const meta = fieldMetadata[fieldId];
+			const hasSources =
+				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+			return !!((hasValue || hasSources) && locked);
+		},
+		[formData, fieldMetadata, isFieldLocked]
+	);
+
+	const isFieldWhite = useCallback(
+		(fieldId: string, sectionId?: string): boolean => {
+			const value = (formData as any)[fieldId];
+			const hasValue = isValueProvided(value);
+			const meta = fieldMetadata[fieldId];
+			const hasSources =
+				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+			return !hasValue && !hasSources;
+		},
+		[formData, fieldMetadata]
+	);
+
 	const renderFieldLockButton = useCallback(
 		(fieldId: string, sectionId: string) => {
 			const locked = isFieldLocked(fieldId, sectionId);
+			const value = (formData as any)[fieldId];
+			const hasValue = isValueProvided(value);
+			const isDisabled = !hasValue && !locked;
+
+			const tooltipTitle = isDisabled
+				? "Cannot lock an empty field. Please fill in a value first."
+				: locked
+				? "Unlock field"
+				: "Lock field";
+
 			return (
-				<button
-					type="button"
-					onClick={(e) => {
-						e.stopPropagation();
-						e.preventDefault();
-						toggleFieldLock(fieldId, sectionId);
-					}}
-					onMouseDown={(e) => {
-						e.stopPropagation();
-					}}
-					className={cn(
-						"flex items-center justify-center p-1 rounded transition-colors relative z-30 cursor-pointer",
-						locked
-							? "text-emerald-600 hover:text-emerald-700"
-							: "text-gray-400 hover:text-blue-600"
-					)}
-					title={locked ? "Unlock field" : "Lock field"}
-				>
-					{locked ? (
-						<Lock className="h-4 w-4" />
-					) : (
-						<Unlock className="h-4 w-4" />
-					)}
-				</button>
+				<div className="flex items-center" title={tooltipTitle}>
+					<button
+						type="button"
+						onClick={(e) => {
+							e.stopPropagation();
+							if (!isDisabled) toggleFieldLock(fieldId);
+						}}
+						disabled={isDisabled}
+						className={cn(
+							"flex items-center justify-center p-1 rounded transition-colors z-10",
+							isDisabled
+								? "cursor-not-allowed text-gray-300"
+								: "cursor-pointer",
+							locked
+								? "text-emerald-600 hover:text-emerald-700"
+								: "text-gray-400 hover:text-blue-600"
+						)}
+					>
+						{locked ? (
+							<Lock className="h-4 w-4" />
+						) : (
+							<Unlock className="h-4 w-4" />
+						)}
+					</button>
+				</div>
 			);
 		},
-		[isFieldLocked, toggleFieldLock]
+		[isFieldLocked, formData, toggleFieldLock]
 	);
 
-	// Helper function to render field label with Ask AI and Lock buttons
+	const getFieldWarning = useCallback(
+		(fieldId: string) => {
+			const meta = fieldMetadata[fieldId];
+			if (!meta?.warnings || meta.warnings.length === 0) return null;
+			return meta.warnings.join(" ");
+		},
+		[fieldMetadata]
+	);
+
 	const renderFieldLabel = useCallback(
 		(
 			fieldId: string,
@@ -621,2776 +894,944 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			labelText: string,
 			required: boolean = false
 		) => {
+			const warning = getFieldWarning(fieldId);
 			return (
-				<div className="flex items-center gap-2 mb-1 relative group/field">
-					<label className="block text-sm font-medium text-gray-700">
-						{labelText}
-						{required && (
-							<span className="text-red-500 ml-1">*</span>
+				<div className="mb-1">
+					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
+						<span>
+							{labelText}{" "}
+							{required && (
+								<span className="text-red-500 ml-1">*</span>
+							)}
+						</span>
+						<FieldHelpTooltip
+							fieldId={fieldId}
+							fieldMetadata={fieldMetadata[fieldId]}
+						/>
+						{warning && (
+							<span className="text-xs text-amber-700 flex items-center gap-1">
+								<AlertTriangle className="h-3 w-3" />
+								{warning}
+							</span>
 						)}
+						<div className="ml-auto flex items-center gap-1">
+							<button
+								type="button"
+								onClick={() => onAskAI?.(fieldId)}
+								className="px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-medium text-blue-600 opacity-0 group-hover/field:opacity-100 transition-opacity"
+							>
+								Ask AI
+							</button>
+							{renderFieldLockButton(fieldId, sectionId)}
+						</div>
 					</label>
-					<FieldHelpTooltip
-						fieldId={fieldId}
-						fieldMetadata={fieldMetadata[fieldId]}
-					/>
-					{/* Ask AI and Lock buttons together - Ask AI on left, Lock on right */}
-					<div className="ml-auto flex items-center gap-1">
-						<button
-							type="button"
-							onClick={() => (onAskAI || (() => {}))(fieldId)}
-							className="px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md text-xs font-medium text-blue-600 opacity-0 group-hover/field:opacity-100 transition-opacity cursor-pointer relative z-10"
-							title="Ask AI for help with this field"
-						>
-							Ask AI
-						</button>
-						{renderFieldLockButton(fieldId, sectionId)}
-					</div>
 				</div>
 			);
 		},
-		[onAskAI, renderFieldLockButton, fieldMetadata]
+		[fieldMetadata, onAskAI, renderFieldLockButton, getFieldWarning]
 	);
 
-	// Handle autofill button click
-	const handleAutofill = useCallback(async () => {
-		const newKey = autofillAnimationKey + 1;
-
-		const showSuccess = () => {
-			setAutofillAnimationKey(newKey);
-			setShowAutofillSuccess(true);
-			setTimeout(() => {
-				setShowAutofillSuccess(false);
-			}, 4000);
-		};
-
-		if (!isEditing && !collapsed) {
-			showSuccess();
-		} else if (!isEditing && collapsed) {
-			setCollapsed(false);
-			setTimeout(() => {
-				showSuccess();
-			}, 350);
-		}
-
-		try {
-			await startAutofill();
-		} catch (error) {
-			console.error("Borrower autofill failed:", error);
-		}
-	}, [isEditing, collapsed, autofillAnimationKey, startAutofill]);
-
-	// Helper function to check if a field is autofilled (has source that's not user_input AND has valid value)
-	const isFieldAutofilled = useCallback(
-		(fieldId: string): boolean => {
-			const meta = fieldMetadata[fieldId];
-			if (!meta || !meta.sources || meta.sources.length === 0)
-				return false;
-
-			// Check if any source is not User Input (normalized)
-			const source = meta.sources[0];
-			if (!source) return false;
-
-			// Normalize source to check against "User Input"
-			const normalizedSource = normalizeSource(source as string);
-			const isUserInput =
-				normalizedSource.toLowerCase() === "user input" ||
-				(typeof source === "string" &&
-					source.toLowerCase() === "user_input") ||
-				(typeof source === "string" &&
-					source.toLowerCase() === "user input") ||
-				(source as any).type === "user_input";
-
-			// If source is "User Input", it can't be autofilled by AI
-			if (isUserInput) return false;
-
-			// Check if field has a valid value
-			const fieldValue = formData[fieldId as keyof typeof formData];
-			const hasValidValue = isValidFieldValue(fieldValue);
-
-			// Field is autofilled only if it has both a valid source AND a valid value
-			return hasValidValue;
-		},
-		[fieldMetadata, formData, isValidFieldValue]
-	);
-
-	// Helper function to get sectionId from fieldId
-	const getSectionIdFromFieldId = useCallback(
-		(fieldId: string): string | undefined => {
-			for (const [sectionId, fieldIds] of Object.entries(
-				BORROWER_SECTION_FIELD_MAP
-			)) {
-				if (fieldIds.includes(fieldId)) {
-					return sectionId;
-				}
-			}
-			return undefined;
-		},
-		[]
-	);
-
-	// Check if autofill has ever been run (has any field with non-user-input source)
-	const hasAutofillBeenRun = useMemo(() => {
-		if (!borrowerResume) return false;
-
-		// Check all fields for any non-user-input source
-		// Only return true if we find an actual autofilled field with a valid non-user-input source
-		for (const [key, value] of Object.entries(borrowerResume)) {
-			if (
-				key === "_metadata" ||
-				key === "_lockedFields" ||
-				key === "_lockedSections" ||
-				key === "completenessPercent"
-			)
-				continue;
-
-			// Skip if value is empty/null/undefined
-			if (!value) continue;
-
-			// Check fieldMetadata first (more reliable) - this comes from the database
-			const meta = fieldMetadata[key];
-			if (meta && meta.sources && meta.sources.length > 0) {
-				const hasNonUserInput = meta.sources.some((src: any) => {
-					if (
-						typeof src === "object" &&
-						src !== null &&
-						"type" in src
-					) {
-						return src.type !== "user_input";
-					} else if (typeof src === "string") {
-						const normalizedSource = normalizeSource(src);
-						return (
-							normalizedSource.toLowerCase() !== "user input" &&
-							src.toLowerCase() !== "user_input"
-						);
-					}
-					return false;
-				});
-				if (hasNonUserInput) {
-					// Verify the field actually has a value (not just empty)
-					const fieldValue =
-						formData[key as keyof typeof formData] ?? value;
-					if (
-						fieldValue &&
-						(typeof fieldValue !== "string" ||
-							fieldValue.trim() !== "")
-					) {
-						return true;
-					}
-				}
-			}
-
-			// Also check value object structure from borrowerResume directly
-			if (
-				value &&
-				typeof value === "object" &&
-				"value" in value &&
-				!Array.isArray(value)
-			) {
-				const richValue = value as {
-					value: any;
-					sources?: any[];
-					source?: any;
-				};
-				const fieldVal = richValue.value;
-
-				// Skip if the actual value is empty
-				if (
-					!fieldVal ||
-					(typeof fieldVal === "string" && fieldVal.trim() === "")
-				)
-					continue;
-
-				const sources = richValue.sources;
-
-				// Check sources array only; primary source is at index 0
-				if (sources && Array.isArray(sources) && sources.length > 0) {
-					const hasNonUserInput = sources.some((src: any) => {
-						if (
-							typeof src === "object" &&
-							src !== null &&
-							"type" in src
-						) {
-							return src.type !== "user_input";
-						} else if (typeof src === "string") {
-							const normalizedSource = normalizeSource(src);
-							return (
-								normalizedSource.toLowerCase() !==
-									"user input" &&
-								src.toLowerCase() !== "user_input"
-							);
-						}
-						return false;
-					});
-					if (hasNonUserInput) return true;
-				}
-			}
-		}
-
-		return false;
-	}, [borrowerResume, fieldMetadata, formData]);
-
-	// Initialize form once on first load (avoid resetting on each store update)
-	// Don't reset formData if user is editing (preserves their work in progress)
-	useEffect(() => {
-		// Skip updating formData if user is actively editing
-		if (isEditing) {
-			return;
-		}
-
-		const defaultData: Partial<BorrowerResumeContent> = {};
-		const extractedData: Partial<BorrowerResumeContent> = {};
-		const extractedMetadata: typeof fieldMetadata = {};
-
-		// Extract data and metadata from borrowerResume
-		// Handle both section-wise format (section_1, section_2, etc.) and flat format (legacy)
-		if (borrowerResume) {
-			// Check if data is in section-wise format
-			const isSectionWise = Object.keys(borrowerResume).some((key) =>
-				key.startsWith("section_")
-			);
-
-			if (isSectionWise) {
-				// Section-wise format: { section_1: { fieldId: { value, sources, warnings, original_value } } }
-				for (const [sectionId, sectionFields] of Object.entries(
-					borrowerResume
-				)) {
-					if (
-						!sectionId.startsWith("section_") ||
-						typeof sectionFields !== "object" ||
-						sectionFields === null
-					) {
-						continue;
-					}
-
-					for (const [fieldId, fieldData] of Object.entries(
-						sectionFields
-					)) {
-						// Check if value is in rich format { value, sources, warnings, original_value }
-						if (
-							fieldData &&
-							typeof fieldData === "object" &&
-							"value" in fieldData
-						) {
-							const richFieldData = fieldData as {
-								value: any;
-								sources?: any[];
-								warnings?: string[];
-								original_value?: any;
-							};
-
-							extractedData[
-								fieldId as keyof BorrowerResumeContent
-							] = richFieldData.value;
-
-							// Extract sources - only use sources array (no source field)
-							const sources = richFieldData.sources;
-
-							// Build sources array - ensure all are valid SourceMetadata objects
-							let sourcesArray: any[] = [];
-							if (
-								sources &&
-								Array.isArray(sources) &&
-								sources.length > 0
-							) {
-								// Filter to only include valid SourceMetadata objects
-								sourcesArray = sources.filter(
-									(src: any) =>
-										src &&
-										typeof src === "object" &&
-										src !== null &&
-										"type" in src
-								);
-							}
-
-							// Always set metadata if value has sources or warnings
-							// This ensures we can display sources even if there are no warnings
-							if (
-								sourcesArray.length > 0 ||
-								(richFieldData.warnings &&
-									richFieldData.warnings.length > 0)
-							) {
-								extractedMetadata[fieldId] = {
-									sources:
-										sourcesArray.length > 0
-											? sourcesArray
-											: undefined,
-									warnings: richFieldData.warnings || [],
-									value: richFieldData.value,
-									original_value:
-										richFieldData.original_value ??
-										richFieldData.value,
-								};
-							}
-						} else {
-							// Flat format within section - just the value
-							extractedData[
-								fieldId as keyof BorrowerResumeContent
-							] = fieldData as any;
-						}
-					}
-				}
-			} else {
-				// Legacy flat format: { fieldId: { value, source, sources, warnings } }
-				for (const [key, value] of Object.entries(borrowerResume)) {
-					if (key === "_metadata") continue;
-
-					// Check if value is in rich format { value, source, sources, warnings }
-					if (
-						value &&
-						typeof value === "object" &&
-						"value" in value
-					) {
-						extractedData[key as keyof BorrowerResumeContent] =
-							value.value;
-
-						// Extract sources - handle both single source (legacy) and sources array
-						const source = (value as any).source;
-						const sources = value.sources;
-
-						// Build sources array - ensure all are valid SourceMetadata objects
-						let sourcesArray: any[] = [];
-						if (
-							sources &&
-							Array.isArray(sources) &&
-							sources.length > 0
-						) {
-							// Filter to only include valid SourceMetadata objects
-							sourcesArray = sources.filter(
-								(src: any) =>
-									src &&
-									typeof src === "object" &&
-									src !== null &&
-									"type" in src
-							);
-						} else if (source) {
-							// Legacy: Single source - validate it's a SourceMetadata object
-							if (
-								typeof source === "object" &&
-								source !== null &&
-								"type" in source
-							) {
-								sourcesArray = [source];
-							}
-						}
-
-						// Always set metadata if value has source/sources or warnings
-						// This ensures we can display sources even if there are no warnings
-						if (
-							sourcesArray.length > 0 ||
-							(value.warnings && value.warnings.length > 0)
-						) {
-							extractedMetadata[key] = {
-								sources:
-									sourcesArray.length > 0
-										? sourcesArray
-										: undefined,
-								warnings: value.warnings || [],
-								value: value.value,
-								original_value:
-									(value as any).original_value ??
-									value.value,
-							};
-						}
-					} else {
-						// Flat format - just the value
-						extractedData[key as keyof BorrowerResumeContent] =
-							value;
-					}
-				}
-			}
-		}
-
-		const initialData = { ...defaultData, ...extractedData };
-		const snapshotKey = JSON.stringify(initialData);
-		// Only skip if snapshot matches AND we're not forcing a refresh (snapshot is null means force refresh)
-		if (
-			snapshotKey === lastInitializedSnapshot.current &&
-			lastInitializedSnapshot.current !== null
-		) {
-			return;
-		}
-		lastInitializedSnapshot.current = snapshotKey;
-		lastSavedSnapshotRef.current = snapshotKey;
-		setFormData(initialData);
-		setFieldMetadata(extractedMetadata);
-	}, [borrowerResume, user?.email, projectId, isEditing]);
-
-	const lastEmittedSnapshot = useRef<string | null>(null);
-
-	// Emit form data for AskAI consumers when it changes
-	useEffect(() => {
-		const snapshotKey = JSON.stringify(formData);
-		if (snapshotKey === lastEmittedSnapshot.current) {
-			return;
-		}
-		lastEmittedSnapshot.current = snapshotKey;
-		onFormDataChange?.(formData);
-	}, [formData, onFormDataChange]);
-
-	const showLoadingState = resumeLoading && !borrowerResume;
-
-	// Track whether there are unsaved changes relative to the last saved snapshot
-	const hasUnsavedChanges = useCallback((): boolean => {
-		if (!lastSavedSnapshotRef.current) return false;
-		try {
-			const currentSnapshot = JSON.stringify(formData);
-			return currentSnapshot !== lastSavedSnapshotRef.current;
-		} catch {
-			// If comparison fails, err on the side of caution
-			return true;
-		}
-	}, [formData]);
-
-	// Debounced auto-save effect for profile form
-	useEffect(() => {
-		if (debounceTimeout.current) {
-			clearTimeout(debounceTimeout.current);
-		}
-
-		debounceTimeout.current = setTimeout(async () => {
-			// Only auto-save if we have existing resume content loaded
-			// and the current form data is actually different
-			if (!borrowerResume) return;
-			const hasChanged =
-				JSON.stringify(formData) !== JSON.stringify(borrowerResume);
-			if (!hasChanged) return;
-			try {
-				const completenessPercent = computeBorrowerCompletion(formData);
-				onProgressChange?.(completenessPercent);
-				const payload = {
-					...formData,
-					completenessPercent,
-				};
-				await save(payload);
-				// Update last saved snapshot after a successful auto-save
-				lastSavedSnapshotRef.current = JSON.stringify(payload);
-			} catch (error) {
-				console.error("[ProfileForm] Auto-save failed:", error);
-			}
-		}, 2000); // 2-second debounce
-
-		return () => {
-			if (debounceTimeout.current) {
-				clearTimeout(debounceTimeout.current);
-			}
-		};
-	}, [formData, borrowerResume, save, onProgressChange, projectId]);
-
-	// Report progress on any local change immediately (for live banner updates)
-	useEffect(() => {
-		const completenessPercent = computeBorrowerCompletion(formData);
-		onProgressChange?.(completenessPercent);
-	}, [formData, onProgressChange]);
-
-	// Persist collapsed state
-	useEffect(() => {
-		try {
-			localStorage.setItem(
-				"borrowerResumeCollapsed",
-				JSON.stringify(collapsed)
-			);
-		} catch {}
-	}, [collapsed]);
-
-	// Track when saving completes to show "All Changes Saved"
-	useEffect(() => {
-		// If we transition from saving (true) to not saving (false), show the saved message
-		if (prevIsSavingRef.current && !isSaving) {
-			setJustSaved(true);
-			// Clear any existing timeout
-			if (savedTimeoutRef.current) {
-				clearTimeout(savedTimeoutRef.current);
-			}
-			// Hide the message after 2 seconds
-			savedTimeoutRef.current = setTimeout(() => {
-				setJustSaved(false);
-			}, 2000);
-		}
-		// Update the ref to track the previous state (default to false if undefined)
-		prevIsSavingRef.current = isSaving ?? false;
-
-		return () => {
-			if (savedTimeoutRef.current) {
-				clearTimeout(savedTimeoutRef.current);
-			}
-		};
-	}, [isSaving]);
-
-	// Warn user before closing the tab if there are unsaved changes
-	useEffect(() => {
-		if (typeof window === "undefined") return;
-
-		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-			if (!hasUnsavedChanges()) return;
-			event.preventDefault();
-			event.returnValue = "";
-		};
-
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
-		};
-	}, [hasUnsavedChanges]);
-
-	// Best-effort save on unmount if there are unsaved changes
-	useEffect(() => {
-		return () => {
-			if (!hasUnsavedChanges()) return;
-			const completenessPercent = computeBorrowerCompletion(formData);
-			const payload = {
-				...formData,
-				completenessPercent,
+	const renderDynamicField = useCallback(
+		(fieldId: string, sectionId: string) => {
+			// Field control overrides similar to EnhancedProjectForm
+			const fieldControlOverrides: Record<string, string> = {
+				primaryEntityStructure: "button-select",
+				yearsCREExperienceRange: "button-select",
+				totalDealValueClosedRange: "button-select",
+				creditScoreRange: "button-select",
+				netWorthRange: "button-select",
+				liquidityRange: "button-select",
+				bankruptcyHistory: "button-select",
+				foreclosureHistory: "button-select",
+				litigationHistory: "button-select",
+				principalRoleDefault: "button-select",
 			};
-			// Fire-and-forget; any error will be logged by the hook
-			void save(payload);
-		};
-	}, [formData, hasUnsavedChanges, save]);
 
-	// Listen for autofill completion and lock autofilled fields
-	useEffect(() => {
-		const handleAutofillCompleted = async (event: Event) => {
-			const customEvent = event as CustomEvent<{
-				projectId: string;
-				context: string;
-			}>;
-			// Only handle borrower context autofill
-			if (
-				customEvent.detail?.context !== "borrower" ||
-				customEvent.detail?.projectId !== projectId
-			) {
-				return;
+			const fieldConfig = (formSchema as any).fields?.[fieldId] ?? {};
+			const label = fieldConfig.label || fieldId;
+			const required = fieldConfig.required || false;
+			const meta = borrowerResumeFieldMetadata[fieldId];
+			const dataType = (meta as any)?.dataType;
+			const isLocked = isFieldLocked(fieldId, sectionId);
+			const disabled = isLocked;
+			const value = (formData as any)[fieldId] ?? "";
+			const styling = getFieldStylingClasses(fieldId, sectionId);
+
+			// Check if we have data (value or sources) for coloring button-select
+			const metaFromState = fieldMetadata[fieldId];
+			const hasSources =
+				metaFromState &&
+				Array.isArray(metaFromState.sources) &&
+				metaFromState.sources.length > 0;
+			const hasValue = isValueProvided(value);
+
+			let controlType = fieldControlOverrides[fieldId] || "input";
+			if (!controlType) {
+				if (dataType === "Dropdown") controlType = "select";
+				if (dataType === "Textarea") controlType = "textarea";
+				if (dataType === "Boolean") controlType = "button-select";
+				if (dataType === "Multi-select") controlType = "multi-select";
+				if (dataType === "Percent") controlType = "number";
 			}
 
-			// Reload the borrower resume to get the latest data
-			await reloadBorrowerResume();
+			const optionsRegistry: Record<string, any[]> = {
+				primaryEntityStructure: entityStructureOptions,
+				yearsCREExperienceRange: experienceRangeOptions,
+				totalDealValueClosedRange: dealValueRangeOptions,
+				creditScoreRange: creditScoreRangeOptions,
+				netWorthRange: netWorthRangeOptions,
+				liquidityRange: liquidityRangeOptions,
+				assetClassesExperience: assetClassOptions,
+				geographicMarketsExperience: geographicMarketsOptions,
+				principalRoleDefault: principalRoleOptions.map((r) => ({
+					label: r,
+					value: r,
+				})),
+				bankruptcyHistory: [
+					{ label: "Yes", value: true },
+					{ label: "No", value: false },
+				],
+				foreclosureHistory: [
+					{ label: "Yes", value: true },
+					{ label: "No", value: false },
+				],
+				litigationHistory: [
+					{ label: "Yes", value: true },
+					{ label: "No", value: false },
+				],
+			};
 
-			// Force formData refresh by clearing the last initialized snapshot
-			// This will cause the initialization effect to run again and reload formData
-			lastInitializedSnapshot.current = null;
+			const options = optionsRegistry[fieldId] || [];
 
-			// Wait a moment for the reload to complete and trigger form refresh
-			setTimeout(() => {
-				// Trigger animation update to show new data
-				const newKey = autofillAnimationKey + 1;
-				setAutofillAnimationKey(newKey);
-			}, 800);
-		};
+			return (
+				<FormGroup key={fieldId}>
+					<AskAIButton id={fieldId} onAskAI={onAskAI || (() => {})}>
+						<div className="relative group/field">
+							{renderFieldLabel(
+								fieldId,
+								sectionId,
+								label,
+								required
+							)}
 
-		window.addEventListener(
-			"autofill-completed",
-			handleAutofillCompleted as EventListener
-		);
-		return () => {
-			window.removeEventListener(
-				"autofill-completed",
-				handleAutofillCompleted as EventListener
+							{controlType === "textarea" && (
+								<textarea
+									id={fieldId}
+									value={value}
+									onChange={(e) =>
+										handleInputChange(
+											fieldId,
+											e.target.value
+										)
+									}
+									disabled={disabled}
+									className={cn(
+										styling,
+										"h-24 font-mono text-xs"
+									)}
+									data-field-id={fieldId}
+									data-field-type="textarea"
+									data-field-section={sectionId}
+									data-field-label={label}
+								/>
+							)}
+
+							{controlType === "select" && (
+								<Select
+									id={fieldId}
+									value={value}
+									onChange={(e) =>
+										handleInputChange(
+											fieldId,
+											e.target.value
+										)
+									}
+									options={options.map((o) =>
+										typeof o === "string"
+											? { label: o, value: o }
+											: o
+									)}
+									disabled={disabled}
+									className={styling}
+									data-field-id={fieldId}
+									data-field-type="select"
+									data-field-section={sectionId}
+									data-field-label={label}
+								/>
+							)}
+
+							{controlType === "button-select" && (
+								<div
+									data-field-id={fieldId}
+									data-field-type="button-select"
+									data-field-section={sectionId}
+									data-field-label={label}
+								>
+									<ButtonSelect
+										label=""
+										options={
+											options.length
+												? options
+												: [
+														{
+															label: "Yes",
+															value: true,
+														},
+														{
+															label: "No",
+															value: false,
+														},
+												  ]
+										}
+										selectedValue={value}
+										onSelect={(v) =>
+											handleInputChange(fieldId, v)
+										}
+										disabled={disabled}
+										isLocked={isLocked}
+										isTouched={hasValue || hasSources}
+									/>
+								</div>
+							)}
+
+							{controlType === "multi-select" && (
+								<div
+									data-field-id={fieldId}
+									data-field-type="multi-select"
+									data-field-section={sectionId}
+									data-field-label={label}
+								>
+									<MultiSelectPills
+										label=""
+										options={options}
+										selectedValues={value || []}
+										onSelect={(v) =>
+											handleInputChange(fieldId, v)
+										}
+										disabled={disabled}
+										isLocked={isLocked}
+									/>
+								</div>
+							)}
+
+							{(controlType === "input" ||
+								controlType === "number") && (
+								<Input
+									id={fieldId}
+									type={
+										controlType === "number"
+											? "number"
+											: "text"
+									}
+									value={value}
+									onChange={(e) =>
+										handleInputChange(
+											fieldId,
+											controlType === "number"
+												? parseFloat(e.target.value)
+												: e.target.value
+										)
+									}
+									disabled={disabled}
+									className={styling}
+									data-field-id={fieldId}
+									data-field-type={controlType}
+									data-field-section={sectionId}
+									data-field-label={label}
+								/>
+							)}
+						</div>
+					</AskAIButton>
+				</FormGroup>
 			);
-		};
-	}, [projectId, reloadBorrowerResume, autofillAnimationKey]);
+		},
+		[
+			formData,
+			getFieldStylingClasses,
+			handleInputChange,
+			isFieldLocked,
+			onAskAI,
+			renderFieldLabel,
+			fieldMetadata,
+		]
+	);
 
-	// Lock autofilled fields after borrowerResume is updated (which happens after autofill)
-	// Also lock complete fields for seeded projects (like Hoque)
+	// Subsections logic
+	const [expandedSubsections, setExpandedSubsections] = useState<Set<string>>(
+		new Set()
+	);
+	const [manuallyToggledSubsections, setManuallyToggledSubsections] =
+		useState<Set<string>>(new Set());
+
+	const toggleSubsection = useCallback((key: string) => {
+		setManuallyToggledSubsections((prev) => {
+			const n = new Set(prev);
+			n.add(key);
+			return n;
+		});
+		setExpandedSubsections((prev) => {
+			const n = new Set(prev);
+			if (n.has(key)) n.delete(key);
+			else n.add(key);
+			return n;
+		});
+	}, []);
+
+	// Auto-update subsection state
 	useEffect(() => {
-		if (!borrowerResume) return;
+		const schemaSteps: any[] = (formSchema as any).steps || [];
+		const autoOpenSubsections = new Set<string>();
+		const autoCloseSubsections = new Set<string>();
 
-		// Check if this is a seeded project (check if borrower name is "Hoque Global" or completeness is 100)
-		const isSeededProject =
-			borrowerResume.fullLegalName === "Hoque Global" ||
-			(borrowerResume as any).completenessPercent === 100;
+		schemaSteps.forEach((step) => {
+			const sectionId: string = step.id;
+			const subsections: any[] = step.subsections || [];
 
-		// Lock all fields that are autofilled (have a source that's not "User Input") or are complete in seeded projects
-		setLockedFields((prev) => {
-			const next = new Set(prev);
-			const fieldsToLock: string[] = [];
+			subsections.forEach((subsection: any) => {
+				const subsectionKey = `${sectionId}::${subsection.id}`;
+				const fieldIds: string[] = subsection.fields || [];
 
-			Object.keys(borrowerResume).forEach((key) => {
-				if (key === "_metadata") return;
+				if (fieldIds.length === 0) return;
 
-				const value =
-					borrowerResume[key as keyof typeof borrowerResume];
-				let shouldLock = false;
+				const fieldStates = fieldIds.map((fieldId) => ({
+					isBlue: isFieldBlue(fieldId, sectionId),
+					isGreen: isFieldGreen(fieldId, sectionId),
+					isWhite: isFieldWhite(fieldId, sectionId),
+				}));
 
-				// Check if value is in rich format { value, source, sources, warnings }
-				if (
-					value &&
-					typeof value === "object" &&
-					"value" in value &&
-					!Array.isArray(value)
-				) {
-					// Check both single source and sources array
-					const source = (value as any).source;
-					const sources = (value as any).sources;
+				const allGreen = fieldStates.every((s) => s.isGreen);
+				const allWhite = fieldStates.every((s) => s.isWhite);
+				const hasBlue = fieldStates.some((s) => s.isBlue);
 
-					// Determine if this field is autofilled
-					let isAutofilled = false;
-
-					// Check single source first
-					if (source) {
-						// Handle SourceMetadata object format
-						if (
-							typeof source === "object" &&
-							source !== null &&
-							"type" in source
-						) {
-							isAutofilled = source.type !== "user_input";
-						} else if (typeof source === "string") {
-							// Handle legacy string format
-							const normalizedSource = normalizeSource(source);
-							const isUserInput =
-								normalizedSource.toLowerCase() ===
-									"user input" ||
-								source.toLowerCase() === "user_input";
-							isAutofilled = !isUserInput;
-						}
-					}
-
-					// If not autofilled from single source, check sources array
-					if (
-						!isAutofilled &&
-						sources &&
-						Array.isArray(sources) &&
-						sources.length > 0
-					) {
-						// Check if any source is not user_input
-						isAutofilled = sources.some((src: any) => {
-							if (
-								typeof src === "object" &&
-								src !== null &&
-								"type" in src
-							) {
-								return src.type !== "user_input";
-							} else if (typeof src === "string") {
-								const normalizedSource = normalizeSource(src);
-								return (
-									normalizedSource.toLowerCase() !==
-										"user input" &&
-									src.toLowerCase() !== "user_input"
-								);
-							}
-							return false;
-						});
-					}
-
-					// If field has a valid value and source is not User Input, lock it
-					if (
-						isAutofilled &&
-						isValidFieldValue((value as any).value)
-					) {
-						shouldLock = true;
-					}
-				} else {
-					// Also check fieldMetadata for fields that might not be in rich format
-					const meta = fieldMetadata[key];
-					if (meta && meta.sources && meta.sources.length > 0) {
-						// Check if any source is not user_input
-						const isAutofilled = meta.sources.some((src: any) => {
-							if (
-								typeof src === "object" &&
-								src !== null &&
-								"type" in src
-							) {
-								return src.type !== "user_input";
-							}
-							return false;
-						});
-
-						if (isAutofilled && isValidFieldValue(value)) {
-							shouldLock = true;
-						}
-					}
-				}
-
-				// For seeded projects, also lock fields that have valid values (are complete)
-				if (
-					isSeededProject &&
-					isValidFieldValue(value) &&
-					!shouldLock
-				) {
-					shouldLock = true;
-				}
-
-				// Only lock if not explicitly unlocked by user
-				if (shouldLock && !unlockedFields.has(key)) {
-					fieldsToLock.push(key);
-					next.add(key);
+				if (hasBlue) {
+					autoOpenSubsections.add(subsectionKey);
+				} else if (allGreen || allWhite) {
+					autoCloseSubsections.add(subsectionKey);
 				}
 			});
+		});
 
-			// Save to database if there are new fields to lock
-			if (fieldsToLock.length > 0) {
-				const lockedFieldsMap: Record<string, boolean> = {};
-				next.forEach((id) => {
-					lockedFieldsMap[id] = true;
-				});
-				save({}, lockedFieldsMap, {}).catch((err) => {
-					console.error("Failed to save locked fields:", err);
-				});
-			}
-
+		setExpandedSubsections((prev) => {
+			const next = new Set(prev);
+			autoOpenSubsections.forEach((key) => {
+				if (!manuallyToggledSubsections.has(key)) next.add(key);
+			});
+			autoCloseSubsections.forEach((key) => {
+				if (!manuallyToggledSubsections.has(key)) next.delete(key);
+			});
 			return next;
 		});
 	}, [
-		borrowerResume,
-		isValidFieldValue,
+		formData,
 		fieldMetadata,
+		lockedFields,
 		unlockedFields,
-		save,
+		isFieldBlue,
+		isFieldGreen,
+		isFieldWhite,
+		manuallyToggledSubsections,
 	]);
 
-	// Input change handlers
-	const handleInputChange = useCallback(
-		(field: keyof BorrowerResumeContent, value: any) => {
-			setFormData((prev) => {
-				const nextFormData = { ...prev, [field]: value };
+	// Scroll to field
+	useEffect(() => {
+		if (!initialFocusFieldId) return;
+		const selector = `[data-field-id="${initialFocusFieldId}"], #${initialFocusFieldId}`;
+		const el = document.querySelector<HTMLElement>(selector);
+		if (el) {
+			el.scrollIntoView({ behavior: "smooth", block: "center" });
+			const focusable = el.matches("input,select,textarea")
+				? el
+				: el.querySelector("input,select,textarea");
+			(focusable as HTMLElement | null)?.focus?.();
+		}
+	}, [initialFocusFieldId]);
 
-				// Update metadata to track source changes immediately
-				setFieldMetadata((prevMeta) => {
-					const currentMeta = prevMeta[field as string];
-					if (!currentMeta) {
-						// No metadata tracking for this field - create new entry
-						const newMeta: Record<string, any> = {
-							...prevMeta,
-							[field as string]: {
-								value: value,
-								sources: [{ type: "user_input" }],
-								original_value: value,
-								warnings: [],
-							},
-						};
-						return newMeta;
-					}
-
-					// Check if value actually changed from the original AI extraction
-					const hasOriginalValue =
-						currentMeta.original_value !== undefined &&
-						currentMeta.original_value !== null;
-					const isChanged =
-						hasOriginalValue &&
-						JSON.stringify(value) !==
-							JSON.stringify(currentMeta.original_value);
-					const updatedMeta = { ...currentMeta };
-
-					// Always update the value, but preserve original_value
-					updatedMeta.value = value;
-					updatedMeta.original_value =
-						currentMeta.original_value !== undefined
-							? currentMeta.original_value
-							: value;
-
-					// IMMEDIATELY update sources to user_input when user types (regardless of whether it changed)
-					const wasUserInput = currentMeta.sources?.some(
-						(src: any) =>
-							(typeof src === "object" &&
-								src !== null &&
-								"type" in src &&
-								src.type === "user_input") ||
-							(typeof src === "string" &&
-								(src.toLowerCase() === "user_input" ||
-									src.toLowerCase() === "user input"))
-					);
-
-					if (!wasUserInput) {
-						// Field was autofilled - mark as user input immediately
-						updatedMeta.sources = [{ type: "user_input" }];
-
-						// Add divergence warning if value changed from original
-						if (isChanged && hasOriginalValue) {
-							const existingWarnings = currentMeta.warnings || [];
-							const divergenceWarnings: string[] = [];
-
-							const originalValueStr =
-								typeof currentMeta.original_value === "object"
-									? JSON.stringify(currentMeta.original_value)
-									: String(currentMeta.original_value);
-							const currentValueStr =
-								typeof value === "object"
-									? JSON.stringify(value)
-									: String(value);
-
-							// Check sources to determine warning type
-							const hasKnowledgeBaseSource =
-								currentMeta.sources?.some(
-									(src: any) =>
-										(typeof src === "object" &&
-											src !== null &&
-											"type" in src &&
-											(src.type === "external" ||
-												(src.name &&
-													src.name
-														.toLowerCase()
-														.includes(
-															"census"
-														)))) ||
-										(typeof src === "string" &&
-											src
-												.toLowerCase()
-												.includes("census"))
-								);
-
-							const hasDocumentSource = currentMeta.sources?.some(
-								(src: any) =>
-									(typeof src === "object" &&
-										src !== null &&
-										"type" in src &&
-										src.type === "document") ||
-									(typeof src === "string" &&
-										(src
-											.toLowerCase()
-											.includes("document") ||
-											src.endsWith(".pdf") ||
-											src.endsWith(".xlsx") ||
-											src.endsWith(".docx")))
-							);
-
-							if (hasKnowledgeBaseSource) {
-								divergenceWarnings.push(
-									`Value differs from market data (original: ${originalValueStr}, current: ${currentValueStr})`
-								);
-							} else if (hasDocumentSource) {
-								divergenceWarnings.push(
-									`Value differs from extracted document data (original: ${originalValueStr}, current: ${currentValueStr})`
-								);
-							} else if (
-								currentMeta.sources &&
-								currentMeta.sources.length > 0 &&
-								!currentMeta.sources.some(
-									(src: any) =>
-										(typeof src === "object" &&
-											src !== null &&
-											"type" in src &&
-											src.type === "user_input") ||
-										(typeof src === "string" &&
-											(src.toLowerCase() ===
-												"user_input" ||
-												src.toLowerCase() ===
-													"user input"))
-								)
-							) {
-								divergenceWarnings.push(
-									`Value changed from original (original: ${originalValueStr}, current: ${currentValueStr})`
-								);
-							}
-
-							updatedMeta.warnings = [...existingWarnings];
-							divergenceWarnings.forEach((warning) => {
-								if (!updatedMeta.warnings?.includes(warning)) {
-									updatedMeta.warnings =
-										updatedMeta.warnings || [];
-									updatedMeta.warnings.push(warning);
-								}
-							});
-						} else {
-							// User is typing but hasn't changed from original yet - still mark as user_input
-							updatedMeta.warnings = currentMeta.warnings || [];
-						}
-					} else if (!isChanged && hasOriginalValue) {
-						// User typed back the original value - revert to original sources
-						// Keep current sources if they exist, otherwise set to user_input
-						updatedMeta.sources = currentMeta.sources || [
-							{ type: "user_input" },
-						];
-						const originalWarnings = currentMeta.warnings || [];
-						updatedMeta.warnings = originalWarnings.filter(
-							(w) =>
-								!w.includes("differs from") &&
-								!w.includes("Value differs") &&
-								!w.includes("Value changed from original")
-						);
-					} else {
-						// Already user input or no original value
-						updatedMeta.sources = [{ type: "user_input" }];
-						updatedMeta.warnings = currentMeta.warnings || [];
-						if (updatedMeta.original_value === undefined) {
-							updatedMeta.original_value = value;
-						}
-					}
-
-					return {
-						...prevMeta,
-						[field as string]: updatedMeta,
-					};
-				});
-
-				return nextFormData;
+	const wrappedHandleAutofill = useCallback(async () => {
+		try {
+			const lockedFieldsObj: Record<string, boolean> = {};
+			lockedFields.forEach((id) => {
+				lockedFieldsObj[id] = true;
 			});
-		},
-		[]
-	);
-	const handlePrincipalInputChange = useCallback(
-		(field: keyof Principal, value: any) => {
-			setPrincipalFormData((prev) => ({ ...prev, [field]: value }));
-		},
-		[]
-	);
-	const resetPrincipalForm = useCallback(() => {
-		setPrincipalFormData({ principalRoleDefault: "Key Principal" });
-	}, []); // Reset with default role
 
-	// --- Submit Profile - Safest Context Access ---
-	const handleProfileSubmit = useCallback(async () => {
-		if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-		try {
-			setFormSaved(true);
-			const completenessPercent = computeBorrowerCompletion(formData);
-			onProgressChange?.(completenessPercent);
-			const payload = {
+			const dataToSave = {
 				...formData,
-				completenessPercent,
+				_metadata: fieldMetadata,
+				_lockedFields: lockedFieldsObj,
 			};
-			await save(payload);
-			// Update baseline snapshot after explicit submit
-			lastSavedSnapshotRef.current = JSON.stringify(payload);
 
-			if (onComplete) {
-				// Pass the updated formData as the profile
-				onComplete(formData as BorrowerResumeContent);
+			try {
+				await saveProjectBorrowerResume(projectId, dataToSave, {
+					createNewVersion: false,
+				});
+			} catch (saveErr) {
+				console.error(
+					"[BorrowerResumeForm] Failed to persist locks before autofill:",
+					saveErr
+				);
 			}
-		} catch (error) {
-			console.error("Error saving borrower profile:", error);
-			if (onComplete) onComplete(null); // Indicate failure in callback
-		} finally {
-			setTimeout(() => setFormSaved(false), 2000);
+
+			await startAutofill();
+		} catch (err) {
+			console.error("Autofill failed:", err);
 		}
-	}, [formData, onComplete, save, onProgressChange]);
+	}, [startAutofill, formData, fieldMetadata, lockedFields, projectId]);
 
-	// Principals removed from new schema - these functions are no-ops
-	const handleAddPrincipal = useCallback(async () => {
-		if (!isEditing) return;
-		const name = (principalFormData.principalLegalName || "").trim();
-		const role = (principalFormData.principalRoleDefault || "").trim();
-		if (!name || !role) return; // require name and role
+	const steps = useMemo(() => {
+		const schemaSteps: any[] = (formSchema as any).steps || [];
 
-		setIsAddingPrincipal(true);
-		try {
-			const newPrincipal: Principal = {
-				id: Math.random().toString(36).slice(2),
-				principalLegalName: name,
-				principalRoleDefault: role as PrincipalRole,
-				principalEmail: principalFormData.principalEmail || "",
-				ownershipPercentage: principalFormData.ownershipPercentage || 0,
-				principalBio: principalFormData.principalBio || "",
-			} as Principal;
+		const sectionIconComponents: Record<
+			string,
+			React.ComponentType<{ className?: string }>
+		> = {
+			Users,
+			Briefcase,
+			DollarSign,
+			Globe,
+			Award,
+			AlertTriangle,
+			FileText,
+		};
 
-			setFormData((prev) => ({
-				...prev,
-				principals: [
-					...((prev.principals as Principal[] | undefined) || []),
-					newPrincipal,
-				],
-			}));
-			resetPrincipalForm();
-		} finally {
-			setIsAddingPrincipal(false);
-		}
-	}, [isEditing, principalFormData, resetPrincipalForm]);
+		return schemaSteps.map((step) => {
+			const sectionId = step.id;
+			const IconComponent =
+				(step.icon && sectionIconComponents[step.icon as string]) ||
+				FileText;
 
-	// handleRemovePrincipal removed as it's not used
-	const handleRemovePrincipal = useCallback(async (id: string) => {
-		console.warn("Principals are no longer supported in the new schema");
-	}, []);
-
-	// FormWizard Steps definition (useMemo)
-	const steps: Step[] = useMemo(
-		() => [
-			// Step 1: Basic Info (JSX using ButtonSelect for Entity Structure)
-			{
-				id: "basic-info",
-				title: "Basic Info",
+			return {
+				id: sectionId,
+				title: step.title,
 				component: (
 					<div className="space-y-6">
-						<div className="flex items-center justify-between mb-4">
-							<h2 className="text-xl font-semibold flex items-center">
-								<User className="mr-2" /> Basic Info
+						<div className="mb-2 flex items-center justify-between">
+							<h2 className="text-xl font-semibold text-gray-800 flex items-center">
+								<IconComponent className="h-5 w-5 mr-2 text-blue-600" />{" "}
+								{step.title}
 							</h2>
-							<button
-								type="button"
-								onClick={() => toggleSectionLock("basic-info")}
-								className={cn(
-									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-									lockedSections.has("basic-info")
-										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
-								)}
-								title={
-									lockedSections.has("basic-info")
-										? "Unlock section"
-										: "Lock section"
-								}
-							>
-								{lockedSections.has("basic-info") ? (
-									<>
-										<Lock className="h-4 w-4" />
-										<span>Unlock Section</span>
-									</>
-								) : (
-									<>
-										<Unlock className="h-4 w-4" />
-										<span>Lock Section</span>
-									</>
-								)}
-							</button>
 						</div>
-						<div className="space-y-6">
-							{" "}
-							<FormGroup>
-								<AskAIButton
-									id="fullLegalName"
-									onAskAI={onAskAI || (() => {})}
+
+						{step.subsections?.map((sub: any) => {
+							const subKey = `${sectionId}::${sub.id}`;
+							const isExpanded = expandedSubsections.has(subKey);
+							const fields = sub.fields as string[];
+							const isLocked = isSubsectionFullyLocked(fields);
+
+							const fieldStates =
+								fields.length > 0
+									? fields.map((fieldId) => ({
+											isBlue: isFieldBlue(
+												fieldId,
+												sectionId
+											),
+											isGreen: isFieldGreen(
+												fieldId,
+												sectionId
+											),
+											hasValue: isValueProvided(
+												(formData as any)[fieldId]
+											),
+									  }))
+									: [];
+
+							const hasBlue = fieldStates.some((s) => s.isBlue);
+							const allGreen =
+								fieldStates.length > 0 &&
+								fieldStates.every((s) => s.isGreen);
+
+							const showComplete =
+								fields.length > 0 && allGreen && !hasBlue;
+							const showNeedsInput = hasBlue;
+
+							const hasEmptyField = fieldStates.some(
+								(s) => !s.hasValue
+							);
+							const subsectionLockDisabled =
+								!isLocked && hasEmptyField;
+
+							// Custom Table Wrapper Styling
+							const getTableWrapperClasses = (
+								fieldId: string
+							) => {
+								const value = (formData as any)[fieldId];
+								const hasValue = isValueProvided(value);
+								const locked = isFieldLocked(
+									fieldId,
+									sectionId
+								);
+
+								const base =
+									"w-full border rounded-md text-sm transition-colors duration-200";
+								if (!hasValue)
+									return cn(
+										base,
+										"border-gray-200 bg-white hover:border-gray-300"
+									);
+								if (locked)
+									return cn(
+										base,
+										"border-emerald-500 bg-emerald-50 hover:border-emerald-600"
+									);
+								return cn(
+									base,
+									"border-blue-600 bg-blue-50 hover:border-blue-700"
+								);
+							};
+
+							return (
+								<div
+									key={sub.id}
+									className="rounded-md border border-gray-200 bg-gray-50 overflow-hidden shadow-md"
 								>
-									<div
-										data-field-id="fullLegalName"
-										data-field-type="input"
-										data-field-section="basic-info"
-										data-field-required="true"
-										data-field-label="Full Legal Name"
-										className="relative group/field"
+									<button
+										type="button"
+										onClick={() => toggleSubsection(subKey)}
+										className="w-full flex items-center justify-between p-3 hover:bg-gray-100 transition-colors"
 									>
-										{renderFieldLabel(
-											"fullLegalName",
-											"basic-info",
-											"Full Legal Name",
-											true
-										)}
-										<Input
-											id="fullLegalName"
-											label={null}
-											value={formData.fullLegalName || ""}
-											onChange={(e) =>
-												handleInputChange(
-													"fullLegalName",
-													e.target.value
-												)
-											}
-											required
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"fullLegalName",
-													"basic-info"
-												)
-											}
-											className={cn(
-												isEditing &&
-													getFieldStylingClasses(
-														"fullLegalName",
-														"basic-info"
-													)
+										<div className="flex items-center gap-2">
+											{isExpanded ? (
+												<ChevronDown className="h-4 w-4 text-gray-500" />
+											) : (
+												<ChevronRight className="h-4 w-4 text-gray-500" />
 											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="primaryEntityName"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="primaryEntityName"
-										data-field-type="input"
-										data-field-section="basic-info"
-										data-field-required="true"
-										data-field-label="Primary Entity Name"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"primaryEntityName",
-											"basic-info",
-											"Primary Entity Name",
-											true
-										)}
-										<Input
-											id="primaryEntityName"
-											label={null}
-											value={
-												formData.primaryEntityName || ""
-											}
-											onChange={(e) =>
-												handleInputChange(
-													"primaryEntityName",
-													e.target.value
-												)
-											}
-											required
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"primaryEntityName",
-													"basic-info"
-												)
-											}
-											className={cn(
-												isEditing &&
-													getFieldStylingClasses(
-														"primaryEntityName",
-														"basic-info"
-													)
+											<h3 className="text-sm font-semibold text-gray-800">
+												{sub.title.replace(
+													/^\d+\.\d+\s*/,
+													""
+												)}
+											</h3>
+										</div>
+										<div className="flex items-center gap-2">
+											<div
+												onClick={(e) => {
+													e.stopPropagation();
+													if (subsectionLockDisabled)
+														return;
+													toggleSubsectionLock(
+														fields
+													);
+												}}
+												className={cn(
+													"flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
+													subsectionLockDisabled
+														? "cursor-not-allowed bg-gray-50 text-gray-400 border-gray-200"
+														: "cursor-pointer",
+													!subsectionLockDisabled &&
+														(isLocked
+															? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+															: "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100")
+												)}
+												title={
+													subsectionLockDisabled
+														? "Cannot lock subsection because one or more fields are empty. Please fill in all fields first."
+														: isLocked
+														? "Unlock subsection"
+														: "Lock subsection"
+												}
+											>
+												{isLocked ? (
+													<>
+														<Lock className="h-3 w-3" />
+														<span>Unlock</span>
+													</>
+												) : (
+													<>
+														<Unlock className="h-3 w-3" />
+														<span>Lock</span>
+													</>
+												)}
+											</div>
+											{showComplete && (
+												<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
+													Complete
+												</span>
 											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="primaryEntityStructure"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="primaryEntityStructure"
-										data-field-type="button-select"
-										data-field-section="basic-info"
-										data-field-required="true"
-										data-field-label="Entity Structure"
-										data-field-options='["LLC","LP","S-Corp","C-Corp","Sole Proprietorship","Trust","Other"]'
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"primaryEntityStructure",
-											"basic-info",
-											"Entity Structure",
-											true
-										)}
-										<ButtonSelect
-											label=""
-											options={entityStructureOptions}
-											selectedValue={
-												formData.primaryEntityStructure ||
-												"LLC"
-											}
-											onSelect={(v) =>
-												handleInputChange(
-													"primaryEntityStructure",
-													v as EntityStructure
-												)
-											}
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"primaryEntityStructure",
-													"basic-info"
-												)
-											}
-											isLocked={isFieldLocked(
-												"primaryEntityStructure",
-												"basic-info"
+											{showNeedsInput && (
+												<span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
+													Needs Input
+												</span>
 											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="contactEmail"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="contactEmail"
-										data-field-type="input"
-										data-field-section="basic-info"
-										data-field-required="true"
-										data-field-label="Contact Email"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"contactEmail",
-											"basic-info",
-											"Contact Email",
-											true
-										)}
-										<Input
-											id="contactEmail"
-											type="email"
-											label={null}
-											value={formData.contactEmail || ""}
-											onChange={(e) =>
-												handleInputChange(
-													"contactEmail",
-													e.target.value
-												)
-											}
-											required
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"contactEmail",
-													"basic-info"
-												)
-											}
-											className={cn(
-												isEditing &&
-													getFieldStylingClasses(
-														"contactEmail",
-														"basic-info"
-													)
+										</div>
+									</button>
+
+									{isExpanded && (
+										<div className="p-3 pt-0 space-y-4">
+											{sub.id === "principal-details" ? (
+												<>
+													<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+														<FormGroup>
+															<label className="block text-sm font-medium mb-1">
+																Principal Name *
+															</label>
+															<Input
+																value={
+																	principalFormData.principalLegalName ||
+																	""
+																}
+																onChange={(e) =>
+																	handlePrincipalInputChange(
+																		"principalLegalName",
+																		e.target
+																			.value
+																	)
+																}
+															/>
+														</FormGroup>
+														<FormGroup>
+															<label className="block text-sm font-medium mb-1">
+																Role *
+															</label>
+															<ButtonSelect
+																label=""
+																options={principalRoleOptions.map(
+																	(o) => ({
+																		label: o,
+																		value: o,
+																	})
+																)}
+																selectedValue={
+																	principalFormData.principalRoleDefault
+																}
+																onSelect={(v) =>
+																	handlePrincipalInputChange(
+																		"principalRoleDefault",
+																		v
+																	)
+																}
+															/>
+														</FormGroup>
+														<FormGroup>
+															<label className="block text-sm font-medium mb-1">
+																Email
+															</label>
+															<Input
+																type="email"
+																value={
+																	principalFormData.principalEmail ||
+																	""
+																}
+																onChange={(e) =>
+																	handlePrincipalInputChange(
+																		"principalEmail",
+																		e.target
+																			.value
+																	)
+																}
+															/>
+														</FormGroup>
+														<FormGroup>
+															<label className="block text-sm font-medium mb-1">
+																Ownership %
+															</label>
+															<Input
+																type="number"
+																value={
+																	principalFormData.ownershipPercentage?.toString() ||
+																	""
+																}
+																onChange={(e) =>
+																	handlePrincipalInputChange(
+																		"ownershipPercentage",
+																		parseFloat(
+																			e
+																				.target
+																				.value
+																		)
+																	)
+																}
+															/>
+														</FormGroup>
+														<FormGroup className="md:col-span-2">
+															<label className="block text-sm font-medium mb-1">
+																Bio
+															</label>
+															<textarea
+																className="w-full border rounded p-2 h-20"
+																value={
+																	principalFormData.principalBio ||
+																	""
+																}
+																onChange={(e) =>
+																	handlePrincipalInputChange(
+																		"principalBio",
+																		e.target
+																			.value
+																	)
+																}
+															/>
+														</FormGroup>
+													</div>
+													<Button
+														onClick={
+															handleAddPrincipal
+														}
+														disabled={
+															isAddingPrincipal ||
+															!principalFormData.principalLegalName
+														}
+														variant="secondary"
+														className="mt-2"
+													>
+														<Plus className="h-4 w-4 mr-1" />{" "}
+														Add Principal
+													</Button>
+
+													{/* List of Principals using TableWrapper style */}
+													<div
+														className={cn(
+															getTableWrapperClasses(
+																"principals"
+															),
+															"p-4 mt-4"
+														)}
+													>
+														<div className="mb-3 flex items-center justify-between">
+															<div className="flex items-center gap-2">
+																<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+																	Principals
+																	List
+																</h4>
+																<FieldHelpTooltip
+																	fieldId="principals"
+																	fieldMetadata={
+																		fieldMetadata[
+																			"principals"
+																		]
+																	}
+																/>
+															</div>
+															<div className="flex items-center gap-1">
+																{renderFieldLockButton(
+																	"principals",
+																	sectionId
+																)}
+															</div>
+														</div>
+														<div className="space-y-2">
+															{(Array.isArray(
+																formData.principals
+															)
+																? formData.principals
+																: []
+															).map((p, idx) => (
+																<div
+																	key={idx}
+																	className="p-3 bg-white border rounded-md flex justify-between items-center shadow-sm"
+																>
+																	<div>
+																		<span className="font-medium">
+																			{
+																				p.principalLegalName
+																			}
+																		</span>
+																		<span className="text-gray-500 text-sm ml-2">
+																			(
+																			{
+																				p.principalRoleDefault
+																			}
+																			)
+																		</span>
+																	</div>
+																	<Button
+																		size="sm"
+																		variant="ghost"
+																		onClick={() =>
+																			handleRemovePrincipal(
+																				idx
+																			)
+																		}
+																		className="text-red-500 hover:bg-red-50"
+																	>
+																		<Trash2
+																			size={
+																				16
+																			}
+																		/>
+																	</Button>
+																</div>
+															))}
+															{(!Array.isArray(
+																formData.principals
+															) ||
+																formData
+																	.principals
+																	.length ===
+																	0) && (
+																<p className="text-sm text-gray-500 italic text-center py-2">
+																	No
+																	principals
+																	added yet.
+																</p>
+															)}
+														</div>
+													</div>
+												</>
+											) : (
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+													{fields.map((fieldId) =>
+														renderDynamicField(
+															fieldId,
+															sectionId
+														)
+													)}
+												</div>
 											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="contactPhone"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="contactPhone"
-										data-field-type="input"
-										data-field-section="basic-info"
-										data-field-required="true"
-										data-field-label="Contact Phone"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"contactPhone",
-											"basic-info",
-											"Contact Phone",
-											true
-										)}
-										<Input
-											id="contactPhone"
-											label={null}
-											value={formData.contactPhone || ""}
-											onChange={(e) =>
-												handleInputChange(
-													"contactPhone",
-													e.target.value
-												)
-											}
-											required
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"contactPhone",
-													"basic-info"
-												)
-											}
-											className={cn(
-												isEditing &&
-													getFieldStylingClasses(
-														"contactPhone",
-														"basic-info"
-													)
-											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="contactAddress"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="contactAddress"
-										data-field-type="input"
-										data-field-section="basic-info"
-										data-field-required="true"
-										data-field-label="Mailing Address"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"contactAddress",
-											"basic-info",
-											"Mailing Address",
-											true
-										)}
-										<Input
-											id="contactAddress"
-											label={null}
-											value={
-												formData.contactAddress || ""
-											}
-											onChange={(e) =>
-												handleInputChange(
-													"contactAddress",
-													e.target.value
-												)
-											}
-											required
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"contactAddress",
-													"basic-info"
-												)
-											}
-											className={cn(
-												isEditing &&
-													getFieldStylingClasses(
-														"contactAddress",
-														"basic-info"
-													)
-											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-						</div>
+										</div>
+									)}
+								</div>
+							);
+						})}
 					</div>
 				),
-			},
-			// Step 2: Experience (JSX using ButtonSelect & MultiSelect)
-			{
-				id: "experience",
-				title: "Experience",
-				component: (
-					<div className="space-y-6">
-						<div className="flex items-center justify-between mb-4">
-							<h2 className="text-xl font-semibold flex items-center">
-								<Briefcase className="mr-2" /> Experience
-							</h2>
-							<button
-								type="button"
-								onClick={() => toggleSectionLock("experience")}
-								className={cn(
-									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-									lockedSections.has("experience")
-										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
-								)}
-								title={
-									lockedSections.has("experience")
-										? "Unlock section"
-										: "Lock section"
-								}
-							>
-								{lockedSections.has("experience") ? (
-									<>
-										<Lock className="h-4 w-4" />
-										<span>Unlock Section</span>
-									</>
-								) : (
-									<>
-										<Unlock className="h-4 w-4" />
-										<span>Lock Section</span>
-									</>
-								)}
-							</button>
-						</div>
-						<div className="space-y-6">
-							<FormGroup>
-								<AskAIButton
-									id="yearsCREExperienceRange"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="yearsCREExperienceRange"
-										data-field-type="button-select"
-										data-field-section="experience"
-										data-field-required="true"
-										data-field-label="Years of CRE Experience"
-										data-field-options='["0-2","3-5","6-10","11-15","16+"]'
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"yearsCREExperienceRange",
-											"experience",
-											"Years of CRE Experience",
-											true
-										)}
-										<ButtonSelect
-											label=""
-											options={experienceRangeOptions}
-											selectedValue={
-												formData.yearsCREExperienceRange ||
-												"0-2"
-											}
-											onSelect={(v) =>
-												handleInputChange(
-													"yearsCREExperienceRange",
-													v as ExperienceRange
-												)
-											}
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"yearsCREExperienceRange",
-													"experience"
-												)
-											}
-											isLocked={isFieldLocked(
-												"yearsCREExperienceRange",
-												"experience"
-											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="assetClassesExperience"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="assetClassesExperience"
-										data-field-type="select"
-										data-field-section="experience"
-										data-field-required="false"
-										data-field-label="Asset Classes Experience"
-										data-field-options='["Multifamily","Office","Retail","Industrial","Hospitality","Land","Mixed-Use","Self-Storage","Data Center","Medical Office","Senior Housing","Student Housing","Other"]'
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"assetClassesExperience",
-											"experience",
-											"Asset Classes Experience",
-											false
-										)}
-										<MultiSelectPills
-											label=""
-											options={assetClassOptions}
-											selectedValues={
-												formData.assetClassesExperience ||
-												[]
-											}
-											onSelect={(v) =>
-												handleInputChange(
-													"assetClassesExperience",
-													v
-												)
-											}
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"assetClassesExperience",
-													"experience"
-												)
-											}
-											isLocked={isFieldLocked(
-												"assetClassesExperience",
-												"experience"
-											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="geographicMarketsExperience"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="geographicMarketsExperience"
-										data-field-type="select"
-										data-field-section="experience"
-										data-field-required="false"
-										data-field-label="Geographic Markets Experience"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"geographicMarketsExperience",
-											"experience",
-											"Geographic Markets Experience",
-											false
-										)}
-										<MultiSelectPills
-											label=""
-											options={geographicMarketsOptions}
-											selectedValues={
-												formData.geographicMarketsExperience ||
-												[]
-											}
-											onSelect={(v) =>
-												handleInputChange(
-													"geographicMarketsExperience",
-													v
-												)
-											}
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"geographicMarketsExperience",
-													"experience"
-												)
-											}
-											isLocked={isFieldLocked(
-												"geographicMarketsExperience",
-												"experience"
-											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="totalDealValueClosedRange"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="totalDealValueClosedRange"
-										data-field-type="button-select"
-										data-field-section="experience"
-										data-field-required="false"
-										data-field-label="Total Value Deals Closed"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"totalDealValueClosedRange",
-											"experience",
-											"Total Value Deals Closed",
-											false
-										)}
-										<ButtonSelect
-											label=""
-											options={dealValueRangeOptions}
-											selectedValue={
-												formData.totalDealValueClosedRange ||
-												"N/A"
-											}
-											onSelect={(v) =>
-												handleInputChange(
-													"totalDealValueClosedRange",
-													v as DealValueRange
-												)
-											}
-											disabled={!isEditing}
-											isLocked={isFieldLocked(
-												"totalDealValueClosedRange",
-												"experience"
-											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="existingLenderRelationships"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="existingLenderRelationships"
-										data-field-type="input"
-										data-field-section="experience"
-										data-field-required="false"
-										data-field-label="Existing Lenders (Opt)"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"existingLenderRelationships",
-											"experience",
-											"Existing Lenders (Opt)",
-											false
-										)}
-										<Input
-											id="existingLenderRelationships"
-											label={null}
-											value={
-												formData.existingLenderRelationships ||
-												""
-											}
-											onChange={(e) =>
-												handleInputChange(
-													"existingLenderRelationships",
-													e.target.value
-												)
-											}
-											disabled={!isEditing}
-											className={cn(
-												isEditing &&
-													getFieldStylingClasses(
-														"existingLenderRelationships",
-														"experience"
-													)
-											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="bioNarrative"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="bioNarrative"
-										data-field-type="textarea"
-										data-field-section="experience"
-										data-field-required="false"
-										data-field-label="Bio (Opt)"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"bioNarrative",
-											"experience",
-											"Bio (Opt)",
-											false
-										)}
-										<textarea
-											id="bioNarrative"
-											value={formData.bioNarrative || ""}
-											onChange={(e) =>
-												handleInputChange(
-													"bioNarrative",
-													e.target.value
-												)
-											}
-											disabled={!isEditing}
-											className={cn(
-												getFieldStylingClasses(
-													"bioNarrative",
-													"experience"
-												),
-												"h-24"
-											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-						</div>
-					</div>
-				),
-			},
-			// Step 3: Financial Info (JSX using ButtonSelect & Checkboxes)
-			{
-				id: "borrower-financials",
-				title: "Financial Info",
-				component: (
-					<div className="space-y-6">
-						<div className="flex items-center justify-between mb-4">
-							<h2 className="text-xl font-semibold flex items-center">
-								<DollarSign className="mr-2" /> Financial Info
-							</h2>
-							<button
-								type="button"
-								onClick={() =>
-									toggleSectionLock("borrower-financials")
-								}
-								className={cn(
-									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-									lockedSections.has("borrower-financials")
-										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
-								)}
-								title={
-									lockedSections.has("borrower-financials")
-										? "Unlock section"
-										: "Lock section"
-								}
-							>
-								{lockedSections.has("borrower-financials") ? (
-									<>
-										<Lock className="h-4 w-4" />
-										<span>Unlock Section</span>
-									</>
-								) : (
-									<>
-										<Unlock className="h-4 w-4" />
-										<span>Lock Section</span>
-									</>
-								)}
-							</button>
-						</div>
-						<div className="space-y-6">
-							<FormGroup>
-								<AskAIButton
-									id="creditScoreRange"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="creditScoreRange"
-										data-field-type="button-select"
-										data-field-section="borrower-financials"
-										data-field-required="false"
-										data-field-label="Credit Score Range"
-										data-field-options='["N/A","<600","600-649","650-699","700-749","750-799","800+"]'
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"creditScoreRange",
-											"borrower-financials",
-											"Credit Score Range",
-											false
-										)}
-										<ButtonSelect
-											label=""
-											options={creditScoreRangeOptions}
-											selectedValue={
-												formData.creditScoreRange ||
-												"N/A"
-											}
-											onSelect={(v) =>
-												handleInputChange(
-													"creditScoreRange",
-													v as CreditScoreRange
-												)
-											}
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"creditScoreRange",
-													"borrower-financials"
-												)
-											}
-											isLocked={isFieldLocked(
-												"creditScoreRange",
-												"borrower-financials"
-											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="netWorthRange"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="netWorthRange"
-										data-field-type="button-select"
-										data-field-section="borrower-financials"
-										data-field-required="false"
-										data-field-label="Net Worth Range"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"netWorthRange",
-											"borrower-financials",
-											"Net Worth Range",
-											false
-										)}
-										<ButtonSelect
-											label=""
-											options={netWorthRangeOptions}
-											selectedValue={
-												formData.netWorthRange || "<$1M"
-											}
-											onSelect={(v) =>
-												handleInputChange(
-													"netWorthRange",
-													v as NetWorthRange
-												)
-											}
-											disabled={!isEditing}
-											isLocked={isFieldLocked(
-												"netWorthRange",
-												"borrower-financials"
-											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="liquidityRange"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="liquidityRange"
-										data-field-type="button-select"
-										data-field-section="borrower-financials"
-										data-field-required="false"
-										data-field-label="Liquidity Range"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"liquidityRange",
-											"borrower-financials",
-											"Liquidity Range",
-											false
-										)}
-										<ButtonSelect
-											label=""
-											options={liquidityRangeOptions}
-											selectedValue={
-												formData.liquidityRange ||
-												"<$100k"
-											}
-											onSelect={(v) =>
-												handleInputChange(
-													"liquidityRange",
-													v as LiquidityRange
-												)
-											}
-											disabled={!isEditing}
-											isLocked={isFieldLocked(
-												"liquidityRange",
-												"borrower-financials"
-											)}
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<div className="p-4 bg-amber-50 rounded border border-amber-200">
-								<h3 className="text-sm font-semibold mb-3 flex items-center">
-									<AlertTriangle className="mr-2 h-4 w-4" />{" "}
-									Financial Background
-								</h3>
-								<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-									<AskAIButton
-										id="bankruptcyHistory"
-										onAskAI={onAskAI || (() => {})}
-									>
-										<div
-											data-field-id="bankruptcyHistory"
-											data-field-type="button"
-											data-field-section="borrower-financials"
-											data-field-required="false"
-											data-field-label="Bankruptcy (7yr)"
-											className="relative group/field"
-										>
-											{renderFieldLabel(
-												"bankruptcyHistory",
-												"borrower-financials",
-												"Bankruptcy (7yr)",
-												false
-											)}
-											<Button
-												type="button"
-												variant={
-													formData.bankruptcyHistory ||
-													false
-														? "primary"
-														: "outline"
-												}
-												onClick={() =>
-													handleInputChange(
-														"bankruptcyHistory",
-														!(
-															formData.bankruptcyHistory ||
-															false
-														)
-													)
-												}
-												disabled={!isEditing}
-												className={cn(
-													"justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
-													formData.bankruptcyHistory ||
-														false
-														? "ring-2 ring-blue-500 ring-offset-1 shadow-md"
-														: "text-gray-700 hover:bg-gray-50"
-												)}
-											>
-												Yes
-											</Button>
-										</div>
-									</AskAIButton>
-									<AskAIButton
-										id="foreclosureHistory"
-										onAskAI={onAskAI || (() => {})}
-									>
-										<div
-											data-field-id="foreclosureHistory"
-											data-field-type="button"
-											data-field-section="borrower-financials"
-											data-field-required="false"
-											data-field-label="Foreclosure (7yr)"
-											className="relative group/field"
-										>
-											{renderFieldLabel(
-												"foreclosureHistory",
-												"borrower-financials",
-												"Foreclosure (7yr)",
-												false
-											)}
-											<Button
-												type="button"
-												variant={
-													formData.foreclosureHistory ||
-													false
-														? "primary"
-														: "outline"
-												}
-												onClick={() =>
-													handleInputChange(
-														"foreclosureHistory",
-														!(
-															formData.foreclosureHistory ||
-															false
-														)
-													)
-												}
-												disabled={!isEditing}
-												className={cn(
-													"justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
-													formData.foreclosureHistory ||
-														false
-														? "ring-2 ring-blue-500 ring-offset-1 shadow-md"
-														: "text-gray-700 hover:bg-gray-50"
-												)}
-											>
-												Yes
-											</Button>
-										</div>
-									</AskAIButton>
-									<AskAIButton
-										id="litigationHistory"
-										onAskAI={onAskAI || (() => {})}
-									>
-										<div
-											data-field-id="litigationHistory"
-											data-field-type="button"
-											data-field-section="borrower-financials"
-											data-field-required="false"
-											data-field-label="Litigation"
-											className="relative group/field"
-										>
-											{renderFieldLabel(
-												"litigationHistory",
-												"borrower-financials",
-												"Litigation",
-												false
-											)}
-											<Button
-												type="button"
-												variant={
-													formData.litigationHistory ||
-													false
-														? "primary"
-														: "outline"
-												}
-												onClick={() =>
-													handleInputChange(
-														"litigationHistory",
-														!(
-															formData.litigationHistory ||
-															false
-														)
-													)
-												}
-												disabled={!isEditing}
-												className={cn(
-													"justify-center w-full px-2 py-1.5 md:px-3 md:py-2 focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 text-xs md:text-sm",
-													formData.litigationHistory ||
-														false
-														? "ring-2 ring-blue-500 ring-offset-1 shadow-md"
-														: "text-gray-700 hover:bg-gray-50"
-												)}
-											>
-												Yes
-											</Button>
-										</div>
-									</AskAIButton>
+			};
+		});
+	}, [
+		expandedSubsections,
+		toggleSubsection,
+		toggleSubsectionLock,
+		isSubsectionFullyLocked,
+		renderDynamicField,
+		principalFormData,
+		handlePrincipalInputChange,
+		handleAddPrincipal,
+		isAddingPrincipal,
+		formData,
+		handleRemovePrincipal,
+		fieldMetadata,
+		renderFieldLockButton,
+		isFieldLocked,
+		isFieldBlue,
+		isFieldGreen,
+		isFieldWhite,
+	]);
+
+	if (!isEditing) {
+		return (
+			<BorrowerResumeView
+				resume={formData}
+				projectId={projectId}
+				onEdit={() => setIsEditing(true)}
+				onVersionChange={reloadBorrowerResume}
+			/>
+		);
+	}
+
+	return (
+		<div
+			className={cn(
+				"h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden",
+				compact && "p-4"
+			)}
+		>
+			<div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+				<div className="flex items-center gap-3">
+					<FileText className="h-5 w-5 text-blue-600" />
+					<div className="flex items-center gap-2">
+						<h3 className="text-xl md:text-2xl font-semibold text-gray-900">
+							Borrower Resume
+						</h3>
+						<div className="relative group">
+							<HelpCircle className="h-4 w-4 text-gray-400 hover:text-blue-600 cursor-help" />
+							<div className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-72 -translate-x-1/2 transform opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+								<div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-lg">
+									Provide your borrower details. Fields can be
+									autofilled from documents and locked.
 								</div>
 							</div>
 						</div>
 					</div>
-				),
-			},
-			// Step 4: Online Presence (JSX - Optional)
-			{
-				id: "online-presence",
-				title: "Online Presence",
-				isOptional: true,
-				component: (
-					<div className="space-y-6">
-						<div className="flex items-center justify-between mb-4">
-							<h2 className="text-xl font-semibold flex items-center">
-								<Globe className="mr-2" /> Online Presence (Opt)
-							</h2>
-							<button
-								type="button"
-								onClick={() =>
-									toggleSectionLock("online-presence")
-								}
-								className={cn(
-									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-									lockedSections.has("online-presence")
-										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
-								)}
-								title={
-									lockedSections.has("online-presence")
-										? "Unlock section"
-										: "Lock section"
-								}
-							>
-								{lockedSections.has("online-presence") ? (
-									<>
-										<Lock className="h-4 w-4" />
-										<span>Unlock Section</span>
-									</>
-								) : (
-									<>
-										<Unlock className="h-4 w-4" />
-										<span>Lock Section</span>
-									</>
-								)}
-							</button>
-						</div>
-						<div className="space-y-6">
-							<FormGroup>
-								<AskAIButton
-									id="linkedinUrl"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="linkedinUrl"
-										data-field-type="input"
-										data-field-section="online-presence"
-										data-field-required="false"
-										data-field-label="LinkedIn URL"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"linkedinUrl",
-											"online-presence",
-											"LinkedIn URL",
-											false
-										)}
-										<Input
-											id="linkedinUrl"
-											label={null}
-											value={formData.linkedinUrl || ""}
-											onChange={(e) =>
-												handleInputChange(
-													"linkedinUrl",
-													e.target.value
-												)
-											}
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"linkedinUrl",
-													"online-presence"
-												)
-											}
-											className={cn(
-												isEditing &&
-													getFieldStylingClasses(
-														"linkedinUrl",
-														"online-presence"
-													)
-											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<FormGroup>
-								<AskAIButton
-									id="websiteUrl"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="websiteUrl"
-										data-field-type="input"
-										data-field-section="online-presence"
-										data-field-required="false"
-										data-field-label="Company Website"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"websiteUrl",
-											"online-presence",
-											"Company Website",
-											false
-										)}
-										<Input
-											id="websiteUrl"
-											label={null}
-											value={formData.websiteUrl || ""}
-											onChange={(e) =>
-												handleInputChange(
-													"websiteUrl",
-													e.target.value
-												)
-											}
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"websiteUrl",
-													"online-presence"
-												)
-											}
-											className={cn(
-												isEditing &&
-													getFieldStylingClasses(
-														"websiteUrl",
-														"online-presence"
-													)
-											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-						</div>
-					</div>
-				),
-			},
-			// Step 5: Key Principals (JSX - Optional, uses ButtonSelect for Role)
-			{
-				id: "principals",
-				title: "Key Principals",
-				isOptional: true,
-				component: (
-					<div className="space-y-6">
-						<div className="flex items-center justify-between mb-4">
-							<h2 className="text-xl font-semibold flex items-center">
-								<Award className="mr-2" /> Key Principals (Opt)
-							</h2>
-							<button
-								type="button"
-								onClick={() => toggleSectionLock("principals")}
-								className={cn(
-									"flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-									lockedSections.has("principals")
-										? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-										: "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
-								)}
-								title={
-									lockedSections.has("principals")
-										? "Unlock section"
-										: "Lock section"
-								}
-							>
-								{lockedSections.has("principals") ? (
-									<>
-										<Lock className="h-4 w-4" />
-										<span>Unlock Section</span>
-									</>
-								) : (
-									<>
-										<Unlock className="h-4 w-4" />
-										<span>Lock Section</span>
-									</>
-								)}
-							</button>
-						</div>
-						<div className="space-y-6">
-							{/* Add Principal (unstyled container to match page theme) */}
-							<h3 className="text-base md:text-lg font-semibold text-gray-800">
-								Add Principal
-							</h3>
-							{/* Name full width */}
-							<FormGroup>
-								<AskAIButton
-									id="principalLegalName"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="principalLegalName"
-										data-field-type="input"
-										data-field-section="principals"
-										data-field-required="true"
-										data-field-label="Principal Name"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"principalLegalName",
-											"principals",
-											"Name",
-											true
-										)}
-										<Input
-											id="pName"
-											label={null}
-											value={
-												principalFormData.principalLegalName ||
-												""
-											}
-											onChange={(e) =>
-												handlePrincipalInputChange(
-													"principalLegalName",
-													e.target.value
-												)
-											}
-											required
-											disabled={
-												!isEditing ||
-												isFieldLocked(
-													"principalLegalName",
-													"principals"
-												)
-											}
-											className={cn(
-												isEditing &&
-													getFieldStylingClasses(
-														"principalLegalName",
-														"principals"
-													)
-											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							{/* Role on next line, full width */}
-							<FormGroup>
-								<AskAIButton
-									id="principalRoleDefault"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="principalRoleDefault"
-										data-field-type="button-select"
-										data-field-section="principals"
-										data-field-required="true"
-										data-field-label="Principal Role"
-										data-field-options='["Managing Member","General Partner","Developer","Sponsor","Key Principal","Guarantor","Limited Partner","Other"]'
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"principalRoleDefault",
-											"principals",
-											"Role",
-											true
-										)}
-										<ButtonSelect
-											label=""
-											options={principalRoleOptions}
-											selectedValue={
-												principalFormData.principalRoleDefault ||
-												"Key Principal"
-											}
-											onSelect={(v) =>
-												handlePrincipalInputChange(
-													"principalRoleDefault",
-													v as PrincipalRole
-												)
-											}
-											disabled={!isEditing}
-											buttonClassName="text-sm"
-											gridCols="grid-cols-8"
-											hasAutofillBeenRun={
-												hasAutofillBeenRun
-											}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							{/* Email & Ownership side by side */}
-							<div className="grid md:grid-cols-2 gap-4">
-								<FormGroup>
-									<AskAIButton
-										id="principalEmail"
-										onAskAI={onAskAI || (() => {})}
-									>
-										<div
-											data-field-id="principalEmail"
-											data-field-type="input"
-											data-field-section="principals"
-											data-field-required="false"
-											data-field-label="Principal Email"
-											className="relative group/field"
-										>
-											{renderFieldLabel(
-												"principalEmail",
-												"principals",
-												"Email",
-												false
-											)}
-											<Input
-												id="pEmail"
-												type="email"
-												label={null}
-												value={
-													principalFormData.principalEmail ||
-													""
-												}
-												onChange={(e) =>
-													handlePrincipalInputChange(
-														"principalEmail",
-														e.target.value
-													)
-												}
-												disabled={!isEditing}
-											/>
-										</div>
-									</AskAIButton>
-								</FormGroup>
-								<FormGroup>
-									<AskAIButton
-										id="ownershipPercentage"
-										onAskAI={onAskAI || (() => {})}
-									>
-										<div
-											data-field-id="ownershipPercentage"
-											data-field-type="input"
-											data-field-section="principals"
-											data-field-required="false"
-											data-field-label="Ownership Percentage"
-											className="relative group/field"
-										>
-											{renderFieldLabel(
-												"ownershipPercentage",
-												"principals",
-												"Ownership (%)",
-												false
-											)}
-											<Input
-												id="pOwn"
-												type="number"
-												inputMode="numeric"
-												pattern="[0-9]*"
-												step="0.01"
-												label={null}
-												value={
-													principalFormData.ownershipPercentage?.toString() ||
-													""
-												}
-												onChange={(e) => {
-													const raw =
-														e.target.value || "";
-													const cleaned = raw.replace(
-														/[^\d.]/g,
-														""
-													);
-													const bounded = Math.max(
-														0,
-														Math.min(
-															100,
-															Number(cleaned || 0)
-														)
-													);
-													handlePrincipalInputChange(
-														"ownershipPercentage",
-														bounded
-													);
-												}}
-												min="0"
-												max="100"
-												disabled={!isEditing}
-											/>
-										</div>
-									</AskAIButton>
-								</FormGroup>
-							</div>
-							{/* Bio full width */}
-							<FormGroup>
-								<AskAIButton
-									id="principalBio"
-									onAskAI={onAskAI || (() => {})}
-								>
-									<div
-										data-field-id="principalBio"
-										data-field-type="textarea"
-										data-field-section="principals"
-										data-field-required="false"
-										data-field-label="Principal Bio"
-										className="relative group/field"
-									>
-										{renderFieldLabel(
-											"principalBio",
-											"principals",
-											"Bio (Opt)",
-											false
-										)}
-										<textarea
-											id="pBio"
-											value={
-												principalFormData.principalBio ||
-												""
-											}
-											onChange={(e) =>
-												handlePrincipalInputChange(
-													"principalBio",
-													e.target.value
-												)
-											}
-											rows={2}
-											disabled={!isEditing}
-											className={cn(
-												getFieldStylingClasses(
-													"principalBio",
-													"principals"
-												),
-												"h-24"
-											)}
-										/>
-									</div>
-								</AskAIButton>
-							</FormGroup>
-							<Button
-								onClick={handleAddPrincipal}
-								variant="secondary"
-								isLoading={isAddingPrincipal}
-								disabled={
-									!isEditing ||
-									isAddingPrincipal ||
-									!(
-										principalFormData.principalLegalName ||
-										""
-									).trim() ||
-									!(
-										principalFormData.principalRoleDefault ||
-										""
-									).trim()
-								}
-								className="mt-1"
-							>
-								Add
-							</Button>
-
-							{Array.isArray((formData as any).principals) &&
-								(formData as any).principals.length > 0 && (
-									<div className="mt-4">
-										<h4 className="text-sm font-semibold text-gray-700 mb-2">
-											Principals
-										</h4>
-										<ul className="divide-y divide-gray-200 rounded-lg border border-gray-200">
-											{(formData as any).principals.map(
-												(p: Principal) => (
-													<li
-														key={p.id}
-														className="p-3 text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1"
-													>
-														<span className="font-medium">
-															{
-																p.principalLegalName
-															}
-														</span>
-														<span className="text-gray-500">
-															•{" "}
-															{
-																p.principalRoleDefault
-															}
-														</span>
-														{p.principalEmail && (
-															<span className="text-gray-500">
-																•{" "}
-																{
-																	p.principalEmail
-																}
-															</span>
-														)}
-														{typeof p.ownershipPercentage ===
-															"number" && (
-															<span className="text-gray-500">
-																•{" "}
-																{
-																	p.ownershipPercentage
-																}
-																%
-															</span>
-														)}
-													</li>
-												)
-											)}
-										</ul>
-									</div>
-								)}
-						</div>
-					</div>
-				),
-			},
-			// Review & Save step removed; autosave covers all updates
-		],
-		[
-			formData,
-			principalFormData,
-			isAddingPrincipal,
-			handleInputChange,
-			handleAddPrincipal,
-			handlePrincipalInputChange,
-			onAskAI,
-			isEditing,
-			lockedSections,
-			isFieldLocked,
-			renderFieldLabel,
-			toggleSectionLock,
-			getFieldStylingClasses,
-			hasAutofillBeenRun,
-		]
-	);
-
-	// Handle showing/hiding completion percentage with delay
-	const handleMouseEnter = () => {
-		setShowCompletionPercent(false);
-		if (completionTimeoutRef.current) {
-			clearTimeout(completionTimeoutRef.current);
-		}
-	};
-
-	const handleMouseLeave = () => {
-		// Wait for buttons to collapse (300ms) plus a small buffer before showing
-		if (completionTimeoutRef.current) {
-			clearTimeout(completionTimeoutRef.current);
-		}
-		completionTimeoutRef.current = setTimeout(() => {
-			setShowCompletionPercent(true);
-		}, 350); // 300ms button collapse + 50ms buffer
-	};
-
-	// Cleanup timeout on unmount
-	useEffect(() => {
-		return () => {
-			if (completionTimeoutRef.current) {
-				clearTimeout(completionTimeoutRef.current);
-			}
-		};
-	}, []);
-
-	return (
-		<div
-			className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group transition-all duration-700 ease-in-out cursor-pointer hover:shadow-lg hover:shadow-blue-100/40 hover:border-blue-200/50 hover:-translate-y-0.5 will-change-transform"
-			aria-expanded={!collapsed}
-			role="button"
-			tabIndex={0}
-			onClick={() => {
-				if (!isEditing) setCollapsed((v) => !v);
-			}}
-			onKeyDown={(e) => {
-				if ((e.key === "Enter" || e.key === " ") && !isEditing) {
-					e.preventDefault();
-					setCollapsed((v) => !v);
-				}
-			}}
-			onMouseEnter={handleMouseEnter}
-			onMouseLeave={handleMouseLeave}
-		>
-			<div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-transparent to-purple-50/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-in-out pointer-events-none will-change-opacity" />
-			{/* Header with Edit button */}
-			<div className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm rounded-t-2xl flex flex-col relative px-3 py-3">
-				{/* First row: Title and primary actions */}
-				<div className="flex items-center justify-between mb-2">
-					<div className="ml-3 flex items-center gap-3">
-						<h2 className="text-2xl font-semibold text-gray-800 flex items-center flex-shrink-0">
-							Borrower Resume
-						</h2>
-						{typeof progressPercent === "number" &&
-							showCompletionPercent && (
-								<span className="text-sm font-semibold text-gray-500 flex-shrink-0">
-									{progressPercent}% complete
-								</span>
-							)}
-					</div>
-					{/* Save/changed indicator when editing */}
-					{isEditing && (isSaving || justSaved) && (
-						<div className="flex items-center text-xs text-gray-500 mr-2">
-							{isSaving ? (
-								<>
-									<Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-									<span className="ml-2">Saving…</span>
-								</>
-							) : (
-								<>
-									<Check className="h-4 w-4 text-green-600" />
-									<span className="ml-2 text-green-600">
-										All Changes Saved
-									</span>
-								</>
-							)}
-						</div>
-					)}
 				</div>
-				{/* Second row: Action buttons */}
-				<div className="ml-3 flex items-center gap-3 flex-wrap">
-					{/* Edit button */}
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={(e) => {
-							e.stopPropagation();
-							if (isEditing) {
-								// Cancel: revert to saved resume data
-								if (borrowerResume) {
-									const nextData = { ...borrowerResume };
-									setFormData(nextData);
-								}
-							}
-							setIsEditing(!isEditing);
-						}}
-						className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-visible text-base flex-shrink-0"
-					>
-						{isEditing ? (
-							<>
-								<Check className="h-5 w-5 text-gray-600 flex-shrink-0" />
-								<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[90px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-visible">
-									Done
-								</span>
-							</>
-						) : (
-							<>
-								<Edit className="h-5 w-5 text-gray-600 flex-shrink-0" />
-								<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[80px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-visible">
-									Edit
-								</span>
-							</>
-						)}
-					</Button>
-					{!isEditing && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={(e) => {
-								e.stopPropagation();
-								setCollapsed((v) => !v);
-							}}
-							aria-label={
-								collapsed ? "Expand resume" : "Collapse resume"
-							}
-							className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-visible text-base flex-shrink-0"
-						>
-							<ChevronDown
-								className={cn(
-									"h-5 w-5 text-gray-600 flex-shrink-0 transition-transform duration-200",
-									collapsed ? "" : "rotate-180"
-								)}
-							/>
-							<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[160px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-visible">
-								{collapsed
-									? "Show Borrower Details"
-									: "Hide Borrower Details"}
-							</span>
-						</Button>
+				<div className="flex items-center gap-2">
+					{lastSavedAt && (
+						<span className="text-xs text-gray-500 mr-2 hidden sm:inline-block">
+							Draft saved{" "}
+							{new Date(lastSavedAt).toLocaleTimeString()}
+						</span>
 					)}
-					{/* Autofill button - show in both edit and view modes */}
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={(e) => {
-							e.stopPropagation();
-							handleAutofill();
-						}}
+						onClick={wrappedHandleAutofill}
 						disabled={isAutofilling}
 						className={cn(
-							"group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-visible text-base flex-shrink-0",
+							"group relative flex items-center gap-1 px-2 py-1.5 rounded-md border transition-all",
 							isAutofilling
 								? "border-blue-400 bg-blue-50 text-blue-700"
-								: "border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 hover:border-blue-400 text-blue-700 hover:text-blue-800 shadow-sm hover:shadow-md"
+								: "border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700"
 						)}
 					>
 						{isAutofilling ? (
-							<>
-								<Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
-								<span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-visible">
-									Autofilling...
-								</span>
-							</>
+							<Loader2 className="h-4 w-4 animate-spin" />
 						) : (
-							<>
-								<Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />
-								<span className="text-sm font-medium text-blue-700 whitespace-nowrap max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-visible">
-									Autofill Resume
-								</span>
-							</>
+							<Sparkles className="h-4 w-4 text-blue-600" />
 						)}
-						{/* Sparkle animation overlay */}
+						<span className="text-xs font-medium">
+							{isAutofilling ? "Autofilling..." : "Autofill"}
+						</span>
 						{showSparkles && (
-							<div className="absolute inset-0 pointer-events-none overflow-hidden">
-								{[...Array(20)].map((_, i) => (
-									<motion.div
-										key={i}
-										className="absolute w-1 h-1 bg-yellow-400 rounded-full"
-										initial={{
-											x: "50%",
-											y: "50%",
-											opacity: 1,
-											scale: 0,
-										}}
-										animate={{
-											x: `${Math.random() * 100}%`,
-											y: `${Math.random() * 100}%`,
-											opacity: [1, 1, 0],
-											scale: [0, 1.5, 0],
-										}}
-										transition={{
-											duration: 0.8,
-											delay: Math.random() * 0.3,
-											ease: "easeOut",
-										}}
-										style={{
-											left: "50%",
-											top: "50%",
-										}}
-									/>
-								))}
-							</div>
+							<span className="absolute -inset-1 pointer-events-none rounded-md border border-blue-200" />
 						)}
 					</Button>
-					<div className="flex-shrink-0">
-						<BorrowerResumeVersionHistory
-							projectId={projectId}
-							onRollbackSuccess={handleVersionRollbackSuccess}
-							onOpen={handleVersionHistoryOpen}
-						/>
-					</div>
-					{onCopyBorrowerResume && !isEditing && (
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => handleFormSubmit()}
+						isLoading={formSaved}
+						disabled={formSaved}
+					>
+						{formSaved ? "Saving..." : "Save & Exit"}
+					</Button>
+					{onCopyBorrowerResume && (
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={(e) => {
-								e.stopPropagation();
-								onCopyBorrowerResume();
-							}}
-							disabled={copyDisabled}
-							isLoading={copyLoading}
-							className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-visible text-base flex-shrink-0"
+							onClick={onCopyBorrowerResume}
+							disabled={copyDisabled || copyLoading}
 						>
 							{copyLoading ? (
-								<span className="text-sm font-medium text-gray-700 whitespace-nowrap">
-									Copying...
-								</span>
+								"Copying..."
 							) : (
 								<>
-									<Copy className="h-5 w-5 text-gray-600 flex-shrink-0" />
-									<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[190px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-visible">
-										Copy From Another Project
-									</span>
+									<Copy className="h-4 w-4 mr-1" /> Copy
+									Profile
 								</>
 							)}
 						</Button>
 					)}
+					<div className="ml-2">
+						<BorrowerResumeVersionHistory
+							projectId={projectId}
+							onRollbackSuccess={() => {
+								setRefreshKey((prev) => prev + 1);
+								reloadBorrowerResume();
+								onVersionChange?.();
+							}}
+							onOpen={() => setIsEditing(false)}
+						/>
+					</div>
 				</div>
 			</div>
-			{/* Remote update notification */}
-			{isRemoteUpdate && (
-				<div className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mt-4 rounded-md flex items-center gap-2 animate-fadeIn">
-					<AlertCircle className="h-4 w-4 flex-shrink-0" />
-					<span className="text-sm font-medium">
-						This resume was updated by another user. Your view has
-						been refreshed.
-					</span>
-				</div>
-			)}
-			{showLoadingState ? (
-				<div className="flex justify-center items-center h-32 text-gray-500">
-					<Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading
-					borrower resume...
-				</div>
-			) : isEditing ? (
-				<div className="p-6 relative z-10">
-					<FormWizard
-						steps={steps}
-						onComplete={handleProfileSubmit}
-						showProgressBar={false}
-						showStepIndicators={false}
-						allowSkip={true}
-						variant="tabs"
-						showBottomNav={true}
-					/>
-				</div>
-			) : (
-				<AnimatePresence initial={false}>
-					{!collapsed && (
-						<motion.div
-							initial={{ height: 0, opacity: 0 }}
-							animate={{ height: "auto", opacity: 1 }}
-							exit={{ height: 0, opacity: 0 }}
-							transition={{ duration: 0.3, ease: "easeInOut" }}
-							className="overflow-hidden relative z-10"
-						>
-							<BorrowerResumeView
-								resume={formData}
-								autofillAnimationKey={autofillAnimationKey}
-								showAutofillSuccess={showAutofillSuccess}
-							/>
-						</motion.div>
-					)}
-				</AnimatePresence>
-			)}
+
+			<div className="p-4">
+				{showAutofillNotification && (
+					<div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-800 flex gap-2">
+						<Info className="h-4 w-4 mt-0.5" />
+						<span>
+							Autofill complete. Data from documents has been
+							applied.
+						</span>
+					</div>
+				)}
+
+				<FormWizard
+					steps={steps}
+					onComplete={() => handleFormSubmit()}
+					showProgressBar={false}
+					showStepIndicators={false}
+					allowSkip
+					variant="tabs"
+					showBottomNav
+				/>
+			</div>
 		</div>
 	);
 };
