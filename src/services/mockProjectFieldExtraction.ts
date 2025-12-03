@@ -554,6 +554,11 @@ export const extractProjectFields = async (
 				"Utility easement on north side",
 				"Title/ALTA"
 			),
+			// Project media (site images & plans) is ALWAYS user input.
+			// We explicitly keep these null in the mock API so they are
+			// never treated as AI/document-sourced fields by the UI.
+			siteImages: createField(null, "User Input"),
+			architecturalDiagrams: createField(null, "User Input"),
 			accessPoints: createField("1 Curb Cut on Main St", "Civil Plans"),
 			adjacentLandUse: createField("Mixed-Use", "Zoning"),
 			noiseFactors: createField(["Highway"], "Env Report"),
