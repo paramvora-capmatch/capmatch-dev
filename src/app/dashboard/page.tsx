@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RoleBasedRoute } from "../../components/auth/RoleBasedRoute";
 import { useProjects } from "../../hooks/useProjects";
@@ -125,6 +125,7 @@ export default function DashboardPage() {
     createProject,
     deleteProject,
     isLoading: projectsLoading,
+    loadUserProjects,
   } = useProjects();
   const {
     members: orgMembers,
@@ -136,6 +137,9 @@ export default function DashboardPage() {
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  
+  // Track if we've attempted to load projects to prevent duplicate calls
+  const hasAttemptedLoad = useRef(false);
   
   // State to track when a project is being created
   const [isCreatingProject, setIsCreatingProject] = useState(false);
@@ -233,6 +237,36 @@ export default function DashboardPage() {
     router.push(`/project/workspace/${selectedProjectId}?step=borrower`);
     setSelectedProjectId("");
   }, [selectedProjectId, router]);
+
+  // Explicitly load projects when user is authenticated and ready
+  // This fixes the issue where projects don't load when navigating from login/landing page
+  // because the subscription only fires on org membership changes, not on initial load
+  useEffect(() => {
+    // Only load if:
+    // 1. User is authenticated and is a borrower
+    // 2. Auth is not loading
+    // 3. User has an active org (org memberships are loaded)
+    // 4. We haven't attempted to load yet
+    if (
+      user &&
+      user.role === "borrower" &&
+      !authLoading &&
+      activeOrg &&
+      !hasAttemptedLoad.current
+    ) {
+      hasAttemptedLoad.current = true;
+      loadUserProjects().catch((error) => {
+        console.error("[Dashboard] Failed to load projects:", error);
+        // Reset flag on error so we can retry
+        hasAttemptedLoad.current = false;
+      });
+    }
+    
+    // Reset flag when user logs out or org changes
+    if (!user || !activeOrg) {
+      hasAttemptedLoad.current = false;
+    }
+  }, [user, authLoading, activeOrg, loadUserProjects]);
 
   // Control Flow Logic & Loading
   useEffect(() => {
