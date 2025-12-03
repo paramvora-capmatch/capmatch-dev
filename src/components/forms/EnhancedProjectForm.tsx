@@ -527,8 +527,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				[fieldId]: {
 					...currentMeta,
 					value: value,
-					// Force sources to user_input when edited manually
+					// Force source to user_input when edited manually
 					sources: [{ type: "user_input" } as any],
+					original_source: null,
 				},
 			};
 		});

@@ -313,11 +313,9 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
                                       </p>
                                     )}
                                   </div>
-                                  {a.sources && a.sources.length > 0 && (
+                                  {a.source && (
                                     <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 capitalize font-medium">
-                                      {typeof a.sources[0] === 'string'
-                                        ? a.sources[0]
-                                        : (a.sources[0] as any)?.name || (a.sources[0] as any)?.type || 'source'}
+                                      {a.source}
                                     </span>
                                   )}
                                 </div>

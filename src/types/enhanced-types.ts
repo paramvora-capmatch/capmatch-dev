@@ -678,9 +678,9 @@ export type FilePermissionOverride = {
 // Field Metadata Types for warnings and source tracking
 export interface FieldMetadata {
 	value: any;
-	// Primary source information is now represented via the `sources` array only.
-	// `source` and `original_source` have been removed in favor of a unified model.
-	sources?: any[]; // Normalized array of source descriptors (e.g. SourceMetadata[])
+	source: string | null; // Primary source (for backward compatibility)
+	sources?: string[]; // Array of all sources (document names or "Census API")
+	original_source?: "document" | "knowledge_base" | null; // To track origin after edit
 	original_value?: any; // To compare against
 	warnings: string[];
 }

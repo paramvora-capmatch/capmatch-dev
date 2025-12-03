@@ -176,7 +176,7 @@ export function updateFieldState(
 		updated.state = calculateFieldState(
 			null, // We don't have value here, so we rely on explicit state
 			updated.locked,
-			updated.source,
+			updated.source || current.source,
 			updated.state !== "WHITE" // Has value if not WHITE
 		);
 	}

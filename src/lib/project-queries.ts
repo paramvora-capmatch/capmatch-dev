@@ -536,21 +536,28 @@ export const getProjectWithResume = async (
 		if (
 			item &&
 			typeof item === "object" &&
-			"sources" in item &&
+			("source" in item || "sources" in item) &&
 			"value" in item
 		) {
 			(resumeContent as any)[key] = item.value;
-			let sourceValue: string | null = null;
-			if (item.sources && Array.isArray(item.sources) && item.sources.length > 0) {
+			let sourceValue = item.source;
+			if (
+				!sourceValue &&
+				item.sources &&
+				Array.isArray(item.sources) &&
+				item.sources.length > 0
+			) {
 				const first = item.sources[0];
 				sourceValue =
 					typeof first === "object" && first !== null
 						? first.name || first.type
-						: String(first);
+						: first;
 			}
 			_metadata[key] = {
 				value: item.value,
-				sources: item.sources || [],
+				source: sourceValue || null,
+				sources: item.sources || (item.source ? [item.source] : []),
+				original_source: item.source || null,
 				original_value: item.original_value ?? item.value,
 				warnings: item.warnings || [],
 			};
@@ -667,7 +674,7 @@ export const getProjectsWithResumes = async (
 				if (
 					item &&
 					typeof item === "object" &&
-					"sources" in item &&
+					("source" in item || "sources" in item) &&
 					"value" in item
 				) {
 					(flatContent as any)[key] = item.value;
@@ -675,7 +682,8 @@ export const getProjectsWithResumes = async (
 					let originalSource: "document" | "knowledge_base" | null =
 						null;
 
-					const sources = item.sources || [];
+					const sources =
+						item.sources || (item.source ? [item.source] : []);
 					if (sources.length > 0) {
 						const first = sources[0];
 						if (typeof first === "object" && first !== null) {
@@ -803,7 +811,10 @@ export const saveProjectResume = async (
 
 		if (meta) {
 			const metaAny: any = metadata[key];
-			const metaSources = metaAny?.sources;
+			const metaSources =
+				metaAny?.sources !== undefined
+					? metaAny.sources
+					: metaAny?.source;
 			finalContent[key] = {
 				value: currentValue,
 				sources: toSourcesArray(metaSources),
@@ -815,12 +826,17 @@ export const saveProjectResume = async (
 			if (
 				existingItem &&
 				typeof existingItem === "object" &&
-				("value" in existingItem || "sources" in existingItem)
+				("value" in existingItem ||
+					"source" in existingItem ||
+					"sources" in existingItem)
 			) {
 				const existingObj: any = existingItem;
-				const existingSources = "sources" in existingObj
-					? existingObj.sources
-					: undefined;
+				const existingSources =
+					"sources" in existingObj
+						? existingObj.sources
+						: "source" in existingObj
+						? toSourcesArray(existingObj.source)
+						: undefined;
 				finalContent[key] = {
 					value: currentValue,
 					sources: existingSources ?? [{ type: "user_input" }],
@@ -1098,7 +1114,10 @@ export const saveProjectBorrowerResume = async (
 		if (meta) {
 			// Save rich format if metadata exists
 			const metaAny: any = metadata[key];
-			const metaSources = metaAny?.sources;
+			const metaSources =
+				metaAny?.sources !== undefined
+					? metaAny.sources
+					: metaAny?.source;
 			finalContentFlat[key] = {
 				value: currentValue,
 				sources: toSourcesArray(metaSources),
@@ -1120,10 +1139,16 @@ export const saveProjectBorrowerResume = async (
 			if (
 				existingItem &&
 				typeof existingItem === "object" &&
-				("value" in existingItem || "sources" in existingItem)
+				("value" in existingItem ||
+					"source" in existingItem ||
+					"sources" in existingItem)
 			) {
 				const existingSources =
-					"sources" in existingItem ? existingItem.sources : undefined;
+					"sources" in existingItem
+						? existingItem.sources
+						: "source" in existingItem
+						? toSourcesArray(existingItem.source)
+						: undefined;
 				finalContentFlat[key] = {
 					value: currentValue,
 					sources: existingSources ?? [{ type: "user_input" }],

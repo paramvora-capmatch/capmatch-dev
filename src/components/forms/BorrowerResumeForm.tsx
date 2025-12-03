@@ -305,8 +305,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		Object.entries(metadata).forEach(([fieldId, meta]) => {
 			const metaAny = meta as any;
 
-			// Determine if field is AI-sourced based on its sources array
-			const isAiSourced =
+			// Prefer detailed "sources" array when available
+			let isAiSourced =
 				Array.isArray(metaAny?.sources) &&
 				metaAny.sources.some((src: any) => {
 					if (!src) return false;
@@ -330,6 +330,25 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					}
 					return false;
 				});
+
+			// Fallback: some pipelines only populate a single "source" field
+			if (!isAiSourced && metaAny?.source) {
+				if (typeof metaAny.source === "string") {
+					const normalized = metaAny.source.toLowerCase();
+					isAiSourced =
+						normalized !== "user_input" &&
+						normalized !== "user input";
+				} else if (
+					typeof metaAny.source === "object" &&
+					"type" in metaAny.source &&
+					typeof metaAny.source.type === "string"
+				) {
+					const normalized = metaAny.source.type.toLowerCase();
+					isAiSourced =
+						normalized !== "user_input" &&
+						normalized !== "user input";
+				}
+			}
 
 			const hasValue = isValueProvided((sanitized as any)[fieldId]);
 			if (isAiSourced && hasValue) {
@@ -466,6 +485,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					...currentMeta,
 					value: value,
 					sources: [{ type: "user_input" }],
+					original_source: null,
 				},
 			};
 		});
