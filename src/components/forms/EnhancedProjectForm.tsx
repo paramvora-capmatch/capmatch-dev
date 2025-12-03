@@ -4239,6 +4239,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isSubsectionFullyLocked,
 		toggleSubsectionLock,
 		formData,
+		activeOrg?.id,
+		isFieldRequiredFromSchema,
 		fieldMetadata,
 	]);
 

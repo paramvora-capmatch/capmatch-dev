@@ -710,7 +710,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			setLockedFields((prev) => {
 				const next = new Set(prev);
 				fieldIds.forEach((id) => {
-					let value = (formData as any)[id];
+					const value = (formData as any)[id];
 					let hasValue = isValueProvided(value);
 
 					// Principals: require all rows to be complete before locking
@@ -1856,6 +1856,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		isSubsectionFullyLocked,
 		renderDynamicField,
 		formData,
+		handleInputChange,
 		handleRemovePrincipal,
 		fieldMetadata,
 		renderFieldLockButton,
