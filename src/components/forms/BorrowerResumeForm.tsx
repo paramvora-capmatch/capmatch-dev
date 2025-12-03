@@ -1300,12 +1300,49 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						{step.subsections?.map((sub: any) => {
 							const subKey = `${sectionId}::${sub.id}`;
 							const isExpanded = expandedSubsections.has(subKey);
-							const fields = sub.fields as string[];
-							const isLocked = isSubsectionFullyLocked(fields);
+
+							// For principals subsection, we lock based on the principals table field
+							const subsectionFields =
+								sub.id === "principal-details"
+									? ["principals"]
+									: (sub.fields as string[]);
+
+							const isLocked = isSubsectionFullyLocked(
+								subsectionFields
+							);
 
 							const fieldStates =
-								fields.length > 0
-									? fields.map((fieldId) => ({
+								sub.id === "principal-details"
+									? [
+											{
+												isBlue:
+													Array.isArray(
+														formData.principals
+													) &&
+													(formData.principals as any[])
+														.length > 0 &&
+													!isFieldLocked(
+														"principals",
+														sectionId
+													),
+												isGreen:
+													Array.isArray(
+														formData.principals
+													) &&
+													(formData.principals as any[])
+														.length > 0 &&
+													isFieldLocked(
+														"principals",
+														sectionId
+													),
+												hasValue:
+													hasCompletePrincipals(
+														formData.principals
+													),
+											},
+									  ]
+									: subsectionFields.length > 0
+									? subsectionFields.map((fieldId) => ({
 											isBlue: isFieldBlue(
 												fieldId,
 												sectionId
@@ -1391,11 +1428,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											<div
 												onClick={(e) => {
 													e.stopPropagation();
-													if (subsectionLockDisabled)
+ 													if (subsectionLockDisabled)
 														return;
-													toggleSubsectionLock(
-														fields
-													);
+ 													toggleSubsectionLock(
+ 														subsectionFields
+ 													);
 												}}
 												className={cn(
 													"flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
