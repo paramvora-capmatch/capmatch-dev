@@ -390,13 +390,10 @@ function convertToBorrowerSectionWise(flatContent: any): any {
 			continue;
 		}
 		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
-		if (!sectionId) {
-			// Unknown/legacy fields should not be forced into a synthetic
-			// "section_other" bucket. Keep them at the top level so the
-			// viewer can still access them via flat keys if needed.
-			sectionWise[fieldId] = fieldValue;
-			continue;
-		}
+		// If we don't have a section mapping for this field, drop it from the
+		// grouped structure entirely. These are legacy/unused fields (like
+		// the old per-principal fields) that we no longer want to persist.
+		if (!sectionId) continue;
 
 		if (!sectionWise[sectionId]) sectionWise[sectionId] = {};
 		sectionWise[sectionId][fieldId] = fieldValue;
@@ -427,12 +424,10 @@ function mergeIntoBorrowerSectionWise(
 			continue;
 		}
 		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
-		if (!sectionId) {
-			// Do not create or merge into a synthetic "section_other" bucket.
-			// Preserve unknown/legacy fields at the top level instead.
-			merged[fieldId] = fieldValue;
-			continue;
-		}
+		// Unknown/legacy fields (no section mapping) are dropped rather than
+		// being placed in a catch-all section. This prevents re-creating
+		// deprecated principal sub-fields on save.
+		if (!sectionId) continue;
 
 		if (!merged[sectionId]) merged[sectionId] = {};
 		merged[sectionId][fieldId] = fieldValue;
