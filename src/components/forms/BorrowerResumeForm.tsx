@@ -246,14 +246,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		new Set()
 	);
 
-	// Separate state for the "Add Principal" form inputs
-	const [principalFormData, setPrincipalFormData] = useState<
-		Partial<Principal>
-	>({
-		principalRoleDefault: "Key Principal",
-	});
-	const [isAddingPrincipal, setIsAddingPrincipal] = useState(false);
-
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
 	const [formSaved, setFormSaved] = useState(false);
@@ -472,48 +464,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		});
 	}, []);
 
-	// Principals Management
-	const handlePrincipalInputChange = useCallback(
-		(field: keyof Principal, value: any) => {
-			setPrincipalFormData((prev) => ({ ...prev, [field]: value }));
-		},
-		[]
-	);
-
-	const resetPrincipalForm = useCallback(() => {
-		setPrincipalFormData({ principalRoleDefault: "Key Principal" });
-	}, []);
-
-	const handleAddPrincipal = useCallback(() => {
-		const name = (principalFormData.principalLegalName || "").trim();
-		const role = (principalFormData.principalRoleDefault || "").trim();
-		if (!name || !role) return;
-
-		setIsAddingPrincipal(true);
-		const newPrincipal: Principal = {
-			id: Math.random().toString(36).slice(2),
-			...principalFormData,
-			principalLegalName: name,
-			principalRoleDefault: role as PrincipalRole,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-		} as Principal;
-
-		const currentPrincipals = Array.isArray(formData.principals)
-			? (formData.principals as Principal[])
-			: [];
-		const updatedPrincipals = [...currentPrincipals, newPrincipal];
-
-		handleInputChange("principals", updatedPrincipals);
-		resetPrincipalForm();
-		setIsAddingPrincipal(false);
-	}, [
-		principalFormData,
-		formData.principals,
-		handleInputChange,
-		resetPrincipalForm,
-	]);
-
+	// Principals Management (table-style, similar to residential unit mix)
 	const handleRemovePrincipal = useCallback(
 		(index: number) => {
 			const currentPrincipals = Array.isArray(formData.principals)
@@ -1467,215 +1418,357 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 									{isExpanded && (
 										<div className="p-3 pt-0 space-y-4">
 											{sub.id === "principal-details" ? (
-												<>
-													<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-														<FormGroup>
-															<label className="block text-sm font-medium mb-1">
-																Principal Name *
-															</label>
-															<Input
-																value={
-																	principalFormData.principalLegalName ||
-																	""
-																}
-																onChange={(e) =>
-																	handlePrincipalInputChange(
-																		"principalLegalName",
-																		e.target
-																			.value
-																	)
-																}
-															/>
-														</FormGroup>
-														<FormGroup>
-															<label className="block text-sm font-medium mb-1">
-																Role *
-															</label>
-															<ButtonSelect
-																label=""
-																options={principalRoleOptions.map(
-																	(o) => ({
-																		label: o,
-																		value: o,
-																	})
-																)}
-																selectedValue={
-																	principalFormData.principalRoleDefault
-																}
-																onSelect={(v) =>
-																	handlePrincipalInputChange(
-																		"principalRoleDefault",
-																		v
-																	)
+												<div
+													className={cn(
+														getTableWrapperClasses(
+															"principals"
+														),
+														"p-4"
+													)}
+												>
+													<div className="mb-3 flex items-center justify-between">
+														<div className="flex items-center gap-2">
+															<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+																Key Principals
+															</h4>
+															<FieldHelpTooltip
+																fieldId="principals"
+																fieldMetadata={
+																	fieldMetadata[
+																		"principals"
+																	]
 																}
 															/>
-														</FormGroup>
-														<FormGroup>
-															<label className="block text-sm font-medium mb-1">
-																Email
-															</label>
-															<Input
-																type="email"
-																value={
-																	principalFormData.principalEmail ||
-																	""
-																}
-																onChange={(e) =>
-																	handlePrincipalInputChange(
-																		"principalEmail",
-																		e.target
-																			.value
-																	)
-																}
-															/>
-														</FormGroup>
-														<FormGroup>
-															<label className="block text-sm font-medium mb-1">
-																Ownership %
-															</label>
-															<Input
-																type="number"
-																value={
-																	principalFormData.ownershipPercentage?.toString() ||
-																	""
-																}
-																onChange={(e) =>
-																	handlePrincipalInputChange(
-																		"ownershipPercentage",
-																		parseFloat(
-																			e
-																				.target
-																				.value
-																		)
-																	)
-																}
-															/>
-														</FormGroup>
-														<FormGroup className="md:col-span-2">
-															<label className="block text-sm font-medium mb-1">
-																Bio
-															</label>
-															<textarea
-																className="w-full border rounded p-2 h-20"
-																value={
-																	principalFormData.principalBio ||
-																	""
-																}
-																onChange={(e) =>
-																	handlePrincipalInputChange(
-																		"principalBio",
-																		e.target
-																			.value
-																	)
-																}
-															/>
-														</FormGroup>
-													</div>
-													<Button
-														onClick={
-															handleAddPrincipal
-														}
-														disabled={
-															isAddingPrincipal ||
-															!principalFormData.principalLegalName
-														}
-														variant="secondary"
-														className="mt-2"
-													>
-														<Plus className="h-4 w-4 mr-1" />{" "}
-														Add Principal
-													</Button>
-
-													{/* List of Principals using TableWrapper style */}
-													<div
-														className={cn(
-															getTableWrapperClasses(
-																"principals"
-															),
-															"p-4 mt-4"
-														)}
-													>
-														<div className="mb-3 flex items-center justify-between">
-															<div className="flex items-center gap-2">
-																<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
-																	Principals
-																	List
-																</h4>
-																<FieldHelpTooltip
-																	fieldId="principals"
-																	fieldMetadata={
-																		fieldMetadata[
-																			"principals"
-																		]
-																	}
-																/>
-															</div>
-															<div className="flex items-center gap-1">
-																{renderFieldLockButton(
-																	"principals",
-																	sectionId
-																)}
-															</div>
 														</div>
-														<div className="space-y-2">
-															{(Array.isArray(
-																formData.principals
-															)
-																? formData.principals
-																: []
-															).map((p, idx) => (
-																<div
-																	key={idx}
-																	className="p-3 bg-white border rounded-md flex justify-between items-center shadow-sm"
-																>
-																	<div>
-																		<span className="font-medium">
-																			{
-																				p.principalLegalName
-																			}
-																		</span>
-																		<span className="text-gray-500 text-sm ml-2">
-																			(
-																			{
-																				p.principalRoleDefault
-																			}
-																			)
-																		</span>
-																	</div>
-																	<Button
-																		size="sm"
-																		variant="ghost"
-																		onClick={() =>
-																			handleRemovePrincipal(
-																				idx
-																			)
-																		}
-																		className="text-red-500 hover:bg-red-50"
-																	>
-																		<Trash2
-																			size={
-																				16
-																			}
-																		/>
-																	</Button>
-																</div>
-															))}
-															{(!Array.isArray(
-																formData.principals
-															) ||
-																formData
-																	.principals
-																	.length ===
-																	0) && (
-																<p className="text-sm text-gray-500 italic text-center py-2">
-																	No
-																	principals
-																	added yet.
-																</p>
+														<div className="flex items-center gap-1">
+															{renderFieldLockButton(
+																"principals",
+																sectionId
 															)}
 														</div>
 													</div>
-												</>
+													<div className="overflow-x-auto">
+														<table className="min-w-full divide-y divide-gray-200 text-sm">
+															<thead className="bg-gray-50">
+																<tr>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Name
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Role
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Email
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Ownership %
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Bio
+																	</th>
+																	<th className="px-3 py-2" />
+																</tr>
+															</thead>
+															<tbody className="bg-white divide-y divide-gray-100">
+																{(() => {
+																	const principals: Principal[] =
+																		Array.isArray(
+																			formData.principals
+																		)
+																			? (formData.principals as Principal[])
+																			: [];
+																	const isLockedPrincipals =
+																		isFieldLocked(
+																			"principals",
+																			sectionId
+																		);
+
+																	const handlePrincipalRowChange =
+																		(
+																			index: number,
+																			key: keyof Principal,
+																			raw: any
+																		) => {
+																			const next: Principal[] =
+																				[
+																					...principals,
+																				];
+																			const current =
+																				next[
+																					index
+																				] || ({} as Principal);
+																			let value: any =
+																				raw;
+																			if (
+																				key ===
+																					"ownershipPercentage" &&
+																				typeof raw ===
+																					"string"
+																			) {
+																				const num =
+																					raw.trim() ===
+																					""
+																						? undefined
+																						: Number(
+																								raw
+																						  );
+																				value =
+																					Number.isNaN(
+																						num
+																					)
+																						? undefined
+																						: num;
+																			}
+																			next[index] =
+																				{
+																					...current,
+																					[key]:
+																						value,
+																				};
+																			handleInputChange(
+																				"principals",
+																				next
+																			);
+																		};
+
+																	const handleAddPrincipalRow =
+																		() => {
+																			const next: Principal[] =
+																				[
+																					...principals,
+																				];
+																			next.push({
+																				id: Math.random()
+																					.toString(36)
+																					.slice(
+																						2
+																					),
+																				principalLegalName:
+																					"",
+																				principalRoleDefault:
+																					"Key Principal",
+																				principalEmail:
+																					"",
+																				ownershipPercentage:
+																					undefined as any,
+																				principalBio:
+																					"",
+																			} as Principal);
+																			handleInputChange(
+																				"principals",
+																				next
+																			);
+																		};
+
+																	const rowsToRender =
+																		principals.length >
+																		0
+																			? principals
+																			: ([] as Principal[]);
+
+																	return (
+																		<>
+																			{rowsToRender.map(
+																				(
+																					p,
+																					idx
+																				) => (
+																					<tr
+																						key={
+																							p.id ||
+																							idx
+																						}
+																					>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="text"
+																								className="w-40 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									p.principalLegalName ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handlePrincipalRowChange(
+																										idx,
+																										"principalLegalName",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedPrincipals
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<ButtonSelect
+																								label=""
+																								options={principalRoleOptions.map(
+																									(
+																										o
+																									) => ({
+																										label: o,
+																										value: o,
+																									})
+																								)}
+																								selectedValue={
+																									p.principalRoleDefault ||
+																									"Key Principal"
+																								}
+																								onSelect={(
+																									v
+																								) =>
+																									handlePrincipalRowChange(
+																										idx,
+																										"principalRoleDefault",
+																										v as PrincipalRole
+																									)
+																								}
+																								disabled={
+																									isLockedPrincipals
+																								}
+																								isLocked={
+																									isLockedPrincipals
+																								}
+																								isTouched={
+																									!!p.principalRoleDefault
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="email"
+																								className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									p.principalEmail ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handlePrincipalRowChange(
+																										idx,
+																										"principalEmail",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedPrincipals
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="number"
+																								min={
+																									0
+																								}
+																								className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									p.ownershipPercentage ??
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handlePrincipalRowChange(
+																										idx,
+																										"ownershipPercentage",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedPrincipals
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<textarea
+																								className="w-64 rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								rows={
+																									2
+																								}
+																								value={
+																									p.principalBio ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handlePrincipalRowChange(
+																										idx,
+																										"principalBio",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedPrincipals
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle text-right">
+																							<Button
+																								size="sm"
+																								variant="ghost"
+																								onClick={() =>
+																									handleRemovePrincipal(
+																										idx
+																									)
+																								}
+																								disabled={
+																									isLockedPrincipals
+																								}
+																								className="text-red-500 hover:bg-red-50"
+																							>
+																								<Trash2
+																									size={
+																										16
+																									}
+																								/>
+																							</Button>
+																						</td>
+																					</tr>
+																				)
+																			)}
+																			<tr>
+																				<td
+																					colSpan={
+																						6
+																					}
+																					className="px-3 py-3 text-right"
+																				>
+																					<Button
+																						type="button"
+																						variant="secondary"
+																						size="sm"
+																						onClick={
+																							handleAddPrincipalRow
+																						}
+																						disabled={
+																							isLockedPrincipals
+																						}
+																					>
+																						<Plus className="h-4 w-4 mr-1" />
+																						Add Principal
+																					</Button>
+																				</td>
+																			</tr>
+																		</>
+																	);
+																})()}
+															</tbody>
+														</table>
+													</div>
+												</div>
 											) : (
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 													{fields.map((fieldId) =>
@@ -1701,10 +1794,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		toggleSubsectionLock,
 		isSubsectionFullyLocked,
 		renderDynamicField,
-		principalFormData,
-		handlePrincipalInputChange,
-		handleAddPrincipal,
-		isAddingPrincipal,
 		formData,
 		handleRemovePrincipal,
 		fieldMetadata,

@@ -124,11 +124,10 @@ export const extractBorrowerFields = async (
 			litigationHistory: createField(false, "Background Check"),
 		},
 		section_4: {
-			linkedinUrl: createField(
-				"https://linkedin.com/company/hoque-global",
-				"User Input"
-			),
-			websiteUrl: createField("https://hoqueglobal.com", "User Input"),
+			// Online presence should start empty but marked as user_input
+			// so the UI treats these as user-editable fields.
+			linkedinUrl: createField(null, "User Input"),
+			websiteUrl: createField(null, "User Input"),
 		},
 		section_5: {
 			// Principals are handled as a table array in the new structure
