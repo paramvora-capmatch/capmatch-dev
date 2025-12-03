@@ -107,29 +107,52 @@ export const useProjectResumeRealtime = (
     }
   }, [projectId]);
 
-  // Listen for autofill state changes
+  // Listen for autofill state changes and local save events
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const handleAutofillStart = () => {
-      isAutofillRunningRef.current = true;
+    const handleAutofillStart = (e: any) => {
+      // Only track autofill for this project
+      if (e.detail?.projectId === projectId && e.detail?.context === "project") {
+        isAutofillRunningRef.current = true;
+      }
     };
 
-    const handleAutofillComplete = () => {
-      // Keep flag true for a bit longer to catch any delayed database updates
-      setTimeout(() => {
-        isAutofillRunningRef.current = false;
-      }, 5000);
+    const handleAutofillComplete = (e: any) => {
+      // Only track autofill for this project
+      if (e.detail?.projectId === projectId && e.detail?.context === "project") {
+        // Keep flag true for a bit longer to catch any delayed database updates
+        setTimeout(() => {
+          isAutofillRunningRef.current = false;
+        }, 5000);
+      }
+    };
+
+    const handleLocalSaveStart = (e: any) => {
+      // Only track local saves for this project
+      if (e.detail?.projectId === projectId && e.detail?.context === "project") {
+        isLocalSaveRef.current = true;
+        // Clear any pending timeout
+        if (localSaveTimeoutRef.current) {
+          clearTimeout(localSaveTimeoutRef.current);
+        }
+        // Reset flag after a delay to catch any delayed events
+        localSaveTimeoutRef.current = setTimeout(() => {
+          isLocalSaveRef.current = false;
+        }, 3000);
+      }
     };
 
     window.addEventListener("autofill-started", handleAutofillStart);
     window.addEventListener("autofill-completed", handleAutofillComplete);
+    window.addEventListener("local-save-started", handleLocalSaveStart);
 
     return () => {
       window.removeEventListener("autofill-started", handleAutofillStart);
       window.removeEventListener("autofill-completed", handleAutofillComplete);
+      window.removeEventListener("local-save-started", handleLocalSaveStart);
     };
-  }, []);
+  }, [projectId]);
 
   // Subscribe to realtime changes
   useEffect(() => {
