@@ -390,14 +390,16 @@ function convertToBorrowerSectionWise(flatContent: any): any {
 			continue;
 		}
 		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
-		if (sectionId) {
-			if (!sectionWise[sectionId]) sectionWise[sectionId] = {};
-			sectionWise[sectionId][fieldId] = fieldValue;
-		} else {
-			if (!sectionWise["section_other"])
-				sectionWise["section_other"] = {};
-			sectionWise["section_other"][fieldId] = fieldValue;
+		if (!sectionId) {
+			// Unknown/legacy fields should not be forced into a synthetic
+			// "section_other" bucket. Keep them at the top level so the
+			// viewer can still access them via flat keys if needed.
+			sectionWise[fieldId] = fieldValue;
+			continue;
 		}
+
+		if (!sectionWise[sectionId]) sectionWise[sectionId] = {};
+		sectionWise[sectionId][fieldId] = fieldValue;
 	}
 	return sectionWise;
 }
@@ -425,13 +427,15 @@ function mergeIntoBorrowerSectionWise(
 			continue;
 		}
 		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
-		if (sectionId) {
-			if (!merged[sectionId]) merged[sectionId] = {};
-			merged[sectionId][fieldId] = fieldValue;
-		} else {
-			if (!merged["section_other"]) merged["section_other"] = {};
-			merged["section_other"][fieldId] = fieldValue;
+		if (!sectionId) {
+			// Do not create or merge into a synthetic "section_other" bucket.
+			// Preserve unknown/legacy fields at the top level instead.
+			merged[fieldId] = fieldValue;
+			continue;
 		}
+
+		if (!merged[sectionId]) merged[sectionId] = {};
+		merged[sectionId][fieldId] = fieldValue;
 	}
 	return merged;
 }
