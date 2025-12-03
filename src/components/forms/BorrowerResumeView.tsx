@@ -362,17 +362,14 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 										FileText;
 									const allFieldIds: string[] =
 										step.fields || [];
-									const allFieldMetas = allFieldIds
-										.map(
-											(id) =>
-												borrowerResumeFieldMetadata[id]
-										)
-										.filter((m) => !!m);
 
-									const hasAnyValue = allFieldMetas.some(
-										(f) =>
+									// Determine if this section has any visible value.
+									// Use the schema field IDs directly so we don't
+									// depend on metadata being present for every field.
+									const hasAnyValue = allFieldIds.some(
+										(fieldId: string) =>
 											hasValue(
-												getFieldValue(resume, f.fieldId)
+												getFieldValue(resume, fieldId)
 											)
 									);
 									const principals = getFieldValue(
