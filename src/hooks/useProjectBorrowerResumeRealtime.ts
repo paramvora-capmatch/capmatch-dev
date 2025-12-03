@@ -278,6 +278,8 @@ export const useProjectBorrowerResumeRealtime = (
 	const channelRef = useRef<RealtimeChannel | null>(null);
 	const isLocalSaveRef = useRef(false);
 	const remoteUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const localSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const isAutofillRunningRef = useRef(false);
 
 	const load = useCallback(async () => {
 		if (!projectId) {
