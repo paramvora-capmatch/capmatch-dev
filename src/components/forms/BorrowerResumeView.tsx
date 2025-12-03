@@ -186,6 +186,15 @@ const getFieldLabel = (
 	return fieldId;
 };
 
+interface BorrowerFieldMeta {
+	fieldId: string;
+	section?: string;
+	dataType?: string;
+	description: string;
+	// Allow extra metadata properties without being overly strict
+	[key: string]: any;
+}
+
 export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 	resume,
 	projectId,
@@ -247,6 +256,10 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 		AlertTriangle,
 		FileText,
 	};
+
+	const allFieldMetas: BorrowerFieldMeta[] = Object.values(
+		borrowerResumeFieldMetadata as Record<string, BorrowerFieldMeta>
+	);
 
 	return (
 		<div
@@ -566,7 +579,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 											) : (
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
 													{allFieldMetas
-														.filter((f) =>
+														.filter((f: BorrowerFieldMeta) =>
 															hasValue(
 																getFieldValue(
 																	resume,
@@ -574,7 +587,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 																)
 															)
 														)
-														.map((f) => (
+														.map((f: BorrowerFieldMeta) => (
 															<AnimatedField
 																key={f.fieldId}
 															>
