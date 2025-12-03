@@ -551,7 +551,6 @@ export const getProjectWithResume = async (
 			_metadata[key] = {
 				value: item.value,
 				sources: item.sources || [],
-				original_source: null,
 				original_value: item.original_value ?? item.value,
 				warnings: item.warnings || [],
 			};
