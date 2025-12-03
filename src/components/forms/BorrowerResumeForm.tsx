@@ -1809,7 +1809,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								reloadBorrowerResume();
 								onVersionChange?.();
 							}}
-							onOpen={() => setIsEditing(false)}
 						/>
 					</div>
 				</div>
