@@ -125,25 +125,15 @@ export const BorrowerResumeVersionHistory: React.FC<
 			let creatorProfiles: CreatorProfile[] = [];
 			if (creatorIds.length > 0) {
 				try {
-					const { data: profiles, error: profileError } =
-						await supabase.functions.invoke("get-user-data", {
-							body: { userIds: creatorIds },
-						});
-
-					if (profileError) {
-						const { data: directProfiles, error: directError } =
-							await supabase
-								.from("profiles")
-								.select("id, full_name, email")
-								.in("id", creatorIds);
-						if (!directError && directProfiles)
-							creatorProfiles = directProfiles;
-					} else if (profiles && Array.isArray(profiles)) {
-						creatorProfiles = profiles.map((p: any) => ({
-							id: p.id,
-							full_name: p.full_name,
-							email: p.email,
-						}));
+					const { data: directProfiles, error: directError } =
+						await supabase
+							.from("profiles")
+							.select("id, full_name, email")
+							.in("id", creatorIds);
+					if (!directError && directProfiles)
+						creatorProfiles = directProfiles as CreatorProfile[];
+					if (directError) {
+						console.error("Error fetching creator profiles:", directError);
 					}
 				} catch (err) {
 					console.error("Error fetching creator profiles:", err);

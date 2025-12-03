@@ -10,6 +10,7 @@ import { SplashScreen } from "../../components/ui/SplashScreen";
 import { AnimatePresence } from "framer-motion";
 import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import Project Card
 import { ProjectCardSkeleton } from "../../components/dashboard/ProjectCardSkeleton";
+import { useProjectMembers } from "../../hooks/useProjectMembers";
 import {
   PlusCircle,
   Edit,
@@ -39,14 +40,14 @@ const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
   const hasProject = Boolean(project);
   const isBorrowerComplete = progress >= 100;
   const progressColor = isBorrowerComplete ? 'bg-green-600' : 'bg-blue-600';
-  
+
   // Determine bullet color based on progress
   const getBorrowerBulletColor = () => {
     if (progress >= 90) return "bg-green-500";
     if (progress >= 50) return "bg-yellow-500";
     return "bg-red-500";
   };
-  
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group">
       <div className="px-6 pt-6 pb-4 space-y-4">
@@ -134,25 +135,28 @@ export default function DashboardPage() {
     currentOrg,
   } = useOrgStore();
 
+  // Batch fetch project members to optimize performance
+  const { membersByProjectId, isLoading: membersLoading } = useProjectMembers(projects);
+
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  
+
   // Track if we've attempted to load projects to prevent duplicate calls
   const hasAttemptedLoad = useRef(false);
-  
+
   // State to track when a project is being created
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
   const [accessModalError, setAccessModalError] = useState<string | null>(null);
   const [createdProject, setCreatedProject] = useState<ProjectProfile | null>(null);
-  
+
   // State for project selection modal (when multiple projects exist)
   const [isProjectSelectModalOpen, setIsProjectSelectModalOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
   const combinedLoading = authLoading || projectsLoading || isCreatingProject;
-  
+
   // Only show splash screen during auth loading, not during project loading
   const showSplashScreen = authLoading;
   const showProjectSkeletons = !authLoading && projectsLoading;
@@ -201,7 +205,7 @@ export default function DashboardPage() {
 
   // Count total projects (all projects have borrower resumes, even if at 0%)
   const totalProjects = projects.length;
-  
+
   // Use grid layout when there are 5 or more projects for better space utilization
   const useGridLayout = totalProjects >= 5;
 
@@ -261,7 +265,7 @@ export default function DashboardPage() {
         hasAttemptedLoad.current = false;
       });
     }
-    
+
     // Reset flag when user logs out or org changes
     if (!user || !activeOrg) {
       hasAttemptedLoad.current = false;
@@ -442,7 +446,7 @@ export default function DashboardPage() {
 
   return (
     <RoleBasedRoute roles={["borrower"]}>
-      <DashboardLayout 
+      <DashboardLayout
         title="Dashboard"
         mainClassName="flex-1 overflow-auto pl-6 pr-3 sm:pr-4 lg:pr-6 pt-2 pb-6"
       >
@@ -466,100 +470,107 @@ export default function DashboardPage() {
           </div>
 
 
-        {/* Main Content - aligned with header spacing */}
-        <div className="relative z-[1] pt-6 pb-6">
-          {/* Darker background container with its own subtle grid */}
-          <div className="relative overflow-hidden">
-            <div className="pointer-events-none absolute inset-0 opacity-[0.25]">
-              <svg className="absolute inset-0 h-full w-full text-slate-300" aria-hidden="true">
-                <defs>
-                  <pattern id="inner-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                    <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#inner-grid)" />
-              </svg>
-            </div>
-
-            <div className="relative p-6 sm:p-8 lg:p-10">
-              <div className="space-y-10">
-            {/* Onboarding Guidance */}
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-bold text-gray-800">Borrower Resume</h2>
-                  <p className="text-gray-600">Your professional profile and financial background for lenders.</p>
-                </div>
+          {/* Main Content - aligned with header spacing */}
+          <div className="relative z-[1] pt-6 pb-6">
+            {/* Darker background container with its own subtle grid */}
+            <div className="relative overflow-hidden">
+              <div className="pointer-events-none absolute inset-0 opacity-[0.25]">
+                <svg className="absolute inset-0 h-full w-full text-slate-300" aria-hidden="true">
+                  <defs>
+                    <pattern id="inner-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                      <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#inner-grid)" />
+                </svg>
               </div>
 
-              <div className="relative">
-                <OnboardingProgressCard
-                  project={primaryProject}
-                  progress={borrowerResumeProgress}
-                  onOpenBorrowerResume={handleOpenBorrowerResume}
-                  onCreateProject={handleCreateNewProject}
-                />
-              </div>
-            </div>
-
-            {/* Enhanced Projects Section */}
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-bold text-gray-800">My Projects</h2>
-                  <p className="text-gray-600">Manage and track your commercial real estate deals</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Wireframe Create New Project Card - Always First */}
-                {currentOrgRole !== "member" && (
-                  <div className="animate-fade-up h-full">
-                    <div
-                      onClick={handleCreateNewProject}
-                      className="h-full bg-white rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300 cursor-pointer group flex flex-col items-center justify-center text-center p-8 min-h-[210px] md:min-h-[250px] lg:min-h-[280px]"
-                    >
-                      <div className="mb-6">
-                        <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-400 group-hover:border-blue-500 flex items-center justify-center transition-colors duration-300 mx-auto">
-                          <PlusCircle className="h-8 w-8 text-gray-600 group-hover:text-blue-600 transition-colors duration-300" />
-                        </div>
+              <div className="relative p-6 sm:p-8 lg:p-10">
+                <div className="space-y-10">
+                  {/* Onboarding Guidance */}
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                      <div className="space-y-1">
+                        <h2 className="text-2xl font-bold text-gray-800">Borrower Resume</h2>
+                        <p className="text-gray-600">Your professional profile and financial background for lenders.</p>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-blue-800 transition-colors duration-300">
-                        Create New Project
-                      </h3>
-                      <p className="text-gray-600 text-sm max-w-xs mx-auto leading-relaxed">
-                        Start a new commercial real estate project and get matched with qualified lenders.
-                      </p>
+                    </div>
+
+                    <div className="relative">
+                      <OnboardingProgressCard
+                        project={primaryProject}
+                        progress={borrowerResumeProgress}
+                        onOpenBorrowerResume={handleOpenBorrowerResume}
+                        onCreateProject={handleCreateNewProject}
+                      />
                     </div>
                   </div>
-                )}
 
-                 {/* Project Skeletons (shown while loading) */}
-                 {showProjectSkeletons && (
-                   <>
-                     {[1, 2].map((i) => (
-                       <div key={`skeleton-${i}`} className="h-full">
-                         <ProjectCardSkeleton />
-                       </div>
-                     ))}
-                   </>
-                 )}
+                  {/* Enhanced Projects Section */}
+                  <div className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                      <div className="space-y-1">
+                        <h2 className="text-2xl font-bold text-gray-800">My Projects</h2>
+                        <p className="text-gray-600">Manage and track your commercial real estate deals</p>
+                      </div>
+                    </div>
 
-                 {/* Existing Projects */}
-                 {!showProjectSkeletons && projects.map((project, index) => (
-                   <div
-                     key={project.id}
-                     className="animate-fade-up h-full"
-                     style={{ animationDelay: `${(index + 1) * 80}ms` }}
-                   >
-                     <ProjectCard project={project} />
-                   </div>
-                 ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* Wireframe Create New Project Card - Always First */}
+                      {currentOrgRole !== "member" && (
+                        <div className="animate-fade-up h-full">
+                          <div
+                            onClick={handleCreateNewProject}
+                            className="h-full bg-white rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/30 transition-all duration-300 cursor-pointer group flex flex-col items-center justify-center text-center p-8 min-h-[210px] md:min-h-[250px] lg:min-h-[280px]"
+                          >
+                            <div className="mb-6">
+                              <div className="w-16 h-16 rounded-full bg-white border-2 border-gray-400 group-hover:border-blue-500 flex items-center justify-center transition-colors duration-300 mx-auto">
+                                <PlusCircle className="h-8 w-8 text-gray-600 group-hover:text-blue-600 transition-colors duration-300" />
+                              </div>
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-3 group-hover:text-blue-800 transition-colors duration-300">
+                              Create New Project
+                            </h3>
+                            <p className="text-gray-600 text-sm max-w-xs mx-auto leading-relaxed">
+                              Start a new commercial real estate project and get matched with qualified lenders.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Project Skeletons (shown while loading) */}
+                      {showProjectSkeletons && (
+                        <>
+                          {[1, 2].map((i) => (
+                            <div key={`skeleton-${i}`} className="h-full">
+                              <ProjectCardSkeleton />
+                            </div>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Existing Projects */}
+                      {!showProjectSkeletons && projects.map((project, index) => (
+                        <div
+                          key={project.id}
+                          className="animate-fade-up h-full"
+                          style={{ animationDelay: `${(index + 1) * 80}ms` }}
+                        >
+                          {/* Borrower/owner view: show project members, but use the
+                             batched list-level hook to avoid per-card fetching. */}
+                          <ProjectCard
+                            project={project}
+                            showMembers={true}
+                            members={membersByProjectId[project.id]}
+                            isMembersLoading={membersLoading}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-              </div>
-            </div>
-          </div>
           </div>
         </div>
 
@@ -608,28 +619,28 @@ export default function DashboardPage() {
               Choose which project&apos;s borrower resume you want to edit.
             </p>
           </div>
-          
+
           <div className={cn(
-            useGridLayout 
+            useGridLayout
               ? "grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto pr-1"
               : "space-y-2"
           )}>
             {projectSelectOptions.map((project) => {
               const isSelected = selectedProjectId === project.value;
-              
+
               // Determine colors: red < 50%, blue 50-99%, green 100%
               const getProgressBarColor = () => {
                 if (project.progress === 100) return "bg-green-500";
                 if (project.progress >= 50) return "bg-blue-500";
                 return "bg-red-500";
               };
-              
+
               const getBadgeColor = () => {
                 if (project.progress === 100) return "bg-green-100 text-green-800 border-green-300";
                 if (project.progress >= 50) return "bg-blue-100 text-blue-800 border-blue-300";
                 return "bg-red-100 text-red-800 border-red-300";
               };
-              
+
               return (
                 <button
                   key={project.value}
