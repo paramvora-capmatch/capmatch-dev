@@ -408,6 +408,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
         return fieldId;
     };
 
+    // Helper to strip leading section numbers like "1. " or "2.3 "
+    const cleanTitledNumberPrefix = (title: string): string =>
+        title.replace(/^\d+(\.\d+)*\s*/, '');
+
     // handleAutofill is now provided by the useAutofill hook
 
     return (
