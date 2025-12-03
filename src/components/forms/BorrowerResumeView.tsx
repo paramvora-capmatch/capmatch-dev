@@ -94,6 +94,26 @@ const getFieldValue = (
 	if (resume._metadata && resume._metadata[fieldId]) {
 		return resume._metadata[fieldId].value;
 	}
+
+	// 4. Fallback: look into grouped section_* structure directly
+	// This handles cases where the resume object is still in section-wise
+	// format (e.g., section_1.fullLegalName.value) instead of flattened.
+	for (const [key, sectionData] of Object.entries(resume as any)) {
+		if (!key.startsWith("section_")) continue;
+		if (
+			sectionData &&
+			typeof sectionData === "object" &&
+			!Array.isArray(sectionData) &&
+			fieldId in sectionData
+		) {
+			const item = (sectionData as any)[fieldId];
+			if (item && typeof item === "object" && "value" in item) {
+				return item.value;
+			}
+			return item;
+		}
+	}
+
 	return undefined;
 };
 
