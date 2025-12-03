@@ -2064,6 +2064,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const renderDynamicField = useCallback(
 		(fieldId: string, sectionId: string) => {
+			// Remove duplicate fields from frontend to avoid confusion
+			if (fieldId === "totalProjectCost" || fieldId === "requestedTerm") {
+				return null;
+			}
+
 			const fieldConfig =
 				(formSchema as any).fields?.[fieldId] ?? ({} as any);
 			const label: string = fieldConfig.label ?? fieldId;
