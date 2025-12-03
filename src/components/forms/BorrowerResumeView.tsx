@@ -76,7 +76,12 @@ const getFieldValue = (
 ): any => {
 	// 1. Try direct property (flat format)
 	if ((resume as any)[fieldId] !== undefined) {
-		return (resume as any)[fieldId];
+		const val = (resume as any)[fieldId];
+		// If value is a rich object (from DB without unwrapping), extract the value property
+		if (val && typeof val === "object" && "value" in val && !Array.isArray(val)) {
+			return val.value;
+		}
+		return val;
 	}
 	// 2. Try nested content (if structure wraps it)
 	if (

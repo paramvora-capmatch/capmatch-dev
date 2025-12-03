@@ -1018,7 +1018,29 @@ export const getProjectBorrowerResume = async (
 		};
 	}
 
-	return content as BorrowerResumeContent;
+	// Unwrap rich values if present (handle cases where DB returns { value, source, ... })
+	const unwrappedContent: any = {};
+
+	for (const key in content) {
+		const val = (content as any)[key];
+		if (
+			val &&
+			typeof val === "object" &&
+			!Array.isArray(val) &&
+			"value" in val &&
+			key !== "_metadata" &&
+			key !== "_lockedFields" &&
+			key !== "_fieldStates" &&
+			key !== "borrowerSections" &&
+			key !== "projectSections"
+		) {
+			unwrappedContent[key] = (val as any).value;
+		} else {
+			unwrappedContent[key] = val;
+		}
+	}
+
+	return unwrappedContent as BorrowerResumeContent;
 };
 
 /**
