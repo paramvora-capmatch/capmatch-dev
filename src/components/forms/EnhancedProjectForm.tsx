@@ -3008,6 +3008,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
 															Commercial Space Mix
 														</h4>
+														{isFieldRequiredFromSchema(
+															"commercialSpaceMix"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
 														<FieldHelpTooltip
 															fieldId="commercialSpaceMix"
 															fieldMetadata={
@@ -3383,6 +3390,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
 														Draw Schedule
 													</h4>
+													{isFieldRequiredFromSchema(
+														"drawSchedule"
+													) && (
+														<span className="text-red-500 ml-1">
+															*
+														</span>
+													)}
 													<FieldHelpTooltip
 														fieldId="drawSchedule"
 														fieldMetadata={
