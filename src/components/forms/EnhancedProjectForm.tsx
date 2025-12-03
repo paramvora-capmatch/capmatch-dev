@@ -185,6 +185,16 @@ const STATE_REVERSE_MAP: Record<string, string> = Object.fromEntries(
 
 const stateOptionsFullNames = Object.values(STATE_MAP).sort();
 
+const INCENTIVE_LABELS: { key: keyof ProjectProfile; label: string }[] = [
+	{ key: "opportunityZone", label: "Opportunity Zone" },
+	{ key: "taxExemption", label: "Tax Exemption" },
+	{ key: "tifDistrict", label: "TIF District" },
+	{ key: "taxAbatement", label: "Tax Abatement" },
+	{ key: "paceFinancing", label: "PACE Financing" },
+	{ key: "historicTaxCredits", label: "Historic Tax Credits" },
+	{ key: "newMarketsCredits", label: "New Markets Credits" },
+];
+
 // Dropdown field options
 const dealStatusOptions = [
 	"Inquiry",
