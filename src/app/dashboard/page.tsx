@@ -556,9 +556,13 @@ export default function DashboardPage() {
                           className="animate-fade-up h-full"
                           style={{ animationDelay: `${(index + 1) * 80}ms` }}
                         >
+                          {/* Borrower/owner view: show project members, but use the
+                             batched list-level hook to avoid per-card fetching. */}
                           <ProjectCard
                             project={project}
-                            preFetchedMembers={membersLoading ? null : membersByProjectId[project.id]}
+                            showMembers={true}
+                            members={membersByProjectId[project.id]}
+                            isMembersLoading={membersLoading}
                           />
                         </div>
                       ))}

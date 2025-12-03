@@ -50,7 +50,7 @@ export default function AdvisorDashboardPage() {
 
   const [unreadByProject, setUnreadByProject] = useState<Record<string, boolean>>({});
 
-  // Batch fetch project members for advisor view (disableOrgLoading=true)
+  // Batch fetch project members for advisor view at the list level
   const { membersByProjectId, isLoading: membersLoading } = useProjectMembers(activeProjects, true);
 
   useEffect(() => {
@@ -405,9 +405,10 @@ export default function AdvisorDashboardPage() {
                               primaryCtaLabel="View Project"
                               showDeleteButton={false}
                               unread={!!unreadByProject[project.id]}
-                              disableOrgLoading={true}
                               borrowerName={borrowerData[project.owner_org_id]?.name}
-                              preFetchedMembers={membersLoading ? null : membersByProjectId[project.id]}
+                              showMembers={true}
+                              members={membersByProjectId[project.id]}
+                              isMembersLoading={membersLoading}
                             />
                           </div>
                         ))}

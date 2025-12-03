@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useOrgStore } from '../stores/useOrgStore';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -17,7 +17,7 @@ export const useProjectMembers = (
     const [membersByProjectId, setMembersByProjectId] = useState<Record<string, ProjectMember[]>>({});
     const [isLoading, setIsLoading] = useState(false);
 
-    const { isOwner, currentOrg, members: orgMembers, isLoading: orgLoading } = useOrgStore();
+    const { currentOrg, members: orgMembers } = useOrgStore();
     const user = useAuthStore((state) => state.user);
     const isAdvisor = user?.role === "advisor";
 
@@ -29,26 +29,15 @@ export const useProjectMembers = (
 
     useEffect(() => {
         const fetchAllMembers = async () => {
-            // 1. Identify projects that need member fetching
-            const projectsToFetch: ProjectProfile[] = [];
-
-            if (isAdvisor && disableOrgLoading) {
-                // Advisor view: fetch for all projects
-                projectsToFetch.push(...projects);
-            } else if (!disableOrgLoading && currentOrg && isOwner) {
-                // Borrower/Owner view: fetch for projects owned by current org
-                projectsToFetch.push(...projects.filter(p => p.owner_org_id === currentOrg.id));
-            }
-
-            if (projectsToFetch.length === 0) {
+            if (!projects || projects.length === 0) {
                 setMembersByProjectId({});
                 return;
             }
 
-            // Don't fetch if org is still loading (unless disabled)
-            if (!disableOrgLoading && orgLoading) {
-                return;
-            }
+            // 1. Identify projects that need member fetching
+            // We fetch for all projects passed in; RLS will ensure we only see
+            // grants for projects the current user is allowed to see.
+            const projectsToFetch: ProjectProfile[] = [...projects];
 
             setIsLoading(true);
             try {
@@ -89,8 +78,8 @@ export const useProjectMembers = (
                     }
                 });
 
-                // Add org owners (for Borrower/Owner view)
-                if (!isAdvisor && orgMembers) {
+                // Add org owners (when we have org member data for the owning org)
+                if (!isAdvisor && orgMembers && currentOrg) {
                     const ownerIds = orgMembers
                         .filter(m => m.role === 'owner')
                         .map(m => m.user_id);
@@ -184,11 +173,8 @@ export const useProjectMembers = (
     }, [
         projectsKey,
         isAdvisor,
-        disableOrgLoading,
         currentOrg?.id,
-        isOwner,
-        orgMembers,
-        orgLoading
+        orgMembers
     ]);
 
     return { membersByProjectId, isLoading };

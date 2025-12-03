@@ -16,9 +16,7 @@ import {
 } from "lucide-react";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { useProjectStore as useProjects } from "@/stores/useProjectStore";
-import { useOrgStore } from "@/stores/useOrgStore";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { supabase } from "../../../lib/supabaseClient";
 
 interface ProjectMember {
   userId: string;
@@ -33,9 +31,21 @@ interface ProjectCardProps {
   onPrimaryCtaClick?: (e: React.MouseEvent) => void;
   showDeleteButton?: boolean;
   unread?: boolean;
-  disableOrgLoading?: boolean;
   borrowerName?: string; // Borrower name for advisor view
-  preFetchedMembers?: ProjectMember[] | null; // Optional pre-fetched members. null = loading.
+  /**
+   * Members for this project, fetched at the list level (e.g. via useProjectMembers).
+   * When provided, the card will not perform any internal data fetching.
+   */
+  members?: ProjectMember[] | null;
+  /**
+   * Whether the parent is still loading member data.
+   */
+  isMembersLoading?: boolean;
+  /**
+   * Controls whether the members section is rendered at all.
+   * Defaults to true for backwards compatibility.
+   */
+  showMembers?: boolean;
 }
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -45,39 +55,16 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   onPrimaryCtaClick,
   showDeleteButton = true,
   unread = false,
-  disableOrgLoading = false,
   borrowerName,
-  preFetchedMembers,
+  members,
+  isMembersLoading = false,
+  showMembers = true,
 }) => {
   const router = useRouter();
   const { deleteProject } = useProjects();
-  const { isOwner, currentOrg, members: orgMembers, loadOrg, isLoading: orgLoading } = useOrgStore();
   const user = useAuthStore((state) => state.user);
   const isAdvisor = user?.role === "advisor";
-
-  // Debug logging for borrower name
-  useEffect(() => {
-    if (disableOrgLoading && isAdvisor) {
-      console.log('[ProjectCard] Borrower name prop:', borrowerName, 'for project:', project.id, 'org:', project.owner_org_id);
-    }
-  }, [borrowerName, project.id, project.owner_org_id, disableOrgLoading, isAdvisor]);
-  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>(
-    Array.isArray(preFetchedMembers) ? preFetchedMembers : []
-  );
-
-  // Update members when preFetchedMembers changes
-  useEffect(() => {
-    if (preFetchedMembers !== undefined) {
-      if (preFetchedMembers === null) {
-        setIsLoadingMembers(true);
-      } else {
-        setProjectMembers(preFetchedMembers);
-        setIsLoadingMembers(false);
-      }
-    }
-  }, [preFetchedMembers]);
-
-  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const projectMembers: ProjectMember[] = Array.isArray(members) ? members : [];
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -106,218 +93,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const isComplete = overallProgress === 100;
   // OM access is based on project resume completion only, not overall completion
   const isOmReady = rawProjectProgress === 100;
-
-  // Check if current user is owner of the project's owner org
-  const isProjectOwner = isOwner && currentOrg?.id === project.owner_org_id;
-  // Show members for owners or advisors
-  const shouldShowMembers = isProjectOwner || isAdvisor;
-
-  // Ensure org is loaded for this project (skip when disabled)
-  useEffect(() => {
-    const ensureOrgLoaded = async () => {
-      if (disableOrgLoading) return;
-      if (!project.owner_org_id) return;
-
-      const { currentOrg: currentOrgState } = useOrgStore.getState();
-      // Only load if we haven't loaded this org yet
-      if (currentOrgState?.id !== project.owner_org_id) {
-        await loadOrg(project.owner_org_id);
-      }
-    };
-
-    ensureOrgLoaded();
-  }, [project.owner_org_id, loadOrg, disableOrgLoading]);
-
-  // Fetch project members if user is an owner or advisor
-  useEffect(() => {
-    // Skip if members are pre-fetched
-    if (preFetchedMembers !== undefined) return;
-
-    const fetchProjectMembers = async () => {
-      if (!project.id) {
-        setProjectMembers([]);
-        return;
-      }
-
-      // For advisors, fetch members directly using project_access_grants
-      if (isAdvisor && disableOrgLoading) {
-        setIsLoadingMembers(true);
-        try {
-          console.log('[ProjectCard] Fetching project members for advisor, project:', project.id);
-
-          // Get all users who have been granted access to this project
-          const { data: grants, error: grantsError } = await supabase
-            .from('project_access_grants')
-            .select('user_id, org_id, granted_by')
-            .eq('project_id', project.id);
-
-          if (grantsError) {
-            console.error('[ProjectCard] Failed to fetch project grants:', grantsError);
-            setProjectMembers([]);
-            setIsLoadingMembers(false);
-            return;
-          }
-
-          console.log('[ProjectCard] Fetched grants for project:', project.id, 'Grants:', grants);
-
-          // Collect all user IDs from grants
-          const userIdsFromGrants = new Set<string>(grants?.map(g => g.user_id) || []);
-          console.log('[ProjectCard] User IDs from grants:', Array.from(userIdsFromGrants));
-
-          // Add assigned advisor if exists
-          if (project.assignedAdvisorUserId) {
-            userIdsFromGrants.add(project.assignedAdvisorUserId);
-          }
-
-          // Fetch profile information for all members using edge function
-          if (userIdsFromGrants.size > 0) {
-            const userIdsArray = Array.from(userIdsFromGrants);
-
-            const { data: memberBasicData, error: basicDataError } = await supabase.functions.invoke(
-              'get-user-data',
-              {
-                body: { userIds: userIdsArray },
-              }
-            );
-
-            if (!basicDataError && memberBasicData) {
-              const basicById = new Map(
-                (memberBasicData || []).map((u: { id: string; email: string | null; full_name: string | null }) => [u.id, u])
-              );
-
-              const membersData: ProjectMember[] = userIdsArray
-                .map(userId => {
-                  const basic = basicById.get(userId) as { id: string; email: string | null; full_name: string | null } | undefined;
-                  return {
-                    userId,
-                    userName: (basic?.full_name && basic.full_name.trim()) || basic?.email || 'Unknown',
-                    userEmail: basic?.email || '',
-                  };
-                })
-                .filter(m => m.userId);
-
-              setProjectMembers(membersData);
-            } else {
-              console.error('[ProjectCard] Failed to fetch member data via edge function:', basicDataError);
-              setProjectMembers([]);
-            }
-          } else {
-            setProjectMembers([]);
-          }
-        } catch (err) {
-          console.error('[ProjectCard] Error fetching project members for advisor:', err);
-          setProjectMembers([]);
-        } finally {
-          setIsLoadingMembers(false);
-        }
-        return;
-      }
-
-      // For borrowers/owners, use the existing logic
-      if (disableOrgLoading) {
-        setProjectMembers([]);
-        return;
-      }
-
-      // Wait for org to be loaded and check ownership
-      if (!currentOrg || !isOwner || currentOrg.id !== project.owner_org_id || !project.id) {
-        console.log('[ProjectCard] Skipping member fetch:', {
-          hasCurrentOrg: !!currentOrg,
-          isOwner,
-          orgId: currentOrg?.id,
-          projectOrgId: project.owner_org_id,
-          projectId: project.id
-        });
-        setProjectMembers([]);
-        return;
-      }
-
-      // Don't fetch if org is still loading or orgMembers not yet populated
-      if (orgLoading) {
-        return;
-      }
-
-      setIsLoadingMembers(true);
-      try {
-        // Get all users who have been granted access to this project
-        // As an owner, we should be able to see all grants for projects in our org
-        const { data: grants, error: grantsError } = await supabase
-          .from('project_access_grants')
-          .select('user_id, org_id, granted_by')
-          .eq('project_id', project.id)
-          .eq('org_id', project.owner_org_id); // Explicitly filter by org_id to ensure we get all grants
-
-        if (grantsError) {
-          console.error('[ProjectCard] Failed to fetch project grants:', grantsError);
-          setProjectMembers([]);
-          setIsLoadingMembers(false);
-          return;
-        }
-
-        // Collect all user IDs from grants - these are ALL members with explicit project access
-        const userIdsFromGrants = new Set<string>(grants?.map(g => g.user_id) || []);
-
-        // Also include all org owners (they have implicit access even if not in grants)
-        // This ensures owners are shown even if they don't have explicit grants
-        orgMembers
-          .filter(m => m.role === 'owner')
-          .forEach(m => {
-            userIdsFromGrants.add(m.user_id);
-          });
-
-        // Add assigned advisor if exists
-        if (project.assignedAdvisorUserId) {
-          userIdsFromGrants.add(project.assignedAdvisorUserId);
-        }
-
-        // Fetch profile information for all members using edge function to bypass RLS
-        // The profiles table has RLS that only allows users to see their own profile,
-        // so we need to use the get-user-data edge function like the org store does
-        if (userIdsFromGrants.size > 0) {
-          const userIdsArray = Array.from(userIdsFromGrants);
-
-          const { data: memberBasicData, error: basicDataError } = await supabase.functions.invoke(
-            'get-user-data',
-            {
-              body: { userIds: userIdsArray },
-            }
-          );
-
-          if (!basicDataError && memberBasicData) {
-            // Create a map for easy lookup
-            const basicById = new Map(
-              (memberBasicData || []).map((u: { id: string; email: string | null; full_name: string | null }) => [u.id, u])
-            );
-
-            const membersData: ProjectMember[] = userIdsArray
-              .map(userId => {
-                const basic = basicById.get(userId) as { id: string; email: string | null; full_name: string | null } | undefined;
-                return {
-                  userId,
-                  userName: (basic?.full_name && basic.full_name.trim()) || basic?.email || 'Unknown',
-                  userEmail: basic?.email || '',
-                };
-              })
-              .filter(m => m.userId); // Filter out any invalid entries
-
-            setProjectMembers(membersData);
-          } else {
-            console.error('[ProjectCard] Failed to fetch member data via edge function:', basicDataError);
-            setProjectMembers([]);
-          }
-        } else {
-          setProjectMembers([]);
-        }
-      } catch (err) {
-        console.error('[ProjectCard] Error fetching project members:', err);
-        setProjectMembers([]);
-      } finally {
-        setIsLoadingMembers(false);
-      }
-    };
-
-    fetchProjectMembers();
-  }, [isOwner, currentOrg, project.id, project.owner_org_id, project.assignedAdvisorUserId, orgMembers, orgLoading, disableOrgLoading, isAdvisor, user, preFetchedMembers]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -385,10 +160,11 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         {/* Completion status indicator bar */}
         <div className="h-2 bg-gray-100">
           <div
-            className={`h-full transition-all duration-500 ${isComplete
-              ? "bg-gradient-to-r from-emerald-500 to-green-500"
-              : "bg-blue-600"
-              }`}
+            className={`h-full transition-all duration-500 ${
+              isComplete
+                ? "bg-gradient-to-r from-emerald-500 to-green-500"
+                : "bg-blue-600"
+            }`}
             style={{ width: `${overallProgress}%` }}
           />
         </div>
@@ -481,19 +257,19 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               </span>
             </div>
 
-            {/* Project Members - Visible to owners and advisors */}
-            {shouldShowMembers && (
+            {/* Project Members - rendered only when enabled by parent */}
+            {showMembers && (
               <div className="flex items-start text-sm text-gray-600">
                 <div className={`h-6 w-6 rounded-full flex items-center justify-center mr-2 flex-shrink-0 mt-0.5 ${isComplete ? 'bg-green-100' : 'bg-blue-100'}`}>
                   <Users className={`h-4 w-4 ${isComplete ? 'text-green-600' : 'text-blue-600'}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  {isLoadingMembers ? (
+                  {isMembersLoading ? (
                     <span className="text-gray-400">Loading members...</span>
                   ) : projectMembers.length > 0 ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-gray-700">Members:</span>
-                      {projectMembers.map((member, index) => (
+                      {projectMembers.map((member) => (
                         <span
                           key={member.userId}
                           className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-xs font-medium text-gray-700 truncate max-w-[120px]"
@@ -516,8 +292,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               <div className="flex justify-between items-center text-xs mb-1">
                 <span className="text-gray-500">Overall Progress</span>
                 <span
-                  className={`font-semibold ${isComplete ? "text-green-600" : "text-blue-600"
-                    }`}
+                  className={`font-semibold ${
+                    isComplete ? "text-green-600" : "text-blue-600"
+                  }`}
                 >
                   {overallProgress}%
                 </span>
@@ -525,10 +302,11 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 
               <div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
                 <div
-                  className={`absolute top-0 left-0 h-full rounded-full transition-all duration-700 shadow-sm ${isComplete
-                    ? "bg-gradient-to-r from-emerald-500 to-green-500"
-                    : "bg-blue-600"
-                    }`}
+                  className={`absolute top 0 left-0 h-full rounded-full transition-all duration-700 shadow-sm ${
+                    isComplete
+                      ? "bg-gradient-to-r from-emerald-500 to-green-500"
+                      : "bg-blue-600"
+                  }`}
                   style={{ width: `${overallProgress}%` }}
                 />
               </div>
@@ -619,3 +397,5 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     </div>
   );
 };
+
+
