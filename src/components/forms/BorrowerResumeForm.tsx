@@ -525,6 +525,16 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			setFormSaved(true);
 			isSavingRef.current = true;
+
+			// Signal to realtime hooks that this is a local save
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("local-save-started", {
+						detail: { projectId, context: "borrower" },
+					})
+				);
+			}
+
 			try {
 				const lockedFieldsObj: Record<string, boolean> = {};
 				lockedFields.forEach((id) => (lockedFieldsObj[id] = true));
@@ -613,6 +623,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				_lockedFields: lockedFieldsObj,
 				completenessPercent,
 			};
+
+			// Signal to realtime hooks that this is a local save
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("local-save-started", {
+						detail: { projectId, context: "borrower" },
+					})
+				);
+			}
 
 			void saveProjectBorrowerResume(projectId, dataToSave, {
 				// Background autosave on unmount should NOT create a new
@@ -1245,6 +1264,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				_metadata: fieldMetadata,
 				_lockedFields: lockedFieldsObj,
 			};
+
+			// Signal to realtime hooks that this is a local save (before autofill)
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("local-save-started", {
+						detail: { projectId, context: "borrower" },
+					})
+				);
+			}
 
 			try {
 				await saveProjectBorrowerResume(projectId, dataToSave, {

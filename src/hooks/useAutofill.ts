@@ -276,6 +276,15 @@ export const useAutofill = (
 			};
 			localStorage.setItem(storageKey, JSON.stringify(autofillState));
 
+			// Dispatch event to notify realtime hooks that autofill is starting
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("autofill-started", {
+						detail: { projectId, context },
+					})
+				);
+			}
+
 			// 5. Call Next.js API route (which handles mock/backend logic internally)
 			const {
 				data: { user },

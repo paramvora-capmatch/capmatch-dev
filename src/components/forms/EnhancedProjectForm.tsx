@@ -1564,6 +1564,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 			setFormSaved(true);
 			isSavingRef.current = true;
+
+			// Signal to realtime hooks that this is a local save
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("local-save-started", {
+						detail: { projectId: finalData.id, context: "project" },
+					})
+				);
+			}
+
 			try {
 				await saveProjectResume(finalData.id, finalData, {
 					createNewVersion,
@@ -1668,6 +1678,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				_metadata: currentMeta,
 				_lockedFields: lockedFieldsObj,
 			};
+
+			// Signal to realtime hooks that this is a local save
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("local-save-started", {
+						detail: { projectId: dataToSave.id, context: "project" },
+					})
+				);
+			}
 
 			// Fire and forget save on unmount. We always create a new version
 			// here when dirty, since this represents an exit with draft changes.
@@ -4261,6 +4280,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				_metadata: fieldMetadata,
 				_lockedFields: lockedFieldsObj,
 			};
+
+			// Signal to realtime hooks that this is a local save (before autofill)
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("local-save-started", {
+						detail: { projectId: dataToSave.id, context: "project" },
+					})
+				);
+			}
 
 			try {
 				await saveProjectResume(dataToSave.id, dataToSave, {
