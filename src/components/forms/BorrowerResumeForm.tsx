@@ -169,6 +169,16 @@ const isValueProvided = (value: unknown): boolean => {
 	return false;
 };
 
+// Helper to determine if all principal rows are sufficiently filled in
+const hasCompletePrincipals = (principals: unknown): boolean => {
+	if (!Array.isArray(principals) || principals.length === 0) return false;
+	return principals.every((p: any) => {
+		const name = (p?.principalLegalName || "").trim();
+		const role = (p?.principalRoleDefault || "").trim();
+		return name.length > 0 && role.length > 0;
+	});
+};
+
 // Sanitize incoming BorrowerContent
 const sanitizeBorrowerProfile = (
 	profile: Partial<BorrowerResumeContent>
