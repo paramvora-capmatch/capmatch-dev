@@ -1,5 +1,3 @@
-import { FieldMetadata } from "@/types/enhanced-types";
-
 // Define the Borrower Resume field metadata configuration
 // This mirrors the structure used for Project Resume fields to support
 // enhanced features like Autofill sources, tooltips, and rich data.

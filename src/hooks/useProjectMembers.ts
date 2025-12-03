@@ -171,8 +171,10 @@ export const useProjectMembers = (
 
         fetchAllMembers();
     }, [
+        projects,
         projectsKey,
         isAdvisor,
+        currentOrg,
         currentOrg?.id,
         orgMembers
     ]);

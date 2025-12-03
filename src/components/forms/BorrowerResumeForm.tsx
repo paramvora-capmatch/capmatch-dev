@@ -1701,7 +1701,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		isFieldLocked,
 		isFieldBlue,
 		isFieldGreen,
-		isFieldWhite,
 	]);
 
 	if (!isEditing) {
