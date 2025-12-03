@@ -1728,6 +1728,204 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		};
 	}, [hasUnsavedChanges]);
 
+	// Derived / calculated fields
+	// - incentiveStacking: concatenated labels of enabled incentives
+	// - targetLtvPercent: (loanAmountRequested / stabilizedValue) * 100
+	// - targetLtcPercent: (loanAmountRequested / totalDevelopmentCost) * 100
+	// - totalCommercialGRSF: sum of commercialSpaceMix.squareFootage
+	// - studioCount / oneBedCount / twoBedCount / threeBedCount: derived from residentialUnitMix
+	useEffect(() => {
+		setFormData((prev) => {
+			let changed = false;
+			const next: ProjectProfile = { ...prev };
+
+			const normalizeNumber = (v: any): number | null => {
+				if (typeof v !== "number" || Number.isNaN(v)) return null;
+				return v;
+			};
+
+			// 1) incentiveStacking – only update when not locked
+			if (!lockedFields.has("incentiveStacking")) {
+				const activeLabels = INCENTIVE_LABELS.filter(({ key }) => {
+					const flag = (prev as any)[key];
+					return flag === true;
+				}).map((item) => item.label);
+				const derived =
+					activeLabels.length > 0 ? activeLabels.join(", ") : null;
+				const current =
+					(prev as any).incentiveStacking === undefined
+						? null
+						: (prev as any).incentiveStacking;
+				// Allow both string and string[] legacy shapes
+				const currentStr =
+					Array.isArray(current) && current.length > 0
+						? current.join(", ")
+						: typeof current === "string"
+						? current
+						: null;
+				if (currentStr !== (derived ?? null)) {
+					(next as any).incentiveStacking =
+						derived === null ? undefined : derived;
+					changed = true;
+				}
+			}
+
+			// 2) targetLtvPercent
+			if (!lockedFields.has("targetLtvPercent")) {
+				const loanAmt = normalizeNumber(prev.loanAmountRequested);
+				const stabilizedVal = normalizeNumber(prev.stabilizedValue);
+				const derived =
+					loanAmt && stabilizedVal && stabilizedVal !== 0
+						? (loanAmt / stabilizedVal) * 100
+						: null;
+				const current = normalizeNumber(prev.targetLtvPercent);
+				if (
+					(current === null && derived !== null) ||
+					(current !== null && derived === null) ||
+					(current !== null &&
+						derived !== null &&
+						Math.abs(current - derived) > 0.0001)
+				) {
+					next.targetLtvPercent = derived === null ? undefined : derived;
+					changed = true;
+				}
+			}
+
+			// 3) targetLtcPercent
+			if (!lockedFields.has("targetLtcPercent")) {
+				const loanAmt = normalizeNumber(prev.loanAmountRequested);
+				const tdc = normalizeNumber(prev.totalDevelopmentCost);
+				const derived =
+					loanAmt && tdc && tdc !== 0 ? (loanAmt / tdc) * 100 : null;
+				const current = normalizeNumber(prev.targetLtcPercent);
+				if (
+					(current === null && derived !== null) ||
+					(current !== null && derived === null) ||
+					(current !== null &&
+						derived !== null &&
+						Math.abs(current - derived) > 0.0001)
+				) {
+					next.targetLtcPercent = derived === null ? undefined : derived;
+					changed = true;
+				}
+			}
+
+			// 4) totalCommercialGRSF – sum of commercialSpaceMix.squareFootage
+			if (!lockedFields.has("totalCommercialGRSF")) {
+				const mix = Array.isArray(prev.commercialSpaceMix)
+					? prev.commercialSpaceMix
+					: [];
+				const sum = mix.reduce((acc, row) => {
+					const sf =
+						row && typeof row.squareFootage === "number"
+							? row.squareFootage
+							: 0;
+					return acc + (Number.isNaN(sf) ? 0 : sf);
+				}, 0);
+				const derived = sum > 0 ? sum : null;
+				const current = normalizeNumber(prev.totalCommercialGRSF);
+				if (
+					(current === null && derived !== null) ||
+					(current !== null && derived === null) ||
+					(current !== null && derived !== null && current !== derived)
+				) {
+					next.totalCommercialGRSF =
+						derived === null ? undefined : derived;
+					changed = true;
+				}
+			}
+
+			// 5) Unit mix counts from residentialUnitMix
+			const mix = Array.isArray(prev.residentialUnitMix)
+				? prev.residentialUnitMix
+				: [];
+
+			const computeUnitsForMatcher = (
+				matcher: (unitType: string) => boolean
+			): number | null => {
+				let total = 0;
+				for (const row of mix) {
+					if (!row || typeof row.unitType !== "string") continue;
+					const name = row.unitType.toLowerCase();
+					if (!matcher(name)) continue;
+					const count =
+						typeof row.unitCount === "number" &&
+						!Number.isNaN(row.unitCount)
+							? row.unitCount
+							: 1;
+					total += count;
+				}
+				return total > 0 ? total : null;
+			};
+
+			const isStudio = (name: string) => name.includes("studio");
+			const isOneBed = (name: string) =>
+				name.includes("1br") ||
+				name.includes("1 br") ||
+				name.includes("one bed") ||
+				name.includes("1-bed") ||
+				name.includes("1 bed");
+			const isTwoBed = (name: string) =>
+				name.includes("2br") ||
+				name.includes("2 br") ||
+				name.includes("two bed") ||
+				name.includes("2-bed") ||
+				name.includes("2 bed");
+			const isThreeBed = (name: string) =>
+				name.includes("3br") ||
+				name.includes("3 br") ||
+				name.includes("three bed") ||
+				name.includes("3-bed") ||
+				name.includes("3 bed");
+
+			const derivedStudio = computeUnitsForMatcher(isStudio);
+			const derivedOne = computeUnitsForMatcher(isOneBed);
+			const derivedTwo = computeUnitsForMatcher(isTwoBed);
+			const derivedThree = computeUnitsForMatcher(isThreeBed);
+
+			const maybeSetCount = (
+				fieldId:
+					| "studioCount"
+					| "oneBedCount"
+					| "twoBedCount"
+					| "threeBedCount",
+				derived: number | null
+			) => {
+				if (lockedFields.has(fieldId)) return;
+				const current = normalizeNumber((prev as any)[fieldId]);
+				if (
+					(current === null && derived !== null) ||
+					(current !== null && derived === null) ||
+					(current !== null && derived !== null && current !== derived)
+				) {
+					(next as any)[fieldId] = derived === null ? undefined : derived;
+					changed = true;
+				}
+			};
+
+			maybeSetCount("studioCount", derivedStudio);
+			maybeSetCount("oneBedCount", derivedOne);
+			maybeSetCount("twoBedCount", derivedTwo);
+			maybeSetCount("threeBedCount", derivedThree);
+
+			return changed ? next : prev;
+		});
+	}, [
+		lockedFields,
+		formData.loanAmountRequested,
+		formData.stabilizedValue,
+		formData.totalDevelopmentCost,
+		formData.commercialSpaceMix,
+		formData.residentialUnitMix,
+		formData.opportunityZone,
+		formData.taxExemption,
+		formData.tifDistrict,
+		formData.taxAbatement,
+		formData.paceFinancing,
+		formData.historicTaxCredits,
+		formData.newMarketsCredits,
+	]);
+
 	type ControlKind =
 		| "input"
 		| "number"
