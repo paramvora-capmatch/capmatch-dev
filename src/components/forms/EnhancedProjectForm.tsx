@@ -2623,6 +2623,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
 															Residential Unit Mix
 														</h4>
+														{isFieldRequiredFromSchema(
+															"residentialUnitMix"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
 														<FieldHelpTooltip
 															fieldId="residentialUnitMix"
 															fieldMetadata={
