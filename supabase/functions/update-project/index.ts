@@ -247,10 +247,7 @@ serve(async (req) => {
                 ? (existingItem as any).original_value
                 : undefined;
 
-            const metaSources =
-              (meta as any).sources !== undefined
-                ? (meta as any).sources
-                : (meta as any).source;
+            const metaSources = (meta as any).sources;
 
             finalContentFlat[key] = {
               value,
@@ -270,12 +267,9 @@ serve(async (req) => {
               ("value" in existingItem || "source" in existingItem || "sources" in existingItem)
             ) {
               const existingObj = existingItem as any;
-              const existingSources =
-                "sources" in existingObj
-                  ? existingObj.sources
-                  : "source" in existingObj
-                  ? toSourcesArray(existingObj.source)
-                  : undefined;
+              const existingSources = "sources" in existingObj
+                ? existingObj.sources
+                : undefined;
 
               // Preserve existing metadata structure (but normalize to `sources`) and update value
               finalContentFlat[key] = {
@@ -317,12 +311,9 @@ serve(async (req) => {
             ("value" in existingItem || "source" in existingItem || "sources" in existingItem)
           ) {
             const existingObj = existingItem as any;
-            const existingSources =
-              "sources" in existingObj
-                ? existingObj.sources
-                : "source" in existingObj
-                ? toSourcesArray(existingObj.source)
-                : undefined;
+            const existingSources = "sources" in existingObj
+              ? existingObj.sources
+              : undefined;
 
             // Preserve existing rich format (normalized to `sources`), update value but keep original_value
             finalContentFlat[key] = {
@@ -355,11 +346,7 @@ serve(async (req) => {
           const obj = item as any;
           const normalized: any = {
             value: obj.value,
-            sources: obj.sources
-              ? toSourcesArray(obj.sources)
-              : obj.source
-              ? toSourcesArray(obj.source)
-              : [{ type: "user_input" }],
+            sources: toSourcesArray(obj.sources),
             original_value:
               obj.original_value !== undefined ? obj.original_value : obj.value,
             warnings: obj.warnings || [],
