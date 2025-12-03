@@ -241,7 +241,28 @@ const getProjectBorrowerResumeContent = async (
 		).completenessPercent;
 	}
 
-	return flatContent as BorrowerResumeContent;
+	// Final pass: ensure any remaining rich objects are unwrapped to their `.value`
+	// property for UI consumption, while preserving metadata containers and section data.
+	const unwrappedContent: any = {};
+	for (const [key, val] of Object.entries(flatContent)) {
+		if (
+			val &&
+			typeof val === "object" &&
+			!Array.isArray(val) &&
+			"value" in val &&
+			key !== "_metadata" &&
+			key !== "_lockedFields" &&
+			key !== "_fieldStates" &&
+			key !== "borrowerSections" &&
+			key !== "projectSections"
+		) {
+			unwrappedContent[key] = (val as any).value;
+		} else {
+			unwrappedContent[key] = val;
+		}
+	}
+
+	return unwrappedContent as BorrowerResumeContent;
 };
 
 export const useProjectBorrowerResumeRealtime = (
