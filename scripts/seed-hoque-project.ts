@@ -942,88 +942,6 @@ async function getOrCreateDemoBorrowerAccount(): Promise<{ userId: string; orgId
   return { userId: borrowerUserId, orgId: borrowerOrgId };
 }
 
-async function createHoqueGlobalMember(orgId: string): Promise<string | null> {
-  console.log('[seed] Creating Hoque Global member account...');
-  
-  const memberEmail = 'info@hoqueglobal.com';
-  const memberPassword = 'password';
-  const memberName = 'Hoque Global';
-
-  // Check if user already exists
-  const { data: existingProfile } = await supabaseAdmin
-    .from('profiles')
-    .select('id')
-    .eq('email', memberEmail)
-    .maybeSingle();
-
-  let userId: string;
-
-  if (existingProfile) {
-    console.log(`[seed] Hoque Global member already exists: ${memberEmail} (${existingProfile.id})`);
-    userId = existingProfile.id;
-  } else {
-    // Create user via auth
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: memberEmail,
-      password: memberPassword,
-      email_confirm: true,
-      user_metadata: { full_name: memberName },
-    });
-
-    if (authError || !authUser.user) {
-      console.error(`[seed] Failed to create Hoque Global member:`, authError);
-      return null;
-    }
-
-    userId = authUser.user.id;
-
-    // Create profile
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .insert({
-        id: userId,
-        email: memberEmail,
-        full_name: memberName,
-        app_role: 'borrower',
-        active_org_id: orgId,
-      });
-
-    if (profileError) {
-      console.error(`[seed] Failed to create Hoque Global profile:`, profileError);
-      await supabaseAdmin.auth.admin.deleteUser(userId);
-      return null;
-    }
-
-    console.log(`[seed] ✅ Created Hoque Global member: ${memberEmail} (${userId})`);
-  }
-
-  // Add to org_members as member (not owner)
-  const { error: memberError } = await supabaseAdmin
-    .from('org_members')
-    .upsert(
-      {
-        org_id: orgId,
-        user_id: userId,
-        role: 'member',
-      },
-      { onConflict: 'org_id,user_id' }
-    );
-
-  if (memberError) {
-    console.error(`[seed] Failed to add Hoque Global to org:`, memberError);
-    return null;
-  }
-
-  // Ensure active_org_id is set
-  await supabaseAdmin
-    .from('profiles')
-    .update({ active_org_id: orgId })
-    .eq('id', userId);
-
-  console.log(`[seed] ✅ Hoque Global member setup complete: ${memberEmail}`);
-  return userId;
-}
-
 // Helper to safely get service role key
 function getServiceRoleKey(): string {
   if (!serviceRoleKey) {
@@ -2211,13 +2129,6 @@ async function seedHoqueProject(): Promise<void> {
     }
     const { userId: borrowerId, orgId: borrowerOrgId } = borrowerInfo;
 
-    // Step 2.5: Create Hoque Global as a member (not owner)
-    console.log('\n📋 Step 2.5: Creating Hoque Global member account...');
-    const hoqueGlobalMemberId = await createHoqueGlobalMember(borrowerOrgId);
-    if (!hoqueGlobalMemberId) {
-      console.warn('[seed] ⚠️  Failed to create Hoque Global member (continuing anyway)');
-    }
-
     // Step 3: Create SoGood Apartments project
     console.log('\n📋 Step 3: Creating SoGood Apartments project...');
     const projectId = await createProject(
@@ -2283,13 +2194,6 @@ async function seedHoqueProject(): Promise<void> {
     // Step 6: Seed team members
     console.log('\n📋 Step 6: Seeding team members...');
     const memberIds = await seedTeamMembers(projectId, borrowerOrgId, borrowerId);
-    
-    // Add Hoque Global member to the project if it was created
-    if (hoqueGlobalMemberId) {
-      memberIds.push(hoqueGlobalMemberId);
-      // Grant project access to Hoque Global member
-      await grantMemberProjectAccess(projectId, hoqueGlobalMemberId, borrowerId);
-    }
 
     // Step 7: Seed chat messages
     console.log('\n📋 Step 7: Seeding chat messages...');
@@ -2300,7 +2204,6 @@ async function seedHoqueProject(): Promise<void> {
     console.log('\n📊 Summary:');
     console.log(`   Advisor: cody.field@capmatch.com (password: password)`);
     console.log(`   Project Owner: param.vora@capmatch.com (password: password)`);
-    console.log(`   Hoque Global Member: info@hoqueglobal.com (password: password)`);
     console.log(`   Project: ${HOQUE_PROJECT_NAME} (${projectId})`);
     console.log(`   Project Resume: ✅ Seeded (100% complete)`);
     console.log(`   Borrower Resume: ✅ Seeded (100% complete)`);
@@ -2328,7 +2231,6 @@ async function cleanupHoqueAccounts(): Promise<void> {
 
   try {
     const borrowerEmail = 'param.vora@capmatch.com';
-    const hoqueGlobalEmail = 'info@hoqueglobal.com';
     const advisorEmail = 'cody.field@capmatch.com';
     const teamMemberEmails = [
       'aryan.jain@capmatch.com',
@@ -2405,49 +2307,7 @@ async function cleanupHoqueAccounts(): Promise<void> {
     }
     console.log(`[cleanup] Note: Only Hoque project access will be removed (project deletion handles this)`);
 
-    // Step 4: Delete Hoque Global member (but keep borrower account - shared with demo script)
-    console.log('\n📋 Step 4: Deleting Hoque Global member...');
-    try {
-      const { data: hoqueProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('email', hoqueGlobalEmail)
-        .maybeSingle();
-
-      if (hoqueProfile) {
-        // Remove from org_members
-        await supabaseAdmin
-          .from('org_members')
-          .delete()
-          .eq('user_id', hoqueProfile.id);
-        
-        // Delete project access
-        await supabaseAdmin
-          .from('project_access_grants')
-          .delete()
-          .eq('user_id', hoqueProfile.id);
-        
-        // Delete permissions
-        await supabaseAdmin
-          .from('permissions')
-          .delete()
-          .eq('user_id', hoqueProfile.id);
-        
-        // Delete chat participants
-        await supabaseAdmin
-          .from('chat_thread_participants')
-          .delete()
-          .eq('user_id', hoqueProfile.id);
-        
-        // Delete user
-        await supabaseAdmin.auth.admin.deleteUser(hoqueProfile.id);
-        console.log(`[cleanup] ✅ Deleted Hoque Global member: ${hoqueGlobalEmail}`);
-      }
-    } catch (err) {
-      console.warn(`[cleanup] Could not delete Hoque Global member:`, err);
-    }
-
-    // Step 5: Skip advisor cleanup (advisor is shared with demo script)
+    // Step 4: Skip advisor cleanup (advisor is shared with demo script)
     // Note: We do NOT delete the advisor account (cody.field@capmatch.com) or its org
     // as it's shared with the demo script and may be used by other projects
     console.log('\n📋 Step 5: Skipping advisor cleanup...');
