@@ -303,6 +303,30 @@ export const useProjectBorrowerResumeRealtime = (
 		}
 	}, [projectId]);
 
+	// Listen for autofill state changes
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const handleAutofillStart = () => {
+			isAutofillRunningRef.current = true;
+		};
+
+		const handleAutofillComplete = () => {
+			// Keep flag true for a bit longer to catch any delayed database updates
+			setTimeout(() => {
+				isAutofillRunningRef.current = false;
+			}, 5000);
+		};
+
+		window.addEventListener("autofill-started", handleAutofillStart);
+		window.addEventListener("autofill-completed", handleAutofillComplete);
+
+		return () => {
+			window.removeEventListener("autofill-started", handleAutofillStart);
+			window.removeEventListener("autofill-completed", handleAutofillComplete);
+		};
+	}, []);
+
 	// Subscribe to realtime changes
 	useEffect(() => {
 		if (!projectId || !user?.id) return;
@@ -320,7 +344,19 @@ export const useProjectBorrowerResumeRealtime = (
 				async (payload) => {
 					// Ignore our own updates
 					if (isLocalSaveRef.current) {
-						isLocalSaveRef.current = false;
+						// Clear any pending timeout
+						if (localSaveTimeoutRef.current) {
+							clearTimeout(localSaveTimeoutRef.current);
+						}
+						// Reset flag after a delay to catch any delayed events
+						localSaveTimeoutRef.current = setTimeout(() => {
+							isLocalSaveRef.current = false;
+						}, 3000);
+						return;
+					}
+
+					// Ignore updates during autofill (triggered by current user)
+					if (isAutofillRunningRef.current) {
 						return;
 					}
 
@@ -364,9 +400,22 @@ export const useProjectBorrowerResumeRealtime = (
 				},
 				async (payload) => {
 					if (isLocalSaveRef.current) {
-						isLocalSaveRef.current = false;
+						// Clear any pending timeout
+						if (localSaveTimeoutRef.current) {
+							clearTimeout(localSaveTimeoutRef.current);
+						}
+						// Reset flag after a delay to catch any delayed events
+						localSaveTimeoutRef.current = setTimeout(() => {
+							isLocalSaveRef.current = false;
+						}, 3000);
 						return;
 					}
+
+					// Ignore inserts during autofill (triggered by current user)
+					if (isAutofillRunningRef.current) {
+						return;
+					}
+
 					setIsRemoteUpdate(true);
 					// Add a small delay to ensure resource pointer is updated
 					await new Promise((resolve) => setTimeout(resolve, 500));
@@ -398,6 +447,11 @@ export const useProjectBorrowerResumeRealtime = (
 					filter: `project_id=eq.${projectId},resource_type=eq.BORROWER_RESUME`,
 				},
 				async (payload) => {
+					// Ignore resource updates during autofill or local saves
+					if (isLocalSaveRef.current || isAutofillRunningRef.current) {
+						return;
+					}
+
 					// Reload when resource pointer changes (e.g., after autofill creates new version)
 					try {
 						const latest = await getProjectBorrowerResumeContent(
@@ -421,6 +475,9 @@ export const useProjectBorrowerResumeRealtime = (
 		return () => {
 			if (remoteUpdateTimeoutRef.current) {
 				clearTimeout(remoteUpdateTimeoutRef.current);
+			}
+			if (localSaveTimeoutRef.current) {
+				clearTimeout(localSaveTimeoutRef.current);
 			}
 			channelRef.current?.unsubscribe();
 			channelRef.current = null;
@@ -481,10 +538,14 @@ export const useProjectBorrowerResumeRealtime = (
 				throw err;
 			} finally {
 				setIsSaving(false);
-				// Reset flag after a short delay to allow realtime event to process
-				setTimeout(() => {
+				// Reset flag after a delay to allow realtime event to process
+				// Clear any pending timeout first
+				if (localSaveTimeoutRef.current) {
+					clearTimeout(localSaveTimeoutRef.current);
+				}
+				localSaveTimeoutRef.current = setTimeout(() => {
 					isLocalSaveRef.current = false;
-				}, 1000);
+				}, 3000);
 			}
 		},
 		[projectId]
