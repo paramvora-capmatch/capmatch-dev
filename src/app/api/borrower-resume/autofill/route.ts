@@ -69,7 +69,6 @@ export async function POST(request: Request) {
 				// Load existing resume content to get locked fields
 				let existingContent: any = {};
 				let lockedFields: Record<string, boolean> = {};
-				let lockedSections: Record<string, boolean> = {};
 
 				if (resource?.current_version_id) {
 					const { data: existingResume, error: fetchError } =
@@ -81,37 +80,24 @@ export async function POST(request: Request) {
 
 					if (!fetchError && existingResume?.content) {
 						existingContent = existingResume.content;
-						lockedFields = (existingContent._lockedFields as Record<string, boolean>) || {};
-						lockedSections = (existingContent._lockedSections as Record<string, boolean>) || {};
+						lockedFields =
+							(existingContent._lockedFields as Record<
+								string,
+								boolean
+							>) || {};
 					}
 				}
 
-				// Extract fields using mock service (now returns section-wise format)
+				// Extract fields using mock service (returns section-wise format)
 				const extractedFields = await extractBorrowerFields(
 					project_id,
 					document_paths
 				);
 
 				// Helper function to check if a field is locked
-				const isFieldLocked = (fieldId: string, sectionId: string): boolean => {
+				const isFieldLocked = (fieldId: string): boolean => {
 					// Check if field is explicitly locked
-					if (lockedFields[fieldId] === true) {
-						return true;
-					}
-					// Check if field belongs to a locked section
-					// Map section keys (section_1, section_2, etc.) to section IDs (basic-info, experience, etc.)
-					const sectionIdMap: Record<string, string> = {
-						section_1: "basic-info",
-						section_2: "experience",
-						section_3: "borrower-financials",
-						section_4: "online-presence",
-						section_5: "principals",
-					};
-					const mappedSectionId = sectionIdMap[sectionId] || sectionId;
-					if (lockedSections[mappedSectionId] === true) {
-						return true;
-					}
-					return false;
+					return lockedFields[fieldId] === true;
 				};
 
 				// Keep section-wise structure - don't flatten
@@ -121,13 +107,27 @@ export async function POST(request: Request) {
 
 				// Start with existing content structure (preserve existing fields)
 				if (existingContent) {
-					for (const [key, value] of Object.entries(existingContent)) {
+					for (const [key, value] of Object.entries(
+						existingContent
+					)) {
 						// Skip metadata keys - we'll handle them separately
-						if (key === "_lockedFields" || key === "_lockedSections" || key === "_fieldStates" || key === "_metadata") {
+						if (
+							key === "_lockedFields" ||
+							key === "_fieldStates" ||
+							key === "_metadata" ||
+							key === "_lockedSections" ||
+							// Skip legacy borrowerSections/analytics blobs; we only want
+							// the structured section_1..section_5 content in the resume
+							key === "borrowerSections"
+						) {
 							continue;
 						}
 						// Preserve existing section structure
-						if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+						if (
+							typeof value === "object" &&
+							value !== null &&
+							!Array.isArray(value)
+						) {
 							finalContent[key] = { ...value };
 						} else {
 							finalContent[key] = value;
@@ -148,17 +148,41 @@ export async function POST(request: Request) {
 					for (const [fieldId, fieldData] of Object.entries(
 						sectionFields
 					)) {
+						// Skip complex analytic blobs that shouldn't live in the core
+						// borrower resume content (these are handled elsewhere)
+						if (
+							fieldId === "borrowerSections" ||
+							fieldId === "references" ||
+							fieldId === "trackRecord"
+						) {
+							continue;
+						}
+
 						// Check if field is locked - if so, preserve existing value
-						if (isFieldLocked(fieldId, sectionId)) {
-							console.log(`[Autofill] Field '${fieldId}' is locked, preserving existing value`);
+						if (isFieldLocked(fieldId)) {
+							console.log(
+								`[Autofill] Field '${fieldId}' is locked, preserving existing value`
+							);
 							// Preserve existing field value if it exists
 							if (finalContent[sectionId][fieldId]) {
 								// Keep existing value but merge warnings if needed
-								const existingField = finalContent[sectionId][fieldId];
-								if (typeof existingField === "object" && existingField !== null && "value" in existingField) {
-									const newWarnings = (fieldData as any)?.warnings || [];
-									const existingWarnings = existingField.warnings || [];
-									const combinedWarnings = Array.from(new Set([...existingWarnings, ...newWarnings]));
+								const existingField =
+									finalContent[sectionId][fieldId];
+								if (
+									typeof existingField === "object" &&
+									existingField !== null &&
+									"value" in existingField
+								) {
+									const newWarnings =
+										(fieldData as any)?.warnings || [];
+									const existingWarnings =
+										existingField.warnings || [];
+									const combinedWarnings = Array.from(
+										new Set([
+											...existingWarnings,
+											...newWarnings,
+										])
+									);
 									finalContent[sectionId][fieldId] = {
 										...existingField,
 										warnings: combinedWarnings,
@@ -170,7 +194,7 @@ export async function POST(request: Request) {
 							continue;
 						}
 
-						// Field is not locked - apply extracted value
+						// Field is not locked - apply extracted value (overwrite any existing null values)
 						if (
 							fieldData &&
 							typeof fieldData === "object" &&
@@ -182,6 +206,29 @@ export async function POST(request: Request) {
 								: fieldData.sources
 								? [fieldData.sources]
 								: [];
+
+							// Always apply the extracted value - this will overwrite any existing null values
+							// Check if existing value is null and new value is not null - force apply
+							const existingFieldValue =
+								finalContent[sectionId]?.[fieldId];
+							const existingIsNull =
+								existingFieldValue &&
+								typeof existingFieldValue === "object" &&
+								"value" in existingFieldValue &&
+								(existingFieldValue.value === null ||
+									existingFieldValue.value === undefined);
+
+							if (
+								existingIsNull &&
+								fieldData.value !== null &&
+								fieldData.value !== undefined
+							) {
+								// Force overwrite null values with extracted values
+								console.log(
+									`[Autofill] Overwriting null value for field '${fieldId}' with extracted value:`,
+									fieldData.value
+								);
+							}
 
 							finalContent[sectionId][fieldId] = {
 								value: fieldData.value,
@@ -197,80 +244,71 @@ export async function POST(request: Request) {
 					}
 				}
 
-				// Preserve locked fields and locked sections metadata
+				// Preserve locked fields metadata
 				finalContent._lockedFields = lockedFields;
-				finalContent._lockedSections = lockedSections;
+				// Note: _lockedSections is no longer used in favor of deriving from field locks
 
 				// Save the updated content
-				if (resource?.current_version_id) {
-					// Update existing resume
-					const { error } = await supabaseAdmin
-						.from("borrower_resumes")
-						.update({ content: finalContent })
-						.eq("id", resource.current_version_id);
+				// IMPORTANT: For consistency with the production pipeline, autofill
+				// should ALWAYS create a new borrower resume version when changes are
+				// applied, rather than mutating the existing row in place.
+				//
+				// 1) Ensure _lockedFields is initialized on the new snapshot.
+				if (!finalContent._lockedFields) {
+					finalContent._lockedFields = lockedFields || {};
+				}
 
-					if (error) {
-						throw new Error(
-							`Failed to update borrower resume: ${error.message}`
+				// 2) Insert a brand new resume row with the merged content.
+				const { data: inserted, error: insertError } =
+					await supabaseAdmin
+						.from("borrower_resumes")
+						.insert({
+							project_id,
+							content: finalContent,
+							created_by: user_id ?? null,
+						})
+						.select("id, version_number")
+						.single();
+
+				if (insertError || !inserted) {
+					throw new Error(
+						`Failed to create borrower resume version: ${
+							insertError?.message || "Unknown error"
+						}`
+					);
+				}
+
+				// 4) Update/create resource pointer so current_version_id points at
+				// the new version row.
+				if (resource?.id) {
+					const { error: pointerError } = await supabaseAdmin
+						.from("resources")
+						.update({ current_version_id: inserted.id })
+						.eq("id", resource.id);
+
+					if (pointerError) {
+						console.warn(
+							"[borrower-resume autofill] Failed to update resource pointer:",
+							pointerError
 						);
 					}
 				} else {
-					// Insert new resume (no existing locked fields for new resumes)
-					// Ensure _lockedFields and _lockedSections are initialized
-					if (!finalContent._lockedFields) {
-						finalContent._lockedFields = {};
-					}
-					if (!finalContent._lockedSections) {
-						finalContent._lockedSections = {};
-					}
-
-					const { data: inserted, error: insertError } =
-						await supabaseAdmin
-							.from("borrower_resumes")
-							.insert({
+					const { error: resourceError } = await supabaseAdmin
+						.from("resources")
+						.upsert(
+							{
 								project_id,
-								content: finalContent,
-							})
-							.select("id")
-							.single();
-
-					if (insertError) {
-						throw new Error(
-							`Failed to create borrower resume: ${insertError.message}`
+								resource_type: "BORROWER_RESUME",
+								current_version_id: inserted.id,
+							},
+							{ onConflict: "project_id,resource_type" }
 						);
-					}
 
-					// Update/create resource pointer
-					if (resource?.id) {
-						const { error: pointerError } = await supabaseAdmin
-							.from("resources")
-							.update({ current_version_id: inserted.id })
-							.eq("id", resource.id);
-
-						if (pointerError) {
-							console.warn(
-								"[saveProjectBorrowerResume] Failed to update resource pointer:",
-								pointerError
-							);
-						}
-					} else {
-						const { error: resourceError } = await supabaseAdmin
-							.from("resources")
-							.upsert(
-								{
-									project_id,
-									resource_type: "BORROWER_RESUME",
-									current_version_id: inserted.id,
-								},
-								{ onConflict: "project_id,resource_type" }
-							);
-
-						if (resourceError) {
-							console.warn(
-								"[saveProjectBorrowerResume] Failed to create resource pointer:",
-								resourceError
-							);
-						}
+					if (resourceError) {
+						console.warn(
+							"[borrower-resume autofill] Failed to create resource pointer:",
+							resourceError
+						);
 					}
 				}
 

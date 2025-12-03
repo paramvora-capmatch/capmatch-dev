@@ -1,251 +1,239 @@
 {
-  "steps": [
-    {
-      "id": "basic-info",
-      "title": "Borrower Identity & Contact",
-      "icon": "User",
-      "subsections": [
-        {
-          "id": "borrower-identity",
-          "title": "1.1 Borrower Identity",
-          "fields": [
-            "fullLegalName",
-            "primaryEntityName",
-            "primaryEntityStructure"
-          ]
-        },
-        {
-          "id": "borrower-contact",
-          "title": "1.2 Contact Details",
-          "fields": [
-            "contactEmail",
-            "contactPhone",
-            "contactAddress"
-          ]
-        }
-      ],
-      "fields": [
-        "fullLegalName",
-        "primaryEntityName",
-        "primaryEntityStructure",
-        "contactEmail",
-        "contactPhone",
-        "contactAddress"
-      ]
-    },
-    {
-      "id": "experience",
-      "title": "Sponsor Experience",
-      "icon": "Briefcase",
-      "subsections": [
-        {
-          "id": "experience-summary",
-          "title": "2.1 Experience Summary",
-          "fields": [
-            "yearsCREExperienceRange",
-            "totalDealValueClosedRange"
-          ]
-        },
-        {
-          "id": "experience-focus",
-          "title": "2.2 Focus & Track Record",
-          "fields": [
-            "assetClassesExperience",
-            "geographicMarketsExperience",
-            "existingLenderRelationships",
-            "bioNarrative"
-          ]
-        }
-      ],
-      "fields": [
-        "yearsCREExperienceRange",
-        "assetClassesExperience",
-        "geographicMarketsExperience",
-        "totalDealValueClosedRange",
-        "existingLenderRelationships",
-        "bioNarrative"
-      ]
-    },
-    {
-      "id": "borrower-financials",
-      "title": "Financial Profile",
-      "icon": "DollarSign",
-      "subsections": [
-        {
-          "id": "financial-capacity",
-          "title": "3.1 Net Worth & Liquidity",
-          "fields": [
-            "creditScoreRange",
-            "netWorthRange",
-            "liquidityRange"
-          ]
-        },
-        {
-          "id": "financial-background",
-          "title": "3.2 Background & History",
-          "fields": [
-            "bankruptcyHistory",
-            "foreclosureHistory",
-            "litigationHistory"
-          ]
-        }
-      ],
-      "fields": [
-        "creditScoreRange",
-        "netWorthRange",
-        "liquidityRange",
-        "bankruptcyHistory",
-        "foreclosureHistory",
-        "litigationHistory"
-      ]
-    },
-    {
-      "id": "online-presence",
-      "title": "Online Presence",
-      "icon": "Globe",
-      "subsections": [
-        {
-          "id": "online-links",
-          "title": "4.1 Profiles & Website",
-          "fields": [
-            "linkedinUrl",
-            "websiteUrl"
-          ]
-        }
-      ],
-      "fields": [
-        "linkedinUrl",
-        "websiteUrl"
-      ]
-    },
-    {
-      "id": "principals",
-      "title": "Key Principals",
-      "icon": "Award",
-      "subsections": [
-        {
-          "id": "principal-details",
-          "title": "5.1 Principal Details",
-          "fields": [
-            "principalLegalName",
-            "principalRoleDefault",
-            "principalEmail",
-            "ownershipPercentage",
-            "principalBio"
-          ]
-        }
-      ],
-      "fields": [
-        "principalLegalName",
-        "principalRoleDefault",
-        "principalEmail",
-        "ownershipPercentage",
-        "principalBio"
-      ]
-    }
-  ],
-  "fields": {
-    "fullLegalName": {
-      "label": "Full Legal Name",
-      "required": true
-    },
-    "primaryEntityName": {
-      "label": "Primary Entity Name",
-      "required": true
-    },
-    "primaryEntityStructure": {
-      "label": "Entity Structure",
-      "required": true
-    },
-    "contactEmail": {
-      "label": "Contact Email",
-      "required": true
-    },
-    "contactPhone": {
-      "label": "Contact Phone",
-      "required": true
-    },
-    "contactAddress": {
-      "label": "Mailing Address",
-      "required": true
-    },
-    "yearsCREExperienceRange": {
-      "label": "Years of CRE Experience",
-      "required": true
-    },
-    "assetClassesExperience": {
-      "label": "Asset Classes Experience",
-      "required": false
-    },
-    "geographicMarketsExperience": {
-      "label": "Geographic Markets Experience",
-      "required": false
-    },
-    "totalDealValueClosedRange": {
-      "label": "Total Value Deals Closed",
-      "required": false
-    },
-    "existingLenderRelationships": {
-      "label": "Existing Lenders (Optional)",
-      "required": false
-    },
-    "bioNarrative": {
-      "label": "Bio (Optional)",
-      "required": false
-    },
-    "creditScoreRange": {
-      "label": "Credit Score Range",
-      "required": false
-    },
-    "netWorthRange": {
-      "label": "Net Worth Range",
-      "required": false
-    },
-    "liquidityRange": {
-      "label": "Liquidity Range",
-      "required": false
-    },
-    "bankruptcyHistory": {
-      "label": "Bankruptcy (7yr)",
-      "required": false
-    },
-    "foreclosureHistory": {
-      "label": "Foreclosure (7yr)",
-      "required": false
-    },
-    "litigationHistory": {
-      "label": "Litigation",
-      "required": false
-    },
-    "linkedinUrl": {
-      "label": "LinkedIn URL",
-      "required": false
-    },
-    "websiteUrl": {
-      "label": "Company Website",
-      "required": false
-    },
-    "principalLegalName": {
-      "label": "Principal Name",
-      "required": false
-    },
-    "principalRoleDefault": {
-      "label": "Principal Role",
-      "required": false
-    },
-    "principalEmail": {
-      "label": "Principal Email",
-      "required": false
-    },
-    "ownershipPercentage": {
-      "label": "Ownership (%)",
-      "required": false
-    },
-    "principalBio": {
-      "label": "Principal Bio",
-      "required": false
-    }
-  }
+	"steps": [
+		{
+			"id": "basic-info",
+			"title": "Borrower Identity & Contact",
+			"icon": "User",
+			"subsections": [
+				{
+					"id": "borrower-identity",
+					"title": "1.1 Borrower Identity",
+					"fields": [
+						"fullLegalName",
+						"primaryEntityName",
+						"primaryEntityStructure"
+					]
+				},
+				{
+					"id": "borrower-contact",
+					"title": "1.2 Contact Details",
+					"fields": ["contactEmail", "contactPhone", "contactAddress"]
+				}
+			],
+			"fields": [
+				"fullLegalName",
+				"primaryEntityName",
+				"primaryEntityStructure",
+				"contactEmail",
+				"contactPhone",
+				"contactAddress"
+			]
+		},
+		{
+			"id": "experience",
+			"title": "Sponsor Experience",
+			"icon": "Briefcase",
+			"subsections": [
+				{
+					"id": "experience-summary",
+					"title": "2.1 Experience Summary",
+					"fields": [
+						"yearsCREExperienceRange",
+						"totalDealValueClosedRange"
+					]
+				},
+				{
+					"id": "experience-focus",
+					"title": "2.2 Focus & Track Record",
+					"fields": [
+						"assetClassesExperience",
+						"geographicMarketsExperience",
+						"existingLenderRelationships",
+						"bioNarrative"
+					]
+				}
+			],
+			"fields": [
+				"yearsCREExperienceRange",
+				"assetClassesExperience",
+				"geographicMarketsExperience",
+				"totalDealValueClosedRange",
+				"existingLenderRelationships",
+				"bioNarrative"
+			]
+		},
+		{
+			"id": "borrower-financials",
+			"title": "Financial Profile",
+			"icon": "DollarSign",
+			"subsections": [
+				{
+					"id": "financial-capacity",
+					"title": "3.1 Net Worth & Liquidity",
+					"fields": [
+						"creditScoreRange",
+						"netWorthRange",
+						"liquidityRange"
+					]
+				},
+				{
+					"id": "financial-background",
+					"title": "3.2 Background & History",
+					"fields": [
+						"bankruptcyHistory",
+						"foreclosureHistory",
+						"litigationHistory"
+					]
+				}
+			],
+			"fields": [
+				"creditScoreRange",
+				"netWorthRange",
+				"liquidityRange",
+				"bankruptcyHistory",
+				"foreclosureHistory",
+				"litigationHistory"
+			]
+		},
+		{
+			"id": "online-presence",
+			"title": "Online Presence",
+			"icon": "Globe",
+			"subsections": [
+				{
+					"id": "online-links",
+					"title": "4.1 Profiles & Website",
+					"fields": ["linkedinUrl", "websiteUrl"]
+				}
+			],
+			"fields": ["linkedinUrl", "websiteUrl"]
+		},
+		{
+			"id": "principals",
+			"title": "Key Principals",
+			"icon": "Award",
+			"subsections": [
+				{
+					"id": "principal-details",
+					"title": "5.1 Principal Details",
+					"fields": [
+						"principalLegalName",
+						"principalRoleDefault",
+						"principalEmail",
+						"ownershipPercentage",
+						"principalBio"
+					]
+				}
+			],
+			"fields": [
+				"principalLegalName",
+				"principalRoleDefault",
+				"principalEmail",
+				"ownershipPercentage",
+				"principalBio"
+			]
+		}
+	],
+	"fields": {
+		"fullLegalName": {
+			"label": "Full Legal Name",
+			"required": true
+		},
+		"primaryEntityName": {
+			"label": "Primary Entity Name",
+			"required": true
+		},
+		"primaryEntityStructure": {
+			"label": "Entity Structure",
+			"required": true
+		},
+		"contactEmail": {
+			"label": "Contact Email",
+			"required": true
+		},
+		"contactPhone": {
+			"label": "Contact Phone",
+			"required": true
+		},
+		"contactAddress": {
+			"label": "Mailing Address",
+			"required": true
+		},
+		"yearsCREExperienceRange": {
+			"label": "Years of CRE Experience",
+			"required": true
+		},
+		"assetClassesExperience": {
+			"label": "Asset Classes Experience",
+			"required": false
+		},
+		"geographicMarketsExperience": {
+			"label": "Geographic Markets Experience",
+			"required": false
+		},
+		"totalDealValueClosedRange": {
+			"label": "Total Value Deals Closed",
+			"required": false
+		},
+		"existingLenderRelationships": {
+			"label": "Existing Lenders (Optional)",
+			"required": false
+		},
+		"bioNarrative": {
+			"label": "Bio (Optional)",
+			"required": false
+		},
+		"creditScoreRange": {
+			"label": "Credit Score Range",
+			"required": false
+		},
+		"netWorthRange": {
+			"label": "Net Worth Range",
+			"required": false
+		},
+		"liquidityRange": {
+			"label": "Liquidity Range",
+			"required": false
+		},
+		"bankruptcyHistory": {
+			"label": "Bankruptcy (7yr)",
+			"required": false
+		},
+		"foreclosureHistory": {
+			"label": "Foreclosure (7yr)",
+			"required": false
+		},
+		"litigationHistory": {
+			"label": "Litigation",
+			"required": false
+		},
+		"linkedinUrl": {
+			"label": "LinkedIn URL",
+			"required": false
+		},
+		"websiteUrl": {
+			"label": "Company Website",
+			"required": false
+		},
+		"principalLegalName": {
+			"label": "Principal Name",
+			"required": false
+		},
+		"principalRoleDefault": {
+			"label": "Principal Role",
+			"required": false
+		},
+		"principalEmail": {
+			"label": "Principal Email",
+			"required": false
+		},
+		"ownershipPercentage": {
+			"label": "Ownership (%)",
+			"required": false
+		},
+		"principalBio": {
+			"label": "Principal Bio",
+			"required": false
+		}
+	}
 }
-
-

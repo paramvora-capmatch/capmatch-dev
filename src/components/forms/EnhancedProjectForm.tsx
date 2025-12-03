@@ -769,10 +769,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				: "Lock field";
 
 			return (
-				<div
-					className="flex items-center"
-					title={tooltipTitle}
-				>
+				<div className="flex items-center" title={tooltipTitle}>
 					<button
 						type="button"
 						onClick={(e) => {
@@ -1656,7 +1653,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				const hasEmptyField = fieldStates.some(
 					(state) => !state.hasValue
 				);
-				const subsectionLockDisabled = !subsectionLocked && hasEmptyField;
+				const subsectionLockDisabled =
+					!subsectionLocked && hasEmptyField;
 
 				const subsectionLockTitle = subsectionLockDisabled
 					? "Cannot lock subsection because one or more fields are empty. Please fill in all fields first."
@@ -1664,15 +1662,18 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					? "Unlock subsection"
 					: "Lock subsection";
 
+				// Remove leading numbers (e.g., "1.1 ", "2.3 ") from subsection titles
+				const cleanTitle = subsection.title.replace(/^\d+\.\d+\s*/, "");
+
 				return (
 					<div
 						key={subsectionId}
-						className="rounded-md border border-gray-100 bg-gray-50/60 overflow-hidden"
+						className="rounded-md border border-gray-200 bg-gray-50 overflow-hidden shadow-md"
 					>
 						<button
 							type="button"
 							onClick={() => toggleSubsection(subsectionKey)}
-							className="w-full flex items-center justify-between p-3 hover:bg-gray-100/60 transition-colors"
+							className="w-full flex items-center justify-between p-3 hover:bg-gray-100 transition-colors"
 						>
 							<div className="flex items-center gap-2">
 								{isExpanded ? (
@@ -1681,7 +1682,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									<ChevronRight className="h-4 w-4 text-gray-500" />
 								)}
 								<h3 className="text-sm font-semibold text-gray-800">
-									{subsection.title}
+									{cleanTitle}
 								</h3>
 							</div>
 							<div className="flex items-center gap-2">

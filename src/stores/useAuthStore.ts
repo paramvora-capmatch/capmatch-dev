@@ -13,6 +13,15 @@ import { Session } from "@supabase/supabase-js"; // Import Session type
 interface AuthState {
   user: EnhancedUser | null;
   isAuthenticated: boolean;
+  /**
+   * Transient flag for the *initial* auth/session resolution on app load.
+   * Only this should gate the global "Initializing application..." splash.
+   */
+  isHydrating: boolean;
+  /**
+   * General auth loading flag (login/logout, etc).
+   * This should NOT be used to block the entire app from rendering.
+   */
   isLoading: boolean;
   loginSource: "direct" | "lenderline";
   justLoggedIn: boolean;
@@ -52,6 +61,8 @@ let authSubscription: { unsubscribe: () => void } | null = null;
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   user: null,
   isAuthenticated: false,
+  // On first load we are hydrating until `checkInitialSession` settles.
+  isHydrating: true,
   isLoading: true,
   loginSource: "direct",
   justLoggedIn: false,
@@ -72,8 +83,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
     // Immediately check for existing session - SYNCHRONOUSLY start this
     const checkInitialSession = async () => {
-
       try {
+        // We're now in the initial hydration phase.
+        set({ isHydrating: true, isLoading: true });
         const {
           data: { session },
           error: sessionError, // Renamed error to sessionError
@@ -82,7 +94,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         if (sessionError) {
           // Used sessionError
           console.error("[AuthStore] ❌ Error getting session:", sessionError);
-          set({ isLoading: false });
+          set({ isHydrating: false, isLoading: false });
           return;
         }
 
@@ -111,6 +123,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
               user: enhancedUser,
               isAuthenticated: true,
               loginSource,
+              isHydrating: false,
               isLoading: false,
             });
 
@@ -149,7 +162,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   onboardError
                 );
                 await supabase.auth.signOut();
-                set({ isLoading: false });
+                set({ isHydrating: false, isLoading: false });
                 return;
               }
 
@@ -176,6 +189,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   user: enhancedUser,
                   isAuthenticated: true,
                   loginSource,
+                  isHydrating: false,
                   isLoading: false,
                 });
 
@@ -192,7 +206,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   profileAfterErr
                 );
                 await supabase.auth.signOut();
-                set({ isLoading: false });
+                set({ isHydrating: false, isLoading: false });
               }
             } catch (e) {
               console.error(
@@ -200,15 +214,15 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 e
               );
               await supabase.auth.signOut();
-              set({ isLoading: false });
+              set({ isHydrating: false, isLoading: false });
             }
           }
         } else {
-          set({ isLoading: false });
+          set({ isHydrating: false, isLoading: false });
         }
       } catch (e) {
         console.error("[AuthStore] ❌ Error in checkInitialSession:", e);
-        set({ isLoading: false });
+        set({ isHydrating: false, isLoading: false });
       }
     };
 
@@ -236,9 +250,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
           const isAlreadyAuthenticated =
             currentState.isAuthenticated && currentState.user;
 
-          // Only show loading for actual authentication changes, not re-validation
+          // Only show *auth* loading (not global hydration) for actual auth changes.
           if (event === "SIGNED_IN" && !isAlreadyAuthenticated) {
-            // This is a fresh login, show loading
+            // This is a fresh login, show auth loading but do not re-trigger hydration gating.
             set({ isLoading: true, justLoggedIn: true });
           } else if (event === "SIGNED_IN" && isAlreadyAuthenticated) {
             // User is already logged in, this is just a session revalidation (e.g., tab switch)
@@ -380,6 +394,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             console.error("[AuthStore] Error in auth state change handler:", e);
             set({ user: null, isAuthenticated: false });
           } finally {
+            // Auth event has finished processing; clear auth loading.
             set({ isLoading: false });
           }
         }

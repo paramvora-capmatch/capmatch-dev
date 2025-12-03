@@ -101,20 +101,37 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
       setIsLoadingDocs(true);
       setDocError(null);
       try {
-        const { data, error } = await supabase.rpc(
-          'get_common_file_resources_for_member_set',
-          {
-            p_project_id: activeProject.id,
-            p_user_ids: participantIdsForDocs,
-          }
-        );
+        let data: any[] | null = null;
+        let error: any = null;
+
+        // If no additional members are selected, align with chat attachment logic:
+        // use the thread-based function that is already validated.
+        if (selectedMembersToAdd.length === 0) {
+          const result = await supabase.rpc(
+            'get_common_file_resources_for_thread',
+            { p_thread_id: thread.id }
+          );
+          data = (result.data as any[]) || [];
+          error = result.error;
+        } else {
+          // When adding members, compute intersection for the combined member set.
+          const result = await supabase.rpc(
+            'get_common_file_resources_for_member_set',
+            {
+              p_project_id: activeProject.id,
+              p_user_ids: participantIdsForDocs,
+            }
+          );
+          data = (result.data as any[]) || [];
+          error = result.error;
+        }
 
         if (error) {
           throw new Error(error.message);
         }
 
         const docs: AttachableDocument[] =
-          (data as any[])?.map((doc) => ({
+          data?.map((doc) => ({
             resourceId: doc.resource_id,
             name: doc.name,
             scope: doc.scope,
@@ -135,7 +152,7 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
     };
 
     fetchDocs();
-  }, [isOpen, participantIdsForDocs, activeProject?.id]);
+  }, [isOpen, participantIdsForDocs, activeProject?.id, selectedMembersToAdd.length, thread.id]);
 
   // Enrich participants from store using org members + profiles
   useEffect(() => {
@@ -161,26 +178,33 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
     previousParticipantIdsRef.current = currentIds;
 
     const enrich = async () => {
-      // Fetch profiles for all participant users via edge function (bypasses RLS)
+      // Fetch profiles for all participant users directly from profiles (RLS now allows related profile access)
       const userProfilesMap = new Map<
         string,
-        { id: string; full_name?: string; email?: string }
+        { id: string; full_name?: string | null; email?: string | null }
       >();
 
       try {
-        const { data: profilesData, error: profilesError } = await supabase.functions.invoke(
-          "get-user-data",
-          { body: { userIds: participantUserIds } }
-        );
+        if (participantUserIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, full_name, email")
+            .in("id", participantUserIds);
 
-        if (!profilesError && Array.isArray(profilesData)) {
-          profilesData.forEach((user: any) => {
-            userProfilesMap.set(user.id, {
-              id: user.id,
-              full_name: user.full_name,
-              email: user.email,
+          if (!profilesError && Array.isArray(profilesData)) {
+            profilesData.forEach((user: any) => {
+              userProfilesMap.set(user.id, {
+                id: user.id,
+                full_name: user.full_name,
+                email: user.email,
+              });
             });
-          });
+          } else if (profilesError) {
+            console.error(
+              "[ManageChannelMembersModal] Error fetching participant profiles:",
+              profilesError
+            );
+          }
         }
       } catch (err) {
         console.error(
@@ -249,88 +273,14 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
     if (selectedMembersToAdd.length === 0) return;
     
     setError(null);
-    try {
-      await addParticipant(thread.id, selectedMembersToAdd);
-      setSelectedMembersToAdd([]);
-      setError(null); // Clear error on success
-      
-      // Force reload by fetching directly from DB and enriching
-      // This ensures we show the newly added member even if store hasn't updated
       try {
-        // Query participants directly (RLS now allows this)
-        const { data: participantsData, error } = await supabase
-          .from('chat_thread_participants')
-          .select('thread_id, user_id, created_at')
-          .eq('thread_id', thread.id);
+        await addParticipant(thread.id, selectedMembersToAdd);
+        setSelectedMembersToAdd([]);
+        setError(null); // Clear error on success
 
-        if (!error && participantsData) {
-          // Fetch all user profiles via edge function (can't join profiles due to RLS)
-          const allUserIds = participantsData.map((p: any) => p.user_id);
-          const userProfilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
-          
-          if (allUserIds.length > 0) {
-            const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
-              body: { userIds: allUserIds },
-            });
-
-            if (!profilesError && Array.isArray(profilesData)) {
-              profilesData.forEach((user: any) => {
-                userProfilesMap.set(user.id, {
-                  id: user.id,
-                  full_name: user.full_name,
-                  email: user.email,
-                });
-              });
-            }
-          }
-
-          // Enrich and update
-          const enriched: EnrichedParticipant[] = [];
-          for (const participant of participantsData || []) {
-            const userId = participant.user_id;
-            const memberInfo = members.find(m => m.user_id === userId);
-            const isAdvisor = activeProject?.assignedAdvisorUserId === userId;
-            const userProfile = userProfilesMap.get(userId) || null;
-
-            if (memberInfo) {
-              enriched.push({
-                ...participant,
-                userName: memberInfo.userName || memberInfo.userEmail || 'Unknown',
-                userEmail: memberInfo.userEmail || '',
-                userRole: memberInfo.role as any,
-                isAdvisor: false,
-              });
-            } else if (isAdvisor) {
-              const profile = userProfile;
-              enriched.push({
-                ...participant,
-                userName: profile?.full_name || profile?.email || 'Advisor',
-                userEmail: profile?.email || '',
-                userRole: 'advisor',
-                isAdvisor: true,
-              });
-            } else {
-              const profile = userProfile;
-              enriched.push({
-                ...participant,
-                userName: profile?.full_name || 'Unknown',
-                userEmail: profile?.email || '',
-                userRole: 'member',
-                isAdvisor: false,
-              });
-            }
-          }
-
-          setEnrichedParticipants(enriched);
-          previousParticipantIdsRef.current = new Set((participantsData || []).map((p: any) => p.user_id));
-        }
-      } catch (reloadErr) {
-        console.error('[ManageChannelMembersModal] Error reloading after add:', reloadErr);
-      }
-      
-      // Also update the store for consistency
-      await loadParticipants(thread.id);
-    } catch (err) {
+        // Refresh participants via store; enrichment effect will re-run
+        await loadParticipants(thread.id);
+      } catch (err) {
       console.error('[ManageChannelMembersModal] Failed to add participants:', err);
       setError(err instanceof Error ? err.message : 'Failed to add members to channel');
     }

@@ -18,10 +18,9 @@ import { computeProjectCompletion } from "@/utils/resumeCompletion";
 
 /**
  * Defines the structure of project_resumes.content JSONB column
- * This preserves all the fields from the original DTO mapper and includes all fields from Hoque_Data.md
  */
 export interface ProjectResumeContent {
-	// Section 1: Project Identification & Basic Info
+	// ... (Project fields remain unchanged, preserving existing definition)
 	projectName: string;
 	assetType: string;
 	projectStatus: string;
@@ -33,69 +32,67 @@ export interface ProjectResumeContent {
 	parcelNumber?: string;
 	zoningDesignation?: string;
 	currentZoning?: string;
-	expectedZoningChanges?: string; // None, Variance, PUD
+	expectedZoningChanges?: string;
 	primaryAssetClass?: string;
-	constructionType?: string; // Ground-Up, Renovation, Adaptive Reuse
+	constructionType?: string;
 	groundbreakingDate?: string;
 	completionDate?: string;
-	totalDevelopmentCost?: number; // TDC - derived from budget sum
+	totalDevelopmentCost?: number;
 	loanAmountRequested?: number;
 	loanType?: string;
-	requestedLoanTerm?: string; // e.g., "2 years"
+	requestedLoanTerm?: string;
 	masterPlanName?: string;
 	phaseNumber?: string;
-	syndicationStatus?: string; // Committed, In Process, TBD
-	guarantorNames?: string; // Multiple comma-separated
+	syndicationStatus?: string;
+	guarantorNames?: string;
 	projectDescription?: string;
 	projectPhase?: string;
 
 	// Section 2: Property Specifications
-	totalResidentialUnits?: number; // Derived from unit mix
-	totalResidentialNRSF?: number; // Derived from unit SF
-	averageUnitSize?: number; // Derived: NRSF / Units
+	totalResidentialUnits?: number;
+	totalResidentialNRSF?: number;
+	averageUnitSize?: number;
 	totalCommercialGRSF?: number;
 	grossBuildingArea?: number;
 	numberOfStories?: number;
-	buildingType?: string; // High-rise, Mid-rise, Garden, Podium
+	buildingType?: string;
 	parkingSpaces?: number;
-	parkingRatio?: number; // Derived: Spaces / Units
-	parkingType?: string; // Surface, Structured, Underground
-	amenityList?: string[]; // Array of amenities
+	parkingRatio?: number;
+	parkingType?: string;
+	amenityList?: string[];
 	amenitySF?: number;
-	adaCompliantUnitsPercent?: number; // Percentage
-	leedSustainabilityRating?: string; // Certified, Pending, None
+	adaCompliantUnitsPercent?: number;
+	leedSustainabilityRating?: string;
 
-	// Section 2.1: Residential Unit Mix (stored as array)
 	residentialUnitMix?: Array<{
-		unitType: string; // e.g., "S1", "Studio", "1BR"
+		unitType: string;
 		unitCount: number;
 		avgSF: number;
 		monthlyRent?: number;
-		totalSF?: number; // Derived: Count * SF
-		percentOfTotal?: number; // Derived: Count / Total Units
-		affordabilityStatus?: string; // Market Rate, Affordable @ 60% AMI, etc.
-		affordableUnitsCount?: number; // Per row
-		amiTargetPercent?: number; // Per row, e.g., 60% AMI
-		rentBumpSchedule?: string; // e.g., "$2.13 to $2.46"
+		totalSF?: number;
+		percentOfTotal?: number;
+		affordabilityStatus?: string;
+		affordableUnitsCount?: number;
+		amiTargetPercent?: number;
+		rentBumpSchedule?: string;
 	}>;
 
-	// Section 2.2: Commercial Space Mix (stored as array)
 	commercialSpaceMix?: Array<{
-		spaceType: string; // e.g., "Retail", "Office"
+		spaceType: string;
 		squareFootage: number;
 		tenant?: string;
 		leaseTerm?: string;
 		annualRent?: number;
-		tiAllowance?: number; // TI Allowance per tenant
+		tiAllowance?: number;
 	}>;
 
-	// Section 3: Financial Details - Development Budget
+	// Section 3: Financial Details
 	landAcquisition?: number;
 	baseConstruction?: number;
 	contingency?: number;
-	ffe?: number; // FF&E
+	ffe?: number;
 	constructionFees?: number;
-	aeFees?: number; // A&E Fees
+	aeFees?: number;
 	thirdPartyReports?: number;
 	legalAndOrg?: number;
 	titleAndRecording?: number;
@@ -107,21 +104,18 @@ export interface ProjectResumeContent {
 	interestReserve?: number;
 	relocationCosts?: number;
 	syndicationCosts?: number;
-	enviroRemediation?: number; // Environmental remediation
+	enviroRemediation?: number;
 
-	// Section 3.2: Sources of Funds
 	sponsorEquity?: number;
 	taxCreditEquity?: number;
-	gapFinancing?: number; // e.g., TIF grants
+	gapFinancing?: number;
 
-	// Section 3.3: Loan Terms
-	interestRate?: number; // Percentage
-	underwritingRate?: number; // Percentage
+	interestRate?: number;
+	underwritingRate?: number;
 	prepaymentTerms?: string;
 	permTakeoutPlanned?: boolean;
-	allInRate?: number; // Percentage - includes origination/MIP
+	allInRate?: number;
 
-	// Section 3.5: Operating Expenses (Proforma Year 1)
 	realEstateTaxes?: number;
 	insurance?: number;
 	utilitiesCosts?: number;
@@ -130,26 +124,25 @@ export interface ProjectResumeContent {
 	generalAndAdmin?: number;
 	payroll?: number;
 	reserves?: number;
-	marketingLeasing?: number; // For lease-up
-	serviceCoordination?: number; // Specific to supportive housing
+	marketingLeasing?: number;
+	serviceCoordination?: number;
 
-	// Section 3.6: Investment Metrics
-	noiYear1?: number; // Derived: EGI - Total Exp
-	yieldOnCost?: number; // Derived: NOI / TDC
-	capRate?: number; // Percentage
-	stabilizedValue?: number; // Derived: NOI / Cap Rate
-	ltv?: number; // Derived: Loan / Value
-	debtYield?: number; // Derived: NOI / Loan
-	dscr?: number; // Derived: NOI / Debt Svc
-	trendedNOIYear1?: number; // With inflation
-	untrendedNOIYear1?: number; // Base case
-	trendedYield?: number; // Derived: Trended NOI / TDC
-	untrendedYield?: number; // Derived: Untrended NOI / TDC
-	inflationAssumption?: number; // Percentage
-	dscrStressTest?: number; // Calculated at Rate + 2%
-	portfolioLTV?: number; // For sponsor, max 75%
+	noiYear1?: number;
+	yieldOnCost?: number;
+	capRate?: number;
+	stabilizedValue?: number;
+	ltv?: number;
+	debtYield?: number;
+	dscr?: number;
+	trendedNOIYear1?: number;
+	untrendedNOIYear1?: number;
+	trendedYield?: number;
+	untrendedYield?: number;
+	inflationAssumption?: number;
+	dscrStressTest?: number;
+	portfolioLTV?: number;
 
-	// Financial fields (existing/legacy)
+	// Legacy/Financial
 	targetLtvPercent?: number;
 	targetLtcPercent?: number;
 	amortizationYears?: number;
@@ -170,122 +163,117 @@ export interface ProjectResumeContent {
 
 	// Section 4: Market Context
 	submarketName?: string;
-	distanceToCBD?: number; // Decimal (miles)
+	distanceToCBD?: number;
 	distanceToEmployment?: string;
-	distanceToTransit?: number; // Decimal (miles)
-	walkabilityScore?: number; // Integer 0-100
-	population3Mi?: number; // Integer
-	popGrowth201020?: number; // Percentage
-	projGrowth202429?: number; // Percentage
-	medianHHIncome?: number; // Currency
-	renterOccupiedPercent?: number; // Percentage
-	bachelorsDegreePercent?: number; // Percentage
-	absorptionRate?: number; // Units/month
-	penetrationRate?: number; // Percentage - Eligible HH / Units
-	northStarComp?: string; // Borrower-selected top comp
-	infrastructureProject?: string; // e.g., "New Rail Line"
-	projectBudget?: number; // Currency
-	infraCompletion?: string; // Date (Year)
+	distanceToTransit?: number;
+	walkabilityScore?: number;
+	population3Mi?: number;
+	popGrowth201020?: number;
+	projGrowth202429?: number;
+	medianHHIncome?: number;
+	renterOccupiedPercent?: number;
+	bachelorsDegreePercent?: number;
+	absorptionRate?: number;
+	penetrationRate?: number;
+	northStarComp?: string;
+	infrastructureProject?: string;
+	projectBudget?: number;
+	infraCompletion?: string;
 
-	// Section 4.3: Rent Comps (stored as array)
 	rentComps?: Array<{
 		propertyName: string;
 		address?: string;
-		distance?: number; // Derived: Geo-calc
+		distance?: number;
 		yearBuilt?: number;
 		totalUnits?: number;
 		occupancyPercent?: number;
 		avgRentMonth?: number;
-		rentPSF?: number; // Derived: Rent / Size
-		concessions?: string; // e.g., "1 month free"
+		rentPSF?: number;
+		concessions?: string;
 	}>;
 
-	// Section 4.4: Sale Comps (stored as array)
 	saleComps?: Array<{
 		propertyName: string;
 		salePricePerUnit?: number;
-		capRate?: number; // Percentage
-		saleDate?: string; // Date
+		capRate?: number;
+		saleDate?: string;
 	}>;
 
 	// Section 5: Special Considerations
 	opportunityZone?: boolean;
 	affordableHousing?: boolean;
 	affordableUnitsNumber?: number;
-	amiTargetPercent?: number; // Percentage (e.g., 80% AMI)
+	amiTargetPercent?: number;
 	taxExemption?: boolean;
 	tifDistrict?: boolean;
 	taxAbatement?: boolean;
 	paceFinancing?: boolean;
 	historicTaxCredits?: boolean;
 	newMarketsCredits?: boolean;
-	exemptionStructure?: string; // PFC, MMD, PILOT
-	sponsoringEntity?: string; // e.g., "SoGood MMD"
-	structuringFee?: number; // Currency
-	exemptionTerm?: number; // Years
-	incentiveStacking?: string[]; // LIHTC, Section 8, HOME
-	relocationPlan?: string; // Complete, In Process, N/A
-	seismicPMLRisk?: string; // % PML; required in seismic zones
+	exemptionStructure?: string;
+	sponsoringEntity?: string;
+	structuringFee?: number;
+	exemptionTerm?: number;
+	incentiveStacking?: string[];
+	relocationPlan?: string;
+	seismicPMLRisk?: string;
 
-	// Section 6: Timeline & Milestones
-	landAcqClose?: string; // Date
-	entitlements?: string; // Approved/Pending
-	finalPlans?: string; // Approved/Pending
-	permitsIssued?: string; // Issued/Pending
-	verticalStart?: string; // Date
-	firstOccupancy?: string; // Date
-	stabilization?: string; // Date
+	// Section 6: Timeline
+	landAcqClose?: string;
+	entitlements?: string;
+	finalPlans?: string;
+	permitsIssued?: string;
+	verticalStart?: string;
+	firstOccupancy?: string;
+	stabilization?: string;
 	preLeasedSF?: number;
 	drawSchedule?: Array<{
 		drawNumber: number;
 		percentComplete?: number;
 		amount?: number;
 	}>;
-	absorptionProjection?: number; // Units/Month forecast
-	opDeficitEscrow?: number; // 6 Mos OpEx for lease-up shortfalls
-	leaseUpEscrow?: number; // 6-12 Mos calculated coverage
+	absorptionProjection?: number;
+	opDeficitEscrow?: number;
+	leaseUpEscrow?: number;
 
 	// Section 7: Site & Context
-	totalSiteAcreage?: number; // Decimal
-	currentSiteStatus?: string; // Vacant/Existing
-	topography?: string; // Flat/Sloped
-	environmental?: string; // Clean/Remediation
-	utilities?: string; // Available/None (dropdown)
-	utilityCapacity?: string; // e.g., "Water: 500 GPM available"
-	geotechSoilsRep?: string; // Findings summary; bearing capacity
-	floodZone?: string; // e.g., "Zone AE"
-	siteAccess?: string; // Text
-	proximityShopping?: string; // Text
-	proximityRestaurants?: string; // Text
-	proximityParks?: string; // Text
-	proximitySchools?: string; // Text
-	proximityHospitals?: string; // Text
-	topEmployers?: string; // Distance to key jobs
+	totalSiteAcreage?: number;
+	currentSiteStatus?: string;
+	topography?: string;
+	environmental?: string;
+	utilities?: string;
+	utilityCapacity?: string;
+	geotechSoilsRep?: string;
+	floodZone?: string;
+	siteAccess?: string;
+	proximityShopping?: string;
+	proximityRestaurants?: string;
+	proximityParks?: string;
+	proximitySchools?: string;
+	proximityHospitals?: string;
+	topEmployers?: string;
 
-	// Section 8: Sponsor Information
+	// Section 8: Sponsor Info
 	sponsorEntityName?: string;
-	sponsorStructure?: string; // GP/LP
+	sponsorStructure?: string;
 	equityPartner?: string;
 	contactInfo?: string;
-	sponsorExpScore?: number; // 0-10 scale based on track record
-	priorDevelopments?: number; // # of multifamily units completed
-	netWorth?: number; // Currency - Audited
-	guarantorLiquidity?: number; // Currency - ≥10% of loan
-	portfolioDSCR?: number; // Min 1.20x; overall sponsor health
+	sponsorExpScore?: number;
+	priorDevelopments?: number;
+	netWorth?: number;
+	guarantorLiquidity?: number;
+	portfolioDSCR?: number;
 
-	// Progress tracking (stored in JSONB, similar to borrower resume)
 	completenessPercent?: number;
-
 	internalAdvisorNotes?: string;
 
-	// Legacy fields for compatibility
 	projectSections?: any;
 	borrowerSections?: any;
 }
 
 /**
  * Defines the structure of borrower_resumes.content JSONB column
- * This preserves all the fields from the original BorrowerProfile
+ * Updated to support Enhanced Resume features (Metadata, Locks)
  */
 export interface BorrowerResumeContent {
 	// Basic borrower info
@@ -327,48 +315,31 @@ export interface BorrowerResumeContent {
 	lastSyncedAt?: string;
 	customFields?: string[];
 
-	// Field states container (fieldId -> { state: "WHITE" | "BLUE" | "GREEN", locked: boolean, source: "ai" | "user_input" | null })
-	_fieldStates?: Record<
-		string,
-		{
-			state: "WHITE" | "BLUE" | "GREEN";
-			locked: boolean;
-			source: "ai" | "user_input" | null;
-		}
-	>;
+	// Enhanced Metadata Containers (New)
+	_metadata?: Record<string, import("@/types/enhanced-types").FieldMetadata>;
 	_lockedFields?: Record<string, boolean>;
-	// _lockedSections removed - section locks are derived from field locks
+	_fieldStates?: Record<string, any>;
 }
 
 /**
  * Defines the structure of advisor_resumes.content JSONB column
- * This stores advisor profile information
  */
 export interface AdvisorResumeContent {
-	// Basic advisor info
 	name?: string;
 	title?: string;
 	email?: string;
 	phone?: string;
 	bio?: string;
 	avatar?: string;
-
-	// Experience fields
 	specialties?: string[];
 	yearsExperience?: number;
-
-	// Additional fields
 	linkedinUrl?: string;
 	websiteUrl?: string;
 	company?: string;
 	location?: string;
 	certifications?: string[];
 	education?: string;
-
-	// Progress tracking
 	completenessPercent?: number;
-
-	// Metadata
 	createdAt?: string;
 	updatedAt?: string;
 }
@@ -377,822 +348,7 @@ export interface AdvisorResumeContent {
 // Database Query Functions
 // =============================================================================
 
-/**
- * Fetches a project with its resume content, combining core project fields
- * with detailed fields from the JSONB resume content.
- *
- * This replaces dbProjectToProjectProfile and properly handles the new schema
- * where detailed project data is stored in project_resumes.content JSONB.
- */
-export const getProjectWithResume = async (
-	projectId: string
-): Promise<ProjectProfile> => {
-	// Fetch core project data
-	const { data: project, error: projectError } = await supabase
-		.from("projects")
-		.select("*")
-		.eq("id", projectId)
-		.single();
-
-	if (projectError) {
-		throw new Error(`Failed to fetch project: ${projectError.message}`);
-	}
-
-	// Fetch detailed project data from resume using Pointer Logic
-	// 1. Check for a pointer in the 'resources' table
-	const { data: resource } = await supabase
-		.from("resources")
-		.select("id, current_version_id")
-		.eq("resource_type", "PROJECT_RESUME")
-		.eq("project_id", projectId)
-		.maybeSingle();
-
-	let resume: { content: ProjectResumeContent } | null = null;
-	let resumeError = null;
-
-	if (resource?.current_version_id) {
-		// 2a. Pointer exists: Fetch that specific version
-		const result = await supabase
-			.from("project_resumes")
-			.select("content")
-			.eq("id", resource.current_version_id)
-			.single();
-
-		resume = result.data;
-		resumeError = result.error;
-	} else {
-		// 2b. No pointer: Fallback to fetching the latest by date
-		const result = await supabase
-			.from("project_resumes")
-			.select("content")
-			.eq("project_id", projectId)
-			.order("created_at", { ascending: false })
-			.limit(1)
-			.maybeSingle();
-
-		resume = result.data;
-		resumeError = result.error;
-	}
-
-	// Resume not found is OK (project might not have detailed data yet)
-	if (resumeError && resumeError.code !== "PGRST116") {
-		throw new Error(
-			`Failed to fetch project resume: ${resumeError.message}`
-		);
-	}
-
-	let rawContent = (resume?.content || {}) as any;
-
-	// Extract reserved keys that should be preserved at root level but not flattened
-	const _lockedFields =
-		(rawContent._lockedFields as Record<string, boolean> | undefined) || {};
-	const _fieldStates = (rawContent._fieldStates as any) || {};
-
-	// Create a copy for manipulation
-	rawContent = { ...rawContent };
-
-	// Remove reserved keys to prevent them from being treated as sections/fields during ungrouping
-	delete rawContent._lockedFields;
-	delete rawContent._fieldStates;
-	delete rawContent._metadata; // Should be handled if it exists, but typically built during processing
-
-	// Check if content is in section-grouped format and ungroup if needed
-	if (isGroupedFormat(rawContent)) {
-		rawContent = ungroupFromSections(rawContent);
-	}
-
-	const { data: borrowerResume, error: borrowerResumeError } = await supabase
-		.from("borrower_resumes")
-		.select("content")
-		.eq("project_id", projectId)
-		.maybeSingle();
-
-	if (borrowerResumeError && borrowerResumeError.code !== "PGRST116") {
-		throw new Error(
-			`Failed to fetch borrower resume: ${borrowerResumeError.message}`
-		);
-	}
-
-	const borrowerResumeContent: BorrowerResumeContent =
-		borrowerResume?.content || {};
-	const borrowerProgress = Math.round(
-		(borrowerResumeContent.completenessPercent as number | undefined) ?? 0
-	);
-
-	// Prepare metadata map and extract flat values
-	const _metadata: Record<
-		string,
-		import("@/types/enhanced-types").FieldMetadata
-	> = {};
-	const resumeContent: Partial<ProjectResumeContent> = {};
-
-	for (const key in rawContent) {
-		const item = rawContent[key];
-
-		// If item is in { value, source/sources, warnings } format (rich data)
-		if (
-			item &&
-			typeof item === "object" &&
-			("source" in item || "sources" in item) &&
-			"value" in item
-		) {
-			// Extract value for the flat form
-			(resumeContent as any)[key] = item.value;
-
-			// Determine source for metadata (prefer singular source, fallback to first of sources)
-			let sourceValue = item.source;
-			if (!sourceValue && item.sources && Array.isArray(item.sources) && item.sources.length > 0) {
-				const first = item.sources[0];
-				// If first source is an object (SourceMetadata), extract name or type
-				if (typeof first === 'object' && first !== null) {
-					sourceValue = first.name || first.type;
-				} else {
-					sourceValue = first;
-				}
-			}
-
-			// Store rich metadata
-			_metadata[key] = {
-				value: item.value,
-				source: sourceValue || null,
-				sources: item.sources || (item.source ? [item.source] : []),
-				original_source: item.source || null, // Snapshot the original source
-				original_value: item.value, // Snapshot the original value
-				warnings: item.warnings || [],
-			};
-		} else {
-			// Handle legacy flat data
-			(resumeContent as any)[key] = item;
-		}
-	}
-
-	// Build the combined profile first so we can compute a fresh completion
-	// percentage from the latest data. This allows us to recover gracefully
-	// if older resume versions were saved with a stale or missing
-	// `completenessPercent` (e.g. 0 despite many required fields being filled).
-	const combinedProfile: ProjectProfile = {
-		// Core project fields (from projects table)
-		id: project.id,
-		owner_org_id: project.owner_org_id,
-		assignedAdvisorUserId: project.assigned_advisor_id,
-		createdAt: project.created_at,
-		updatedAt: project.updated_at,
-
-		// New fields from expanded ProjectResumeContent (spread first)
-		...resumeContent,
-
-		// Override with fallbacks for key fields
-		projectName: resumeContent.projectName || project.name, // Fallback to core name
-		assetType: resumeContent.assetType || "",
-		projectStatus: (resumeContent.projectStatus as any) || "",
-
-		// Type-safe overrides for enum fields (no UX defaults – start empty)
-		interestRateType: (resumeContent.interestRateType as any) || "",
-		recoursePreference: (resumeContent.recoursePreference as any) || "",
-		exitStrategy: resumeContent.exitStrategy as any,
-
-		// Load completenessPercent from DB, fallback to 0 if not stored
-		completenessPercent: resumeContent.completenessPercent ?? 0,
-		internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
-		borrowerProgress,
-		projectSections: resumeContent.projectSections || {},
-		borrowerSections: borrowerResumeContent || {},
-
-		// Add metadata container
-		_metadata,
-
-		// Restore locked fields and field states
-		_lockedFields,
-		_fieldStates,
-
-		// Resource pointer helpers
-		projectResumeResourceId: resource?.id ?? null,
-	} as ProjectProfile;
-
-	// Recompute completion from the combined snapshot. If the stored value is
-	// missing or zero but the freshly computed value is greater than zero,
-	// prefer the computed value so the UI doesn't get stuck at 0% after
-	// autofill or Save & Exit flows.
-	const recomputedCompletion = computeProjectCompletion(combinedProfile);
-	const storedCompletion = combinedProfile.completenessPercent;
-	const finalCompletion =
-		typeof storedCompletion === "number" && storedCompletion > 0
-			? storedCompletion
-			: recomputedCompletion;
-
-	return {
-		...combinedProfile,
-		completenessPercent: finalCompletion,
-	};
-};
-
-/**
- * Fetches multiple projects with their resume content.
- * This replaces the array mapping pattern used in the stores.
- */
-export const getProjectsWithResumes = async (
-	projectIds: string[]
-): Promise<ProjectProfile[]> => {
-	if (projectIds.length === 0) return [];
-
-	// Fetch core project data
-	const { data: projects, error: projectsError } = await supabase
-		.from("projects")
-		.select("*")
-		.in("id", projectIds);
-
-	if (projectsError) {
-		throw new Error(`Failed to fetch projects: ${projectsError.message}`);
-	}
-
-	// Fetch all resume data, sorted by newest first
-	const { data: resumes, error: resumesError } = await supabase
-		.from("project_resumes")
-		.select("project_id, content, created_at")
-		.in("project_id", projectIds)
-		.order("created_at", { ascending: false });
-
-	if (resumesError) {
-		throw new Error(
-			`Failed to fetch project resumes: ${resumesError.message}`
-		);
-	}
-
-	const { data: borrowerResumes, error: borrowerResumesError } =
-		await supabase
-			.from("borrower_resumes")
-			.select("project_id, content")
-			.in("project_id", projectIds);
-
-	if (borrowerResumesError) {
-		throw new Error(
-			`Failed to fetch borrower resumes: ${borrowerResumesError.message}`
-		);
-	}
-
-	// Create a map of resume content by project ID
-	// Since we sorted by created_at DESC, the first entry we encounter for each project_id is the latest
-	const resumeMap = new Map<string, any>();
-	const metadataMap = new Map<
-		string,
-		Record<string, import("@/types/enhanced-types").FieldMetadata>
-	>();
-	const lockedFieldsMap = new Map<string, Record<string, boolean>>();
-	const fieldStatesMap = new Map<string, any>();
-
-	resumes?.forEach((resume: any) => {
-		if (!resumeMap.has(resume.project_id)) {
-			let rawContent = (resume.content || {}) as any;
-
-			// Extract lock state from JSONB root
-			const rawLockedFields =
-				(rawContent._lockedFields as
-					| Record<string, boolean>
-					| undefined) || {};
-
-			const rawFieldStates = (rawContent._fieldStates as any) || {};
-
-			// Store locks and states in separate map for the returned ProjectProfile
-			lockedFieldsMap.set(resume.project_id, rawLockedFields);
-			fieldStatesMap.set(resume.project_id, rawFieldStates);
-
-			// Remove reserved keys so they are not treated as regular fields below
-			// Create copy to avoid mutation issues if object reused
-			rawContent = { ...rawContent };
-			delete rawContent._lockedFields;
-			delete rawContent._fieldStates;
-
-			// Check if content is in section-grouped format and ungroup if needed
-			if (isGroupedFormat(rawContent)) {
-				rawContent = ungroupFromSections(rawContent);
-			}
-
-			const flatContent: Partial<ProjectResumeContent> = {};
-			const metadata: Record<
-				string,
-				import("@/types/enhanced-types").FieldMetadata
-			> = {};
-
-			// Process rich data format
-			for (const key in rawContent) {
-				const item = rawContent[key];
-				if (item && typeof item === "object" && "value" in item) {
-					// Handle both 'source' (legacy) and 'sources' (new format)
-					const hasSource = "source" in item;
-					const hasSources = "sources" in item;
-
-					if (hasSource || hasSources) {
-						(flatContent as any)[key] = item.value;
-
-						// Convert sources array to source string for metadata (for backward compatibility)
-						let sourceValue: string | null = null;
-						let originalSource:
-							| "document"
-							| "knowledge_base"
-							| null = null;
-						if (
-							hasSources &&
-							Array.isArray(item.sources) &&
-							item.sources.length > 0
-						) {
-							// Use first source's name if available
-							const firstSource = item.sources[0];
-							if (
-								typeof firstSource === "object" &&
-								firstSource !== null &&
-								"type" in firstSource
-							) {
-								// SourceMetadata object format
-								if (firstSource.name) {
-									sourceValue = firstSource.name;
-								}
-								// Determine original_source from type
-								if (firstSource.type === "document") {
-									originalSource = "document";
-								} else if (firstSource.type === "external") {
-									originalSource = "knowledge_base";
-								}
-							} else if (
-								typeof firstSource === "object" &&
-								firstSource !== null &&
-								firstSource.name
-							) {
-								sourceValue = firstSource.name;
-							} else if (typeof firstSource === "string") {
-								sourceValue = firstSource;
-							}
-						} else if (hasSource) {
-							if (
-								typeof item.source === "object" &&
-								item.source !== null &&
-								"type" in item.source
-							) {
-								// SourceMetadata object format
-								if (item.source.name) {
-									sourceValue = item.source.name;
-								}
-								// Determine original_source from type
-								if (item.source.type === "document") {
-									originalSource = "document";
-								} else if (item.source.type === "external") {
-									originalSource = "knowledge_base";
-								}
-							} else {
-								sourceValue =
-									typeof item.source === "string"
-										? item.source
-										: null;
-							}
-						}
-
-						metadata[key] = {
-							value: item.value,
-							source: sourceValue,
-							sources:
-								hasSources && Array.isArray(item.sources)
-									? item.sources
-									: hasSource
-									? [item.source]
-									: [],
-							original_source: originalSource,
-							original_value:
-								item.original_value !== undefined
-									? item.original_value
-									: item.value, // Use original_value if available, fallback to value
-							warnings: item.warnings || [],
-						};
-					} else {
-						(flatContent as any)[key] = item;
-					}
-				} else {
-					(flatContent as any)[key] = item;
-				}
-			}
-
-			resumeMap.set(resume.project_id, flatContent);
-			metadataMap.set(resume.project_id, metadata);
-		}
-	});
-
-	const borrowerResumeMap = new Map<string, BorrowerResumeContent>();
-	borrowerResumes?.forEach((resume: any) => {
-		borrowerResumeMap.set(resume.project_id, resume.content || {});
-	});
-
-	// Combine projects with their resume content
-	return (
-		projects?.map((project: any) => {
-			const resumeContent =
-				resumeMap.get(project.id) || ({} as ProjectResumeContent);
-			const metadata = metadataMap.get(project.id) || {};
-			const borrowerResumeContent =
-				borrowerResumeMap.get(project.id) ||
-				({} as BorrowerResumeContent);
-			const borrowerProgress = Math.round(
-				(borrowerResumeContent.completenessPercent as
-					| number
-					| undefined) ?? 0
-			);
-
-			// Build the combined profile first so we can compute a fresh
-			// completion percentage from the latest data. This mirrors the
-			// single-project loader and prevents stale 0% values from older
-			// resume versions from overriding a correct computed value.
-			const combinedProfile: ProjectProfile = {
-				// Core project fields
-				id: project.id,
-				owner_org_id: project.owner_org_id,
-				assignedAdvisorUserId: project.assigned_advisor_id,
-				createdAt: project.created_at,
-				updatedAt: project.updated_at,
-
-				// New fields from expanded ProjectResumeContent (spread first)
-				...resumeContent,
-
-				// Override with fallbacks for key fields
-				projectName: resumeContent.projectName || project.name,
-				assetType: resumeContent.assetType || "",
-				projectStatus: (resumeContent.projectStatus as any) || "",
-
-				// Type-safe overrides for enum fields (no UX defaults – start empty)
-				interestRateType: (resumeContent.interestRateType as any) || "",
-				recoursePreference:
-					(resumeContent.recoursePreference as any) || "",
-				exitStrategy: resumeContent.exitStrategy as any,
-
-				// Load completenessPercent from DB, fallback to 0 if not stored
-				completenessPercent: resumeContent.completenessPercent ?? 0,
-				internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
-				borrowerProgress,
-				projectSections: resumeContent.projectSections || {},
-				borrowerSections: borrowerResumeContent || {},
-
-				// Add metadata container
-				_metadata: metadata,
-
-				// Add locked_fields (no _lockedSections - derive from field locks)
-				_lockedFields: lockedFieldsMap.get(project.id) || {},
-				_fieldStates: fieldStatesMap.get(project.id) || {},
-
-				// Legacy field
-				borrowerProfileId: undefined,
-			} as ProjectProfile;
-
-			const recomputedCompletion =
-				computeProjectCompletion(combinedProfile);
-			const storedCompletion = combinedProfile.completenessPercent;
-			const finalCompletion =
-				typeof storedCompletion === "number" &&
-				storedCompletion > 0
-					? storedCompletion
-					: recomputedCompletion;
-
-			return {
-				...combinedProfile,
-				completenessPercent: finalCompletion,
-			};
-		}) || []
-	);
-};
-
-/**
- * Fetches project messages with sender information.
- * This replaces dbMessageToProjectMessage and handles the join properly.
- */
-export const getProjectMessages = async (
-	threadId: string
-): Promise<ProjectMessage[]> => {
-	const { data: messages, error } = await supabase
-		.from("project_messages")
-		.select(
-			`
-      id,
-      thread_id,
-      user_id,
-      content,
-      created_at,
-      sender:profiles(id, full_name, email)
-    `
-		)
-		.eq("thread_id", threadId)
-		.order("created_at", { ascending: true });
-
-	if (error) {
-		throw new Error(`Failed to fetch messages: ${error.message}`);
-	}
-
-	return (
-		messages?.map((msg: any) => ({
-			id: msg.id,
-			thread_id: msg.thread_id,
-			user_id: msg.user_id,
-			content: msg.content,
-			created_at: msg.created_at,
-		})) || []
-	);
-};
-
-/**
- * Saves project resume content to the JSONB column.
- * This provides a type-safe way to update project details.
- * Now supports rich data format with metadata (value + source + warnings).
- */
-export const saveProjectResume = async (
-	projectId: string,
-	content: Partial<ProjectProfile>, // Changed to ProjectProfile to access _metadata
-	options?: { createNewVersion?: boolean }
-): Promise<void> => {
-	// Resolve the current user so we can attribute new versions correctly
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
-
-	// 1. Find the latest existing row for this project
-	const { data: existing } = await supabase
-		.from("project_resumes")
-		.select("id, content")
-		.eq("project_id", projectId)
-		.order("created_at", { ascending: false })
-		.limit(1)
-		.maybeSingle();
-
-	// Extract metadata and prepare final content
-	const metadata = (content as any)._metadata || {};
-	const finalContent: any = {};
-
-	// Extract reserved keys that should be preserved at root level
-	const lockedFields = (content as any)._lockedFields || {};
-	const fieldStates = (content as any)._fieldStates || {};
-
-	// Iterate over fields to construct the JSONB object
-	for (const key in content) {
-		if (
-			key === "_metadata" ||
-			key === "_lockedFields" ||
-			key === "_fieldStates"
-		)
-			continue; // Skip metadata and state containers
-
-		const currentValue = (content as any)[key];
-		const meta = metadata[key] as
-			| import("@/types/source-metadata").SourceMetadata[]
-			| undefined;
-
-		// Normalize any legacy `source`/`sources` fields into a proper `sources` array
-		const toSourcesArray = (input: any): any[] => {
-			if (!input) return [];
-			if (Array.isArray(input)) return input;
-			if (typeof input === "string") {
-				const normalized = input.toLowerCase().trim();
-				if (
-					normalized === "user_input" ||
-					normalized === "user input"
-				) {
-					return [{ type: "user_input" }];
-				}
-				return [{ type: "document", name: input }];
-			}
-			if (
-				typeof input === "object" &&
-				input !== null &&
-				"type" in input
-			) {
-				return [input];
-			}
-			return [];
-		};
-
-		if (meta) {
-			// If we have metadata, save the full structure using ONLY `sources`
-			const metaAny: any = metadata[key];
-			const metaSources =
-				metaAny?.sources !== undefined
-					? metaAny.sources
-					: metaAny?.source;
-
-			finalContent[key] = {
-				value: currentValue,
-				sources: toSourcesArray(metaSources),
-				warnings: metaAny?.warnings || [],
-				original_value: metaAny?.original_value ?? currentValue,
-			};
-		} else {
-			// Check if existing content has rich format for this field
-			const existingItem = existing?.content?.[key];
-			if (
-				existingItem &&
-				typeof existingItem === "object" &&
-				("value" in existingItem ||
-					"source" in existingItem ||
-					"sources" in existingItem)
-			) {
-				const existingObj: any = existingItem;
-				const existingSources =
-					"sources" in existingObj
-						? existingObj.sources
-						: "source" in existingObj
-						? toSourcesArray(existingObj.source)
-						: undefined;
-
-				// Preserve existing metadata structure (normalized to `sources`) if no new metadata provided
-				finalContent[key] = {
-					value: currentValue,
-					sources: existingSources ?? [{ type: "user_input" }],
-					warnings: existingObj.warnings || [],
-					original_value: existingObj.original_value ?? currentValue,
-				};
-			} else {
-				// Save flat value if no metadata exists
-				finalContent[key] = currentValue;
-			}
-		}
-	}
-
-	// Check if existing content is in section-grouped format
-	const isExistingSectionGrouped = isGroupedFormat(existing?.content || {});
-
-	if (existing && !options?.createNewVersion) {
-		// 2a. Update in Place: Modify the current version directly
-		// This ensures manual edits don't create new history entries
-
-		let contentToSave: any;
-
-		if (isExistingSectionGrouped) {
-			// Existing content is section-grouped, need to merge flat updates into it
-			// First, convert flat finalContent to section-grouped format
-			const groupedUpdates = groupBySections(finalContent);
-
-			// Merge into existing section-grouped structure
-			contentToSave = { ...existing.content };
-			for (const [sectionKey, sectionFields] of Object.entries(
-				groupedUpdates
-			)) {
-				if (!contentToSave[sectionKey]) {
-					contentToSave[sectionKey] = {};
-				}
-				contentToSave[sectionKey] = {
-					...contentToSave[sectionKey],
-					...sectionFields,
-				};
-			}
-
-			// Preserve root-level metadata fields
-			contentToSave._lockedFields = lockedFields;
-			contentToSave._fieldStates = fieldStates;
-		} else {
-			// Existing content is flat, merge flat with flat
-			contentToSave = {
-				...existing.content,
-				...finalContent,
-				_lockedFields: lockedFields,
-				_fieldStates: fieldStates,
-			};
-		}
-
-		const { error } = await supabase
-			.from("project_resumes")
-			.update({ content: contentToSave as any })
-			.eq("id", existing.id);
-
-		if (error) {
-			throw new Error(
-				`Failed to update project resume: ${error.message}`
-			);
-		}
-	} else {
-		// 2b. Insert New: Brand new project resume OR create new version
-		// CRITICAL: When creating a new version, we MUST merge with existing content
-		// to preserve all fields that weren't explicitly changed
-		
-		// Get existing content to merge with (if it exists)
-		let existingContentFlat: Record<string, any> = {};
-		if (existing?.content) {
-			existingContentFlat = isGroupedFormat(existing.content)
-				? ungroupFromSections(existing.content)
-				: existing.content;
-			
-			// Remove reserved keys from existing content
-			const { _lockedFields, _fieldStates, _metadata, completenessPercent, ...cleanExisting } = existingContentFlat;
-			existingContentFlat = cleanExisting;
-		}
-		
-		// Merge existing content with new content - existing fields are preserved unless overwritten
-		const mergedContent = {
-			...existingContentFlat,
-			...finalContent, // New/changed fields take precedence
-		};
-		
-		// Convert merged content to section-grouped format for new resumes
-		const groupedContent = groupBySections(mergedContent);
-		
-		// Preserve existing lock states, merging with new ones
-		const mergedLockedFields = {
-			...(existing?.content?._lockedFields || {}),
-			...lockedFields,
-		};
-		
-		const mergedFieldStates = {
-			...(existing?.content?._fieldStates || {}),
-			...fieldStates,
-		};
-		
-		// Calculate completion based on the full merged project profile snapshot
-		const completionPercent = computeProjectCompletion({
-			...content,
-			...mergedContent, // Include all merged fields for accurate completion
-		});
-		
-		const contentToInsert = {
-			...groupedContent,
-			_lockedFields: mergedLockedFields,
-			_fieldStates: mergedFieldStates,
-			completenessPercent: completionPercent,
-		};
-
-		const { data: newResume, error } = await supabase
-			.from("project_resumes")
-			.insert({
-				project_id: projectId,
-				content: contentToInsert as any,
-				created_by: user?.id ?? null,
-			})
-			.select("id, project_id, version_number")
-			.single();
-
-		if (error) {
-			throw new Error(
-				`Failed to create project resume: ${error.message}`
-			);
-		}
-
-		// Ensure the PROJECT_RESUME resource pointer is updated to this version.
-		// NOTE: The resources table does not currently have a UNIQUE(project_id, resource_type)
-		// constraint, so an UPSERT with an onConflict target will fail. Instead, we issue a
-		// straight UPDATE scoped by project_id + resource_type. This will reliably move the
-		// pointer for existing resources without relying on constraint metadata.
-		const { error: resourceError } = await supabase
-			.from("resources")
-			.update({ current_version_id: newResume.id })
-			.eq("project_id", projectId)
-			.eq("resource_type", "PROJECT_RESUME");
-
-		// We don't throw on resource error strictly, as permissions or seed state may vary,
-		// but log so we can diagnose issues in non-local environments.
-		if (resourceError) {
-			console.warn(
-				"[saveProjectResume] Failed to update PROJECT_RESUME resource pointer:",
-				resourceError.message
-			);
-		}
-	}
-};
-
-/**
- * Loads borrower resume content from the JSONB column.
- * This provides a type-safe way to fetch borrower details.
- */
-export const getProjectBorrowerResume = async (
-	projectId: string
-): Promise<BorrowerResumeContent | null> => {
-	const { data: resource, error: resourceError } = await supabase
-		.from("resources")
-		.select("current_version_id")
-		.eq("project_id", projectId)
-		.eq("resource_type", "BORROWER_RESUME")
-		.maybeSingle();
-
-	if (resourceError && resourceError.code !== "PGRST116") {
-		console.warn(
-			"[getProjectBorrowerResume] Failed to fetch borrower resume pointer:",
-			resourceError
-		);
-	}
-
-	let query = supabase.from("borrower_resumes").select("content");
-
-	if (resource?.current_version_id) {
-		query = query.eq("id", resource.current_version_id);
-	} else {
-		query = query
-			.eq("project_id", projectId)
-			.order("created_at", { ascending: false })
-			.limit(1);
-	}
-
-	const { data, error } = await query.maybeSingle();
-
-	if (error && error.code !== "PGRST116") {
-		throw new Error(`Failed to load borrower resume: ${error.message}`);
-	}
-
-	if (!data) return null;
-
-	// Lock state now lives inside the JSONB content under _lockedFields (section locks derived from field locks)
-	const content = (data.content || {}) as BorrowerResumeContent;
-	return content;
-};
-
-// Helper to map borrower resume fields to sections
+// Helper to map borrower resume fields to sections for storage grouping
 const BORROWER_FIELD_TO_SECTION: Record<string, string> = {
 	// section_1: basic-info
 	fullLegalName: "section_1",
@@ -1218,46 +374,45 @@ const BORROWER_FIELD_TO_SECTION: Record<string, string> = {
 	// section_4: online-presence
 	linkedinUrl: "section_4",
 	websiteUrl: "section_4",
-	// section_5: principals (handled separately as array)
+	// section_5: principals
 	principals: "section_5",
 };
 
-// Helper to convert flat content to section-wise format
-function convertToSectionWise(flatContent: any): any {
+function convertToBorrowerSectionWise(flatContent: any): any {
 	const sectionWise: any = {};
-
 	for (const [fieldId, fieldValue] of Object.entries(flatContent)) {
-		if (fieldId.startsWith("section_") || fieldId === "_metadata") {
-			// Already section-wise or metadata, keep as-is
+		if (
+			fieldId.startsWith("section_") ||
+			fieldId.startsWith("_") ||
+			fieldId === "completenessPercent"
+		) {
 			sectionWise[fieldId] = fieldValue;
 			continue;
 		}
-
 		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
 		if (sectionId) {
-			if (!sectionWise[sectionId]) {
-				sectionWise[sectionId] = {};
-			}
+			if (!sectionWise[sectionId]) sectionWise[sectionId] = {};
 			sectionWise[sectionId][fieldId] = fieldValue;
 		} else {
-			// Unknown field - put in section_other
-			if (!sectionWise["section_other"]) {
+			if (!sectionWise["section_other"])
 				sectionWise["section_other"] = {};
-			}
 			sectionWise["section_other"][fieldId] = fieldValue;
 		}
 	}
-
 	return sectionWise;
 }
 
-// Helper to merge flat updates into section-wise structure
-function mergeIntoSectionWise(existingSectionWise: any, flatUpdates: any): any {
+function mergeIntoBorrowerSectionWise(
+	existingSectionWise: any,
+	flatUpdates: any
+): any {
 	const merged = existingSectionWise ? { ...existingSectionWise } : {};
-
 	for (const [fieldId, fieldValue] of Object.entries(flatUpdates)) {
-		if (fieldId.startsWith("section_") || fieldId === "_metadata") {
-			// Already section-wise or metadata, merge directly
+		if (
+			fieldId.startsWith("section_") ||
+			fieldId.startsWith("_") ||
+			fieldId === "completenessPercent"
+		) {
 			if (
 				typeof fieldValue === "object" &&
 				fieldValue !== null &&
@@ -1269,134 +424,870 @@ function mergeIntoSectionWise(existingSectionWise: any, flatUpdates: any): any {
 			}
 			continue;
 		}
-
 		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
 		if (sectionId) {
-			if (!merged[sectionId]) {
-				merged[sectionId] = {};
-			}
+			if (!merged[sectionId]) merged[sectionId] = {};
 			merged[sectionId][fieldId] = fieldValue;
 		} else {
-			// Unknown field - put in section_other
-			if (!merged["section_other"]) {
-				merged["section_other"] = {};
-			}
+			if (!merged["section_other"]) merged["section_other"] = {};
 			merged["section_other"][fieldId] = fieldValue;
 		}
 	}
-
 	return merged;
 }
 
+// Helper to normalize legacy sources
+const toSourcesArray = (input: any): any[] => {
+	if (!input) return [];
+	if (Array.isArray(input)) return input;
+	if (typeof input === "string") {
+		const normalized = input.toLowerCase().trim();
+		if (normalized === "user_input" || normalized === "user input") {
+			return [{ type: "user_input" }];
+		}
+		return [{ type: "document", name: input }];
+	}
+	if (typeof input === "object" && input !== null && "type" in input) {
+		return [input];
+	}
+	return [];
+};
+
+// =============================================================================
+// Project Resume Functions
+// =============================================================================
+
+export const getProjectWithResume = async (
+	projectId: string
+): Promise<ProjectProfile> => {
+	// Fetch core project
+	const { data: project, error: projectError } = await supabase
+		.from("projects")
+		.select("*")
+		.eq("id", projectId)
+		.single();
+
+	if (projectError)
+		throw new Error(`Failed to fetch project: ${projectError.message}`);
+
+	// Fetch resume content
+	const { data: resource } = await supabase
+		.from("resources")
+		.select("id, current_version_id")
+		.eq("resource_type", "PROJECT_RESUME")
+		.eq("project_id", projectId)
+		.maybeSingle();
+
+	let resume: { content: ProjectResumeContent } | null = null;
+
+	if (resource?.current_version_id) {
+		const result = await supabase
+			.from("project_resumes")
+			.select("content")
+			.eq("id", resource.current_version_id)
+			.single();
+		resume = result.data;
+	} else {
+		const result = await supabase
+			.from("project_resumes")
+			.select("content")
+			.eq("project_id", projectId)
+			.order("created_at", { ascending: false })
+			.limit(1)
+			.maybeSingle();
+		resume = result.data;
+	}
+
+	let rawContent = (resume?.content || {}) as any;
+	const _lockedFields =
+		(rawContent._lockedFields as Record<string, boolean> | undefined) || {};
+	const _fieldStates = (rawContent._fieldStates as any) || {};
+
+	rawContent = { ...rawContent };
+	delete rawContent._lockedFields;
+	delete rawContent._fieldStates;
+	delete rawContent._metadata;
+
+	if (isGroupedFormat(rawContent)) {
+		rawContent = ungroupFromSections(rawContent);
+	}
+
+	// Fetch borrower resume for progress calc
+	const { data: borrowerResume } = await supabase
+		.from("borrower_resumes")
+		.select("content")
+		.eq("project_id", projectId)
+		.maybeSingle();
+
+	const borrowerResumeContent: BorrowerResumeContent =
+		borrowerResume?.content || {};
+	const borrowerProgress = Math.round(
+		(borrowerResumeContent.completenessPercent as number | undefined) ?? 0
+	);
+
+	const _metadata: Record<
+		string,
+		import("@/types/enhanced-types").FieldMetadata
+	> = {};
+	const resumeContent: Partial<ProjectResumeContent> = {};
+
+	for (const key in rawContent) {
+		const item = rawContent[key];
+		if (
+			item &&
+			typeof item === "object" &&
+			("source" in item || "sources" in item) &&
+			"value" in item
+		) {
+			(resumeContent as any)[key] = item.value;
+			let sourceValue = item.source;
+			if (
+				!sourceValue &&
+				item.sources &&
+				Array.isArray(item.sources) &&
+				item.sources.length > 0
+			) {
+				const first = item.sources[0];
+				sourceValue =
+					typeof first === "object" && first !== null
+						? first.name || first.type
+						: first;
+			}
+			_metadata[key] = {
+				value: item.value,
+				source: sourceValue || null,
+				sources: item.sources || (item.source ? [item.source] : []),
+				original_source: item.source || null,
+				original_value: item.original_value ?? item.value,
+				warnings: item.warnings || [],
+			};
+		} else {
+			(resumeContent as any)[key] = item;
+		}
+	}
+
+	const combinedProfile: ProjectProfile = {
+		id: project.id,
+		owner_org_id: project.owner_org_id,
+		assignedAdvisorUserId: project.assigned_advisor_id,
+		createdAt: project.created_at,
+		updatedAt: project.updated_at,
+		...resumeContent,
+		projectName: resumeContent.projectName || project.name,
+		assetType: resumeContent.assetType || "",
+		projectStatus: (resumeContent.projectStatus as any) || "",
+		interestRateType: (resumeContent.interestRateType as any) || "",
+		recoursePreference: (resumeContent.recoursePreference as any) || "",
+		exitStrategy: resumeContent.exitStrategy as any,
+		completenessPercent: resumeContent.completenessPercent ?? 0,
+		internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
+		borrowerProgress,
+		projectSections: resumeContent.projectSections || {},
+		borrowerSections: borrowerResumeContent || {},
+		_metadata,
+		_lockedFields,
+		_fieldStates,
+		projectResumeResourceId: resource?.id ?? null,
+	} as ProjectProfile;
+
+	const recomputedCompletion = computeProjectCompletion(combinedProfile);
+	const storedCompletion = combinedProfile.completenessPercent;
+	const finalCompletion =
+		typeof storedCompletion === "number" && storedCompletion > 0
+			? storedCompletion
+			: recomputedCompletion;
+
+	return {
+		...combinedProfile,
+		completenessPercent: finalCompletion,
+	};
+};
+
+export const getProjectsWithResumes = async (
+	projectIds: string[]
+): Promise<ProjectProfile[]> => {
+	if (projectIds.length === 0) return [];
+
+	const { data: projects, error: projectsError } = await supabase
+		.from("projects")
+		.select("*")
+		.in("id", projectIds);
+	if (projectsError)
+		throw new Error(`Failed to fetch projects: ${projectsError.message}`);
+
+	const { data: resumes, error: resumesError } = await supabase
+		.from("project_resumes")
+		.select("project_id, content, created_at")
+		.in("project_id", projectIds)
+		.order("created_at", { ascending: false });
+	if (resumesError)
+		throw new Error(
+			`Failed to fetch project resumes: ${resumesError.message}`
+		);
+
+	const { data: borrowerResumes, error: borrowerResumesError } =
+		await supabase
+			.from("borrower_resumes")
+			.select("project_id, content")
+			.in("project_id", projectIds);
+	if (borrowerResumesError)
+		throw new Error(
+			`Failed to fetch borrower resumes: ${borrowerResumesError.message}`
+		);
+
+	const resumeMap = new Map<string, any>();
+	const metadataMap = new Map<
+		string,
+		Record<string, import("@/types/enhanced-types").FieldMetadata>
+	>();
+	const lockedFieldsMap = new Map<string, Record<string, boolean>>();
+	const fieldStatesMap = new Map<string, any>();
+
+	resumes?.forEach((resume: any) => {
+		if (!resumeMap.has(resume.project_id)) {
+			let rawContent = (resume.content || {}) as any;
+			const rawLockedFields =
+				(rawContent._lockedFields as
+					| Record<string, boolean>
+					| undefined) || {};
+			const rawFieldStates = (rawContent._fieldStates as any) || {};
+
+			lockedFieldsMap.set(resume.project_id, rawLockedFields);
+			fieldStatesMap.set(resume.project_id, rawFieldStates);
+
+			rawContent = { ...rawContent };
+			delete rawContent._lockedFields;
+			delete rawContent._fieldStates;
+
+			if (isGroupedFormat(rawContent)) {
+				rawContent = ungroupFromSections(rawContent);
+			}
+
+			const flatContent: Partial<ProjectResumeContent> = {};
+			const metadata: Record<
+				string,
+				import("@/types/enhanced-types").FieldMetadata
+			> = {};
+
+			for (const key in rawContent) {
+				const item = rawContent[key];
+				if (
+					item &&
+					typeof item === "object" &&
+					("source" in item || "sources" in item) &&
+					"value" in item
+				) {
+					(flatContent as any)[key] = item.value;
+					let sourceValue: string | null = null;
+					let originalSource: "document" | "knowledge_base" | null =
+						null;
+
+					const sources =
+						item.sources || (item.source ? [item.source] : []);
+					if (sources.length > 0) {
+						const first = sources[0];
+						if (typeof first === "object" && first !== null) {
+							sourceValue = first.name || first.type;
+							if (first.type === "document")
+								originalSource = "document";
+							else if (first.type === "external")
+								originalSource = "knowledge_base";
+						} else {
+							sourceValue = String(first);
+						}
+					}
+
+					metadata[key] = {
+						value: item.value,
+						source: sourceValue,
+						sources,
+						original_source: originalSource,
+						original_value:
+							item.original_value !== undefined
+								? item.original_value
+								: item.value,
+						warnings: item.warnings || [],
+					};
+				} else {
+					(flatContent as any)[key] = item;
+				}
+			}
+			resumeMap.set(resume.project_id, flatContent);
+			metadataMap.set(resume.project_id, metadata);
+		}
+	});
+
+	const borrowerResumeMap = new Map<string, BorrowerResumeContent>();
+	borrowerResumes?.forEach((resume: any) => {
+		borrowerResumeMap.set(resume.project_id, resume.content || {});
+	});
+
+	return (
+		projects?.map((project: any) => {
+			const resumeContent =
+				resumeMap.get(project.id) || ({} as ProjectResumeContent);
+			const metadata = metadataMap.get(project.id) || {};
+			const borrowerResumeContent =
+				borrowerResumeMap.get(project.id) ||
+				({} as BorrowerResumeContent);
+			const borrowerProgress = Math.round(
+				(borrowerResumeContent.completenessPercent as
+					| number
+					| undefined) ?? 0
+			);
+
+			const combinedProfile: ProjectProfile = {
+				id: project.id,
+				owner_org_id: project.owner_org_id,
+				assignedAdvisorUserId: project.assigned_advisor_id,
+				createdAt: project.created_at,
+				updatedAt: project.updated_at,
+				...resumeContent,
+				projectName: resumeContent.projectName || project.name,
+				assetType: resumeContent.assetType || "",
+				projectStatus: (resumeContent.projectStatus as any) || "",
+				interestRateType: (resumeContent.interestRateType as any) || "",
+				recoursePreference:
+					(resumeContent.recoursePreference as any) || "",
+				exitStrategy: resumeContent.exitStrategy as any,
+				completenessPercent: resumeContent.completenessPercent ?? 0,
+				internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
+				borrowerProgress,
+				projectSections: resumeContent.projectSections || {},
+				borrowerSections: borrowerResumeContent || {},
+				_metadata: metadata,
+				_lockedFields: lockedFieldsMap.get(project.id) || {},
+				_fieldStates: fieldStatesMap.get(project.id) || {},
+				borrowerProfileId: undefined,
+			} as ProjectProfile;
+
+			const recomputedCompletion =
+				computeProjectCompletion(combinedProfile);
+			const storedCompletion = combinedProfile.completenessPercent;
+			const finalCompletion =
+				typeof storedCompletion === "number" && storedCompletion > 0
+					? storedCompletion
+					: recomputedCompletion;
+
+			return {
+				...combinedProfile,
+				completenessPercent: finalCompletion,
+			};
+		}) || []
+	);
+};
+
+export const saveProjectResume = async (
+	projectId: string,
+	content: Partial<ProjectProfile>,
+	options?: { createNewVersion?: boolean }
+): Promise<void> => {
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	const { data: existing } = await supabase
+		.from("project_resumes")
+		.select("id, content")
+		.eq("project_id", projectId)
+		.order("created_at", { ascending: false })
+		.limit(1)
+		.maybeSingle();
+
+	const metadata = (content as any)._metadata || {};
+	const finalContent: any = {};
+	const lockedFields = (content as any)._lockedFields || {};
+	const fieldStates = (content as any)._fieldStates || {};
+
+	for (const key in content) {
+		if (
+			key === "_metadata" ||
+			key === "_lockedFields" ||
+			key === "_fieldStates"
+		)
+			continue;
+		const currentValue = (content as any)[key];
+		const meta = metadata[key];
+
+		if (meta) {
+			const metaAny: any = metadata[key];
+			const metaSources =
+				metaAny?.sources !== undefined
+					? metaAny.sources
+					: metaAny?.source;
+			finalContent[key] = {
+				value: currentValue,
+				sources: toSourcesArray(metaSources),
+				warnings: metaAny?.warnings || [],
+				original_value: metaAny?.original_value ?? currentValue,
+			};
+		} else {
+			const existingItem = existing?.content?.[key];
+			if (
+				existingItem &&
+				typeof existingItem === "object" &&
+				("value" in existingItem ||
+					"source" in existingItem ||
+					"sources" in existingItem)
+			) {
+				const existingObj: any = existingItem;
+				const existingSources =
+					"sources" in existingObj
+						? existingObj.sources
+						: "source" in existingObj
+						? toSourcesArray(existingObj.source)
+						: undefined;
+				finalContent[key] = {
+					value: currentValue,
+					sources: existingSources ?? [{ type: "user_input" }],
+					warnings: existingObj.warnings || [],
+					original_value: existingObj.original_value ?? currentValue,
+				};
+			} else {
+				finalContent[key] = currentValue;
+			}
+		}
+	}
+
+	const isExistingSectionGrouped = isGroupedFormat(existing?.content || {});
+
+	if (existing && !options?.createNewVersion) {
+		let contentToSave: any;
+		if (isExistingSectionGrouped) {
+			const groupedUpdates = groupBySections(finalContent);
+			contentToSave = { ...existing.content };
+			for (const [sectionKey, sectionFields] of Object.entries(
+				groupedUpdates
+			)) {
+				if (!contentToSave[sectionKey]) contentToSave[sectionKey] = {};
+				contentToSave[sectionKey] = {
+					...contentToSave[sectionKey],
+					...sectionFields,
+				};
+			}
+			contentToSave._lockedFields = lockedFields;
+			contentToSave._fieldStates = fieldStates;
+		} else {
+			contentToSave = {
+				...existing.content,
+				...finalContent,
+				_lockedFields: lockedFields,
+				_fieldStates: fieldStates,
+			};
+		}
+		const { error } = await supabase
+			.from("project_resumes")
+			.update({ content: contentToSave })
+			.eq("id", existing.id);
+		if (error)
+			throw new Error(
+				`Failed to update project resume: ${error.message}`
+			);
+	} else {
+		let existingContentFlat: Record<string, any> = {};
+		if (existing?.content) {
+			existingContentFlat = isGroupedFormat(existing.content)
+				? ungroupFromSections(existing.content)
+				: existing.content;
+			const {
+				_lockedFields,
+				_fieldStates,
+				_metadata,
+				completenessPercent,
+				...cleanExisting
+			} = existingContentFlat;
+			existingContentFlat = cleanExisting;
+		}
+		const mergedContent = { ...existingContentFlat, ...finalContent };
+		const groupedContent = groupBySections(mergedContent);
+		const mergedLockedFields = {
+			...(existing?.content?._lockedFields || {}),
+			...lockedFields,
+		};
+		const mergedFieldStates = {
+			...(existing?.content?._fieldStates || {}),
+			...fieldStates,
+		};
+		const completionPercent = computeProjectCompletion({
+			...content,
+			...mergedContent,
+		});
+
+		const contentToInsert = {
+			...groupedContent,
+			_lockedFields: mergedLockedFields,
+			_fieldStates: mergedFieldStates,
+			completenessPercent: completionPercent,
+		};
+
+		const { data: newResume, error } = await supabase
+			.from("project_resumes")
+			.insert({
+				project_id: projectId,
+				content: contentToInsert,
+				created_by: user?.id ?? null,
+			})
+			.select("id")
+			.single();
+		if (error)
+			throw new Error(
+				`Failed to create project resume: ${error.message}`
+			);
+
+		await supabase
+			.from("resources")
+			.update({ current_version_id: newResume.id })
+			.eq("project_id", projectId)
+			.eq("resource_type", "PROJECT_RESUME");
+	}
+};
+
+export const getProjectMessages = async (
+	threadId: string
+): Promise<ProjectMessage[]> => {
+	const { data: messages, error } = await supabase
+		.from("project_messages")
+		.select(
+			`id, thread_id, user_id, content, created_at, sender:profiles(id, full_name, email)`
+		)
+		.eq("thread_id", threadId)
+		.order("created_at", { ascending: true });
+
+	if (error) throw new Error(`Failed to fetch messages: ${error.message}`);
+	return (
+		messages?.map((msg: any) => ({
+			id: msg.id,
+			thread_id: msg.thread_id,
+			user_id: msg.user_id,
+			content: msg.content,
+			created_at: msg.created_at,
+		})) || []
+	);
+};
+
+// =============================================================================
+// Borrower Resume Functions
+// =============================================================================
+
+/**
+ * Loads borrower resume content from the JSONB column.
+ */
+export const getProjectBorrowerResume = async (
+	projectId: string
+): Promise<BorrowerResumeContent | null> => {
+	const { data: resource } = await supabase
+		.from("resources")
+		.select("current_version_id")
+		.eq("project_id", projectId)
+		.eq("resource_type", "BORROWER_RESUME")
+		.maybeSingle();
+
+	let query = supabase.from("borrower_resumes").select("content");
+	if (resource?.current_version_id) {
+		query = query.eq("id", resource.current_version_id);
+	} else {
+		query = query
+			.eq("project_id", projectId)
+			.order("created_at", { ascending: false })
+			.limit(1);
+	}
+
+	const { data, error } = await query.maybeSingle();
+	if (error && error.code !== "PGRST116")
+		throw new Error(`Failed to load borrower resume: ${error.message}`);
+	if (!data) return null;
+
+	let content = (data.content || {}) as any;
+
+	// Ungroup if needed for UI consumption
+	if (isGroupedFormat(content)) {
+		// Extract root keys
+		const {
+			_lockedFields,
+			_fieldStates,
+			_metadata,
+			completenessPercent,
+			...sections
+		} = content;
+		const flat = ungroupFromSections(sections);
+		content = {
+			...flat,
+			_lockedFields,
+			_fieldStates,
+			_metadata,
+			completenessPercent,
+		};
+	}
+
+	return content as BorrowerResumeContent;
+};
+
+/**
+ * Saves borrower resume content to the JSONB column.
+ * Supports Rich Data, Locking, Metadata, and Section grouping.
+ */
 export const saveProjectBorrowerResume = async (
 	projectId: string,
 	content: Partial<BorrowerResumeContent>,
-	lockedFields?: Record<string, boolean>,
-	lockedSections?: Record<string, boolean>
+	options?: {
+		createNewVersion?: boolean;
+		lockedFields?: Record<string, boolean>;
+		lockedSections?: Record<string, boolean>;
+	}
 ): Promise<void> => {
-	// First, get existing content to check if it's section-wise
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+
+	// Extract metadata/locks
+	const metadata = (content as any)._metadata || {};
+	const lockedFields =
+		options?.lockedFields || (content as any)._lockedFields || {};
+	const fieldStates = (content as any)._fieldStates || {};
+
+	// Get existing content
 	const { data: existingResume } = await supabase
 		.from("borrower_resumes")
-		.select("content")
+		.select("id, content")
 		.eq("project_id", projectId)
 		.order("created_at", { ascending: false })
 		.limit(1)
 		.maybeSingle();
 
 	const existingContent = existingResume?.content || {};
-	const isExistingSectionWise = Object.keys(existingContent).some((key) =>
-		key.startsWith("section_")
-	);
+	const isExistingSectionWise = isGroupedFormat(existingContent);
 
+	// Prepare rich content payload
+	const finalContentFlat: any = {};
+
+	for (const key in content) {
+		if (
+			key === "_metadata" ||
+			key === "_lockedFields" ||
+			key === "_fieldStates" ||
+			key === "_lockedSections"
+		)
+			continue;
+
+		const currentValue = (content as any)[key];
+		const meta = metadata[key];
+
+		// ---------------------------------------------------------------------
+		// Guardrail: never persist bare boolean values for non-boolean fields.
+		//
+		// In some edge cases (e.g. bugs in callers), a field's value might be
+		// passed in as `true`/`false` instead of its actual string/array value.
+		// The only borrower fields that are legitimately boolean are the
+		// credit-history flags below. For all other fields, if we see a bare
+		// boolean here, we should *not* overwrite the existing rich/value data
+		// in the database with that boolean. Instead, we fall back to whatever
+		// is already stored in `existingContent` for that key.
+		// ---------------------------------------------------------------------
+		const BOOLEAN_BORROWER_FIELDS: Record<string, true> = {
+			bankruptcyHistory: true,
+			foreclosureHistory: true,
+			litigationHistory: true,
+		};
+
+		if (
+			typeof currentValue === "boolean" &&
+			!BOOLEAN_BORROWER_FIELDS[key]
+		) {
+			// Look up the existing item in either flat or section-wise content
+			let existingItemForBooleanGuard: any;
+			if (isExistingSectionWise) {
+				const flatExisting = ungroupFromSections(existingContent);
+				existingItemForBooleanGuard = flatExisting[key];
+			} else {
+				existingItemForBooleanGuard = existingContent[key];
+			}
+
+			// If we have an existing item, keep it as-is and skip this key so we
+			// don't replace real data with a bare boolean. If we don't, simply
+			// skip writing this key.
+			if (existingItemForBooleanGuard !== undefined) {
+				finalContentFlat[key] = existingItemForBooleanGuard;
+			}
+			continue;
+		}
+
+		if (meta) {
+			// Save rich format if metadata exists
+			const metaAny: any = metadata[key];
+			const metaSources =
+				metaAny?.sources !== undefined
+					? metaAny.sources
+					: metaAny?.source;
+			finalContentFlat[key] = {
+				value: currentValue,
+				sources: toSourcesArray(metaSources),
+				warnings: metaAny?.warnings || [],
+				original_value: metaAny?.original_value ?? currentValue,
+			};
+		} else {
+			// Check if existing had rich data
+			// Need to check in flat or sectioned existing content
+			let existingItem: any;
+			if (isExistingSectionWise) {
+				// Try to find in sections
+				const flatExisting = ungroupFromSections(existingContent);
+				existingItem = flatExisting[key];
+			} else {
+				existingItem = existingContent[key];
+			}
+
+			if (
+				existingItem &&
+				typeof existingItem === "object" &&
+				("value" in existingItem ||
+					"source" in existingItem ||
+					"sources" in existingItem)
+			) {
+				const existingSources =
+					"sources" in existingItem
+						? existingItem.sources
+						: "source" in existingItem
+						? toSourcesArray(existingItem.source)
+						: undefined;
+				finalContentFlat[key] = {
+					value: currentValue,
+					sources: existingSources ?? [{ type: "user_input" }],
+					warnings: existingItem.warnings || [],
+					original_value: existingItem.original_value ?? currentValue,
+				};
+			} else {
+				// Flat value
+				finalContentFlat[key] = currentValue;
+			}
+		}
+	}
+
+	// Handle Update (In Place) vs Insert (New Version)
 	let contentToSave: any;
-	if (isExistingSectionWise) {
-		// Merge flat updates into existing section-wise structure
-		contentToSave = mergeIntoSectionWise(existingContent, content as any);
-	} else {
-		// Convert to section-wise format
-		const mergedContent = { ...existingContent, ...(content as any) };
-		contentToSave = convertToSectionWise(mergedContent);
-	}
 
-	// Extract _lockedFields and _fieldStates from content if present
-	const lockedFieldsFromContent = (content as any)._lockedFields || {};
-	const fieldStatesFromContent = (content as any)._fieldStates || {};
+	if (existingResume && !options?.createNewVersion) {
+		// UPDATE IN PLACE
+		if (isExistingSectionWise) {
+			// Merge flat updates into section-wise structure
+			contentToSave = mergeIntoBorrowerSectionWise(
+				existingContent,
+				finalContentFlat
+			);
+		} else {
+			// Convert to section-wise
+			const mergedFlat = { ...existingContent, ...finalContentFlat };
+			contentToSave = convertToBorrowerSectionWise(mergedFlat);
+		}
 
-	const lockedFieldsToSave = lockedFields || lockedFieldsFromContent || {};
+		// Append root keys
+		contentToSave._lockedFields = lockedFields;
+		contentToSave._fieldStates = fieldStates;
+		// completenessPercent should be part of flattened data usually, but ensure it's at root if sent separately
+		if ((content as any).completenessPercent !== undefined) {
+			contentToSave.completenessPercent = (
+				content as any
+			).completenessPercent;
+		}
 
-	// Ensure lock state and field states are stored inside the JSONB content at the root
-	const finalContentToSave: any = {
-		...contentToSave,
-		_lockedFields: lockedFieldsToSave,
-		_fieldStates: fieldStatesFromContent,
-	};
+		// Get resource pointer to update correct version
+		const { data: resource } = await supabase
+			.from("resources")
+			.select("current_version_id")
+			.eq("project_id", projectId)
+			.eq("resource_type", "BORROWER_RESUME")
+			.maybeSingle();
 
-	const { data: resource, error: resourceError } = await supabase
-		.from("resources")
-		.select("id, current_version_id")
-		.eq("project_id", projectId)
-		.eq("resource_type", "BORROWER_RESUME")
-		.maybeSingle();
+		const targetId = resource?.current_version_id || existingResume.id;
 
-	if (resourceError && resourceError.code !== "PGRST116") {
-		console.warn(
-			"[saveProjectBorrowerResume] Failed to read resource pointer:",
-			resourceError
-		);
-	}
-
-	if (resource?.current_version_id) {
 		const { error } = await supabase
 			.from("borrower_resumes")
-			.update({
-				content: finalContentToSave,
-			})
-			.eq("id", resource.current_version_id);
+			.update({ content: contentToSave })
+			.eq("id", targetId);
 
-		if (error) {
+		if (error)
 			throw new Error(
 				`Failed to update borrower resume: ${error.message}`
 			);
-		}
+	} else {
+		// NEW VERSION
+		// Flatten existing to merge cleanly
+		const existingFlat = isExistingSectionWise
+			? ungroupFromSections(existingContent)
+			: existingContent;
+		const {
+			_lockedFields,
+			_fieldStates,
+			_metadata,
+			completenessPercent,
+			...cleanExisting
+		} = existingFlat;
 
-		return;
-	}
+		const mergedFlat = { ...cleanExisting, ...finalContentFlat };
+		const groupedContent = convertToBorrowerSectionWise(mergedFlat);
 
-	const { data: inserted, error: insertError } = await supabase
-		.from("borrower_resumes")
-		.insert({
-			project_id: projectId,
-			content: finalContentToSave,
-		})
-		.select("id")
-		.single();
+		const mergedLockedFields = {
+			...(existingContent._lockedFields || {}),
+			...lockedFields,
+		};
+		const mergedFieldStates = {
+			...(existingContent._fieldStates || {}),
+			...fieldStates,
+		};
 
-	if (insertError) {
-		throw new Error(
-			`Failed to create borrower resume: ${insertError.message}`
-		);
-	}
+		const contentToInsert = {
+			...groupedContent,
+			_lockedFields: mergedLockedFields,
+			_fieldStates: mergedFieldStates,
+			completenessPercent:
+				(content as any).completenessPercent ?? completenessPercent,
+		};
 
-	if (resource?.id) {
-		const { error: pointerError } = await supabase
-			.from("resources")
-			.update({ current_version_id: inserted.id })
-			.eq("id", resource.id);
+		const { data: newResume, error } = await supabase
+			.from("borrower_resumes")
+			.insert({
+				project_id: projectId,
+				content: contentToInsert,
+				created_by: user?.id ?? null,
+			})
+			.select("id")
+			.single();
 
-		if (pointerError) {
-			console.warn(
-				"[saveProjectBorrowerResume] Failed to update resource pointer:",
-				pointerError
+		if (error)
+			throw new Error(
+				`Failed to create borrower resume: ${error.message}`
 			);
+
+		// Update resource pointer
+		const { error: resourceError } = await supabase
+			.from("resources")
+			.upsert(
+				{
+					project_id: projectId,
+					resource_type: "BORROWER_RESUME",
+					current_version_id: newResume.id,
+					org_id: (
+						await getProjectWithResume(projectId)
+					).owner_org_id, // need org_id for upsert, or use update logic if exists
+				},
+				{ onConflict: "project_id,resource_type" } as any
+			);
+
+		// Since we might not have org_id easily without a fetch, try UPDATE first then INSERT if missing?
+		// Or relying on existing project-utils flow: usually resource exists.
+		// Let's use the update pattern from saveProjectResume which assumes resource exists or handles it.
+
+		if (resourceError) {
+			// Fallback: try plain update if upsert failed (e.g. RLS/constraints)
+			await supabase
+				.from("resources")
+				.update({ current_version_id: newResume.id })
+				.eq("project_id", projectId)
+				.eq("resource_type", "BORROWER_RESUME");
 		}
 	}
 };
 
-/**
- * Loads advisor resume content from the JSONB column.
- * This provides a type-safe way to fetch advisor details.
- * Now org-scoped: any advisor in the org can access it.
- */
+// Advisor Resume functions remain largely unchanged as they don't use the complex sectioning yet
 export const getAdvisorResume = async (
 	orgId: string
 ): Promise<AdvisorResumeContent | null> => {
@@ -1405,35 +1296,23 @@ export const getAdvisorResume = async (
 		.select("content")
 		.eq("org_id", orgId)
 		.maybeSingle();
-
-	if (error && error.code !== "PGRST116") {
+	if (error && error.code !== "PGRST116")
 		throw new Error(`Failed to load advisor resume: ${error.message}`);
-	}
-
 	return data?.content || null;
 };
 
-/**
- * Saves advisor resume content to the JSONB column.
- * This provides a type-safe way to update advisor details.
- * Now org-scoped: any advisor in the org can update it.
- */
 export const saveAdvisorResume = async (
 	orgId: string,
 	content: Partial<AdvisorResumeContent>
 ): Promise<void> => {
 	const existing = await getAdvisorResume(orgId);
-	const mergedContent = { ...(existing || {}), ...content } as any;
-
-	const { error } = await supabase.from("advisor_resumes").upsert(
-		{
-			org_id: orgId,
-			content: mergedContent,
-		},
-		{ onConflict: "org_id" }
-	);
-
-	if (error) {
+	const mergedContent = { ...(existing || {}), ...content };
+	const { error } = await supabase
+		.from("advisor_resumes")
+		.upsert(
+			{ org_id: orgId, content: mergedContent },
+			{ onConflict: "org_id" }
+		);
+	if (error)
 		throw new Error(`Failed to save advisor resume: ${error.message}`);
-	}
 };

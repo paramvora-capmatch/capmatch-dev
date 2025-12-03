@@ -16,8 +16,8 @@ interface ChatParticipant {
   created_at: string;
   user?: {
     id: string;
-    full_name?: string;
-    email?: string;
+    full_name?: string | null;
+    email?: string | null;
   };
 }
 
@@ -279,14 +279,15 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         throw error;
       }
 
-      // Fetch user profiles via edge function (can't join profiles due to RLS)
+      // Fetch user profiles directly from profiles (RLS now allows related profile access)
       const userIds = [...new Set((participants || []).map((p: any) => p.user_id).filter(Boolean))];
-      const profilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
+      const profilesMap = new Map<string, { id: string; full_name?: string | null; email?: string | null }>();
       
       if (userIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
-          body: { userIds: userIds as string[] },
-        });
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', userIds as string[]);
 
         if (!profilesError && Array.isArray(profilesData)) {
           profilesData.forEach((user: any) => {
@@ -326,15 +327,16 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
       if (error) throw error;
 
-      // Fetch sender profiles using edge function (bypasses RLS)
+      // Fetch sender profiles directly from profiles (RLS now allows related profile access)
       const userIds = [...new Set((messages || []).map((msg: any) => msg.user_id).filter(Boolean))];
       
-      const profilesMap = new Map<string, { id: string; full_name?: string; email?: string }>();
+      const profilesMap = new Map<string, { id: string; full_name?: string | null; email?: string | null }>();
       
       if (userIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
-          body: { userIds: userIds as string[] },
-        });
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', userIds as string[]);
 
         if (!profilesError && Array.isArray(profilesData)) {
           profilesData.forEach((user: any) => {
@@ -548,12 +550,14 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
             return Math.abs(messageTime - optimisticTime) < 5000; // 5 second window
           });
 
-          // Fetch sender profile using edge function (bypasses RLS)
-          const { data: profilesData, error: profilesError } = await supabase.functions.invoke('get-user-data', {
-            body: { userIds: [newMessage.user_id] },
-          });
+          // Fetch sender profile directly from profiles (RLS now allows related profile access)
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email')
+            .eq('id', newMessage.user_id)
+            .maybeSingle();
 
-          if (profilesError || !Array.isArray(profilesData) || profilesData.length === 0) {
+          if (profilesError || !profilesData) {
             console.error("Error fetching profile for new message:", profilesError);
             // Fallback to refetching all messages if profile fetch fails
             await get().loadMessages(threadId);
@@ -561,7 +565,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           }
 
           // Append sender info to the real message
-          const senderProfile = profilesData[0];
+          const senderProfile = profilesData;
           newMessage.sender = {
             id: senderProfile.id,
             full_name: senderProfile.full_name,
@@ -701,13 +705,13 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
     set({ isLoadingAttachable: true });
     try {
-      const { data, error } = await supabase.functions.invoke('get-common-documents-for-thread', {
-        body: { thread_id: threadId },
+      const { data, error } = await supabase.rpc('get_common_file_resources_for_thread', {
+        p_thread_id: threadId,
       });
 
       if (error) throw error;
 
-      const documents = (data?.documents as any[]) || [];
+      const documents = (data as any[]) || [];
       const parsed: AttachableDocument[] = documents.map((doc) => ({
         resourceId: doc.resource_id,
         name: doc.name,

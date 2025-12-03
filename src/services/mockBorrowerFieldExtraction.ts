@@ -12,33 +12,49 @@ import borrowerFormSchema from "@/lib/borrower-resume-form.schema.json";
  * Each section contains fields with their extraction data
  */
 export interface SectionWiseExtractionResponse {
-  [sectionId: string]: {
-    [fieldId: string]: {
-      value: any;
-      sources: SourceMetadata[];
-      warnings: string[];
-      original_value?: any;
-    };
-  };
+	[sectionId: string]: {
+		[fieldId: string]: {
+			value: any;
+			sources: SourceMetadata[];
+			warnings: string[];
+			original_value?: any;
+		};
+	};
+}
+
+/**
+ * Helper function to convert source string to SourceMetadata
+ */
+function createSourceMetadata(source: string): SourceMetadata {
+	const normalized = source.toLowerCase();
+
+	if (normalized === "user input" || normalized === "user_input") {
+		return { type: "user_input" };
+	}
+
+	return {
+		type: "document",
+		name: source,
+	};
 }
 
 /**
  * Helper to create a standard field payload.
  */
 const createField = (
-  value: any,
-  source: SourceMetadata,
-  warnings: string[] = []
+	value: any,
+	source: string,
+	warnings: string[] = []
 ): {
-  value: any;
-  sources: SourceMetadata[];
-  warnings: string[];
-  original_value: any;
+	value: any;
+	sources: SourceMetadata[];
+	warnings: string[];
+	original_value: any;
 } => ({
-  value,
-  sources: [source],
-  warnings,
-  original_value: value,
+	value,
+	sources: [createSourceMetadata(source)],
+	warnings,
+	original_value: value,
 });
 
 /**
@@ -51,129 +67,147 @@ const createField = (
  * - section_2: experience (yearsCREExperienceRange, assetClassesExperience, etc.)
  * - section_3: borrower-financials (creditScoreRange, netWorthRange, etc.)
  * - section_4: online-presence (linkedinUrl, websiteUrl)
- * - section_5: principals (principalLegalName, principalRoleDefault, etc.)
+ * - section_5: principals (principals array)
  */
 export const extractBorrowerFields = async (
-  projectId: string,
-  documentPaths?: string[]
+	projectId: string,
+	documentPaths?: string[]
 ): Promise<SectionWiseExtractionResponse> => {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+	// Simulate API delay
+	await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  // Return borrower field extraction results in section-wise format
-  // Format: { section_1: { fieldId: { value, sources, warnings, original_value } } }
-  // Fields with "User Input" source are left empty (null/empty string) as they can't be filled by AI
-  const sectionWiseFields: SectionWiseExtractionResponse = {
-    section_1: {
-      fullLegalName: createField(null, { type: "user_input" }),
-      primaryEntityName: createField(null, { type: "user_input" }),
-      primaryEntityStructure: createField("LLC", {
-        type: "document",
-        name: "Entity Docs",
-      }),
-      contactEmail: createField(null, { type: "user_input" }),
-      contactPhone: createField(null, { type: "user_input" }),
-      contactAddress: createField(null, { type: "user_input" }),
-    },
-    section_2: {
-      yearsCREExperienceRange: createField("16+", {
-        type: "document",
-        name: "Bio",
-      }),
-      assetClassesExperience: createField(
-        ["Multifamily", "Mixed-Use", "Office"],
-        { type: "document", name: "Bio" }
-      ),
-      geographicMarketsExperience: createField(
-        ["Southwest", "Southeast", "West Coast"],
-        { type: "document", name: "Bio" }
-      ),
-      totalDealValueClosedRange: createField("$100M-$250M", {
-        type: "document",
-        name: "Track Record",
-      }),
-      existingLenderRelationships: createField(null, { type: "user_input" }),
-      bioNarrative: createField(
-        "Hoque Global is a leading real estate development company with over 16 years of experience in commercial real estate. We specialize in multifamily, mixed-use, and office developments across the Southwest, Southeast, and West Coast regions. Our portfolio includes over 1,250 multifamily units completed, with a total deal value of $100M-$250M. We have strong relationships with major lenders and a proven track record of successful project delivery.",
-        { type: "document", name: "Bio" }
-      ),
-    },
-    section_3: {
-      creditScoreRange: createField("750-799", {
-        type: "document",
-        name: "Financials",
-      }),
-      netWorthRange: createField("$25M-$50M", {
-        type: "document",
-        name: "Financials",
-      }),
-      liquidityRange: createField("$5M-$10M", {
-        type: "document",
-        name: "Financials",
-      }),
-      bankruptcyHistory: createField(null, { type: "user_input" }),
-      foreclosureHistory: createField(null, { type: "user_input" }),
-      litigationHistory: createField(null, { type: "user_input" }),
-    },
-    section_4: {
-      linkedinUrl: createField(null, { type: "user_input" }),
-      websiteUrl: createField(null, { type: "user_input" }),
-    },
-    section_5: {
-      principalLegalName: createField(null, { type: "user_input" }),
-      principalRoleDefault: createField(null, { type: "user_input" }),
-      principalEmail: createField(null, { type: "user_input" }),
-      ownershipPercentage: createField(null, { type: "user_input" }),
-      principalBio: createField(null, { type: "user_input" }),
-    },
-  };
+	// Return borrower field extraction results in section-wise format
+	const sectionWiseFields: SectionWiseExtractionResponse = {
+		section_1: {
+			fullLegalName: createField(
+				"Hoque Global, LLC",
+				"Entity Formation Docs"
+			),
+			primaryEntityName: createField("Hoque Global", "Marketing Deck"),
+			primaryEntityStructure: createField("LLC", "Operating Agreement"),
+			contactEmail: createField("info@hoqueglobal.com", "Contact Card"),
+			contactPhone: createField("(214) 555-0123", "Contact Card"),
+			contactAddress: createField(
+				"123 Main St, Dallas, TX 75201",
+				"Tax Return"
+			),
+		},
+		section_2: {
+			yearsCREExperienceRange: createField("16+", "Sponsor Bio"),
+			assetClassesExperience: createField(
+				["Multifamily", "Mixed-Use", "Office", "Retail"],
+				"Track Record"
+			),
+			geographicMarketsExperience: createField(
+				["Southwest", "Southeast"],
+				"Track Record"
+			),
+			totalDealValueClosedRange: createField(
+				"$250M-$500M",
+				"Track Record"
+			),
+			existingLenderRelationships: createField(
+				"Frost Bank, Happy State Bank, Veritex",
+				"REO Schedule"
+			),
+			bioNarrative: createField(
+				"Hoque Global is a leading real estate development company with over 16 years of experience in commercial real estate. We specialize in multifamily, mixed-use, and office developments across the Southwest region. Our portfolio includes over 1,250 multifamily units completed.",
+				"Marketing Deck"
+			),
+		},
+		section_3: {
+			creditScoreRange: createField("750-799", "Credit Report"),
+			netWorthRange: createField("$50M-$100M", "PFS"),
+			liquidityRange: createField("$5M-$10M", "Bank Statements"),
+			bankruptcyHistory: createField(false, "Background Check"),
+			foreclosureHistory: createField(false, "Background Check"),
+			litigationHistory: createField(false, "Background Check"),
+		},
+		section_4: {
+			linkedinUrl: createField(
+				"https://linkedin.com/company/hoque-global",
+				"User Input"
+			),
+			websiteUrl: createField("https://hoqueglobal.com", "User Input"),
+		},
+		section_5: {
+			// Principals are handled as a table array in the new structure
+			principals: createField(
+				[
+					{
+						principalLegalName: "Mike Hoque",
+						principalRoleDefault: "Managing Member",
+						principalEmail: "mike@hoqueglobal.com",
+						ownershipPercentage: 100,
+						principalBio:
+							"Founder and CEO with 20+ years of experience in hospitality and real estate.",
+						creditScoreRange: "750-799",
+						netWorthRange: "$25M-$50M",
+						liquidityRange: "$1M-$5M",
+					},
+					{
+						principalLegalName: "Joel Heikenfeld",
+						principalRoleDefault: "Key Principal",
+						principalEmail: "joel@hoqueglobal.com",
+						ownershipPercentage: 0,
+						principalBio:
+							"Managing Director with extensive experience in capital markets and development.",
+						creditScoreRange: "750-799",
+						netWorthRange: "$5M-$10M",
+						liquidityRange: "$500k-$1M",
+					},
+				],
+				"Org Chart"
+			),
+		},
+	};
 
-  // Schema alignment: ensure every field defined in the borrower resume schema
-  // has a corresponding entry in the mock extraction response.
-  const STEP_ID_TO_SECTION_KEY: Record<string, string> = {
-    "basic-info": "section_1",
-    experience: "section_2",
-    "borrower-financials": "section_3",
-    "online-presence": "section_4",
-    principals: "section_5",
-  };
+	// Schema alignment: ensure every field defined in the borrower resume schema
+	// has a corresponding entry in the mock extraction response.
+	const STEP_ID_TO_SECTION_KEY: Record<string, string> = {
+		"basic-info": "section_1",
+		experience: "section_2",
+		"borrower-financials": "section_3",
+		"online-presence": "section_4",
+		principals: "section_5",
+	};
 
-  const schemaAny = borrowerFormSchema as any;
-  if (Array.isArray(schemaAny.steps)) {
-    for (const step of schemaAny.steps) {
-      const stepId = step?.id as string | undefined;
-      const sectionKey =
-        (stepId && STEP_ID_TO_SECTION_KEY[stepId]) || undefined;
-      if (!sectionKey) continue;
+	const schemaAny = borrowerFormSchema as any;
+	if (Array.isArray(schemaAny.steps)) {
+		for (const step of schemaAny.steps) {
+			const stepId = step?.id as string | undefined;
+			const sectionKey =
+				(stepId && STEP_ID_TO_SECTION_KEY[stepId]) || undefined;
+			if (!sectionKey) continue;
 
-      if (!sectionWiseFields[sectionKey]) {
-        sectionWiseFields[sectionKey] = {};
-      }
+			if (!sectionWiseFields[sectionKey]) {
+				sectionWiseFields[sectionKey] = {};
+			}
 
-      const stepFields: string[] = Array.isArray(step.fields)
-        ? step.fields
-        : [];
+			const stepFields: string[] = Array.isArray(step.fields)
+				? step.fields
+				: [];
 
-      for (const fieldId of stepFields) {
-        if (!fieldId || typeof fieldId !== "string") continue;
-        const existingField = sectionWiseFields[sectionKey]?.[fieldId];
+			for (const fieldId of stepFields) {
+				if (!fieldId || typeof fieldId !== "string") continue;
+				const existingField = sectionWiseFields[sectionKey]?.[fieldId];
 
-        if (
-          !existingField ||
-          (typeof existingField === "object" &&
-            "value" in existingField &&
-            (existingField.value === null ||
-              existingField.value === undefined))
-        ) {
-          sectionWiseFields[sectionKey][fieldId] = createField(null, {
-            type: "user_input",
-          });
-        }
-      }
-    }
-  }
+				if (
+					!existingField ||
+					(typeof existingField === "object" &&
+						"value" in existingField &&
+						(existingField.value === null ||
+							existingField.value === undefined))
+				) {
+					// Default to User Input if not found in mock data
+					sectionWiseFields[sectionKey][fieldId] = createField(
+						null,
+						"User Input"
+					);
+				}
+			}
+		}
+	}
 
-  return sectionWiseFields;
+	return sectionWiseFields;
 };
-
-

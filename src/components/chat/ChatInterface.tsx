@@ -75,7 +75,7 @@ interface BlockedState {
 
 type MentionSuggestion = 
   | { type: 'document'; data: AttachableDocument }
-  | { type: 'user'; data: { id: string; name: string; email?: string } };
+  | { type: 'user'; data: { id: string; name: string; email?: string | null } };
 
 const mentionLookupRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
 

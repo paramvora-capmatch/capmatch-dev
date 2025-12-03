@@ -870,18 +870,27 @@ useAuthStore.subscribe((authState, prevAuthState) => {
 	const { user, activeOrg, currentOrgRole } = authState;
 	const prevOrgMemberships = prevAuthState.orgMemberships;
 	const currentOrgMemberships = authState.orgMemberships;
+	const projectStore = useProjectStore.getState();
 
 	// Trigger project loading when:
 	// 1. User is a borrower
-	// 2. Org memberships changed (loaded or updated)
+	// 2. Org memberships changed (loaded or updated) OR org memberships are loaded for the first time
 	// 3. User is authenticated
+	// 4. Projects haven't been loaded yet (still in initial loading state)
+	const orgMembershipsChanged = prevOrgMemberships !== currentOrgMemberships;
+	const orgMembershipsJustLoaded = 
+		!prevOrgMemberships?.length && 
+		currentOrgMemberships && 
+		currentOrgMemberships.length > 0;
+	const projectsNotLoaded = projectStore.isLoading && projectStore.projects.length === 0;
+
 	if (
 		user?.role === "borrower" &&
 		user?.id &&
-		prevOrgMemberships !== currentOrgMemberships &&
 		currentOrgMemberships &&
-		currentOrgMemberships.length > 0
+		currentOrgMemberships.length > 0 &&
+		(orgMembershipsChanged || (orgMembershipsJustLoaded && projectsNotLoaded))
 	) {
-		useProjectStore.getState().loadUserProjects();
+		projectStore.loadUserProjects();
 	}
 });
