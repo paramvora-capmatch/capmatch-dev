@@ -76,7 +76,12 @@ const getFieldValue = (
 ): any => {
 	// 1. Try direct property (flat format)
 	if ((resume as any)[fieldId] !== undefined) {
-		return (resume as any)[fieldId];
+		const val = (resume as any)[fieldId];
+		// If value is a rich object (from DB without unwrapping), extract the value property
+		if (val && typeof val === "object" && "value" in val && !Array.isArray(val)) {
+			return val.value;
+		}
+		return val;
 	}
 	// 2. Try nested content (if structure wraps it)
 	if (
@@ -94,6 +99,26 @@ const getFieldValue = (
 	if (resume._metadata && resume._metadata[fieldId]) {
 		return resume._metadata[fieldId].value;
 	}
+
+	// 4. Fallback: look into grouped section_* structure directly
+	// This handles cases where the resume object is still in section-wise
+	// format (e.g., section_1.fullLegalName.value) instead of flattened.
+	for (const [key, sectionData] of Object.entries(resume as any)) {
+		if (!key.startsWith("section_")) continue;
+		if (
+			sectionData &&
+			typeof sectionData === "object" &&
+			!Array.isArray(sectionData) &&
+			fieldId in sectionData
+		) {
+			const item = (sectionData as any)[fieldId];
+			if (item && typeof item === "object" && "value" in item) {
+				return item.value;
+			}
+			return item;
+		}
+	}
+
 	return undefined;
 };
 
@@ -161,6 +186,15 @@ const getFieldLabel = (
 	return fieldId;
 };
 
+interface BorrowerFieldMeta {
+	fieldId: string;
+	section?: string;
+	dataType?: string;
+	description: string;
+	// Allow extra metadata properties without being overly strict
+	[key: string]: any;
+}
+
 export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 	resume,
 	projectId,
@@ -222,6 +256,10 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 		AlertTriangle,
 		FileText,
 	};
+
+	const allFieldMetas: BorrowerFieldMeta[] = Object.values(
+		borrowerResumeFieldMetadata as Record<string, BorrowerFieldMeta>
+	);
 
 	return (
 		<div
@@ -360,19 +398,33 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 												step.icon as string
 											]) ||
 										FileText;
-									const allFieldIds: string[] =
-										step.fields || [];
-									const allFieldMetas = allFieldIds
-										.map(
-											(id) =>
-												borrowerResumeFieldMetadata[id]
-										)
-										.filter((m) => !!m);
 
-									const hasAnyValue = allFieldMetas.some(
-										(f) =>
+									// Start with schema-defined fields for this section
+									const schemaFieldIds: string[] =
+										step.fields || [];
+
+									// Also include any fields from metadata that map to this section,
+									// in case schema.fields is incomplete or out of sync.
+									const metadataFieldIdsForSection = Object.values(
+										borrowerResumeFieldMetadata
+									)
+										.filter(
+											(meta) => meta.section === sectionId
+										)
+										.map((meta) => meta.fieldId);
+
+									const allFieldIds: string[] = Array.from(
+										new Set([
+											...schemaFieldIds,
+											...metadataFieldIdsForSection,
+										])
+									);
+
+									// Determine if this section has any visible value.
+									const hasAnyValue = allFieldIds.some(
+										(fieldId: string) =>
 											hasValue(
-												getFieldValue(resume, f.fieldId)
+												getFieldValue(resume, fieldId)
 											)
 									);
 									const principals = getFieldValue(
@@ -527,7 +579,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 											) : (
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
 													{allFieldMetas
-														.filter((f) =>
+														.filter((f: BorrowerFieldMeta) =>
 															hasValue(
 																getFieldValue(
 																	resume,
@@ -535,7 +587,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 																)
 															)
 														)
-														.map((f) => (
+														.map((f: BorrowerFieldMeta) => (
 															<AnimatedField
 																key={f.fieldId}
 															>

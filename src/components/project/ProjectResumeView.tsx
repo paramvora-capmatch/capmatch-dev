@@ -408,6 +408,10 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
         return fieldId;
     };
 
+    // Helper to strip leading section numbers like "1. " or "2.3 "
+    const cleanTitledNumberPrefix = (title: string): string =>
+        title.replace(/^\d+(\.\d+)*\s*/, '');
+
     // handleAutofill is now provided by the useAutofill hook
 
     return (
@@ -613,7 +617,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                         >
                                             <h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
                                                 <IconComponent className="h-4 w-4 mr-2 text-blue-600" />
-                                                {step.title}
+                                                {cleanTitledNumberPrefix(step.title)}
                                             </h3>
 
                                             {Array.isArray(step.subsections) && step.subsections.length > 0 ? (
@@ -660,7 +664,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
                                                                 className="space-y-3 rounded-md border border-gray-100 bg-gray-50/60 p-3"
                                                             >
                                                                 <h4 className="text-sm font-semibold text-gray-800">
-                                                                    {subsection.title}
+                                                                    {cleanTitledNumberPrefix(subsection.title)}
                                                                 </h4>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                                                                     {visibleFieldMetas.map((field) => {

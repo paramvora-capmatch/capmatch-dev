@@ -7,6 +7,7 @@ import React, {
 	useRef,
 	useCallback,
 } from "react";
+import Image from "next/image";
 import { FormWizard, Step } from "../ui/FormWizard";
 import { FormGroup } from "../ui/Form";
 import { Input } from "../ui/Input";
@@ -36,6 +37,9 @@ import {
 	BarChart,
 	ChevronDown,
 	ChevronRight,
+	Upload,
+	X,
+	FileText as FileTextIcon,
 } from "lucide-react";
 import {
 	ProjectProfile,
@@ -44,6 +48,7 @@ import {
 	RecoursePreference,
 	ExitStrategy,
 } from "@/types/enhanced-types";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { PROJECT_REQUIRED_FIELDS } from "@/utils/resumeCompletion";
 import formSchema from "@/lib/enhanced-project-form.schema.json";
 import {
@@ -52,6 +57,7 @@ import {
 } from "@/lib/project-resume-field-metadata";
 import { normalizeSource } from "@/utils/sourceNormalizer";
 import { saveProjectResume } from "@/lib/project-queries";
+import { supabase } from "@/lib/supabaseClient";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -179,6 +185,16 @@ const STATE_REVERSE_MAP: Record<string, string> = Object.fromEntries(
 
 const stateOptionsFullNames = Object.values(STATE_MAP).sort();
 
+const INCENTIVE_LABELS: { key: keyof ProjectProfile; label: string }[] = [
+	{ key: "opportunityZone", label: "Opportunity Zone" },
+	{ key: "taxExemption", label: "Tax Exemption" },
+	{ key: "tifDistrict", label: "TIF District" },
+	{ key: "taxAbatement", label: "Tax Abatement" },
+	{ key: "paceFinancing", label: "PACE Financing" },
+	{ key: "historicTaxCredits", label: "Historic Tax Credits" },
+	{ key: "newMarketsCredits", label: "New Markets Credits" },
+];
+
 // Dropdown field options
 const dealStatusOptions = [
 	"Inquiry",
@@ -289,6 +305,642 @@ const sanitizeProjectProfile = (profile: ProjectProfile): ProjectProfile => {
 	return next as ProjectProfile;
 };
 
+interface ProjectMediaUploadProps {
+	projectId: string;
+	orgId: string | null;
+	disabled?: boolean;
+}
+
+const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
+	projectId,
+	orgId,
+	disabled = false,
+}) => {
+	const [siteImages, setSiteImages] = useState<
+		Array<{
+			fileName: string;
+			source: "main_folder" | "artifacts";
+			storagePath: string;
+			documentName?: string;
+		}>
+	>([]);
+	const [architecturalDiagrams, setArchitecturalDiagrams] = useState<
+		Array<{
+			fileName: string;
+			source: "main_folder" | "artifacts";
+			storagePath: string;
+			documentName?: string;
+		}>
+	>([]);
+	const [uploadingSite, setUploadingSite] = useState(false);
+	const [uploadingDiagrams, setUploadingDiagrams] = useState(false);
+	const [loading, setLoading] = useState(true);
+	const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+	const [selectedSiteImages, setSelectedSiteImages] = useState<Set<string>>(
+		new Set()
+	);
+	const [selectedDiagrams, setSelectedDiagrams] = useState<Set<string>>(
+		new Set()
+	);
+	const [deleting, setDeleting] = useState(false);
+
+	const loadImages = useCallback(async () => {
+		if (!orgId || !projectId) return;
+		setLoading(true);
+		try {
+			const { loadProjectImages } = await import("@/lib/imageUtils");
+
+			const allImages = await loadProjectImages(projectId, orgId, true);
+
+			const siteImagesList = allImages
+				.filter((img: any) => img.category === "site_images")
+				.map((img: any) => ({
+					fileName: img.name,
+					source: img.source,
+					storagePath: img.storagePath,
+					documentName: img.documentName,
+				}));
+
+			const diagramsList = allImages
+				.filter((img: any) => img.category === "architectural_diagrams")
+				.map((img: any) => ({
+					fileName: img.name,
+					source: img.source,
+					storagePath: img.storagePath,
+					documentName: img.documentName,
+				}));
+
+			setSiteImages(siteImagesList);
+			setArchitecturalDiagrams(diagramsList);
+
+			const urlMap: Record<string, string> = {};
+			for (const img of allImages) {
+				const { data: urlData } = await supabase.storage
+					.from(orgId)
+					.createSignedUrl(img.storagePath, 3600);
+				if (urlData) {
+					urlMap[img.storagePath] = urlData.signedUrl;
+				}
+			}
+			setImageUrls(urlMap);
+		} catch (error) {
+			console.error("Error loading images:", error);
+		} finally {
+			setLoading(false);
+		}
+	}, [orgId, projectId]);
+
+	useEffect(() => {
+		if (!orgId || !projectId) return;
+		loadImages();
+	}, [orgId, projectId, loadImages]);
+
+	const handleFileUpload = async (
+		files: FileList | null,
+		folder: "site-images" | "architectural-diagrams"
+	) => {
+		if (!files || !orgId || !projectId || disabled) return;
+
+		const isSiteImages = folder === "site-images";
+		const setUploading = isSiteImages ? setUploadingSite : setUploadingDiagrams;
+		const setImages = isSiteImages ? setSiteImages : setArchitecturalDiagrams;
+
+		setUploading(true);
+		try {
+			for (const file of Array.from(files)) {
+				if (
+					!file.type.startsWith("image/") &&
+					!file.name.match(/\.pdf$/i)
+				) {
+					alert(`${file.name} is not a valid image or PDF file`);
+					continue;
+				}
+
+				const filePath = `${projectId}/${folder}/${file.name}`;
+				const { error } = await supabase.storage
+					.from(orgId)
+					.upload(filePath, file, {
+						cacheControl: "3600",
+						upsert: true,
+					});
+
+				if (error) {
+					console.error(`Error uploading ${file.name}:`, error);
+					alert(`Failed to upload ${file.name}`);
+				} else {
+					const uploadedPath = `${projectId}/${folder}/${file.name}`;
+					setImages((prev) => [
+						...prev,
+						{
+							fileName: file.name,
+							source: "main_folder",
+							storagePath: uploadedPath,
+						},
+					]);
+					const { data: urlData } = await supabase.storage
+						.from(orgId)
+						.createSignedUrl(uploadedPath, 3600);
+					if (urlData) {
+						setImageUrls((prev) => ({
+							...prev,
+							[uploadedPath]: urlData.signedUrl,
+						}));
+					}
+				}
+			}
+		} catch (error) {
+			console.error("Error uploading files:", error);
+			alert("Failed to upload files");
+		} finally {
+			setUploading(false);
+		}
+	};
+
+	const handleDeleteMultipleImages = async (
+		fileNames: string[],
+		folder: "site-images" | "architectural-diagrams"
+	) => {
+		if (!orgId || !projectId || disabled || fileNames.length === 0) return;
+
+		const isSiteImages = folder === "site-images";
+		const images = isSiteImages ? siteImages : architecturalDiagrams;
+		const setImages = isSiteImages ? setSiteImages : setArchitecturalDiagrams;
+		const setSelected = isSiteImages
+			? setSelectedSiteImages
+			: setSelectedDiagrams;
+
+		if (
+			!confirm(
+				`Delete ${fileNames.length} ${
+					fileNames.length === 1 ? "image" : "images"
+				}?`
+			)
+		)
+			return;
+
+		setDeleting(true);
+		try {
+			const filePaths = fileNames
+				.map((fileName) => {
+					const image = images.find((img) => img.fileName === fileName);
+					return image ? image.storagePath : `${projectId}/${folder}/${fileName}`;
+				})
+				.filter(Boolean) as string[];
+
+			const { error } = await supabase.storage.from(orgId).remove(filePaths);
+
+			if (error) {
+				console.error("[ProjectMediaUpload] Error deleting files:", error);
+				alert(
+					`Failed to delete files: ${
+						(error as any).message || JSON.stringify(error)
+					}`
+				);
+				setDeleting(false);
+				return;
+			}
+
+			setImages((prev) =>
+				prev.filter((img) => !fileNames.includes(img.fileName))
+			);
+
+			setSelected((prev) => {
+				const next = new Set(prev);
+				fileNames.forEach((name) => next.delete(name));
+				return next;
+			});
+
+			setImageUrls((prev) => {
+				const next = { ...prev };
+				filePaths.forEach((path) => {
+					delete next[path];
+				});
+				return next;
+			});
+
+			setTimeout(async () => {
+				await loadImages();
+			}, 300);
+		} catch (error) {
+			console.error(
+				"[ProjectMediaUpload] Exception during deletion:",
+				error
+			);
+			alert(
+				`Failed to delete files: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`
+			);
+		} finally {
+			setDeleting(false);
+		}
+	};
+
+	const handleDeleteImage = async (
+		fileName: string,
+		folder: "site-images" | "architectural-diagrams"
+	) => {
+		await handleDeleteMultipleImages([fileName], folder);
+	};
+
+	const handleToggleSelect = (
+		fileName: string,
+		folder: "site-images" | "architectural-diagrams"
+	) => {
+		if (disabled) return;
+
+		const isSiteImages = folder === "site-images";
+		const setSelected = isSiteImages
+			? setSelectedSiteImages
+			: setSelectedDiagrams;
+
+		setSelected((prev) => {
+			const next = new Set(prev);
+			if (next.has(fileName)) {
+				next.delete(fileName);
+			} else {
+				next.add(fileName);
+			}
+			return next;
+		});
+	};
+
+	const handleSelectAll = (
+		folder: "site-images" | "architectural-diagrams"
+	) => {
+		if (disabled) return;
+
+		const isSiteImages = folder === "site-images";
+		const images = isSiteImages ? siteImages : architecturalDiagrams;
+		const setSelected = isSiteImages
+			? setSelectedSiteImages
+			: setSelectedDiagrams;
+		const selected = isSiteImages ? selectedSiteImages : selectedDiagrams;
+
+		if (selected.size === images.length) {
+			setSelected(new Set());
+		} else {
+			setSelected(new Set(images.map((img) => img.fileName)));
+		}
+	};
+
+	const getImageUrl = (storagePath: string) => {
+		return imageUrls[storagePath] || null;
+	};
+
+	if (!orgId || !projectId) {
+		return (
+			<div className="text-sm text-gray-500">
+				Project media is unavailable until an organization and project are
+				fully initialized.
+			</div>
+		);
+	}
+
+	if (loading) {
+		return (
+			<div className="flex items-center justify-center py-8 text-gray-500 gap-2">
+				<Loader2 className="h-5 w-5 animate-spin" />
+				<span>Loading images...</span>
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-8">
+			<FormGroup>
+				<div className="flex items-center justify-between mb-2">
+					<label className="block text-sm font-medium text-gray-700">
+						Site Images
+					</label>
+					{siteImages.length > 0 && !disabled && (
+						<div className="flex items-center gap-2">
+							<button
+								type="button"
+								onClick={() => handleSelectAll("site-images")}
+								className="text-xs text-blue-600 hover:text-blue-700"
+							>
+								{selectedSiteImages.size === siteImages.length
+									? "Deselect All"
+									: "Select All"}
+							</button>
+							{selectedSiteImages.size > 0 && (
+								<button
+									type="button"
+									onClick={() =>
+										handleDeleteMultipleImages(
+											Array.from(selectedSiteImages),
+											"site-images"
+										)
+									}
+									disabled={deleting}
+									className={cn(
+										"text-xs text-red-600 hover:text-red-700 font-medium",
+										deleting && "opacity-50 cursor-not-allowed"
+									)}
+								>
+									{deleting
+										? "Deleting..."
+										: `Delete Selected (${selectedSiteImages.size})`}
+								</button>
+							)}
+						</div>
+					)}
+				</div>
+				<div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+					<input
+						type="file"
+						accept="image/*,application/pdf"
+						multiple
+						onChange={(e) =>
+							handleFileUpload(e.target.files, "site-images")
+						}
+						disabled={disabled || uploadingSite}
+						className="hidden"
+						id="site-images-upload"
+					/>
+					<label
+						htmlFor="site-images-upload"
+						className={cn(
+							"flex flex-col items-center justify-center cursor-pointer",
+							(disabled || uploadingSite) &&
+								"opacity-50 cursor-not-allowed"
+						)}
+					>
+						<Upload className="h-8 w-8 text-gray-400 mb-2" />
+						<span className="text-sm text-gray-600">
+							{uploadingSite
+								? "Uploading..."
+								: "Click to upload site images"}
+						</span>
+					</label>
+				</div>
+				{siteImages.length > 0 && (
+					<div className="max-h-96 overflow-y-auto mt-4 pr-2">
+						<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+							{siteImages.map((image) => {
+								const imageUrl = getImageUrl(image.storagePath);
+								const isSelected = selectedSiteImages.has(
+									image.fileName
+								);
+								return (
+									<div
+										key={image.storagePath}
+										className={cn(
+											"relative group border-2 rounded-lg transition-all",
+											isSelected
+												? "border-blue-500 ring-2 ring-blue-200"
+												: "border-gray-200"
+										)}
+										onClick={() =>
+											handleToggleSelect(
+												image.fileName,
+												"site-images"
+											)
+										}
+									>
+										{!disabled && (
+											<div className="absolute top-2 left-2 z-10">
+												<input
+													type="checkbox"
+													checked={isSelected}
+													onChange={() =>
+														handleToggleSelect(
+															image.fileName,
+															"site-images"
+														)
+													}
+													onClick={(e) =>
+														e.stopPropagation()
+													}
+													className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+												/>
+											</div>
+										)}
+										{image.source === "artifacts" &&
+											image.documentName && (
+												<div className="absolute top-2 right-2 z-10 group/tooltip">
+													<FileTextIcon className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
+													<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+														<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+															From:{" "}
+															{
+																image.documentName
+															}
+															<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+														</div>
+													</div>
+												</div>
+											)}
+										{imageUrl ? (
+											<div className="relative w-full h-32 rounded-lg overflow-hidden">
+												<Image
+													src={imageUrl}
+													alt={image.fileName}
+													fill
+													sizes="(max-width: 768px) 50vw, 25vw"
+													className="object-cover"
+												/>
+											</div>
+										) : (
+											<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+												<Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+											</div>
+										)}
+										{!disabled && !deleting && (
+											<button
+												type="button"
+												onClick={(e) => {
+													e.stopPropagation();
+													handleDeleteImage(
+														image.fileName,
+														"site-images"
+													);
+												}}
+												className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+											>
+												<X className="h-4 w-4" />
+											</button>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				)}
+			</FormGroup>
+
+			<FormGroup>
+				<div className="flex items-center justify-between mb-2">
+					<label className="block text-sm font-medium text-gray-700">
+						Architectural Diagrams
+					</label>
+					{architecturalDiagrams.length > 0 && !disabled && (
+						<div className="flex items-center gap-2">
+							<button
+								type="button"
+								onClick={() =>
+									handleSelectAll("architectural-diagrams")
+								}
+								className="text-xs text-blue-600 hover:text-blue-700"
+							>
+								{selectedDiagrams.size ===
+								architecturalDiagrams.length
+									? "Deselect All"
+									: "Select All"}
+							</button>
+							{selectedDiagrams.size > 0 && (
+								<button
+									type="button"
+									onClick={() =>
+										handleDeleteMultipleImages(
+											Array.from(selectedDiagrams),
+											"architectural-diagrams"
+										)
+									}
+									disabled={deleting}
+									className={cn(
+										"text-xs text-red-600 hover:text-red-700 font-medium",
+										deleting && "opacity-50 cursor-not-allowed"
+									)}
+								>
+									{deleting
+										? "Deleting..."
+										: `Delete Selected (${selectedDiagrams.size})`}
+								</button>
+							)}
+						</div>
+					)}
+				</div>
+				<div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+					<input
+						type="file"
+						accept="image/*,application/pdf"
+						multiple
+						onChange={(e) =>
+							handleFileUpload(
+								e.target.files,
+								"architectural-diagrams"
+							)
+						}
+						disabled={disabled || uploadingDiagrams}
+						className="hidden"
+						id="architectural-diagrams-upload"
+					/>
+					<label
+						htmlFor="architectural-diagrams-upload"
+						className={cn(
+							"flex flex-col items-center justify-center cursor-pointer",
+							(disabled || uploadingDiagrams) &&
+								"opacity-50 cursor-not-allowed"
+						)}
+					>
+						<Upload className="h-8 w-8 text-gray-400 mb-2" />
+						<span className="text-sm text-gray-600">
+							{uploadingDiagrams
+								? "Uploading..."
+								: "Click to upload architectural images or PDFs"}
+						</span>
+					</label>
+				</div>
+				{architecturalDiagrams.length > 0 && (
+					<div className="max-h-96 overflow-y-auto mt-4 pr-2">
+						<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+							{architecturalDiagrams.map((image) => {
+								const imageUrl = getImageUrl(image.storagePath);
+								const isSelected = selectedDiagrams.has(
+									image.fileName
+								);
+								return (
+									<div
+										key={image.storagePath}
+										className={cn(
+											"relative group border-2 rounded-lg transition-all",
+											isSelected
+												? "border-blue-500 ring-2 ring-blue-200"
+												: "border-gray-200"
+										)}
+										onClick={() =>
+											handleToggleSelect(
+												image.fileName,
+												"architectural-diagrams"
+											)
+										}
+									>
+										{!disabled && (
+											<div className="absolute top-2 left-2 z-10">
+												<input
+													type="checkbox"
+													checked={isSelected}
+													onChange={() =>
+														handleToggleSelect(
+															image.fileName,
+															"architectural-diagrams"
+														)
+													}
+													onClick={(e) =>
+														e.stopPropagation()
+													}
+													className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+												/>
+											</div>
+										)}
+										{image.source === "artifacts" &&
+											image.documentName && (
+												<div className="absolute top-2 right-2 z-10 group/tooltip">
+													<FileTextIcon className="h-4 w-4 text-blue-500 bg-white rounded-full p-0.5 shadow-sm" />
+													<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+														<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
+															From:{" "}
+															{
+																image.documentName
+															}
+															<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
+														</div>
+													</div>
+												</div>
+											)}
+										{imageUrl ? (
+											<div className="relative w-full h-32 rounded-lg overflow-hidden">
+												<Image
+													src={imageUrl}
+													alt={image.fileName}
+													fill
+													sizes="(max-width: 768px) 50vw, 25vw"
+													className="object-cover"
+												/>
+											</div>
+										) : (
+											<div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center">
+												<Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+											</div>
+										)}
+										{!disabled && !deleting && (
+											<button
+												type="button"
+												onClick={(e) => {
+													e.stopPropagation();
+													handleDeleteImage(
+														image.fileName,
+														"architectural-diagrams"
+													);
+												}}
+												className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+											>
+												<X className="h-4 w-4" />
+											</button>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				)}
+			</FormGroup>
+		</div>
+	);
+};
+
 const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	existingProject,
 	onComplete,
@@ -298,6 +950,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	initialFocusFieldId,
 	onVersionChange,
 }) => {
+	const { activeOrg } = useAuthStore();
 	// 1. Initialize state with sanitized data
 	const [formData, setFormData] = useState<ProjectProfile>(
 		sanitizeProjectProfile(existingProject)
@@ -911,6 +1564,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 			setFormSaved(true);
 			isSavingRef.current = true;
+
+			// Signal to realtime hooks that this is a local save
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("local-save-started", {
+						detail: { projectId: finalData.id, context: "project" },
+					})
+				);
+			}
+
 			try {
 				await saveProjectResume(finalData.id, finalData, {
 					createNewVersion,
@@ -1016,6 +1679,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				_lockedFields: lockedFieldsObj,
 			};
 
+			// Signal to realtime hooks that this is a local save
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("local-save-started", {
+						detail: { projectId: dataToSave.id, context: "project" },
+					})
+				);
+			}
+
 			// Fire and forget save on unmount. We always create a new version
 			// here when dirty, since this represents an exit with draft changes.
 			void saveProjectResume(dataToSave.id, dataToSave, {
@@ -1074,6 +1746,204 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			window.removeEventListener("beforeunload", handleBeforeUnload);
 		};
 	}, [hasUnsavedChanges]);
+
+	// Derived / calculated fields
+	// - incentiveStacking: concatenated labels of enabled incentives
+	// - targetLtvPercent: (loanAmountRequested / stabilizedValue) * 100
+	// - targetLtcPercent: (loanAmountRequested / totalDevelopmentCost) * 100
+	// - totalCommercialGRSF: sum of commercialSpaceMix.squareFootage
+	// - studioCount / oneBedCount / twoBedCount / threeBedCount: derived from residentialUnitMix
+	useEffect(() => {
+		setFormData((prev) => {
+			let changed = false;
+			const next: ProjectProfile = { ...prev };
+
+			const normalizeNumber = (v: any): number | null => {
+				if (typeof v !== "number" || Number.isNaN(v)) return null;
+				return v;
+			};
+
+			// 1) incentiveStacking – only update when not locked
+			if (!lockedFields.has("incentiveStacking")) {
+				const activeLabels = INCENTIVE_LABELS.filter(({ key }) => {
+					const flag = (prev as any)[key];
+					return flag === true;
+				}).map((item) => item.label);
+				const derived =
+					activeLabels.length > 0 ? activeLabels.join(", ") : null;
+				const current =
+					(prev as any).incentiveStacking === undefined
+						? null
+						: (prev as any).incentiveStacking;
+				// Allow both string and string[] legacy shapes
+				const currentStr =
+					Array.isArray(current) && current.length > 0
+						? current.join(", ")
+						: typeof current === "string"
+						? current
+						: null;
+				if (currentStr !== (derived ?? null)) {
+					(next as any).incentiveStacking =
+						derived === null ? undefined : derived;
+					changed = true;
+				}
+			}
+
+			// 2) targetLtvPercent
+			if (!lockedFields.has("targetLtvPercent")) {
+				const loanAmt = normalizeNumber(prev.loanAmountRequested);
+				const stabilizedVal = normalizeNumber(prev.stabilizedValue);
+				const derived =
+					loanAmt && stabilizedVal && stabilizedVal !== 0
+						? (loanAmt / stabilizedVal) * 100
+						: null;
+				const current = normalizeNumber(prev.targetLtvPercent);
+				if (
+					(current === null && derived !== null) ||
+					(current !== null && derived === null) ||
+					(current !== null &&
+						derived !== null &&
+						Math.abs(current - derived) > 0.0001)
+				) {
+					next.targetLtvPercent = derived === null ? undefined : derived;
+					changed = true;
+				}
+			}
+
+			// 3) targetLtcPercent
+			if (!lockedFields.has("targetLtcPercent")) {
+				const loanAmt = normalizeNumber(prev.loanAmountRequested);
+				const tdc = normalizeNumber(prev.totalDevelopmentCost);
+				const derived =
+					loanAmt && tdc && tdc !== 0 ? (loanAmt / tdc) * 100 : null;
+				const current = normalizeNumber(prev.targetLtcPercent);
+				if (
+					(current === null && derived !== null) ||
+					(current !== null && derived === null) ||
+					(current !== null &&
+						derived !== null &&
+						Math.abs(current - derived) > 0.0001)
+				) {
+					next.targetLtcPercent = derived === null ? undefined : derived;
+					changed = true;
+				}
+			}
+
+			// 4) totalCommercialGRSF – sum of commercialSpaceMix.squareFootage
+			if (!lockedFields.has("totalCommercialGRSF")) {
+				const mix = Array.isArray(prev.commercialSpaceMix)
+					? prev.commercialSpaceMix
+					: [];
+				const sum = mix.reduce((acc, row) => {
+					const sf =
+						row && typeof row.squareFootage === "number"
+							? row.squareFootage
+							: 0;
+					return acc + (Number.isNaN(sf) ? 0 : sf);
+				}, 0);
+				const derived = sum > 0 ? sum : null;
+				const current = normalizeNumber(prev.totalCommercialGRSF);
+				if (
+					(current === null && derived !== null) ||
+					(current !== null && derived === null) ||
+					(current !== null && derived !== null && current !== derived)
+				) {
+					next.totalCommercialGRSF =
+						derived === null ? undefined : derived;
+					changed = true;
+				}
+			}
+
+			// 5) Unit mix counts from residentialUnitMix
+			const mix = Array.isArray(prev.residentialUnitMix)
+				? prev.residentialUnitMix
+				: [];
+
+			const computeUnitsForMatcher = (
+				matcher: (unitType: string) => boolean
+			): number | null => {
+				let total = 0;
+				for (const row of mix) {
+					if (!row || typeof row.unitType !== "string") continue;
+					const name = row.unitType.toLowerCase();
+					if (!matcher(name)) continue;
+					const count =
+						typeof row.unitCount === "number" &&
+						!Number.isNaN(row.unitCount)
+							? row.unitCount
+							: 1;
+					total += count;
+				}
+				return total > 0 ? total : null;
+			};
+
+			const isStudio = (name: string) => name.includes("studio");
+			const isOneBed = (name: string) =>
+				name.includes("1br") ||
+				name.includes("1 br") ||
+				name.includes("one bed") ||
+				name.includes("1-bed") ||
+				name.includes("1 bed");
+			const isTwoBed = (name: string) =>
+				name.includes("2br") ||
+				name.includes("2 br") ||
+				name.includes("two bed") ||
+				name.includes("2-bed") ||
+				name.includes("2 bed");
+			const isThreeBed = (name: string) =>
+				name.includes("3br") ||
+				name.includes("3 br") ||
+				name.includes("three bed") ||
+				name.includes("3-bed") ||
+				name.includes("3 bed");
+
+			const derivedStudio = computeUnitsForMatcher(isStudio);
+			const derivedOne = computeUnitsForMatcher(isOneBed);
+			const derivedTwo = computeUnitsForMatcher(isTwoBed);
+			const derivedThree = computeUnitsForMatcher(isThreeBed);
+
+			const maybeSetCount = (
+				fieldId:
+					| "studioCount"
+					| "oneBedCount"
+					| "twoBedCount"
+					| "threeBedCount",
+				derived: number | null
+			) => {
+				if (lockedFields.has(fieldId)) return;
+				const current = normalizeNumber((prev as any)[fieldId]);
+				if (
+					(current === null && derived !== null) ||
+					(current !== null && derived === null) ||
+					(current !== null && derived !== null && current !== derived)
+				) {
+					(next as any)[fieldId] = derived === null ? undefined : derived;
+					changed = true;
+				}
+			};
+
+			maybeSetCount("studioCount", derivedStudio);
+			maybeSetCount("oneBedCount", derivedOne);
+			maybeSetCount("twoBedCount", derivedTwo);
+			maybeSetCount("threeBedCount", derivedThree);
+
+			return changed ? next : prev;
+		});
+	}, [
+		lockedFields,
+		formData.loanAmountRequested,
+		formData.stabilizedValue,
+		formData.totalDevelopmentCost,
+		formData.commercialSpaceMix,
+		formData.residentialUnitMix,
+		formData.opportunityZone,
+		formData.taxExemption,
+		formData.tifDistrict,
+		formData.taxAbatement,
+		formData.paceFinancing,
+		formData.historicTaxCredits,
+		formData.newMarketsCredits,
+	]);
 
 	type ControlKind =
 		| "input"
@@ -1213,6 +2083,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const renderDynamicField = useCallback(
 		(fieldId: string, sectionId: string) => {
+			// Remove duplicate fields from frontend to avoid confusion
+			if (fieldId === "totalProjectCost" || fieldId === "requestedTerm") {
+				return null;
+			}
+
 			const fieldConfig =
 				(formSchema as any).fields?.[fieldId] ?? ({} as any);
 			const label: string = fieldConfig.label ?? fieldId;
@@ -1767,6 +2642,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
 															Residential Unit Mix
 														</h4>
+														{isFieldRequiredFromSchema(
+															"residentialUnitMix"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
 														<FieldHelpTooltip
 															fieldId="residentialUnitMix"
 															fieldMetadata={
@@ -2145,6 +3027,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
 															Commercial Space Mix
 														</h4>
+														{isFieldRequiredFromSchema(
+															"commercialSpaceMix"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
 														<FieldHelpTooltip
 															fieldId="commercialSpaceMix"
 															fieldMetadata={
@@ -2520,6 +3409,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
 														Draw Schedule
 													</h4>
+													{isFieldRequiredFromSchema(
+														"drawSchedule"
+													) && (
+														<span className="text-red-500 ml-1">
+															*
+														</span>
+													)}
 													<FieldHelpTooltip
 														fieldId="drawSchedule"
 														fieldMetadata={
@@ -2834,6 +3730,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
 														Rent Comparables
 													</h4>
+													{isFieldRequiredFromSchema(
+														"rentComps"
+													) && (
+														<span className="text-red-500 ml-1">
+															*
+														</span>
+													)}
 													<FieldHelpTooltip
 														fieldId="rentComps"
 														fieldMetadata={
@@ -3291,6 +4194,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 											</div>
 										</div>
 									)}
+
+								{sectionId === "site-context" &&
+									subsectionId === "project-media" && (
+										<div className="mt-2">
+											<h4 className="text-sm font-semibold text-gray-800 mb-3">
+												Project Media
+											</h4>
+											<ProjectMediaUpload
+												projectId={formData.id}
+												orgId={activeOrg?.id || null}
+												disabled={false}
+											/>
+										</div>
+									)}
 							</div>
 						)}
 					</div>
@@ -3341,6 +4258,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		isSubsectionFullyLocked,
 		toggleSubsectionLock,
 		formData,
+		activeOrg?.id,
+		isFieldRequiredFromSchema,
 		fieldMetadata,
 	]);
 
@@ -3361,6 +4280,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				_metadata: fieldMetadata,
 				_lockedFields: lockedFieldsObj,
 			};
+
+			// Signal to realtime hooks that this is a local save (before autofill)
+			if (typeof window !== "undefined") {
+				window.dispatchEvent(
+					new CustomEvent("local-save-started", {
+						detail: { projectId: dataToSave.id, context: "project" },
+					})
+				);
+			}
 
 			try {
 				await saveProjectResume(dataToSave.id, dataToSave, {

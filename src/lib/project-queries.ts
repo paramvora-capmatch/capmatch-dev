@@ -390,14 +390,13 @@ function convertToBorrowerSectionWise(flatContent: any): any {
 			continue;
 		}
 		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
-		if (sectionId) {
-			if (!sectionWise[sectionId]) sectionWise[sectionId] = {};
-			sectionWise[sectionId][fieldId] = fieldValue;
-		} else {
-			if (!sectionWise["section_other"])
-				sectionWise["section_other"] = {};
-			sectionWise["section_other"][fieldId] = fieldValue;
-		}
+		// If we don't have a section mapping for this field, drop it from the
+		// grouped structure entirely. These are legacy/unused fields (like
+		// the old per-principal fields) that we no longer want to persist.
+		if (!sectionId) continue;
+
+		if (!sectionWise[sectionId]) sectionWise[sectionId] = {};
+		sectionWise[sectionId][fieldId] = fieldValue;
 	}
 	return sectionWise;
 }
@@ -425,13 +424,13 @@ function mergeIntoBorrowerSectionWise(
 			continue;
 		}
 		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
-		if (sectionId) {
-			if (!merged[sectionId]) merged[sectionId] = {};
-			merged[sectionId][fieldId] = fieldValue;
-		} else {
-			if (!merged["section_other"]) merged["section_other"] = {};
-			merged["section_other"][fieldId] = fieldValue;
-		}
+		// Unknown/legacy fields (no section mapping) are dropped rather than
+		// being placed in a catch-all section. This prevents re-creating
+		// deprecated principal sub-fields on save.
+		if (!sectionId) continue;
+
+		if (!merged[sectionId]) merged[sectionId] = {};
+		merged[sectionId][fieldId] = fieldValue;
 	}
 	return merged;
 }
@@ -1019,7 +1018,29 @@ export const getProjectBorrowerResume = async (
 		};
 	}
 
-	return content as BorrowerResumeContent;
+	// Unwrap rich values if present (handle cases where DB returns { value, source, ... })
+	const unwrappedContent: any = {};
+
+	for (const key in content) {
+		const val = (content as any)[key];
+		if (
+			val &&
+			typeof val === "object" &&
+			!Array.isArray(val) &&
+			"value" in val &&
+			key !== "_metadata" &&
+			key !== "_lockedFields" &&
+			key !== "_fieldStates" &&
+			key !== "borrowerSections" &&
+			key !== "projectSections"
+		) {
+			unwrappedContent[key] = (val as any).value;
+		} else {
+			unwrappedContent[key] = val;
+		}
+	}
+
+	return unwrappedContent as BorrowerResumeContent;
 };
 
 /**

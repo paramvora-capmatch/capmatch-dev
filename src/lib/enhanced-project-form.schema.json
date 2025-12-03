@@ -514,6 +514,11 @@
             "utilityAvailability",
             "easements"
           ]
+        },
+        {
+          "id": "project-media",
+          "title": "7.5 Project Media (Site Images & Plans)",
+          "fields": []
         }
       ],
       "fields": [
@@ -702,7 +707,7 @@
     },
     "totalProjectCost": {
       "label": "Total Project Cost ($)",
-      "required": true
+      "required": false
     },
     "capexBudget": {
       "label": "CapEx Budget ($)",
@@ -814,11 +819,11 @@
     },
     "dscrStressTest": {
       "label": "DSCR Stress Test",
-      "required": true
+      "required": false
     },
     "inflationAssumption": {
       "label": "Inflation Assumption",
-      "required": true
+      "required": false
     },
     "portfolioLTV": {
       "label": "Portfolio LTV",
@@ -830,7 +835,7 @@
     },
     "untrendedNOIYear1": {
       "label": "Untrended NOI (Yr 1)",
-      "required": true
+      "required": false
     },
     "trendedYield": {
       "label": "Trended Yield",
@@ -838,7 +843,7 @@
     },
     "untrendedYield": {
       "label": "Untrended Yield",
-      "required": true
+      "required": false
     },
     "portfolioDSCR": {
       "label": "Portfolio DSCR",
@@ -1226,7 +1231,7 @@
     },
     "substantialComp": {
       "label": "Substantial Comp",
-      "required": true
+      "required": false
     },
     "preLeasedSF": {
       "label": "Pre-Leased SF",
@@ -1358,11 +1363,27 @@
     },
     "netWorth": {
       "label": "Guarantor Net Worth",
-      "required": false
+      "required": true
     },
     "guarantorLiquidity": {
       "label": "Guarantor Liquidity",
       "required": true
+    },
+    "residentialUnitMix": {
+      "label": "Residential Unit Mix",
+      "required": false
+    },
+    "commercialSpaceMix": {
+      "label": "Commercial Space Mix",
+      "required": false
+    },
+    "drawSchedule": {
+      "label": "Draw Schedule",
+      "required": false
+    },
+    "rentComps": {
+      "label": "Rent Comparables",
+      "required": false
     }
   }
 }

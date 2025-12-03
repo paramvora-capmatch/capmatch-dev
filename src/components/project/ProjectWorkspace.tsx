@@ -504,32 +504,31 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const renderBorrowerResumeSection = () => (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-full">
-        <BorrowerResumeForm
-          projectId={projectId}
-          progressPercent={borrowerProgress}
-          onProgressChange={(percent) => setBorrowerProgress(percent)}
-          onFormDataChange={(data) => setBorrowerResumeSnapshot(data)}
-          onComplete={(profile) => {
-            setBorrowerResumeSnapshot(profile || null);
-            void reloadBorrowerResume();
-            setBorrowerEditing(false);
-            // Refresh project store to update progress in dashboard and project cards
-            void loadUserProjects();
-          }}
-          onAskAI={(fieldId) => {
-            setActiveFieldId(fieldId);
-            void borrowerAskAi.activateField(fieldId, { autoSend: true });
-            setChatTab("ai");
-            setShouldExpandChat(true);
-            setTimeout(() => setShouldExpandChat(false), 100);
-          }}
-          onCopyBorrowerResume={() => {
-            setCopyError(null);
-            setCopyModalOpen(true);
-          }}
-          copyDisabled={templateOptions.length === 0 || isCopyingBorrower}
-          copyLoading={isCopyingBorrower}
-        />
+      <BorrowerResumeForm
+        projectId={projectId}
+        progressPercent={borrowerProgress}
+        onProgressChange={(percent) => setBorrowerProgress(percent)}
+        onFormDataChange={(data) => setBorrowerResumeSnapshot(data)}
+        onComplete={(profile) => {
+          setBorrowerResumeSnapshot(profile || null);
+          void reloadBorrowerResume();
+          // Refresh project store to update progress in dashboard and project cards
+          void loadUserProjects();
+        }}
+        onAskAI={(fieldId) => {
+          setActiveFieldId(fieldId);
+          void borrowerAskAi.activateField(fieldId, { autoSend: true });
+          setChatTab("ai");
+          setShouldExpandChat(true);
+          setTimeout(() => setShouldExpandChat(false), 100);
+        }}
+        onCopyBorrowerResume={() => {
+          setCopyError(null);
+          setCopyModalOpen(true);
+        }}
+        copyDisabled={templateOptions.length === 0 || isCopyingBorrower}
+        copyLoading={isCopyingBorrower}
+      />
     </div>
   );
 
