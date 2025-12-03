@@ -216,6 +216,19 @@ export function ungroupFromSections(
 	const flat: Record<string, any> = {};
 
 	for (const [sectionKey, sectionData] of Object.entries(groupedData)) {
+		// Preserve metadata/root keys as-is rather than flattening them.
+		// Keys like `_lockedFields`, `_fieldStates`, `_metadata`, and
+		// `completenessPercent` should remain at the top level. If we
+		// flatten `_lockedFields`, for example, we end up with
+		// `{ contactEmail: true, ... }` which can corrupt snapshot content.
+		if (
+			sectionKey.startsWith("_") ||
+			sectionKey === "completenessPercent"
+		) {
+			flat[sectionKey] = sectionData;
+			continue;
+		}
+
 		if (
 			sectionData &&
 			typeof sectionData === "object" &&
