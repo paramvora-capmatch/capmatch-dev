@@ -50,7 +50,7 @@ export const completeProjectResume: ProjectResumeContent = {
   useOfProceeds: 'Acquisition of property and minor common area upgrades.',
   recoursePreference: 'Non-Recourse',
   purchasePrice: 75000000,
-  totalProjectCost: 77000000,
+  totalDevelopmentCost: 77000000,
   capexBudget: 2000000,
   propertyNoiT12: 3500000,
   stabilizedNoiProjected: 4000000,
@@ -84,7 +84,7 @@ export const partialProjectResume: ProjectResumeContent = {
   useOfProceeds: 'Land acquisition and construction costs.',
   recoursePreference: 'Partial Recourse',
   purchasePrice: 1500000, // Land cost
-  totalProjectCost: 10000000,
+  totalDevelopmentCost: 10000000,
   capexBudget: 8500000, // Construction cost
   propertyNoiT12: 0, // Pre-development
   stabilizedNoiProjected: 800000, // Projected

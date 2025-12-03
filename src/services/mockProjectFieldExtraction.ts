@@ -167,7 +167,6 @@ export const extractProjectFields = async (
 			loanAmountRequested: createField(18000000, "Sources & Uses"),
 			loanType: createField("Construction Loan", "Term Sheet"),
 			requestedLoanTerm: createField("2 years", "Term Sheet"),
-			requestedTerm: createField("3 Years + 1 Year Ext", "Term Sheet"),
 			masterPlanName: createField(
 				"SoGood Master Planned Development",
 				"Marketing Brochure"
@@ -191,7 +190,7 @@ export const extractProjectFields = async (
 			totalResidentialUnits: createField(116, "Sum of Unit Mix"),
 			totalResidentialNRSF: createField(59520, "Sum of Unit SF"),
 			averageUnitSize: createField(513, "NRSF / Units"),
-			totalCommercialGRSF: createField(49569, "Arch Plans"),
+			totalCommercialGRSF: createField(49569, "Sum of commercialSpaceMix.squareFootage"),
 			grossBuildingArea: createField(127406, "Arch Plans"),
 			numberOfStories: createField(6, "Elevations"),
 			buildingType: createField("Mid-rise", "Arch Plans"),
@@ -204,10 +203,10 @@ export const extractProjectFields = async (
 			),
 			amenitySF: createField(8500, "Sum of Areas"),
 			buildingEfficiency: createField(null, "User Input"), // Empty field 1
-			studioCount: createField(12, "Arch Plans"),
-			oneBedCount: createField(46, "Arch Plans"),
-			twoBedCount: createField(58, "Arch Plans"),
-			threeBedCount: createField(0, "Arch Plans"),
+			studioCount: createField(12, "Derived from residentialUnitMix"),
+			oneBedCount: createField(46, "Derived from residentialUnitMix"),
+			twoBedCount: createField(58, "Derived from residentialUnitMix"),
+			threeBedCount: createField(0, "Derived from residentialUnitMix"),
 			furnishedUnits: createField(null, "User Input"), // Empty field 2
 			lossToLease: createField(5.0, "Rent Roll"),
 			adaCompliantUnitsPercent: createField(5.0, "Arch Plans"),
@@ -316,8 +315,8 @@ export const extractProjectFields = async (
 			permTakeoutPlanned: createField(true, "Term Sheet"),
 			allInRate: createField(7.2, "Term Sheet"),
 			// Legacy Financial Fields
-			targetLtvPercent: createField(43.7, "Loan / Value"),
-			targetLtcPercent: createField(60.4, "Loan / TDC"),
+			targetLtvPercent: createField(43.7, "Loan / Stabilized Value"),
+			targetLtcPercent: createField(60.4, "Loan / Total Development Cost"),
 			amortizationYears: createField(30, "Term Sheet"),
 			interestOnlyPeriodMonths: createField(24, "Term Sheet"),
 			interestRateType: createField("Fixed", "Term Sheet"),
@@ -328,7 +327,6 @@ export const extractProjectFields = async (
 			),
 			recoursePreference: createField("Full Recourse", "Term Sheet"),
 			purchasePrice: createField(3500000, "Purchase Agmt"),
-			totalProjectCost: createField(29807800, "Sum of Budget"),
 			totalDevelopmentCost: createField(29807800, "Sum of Budget"), // TDC - also in section_1
 			capexBudget: createField(450000, "Budget"),
 			propertyNoiT12: createField(0, "N/A - New Construction"),
@@ -347,7 +345,6 @@ export const extractProjectFields = async (
 			// Additional fields that should be in section_3
 			loanAmountRequested: createField(18000000, "Sources & Uses"), // Also in section_1
 			loanType: createField("Construction Loan", "Term Sheet"), // Also in section_1
-			requestedTerm: createField("3 Years + 1 Year Ext", "Term Sheet"), // Also in section_1
 			expectedHoldPeriod: createField(5, "Inv. Memo"), // Also in section_1
 			ltvStressMax: createField(50.0, "Underwriting Parameters"), // Also in section_1
 			dscrStressMin: createField(1.1, "Underwriting Parameters"), // Also in section_1
