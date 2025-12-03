@@ -295,7 +295,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		const metadata = (sanitized as any)._metadata || {};
 		setFieldMetadata(metadata);
 
-		// Update locks based on source
+		// Update locks based on sources (AI vs user input)
 		const newLockedFields = new Set(
 			Object.keys((borrowerResume as any)._lockedFields || {}).filter(
 				(k) => (borrowerResume as any)._lockedFields?.[k]
@@ -305,8 +305,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		Object.entries(metadata).forEach(([fieldId, meta]) => {
 			const metaAny = meta as any;
 
-			// Prefer detailed "sources" array when available
-			let isAiSourced =
+			// Determine if field is AI-sourced based on its sources array
+			const isAiSourced =
 				Array.isArray(metaAny?.sources) &&
 				metaAny.sources.some((src: any) => {
 					if (!src) return false;
@@ -330,25 +330,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					}
 					return false;
 				});
-
-			// Fallback: some pipelines only populate a single "source" field
-			if (!isAiSourced && metaAny?.source) {
-				if (typeof metaAny.source === "string") {
-					const normalized = metaAny.source.toLowerCase();
-					isAiSourced =
-						normalized !== "user_input" &&
-						normalized !== "user input";
-				} else if (
-					typeof metaAny.source === "object" &&
-					"type" in metaAny.source &&
-					typeof metaAny.source.type === "string"
-				) {
-					const normalized = metaAny.source.type.toLowerCase();
-					isAiSourced =
-						normalized !== "user_input" &&
-						normalized !== "user input";
-				}
-			}
 
 			const hasValue = isValueProvided((sanitized as any)[fieldId]);
 			if (isAiSourced && hasValue) {
@@ -484,8 +465,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				[fieldId]: {
 					...currentMeta,
 					value: value,
+					// Always record user edits as user_input in the sources array
 					sources: [{ type: "user_input" }],
-					original_source: null,
 				},
 			};
 		});
