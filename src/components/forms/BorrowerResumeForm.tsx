@@ -647,7 +647,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			};
 
 			void saveProjectBorrowerResume(projectId, dataToSave, {
-				createNewVersion: true,
+				// Background autosave on unmount should NOT create a new
+				// borrower_resumes version row every time. Persist changes
+				// in-place instead to avoid cluttering history with
+				// minor/autosave-only snapshots.
+				createNewVersion: false,
 			})
 				.then(() => {
 					if (typeof window !== "undefined") {
