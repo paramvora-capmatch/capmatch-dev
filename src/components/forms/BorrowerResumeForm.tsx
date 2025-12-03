@@ -1666,8 +1666,22 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																							/>
 																						</td>
 																						<td className="px-3 py-2 align-middle">
-																							<ButtonSelect
-																								label=""
+																							<Select
+																								value={
+																									p.principalRoleDefault ||
+																									"Key Principal"
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handlePrincipalRowChange(
+																										idx,
+																										"principalRoleDefault",
+																										e
+																											.target
+																											.value as PrincipalRole
+																									)
+																								}
 																								options={principalRoleOptions.map(
 																									(
 																										o
@@ -1676,28 +1690,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																										value: o,
 																									})
 																								)}
-																								selectedValue={
-																									p.principalRoleDefault ||
-																									"Key Principal"
-																								}
-																								onSelect={(
-																									v
-																								) =>
-																									handlePrincipalRowChange(
-																										idx,
-																										"principalRoleDefault",
-																										v as PrincipalRole
-																									)
-																								}
 																								disabled={
 																									isLockedPrincipals
 																								}
-																								isLocked={
-																									isLockedPrincipals
-																								}
-																								isTouched={
-																									!!p.principalRoleDefault
-																								}
+																								className="w-40"
 																							/>
 																						</td>
 																						<td className="px-3 py-2 align-middle">
