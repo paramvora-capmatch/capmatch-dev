@@ -42,12 +42,19 @@ function createSourceMetadata(source: string): SourceMetadata {
 		"spaces / units",
 		"loan / value",
 		"loan / tdc",
+		"loan / stabilized value",
+		"loan / total development cost",
 		"noi /",
 		"egi -",
 		"trended /",
 		"untrended /",
 		"geo-calc",
 		"stress calc",
+		"derived",
+		"from residentialunitmix",
+		"from residential unit mix",
+		"from commercialspacemix",
+		"from commercial space mix",
 	];
 	if (derivedPatterns.some((pattern) => normalized.includes(pattern))) {
 		return {
