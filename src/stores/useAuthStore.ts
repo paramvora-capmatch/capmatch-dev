@@ -423,80 +423,16 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       });
 
       if (error) {
-        // If credentials are invalid, attempt onboarding as a new user.
-        // If the email already exists (e.g., same email with different password),
-        // we will treat that as "incorrect password for this account".
-        const initialErrorMessage = (error as any)?.message || String(error);
-        try {
-          const {
-            data: onboardData,
-            error: onboardError,
-          } = await supabase.functions.invoke("onboard-borrower", {
-            body: {
-              email,
-              password,
-              full_name: "New User",
-            },
-          });
+        const msg = (error as any)?.message || String(error);
 
-          if (onboardError) {
-            // Default to a generic, user-friendly message and then specialize.
-            let actualErrorMessage =
-              (onboardError as any)?.message || String(onboardError);
-
-            // If the edge function returned a JSON body with an `error` field,
-            // prefer that over the generic "Edge Function returned a non-2xx status code".
-            if (
-              onboardData &&
-              typeof onboardData === "object" &&
-              "error" in onboardData
-            ) {
-              const dataError = (onboardData as any).error;
-              actualErrorMessage =
-                typeof dataError === "string"
-                  ? dataError
-                  : JSON.stringify(dataError);
-            }
-
-            let friendlyMessage =
-              "Could not sign you in. Please try again in a moment.";
-
-            // If we know the account already exists but the initial password sign-in failed,
-            // this almost certainly means "wrong password for this email".
-            if (/already\s*(registered|exists)/i.test(actualErrorMessage)) {
-              friendlyMessage = "Incorrect password for this account.";
-            } else if (
-              /invalid login credentials/i.test(initialErrorMessage) ||
-              /invalid email or password/i.test(initialErrorMessage)
-            ) {
-              friendlyMessage = "Incorrect email or password.";
-            }
-
-            throw new Error(friendlyMessage);
-          }
-
-          if (!onboardData?.user) {
-            throw new Error(
-              "Could not complete sign-in or account creation. Please try again."
-            );
-          }
-
-          // After successful onboarding, sign the user in
-          const { error: postOnboardSignInError } =
-            await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
-          if (postOnboardSignInError) {
-            throw postOnboardSignInError;
-          }
-          // Auth listener will handle state update
-        } catch (fallbackErr) {
-          console.error("[Auth] Fallback onboarding flow failed:", fallbackErr);
-          throw fallbackErr;
+        // Map common Supabase auth errors to a clean, user-friendly message.
+        if (/invalid login credentials/i.test(msg)) {
+          throw new Error("Incorrect email or password.");
         }
+
+        throw new Error(msg || "Could not sign you in. Please try again.");
       }
-      // If no error, auth listener will handle state update
+      // If no error, auth listener + auth state change handler will update state.
     } catch (error) {
       console.error("[Auth] ❌ Sign in failed:", error);
       set({ isLoading: false });
