@@ -56,7 +56,6 @@ import {
 	projectResumeFieldMetadata,
 	FieldMetadata as ProjectFieldMeta,
 } from "@/lib/project-resume-field-metadata";
-import { normalizeSource } from "@/utils/sourceNormalizer";
 import { saveProjectResume } from "@/lib/project-queries";
 import { supabase } from "@/lib/supabaseClient";
 

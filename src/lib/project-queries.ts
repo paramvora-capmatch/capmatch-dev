@@ -960,29 +960,6 @@ export const saveProjectResume = async (
 	}
 };
 
-export const getProjectMessages = async (
-	threadId: string
-): Promise<ProjectMessage[]> => {
-	const { data: messages, error } = await supabase
-		.from("project_messages")
-		.select(
-			`id, thread_id, user_id, content, created_at, sender:profiles(id, full_name, email)`
-		)
-		.eq("thread_id", threadId)
-		.order("created_at", { ascending: true });
-
-	if (error) throw new Error(`Failed to fetch messages: ${error.message}`);
-	return (
-		messages?.map((msg: any) => ({
-			id: msg.id,
-			thread_id: msg.thread_id,
-			user_id: msg.user_id,
-			content: msg.content,
-			created_at: msg.created_at,
-		})) || []
-	);
-};
-
 // =============================================================================
 // Borrower Resume Functions
 // =============================================================================

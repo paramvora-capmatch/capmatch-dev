@@ -346,7 +346,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(`/project/om/${project.id}`);
+                  router.push(`/project/om/${project.id}/dashboard`);
                 }}
                 className="bg-green-600 hover:bg-green-700 text-white font-medium border-green-600"
               >

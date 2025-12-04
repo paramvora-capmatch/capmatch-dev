@@ -66,7 +66,7 @@ export const ProjectCompletionCard: React.FC<ProjectCompletionCardProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 if (isOmReady && project?.id) {
-                  router.push(`/project/om/${project.id}`);
+                  router.push(`/project/om/${project.id}/dashboard`);
                 }
               }}
               className={[
