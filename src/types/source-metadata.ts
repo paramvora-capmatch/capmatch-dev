@@ -29,8 +29,9 @@ export interface SourceMetadata {
  */
 export interface FieldExtractionData {
 	value: any;
-	source?: SourceMetadata | SourceMetadata[]; // Only structured format - no strings
+	source?: SourceMetadata; // Single source object (not array)
 	warnings?: string[];
+	other_values?: Array<{ value: any; source: SourceMetadata }>; // Alternative values from other sources
 }
 
 /**

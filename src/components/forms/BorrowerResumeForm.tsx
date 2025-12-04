@@ -206,8 +206,14 @@ const sanitizeBorrowerProfile = (
 				if (typeof meta.value === "boolean") {
 					meta.value = null;
 				}
-				if (typeof meta.original_value === "boolean") {
-					meta.original_value = null;
+				// Remove original_value (deprecated)
+				if ("original_value" in meta) {
+					delete meta.original_value;
+				}
+				// Convert sources array to single source (backward compatibility)
+				if (meta.sources && Array.isArray(meta.sources) && meta.sources.length > 0 && !meta.source) {
+					meta.source = meta.sources[0];
+					delete meta.sources;
 				}
 			}
 		}
@@ -453,26 +459,55 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		};
 	}, [projectId, reloadBorrowerResume]);
 
-	const handleInputChange = useCallback((fieldId: string, value: any) => {
+	const handleInputChange = useCallback(async (fieldId: string, value: any) => {
 		setFormData((prev) => ({ ...prev, [fieldId]: value }));
-		setFieldMetadata((prev) => {
-			const currentMeta = prev[fieldId] || {
-				value: value,
-				sources: [],
-				warnings: [],
-				original_value: value,
-			};
-			return {
+
+		// Get existing field metadata for realtime sanity check
+		const currentMeta = fieldMetadata[fieldId] || {
+			value: value,
+			source: null,
+			warnings: [],
+			other_values: [],
+		};
+
+		// Update metadata to mark source as User Input
+		const updatedMeta = {
+			...currentMeta,
+			value: value,
+			// Force source to user_input when edited manually
+			source: { type: "user_input" } as any,
+		};
+
+		setFieldMetadata((prev) => ({
+			...prev,
+			[fieldId]: updatedMeta,
+		}));
+
+		// Call realtime sanity check
+		try {
+			const { checkRealtimeSanity } = await import("@/lib/api/realtimeSanityCheck");
+			const context = { ...formData, [fieldId]: value };
+			const result = await checkRealtimeSanity({
+				fieldId,
+				value,
+				resumeType: "borrower",
+				context,
+				existingFieldData: currentMeta,
+			});
+
+			// Update metadata with warnings from sanity check
+			setFieldMetadata((prev) => ({
 				...prev,
 				[fieldId]: {
-					...currentMeta,
-					value: value,
-					// Always record user edits as user_input in the sources array
-					sources: [{ type: "user_input" }],
+					...prev[fieldId],
+					warnings: result.warnings || [],
 				},
-			};
-		});
-	}, []);
+			}));
+		} catch (error) {
+			console.error("Realtime sanity check failed:", error);
+			// Don't fail the input change if sanity check fails
+		}
+	}, [fieldMetadata, formData]);
 
 	// Principals Management (table-style, similar to residential unit mix)
 	const handleRemovePrincipal = useCallback(
@@ -759,37 +794,56 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			const hasValue = isValueProvided(value);
 			const locked = isFieldLocked(fieldId, sectionId);
 			const meta = fieldMetadata[fieldId];
-			const hasSources =
-				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+			// Check single source (new format) or sources array (backward compatibility)
+			const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
 
 			const base =
 				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
 
-			if (!hasValue) {
-				if (hasSources) {
-					if (locked)
-						return cn(
-							base,
-							"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 text-gray-800"
-						);
-					return cn(
-						base,
-						"border-blue-600 bg-blue-50 focus:ring-blue-200 text-gray-800"
-					);
-				}
-				return cn(base, "border-gray-200 bg-white focus:ring-blue-200");
-			}
-			if (locked)
+			// Red: warnings exist and not locked
+			if (hasWarnings && !locked) {
 				return cn(
 					base,
-					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 text-gray-800"
+					"border-red-500 bg-red-50 focus:ring-red-200 hover:border-red-600 text-gray-800"
 				);
+			}
+
+			// Green: locked (regardless of warnings)
+			if (locked) {
+				return cn(
+					base,
+					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
+				);
+			}
+
+			if (!hasValue) {
+				if (hasSource) {
+					return cn(
+						base,
+						"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
+					);
+				}
+				return cn(base, "border-gray-200 bg-white focus:ring-blue-200 hover:border-gray-300");
+			}
+
+			// Blue: has value, not locked, no warnings
 			return cn(
 				base,
-				"border-blue-600 bg-blue-50 focus:ring-blue-200 text-gray-800"
+				"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
 			);
 		},
 		[formData, fieldMetadata, isFieldLocked]
+	);
+
+	const isFieldRed = useCallback(
+		(fieldId: string, sectionId?: string): boolean => {
+			const locked = isFieldLocked(fieldId, sectionId);
+			const meta = fieldMetadata[fieldId];
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+			return hasWarnings && !locked;
+		},
+		[fieldMetadata, isFieldLocked]
 	);
 
 	const isFieldBlue = useCallback(
@@ -798,28 +852,27 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			const hasValue = isValueProvided(value);
 			const locked = isFieldLocked(fieldId, sectionId);
 			const meta = fieldMetadata[fieldId];
-			const hasSources =
-				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+			// Check single source (new format) or sources array (backward compatibility)
+			const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
+			const sourceType = meta?.source?.type || (meta?.sources?.[0]?.type);
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 
 			if (!hasValue) {
-				return !!(hasSources && !locked);
+				return hasSource && !locked && !hasWarnings;
 			}
-			return !locked;
+			// Blue: user_input source, no warnings, not locked
+			return sourceType === "user_input" && !hasWarnings && !locked;
 		},
 		[formData, fieldMetadata, isFieldLocked]
 	);
 
 	const isFieldGreen = useCallback(
 		(fieldId: string, sectionId?: string): boolean => {
-			const value = (formData as any)[fieldId];
-			const hasValue = isValueProvided(value);
 			const locked = isFieldLocked(fieldId, sectionId);
-			const meta = fieldMetadata[fieldId];
-			const hasSources =
-				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
-			return !!((hasValue || hasSources) && locked);
+			// Green: locked (regardless of warnings)
+			return locked;
 		},
-		[formData, fieldMetadata, isFieldLocked]
+		[isFieldLocked]
 	);
 
 	const isFieldWhite = useCallback(
@@ -827,9 +880,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			const value = (formData as any)[fieldId];
 			const hasValue = isValueProvided(value);
 			const meta = fieldMetadata[fieldId];
-			const hasSources =
-				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
-			return !hasValue && !hasSources;
+			// Check single source (new format) or sources array (backward compatibility)
+			const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
+			return !hasValue && !hasSource;
 		},
 		[formData, fieldMetadata]
 	);
