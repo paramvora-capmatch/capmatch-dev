@@ -17,9 +17,6 @@ import { ArrowRight } from "lucide-react";
 import { ProcessSection } from "../components/ui/ProcessSection";
 import { cn } from "@/utils/cn";
 
-// ... (initialFilters, HomePage component setup - no changes here) ...
-// ... (useEffect hooks, handlers - no changes here) ...
-
 export default function HomePage() {
   const router = useRouter();
   const { filteredLenders, filters, setFilters, selectLender, loadLenders } =

@@ -376,9 +376,3 @@ export interface FieldMetadata {
 	dataType?: string;
 	section: string;
 }
-
-export const getBorrowerFieldMetadata = (
-	fieldId: string
-): FieldMetadata | undefined => {
-	return borrowerResumeFieldMetadata[fieldId] as FieldMetadata;
-};

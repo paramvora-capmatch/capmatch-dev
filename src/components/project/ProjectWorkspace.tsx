@@ -652,14 +652,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                         try {
                           // Trigger autofill pipeline (this is async and will process in background)
                           await handleAutofill();
-                          // Navigate to OM page immediately
+                          // Navigate to OM dashboard immediately
                           // The autofill will complete in the background and update the database
-                          // The OM page will fetch the latest data when it loads
-                          router.push(`/project/om/${projectId}`);
+                          // The OM dashboard will fetch the latest data when it loads
+                          router.push(`/project/om/${projectId}/dashboard`);
                         } catch (error) {
                           console.error("Failed to trigger autofill:", error);
                           // Still navigate even if autofill fails
-                          router.push(`/project/om/${projectId}`);
+                          router.push(`/project/om/${projectId}/dashboard`);
                         }
                       }}
                       disabled={isAutofilling}

@@ -719,23 +719,3 @@ export const extractProjectFields = async (
 
 	return sectionWiseFields;
 };
-
-/**
- * Extract fields for a specific section
- */
-export const extractProjectFieldsBySection = async (
-	projectId: string,
-	sectionId: string,
-	documentPaths?: string[]
-): Promise<SectionWiseExtractionResponse> => {
-	// Simulate API delay
-	await new Promise((resolve) => setTimeout(resolve, 800));
-
-	// Get all fields
-	const allFields = await extractProjectFields(projectId, documentPaths);
-
-	// Return only the requested section
-	return {
-		[sectionId]: allFields[sectionId] || {},
-	};
-};
