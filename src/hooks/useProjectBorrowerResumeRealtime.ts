@@ -183,13 +183,19 @@ const getProjectBorrowerResumeContent = async (
 				flatContent[key] = Array.isArray(principalsValue)
 					? principalsValue
 					: [];
-				// Store metadata
+
+				// Store metadata (new schema: value + source + warnings + other_values)
+				const anyVal: any = value;
+				let primarySource = anyVal.source;
+				if (!primarySource && Array.isArray(anyVal.sources) && anyVal.sources.length > 0) {
+					primarySource = anyVal.sources[0];
+				}
+
 				metadata[key] = {
 					value: principalsValue,
-					sources: (value as any).sources || [],
-					warnings: (value as any).warnings || [],
-					original_value:
-						(value as any).original_value ?? principalsValue,
+					source: primarySource ?? null,
+					warnings: anyVal.warnings || [],
+					other_values: anyVal.other_values || [],
 				};
 			} else {
 				// It's already an array or null/undefined
@@ -198,23 +204,31 @@ const getProjectBorrowerResumeContent = async (
 			continue;
 		}
 
-		// Check if value is in rich format { value, sources, warnings, original_value }
+		// Check if value is in rich format { value, source, warnings, other_values }
 		if (
 			value &&
 			typeof value === "object" &&
 			!Array.isArray(value) &&
 			"value" in value
 		) {
-			// Extract the actual value
-			flatContent[key] = (value as any).value;
+			const anyVal: any = value;
 
-			// Store metadata
+			// Extract the actual value
+			flatContent[key] = anyVal.value;
+
+			// Determine primary source (new schema prefers `source`, but we keep
+			// backward compat for legacy `sources` arrays).
+			let primarySource = anyVal.source;
+			if (!primarySource && Array.isArray(anyVal.sources) && anyVal.sources.length > 0) {
+				primarySource = anyVal.sources[0];
+			}
+
+			// Store metadata aligned with new FieldMetadata type
 			metadata[key] = {
-				value: (value as any).value,
-				sources: (value as any).sources || [],
-				warnings: (value as any).warnings || [],
-				original_value:
-					(value as any).original_value ?? (value as any).value,
+				value: anyVal.value,
+				source: primarySource ?? null,
+				warnings: anyVal.warnings || [],
+				other_values: anyVal.other_values || [],
 			};
 		} else {
 			// Flat value - preserve as-is

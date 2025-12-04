@@ -158,36 +158,33 @@ export async function POST(request: Request) {
 							typeof fieldData === "object" &&
 							"value" in fieldData
 						) {
-							// Rich format with metadata - ensure sources is always an array
-							const sources = Array.isArray(fieldData.sources)
-								? fieldData.sources
-								: fieldData.sources
-								? [fieldData.sources]
+							// Legacy mock schema returns { value, sources[], warnings, original_value }.
+							// Normalize to backend schema: { value, source, warnings, other_values }.
+							const anyField: any = fieldData;
+							const sourcesArray = Array.isArray(anyField.sources)
+								? anyField.sources
+								: anyField.sources
+								? [anyField.sources]
 								: [];
-
-							// Always apply the extracted value - this will overwrite any existing null values
-							// Check if existing value is null and new value is not null - force apply
-							const existingFieldValue = finalContent[sectionId]?.[fieldId];
-							const existingIsNull = existingFieldValue && 
-								typeof existingFieldValue === "object" && 
-								"value" in existingFieldValue && 
-								(existingFieldValue.value === null || existingFieldValue.value === undefined);
-							
-							if (existingIsNull && fieldData.value !== null && fieldData.value !== undefined) {
-								// Force overwrite null values with extracted values
-								console.log(`[Autofill] Overwriting null value for field '${fieldId}' with extracted value:`, fieldData.value);
-							}
+							const primarySource =
+								sourcesArray.length > 0
+									? sourcesArray[0]
+									: { type: "user_input" };
 
 							finalContent[sectionId][fieldId] = {
-								value: fieldData.value,
-								sources: sources, // Only sources array, no source field
-								warnings: fieldData.warnings || [],
-								original_value:
-									fieldData.original_value ?? fieldData.value,
+								value: anyField.value,
+								source: primarySource,
+								warnings: anyField.warnings || [],
+								other_values: [],
 							};
 						} else {
 							// Flat format (shouldn't happen with new schema, but handle gracefully)
-							finalContent[sectionId][fieldId] = fieldData;
+							finalContent[sectionId][fieldId] = {
+								value: fieldData,
+								source: { type: "user_input" },
+								warnings: [],
+								other_values: [],
+							};
 						}
 					}
 				}

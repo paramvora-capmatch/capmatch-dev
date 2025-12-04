@@ -15,6 +15,7 @@ import { Button } from "../ui/Button";
 import { ButtonSelect } from "../ui/ButtonSelect";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
+import { FieldWarningsTooltip } from "../ui/FieldWarningsTooltip";
 import { HelpCircle } from "lucide-react";
 import { useAutofill } from "@/hooks/useAutofill";
 import { cn } from "@/utils/cn";
@@ -195,30 +196,56 @@ const sanitizeBorrowerProfile = (
 		}
 	}
 
-	if (next._metadata && typeof next._metadata === "object") {
-		const fixedMeta: Record<string, any> = { ...next._metadata };
-		for (const [fieldId, meta] of Object.entries(fixedMeta)) {
-			const fieldConfig = borrowerResumeFieldMetadata[fieldId];
-			const dataType = (fieldConfig as any)?.dataType;
-			if (!dataType || dataType === "Boolean") continue;
+	const fixedMeta: Record<string, any> =
+		next._metadata && typeof next._metadata === "object"
+			? { ...next._metadata }
+			: {};
 
-			if (meta && typeof meta === "object") {
-				if (typeof meta.value === "boolean") {
-					meta.value = null;
-				}
-				// Remove original_value (deprecated)
-				if ("original_value" in meta) {
-					delete meta.original_value;
-				}
-				// Convert sources array to single source (backward compatibility)
-				if (meta.sources && Array.isArray(meta.sources) && meta.sources.length > 0 && !meta.source) {
-					meta.source = meta.sources[0];
-					delete meta.sources;
-				}
+	for (const [fieldId, meta] of Object.entries(fixedMeta)) {
+		const fieldConfig = borrowerResumeFieldMetadata[fieldId];
+		const dataType = (fieldConfig as any)?.dataType;
+		if (!dataType || dataType === "Boolean") continue;
+
+		if (meta && typeof meta === "object") {
+			if (typeof (meta as any).value === "boolean") {
+				(meta as any).value = null;
+			}
+			// Remove original_value (deprecated)
+			if ("original_value" in (meta as any)) {
+				delete (meta as any).original_value;
+			}
+			// Convert sources array to single source (backward compatibility)
+			if (
+				(meta as any).sources &&
+				Array.isArray((meta as any).sources) &&
+				(meta as any).sources.length > 0 &&
+				!(meta as any).source
+			) {
+				(meta as any).source = (meta as any).sources[0];
+				delete (meta as any).sources;
 			}
 		}
-		next._metadata = fixedMeta;
 	}
+
+	// Ensure every configured field has default user_input metadata when backend
+	// didn't provide any, mirroring the mock API behavior.
+	for (const fieldId of Object.keys(borrowerResumeFieldMetadata)) {
+		const existingMeta = fixedMeta[fieldId];
+		const currentValue = (next as any)[fieldId];
+
+		if (!existingMeta) {
+			fixedMeta[fieldId] = {
+				value: currentValue ?? null,
+				source: { type: "user_input" },
+				warnings: [],
+				other_values: [],
+			};
+		} else if (!existingMeta.source) {
+			existingMeta.source = { type: "user_input" };
+		}
+	}
+
+	next._metadata = fixedMeta;
 
 	return next as Partial<BorrowerResumeContent>;
 };
@@ -246,11 +273,14 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 	// State
 	const [isEditing, setIsEditing] = useState(false);
-	const [formData, setFormData] = useState<Partial<BorrowerResumeContent>>(
-		borrowerResume ? sanitizeBorrowerProfile(borrowerResume) : {}
+	const sanitizedBorrower = useMemo(
+		() => (borrowerResume ? sanitizeBorrowerProfile(borrowerResume) : {}),
+		[borrowerResume]
 	);
+	const [formData, setFormData] =
+		useState<Partial<BorrowerResumeContent>>(sanitizedBorrower);
 	const [fieldMetadata, setFieldMetadata] = useState<Record<string, any>>(
-		(borrowerResume as any)?._metadata || {}
+		(sanitizedBorrower as any)._metadata || {}
 	);
 
 	// Initialize locked state from props/loaded data
@@ -303,47 +333,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		const metadata = (sanitized as any)._metadata || {};
 		setFieldMetadata(metadata);
 
-		// Update locks based on sources (AI vs user input)
+		// Initialize locks strictly from backend (_lockedFields); do NOT auto-lock
+		// AI-sourced fields. Warning-bearing fields should remain editable/red.
 		const newLockedFields = new Set(
 			Object.keys((borrowerResume as any)._lockedFields || {}).filter(
 				(k) => (borrowerResume as any)._lockedFields?.[k]
 			)
 		);
-
-		Object.entries(metadata).forEach(([fieldId, meta]) => {
-			const metaAny = meta as any;
-
-			// Determine if field is AI-sourced based on its sources array
-			const isAiSourced =
-				Array.isArray(metaAny?.sources) &&
-				metaAny.sources.some((src: any) => {
-					if (!src) return false;
-					if (typeof src === "string") {
-						const normalized = src.toLowerCase();
-						return (
-							normalized !== "user_input" &&
-							normalized !== "user input"
-						);
-					}
-					if (
-						typeof src === "object" &&
-						"type" in src &&
-						typeof (src as any).type === "string"
-					) {
-						const normalized = (src as any).type.toLowerCase();
-						return (
-							normalized !== "user_input" &&
-							normalized !== "user input"
-						);
-					}
-					return false;
-				});
-
-			const hasValue = isValueProvided((sanitized as any)[fieldId]);
-			if (isAiSourced && hasValue) {
-				newLockedFields.add(fieldId);
-			}
-		});
 
 		setLockedFields(newLockedFields);
 
@@ -459,55 +455,60 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		};
 	}, [projectId, reloadBorrowerResume]);
 
-	const handleInputChange = useCallback(async (fieldId: string, value: any) => {
-		setFormData((prev) => ({ ...prev, [fieldId]: value }));
+	const handleInputChange = useCallback(
+		async (fieldId: string, value: any) => {
+			setFormData((prev) => ({ ...prev, [fieldId]: value }));
 
-		// Get existing field metadata for realtime sanity check
-		const currentMeta = fieldMetadata[fieldId] || {
-			value: value,
-			source: null,
-			warnings: [],
-			other_values: [],
-		};
+			// Get existing field metadata for realtime sanity check
+			const currentMeta = fieldMetadata[fieldId] || {
+				value: value,
+				source: null,
+				warnings: [],
+				other_values: [],
+			};
 
-		// Update metadata to mark source as User Input
-		const updatedMeta = {
-			...currentMeta,
-			value: value,
-			// Force source to user_input when edited manually
-			source: { type: "user_input" } as any,
-		};
+			// Update metadata to mark source as User Input
+			const updatedMeta = {
+				...currentMeta,
+				value: value,
+				// Force source to user_input when edited manually
+				source: { type: "user_input" } as any,
+			};
 
-		setFieldMetadata((prev) => ({
-			...prev,
-			[fieldId]: updatedMeta,
-		}));
-
-		// Call realtime sanity check
-		try {
-			const { checkRealtimeSanity } = await import("@/lib/api/realtimeSanityCheck");
-			const context = { ...formData, [fieldId]: value };
-			const result = await checkRealtimeSanity({
-				fieldId,
-				value,
-				resumeType: "borrower",
-				context,
-				existingFieldData: currentMeta,
-			});
-
-			// Update metadata with warnings from sanity check
 			setFieldMetadata((prev) => ({
 				...prev,
-				[fieldId]: {
-					...prev[fieldId],
-					warnings: result.warnings || [],
-				},
+				[fieldId]: updatedMeta,
 			}));
-		} catch (error) {
-			console.error("Realtime sanity check failed:", error);
-			// Don't fail the input change if sanity check fails
-		}
-	}, [fieldMetadata, formData]);
+
+			// Call realtime sanity check
+			try {
+				const { checkRealtimeSanity } = await import(
+					"@/lib/api/realtimeSanityCheck"
+				);
+				const context = { ...formData, [fieldId]: value };
+				const result = await checkRealtimeSanity({
+					fieldId,
+					value,
+					resumeType: "borrower",
+					context,
+					existingFieldData: currentMeta,
+				});
+
+				// Update metadata with warnings from sanity check
+				setFieldMetadata((prev) => ({
+					...prev,
+					[fieldId]: {
+						...prev[fieldId],
+						warnings: result.warnings || [],
+					},
+				}));
+			} catch (error) {
+				console.error("Realtime sanity check failed:", error);
+				// Don't fail the input change if sanity check fails
+			}
+		},
+		[fieldMetadata, formData]
+	);
 
 	// Principals Management (table-style, similar to residential unit mix)
 	const handleRemovePrincipal = useCallback(
@@ -620,6 +621,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			save,
 			storageKey,
 			reloadBorrowerResume,
+			projectId,
 		]
 	);
 
@@ -706,11 +708,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	// Helpers for UI
 	const isFieldLocked = useCallback(
 		(fieldId: string, _sectionId?: string): boolean => {
+			const meta = fieldMetadata[fieldId];
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+
+			// Fields with warnings must remain editable/red, never locked.
+			if (hasWarnings) return false;
+
 			if (unlockedFields.has(fieldId)) return false;
 			if (lockedFields.has(fieldId)) return true;
 			return false;
 		},
-		[lockedFields, unlockedFields]
+		[lockedFields, unlockedFields, fieldMetadata]
 	);
 
 	const toggleFieldLock = useCallback(
@@ -796,7 +804,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			const meta = fieldMetadata[fieldId];
 			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
+			const hasSource =
+				meta?.source ||
+				(meta?.sources &&
+					Array.isArray(meta.sources) &&
+					meta.sources.length > 0);
 
 			const base =
 				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
@@ -824,7 +836,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
 					);
 				}
-				return cn(base, "border-gray-200 bg-white focus:ring-blue-200 hover:border-gray-300");
+				return cn(
+					base,
+					"border-gray-200 bg-white focus:ring-blue-200 hover:border-gray-300"
+				);
 			}
 
 			// Blue: has value, not locked, no warnings
@@ -853,8 +868,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			const locked = isFieldLocked(fieldId, sectionId);
 			const meta = fieldMetadata[fieldId];
 			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
-			const sourceType = meta?.source?.type || (meta?.sources?.[0]?.type);
+			const hasSource =
+				meta?.source ||
+				(meta?.sources &&
+					Array.isArray(meta.sources) &&
+					meta.sources.length > 0);
+			const sourceType = meta?.source?.type || meta?.sources?.[0]?.type;
 			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 
 			if (!hasValue) {
@@ -881,7 +900,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			const hasValue = isValueProvided(value);
 			const meta = fieldMetadata[fieldId];
 			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
+			const hasSource =
+				meta?.source ||
+				(meta?.sources &&
+					Array.isArray(meta.sources) &&
+					meta.sources.length > 0);
 			return !hasValue && !hasSource;
 		},
 		[formData, fieldMetadata]
@@ -953,7 +976,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			labelText: string,
 			required: boolean = false
 		) => {
-			const warning = getFieldWarning(fieldId);
 			return (
 				<div className="mb-1">
 					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
@@ -967,12 +989,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 							fieldId={fieldId}
 							fieldMetadata={fieldMetadata[fieldId]}
 						/>
-						{warning && (
-							<span className="text-xs text-amber-700 flex items-center gap-1">
-								<AlertTriangle className="h-3 w-3" />
-								{warning}
-							</span>
-						)}
+						<FieldWarningsTooltip
+							warnings={fieldMetadata[fieldId]?.warnings}
+						/>
 						<div className="ml-auto flex items-center gap-1">
 							<button
 								type="button"
@@ -987,7 +1006,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				</div>
 			);
 		},
-		[fieldMetadata, onAskAI, renderFieldLockButton, getFieldWarning]
+		[fieldMetadata, onAskAI, renderFieldLockButton]
 	);
 
 	const renderDynamicField = useCallback(
@@ -1388,9 +1407,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 									? ["principals"]
 									: (sub.fields as string[]);
 
-							const isLocked = isSubsectionFullyLocked(
-								subsectionFields
-							);
+							const isLocked =
+								isSubsectionFullyLocked(subsectionFields);
 
 							const fieldStates =
 								sub.id === "principal-details"
@@ -1400,8 +1418,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 													Array.isArray(
 														formData.principals
 													) &&
-													(formData.principals as any[])
-														.length > 0 &&
+													(
+														formData.principals as any[]
+													).length > 0 &&
 													!isFieldLocked(
 														"principals",
 														sectionId
@@ -1410,16 +1429,16 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 													Array.isArray(
 														formData.principals
 													) &&
-													(formData.principals as any[])
-														.length > 0 &&
+													(
+														formData.principals as any[]
+													).length > 0 &&
 													isFieldLocked(
 														"principals",
 														sectionId
 													),
-												hasValue:
-													hasCompletePrincipals(
-														formData.principals
-													),
+												hasValue: hasCompletePrincipals(
+													formData.principals
+												),
 											},
 									  ]
 									: subsectionFields.length > 0
@@ -1511,11 +1530,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											<div
 												onClick={(e) => {
 													e.stopPropagation();
- 													if (subsectionLockDisabled)
+													if (subsectionLockDisabled)
 														return;
- 													toggleSubsectionLock(
- 														subsectionFields
- 													);
+													toggleSubsectionLock(
+														subsectionFields
+													);
 												}}
 												className={cn(
 													"flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all border",
@@ -1606,7 +1625,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																		Email
 																	</th>
 																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
-																		Ownership %
+																		Ownership
+																		%
 																	</th>
 																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
 																		Bio
@@ -1641,7 +1661,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																			const current =
 																				next[
 																					index
-																				] || ({} as Principal);
+																				] ||
+																				({} as Principal);
 																			let value: any =
 																				raw;
 																			if (
@@ -1664,11 +1685,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																						? undefined
 																						: num;
 																			}
-																			next[index] =
+																			next[
+																				index
+																			] =
 																				{
 																					...current,
-																					[key]:
-																						value,
+																					[key]: value,
 																				};
 																			handleInputChange(
 																				"principals",
@@ -1682,23 +1704,27 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																				[
 																					...principals,
 																				];
-																			next.push({
-																				id: Math.random()
-																					.toString(36)
-																					.slice(
-																						2
-																					),
-																				principalLegalName:
-																					"",
-																				principalRoleDefault:
-																					"Key Principal",
-																				principalEmail:
-																					"",
-																				ownershipPercentage:
-																					undefined as any,
-																				principalBio:
-																					"",
-																			} as Principal);
+																			next.push(
+																				{
+																					id: Math.random()
+																						.toString(
+																							36
+																						)
+																						.slice(
+																							2
+																						),
+																					principalLegalName:
+																						"",
+																					principalRoleDefault:
+																						"Key Principal",
+																					principalEmail:
+																						"",
+																					ownershipPercentage:
+																						undefined as any,
+																					principalBio:
+																						"",
+																				} as Principal
+																			);
 																			handleInputChange(
 																				"principals",
 																				next
@@ -1899,7 +1925,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 																						}
 																					>
 																						<Plus className="h-4 w-4 mr-1" />
-																						Add Principal
+																						Add
+																						Principal
 																					</Button>
 																				</td>
 																			</tr>

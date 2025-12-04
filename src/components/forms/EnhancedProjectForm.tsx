@@ -16,6 +16,7 @@ import { Button } from "../ui/Button";
 import { ButtonSelect } from "../ui/ButtonSelect";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
+import { FieldWarningsTooltip } from "../ui/FieldWarningsTooltip";
 import { HelpCircle } from "lucide-react";
 import { useAutofill } from "@/hooks/useAutofill";
 import { cn } from "@/utils/cn";
@@ -282,31 +283,59 @@ const sanitizeProjectProfile = (profile: ProjectProfile): ProjectProfile => {
 		}
 	}
 
-	// Fix rich metadata container on the profile itself
-	if (next._metadata && typeof next._metadata === "object") {
-		const fixedMeta: Record<string, any> = { ...next._metadata };
-		for (const [fieldId, meta] of Object.entries(fixedMeta)) {
-			const fieldConfig = projectResumeFieldMetadata[fieldId];
-			const dataType = fieldConfig?.dataType;
-			if (!dataType || dataType === "Boolean") continue;
+	// Normalize and enrich rich metadata container on the profile itself
+	const fixedMeta: Record<string, any> =
+		next._metadata && typeof next._metadata === "object"
+			? { ...next._metadata }
+			: {};
+
+	for (const [fieldId, meta] of Object.entries(fixedMeta)) {
+		const fieldConfig = projectResumeFieldMetadata[fieldId];
+		const dataType = fieldConfig?.dataType;
+		if (!dataType || dataType === "Boolean") continue;
 
 		if (meta && typeof meta === "object") {
-			if (typeof meta.value === "boolean") {
-				meta.value = null;
+			if (typeof (meta as any).value === "boolean") {
+				(meta as any).value = null;
 			}
 			// Remove original_value (deprecated)
-			if ("original_value" in meta) {
-				delete meta.original_value;
+			if ("original_value" in (meta as any)) {
+				delete (meta as any).original_value;
 			}
 			// Convert sources array to single source (backward compatibility)
-			if (meta.sources && Array.isArray(meta.sources) && meta.sources.length > 0 && !meta.source) {
-				meta.source = meta.sources[0];
-				delete meta.sources;
+			if (
+				(meta as any).sources &&
+				Array.isArray((meta as any).sources) &&
+				(meta as any).sources.length > 0 &&
+				!(meta as any).source
+			) {
+				(meta as any).source = (meta as any).sources[0];
+				delete (meta as any).sources;
 			}
 		}
-		}
-		next._metadata = fixedMeta;
 	}
+
+	// Ensure every configured field has default user_input metadata when backend
+	// didn't provide any. This mirrors the old mock API behavior where fields
+	// that weren't autofilled were treated as user_input and shown as blue.
+	for (const fieldId of Object.keys(projectResumeFieldMetadata)) {
+		const existingMeta = fixedMeta[fieldId];
+		const currentValue = (next as any)[fieldId];
+
+		if (!existingMeta) {
+			fixedMeta[fieldId] = {
+				value: currentValue ?? null,
+				source: { type: "user_input" },
+				warnings: [],
+				other_values: [],
+			};
+		} else if (!existingMeta.source) {
+			// If we have metadata but no explicit source, treat it as user_input.
+			existingMeta.source = { type: "user_input" };
+		}
+	}
+
+	next._metadata = fixedMeta;
 
 	return next as ProjectProfile;
 };
@@ -408,8 +437,12 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		if (!files || !orgId || !projectId || disabled) return;
 
 		const isSiteImages = folder === "site-images";
-		const setUploading = isSiteImages ? setUploadingSite : setUploadingDiagrams;
-		const setImages = isSiteImages ? setSiteImages : setArchitecturalDiagrams;
+		const setUploading = isSiteImages
+			? setUploadingSite
+			: setUploadingDiagrams;
+		const setImages = isSiteImages
+			? setSiteImages
+			: setArchitecturalDiagrams;
 
 		setUploading(true);
 		try {
@@ -470,7 +503,9 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 
 		const isSiteImages = folder === "site-images";
 		const images = isSiteImages ? siteImages : architecturalDiagrams;
-		const setImages = isSiteImages ? setSiteImages : setArchitecturalDiagrams;
+		const setImages = isSiteImages
+			? setSiteImages
+			: setArchitecturalDiagrams;
 		const setSelected = isSiteImages
 			? setSelectedSiteImages
 			: setSelectedDiagrams;
@@ -488,15 +523,24 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		try {
 			const filePaths = fileNames
 				.map((fileName) => {
-					const image = images.find((img) => img.fileName === fileName);
-					return image ? image.storagePath : `${projectId}/${folder}/${fileName}`;
+					const image = images.find(
+						(img) => img.fileName === fileName
+					);
+					return image
+						? image.storagePath
+						: `${projectId}/${folder}/${fileName}`;
 				})
 				.filter(Boolean) as string[];
 
-			const { error } = await supabase.storage.from(orgId).remove(filePaths);
+			const { error } = await supabase.storage
+				.from(orgId)
+				.remove(filePaths);
 
 			if (error) {
-				console.error("[ProjectMediaUpload] Error deleting files:", error);
+				console.error(
+					"[ProjectMediaUpload] Error deleting files:",
+					error
+				);
 				alert(
 					`Failed to delete files: ${
 						(error as any).message || JSON.stringify(error)
@@ -597,8 +641,8 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 	if (!orgId || !projectId) {
 		return (
 			<div className="text-sm text-gray-500">
-				Project media is unavailable until an organization and project are
-				fully initialized.
+				Project media is unavailable until an organization and project
+				are fully initialized.
 			</div>
 		);
 	}
@@ -642,7 +686,8 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 									disabled={deleting}
 									className={cn(
 										"text-xs text-red-600 hover:text-red-700 font-medium",
-										deleting && "opacity-50 cursor-not-allowed"
+										deleting &&
+											"opacity-50 cursor-not-allowed"
 									)}
 								>
 									{deleting
@@ -730,9 +775,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 													<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
 														<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
 															From:{" "}
-															{
-																image.documentName
-															}
+															{image.documentName}
 															<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
 														</div>
 													</div>
@@ -807,7 +850,8 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 									disabled={deleting}
 									className={cn(
 										"text-xs text-red-600 hover:text-red-700 font-medium",
-										deleting && "opacity-50 cursor-not-allowed"
+										deleting &&
+											"opacity-50 cursor-not-allowed"
 									)}
 								>
 									{deleting
@@ -898,9 +942,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 													<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
 														<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
 															From:{" "}
-															{
-																image.documentName
-															}
+															{image.documentName}
 															<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
 														</div>
 													</div>
@@ -958,11 +1000,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 }) => {
 	const { activeOrg } = useAuthStore();
 	// 1. Initialize state with sanitized data
+	const sanitizedExistingProject = useMemo(
+		() => sanitizeProjectProfile(existingProject),
+		[existingProject]
+	);
 	const [formData, setFormData] = useState<ProjectProfile>(
-		sanitizeProjectProfile(existingProject)
+		sanitizedExistingProject
 	);
 	const [fieldMetadata, setFieldMetadata] = useState<Record<string, any>>(
-		existingProject._metadata || {}
+		sanitizedExistingProject._metadata || {}
 	);
 
 	// Initialize locked state from props
@@ -1009,65 +1055,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		const metadata = sanitized._metadata || {};
 		setFieldMetadata(metadata);
 
-		// Update locks based on source
-		// If a field has a value AND source is not user_input -> Lock it (Green)
+		// Initialize locks strictly from backend (_lockedFields); do NOT auto-lock
+		// AI-sourced fields here. Warning-bearing fields should remain editable/red.
 		const newLockedFields = new Set(
 			Object.keys(existingProject._lockedFields || {}).filter(
 				(k) => existingProject._lockedFields?.[k]
 			)
 		);
-
-		Object.entries(metadata).forEach(([fieldId, meta]) => {
-			// Check if source is AI/Document.
-			// Support both new format (single source) and old format (sources array)
-			const metaAny = meta as any;
-			let isAiSourced = false;
-			
-			// Check single source (new format)
-			if (metaAny?.source) {
-				const src = metaAny.source;
-				if (typeof src === "object" && "type" in src) {
-					isAiSourced = src.type !== "user_input";
-				} else if (typeof src === "string") {
-					const normalized = src.toLowerCase();
-					isAiSourced = normalized !== "user_input" && normalized !== "user input";
-				}
-			}
-			// Backward compatibility: check sources array (old format)
-			else if (Array.isArray(metaAny?.sources)) {
-				isAiSourced = metaAny.sources.some((src: any) => {
-					if (!src) return false;
-
-					if (typeof src === "string") {
-						const normalized = src.toLowerCase();
-						return (
-							normalized !== "user_input" &&
-							normalized !== "user input"
-						);
-					}
-
-					if (
-						typeof src === "object" &&
-						"type" in src &&
-						typeof (src as any).type === "string"
-					) {
-						return (src as any).type !== "user_input";
-					}
-
-					return false;
-				});
-			}
-
-			const hasValue = isProjectValueProvided(
-				(existingProject as any)[fieldId]
-			);
-
-			// Auto-lock if AI sourced and has value, unless explicitly unlocked previously?
-			// We'll trust the incoming _lockedFields from DB mostly, but ensure AI fields are locked
-			if (isAiSourced && hasValue) {
-				newLockedFields.add(fieldId);
-			}
-		});
 
 		setLockedFields(newLockedFields);
 
@@ -1179,58 +1173,63 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	}, []);
 
 	// Helper function to update metadata when user inputs data
-	const handleInputChange = useCallback(async (fieldId: string, value: any) => {
-		setFormData((prev) => {
-			const next = { ...prev, [fieldId]: value };
-			return next;
-		});
-
-		// Get existing field metadata for realtime sanity check
-		const currentMeta = fieldMetadata[fieldId] || {
-			value: value,
-			source: null,
-			warnings: [],
-			other_values: [],
-		};
-
-		// Update metadata to mark source as User Input
-		const updatedMeta = {
-			...currentMeta,
-			value: value,
-			// Force source to user_input when edited manually
-			source: { type: "user_input" } as any,
-		};
-
-		setFieldMetadata((prev) => ({
-			...prev,
-			[fieldId]: updatedMeta,
-		}));
-
-		// Call realtime sanity check
-		try {
-			const { checkRealtimeSanity } = await import("@/lib/api/realtimeSanityCheck");
-			const context = { ...formData, [fieldId]: value };
-			const result = await checkRealtimeSanity({
-				fieldId,
-				value,
-				resumeType: "project",
-				context,
-				existingFieldData: currentMeta,
+	const handleInputChange = useCallback(
+		async (fieldId: string, value: any) => {
+			setFormData((prev) => {
+				const next = { ...prev, [fieldId]: value };
+				return next;
 			});
 
-			// Update metadata with warnings from sanity check
+			// Get existing field metadata for realtime sanity check
+			const currentMeta = fieldMetadata[fieldId] || {
+				value: value,
+				source: null,
+				warnings: [],
+				other_values: [],
+			};
+
+			// Update metadata to mark source as User Input
+			const updatedMeta = {
+				...currentMeta,
+				value: value,
+				// Force source to user_input when edited manually
+				source: { type: "user_input" } as any,
+			};
+
 			setFieldMetadata((prev) => ({
 				...prev,
-				[fieldId]: {
-					...prev[fieldId],
-					warnings: result.warnings || [],
-				},
+				[fieldId]: updatedMeta,
 			}));
-		} catch (error) {
-			console.error("Realtime sanity check failed:", error);
-			// Don't fail the input change if sanity check fails
-		}
-	}, [fieldMetadata, formData]);
+
+			// Call realtime sanity check
+			try {
+				const { checkRealtimeSanity } = await import(
+					"@/lib/api/realtimeSanityCheck"
+				);
+				const context = { ...formData, [fieldId]: value };
+				const result = await checkRealtimeSanity({
+					fieldId,
+					value,
+					resumeType: "project",
+					context,
+					existingFieldData: currentMeta,
+				});
+
+				// Update metadata with warnings from sanity check
+				setFieldMetadata((prev) => ({
+					...prev,
+					[fieldId]: {
+						...prev[fieldId],
+						warnings: result.warnings || [],
+					},
+				}));
+			} catch (error) {
+				console.error("Realtime sanity check failed:", error);
+				// Don't fail the input change if sanity check fails
+			}
+		},
+		[fieldMetadata, formData]
+	);
 
 	// Propagate form data changes to parent
 	useEffect(() => {
@@ -1253,11 +1252,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const isFieldLocked = useCallback(
 		(fieldId: string, _sectionId?: string) => {
+			const meta = fieldMetadata[fieldId];
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+
+			// Fields with warnings must remain editable/red, never locked.
+			if (hasWarnings) return false;
+
 			if (unlockedFields.has(fieldId)) return false;
 			if (lockedFields.has(fieldId)) return true;
 			return false;
 		},
-		[lockedFields, unlockedFields]
+		[lockedFields, unlockedFields, fieldMetadata]
 	);
 
 	const toggleFieldLock = useCallback(
@@ -1343,7 +1348,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const meta = fieldMetadata[fieldId];
 			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
+			const hasSource =
+				meta?.source ||
+				(meta?.sources &&
+					Array.isArray(meta.sources) &&
+					meta.sources.length > 0);
 
 			const baseClasses =
 				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
@@ -1391,7 +1400,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const meta = fieldMetadata[fieldId];
 			if (!meta?.source) return false;
 			// Backward compatibility: check sources array if source doesn't exist
-			if (!meta.source && meta.sources && Array.isArray(meta.sources) && meta.sources.length > 0) {
+			if (
+				!meta.source &&
+				meta.sources &&
+				Array.isArray(meta.sources) &&
+				meta.sources.length > 0
+			) {
 				const isUserInput = meta.sources.some((src: any) => {
 					if (typeof src === "string")
 						return (
@@ -1433,8 +1447,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const locked = isFieldLocked(fieldId, sectionId);
 			const meta = fieldMetadata[fieldId];
 			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
-			const sourceType = meta?.source?.type || (meta?.sources?.[0]?.type);
+			const hasSource =
+				meta?.source ||
+				(meta?.sources &&
+					Array.isArray(meta.sources) &&
+					meta.sources.length > 0);
+			const sourceType = meta?.source?.type || meta?.sources?.[0]?.type;
 			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 
 			if (!hasValue) {
@@ -1452,7 +1470,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const hasValue = isProjectValueProvided(value);
 			const meta = fieldMetadata[fieldId];
 			// Check single source (new format) or sources array (backward compatibility)
-			const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
+			const hasSource =
+				meta?.source ||
+				(meta?.sources &&
+					Array.isArray(meta.sources) &&
+					meta.sources.length > 0);
 			return !hasValue && !hasSource;
 		},
 		[formData, fieldMetadata]
@@ -1523,7 +1545,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			labelText: string,
 			required: boolean = false
 		) => {
-			const warning = getFieldWarning(fieldId);
 			return (
 				<div className="mb-1">
 					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
@@ -1537,12 +1558,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							fieldId={fieldId}
 							fieldMetadata={fieldMetadata[fieldId]}
 						/>
-						{warning && (
-							<span className="text-xs text-amber-700 flex items-center gap-1">
-								<AlertTriangle className="h-3 w-3" />
-								{warning}
-							</span>
-						)}
+						<FieldWarningsTooltip
+							warnings={fieldMetadata[fieldId]?.warnings}
+						/>
 						<div className="ml-auto flex items-center gap-1">
 							<button
 								type="button"
@@ -1557,7 +1575,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				</div>
 			);
 		},
-		[onAskAI, getFieldWarning, renderFieldLockButton, fieldMetadata]
+		[onAskAI, renderFieldLockButton, fieldMetadata]
 	);
 
 	useEffect(() => {
@@ -1745,7 +1763,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			if (typeof window !== "undefined") {
 				window.dispatchEvent(
 					new CustomEvent("local-save-started", {
-						detail: { projectId: dataToSave.id, context: "project" },
+						detail: {
+							projectId: dataToSave.id,
+							context: "project",
+						},
 					})
 				);
 			}
@@ -1867,7 +1888,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						derived !== null &&
 						Math.abs(current - derived) > 0.0001)
 				) {
-					next.targetLtvPercent = derived === null ? undefined : derived;
+					next.targetLtvPercent =
+						derived === null ? undefined : derived;
 					changed = true;
 				}
 			}
@@ -1886,7 +1908,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						derived !== null &&
 						Math.abs(current - derived) > 0.0001)
 				) {
-					next.targetLtcPercent = derived === null ? undefined : derived;
+					next.targetLtcPercent =
+						derived === null ? undefined : derived;
 					changed = true;
 				}
 			}
@@ -1908,7 +1931,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				if (
 					(current === null && derived !== null) ||
 					(current !== null && derived === null) ||
-					(current !== null && derived !== null && current !== derived)
+					(current !== null &&
+						derived !== null &&
+						current !== derived)
 				) {
 					next.totalCommercialGRSF =
 						derived === null ? undefined : derived;
@@ -1977,9 +2002,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				if (
 					(current === null && derived !== null) ||
 					(current !== null && derived === null) ||
-					(current !== null && derived !== null && current !== derived)
+					(current !== null &&
+						derived !== null &&
+						current !== derived)
 				) {
-					(next as any)[fieldId] = derived === null ? undefined : derived;
+					(next as any)[fieldId] =
+						derived === null ? undefined : derived;
 					changed = true;
 				}
 			};
@@ -2168,10 +2196,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			// Determine if this field has any source metadata (e.g. touched by AI/user)
 			const metaFromState = fieldMetadata[fieldId];
 			// Check single source (new format) or sources array (backward compatibility)
-			const hasSources = metaFromState && (
-				metaFromState.source || 
-				(Array.isArray(metaFromState.sources) && metaFromState.sources.length > 0)
-			);
+			const hasSources =
+				metaFromState &&
+				(metaFromState.source ||
+					(Array.isArray(metaFromState.sources) &&
+						metaFromState.sources.length > 0));
 			const hasValue = isProjectValueProvided(value);
 
 			const controlKind: ControlKind =
@@ -4348,7 +4377,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			if (typeof window !== "undefined") {
 				window.dispatchEvent(
 					new CustomEvent("local-save-started", {
-						detail: { projectId: dataToSave.id, context: "project" },
+						detail: {
+							projectId: dataToSave.id,
+							context: "project",
+						},
 					})
 				);
 			}

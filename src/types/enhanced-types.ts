@@ -1,6 +1,7 @@
 // src/types/enhanced-types.ts
 
 // Core Schema Types - Updated to match new schema
+import type { SourceMetadata } from "./source-metadata";
 export type AppRole = "borrower" | "lender" | "advisor";
 export type OrgType = "borrower" | "lender" | "advisor";
 export type OrgMemberRole = "owner" | "member";
@@ -676,13 +677,16 @@ export type FilePermissionOverride = {
 };
 
 // Field Metadata Types for warnings and source tracking
+// Matches backend rich format: { value, source, warnings, other_values }
 export interface FieldMetadata {
 	value: any;
-	source: string | null; // Primary source (for backward compatibility)
-	sources?: string[]; // Array of all sources (document names or "Census API")
-	original_source?: "document" | "knowledge_base" | null; // To track origin after edit
-	original_value?: any; // To compare against
-	warnings: string[];
+	// Primary source for the current value. When undefined, the UI treats it
+	// as user_input by default (see sanitize*Profile helpers).
+	source?: SourceMetadata | null;
+	// Any warnings attached to this value (sanity / divergence checks).
+	warnings?: string[];
+	// Alternative values from other sources (e.g. document vs KB).
+	other_values?: Array<{ value: any; source: SourceMetadata }>;
 }
 
 export type ProjectGrant = {

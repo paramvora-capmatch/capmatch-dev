@@ -21,6 +21,7 @@ interface FieldHelpTooltipProps {
 	placement?: "top" | "bottom" | "left" | "right";
 	fieldMetadata?: {
 		source?: SourceMetadata;
+		sources?: SourceMetadata[];
 		warnings?: string[];
 		value?: any;
 		other_values?: Array<{ value: any; source: SourceMetadata }>;
@@ -273,12 +274,14 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 											<span
 												className={cn(
 													"text-xs font-semibold px-2 py-0.5 rounded",
-													metadata.fieldType === "derived"
+													metadata.fieldType ===
+														"derived"
 														? "bg-purple-100 text-purple-700"
 														: "bg-blue-100 text-blue-700"
 												)}
 											>
-												{metadata.fieldType === "derived"
+												{metadata.fieldType ===
+												"derived"
 													? "Derived"
 													: "Direct"}
 											</span>
@@ -302,39 +305,69 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 									{/* Source - Only show if we have API metadata with source */}
 									{(() => {
 										// Get source from API metadata - single SourceMetadata object
-										let source: SourceMetadata | null = null;
-										
+										let source: SourceMetadata | null =
+											null;
+
 										if (apiMetadata) {
 											// Check for single source field (new format)
-											if (apiMetadata.source !== undefined && apiMetadata.source !== null) {
-												if (typeof apiMetadata.source === "object" && "type" in apiMetadata.source) {
-													source = apiMetadata.source as SourceMetadata;
+											if (
+												apiMetadata.source !==
+													undefined &&
+												apiMetadata.source !== null
+											) {
+												if (
+													typeof apiMetadata.source ===
+														"object" &&
+													"type" in apiMetadata.source
+												) {
+													source =
+														apiMetadata.source as SourceMetadata;
 												}
 											}
 											// Backward compatibility: check sources array (old format)
-											else if (apiMetadata.sources !== undefined && apiMetadata.sources !== null) {
-												if (Array.isArray(apiMetadata.sources) && apiMetadata.sources.length > 0) {
-													const firstSource = apiMetadata.sources[0];
-													if (firstSource && typeof firstSource === "object" && "type" in firstSource) {
-														source = firstSource as SourceMetadata;
+											else if (
+												apiMetadata.sources !==
+													undefined &&
+												apiMetadata.sources !== null
+											) {
+												if (
+													Array.isArray(
+														apiMetadata.sources
+													) &&
+													apiMetadata.sources.length >
+														0
+												) {
+													const firstSource =
+														apiMetadata.sources[0];
+													if (
+														firstSource &&
+														typeof firstSource ===
+															"object" &&
+														"type" in firstSource
+													) {
+														source =
+															firstSource as SourceMetadata;
 													}
 												}
 											}
 										}
-										
+
 										// Filter out "User Input" - don't show user_input sources
-										if (source && source.type === "user_input") {
+										if (
+											source &&
+											source.type === "user_input"
+										) {
 											return null;
 										}
-										
+
 										// Only render if we have a source to show
 										if (!source) {
 											return null;
 										}
-										
+
 										return (
 											<>
-												{(metadata || (apiMetadata && apiMetadata.warnings && apiMetadata.warnings.length > 0)) && (
+												{metadata && (
 													<div className="border-t border-gray-200 my-3" />
 												)}
 												<div>
@@ -342,7 +375,9 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 														Source:
 													</p>
 													<p className="text-xs text-gray-600">
-														{formatSourceForDisplay(source)}
+														{formatSourceForDisplay(
+															source
+														)}
 													</p>
 												</div>
 											</>
