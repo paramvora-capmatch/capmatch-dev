@@ -33,6 +33,7 @@ const LoginForm = () => {
   const [loginSource, setLoginSource] = useState<"direct" | "lenderline">(
     "direct"
   );
+  const isLenderline = loginSource === "lenderline";
 
   // Determine login source from query parameter on mount
   useEffect(() => {
@@ -106,6 +107,26 @@ const LoginForm = () => {
           return;
         }
 
+        // For LenderLine traffic, skip the confirmation modal and immediately
+        // onboard the user by creating an account with the provided credentials.
+        if (isLenderline) {
+          try {
+            await signUp(email, password, loginSource);
+            // After successful sign-up + sign-in, send them straight to the dashboard.
+            router.replace("/dashboard");
+          } catch (signUpErr) {
+            console.error("[Login] LenderLine sign-up failed:", signUpErr);
+            const msg =
+              signUpErr instanceof Error
+                ? signUpErr.message
+                : String(signUpErr);
+            setValidationError(
+              msg || "Could not create your account. Please try again."
+            );
+          }
+          return;
+        }
+
         // No existing account with this email. Ask for explicit confirmation
         // before creating a new account using email/password.
         setShowNewAccountConfirm(true);
@@ -162,10 +183,14 @@ const LoginForm = () => {
         <div className="inline-flex items-center space-x-2 mb-2">
           <Sparkles className="h-6 w-6 text-blue-600" />
           <h2 className="text-2xl font-bold text-gray-800">
-            Welcome to CapMatch
+            {isLenderline ? "Access LenderLine" : "Welcome to CapMatch"}
           </h2>
         </div>
-        <p className="text-gray-600">Sign in or create your account in one step.</p>
+        <p className="text-gray-600">
+          {isLenderline
+            ? "Sign in or create your CapMatch account to access LenderLine."
+            : "Sign in or create your account in one step."}
+        </p>
       </div>
       <div>
         <Form onSubmit={handleLogin} className="space-y-6">
@@ -202,7 +227,7 @@ const LoginForm = () => {
             size="lg"
             isLoading={authLoading || isSubmitting || isCheckingNewAccount}
           >
-            Continue with Email
+            {isLenderline ? "Continue to LenderLine" : "Continue with Email"}
           </Button>
 
           {/* Removed test account quick login buttons */}
@@ -228,7 +253,9 @@ const LoginForm = () => {
             leftIcon={<Chrome className="h-5 w-5" />}
             isLoading={authLoading}
           >
-            Sign in with Google
+            {isLenderline
+              ? "Sign in with Google to access LenderLine"
+              : "Sign in with Google"}
           </Button>
 
           {/* Unified flow: remove sign-in/sign-up toggle */}
