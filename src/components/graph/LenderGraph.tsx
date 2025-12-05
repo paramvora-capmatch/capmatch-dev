@@ -3,7 +3,8 @@
 
 import { LenderFilters } from "@/stores/useLenderStore";
 import type React from "react";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import type { LenderProfile } from "../../types/lender";
 import LenderDetailCard from "../lender-detail-card";
 
@@ -109,6 +110,7 @@ export default function LenderGraph({
   const [centerPoint, setCenterPoint] = useState({ x: 0, y: 0 });
   const [showIncompleteFiltersCard, setShowIncompleteFiltersCard] = useState(false);
   const [isMouseDown, setIsMouseDown] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const animationRef = useRef<number>(0);
   const lenderPositionsRef = useRef<Map<number, {
     x: number;
@@ -130,7 +132,17 @@ export default function LenderGraph({
     life: number;
     maxLife: number;
   }>>([]);
-  const cardPositionRef = useRef({ x: 0, y: 0 });
+  
+  // Card positioning - fixed relative to node position, not mouse position
+  const cardPositionRef = useRef({ relativeX: 0, relativeY: 0 });
+  const lastHoveredLenderIdRef = useRef<number | null>(null);
+  const lastUpdateTimeRef = useRef<number>(0);
+  const pendingUpdateRef = useRef<(() => void) | null>(null);
+
+  // Set mounted state for portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let rafId: number;
@@ -271,6 +283,9 @@ export default function LenderGraph({
         // isVisuallyActiveInGraph determines if lines/active pulses are shown
         const { isVisuallyActiveInGraph, scoreFromContext } = pos;
 
+        // Check if this node is hovered (used for performance optimizations)
+        const isHovered = hoveredLenderId === lender_id;
+
         // Draw connecting lines only if page filters are applied AND node is visually active in graph
         if (filtersApplied && isVisuallyActiveInGraph) {
           let gradient;
@@ -282,8 +297,8 @@ export default function LenderGraph({
           ctx.lineWidth = 0.4 + scoreFromContext * 0.5; 
           ctx.stroke();
 
-          // Particles along lines for active, high-scoring nodes
-          if (scoreFromContext > 0.65 && Math.random() < 0.018 * scoreFromContext) {
+          // Particles along lines for active, high-scoring nodes - only for hovered node
+          if (scoreFromContext > 0.65 && isHovered && Math.random() < 0.018 * scoreFromContext) {
             const t = Math.random();
             addParticles(centerPoint.x + (pos.x - centerPoint.x) * t, centerPoint.y + (pos.y - centerPoint.y) * t, pos.color, 1, 0.7);
           }
@@ -293,13 +308,25 @@ export default function LenderGraph({
         pos.x += (pos.targetX - pos.x) * moveSpeed;
         pos.y += (pos.targetY - pos.y) * moveSpeed;
         
-        // Particles at node position for active, mid-to-high scoring nodes
-        if (filtersApplied && isVisuallyActiveInGraph && scoreFromContext > 0.55 && Math.random() < 0.012 * scoreFromContext) {
+        // Particles at node position for active, mid-to-high scoring nodes - only for hovered node
+        if (filtersApplied && isVisuallyActiveInGraph && scoreFromContext > 0.55 && isHovered && Math.random() < 0.012 * scoreFromContext) {
           addParticles(pos.x, pos.y, pos.color, 1, 0.6);
         }
 
-        // Pulsing effect for active nodes
-        const pulse = pos.isVisuallyActiveInGraph ? Math.sin(time / 300 + lender_id) * 1.5 : 0;
+        // Pulsing effect - OPTIMIZATION: 
+        // - When NOT hovering: all active nodes pulse
+        // - When hovering: only the hovered node pulses, others are static (reduces calculations)
+        let pulse = 0;
+        if (pos.isVisuallyActiveInGraph) {
+          if (hoveredLenderId === null) {
+            // No hover - all active nodes pulse
+            pulse = Math.sin(time / 300 + lender_id) * 1.5;
+          } else if (isHovered) {
+            // Hovering - only hovered node pulses
+            pulse = Math.sin(time / 300 + lender_id) * 1.5;
+          }
+          // When hovering on a different node, this node is static (pulse = 0)
+        }
         const finalRadius = pos.radius + pulse;
 
         ctx.beginPath();
@@ -341,77 +368,193 @@ export default function LenderGraph({
     return () => { cancelAnimationFrame(animationRef.current); };
   }, [lenders, canvasSize, selectedLender, hoveredLenderId, centerPoint, filtersApplied, formData]);
 
-  // Mouse event handlers (handleMouseMove, handleMouseLeave, handleMouseDown, handleMouseUp, handleLenderClick)
-  // remain largely the same as your provided "working older version",
-  // as their core logic for interaction is sound.
-  // The key is that the drawing loop now correctly uses `filtersApplied` for the initial state.
+  // Memoized screen position - only recalculates when container moves (scroll/resize)
+  const [containerRect, setContainerRect] = useState<DOMRect | null>(null);
+  
+  useEffect(() => {
+    if (!selectedLender || !containerRef.current) {
+      setContainerRect(null);
+      return;
+    }
 
-  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
+    const updateRect = () => {
+      const rect = containerRef.current?.getBoundingClientRect() || null;
+      setContainerRect(rect);
+    };
+
+    updateRect();
+    window.addEventListener('scroll', updateRect, true);
+    window.addEventListener('resize', updateRect);
+    
+    return () => {
+      window.removeEventListener('scroll', updateRect, true);
+      window.removeEventListener('resize', updateRect);
+    };
+  }, [selectedLender]);
+
+  // Compute screen position from relative position + container rect
+  // CRITICAL: Only recalculates when containerRect changes (scroll/resize), NOT on mouse move
+  // The relative position (cardPositionRef) is set once when lender changes and stays fixed
+  const cardScreenPosition = useMemo(() => {
+    if (!containerRect) return { x: 0, y: 0 };
+    // Use the FIXED card position from ref (set once when lender changes, never updated on mouse move)
+    const relativePos = cardPositionRef.current;
+    return {
+      x: containerRect.left + relativePos.relativeX,
+      y: containerRect.top + relativePos.relativeY,
+    };
+  }, [containerRect]); // Only recalculate when container moves (scroll/resize), NOT on mouse move
+
+  // Calculate card position relative to node position (fixed, not following mouse)
+  const calculateCardPositionFromNode = useCallback((nodeX: number, nodeY: number, containerRect: DOMRect) => {
+    const cardWidth = 320;
+    const cardHeight = 380;
+    
+    // Position card to the right and slightly above the node by default
+    let cardX = nodeX + 30;
+    let cardY = nodeY - cardHeight / 2;
+
+    // Adjust if card would overflow canvas bounds
+    if (cardX + cardWidth > canvasSize.width - 10) {
+      // Position to the left instead
+      cardX = nodeX - cardWidth - 30;
+    }
+    if (cardY + cardHeight > canvasSize.height - 10) {
+      cardY = canvasSize.height - cardHeight - 10;
+    }
+    if (cardY < 10) {
+      cardY = 10;
+    }
+    
+    // Clamp to canvas bounds
+    cardX = Math.max(5, Math.min(cardX, canvasSize.width - cardWidth - 5));
+    cardY = Math.max(5, Math.min(cardY, canvasSize.height - cardHeight - 5));
+    
+    return { x: cardX, y: cardY };
+  }, [canvasSize.width, canvasSize.height]);
+
+  // Update card position ONLY when lender changes (not on every mouse move)
+  const updateCardPositionForLender = useCallback((lenderId: number | null) => {
+    if (lenderId === null) {
+      lastHoveredLenderIdRef.current = null;
+      return;
+    }
+    
+    // CRITICAL FIX: Only update if this is a DIFFERENT lender
+    // This prevents card from moving when mouse moves on same node
+    if (lastHoveredLenderIdRef.current === lenderId) {
+      // Same lender - ABSOLUTELY DO NOT UPDATE POSITION
+      // Card stays fixed relative to node
+      return;
+    }
+    
+    // New lender detected - calculate and set position ONCE
+    lastHoveredLenderIdRef.current = lenderId;
+    const pos = lenderPositionsRef.current.get(lenderId);
+    if (!pos || !containerRef.current) {
+      lastHoveredLenderIdRef.current = null; // Reset if position not found
+      return;
+    }
+    
+    // Calculate fixed position relative to node (not mouse)
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const cardPos = calculateCardPositionFromNode(pos.x, pos.y, containerRect);
+    
+    // Set position in ref (doesn't trigger re-render)
+    cardPositionRef.current = { relativeX: cardPos.x, relativeY: cardPos.y };
+    
+    // Update container rect to trigger screen position calculation (only once per lender)
+    // This is the ONLY place where containerRect should be set for card positioning
+    setContainerRect(containerRect);
+  }, [calculateCardPositionFromNode]);
+
+  // Card position is fixed relative to node - no continuous updates needed
+  // Position only updates when lender changes, not when node moves
+
+  // Find lender at mouse position
+  const findLenderAtPosition = useCallback((x: number, y: number): LenderProfile | null => {
+    const sortedLenders = [...lenders].sort((a, b) => 
+      (lenderPositionsRef.current.get(a.lender_id)?.radius || 0) - 
+      (lenderPositionsRef.current.get(b.lender_id)?.radius || 0)
+    );
+
+    for (const lender of sortedLenders) {
+      const pos = lenderPositionsRef.current.get(lender.lender_id);
+      if (!pos) continue;
+      const distance = Math.sqrt((x - pos.x) ** 2 + (y - pos.y) ** 2);
+      if (distance <= pos.radius + 3) {
+        return lender;
+      }
+    }
+    return null;
+  }, [lenders]);
+
+  // Handle lender selection logic
+  const handleLenderSelection = useCallback((lender: LenderProfile | null) => {
+    if (!lender) {
+      setShowIncompleteFiltersCard(false);
+      setSelectedLender(null);
+      return;
+    }
+
+    if (allFiltersSelected && lender.match_score > 0) {
+      setSelectedLender(lender);
+      if (onLenderClick) onLenderClick(lender);
+      setShowIncompleteFiltersCard(false);
+    } else if (lender.match_score > 0) {
+      setShowIncompleteFiltersCard(true);
+      setSelectedLender(null);
+    } else {
+      setShowIncompleteFiltersCard(false);
+      setSelectedLender(null);
+    }
+  }, [allFiltersSelected, onLenderClick]);
+
+  // Optimized mouse move handler - only updates when lender changes, not on every pixel move
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas || !canvasSize.width || !canvasSize.height) return;
+    
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    let foundLender: LenderProfile | null = null;
-
-    const sortedLenders = [...lenders].sort((a,b) => (lenderPositionsRef.current.get(a.lender_id)?.radius || 0) - (lenderPositionsRef.current.get(b.lender_id)?.radius || 0));
-
-    for (const lender of sortedLenders) {
-        const pos = lenderPositionsRef.current.get(lender.lender_id);
-        if (!pos) continue;
-        const distance = Math.sqrt((x - pos.x) ** 2 + (y - pos.y) ** 2);
-        if (distance <= pos.radius + 3) { 
-            foundLender = lender;
-            break; 
-        }
-    }
     
+    const foundLender = findLenderAtPosition(x, y);
+    const foundLenderId = foundLender ? foundLender.lender_id : null;
+    
+    // Update cursor immediately (no throttling needed for cursor)
     canvas.style.cursor = foundLender ? "pointer" : "default";
     
-    // Use requestAnimationFrame to avoid setState during render
-    requestAnimationFrame(() => {
-      setHoveredLenderId(foundLender ? foundLender.lender_id : null);
-
+    // CRITICAL: Only update state if lender CHANGED (not on every mouse pixel movement)
+    // Use ref to compare to avoid unnecessary re-renders
+    const currentHoveredId = hoveredLenderId;
+    
+    if (foundLenderId !== currentHoveredId) {
+      // Lender changed - update everything
+      setHoveredLenderId(foundLenderId);
+      
       if (foundLender) {
-        const containerRect = containerRef.current?.getBoundingClientRect();
-        if (containerRect) {
-          const relativeX = e.clientX - containerRect.left;
-          const relativeY = e.clientY - containerRect.top;
-          const cardWidth = 320; const cardHeight = 380; 
-          let cardX = relativeX + 20; let cardY = relativeY - 20;
-
-          if (cardX + cardWidth > canvasSize.width -10) cardX = relativeX - cardWidth - 20;
-          if (cardY + cardHeight > canvasSize.height -10) cardY = canvasSize.height - cardHeight -10;
-          if (cardY < 10) cardY = 10; 
-          
-          cardX = Math.max(5, Math.min(cardX, canvasSize.width - cardWidth - 5));
-          cardY = Math.max(5, Math.min(cardY, canvasSize.height - cardHeight - 5));
-          cardPositionRef.current = { x: cardX, y: cardY };
-          
-          if (allFiltersSelected && foundLender.match_score > 0) { 
-            setSelectedLender(foundLender);
-            if (onLenderClick) onLenderClick(foundLender);
-          } else if (foundLender.match_score > 0) { 
-            setShowIncompleteFiltersCard(true);
-            setSelectedLender(null); 
-          } else { 
-            setShowIncompleteFiltersCard(false);
-            setSelectedLender(null);
-          }
-        }
+        // Update card position ONLY when lender changes (fixed position relative to node)
+        updateCardPositionForLender(foundLenderId);
+        handleLenderSelection(foundLender);
       } else {
-        setShowIncompleteFiltersCard(false);
-        setSelectedLender(null);
+        // Clear when leaving lender
+        lastHoveredLenderIdRef.current = null;
+        handleLenderSelection(null);
       }
-    });
-  }
+    }
+    // If same lender - DO NOTHING (card stays in fixed position)
+  }, [canvasSize, findLenderAtPosition, hoveredLenderId, updateCardPositionForLender, handleLenderSelection]);
 
-  function handleMouseLeave(e: React.MouseEvent<HTMLCanvasElement>) {
+  const handleMouseLeave = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const cardElement = document.querySelector(`[id^="lender-card-"]`);
     // Only keep card if mouse is moving to the card itself
-    if (cardElement && cardElement.contains(e.relatedTarget as Node)) {
+    if (cardElement && e.relatedTarget && e.relatedTarget instanceof Node && cardElement.contains(e.relatedTarget)) {
       return;
     }
+    // Clear pending updates
+    pendingUpdateRef.current = null;
+    lastHoveredLenderIdRef.current = null;
     // Clear everything when leaving canvas
     requestAnimationFrame(() => {
       setHoveredLenderId(null);
@@ -420,66 +563,82 @@ export default function LenderGraph({
       if (onLenderClick) onLenderClick(null);
       if (canvasRef.current) canvasRef.current.style.cursor = "default";
     });
-  }
+  }, [onLenderClick]);
 
-  function handleMouseDown() { setIsMouseDown(true); }
-  function handleMouseUp() { setIsMouseDown(false); }
+  const handleMouseDown = useCallback(() => { setIsMouseDown(true); }, []);
+  const handleMouseUp = useCallback(() => { setIsMouseDown(false); }, []);
 
-  function handleLenderClick(e: React.MouseEvent) {
+  const handleLenderClick = useCallback((e: React.MouseEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    let clickedLender: LenderProfile | null = null;
-
-    const sortedLenders = [...lenders].sort((a,b) => (lenderPositionsRef.current.get(a.lender_id)?.radius || 0) - (lenderPositionsRef.current.get(b.lender_id)?.radius || 0));
-    for (const lender of sortedLenders) {
-        const pos = lenderPositionsRef.current.get(lender.lender_id);
-        if (!pos) continue;
-        const distance = Math.sqrt((x - pos.x) ** 2 + (y - pos.y) ** 2);
-        if (distance <= pos.radius + 3) { clickedLender = lender; break; }
-    }
+    
+    const clickedLender = findLenderAtPosition(x, y);
     
     if (clickedLender) {
-        if (allFiltersSelected && clickedLender.match_score > 0) {
-            setSelectedLender(prev => {
-                const newSelection = prev?.lender_id === clickedLender?.lender_id ? null : clickedLender;
-                if (onLenderClick) onLenderClick(newSelection);
-                setShowIncompleteFiltersCard(false);
-                return newSelection;
-            });
-        } else if (clickedLender.match_score > 0) {
-            setShowIncompleteFiltersCard(true);
-            setSelectedLender(null); 
-        } else { 
-            setSelectedLender(null); 
-            setShowIncompleteFiltersCard(false);
-            if (onLenderClick) onLenderClick(null);
-        }
-    } else { 
-        setSelectedLender(null);
-        setShowIncompleteFiltersCard(false);
-        if (onLenderClick) onLenderClick(null);
+      if (allFiltersSelected && clickedLender.match_score > 0) {
+        setSelectedLender(prev => {
+          const newSelection = prev?.lender_id === clickedLender?.lender_id ? null : clickedLender;
+          if (onLenderClick) onLenderClick(newSelection);
+          setShowIncompleteFiltersCard(false);
+          return newSelection;
+        });
+      } else {
+        handleLenderSelection(clickedLender);
+      }
+    } else {
+      setSelectedLender(null);
+      setShowIncompleteFiltersCard(false);
+      if (onLenderClick) onLenderClick(null);
     }
-  }
+  }, [findLenderAtPosition, allFiltersSelected, onLenderClick, handleLenderSelection]);
 
-  const incompleteFiltersTooltip = (
-    <div
-      className="absolute z-20 p-3 bg-gray-800 text-gray-200 text-xs rounded-md shadow-xl pointer-events-none ring-1 ring-gray-600"
-      style={{
-        top: cardPositionRef.current.y - 10, 
-        left: cardPositionRef.current.x + 10,
-        maxWidth: '230px',
-        transform: 'translateY(-100%)', 
-      }}
-    >
-      Please select criteria in all filter categories to view lender details and connect.
-    </div>
-  );
+  // Calculate centered position for incomplete filters tooltip
+  const tooltipCenterPosition = useMemo(() => {
+    if (!containerRef.current) return { x: 0, y: 0 };
+    const containerRect = containerRef.current.getBoundingClientRect();
+    // Center the tooltip on the canvas
+    return {
+      x: containerRect.left + canvasSize.width / 2,
+      y: containerRect.top + canvasSize.height / 2,
+    };
+  }, [canvasSize.width, canvasSize.height]);
+
+  // Memoize the incomplete filters tooltip to prevent unnecessary re-renders
+  const incompleteFiltersTooltip = useMemo(() => {
+    if (!mounted) return null;
+    return createPortal(
+      <div
+        className="fixed z-[99999] p-3 bg-gray-800 text-gray-200 text-xs rounded-md shadow-xl pointer-events-none ring-1 ring-gray-600"
+        style={{
+          top: tooltipCenterPosition.y, 
+          left: tooltipCenterPosition.x,
+          maxWidth: '230px',
+          transform: 'translate(-50%, -50%)', // Center the tooltip
+        }}
+      >
+        Please select criteria in all filter categories to view lender details and connect.
+      </div>,
+      document.body
+    );
+  }, [tooltipCenterPosition.x, tooltipCenterPosition.y, mounted]);
+
+  // Memoize the lender color to prevent recalculation on every render
+  const selectedLenderColor = useMemo(() => {
+    if (!selectedLender) return '';
+    return getLenderColor(selectedLender, formData, true, filtersApplied);
+  }, [selectedLender, formData, filtersApplied]);
+
+  // Memoize the close handler to prevent unnecessary re-renders
+  const handleCloseCard = useCallback(() => {
+    setSelectedLender(null);
+    if (onLenderClick) onLenderClick(null);
+  }, [onLenderClick]);
 
   return (
-    <div className="h-full w-full flex" ref={containerRef}>
+    <div className="h-full w-full flex relative z-0" ref={containerRef}>
       <div className="relative w-full h-full">
         <canvas
           ref={canvasRef}
@@ -493,32 +652,39 @@ export default function LenderGraph({
           style={{ display: 'block' }}
         />
 
-        {selectedLender && allFiltersSelected && selectedLender.match_score > 0 && (
-          <div
-            id={`lender-card-${selectedLender.lender_id}`}
-            className="absolute z-10"
-            style={{
-              top: cardPositionRef.current.y,
-              left: cardPositionRef.current.x,
-            }}
-            onMouseLeave={(e) => {
-              // If mouse leaves card and doesn't go to canvas, hide the card
-              if (canvasRef.current && e.relatedTarget !== canvasRef.current && !canvasRef.current.contains(e.relatedTarget as Node)) {
-                requestAnimationFrame(() => {
-                  setSelectedLender(null);
-                  if (onLenderClick) onLenderClick(null);
-                });
-              }
-            }}
-          >
-            <LenderDetailCard
-              lender={selectedLender}
-              formData={formData}
-              onClose={() => {setSelectedLender(null); if (onLenderClick) onLenderClick(null);}}
-              color={getLenderColor(selectedLender, formData, true, filtersApplied)}
-            />
-          </div>
-        )}
+        {selectedLender && allFiltersSelected && selectedLender.match_score > 0 && mounted && 
+          createPortal(
+            <div
+              id={`lender-card-${selectedLender.lender_id}`}
+              className="fixed z-[99999]"
+              style={{
+                top: cardScreenPosition.y,
+                left: cardScreenPosition.x,
+                pointerEvents: 'auto',
+              }}
+              onMouseLeave={(e) => {
+                // If mouse leaves card and doesn't go to canvas, hide the card
+                // Fix: Check if relatedTarget exists and is a Node before calling contains
+                if (canvasRef.current && e.relatedTarget !== canvasRef.current && 
+                    e.relatedTarget && e.relatedTarget instanceof Node && 
+                    !canvasRef.current.contains(e.relatedTarget)) {
+                  requestAnimationFrame(() => {
+                    setSelectedLender(null);
+                    if (onLenderClick) onLenderClick(null);
+                  });
+                }
+              }}
+            >
+              <LenderDetailCard
+                lender={selectedLender}
+                formData={formData}
+                onClose={handleCloseCard}
+                color={selectedLenderColor}
+              />
+            </div>,
+            document.body
+          )
+        }
 
         {showIncompleteFiltersCard && !allFiltersSelected && hoveredLenderId !== null && 
          (lenders.find(l => l.lender_id === hoveredLenderId)?.match_score ?? 0) > 0 &&
