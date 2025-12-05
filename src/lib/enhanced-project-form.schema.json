@@ -27,8 +27,7 @@
             "projectPhase",
             "projectDescription",
             "parcelNumber",
-            "zoningDesignation",
-            "expectedZoningChanges"
+            "zoningDesignation"
           ]
         }
       ],
@@ -45,8 +44,7 @@
         "projectPhase",
         "projectDescription",
         "parcelNumber",
-        "zoningDesignation",
-        "expectedZoningChanges"
+        "zoningDesignation"
       ]
     },
     {
