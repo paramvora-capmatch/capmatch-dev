@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquare, Brain } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { MessageSquare, Brain, Users } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { ChatInterface } from "@/components/chat/ChatInterface";
+import { MeetInterface } from "@/components/chat/MeetInterface";
 import { useChatStore } from "@/stores/useChatStore";
 import { AIChatInterface } from "@/components/chat/AIChatInterface";
 import { Message, FieldContext } from "@/types/ask-ai-types";
@@ -20,7 +21,7 @@ interface StickyChatCardProps {
   isBuildingContext?: boolean;
   contextError?: string | null;
   hasActiveContext?: boolean;
-  externalActiveTab?: 'team' | 'ai';
+  externalActiveTab?: 'team' | 'ai' | 'meet';
   externalShouldExpand?: boolean; // When true, expands the chat if collapsed
   hideTeamTab?: boolean; // When true, hides team tab and shows only AI chat
   onAIReplyClick?: (message: Message) => void; // Callback for AI chat reply clicks
@@ -42,7 +43,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
   hideTeamTab = false,
   onAIReplyClick,
 }) => {
-  const [rightTab, setRightTab] = useState<"team" | "ai">(hideTeamTab ? "ai" : "team");
+  const [rightTab, setRightTab] = useState<"team" | "ai" | "meet">(hideTeamTab ? "ai" : "team");
   const [isChatCollapsed, setIsChatCollapsed] = useState<boolean>(() => {
     try {
       return JSON.parse(
@@ -95,6 +96,16 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
       if (isChatHovered) {
         // Expanded: width + channel selector, but capped at 50% max
         return "!w-[min(calc(35%+12rem),50%)] md:!w-[min(calc(40%+12rem),50%)] xl:!w-[min(calc(45%+12rem),50%)]";
+      } else {
+        // Collapsed: 35% width consistently
+        return "w-[35%]";
+      }
+    }
+    // For meet tab: also use hover-based width
+    if (rightTab === "meet") {
+      if (isChatHovered) {
+        // Expanded: wider when hovered, capped at 50% max
+        return "!w-[min(45%,50%)] md:!w-[min(50%,50%)] xl:!w-[min(55%,50%)] max-w-[700px]";
       } else {
         // Collapsed: 35% width consistently
         return "w-[35%]";
@@ -163,6 +174,19 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                     <span>Team Chat</span>
                   </button>
                   <button
+                    onClick={() => setRightTab("meet")}
+                    className={cn(
+                      "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
+                      rightTab === "meet"
+                        ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm border border-blue-200/50"
+                        : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.02]"
+                    )}
+                    aria-pressed={rightTab === "meet"}
+                  >
+                    <Users size={16} className={cn("transition-transform duration-300", rightTab === "meet" ? "scale-110" : "")} />
+                    <span>Meet</span>
+                  </button>
+                  <button
                     onClick={() => setRightTab("ai")}
                     className={cn(
                       "flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-300",
@@ -205,6 +229,11 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
                   projectId={projectId || ""}
                   onMentionClick={onMentionClick}
                   isHovered={isChatHovered}
+                />
+              ) : rightTab === "meet" ? (
+                <MeetInterface
+                  embedded
+                  projectId={projectId || ""}
                 />
               ) : (
                 <div className="h-full bg-transparent py-4">

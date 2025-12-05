@@ -97,7 +97,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const [isEditing, setIsEditing] = useState(false);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
-  const [chatTab, setChatTab] = useState<"team" | "ai">("team");
+  const [chatTab, setChatTab] = useState<"team" | "ai" | "meet">("team");
   const [shouldExpandChat, setShouldExpandChat] = useState(false);
   const [internalBorrowerEditing, setInternalBorrowerEditing] = useState(false);
   const borrowerEditing = isBorrowerEditing ?? internalBorrowerEditing;
