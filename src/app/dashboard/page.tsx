@@ -449,7 +449,6 @@ export default function DashboardPage() {
       applyMemberPermissions,
       createProject,
       deleteProject,
-      projects.length,
       router,
       createdProject,
     ]
