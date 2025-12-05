@@ -15,15 +15,7 @@ serve(async (req) => {
   }
 
   try {
-    const requestBody = await req.json();
-    const { name, owner_org_id, assigned_advisor_id } = requestBody;
-    
-    console.log(`[create-project] [${requestId}] Parsed request body:`, {
-      name,
-      owner_org_id,
-      assigned_advisor_id: assigned_advisor_id || null,
-    });
-
+    const { name, owner_org_id, assigned_advisor_id, address } = await req.json();
     if (!name || !owner_org_id) {
       console.error(`[create-project] [${requestId}] Validation failed - missing required fields:`, {
         has_name: !!name,
@@ -145,6 +137,7 @@ serve(async (req) => {
       owner_org_id,
       assigned_advisor_id: finalAdvisorId,
       creator_id: user.id,
+      address: address || undefined,
     });
 
     // --- Atomic Operation End ---
