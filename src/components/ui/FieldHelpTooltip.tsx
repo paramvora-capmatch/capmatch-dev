@@ -20,10 +20,11 @@ interface FieldHelpTooltipProps {
 	iconSize?: number;
 	placement?: "top" | "bottom" | "left" | "right";
 	fieldMetadata?: {
+		source?: SourceMetadata;
 		sources?: SourceMetadata[];
 		warnings?: string[];
 		value?: any;
-		original_value?: any;
+		other_values?: Array<{ value: any; source: SourceMetadata }>;
 	};
 }
 
@@ -273,12 +274,14 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 											<span
 												className={cn(
 													"text-xs font-semibold px-2 py-0.5 rounded",
-													metadata.fieldType === "derived"
+													metadata.fieldType ===
+														"derived"
 														? "bg-purple-100 text-purple-700"
 														: "bg-blue-100 text-blue-700"
 												)}
 											>
-												{metadata.fieldType === "derived"
+												{metadata.fieldType ===
+												"derived"
 													? "Derived"
 													: "Direct"}
 											</span>
@@ -299,55 +302,83 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 
 									{/* Divider will be shown with sources section if sources exist */}
 
-									{/* Sources - Only show if we have API metadata with sources */}
+									{/* Source - Only show if we have API metadata with source */}
 									{(() => {
-										// Get sources from API metadata - must be SourceMetadata format
-										const sources: SourceMetadata[] = [];
-										
+										// Get source from API metadata - single SourceMetadata object
+										let source: SourceMetadata | null =
+											null;
+
 										if (apiMetadata) {
-											// Check sources array (only format now - no source field)
-											if (apiMetadata.sources !== undefined && apiMetadata.sources !== null) {
-												if (Array.isArray(apiMetadata.sources)) {
-													// Filter valid SourceMetadata objects
-													apiMetadata.sources.forEach((src: any) => {
-														if (src && typeof src === "object" && src !== null && "type" in src) {
-															sources.push(src as SourceMetadata);
-														}
-													});
+											// Check for single source field (new format)
+											if (
+												apiMetadata.source !==
+													undefined &&
+												apiMetadata.source !== null
+											) {
+												if (
+													typeof apiMetadata.source ===
+														"object" &&
+													"type" in apiMetadata.source
+												) {
+													source =
+														apiMetadata.source as SourceMetadata;
+												}
+											}
+											// Backward compatibility: check sources array (old format)
+											else if (
+												apiMetadata.sources !==
+													undefined &&
+												apiMetadata.sources !== null
+											) {
+												if (
+													Array.isArray(
+														apiMetadata.sources
+													) &&
+													apiMetadata.sources.length >
+														0
+												) {
+													const firstSource =
+														apiMetadata.sources[0];
+													if (
+														firstSource &&
+														typeof firstSource ===
+															"object" &&
+														"type" in firstSource
+													) {
+														source =
+															firstSource as SourceMetadata;
+													}
 												}
 											}
 										}
-										
-										// Filter out "User Input" only if there are other non-user-input sources
-										const nonUserInputSources = sources.filter(s => {
-											// Ensure s is a valid SourceMetadata object with type property
-											return s && typeof s === "object" && "type" in s && s.type !== "user_input";
-										});
-										const filteredSources = nonUserInputSources.length > 0 
-											? nonUserInputSources  // If we have non-user-input sources, only show those
-											: sources;  // Otherwise show all sources (including user_input if it's the only one)
-										
-										// Only render if we have sources to show
-										if (filteredSources.length === 0) {
+
+										// Filter out "User Input" - don't show user_input sources
+										if (
+											source &&
+											source.type === "user_input"
+										) {
 											return null;
 										}
-										
+
+										// Only render if we have a source to show
+										if (!source) {
+											return null;
+										}
+
 										return (
 											<>
-												{(metadata || (apiMetadata && apiMetadata.warnings && apiMetadata.warnings.length > 0)) && (
+												{metadata && (
 													<div className="border-t border-gray-200 my-3" />
 												)}
 												<div>
 													<p className="text-xs font-semibold text-gray-700 mb-1">
-														Source(s):
+														Source:
 													</p>
-													<div className="space-y-1">
-														{filteredSources.map((source, idx) => (
-															<p key={idx} className="text-xs text-gray-600">
-																{formatSourceForDisplay(source)}
-															</p>
-														))}
-													</div>
+													<p className="text-xs text-gray-600">
+														{formatSourceForDisplay(
+															source
+														)}
+													</p>
 												</div>
 											</>
 										);

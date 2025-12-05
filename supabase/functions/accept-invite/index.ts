@@ -289,19 +289,26 @@ serve(async (req: any) => {
               p_permissions: grant.permissions,
             });
             if (grantError) {
-              console.error(`[accept-invite] [${requestId}] Error granting root permissions for project ${grant.projectId}:`, {
-                error: grantError.message,
-                error_code: grantError.code,
-                error_details: grantError.details,
-              });
+              // Check if it's a duplicate key error (already granted) - this is OK
+              const isDuplicateError = grantError.code === '23505' || 
+                (typeof grantError === 'string' && grantError.includes('duplicate key'));
+              if (isDuplicateError) {
+                console.log(`[accept-invite] Project access already granted for project ${grant.projectId} - continuing with permission updates`);
+              } else {
+                console.error(`[accept-invite] Error granting root permissions for project ${grant.projectId}: ${JSON.stringify(grantError)}`);
+              }
             } else {
-              console.log(`[accept-invite] [${requestId}] Root permissions granted successfully for project ${grant.projectId}`);
+              console.log(`[accept-invite] Successfully granted access to project ${grant.projectId} for user ${userId}`);
             }
           } catch (rpcError: any) {
-            console.error(`[accept-invite] [${requestId}] RPC grant_project_access failed for project ${grant.projectId}:`, {
-              error: rpcError.message,
-              error_stack: rpcError.stack,
-            });
+            // Check if it's a duplicate key error - this is OK
+            const isDuplicateError = rpcError?.code === '23505' || 
+              (rpcError?.message && rpcError.message.includes('duplicate key'));
+            if (isDuplicateError) {
+              console.log(`[accept-invite] Project access already granted for project ${grant.projectId} - continuing with permission updates`);
+            } else {
+              console.error(`[accept-invite] RPC grant_project_access failed: ${rpcError.message}`);
+            }
           }
         }
 
@@ -374,13 +381,12 @@ serve(async (req: any) => {
       console.log(`[accept-invite] [${requestId}] No project grants to process`);
     }
 
-    // Step 5: Grant project access if specified in the invite (duplicate logic - keeping for backward compatibility)
+    // Step 5: Grant project access if specified in the invite
     if (invite.project_grants && Array.isArray(invite.project_grants) && invite.project_grants.length > 0) {
-      console.log(`[accept-invite] [${requestId}] Found ${invite.project_grants.length} project grants to process (legacy path).`);
+      console.log(`[accept-invite] Found ${invite.project_grants.length} project grants to process.`);
       for (const grant of invite.project_grants) {
         if (grant.projectId && Array.isArray(grant.permissions)) {
           try {
-            console.log(`[accept-invite] [${requestId}] Granting access to project ${grant.projectId} (legacy path)`);
             const { error: grantError } = await supabase.rpc('grant_project_access', {
               p_project_id: grant.projectId,
               p_user_id: userId,
@@ -392,21 +398,17 @@ serve(async (req: any) => {
               // Log the error but don't fail the whole invite process.
               // This is a business decision: it's better for the user to join the org
               // even if a specific project grant fails. An admin can fix it later.
-              console.error(`[accept-invite] [${requestId}] Error granting access to project ${grant.projectId} for user ${userId}:`, {
-                error: grantError.message,
-                error_code: grantError.code,
-              });
+              console.error(`[accept-invite] Error granting access to project ${grant.projectId} for user ${userId}: ${JSON.stringify(grantError)}`);
             } else {
-              console.log(`[accept-invite] [${requestId}] Successfully granted access to project ${grant.projectId} for user ${userId}`);
+              console.log(`[accept-invite] Successfully granted access to project ${grant.projectId} for user ${userId}.`);
             }
-          } catch (rpcError: any) {
-            console.error(`[accept-invite] [${requestId}] RPC call to grant_project_access failed for project ${grant.projectId}:`, {
-              error: rpcError.message,
-              error_stack: rpcError.stack,
-            });
+          } catch (rpcError) {
+            console.error(`[accept-invite] RPC call to grant_project_access failed for project ${grant.projectId}: ${rpcError.message}`);
           }
         }
       }
+    } else {
+      console.log(`[accept-invite] No project grants found in invite for user ${userId}.`);
     }
 
     // Mark invite accepted

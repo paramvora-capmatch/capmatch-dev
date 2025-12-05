@@ -196,31 +196,42 @@ serve(async (req) => {
       let finalContentFlat: Record<string, unknown> = { ...existingContent };
       const rootKeys: Record<string, unknown> = {};
       
-      // Helper to normalize any legacy `source`/`sources` into a proper sources array
-      const toSourcesArray = (input: any): any[] => {
-        if (!input) return [];
+      // Helper to normalize any legacy `source`/`sources`/string into a single
+      // SourceMetadata-like object. The backend schema uses:
+      //   { value, source: { type, name?, derivation? }, warnings, other_values }
+      const toSourceObject = (input: any): any => {
+        if (!input) return { type: "user_input" };
 
-        // Already an array (e.g. SourceMetadata[])
-        if (Array.isArray(input)) {
+        // Already a SourceMetadata-like object
+        if (typeof input === "object" && input !== null && "type" in input) {
           return input;
+        }
+
+        // Legacy array form – pick the first entry
+        if (Array.isArray(input) && input.length > 0) {
+          const first = input[0];
+          if (typeof first === "object" && first !== null && "type" in first) {
+            return first;
+          }
+          if (typeof first === "string") {
+            const normalized = first.toLowerCase().trim();
+            if (normalized === "user_input" || normalized === "user input") {
+              return { type: "user_input" };
+            }
+            return { type: "document", name: first };
+          }
         }
 
         // Legacy string source
         if (typeof input === "string") {
           const normalized = input.toLowerCase().trim();
           if (normalized === "user_input" || normalized === "user input") {
-            return [{ type: "user_input" }];
+            return { type: "user_input" };
           }
-          // Default: treat as document name
-          return [{ type: "document", name: input }];
+          return { type: "document", name: input };
         }
 
-        // Already a SourceMetadata-like object
-        if (typeof input === "object" && input !== null && "type" in input) {
-          return [input];
-        }
-
-        return [];
+        return { type: "user_input" };
       };
       
       if (metadata) {
@@ -238,28 +249,22 @@ serve(async (req) => {
           const meta = metadata[key];
           
           if (meta) {
-            // Save in rich format using ONLY `sources` (array of SourceMetadata)
+            // Save in rich format using single `source` object and optional other_values
+            const metaAny: any = meta;
             const existingItem = existingContent[key];
-            const existingOriginalValue =
-              existingItem &&
-              typeof existingItem === "object" &&
-              "original_value" in existingItem
-                ? (existingItem as any).original_value
-                : undefined;
 
-            const metaSources =
-              (meta as any).sources !== undefined
-                ? (meta as any).sources
-                : (meta as any).source;
+            const primarySourceInput =
+              metaAny.source !== undefined
+                ? metaAny.source
+                : Array.isArray(metaAny.sources) && metaAny.sources.length > 0
+                ? metaAny.sources[0]
+                : undefined;
 
             finalContentFlat[key] = {
               value,
-              sources: toSourcesArray(metaSources),
-              original_value:
-                meta.original_value !== undefined
-                  ? meta.original_value
-                  : existingOriginalValue || value,
-              warnings: meta.warnings || [],
+              source: toSourceObject(primarySourceInput),
+              warnings: metaAny.warnings || [],
+              other_values: metaAny.other_values || [],
             };
           } else {
             // Check if existing content has rich format for this field
@@ -270,30 +275,27 @@ serve(async (req) => {
               ("value" in existingItem || "source" in existingItem || "sources" in existingItem)
             ) {
               const existingObj = existingItem as any;
-              const existingSources =
-                "sources" in existingObj
-                  ? existingObj.sources
-                  : "source" in existingObj
-                  ? toSourcesArray(existingObj.source)
+              const existingPrimarySourceInput =
+                "source" in existingObj
+                  ? existingObj.source
+                  : Array.isArray(existingObj.sources) && existingObj.sources.length > 0
+                  ? existingObj.sources[0]
                   : undefined;
-
-              // Preserve existing metadata structure (but normalize to `sources`) and update value
+      
+              // Preserve existing metadata structure, update value, and normalize to new schema
               finalContentFlat[key] = {
                 value,
-                sources: existingSources ?? [{ type: "user_input" }],
-                original_value:
-                  existingObj.original_value !== undefined
-                    ? existingObj.original_value
-                    : value,
+                source: toSourceObject(existingPrimarySourceInput),
                 warnings: existingObj.warnings || [],
+                other_values: existingObj.other_values || [],
               };
             } else {
               // Convert to rich format - this is user input without existing rich format
               finalContentFlat[key] = {
                 value,
-                sources: [{ type: "user_input" }],
-                original_value: value, // First time user sets this value
+                source: toSourceObject(null),
                 warnings: [],
+                other_values: [],
               };
             }
           }
@@ -317,30 +319,27 @@ serve(async (req) => {
             ("value" in existingItem || "source" in existingItem || "sources" in existingItem)
           ) {
             const existingObj = existingItem as any;
-            const existingSources =
-              "sources" in existingObj
-                ? existingObj.sources
-                : "source" in existingObj
-                ? toSourcesArray(existingObj.source)
+            const existingPrimarySourceInput =
+              "source" in existingObj
+                ? existingObj.source
+                : Array.isArray(existingObj.sources) && existingObj.sources.length > 0
+                ? existingObj.sources[0]
                 : undefined;
-
-            // Preserve existing rich format (normalized to `sources`), update value but keep original_value
+      
+            // Preserve existing rich format, update value, normalize to new schema
             finalContentFlat[key] = {
               value,
-              sources: existingSources ?? [{ type: "user_input" }],
-              original_value:
-                existingObj.original_value !== undefined
-                  ? existingObj.original_value
-                  : value,
+              source: toSourceObject(existingPrimarySourceInput),
               warnings: existingObj.warnings || [],
+              other_values: existingObj.other_values || [],
             };
           } else {
             // Convert to rich format - this is user input without existing rich format
             finalContentFlat[key] = {
               value,
-              sources: [{ type: "user_input" }],
-              original_value: value, // First time user sets this value
+              source: toSourceObject(null),
               warnings: [],
+              other_values: [],
             };
           }
         }
@@ -350,19 +349,21 @@ serve(async (req) => {
       // Convert any remaining flat values to rich format
       for (const key in finalContentFlat) {
         const item = finalContentFlat[key];
-        // Ensure objects with `value` are normalized to { value, sources, original_value, warnings }
+        // Ensure objects with `value` are normalized to { value, source, warnings, other_values }
         if (item !== null && typeof item === "object" && "value" in item) {
           const obj = item as any;
+          const primarySourceInput =
+            obj.source !== undefined
+              ? obj.source
+              : Array.isArray(obj.sources) && obj.sources.length > 0
+              ? obj.sources[0]
+              : undefined;
+
           const normalized: any = {
             value: obj.value,
-            sources: obj.sources
-              ? toSourcesArray(obj.sources)
-              : obj.source
-              ? toSourcesArray(obj.source)
-              : [{ type: "user_input" }],
-            original_value:
-              obj.original_value !== undefined ? obj.original_value : obj.value,
+            source: toSourceObject(primarySourceInput),
             warnings: obj.warnings || [],
+            other_values: obj.other_values || [],
           };
           finalContentFlat[key] = normalized;
         } else if (
@@ -373,9 +374,9 @@ serve(async (req) => {
           // Flat value - convert to rich format
           finalContentFlat[key] = {
             value: item,
-            sources: [{ type: "user_input" }],
-            original_value: item,
+            source: toSourceObject(null),
             warnings: [],
+            other_values: [],
           };
         }
       }

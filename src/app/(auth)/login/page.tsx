@@ -4,6 +4,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "../../../hooks/useAuth";
+import { supabase } from "../../../lib/supabaseClient";
 
 import AuthLayout from "../../../components/layout/AuthLayout";
 import { Form, FormGroup } from "../../../components/ui/Form";
@@ -12,13 +13,17 @@ import { Button } from "../../../components/ui/Button";
 import { Sparkles, Mail, Lock, Chrome } from "lucide-react";
 
 import { SplashScreen } from "../../../components/ui/SplashScreen";
+import { Modal, ModalBody, ModalFooter } from "../../../components/ui/Modal";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingNewAccount, setIsCheckingNewAccount] = useState(false);
+  const [showNewAccountConfirm, setShowNewAccountConfirm] = useState(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const {
     signInWithPassword,
     signUp,
@@ -28,6 +33,7 @@ const LoginForm = () => {
   const [loginSource, setLoginSource] = useState<"direct" | "lenderline">(
     "direct"
   );
+  const isLenderline = loginSource === "lenderline";
 
   // Determine login source from query parameter on mount
   useEffect(() => {
@@ -56,14 +62,119 @@ const LoginForm = () => {
     }
 
     try {
-      // Single call: store handles sign-in or onboarding fallback
+      // First, attempt a normal password sign-in.
       await signInWithPassword(email, password, loginSource);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setValidationError(msg || "Could not sign you in. Please try again.");
+
+      // If the message already looks like a clear credentials error, we may
+      // want to check whether this email actually has an account before
+      // offering to create a new one.
+      const isCredsError =
+        /incorrect email or password/i.test(msg) ||
+        /invalid login credentials/i.test(msg);
+
+      if (!isCredsError) {
+        setValidationError(msg || "Could not sign you in. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      try {
+        setIsCheckingNewAccount(true);
+
+        // Use a Postgres RPC that checks the mirrored profiles table for this email.
+        const { data, error } = await supabase.rpc(
+          "check_profile_email_exists",
+          { p_email: email }
+        );
+
+        if (error) {
+          console.error(
+            "[Login] check_profile_email_exists error:",
+            (error as any)?.message || String(error)
+          );
+          // Fall back to the generic invalid-credentials message.
+          setValidationError("Incorrect email or password.");
+          return;
+        }
+
+        const exists = !!data;
+
+        if (exists) {
+          // Email is already registered; treat this as an incorrect password.
+          setValidationError("Incorrect password for this account.");
+          return;
+        }
+
+        // For LenderLine traffic, skip the confirmation modal and immediately
+        // onboard the user by creating an account with the provided credentials.
+        if (isLenderline) {
+          try {
+            await signUp(email, password, loginSource);
+            // After successful sign-up + sign-in, send them straight to the dashboard.
+            router.replace("/dashboard");
+          } catch (signUpErr) {
+            console.error("[Login] LenderLine sign-up failed:", signUpErr);
+            const msg =
+              signUpErr instanceof Error
+                ? signUpErr.message
+                : String(signUpErr);
+            setValidationError(
+              msg || "Could not create your account. Please try again."
+            );
+          }
+          return;
+        }
+
+        // No existing account with this email. Ask for explicit confirmation
+        // before creating a new account using email/password.
+        setShowNewAccountConfirm(true);
+      } catch (checkErr) {
+        console.error(
+          "[Login] Error during sign-up confirmation flow:",
+          checkErr
+        );
+        setValidationError(
+          "Could not complete sign-in or sign-up. Please try again."
+        );
+      } finally {
+        setIsCheckingNewAccount(false);
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Successful sign-in path (listener will redirect); clear submitting state.
+    setIsSubmitting(false);
+  };
+
+  const handleConfirmCreateAccount = async () => {
+    setValidationError(null);
+    setShowNewAccountConfirm(false);
+    setIsSubmitting(true);
+    try {
+      await signUp(email, password, loginSource);
+      // After successful sign-up and automatic sign-in, proactively route the
+      // new user to the main borrower dashboard. The global auth listener will
+      // also update state, but this avoids leaving them on the login page.
+      router.replace("/dashboard");
+    } catch (err) {
+      console.error("[Login] Error during confirmed sign-up:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setValidationError(
+        msg || "Could not create your account. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCancelCreateAccount = () => {
+    setShowNewAccountConfirm(false);
+    setValidationError(
+      "We couldn't find an account with this email. Please try a different email or check for typos."
+    );
   };
 
   return (
@@ -72,10 +183,14 @@ const LoginForm = () => {
         <div className="inline-flex items-center space-x-2 mb-2">
           <Sparkles className="h-6 w-6 text-blue-600" />
           <h2 className="text-2xl font-bold text-gray-800">
-            Welcome to CapMatch
+            {isLenderline ? "Access LenderLine" : "Welcome to CapMatch"}
           </h2>
         </div>
-        <p className="text-gray-600">Sign in or create your account in one step.</p>
+        <p className="text-gray-600">
+          {isLenderline
+            ? "Sign in or create your CapMatch account to access LenderLine."
+            : "Sign in or create your account in one step."}
+        </p>
       </div>
       <div>
         <Form onSubmit={handleLogin} className="space-y-6">
@@ -110,9 +225,9 @@ const LoginForm = () => {
             variant="primary"
             fullWidth
             size="lg"
-            isLoading={authLoading || isSubmitting}
+            isLoading={authLoading || isSubmitting || isCheckingNewAccount}
           >
-            Continue with Email
+            {isLenderline ? "Continue to LenderLine" : "Continue with Email"}
           </Button>
 
           {/* Removed test account quick login buttons */}
@@ -138,7 +253,9 @@ const LoginForm = () => {
             leftIcon={<Chrome className="h-5 w-5" />}
             isLoading={authLoading}
           >
-            Sign in with Google
+            {isLenderline
+              ? "Sign in with Google to access LenderLine"
+              : "Sign in with Google"}
           </Button>
 
           {/* Unified flow: remove sign-in/sign-up toggle */}
@@ -148,6 +265,42 @@ const LoginForm = () => {
           </p>
         </Form>
       </div>
+
+      {/* New account confirmation modal */}
+      <Modal
+        isOpen={showNewAccountConfirm}
+        onClose={handleCancelCreateAccount}
+        title="Create a new CapMatch account?"
+        size="md"
+      >
+        <ModalBody>
+          <p className="text-sm text-gray-700">
+            We couldn&apos;t find an existing account for{" "}
+            <span className="font-semibold break-all">{email}</span>.
+          </p>
+          <p className="mt-3 text-sm text-gray-700">
+            If you continue, we&apos;ll create a new CapMatch account using this
+            email address and the password you entered.
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCancelCreateAccount}
+          >
+            Go Back
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleConfirmCreateAccount}
+            isLoading={isSubmitting}
+          >
+            Yes, create my account
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 };

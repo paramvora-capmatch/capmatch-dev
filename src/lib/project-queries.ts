@@ -535,30 +535,24 @@ export const getProjectWithResume = async (
 		if (
 			item &&
 			typeof item === "object" &&
-			("source" in item || "sources" in item) &&
-			"value" in item
+			"value" in item &&
+			("source" in item || "sources" in item)
 		) {
-			(resumeContent as any)[key] = item.value;
-			let sourceValue = item.source;
-			if (
-				!sourceValue &&
-				item.sources &&
-				Array.isArray(item.sources) &&
-				item.sources.length > 0
-			) {
-				const first = item.sources[0];
-				sourceValue =
-					typeof first === "object" && first !== null
-						? first.name || first.type
-						: first;
+			// Rich format from backend: { value, source, warnings, other_values }
+			const anyItem: any = item;
+			(resumeContent as any)[key] = anyItem.value;
+
+			// Prefer the single `source` object; fall back to first entry in legacy `sources` array.
+			let primarySource = anyItem.source;
+			if (!primarySource && Array.isArray(anyItem.sources) && anyItem.sources.length > 0) {
+				primarySource = anyItem.sources[0];
 			}
+
 			_metadata[key] = {
-				value: item.value,
-				source: sourceValue || null,
-				sources: item.sources || (item.source ? [item.source] : []),
-				original_source: item.source || null,
-				original_value: item.original_value ?? item.value,
-				warnings: item.warnings || [],
+				value: anyItem.value,
+				source: primarySource ?? null,
+				warnings: anyItem.warnings || [],
+				other_values: anyItem.other_values || [],
 			};
 		} else {
 			(resumeContent as any)[key] = item;
@@ -673,39 +667,22 @@ export const getProjectsWithResumes = async (
 				if (
 					item &&
 					typeof item === "object" &&
-					("source" in item || "sources" in item) &&
-					"value" in item
+					"value" in item &&
+					("source" in item || "sources" in item)
 				) {
-					(flatContent as any)[key] = item.value;
-					let sourceValue: string | null = null;
-					let originalSource: "document" | "knowledge_base" | null =
-						null;
+					const anyItem: any = item;
+					(flatContent as any)[key] = anyItem.value;
 
-					const sources =
-						item.sources || (item.source ? [item.source] : []);
-					if (sources.length > 0) {
-						const first = sources[0];
-						if (typeof first === "object" && first !== null) {
-							sourceValue = first.name || first.type;
-							if (first.type === "document")
-								originalSource = "document";
-							else if (first.type === "external")
-								originalSource = "knowledge_base";
-						} else {
-							sourceValue = String(first);
-						}
+					let primarySource = anyItem.source;
+					if (!primarySource && Array.isArray(anyItem.sources) && anyItem.sources.length > 0) {
+						primarySource = anyItem.sources[0];
 					}
 
 					metadata[key] = {
-						value: item.value,
-						source: sourceValue,
-						sources,
-						original_source: originalSource,
-						original_value:
-							item.original_value !== undefined
-								? item.original_value
-								: item.value,
-						warnings: item.warnings || [],
+						value: anyItem.value,
+						source: primarySource ?? null,
+						warnings: anyItem.warnings || [],
+						other_values: anyItem.other_values || [],
 					};
 				} else {
 					(flatContent as any)[key] = item;
@@ -798,6 +775,42 @@ export const saveProjectResume = async (
 	const lockedFields = (content as any)._lockedFields || {};
 	const fieldStates = (content as any)._fieldStates || {};
 
+	// Helper to normalize various legacy source shapes into a single SourceMetadata-like object
+	const toSourceObject = (input: any): any => {
+		if (!input) return { type: "user_input" };
+
+		// Already a SourceMetadata-like object
+		if (typeof input === "object" && input !== null && "type" in input) {
+			return input;
+		}
+
+		// Legacy array form – take first entry
+		if (Array.isArray(input) && input.length > 0) {
+			const first = input[0];
+			if (typeof first === "object" && first !== null && "type" in first) {
+				return first;
+			}
+			if (typeof first === "string") {
+				const normalized = first.toLowerCase().trim();
+				if (normalized === "user_input" || normalized === "user input") {
+					return { type: "user_input" };
+				}
+				return { type: "document", name: first };
+			}
+		}
+
+		// Legacy string source
+		if (typeof input === "string") {
+			const normalized = input.toLowerCase().trim();
+			if (normalized === "user_input" || normalized === "user input") {
+				return { type: "user_input" };
+			}
+			return { type: "document", name: input };
+		}
+
+		return { type: "user_input" };
+	};
+
 	for (const key in content) {
 		if (
 			key === "_metadata" ||
@@ -810,15 +823,19 @@ export const saveProjectResume = async (
 
 		if (meta) {
 			const metaAny: any = metadata[key];
-			const metaSources =
-				metaAny?.sources !== undefined
-					? metaAny.sources
-					: metaAny?.source;
+
+			// Prefer explicit SourceMetadata object; fall back to first entry in legacy `sources` array or string.
+			const primarySource =
+				metaAny?.source ??
+				(Array.isArray(metaAny?.sources) && metaAny.sources.length > 0
+					? metaAny.sources[0]
+					: undefined);
+
 			finalContent[key] = {
 				value: currentValue,
-				sources: toSourcesArray(metaSources),
+				source: toSourceObject(primarySource),
 				warnings: metaAny?.warnings || [],
-				original_value: metaAny?.original_value ?? currentValue,
+				other_values: metaAny?.other_values || [],
 			};
 		} else {
 			const existingItem = existing?.content?.[key];
@@ -830,17 +847,19 @@ export const saveProjectResume = async (
 					"sources" in existingItem)
 			) {
 				const existingObj: any = existingItem;
-				const existingSources =
-					"sources" in existingObj
-						? existingObj.sources
-						: "source" in existingObj
-						? toSourcesArray(existingObj.source)
+				const existingPrimarySource =
+					"source" in existingObj
+						? existingObj.source
+						: Array.isArray(existingObj.sources) &&
+						  existingObj.sources.length > 0
+						? existingObj.sources[0]
 						: undefined;
+
 				finalContent[key] = {
 					value: currentValue,
-					sources: existingSources ?? [{ type: "user_input" }],
+					source: toSourceObject(existingPrimarySource),
 					warnings: existingObj.warnings || [],
-					original_value: existingObj.original_value ?? currentValue,
+					other_values: existingObj.other_values || [],
 				};
 			} else {
 				finalContent[key] = currentValue;
@@ -939,29 +958,6 @@ export const saveProjectResume = async (
 			.eq("project_id", projectId)
 			.eq("resource_type", "PROJECT_RESUME");
 	}
-};
-
-export const getProjectMessages = async (
-	threadId: string
-): Promise<ProjectMessage[]> => {
-	const { data: messages, error } = await supabase
-		.from("project_messages")
-		.select(
-			`id, thread_id, user_id, content, created_at, sender:profiles(id, full_name, email)`
-		)
-		.eq("thread_id", threadId)
-		.order("created_at", { ascending: true });
-
-	if (error) throw new Error(`Failed to fetch messages: ${error.message}`);
-	return (
-		messages?.map((msg: any) => ({
-			id: msg.id,
-			thread_id: msg.thread_id,
-			user_id: msg.user_id,
-			content: msg.content,
-			created_at: msg.created_at,
-		})) || []
-	);
 };
 
 // =============================================================================
@@ -1098,6 +1094,42 @@ export const saveProjectBorrowerResume = async (
 		//
 		// In some edge cases (e.g. bugs in callers), a field's value might be
 		// passed in as `true`/`false` instead of its actual string/array value.
+		// Helper to normalize various legacy source shapes into a single SourceMetadata-like object
+		const toSourceObject = (input: any): any => {
+			if (!input) return { type: "user_input" };
+
+			// Already a SourceMetadata-like object
+			if (typeof input === "object" && input !== null && "type" in input) {
+				return input;
+			}
+
+			// Legacy array form – take first entry
+			if (Array.isArray(input) && input.length > 0) {
+				const first = input[0];
+				if (typeof first === "object" && first !== null && "type" in first) {
+					return first;
+				}
+				if (typeof first === "string") {
+					const normalized = first.toLowerCase().trim();
+					if (normalized === "user_input" || normalized === "user input") {
+						return { type: "user_input" };
+					}
+					return { type: "document", name: first };
+				}
+			}
+
+			// Legacy string source
+			if (typeof input === "string") {
+				const normalized = input.toLowerCase().trim();
+				if (normalized === "user_input" || normalized === "user input") {
+					return { type: "user_input" };
+				}
+				return { type: "document", name: input };
+			}
+
+			return { type: "user_input" };
+		};
+
 		// The only borrower fields that are legitimately boolean are the
 		// credit-history flags below. For all other fields, if we see a bare
 		// boolean here, we should *not* overwrite the existing rich/value data
@@ -1135,15 +1167,17 @@ export const saveProjectBorrowerResume = async (
 		if (meta) {
 			// Save rich format if metadata exists
 			const metaAny: any = metadata[key];
-			const metaSources =
-				metaAny?.sources !== undefined
-					? metaAny.sources
-					: metaAny?.source;
+			const primarySource =
+				metaAny?.source ??
+				(Array.isArray(metaAny?.sources) && metaAny.sources.length > 0
+					? metaAny.sources[0]
+					: undefined);
+
 			finalContentFlat[key] = {
 				value: currentValue,
-				sources: toSourcesArray(metaSources),
+				source: toSourceObject(primarySource),
 				warnings: metaAny?.warnings || [],
-				original_value: metaAny?.original_value ?? currentValue,
+				other_values: metaAny?.other_values || [],
 			};
 		} else {
 			// Check if existing had rich data
@@ -1164,21 +1198,29 @@ export const saveProjectBorrowerResume = async (
 					"source" in existingItem ||
 					"sources" in existingItem)
 			) {
-				const existingSources =
-					"sources" in existingItem
-						? existingItem.sources
-						: "source" in existingItem
-						? toSourcesArray(existingItem.source)
+				const existingObj: any = existingItem;
+				const existingPrimarySource =
+					"source" in existingObj
+						? existingObj.source
+						: Array.isArray(existingObj.sources) &&
+						  existingObj.sources.length > 0
+						? existingObj.sources[0]
 						: undefined;
+
 				finalContentFlat[key] = {
 					value: currentValue,
-					sources: existingSources ?? [{ type: "user_input" }],
-					warnings: existingItem.warnings || [],
-					original_value: existingItem.original_value ?? currentValue,
+					source: toSourceObject(existingPrimarySource),
+					warnings: existingObj.warnings || [],
+					other_values: existingObj.other_values || [],
 				};
 			} else {
 				// Flat value
-				finalContentFlat[key] = currentValue;
+				finalContentFlat[key] = {
+					value: currentValue,
+					source: toSourceObject(null),
+					warnings: [],
+					other_values: [],
+				};
 			}
 		}
 	}

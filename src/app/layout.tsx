@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ClientAppProviders } from "../components/providers/ClientAppProviders";
+import { ConsoleSilencer } from "../components/utils/ConsoleSilencer";
 
 export const metadata: Metadata = {
 	title: "CapMatch | Lender Matching Platform",
@@ -22,6 +23,8 @@ export default function RootLayout({
 	return (
 		<html lang="en">
 			<body className="antialiased font-sans">
+				{/* Silence dev console noise in production browser builds */}
+				<ConsoleSilencer />
 				<ClientAppProviders>{children}</ClientAppProviders>
 			</body>
 		</html>

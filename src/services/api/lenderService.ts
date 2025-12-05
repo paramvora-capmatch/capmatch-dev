@@ -12,11 +12,3 @@ export async function getLenders(): Promise<LenderProfile[]> {
   // In the future, this would be replaced with a fetch call
   return (await import('../../../lib/mockApiService')).getLenders();
 }
-
-export async function getLenderById(id: number): Promise<LenderProfile | null> {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  const lenders = await getLenders();
-  return lenders.find(lender => lender.lender_id === id) || null;
-}

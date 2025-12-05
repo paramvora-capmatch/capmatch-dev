@@ -15,6 +15,7 @@ import {
   Clock, 
   UserPlus,
   ArrowRight,
+  Check,
 } from "lucide-react";
 
 export default function AcceptInvitePage() {
@@ -146,27 +147,45 @@ export default function AcceptInvitePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-200 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-gray-200 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+      {/* Grid Background Pattern */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute inset-0 opacity-[0.5]">
+          <svg className="absolute inset-0 h-full w-full text-blue-500" aria-hidden="true">
+            <defs>
+              <pattern id="invite-grid-pattern" width="24" height="24" patternUnits="userSpaceOnUse">
+                <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#invite-grid-pattern)" />
+          </svg>
+        </div>
+      </div>
+      
+      <div className="max-w-xl w-full space-y-6 relative z-[1]">
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+          <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
             Accept Invitation
-          </h2>
+          </h1>
         </div>
 
-        <Card>
-          <CardContent className="p-6">
+        <Card className="shadow-xl border-0">
+          <CardContent className="p-8">
             {error ? (
               /* Error State */
               <div className="text-center">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                  <AlertCircle className="h-6 w-6 text-red-600" />
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6 shadow-sm">
+                  <AlertCircle className="h-8 w-8 text-red-600" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">
                   Invalid Invitation
-                </h3>
-                <p className="text-sm text-gray-600 mb-6">{error}</p>
-                <Button variant="primary" onClick={() => router.push("/login")}>
+                </h2>
+                <p className="text-base text-gray-700 mb-8 leading-relaxed">{error}</p>
+                <Button 
+                  variant="primary" 
+                  onClick={() => router.push("/login")}
+                  className="text-base py-3 px-6"
+                >
                   Go to Login
                 </Button>
               </div>
@@ -174,16 +193,17 @@ export default function AcceptInvitePage() {
               /* Valid Invite */
               <div className="space-y-6">
                 <div className="text-center">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                    <Mail className="h-6 w-6 text-green-600" />
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 mb-6 shadow-sm">
+                    <Mail className="h-8 w-8 text-green-600" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-3">
                     You&apos;re Invited!
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    You&apos;ve been invited to join <strong>{inviteData.orgName}</strong>
+                  </h2>
+                  <p className="text-base text-gray-700 leading-relaxed">
+                    You&apos;ve been invited to join{" "}
+                    <span className="font-semibold text-gray-900">{inviteData.orgName}</span>
                     {inviteData.inviterName && (
-                      <span> by {inviteData.inviterName}</span>
+                      <span className="text-gray-600"> by {inviteData.inviterName}</span>
                     )}
                   </p>
                 </div>
@@ -193,24 +213,24 @@ export default function AcceptInvitePage() {
                   <div className="space-y-4">
                     {isAuthenticated ? (
                       <div className="text-center">
-                        <p className="text-sm text-gray-600 mb-4">
-                          Welcome back, {user?.email}! Click below to join the
+                        <p className="text-base text-gray-700 mb-6">
+                          Welcome back, <span className="font-semibold">{user?.email}</span>! Click below to join the
                           team.
                         </p>
                         <Button
                           variant="primary"
                           onClick={handleAcceptInvite}
                           disabled={isAccepting}
-                          className="w-full"
-                          leftIcon={<CheckCircle size={16} />}
+                          className="w-full text-base py-3"
+                          leftIcon={<CheckCircle size={18} />}
                         >
                           {isAccepting ? "Joining..." : "Join Team"}
                         </Button>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="space-y-5">
                         <div className="text-center">
-                          <p className="text-sm text-gray-600 mb-4">
+                          <p className="text-base text-gray-700 mb-6">
                             You&apos;ll need to create an account to join this team.
                           </p>
                         </div>
@@ -218,18 +238,18 @@ export default function AcceptInvitePage() {
                         <Button
                           variant="primary"
                           onClick={() => setIsCreatingAccount(true)}
-                          className="w-full"
-                          leftIcon={<UserPlus size={16} />}
+                          className="w-full text-base py-3"
+                          leftIcon={<UserPlus size={18} />}
                         >
                           Create Account & Join
                         </Button>
 
-                        <div className="text-center">
-                          <p className="text-sm text-gray-500">
+                        <div className="text-center pt-2">
+                          <p className="text-sm text-gray-600">
                             Already have an account?{" "}
                             <button
                               onClick={() => router.push("/login")}
-                              className="text-blue-600 hover:text-blue-500 font-medium"
+                              className="text-blue-600 hover:text-blue-700 font-semibold underline underline-offset-2 transition-colors"
                             >
                               Sign in here
                             </button>
@@ -240,11 +260,11 @@ export default function AcceptInvitePage() {
                   </div>
                 ) : (
                   /* Create Account Form */
-                  <form onSubmit={handleCreateAccount} className="space-y-4">
+                  <form onSubmit={handleCreateAccount} className="space-y-5">
                     <div>
                       <label
                         htmlFor="fullName"
-                        className="block text-sm font-medium text-gray-700 mb-1"
+                        className="block text-sm font-semibold text-gray-700 mb-2"
                       >
                         Full Name
                       </label>
@@ -253,7 +273,7 @@ export default function AcceptInvitePage() {
                         id="fullName"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-base"
                         placeholder="Enter your full name"
                         required
                       />
@@ -261,7 +281,7 @@ export default function AcceptInvitePage() {
                     <div>
                       <label
                         htmlFor="password"
-                        className="block text-sm font-medium text-gray-700 mb-1"
+                        className="block text-sm font-semibold text-gray-700 mb-2"
                       >
                         Password
                       </label>
@@ -270,8 +290,8 @@ export default function AcceptInvitePage() {
                         id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter password"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-base"
+                        placeholder="Enter password (min. 8 characters)"
                         required
                       />
                     </div>
@@ -279,7 +299,7 @@ export default function AcceptInvitePage() {
                     <div>
                       <label
                         htmlFor="confirmPassword"
-                        className="block text-sm font-medium text-gray-700 mb-1"
+                        className="block text-sm font-semibold text-gray-700 mb-2"
                       >
                         Confirm Password
                       </label>
@@ -288,24 +308,24 @@ export default function AcceptInvitePage() {
                         id="confirmPassword"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-base"
                         placeholder="Confirm password"
                         required
                       />
                     </div>
 
                     {passwordError && (
-                      <div className="text-sm text-red-600">
+                      <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
                         {passwordError}
                       </div>
                     )}
 
-                    <div className="flex space-x-3">
+                    <div className="flex gap-3 pt-2">
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => setIsCreatingAccount(false)}
-                        className="flex-1"
+                        className="flex-1 text-base py-3"
                       >
                         Back
                       </Button>
@@ -313,8 +333,8 @@ export default function AcceptInvitePage() {
                         type="submit"
                         variant="primary"
                         disabled={isAccepting}
-                        className="flex-1"
-                        leftIcon={<ArrowRight size={16} />}
+                        className="flex-1 text-base py-3"
+                        leftIcon={<ArrowRight size={18} />}
                       >
                         {isAccepting ? "Creating..." : "Create & Join"}
                       </Button>
@@ -323,15 +343,38 @@ export default function AcceptInvitePage() {
                 )}
 
                 {/* Info Box */}
-                <div className="bg-blue-50 p-4 rounded-md">
-                  <div className="flex items-start">
-                    <Clock className="h-5 w-5 text-blue-600 mt-0.5 mr-2" />
-                    <div className="text-sm text-blue-800">
-                      <p className="font-medium mb-1">What happens next?</p>
-                      <ul className="space-y-1">
-                        <li>• You&apos;ll be added to the team with appropriate permissions</li>
-                        <li>• You can access projects and documents based on your role</li>
-                        <li>• You&apos;ll be redirected to your dashboard after joining</li>
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-5 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <Clock className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-blue-900 mb-3 text-base">What happens next?</p>
+                      <ul className="space-y-2.5">
+                        <li className="flex items-start gap-2">
+                          <div className="flex-shrink-0 mt-0.5">
+                            <Check className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <span className="text-sm text-blue-800 leading-relaxed">
+                            You&apos;ll be added to the team with appropriate permissions
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <div className="flex-shrink-0 mt-0.5">
+                            <Check className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <span className="text-sm text-blue-800 leading-relaxed">
+                            You can access projects and documents based on your role
+                          </span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <div className="flex-shrink-0 mt-0.5">
+                            <Check className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <span className="text-sm text-blue-800 leading-relaxed">
+                            You&apos;ll be redirected to your dashboard after joining
+                          </span>
+                        </li>
                       </ul>
                     </div>
                   </div>
@@ -339,8 +382,8 @@ export default function AcceptInvitePage() {
               </div>
             ) : (
               /* Loading/Unknown State */
-              <div className="text-center">
-                <p className="text-gray-600">Loading invitation details...</p>
+              <div className="text-center py-8">
+                <p className="text-base text-gray-600">Loading invitation details...</p>
               </div>
             )}
           </CardContent>

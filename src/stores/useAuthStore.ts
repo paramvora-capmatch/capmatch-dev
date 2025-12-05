@@ -422,52 +422,17 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         password,
       });
 
-        if (error) {
-          // If credentials are invalid, attempt onboarding as a new user.
-          // If the email already exists (e.g., different auth method), onboarding will fail and we surface invalid credentials.
-          const message = (error as any)?.message || String(error);
-          try {
-            const { data: onboardData, error: onboardError } = await supabase.functions.invoke(
-              "onboard-borrower",
-              {
-                body: {
-                  email,
-                  password,
-                  full_name: "New User",
-                },
-              }
-            );
+      if (error) {
+        const msg = (error as any)?.message || String(error);
 
-            if (onboardError) {
-              const oeMsg = typeof onboardError === "object" && onboardError !== null && "message" in onboardError
-                ? (onboardError as any).message
-                : String(onboardError);
-              // If user already exists, treat as invalid credentials for this flow
-              if (/already\s*(registered|exists)/i.test(oeMsg)) {
-                throw new Error("Invalid email or password.");
-              }
-              throw new Error(oeMsg);
-            }
-
-            if (!onboardData?.user) {
-              throw new Error("Onboarding did not return user data");
-            }
-
-            // After onboarding, sign the user in
-            const { error: postOnboardSignInError } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
-            if (postOnboardSignInError) {
-              throw postOnboardSignInError;
-            }
-            // Auth listener will handle state update
-          } catch (fallbackErr) {
-            console.error("[Auth] Fallback onboarding flow failed:", fallbackErr);
-            throw fallbackErr;
-          }
+        // Map common Supabase auth errors to a clean, user-friendly message.
+        if (/invalid login credentials/i.test(msg)) {
+          throw new Error("Incorrect email or password.");
         }
-        // If no error, auth listener will handle state update
+
+        throw new Error(msg || "Could not sign you in. Please try again.");
+      }
+      // If no error, auth listener + auth state change handler will update state.
     } catch (error) {
       console.error("[Auth] ❌ Sign in failed:", error);
       set({ isLoading: false });

@@ -19,6 +19,7 @@ import { Button } from "../../components/ui/Button";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { useOrgStore } from "@/stores/useOrgStore";
 import NewProjectAccessModal from "@/components/project/NewProjectAccessModal";
+import type { ProjectFormData } from "@/components/project/NewProjectAccessModal";
 import { ProjectGrant } from "@/types/enhanced-types";
 import { supabase } from "../../../lib/supabaseClient";
 import { Modal } from "../../components/ui/Modal";
@@ -366,7 +367,7 @@ export default function DashboardPage() {
   }, [activeOrg?.id, currentOrg, isCreatingProject, loadOrg]);
 
   const handleAccessModalSubmit = useCallback(
-    async (selections: Record<string, ProjectGrant>) => {
+    async (selections: Record<string, ProjectGrant>, projectData: ProjectFormData) => {
       if (!activeOrg?.id) {
         setAccessModalError(
           "No active organization is set. Please reload and try again."
@@ -380,8 +381,20 @@ export default function DashboardPage() {
       let project: ProjectProfile | null = createdProject;
       try {
         if (!project) {
+          // Build project sections with name and address
+          // Address will be parsed/derived on the backend
+          const projectSections: any = {
+            projectName: projectData.projectName,
+          };
+          
+          // Pass the full address string - backend will parse it
+          if (projectData.propertyAddress) {
+            projectSections.propertyAddress = projectData.propertyAddress;
+          }
+
           project = await createProject({
-            projectName: `My Project #${projects.length + 1}`,
+            projectName: projectData.projectName,
+            projectSections,
           });
           setCreatedProject(project);
         }
