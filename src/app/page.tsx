@@ -267,7 +267,7 @@ export default function HomePage() {
         <section 
           id="lender-matching-section" 
           className={lenderMatchingSectionClasses}
-          style={{ backgroundColor: 'transparent' }}
+          style={{ backgroundColor: 'transparent', position: 'relative', zIndex: 1 }}
         >
           <div className="container mx-auto px-4 w-full">
             <motion.div 
