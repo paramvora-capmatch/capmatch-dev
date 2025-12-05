@@ -366,6 +366,9 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				throw new Error("Must be part of an org to create a project.");
 
 			// Use the create-project edge function (advisor auto-assignment happens server-side)
+			const projectSections = projectData.projectSections as any;
+			const address = projectSections?.propertyAddress;
+			
 			const { data, error } = await supabase.functions.invoke(
 				"create-project",
 				{
@@ -374,6 +377,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 							projectData.projectName ||
 							`New Project ${get().projects.length + 1}`,
 						owner_org_id: activeOrg.id,
+						address: address || undefined,
 						// assigned_advisor_id is optional - edge function will auto-assign if not provided
 					},
 				}
@@ -428,22 +432,21 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				borrowerSections: borrowerResumeContent,
 			};
 
-			// Save ONLY the initial project name (and completeness) into project_resumes.content.
-			// This prevents untouched fields from being created with `user_input` source,
-			// which would incorrectly show them as "blue" in the UI.
+			// Note: Project name and address are now saved during project creation in the edge function.
+			// We only need to update completeness percent if needed.
 			try {
-				const resumeContent = {
-					projectName: newProjectData.projectName,
-					completenessPercent: progressResult.completenessPercent,
-				} as Partial<ProjectResumeContent>;
-
-				await supabase.functions.invoke("update-project", {
-					body: {
-						project_id: data.project.id,
-						core_updates: {},
-						resume_updates: resumeContent,
-					},
-				});
+				// Only update completeness if we need to - name and address are already saved
+				if (progressResult.completenessPercent > 0) {
+					await supabase.functions.invoke("update-project", {
+						body: {
+							project_id: data.project.id,
+							core_updates: {},
+							resume_updates: {
+								completenessPercent: progressResult.completenessPercent,
+							},
+						},
+					});
+				}
 			} catch (error) {
 				// Non-fatal - project is created, just progress not saved
 			}

@@ -9,7 +9,7 @@ serve(async (req) => {
   }
 
   try {
-    const { name, owner_org_id, assigned_advisor_id } = await req.json();
+    const { name, owner_org_id, assigned_advisor_id, address } = await req.json();
     if (!name || !owner_org_id) {
       throw new Error("name and owner_org_id are required");
     }
@@ -90,6 +90,7 @@ serve(async (req) => {
       owner_org_id,
       assigned_advisor_id: finalAdvisorId,
       creator_id: user.id,
+      address: address || undefined,
     });
 
     // --- Atomic Operation End ---

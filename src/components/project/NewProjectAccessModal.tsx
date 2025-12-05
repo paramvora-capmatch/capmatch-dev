@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { PillToggle, TriPermission } from "@/components/ui/PillToggle";
+import { Input } from "@/components/ui/Input";
 import { cn } from "@/utils/cn";
 import { OrgMember, ProjectGrant, Permission } from "@/types/enhanced-types";
 import { ShieldCheck, Settings, X } from "lucide-react";
@@ -48,10 +49,15 @@ const defaultPermissionsForLevel = (level: TriPermission): ProjectGrant["permiss
   return RESOURCE_TYPES.map((resource_type) => ({ resource_type, permission }));
 };
 
+export interface ProjectFormData {
+  projectName: string;
+  propertyAddress?: string;
+}
+
 interface NewProjectAccessModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (selections: Record<string, ProjectGrant>) => void;
+  onSubmit: (selections: Record<string, ProjectGrant>, projectData: ProjectFormData) => void;
   members: OrgMember[];
   isLoadingMembers: boolean;
   isSubmitting: boolean;
@@ -80,6 +86,12 @@ export const NewProjectAccessModal: React.FC<NewProjectAccessModalProps> = ({
   // Store ProjectGrant per member (keyed by user_id)
   const [memberGrants, setMemberGrants] = useState<Record<string, ProjectGrant>>({});
   const [openDetailModal, setOpenDetailModal] = useState<string | null>(null);
+  
+  // Store project form data
+  const [projectData, setProjectData] = useState<ProjectFormData>({
+    projectName: "",
+    propertyAddress: "",
+  });
 
   // Initialize default grants when modal opens or member list changes
   useEffect(() => {
@@ -103,6 +115,12 @@ export const NewProjectAccessModal: React.FC<NewProjectAccessModalProps> = ({
         }
       });
       return nextGrants;
+    });
+    
+    // Reset project data when modal opens
+    setProjectData({
+      projectName: "",
+      propertyAddress: "",
     });
   }, [isOpen, selectableMembers]);
 
@@ -170,7 +188,7 @@ export const NewProjectAccessModal: React.FC<NewProjectAccessModalProps> = ({
         filteredGrants[userId] = grant;
       }
     });
-    onSubmit(filteredGrants);
+    onSubmit(filteredGrants, projectData);
   };
 
   const memberCount = selectableMembers.length;
@@ -197,9 +215,38 @@ export const NewProjectAccessModal: React.FC<NewProjectAccessModalProps> = ({
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Choose which teammates should get access to the new project.
-              </p>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Project Information</h4>
+                  <div className="space-y-3">
+                    <Input
+                      label="Project Name"
+                      value={projectData.projectName}
+                      onChange={(e) =>
+                        setProjectData({ ...projectData, projectName: e.target.value })
+                      }
+                      placeholder="Enter project name"
+                      disabled={isSubmitting}
+                      required
+                    />
+                    <Input
+                      label="Property Address"
+                      value={projectData.propertyAddress || ""}
+                      onChange={(e) =>
+                        setProjectData({ ...projectData, propertyAddress: e.target.value })
+                      }
+                      placeholder="Enter full address"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Member Permissions</h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Choose which teammates should get access to the new project.
+                  </p>
+                </div>
+              </div>
               <div
                 className={cn(
                   "rounded-xl border px-4 py-3 shadow-sm transition-all",
@@ -311,7 +358,7 @@ export const NewProjectAccessModal: React.FC<NewProjectAccessModalProps> = ({
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={isSubmitting || (memberCount === 0 && !owners.length)}
+                  disabled={isSubmitting || !projectData.projectName.trim() || (memberCount === 0 && !owners.length)}
                 >
                   {isSubmitting ? "Creating..." : "Create Project"}
                 </Button>

@@ -5,6 +5,7 @@ export interface CreateProjectOptions {
   owner_org_id: string;
   creator_id: string;
   assigned_advisor_id?: string | null;
+  address?: string;
 }
 
 interface BorrowerRootsRow {
@@ -546,10 +547,19 @@ export async function createProjectWithResumeAndStorage(
   supabaseAdmin: any,
   options: CreateProjectOptions
 ) {
-  const { name, owner_org_id, assigned_advisor_id } = options;
+  const { name, owner_org_id, assigned_advisor_id, address } = options;
   console.log(
     `[project-utils] Creating project: ${name} for org: ${owner_org_id}`
   );
+  
+  // Build initial project resume content with name and address if provided
+  const initialResumeContent: Record<string, unknown> = {
+    projectName: name,
+  };
+  if (address) {
+    // Store the full address string - backend will parse it into separate fields later
+    initialResumeContent.propertyAddressStreet = address;
+  }
 
   console.log("[project-utils] Step 1: Creating project record");
   const { data: project, error: projectError } = await supabaseAdmin
@@ -583,10 +593,10 @@ export async function createProjectWithResumeAndStorage(
       borrowerResumeFetchResult,
       ownerMembersResult,
     ] = await Promise.all([
-    // Step 2: Create project resume
+    // Step 2: Create project resume with initial content (name and address if provided)
     supabaseAdmin
       .from("project_resumes")
-      .insert({ project_id: project.id, content: {}, created_by: options.creator_id })
+      .insert({ project_id: project.id, content: initialResumeContent, created_by: options.creator_id })
       .then(({ error }) => {
         if (error) {
           throw new Error(`Project resume creation failed: ${error.message}`);
