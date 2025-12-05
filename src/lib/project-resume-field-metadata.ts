@@ -1969,9 +1969,9 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		description: "Detailed utility availability status.",
 		primarySource: "Document (Will Serve)",
 		backupSource: "User Input",
-		expectedValue: "All Available, Extension Req, None",
+		expectedValue: "Text description of utility availability",
 		fieldType: "direct",
-		dataType: "Dropdown",
+		dataType: "Text",
 		section: "site-context",
 	},
 	easements: {

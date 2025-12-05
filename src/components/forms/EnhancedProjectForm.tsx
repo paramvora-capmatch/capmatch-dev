@@ -16,6 +16,7 @@ import { Button } from "../ui/Button";
 import { ButtonSelect } from "../ui/ButtonSelect";
 import { AskAIButton } from "../ui/AskAIProvider";
 import { FieldHelpTooltip } from "../ui/FieldHelpTooltip";
+import { FieldWarningsTooltip } from "../ui/FieldWarningsTooltip";
 import { HelpCircle } from "lucide-react";
 import { useAutofill } from "@/hooks/useAutofill";
 import { cn } from "@/utils/cn";
@@ -55,7 +56,6 @@ import {
 	projectResumeFieldMetadata,
 	FieldMetadata as ProjectFieldMeta,
 } from "@/lib/project-resume-field-metadata";
-import { normalizeSource } from "@/utils/sourceNormalizer";
 import { saveProjectResume } from "@/lib/project-queries";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -282,25 +282,59 @@ const sanitizeProjectProfile = (profile: ProjectProfile): ProjectProfile => {
 		}
 	}
 
-	// Fix rich metadata container on the profile itself
-	if (next._metadata && typeof next._metadata === "object") {
-		const fixedMeta: Record<string, any> = { ...next._metadata };
-		for (const [fieldId, meta] of Object.entries(fixedMeta)) {
-			const fieldConfig = projectResumeFieldMetadata[fieldId];
-			const dataType = fieldConfig?.dataType;
-			if (!dataType || dataType === "Boolean") continue;
+	// Normalize and enrich rich metadata container on the profile itself
+	const fixedMeta: Record<string, any> =
+		next._metadata && typeof next._metadata === "object"
+			? { ...next._metadata }
+			: {};
 
-			if (meta && typeof meta === "object") {
-				if (typeof meta.value === "boolean") {
-					meta.value = null;
-				}
-				if (typeof meta.original_value === "boolean") {
-					meta.original_value = null;
-				}
+	for (const [fieldId, meta] of Object.entries(fixedMeta)) {
+		const fieldConfig = projectResumeFieldMetadata[fieldId];
+		const dataType = fieldConfig?.dataType;
+		if (!dataType || dataType === "Boolean") continue;
+
+		if (meta && typeof meta === "object") {
+			if (typeof (meta as any).value === "boolean") {
+				(meta as any).value = null;
+			}
+			// Remove original_value (deprecated)
+			if ("original_value" in (meta as any)) {
+				delete (meta as any).original_value;
+			}
+			// Convert sources array to single source (backward compatibility)
+			if (
+				(meta as any).sources &&
+				Array.isArray((meta as any).sources) &&
+				(meta as any).sources.length > 0 &&
+				!(meta as any).source
+			) {
+				(meta as any).source = (meta as any).sources[0];
+				delete (meta as any).sources;
 			}
 		}
-		next._metadata = fixedMeta;
 	}
+
+	// Ensure every configured field has default user_input metadata when backend
+	// didn't provide any. This mirrors the old mock API behavior where fields
+	// that weren't autofilled were treated as user_input and shown as blue.
+	for (const fieldId of Object.keys(projectResumeFieldMetadata)) {
+		const existingMeta = fixedMeta[fieldId];
+		const currentValue = (next as any)[fieldId];
+
+		if (!existingMeta) {
+			fixedMeta[fieldId] = {
+				value: currentValue ?? null,
+				source: { type: "user_input" },
+				warnings: [],
+				other_values: [],
+			};
+		} else if (!existingMeta.source) {
+			// If we have metadata but no explicit source, treat it as user_input.
+			existingMeta.source = { type: "user_input" };
+		}
+	}
+
+	next._metadata = fixedMeta;
 
 	return next as ProjectProfile;
 };
@@ -402,8 +436,12 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		if (!files || !orgId || !projectId || disabled) return;
 
 		const isSiteImages = folder === "site-images";
-		const setUploading = isSiteImages ? setUploadingSite : setUploadingDiagrams;
-		const setImages = isSiteImages ? setSiteImages : setArchitecturalDiagrams;
+		const setUploading = isSiteImages
+			? setUploadingSite
+			: setUploadingDiagrams;
+		const setImages = isSiteImages
+			? setSiteImages
+			: setArchitecturalDiagrams;
 
 		setUploading(true);
 		try {
@@ -464,7 +502,9 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 
 		const isSiteImages = folder === "site-images";
 		const images = isSiteImages ? siteImages : architecturalDiagrams;
-		const setImages = isSiteImages ? setSiteImages : setArchitecturalDiagrams;
+		const setImages = isSiteImages
+			? setSiteImages
+			: setArchitecturalDiagrams;
 		const setSelected = isSiteImages
 			? setSelectedSiteImages
 			: setSelectedDiagrams;
@@ -482,15 +522,24 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		try {
 			const filePaths = fileNames
 				.map((fileName) => {
-					const image = images.find((img) => img.fileName === fileName);
-					return image ? image.storagePath : `${projectId}/${folder}/${fileName}`;
+					const image = images.find(
+						(img) => img.fileName === fileName
+					);
+					return image
+						? image.storagePath
+						: `${projectId}/${folder}/${fileName}`;
 				})
 				.filter(Boolean) as string[];
 
-			const { error } = await supabase.storage.from(orgId).remove(filePaths);
+			const { error } = await supabase.storage
+				.from(orgId)
+				.remove(filePaths);
 
 			if (error) {
-				console.error("[ProjectMediaUpload] Error deleting files:", error);
+				console.error(
+					"[ProjectMediaUpload] Error deleting files:",
+					error
+				);
 				alert(
 					`Failed to delete files: ${
 						(error as any).message || JSON.stringify(error)
@@ -591,8 +640,8 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 	if (!orgId || !projectId) {
 		return (
 			<div className="text-sm text-gray-500">
-				Project media is unavailable until an organization and project are
-				fully initialized.
+				Project media is unavailable until an organization and project
+				are fully initialized.
 			</div>
 		);
 	}
@@ -636,7 +685,8 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 									disabled={deleting}
 									className={cn(
 										"text-xs text-red-600 hover:text-red-700 font-medium",
-										deleting && "opacity-50 cursor-not-allowed"
+										deleting &&
+											"opacity-50 cursor-not-allowed"
 									)}
 								>
 									{deleting
@@ -724,9 +774,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 													<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
 														<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
 															From:{" "}
-															{
-																image.documentName
-															}
+															{image.documentName}
 															<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
 														</div>
 													</div>
@@ -801,7 +849,8 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 									disabled={deleting}
 									className={cn(
 										"text-xs text-red-600 hover:text-red-700 font-medium",
-										deleting && "opacity-50 cursor-not-allowed"
+										deleting &&
+											"opacity-50 cursor-not-allowed"
 									)}
 								>
 									{deleting
@@ -892,9 +941,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 													<div className="absolute right-0 top-6 opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
 														<div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap shadow-lg">
 															From:{" "}
-															{
-																image.documentName
-															}
+															{image.documentName}
 															<div className="absolute -top-1 right-2 w-2 h-2 bg-gray-900 rotate-45"></div>
 														</div>
 													</div>
@@ -952,11 +999,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 }) => {
 	const { activeOrg } = useAuthStore();
 	// 1. Initialize state with sanitized data
+	const sanitizedExistingProject = useMemo(
+		() => sanitizeProjectProfile(existingProject),
+		[existingProject]
+	);
 	const [formData, setFormData] = useState<ProjectProfile>(
-		sanitizeProjectProfile(existingProject)
+		sanitizedExistingProject
 	);
 	const [fieldMetadata, setFieldMetadata] = useState<Record<string, any>>(
-		existingProject._metadata || {}
+		sanitizedExistingProject._metadata || {}
 	);
 
 	// Initialize locked state from props
@@ -1003,52 +1054,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		const metadata = sanitized._metadata || {};
 		setFieldMetadata(metadata);
 
-		// Update locks based on source
-		// If a field has a value AND source is not user_input -> Lock it (Green)
+		// Initialize locks strictly from backend (_lockedFields); do NOT auto-lock
+		// AI-sourced fields here. Warning-bearing fields should remain editable/red.
 		const newLockedFields = new Set(
 			Object.keys(existingProject._lockedFields || {}).filter(
 				(k) => existingProject._lockedFields?.[k]
 			)
 		);
-
-		Object.entries(metadata).forEach(([fieldId, meta]) => {
-			// Check if source is AI/Document.
-			// Be defensive: sources array can contain null/undefined or non-standard entries.
-			const isAiSourced =
-				Array.isArray((meta as any)?.sources) &&
-				(meta as any).sources.some((src: any) => {
-					if (!src) return false;
-
-					if (typeof src === "string") {
-						const normalized = src.toLowerCase();
-						return (
-							normalized !== "user_input" &&
-							normalized !== "user input"
-						);
-					}
-
-					if (
-						typeof src === "object" &&
-						"type" in src &&
-						typeof (src as any).type === "string"
-					) {
-						return (src as any).type !== "user_input";
-					}
-
-					// Unknown shape – treat as non-user-input but do not crash
-					return false;
-				});
-
-			const hasValue = isProjectValueProvided(
-				(existingProject as any)[fieldId]
-			);
-
-			// Auto-lock if AI sourced and has value, unless explicitly unlocked previously?
-			// We'll trust the incoming _lockedFields from DB mostly, but ensure AI fields are locked
-			if (isAiSourced && hasValue) {
-				newLockedFields.add(fieldId);
-			}
-		});
 
 		setLockedFields(newLockedFields);
 
@@ -1145,6 +1157,64 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		const handler = () => {
 			setShowAutofillNotification(true);
 			setTimeout(() => setShowAutofillNotification(false), 5000);
+			
+			// After autofill, force-open subsections with errors or needs input
+			// This ensures users see issues immediately after autofill completes
+			setTimeout(() => {
+				const schemaSteps: any[] = (formSchema as any).steps || [];
+				const subsectionsToOpen = new Set<string>();
+				
+				schemaSteps.forEach((step) => {
+					const sectionId: string = step.id;
+					const subsections: any[] = step.subsections || [];
+					
+					subsections.forEach((subsection: any) => {
+						const subsectionKey = `${sectionId}::${subsection.id}`;
+						const fieldIds: string[] = subsection.fields || [];
+						
+						if (fieldIds.length === 0) return;
+						
+						// Check if subsection has errors or needs input
+						const hasErrors = fieldIds.some((fieldId) => {
+							const meta = fieldMetadata[fieldId];
+							return meta?.warnings && meta.warnings.length > 0;
+						});
+						
+						// Inline check for blue fields (needs input) - replicate isFieldBlue logic
+						const hasNeedsInput = fieldIds.some((fieldId) => {
+							const value = (formData as any)[fieldId];
+							const hasValue = isProjectValueProvided(value);
+							const meta = fieldMetadata[fieldId];
+							const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
+							const sourceType = meta?.source?.type || meta?.sources?.[0]?.type;
+							const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+							const isLocked = lockedFields.has(fieldId) && !unlockedFields.has(fieldId);
+							
+							// Don't show as blue if there are warnings (should be red instead)
+							if (hasWarnings && !isLocked) {
+								return false;
+							}
+							
+							if (!hasValue) {
+								return hasSource && !isLocked && !hasWarnings;
+							}
+							// Blue: user_input source, no warnings, not locked
+							return sourceType === "user_input" && !hasWarnings && !isLocked;
+						});
+						
+						if (hasErrors || hasNeedsInput) {
+							subsectionsToOpen.add(subsectionKey);
+						}
+					});
+				});
+				
+				// Force-open subsections with errors or needs input
+				setExpandedSubsections((prev) => {
+					const next = new Set(prev);
+					subsectionsToOpen.forEach((key) => next.add(key));
+					return next;
+				});
+			}, 100); // Small delay to ensure formData/fieldMetadata have updated
 		};
 		if (typeof window !== "undefined") {
 			window.addEventListener("autofill-completed", handler as any);
@@ -1157,36 +1227,66 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				);
 			}
 		};
-	}, []);
+	}, [formData, fieldMetadata, lockedFields, unlockedFields]);
 
 	// Helper function to update metadata when user inputs data
-	const handleInputChange = useCallback((fieldId: string, value: any) => {
-		setFormData((prev) => {
-			const next = { ...prev, [fieldId]: value };
-			return next;
-		});
+	const handleInputChange = useCallback(
+		async (fieldId: string, value: any) => {
+			setFormData((prev) => {
+				const next = { ...prev, [fieldId]: value };
+				return next;
+			});
 
-		// Update metadata to mark source as User Input
-		setFieldMetadata((prev) => {
-			const currentMeta = prev[fieldId] || {
+			// Get existing field metadata for realtime sanity check
+			const currentMeta = fieldMetadata[fieldId] || {
 				value: value,
-				sources: [],
+				source: null,
 				warnings: [],
-				original_value: value,
+				other_values: [],
 			};
 
-			return {
-				...prev,
-				[fieldId]: {
-					...currentMeta,
-					value: value,
-					// Force source to user_input when edited manually
-					sources: [{ type: "user_input" } as any],
-					original_source: null,
-				},
+			// Update metadata to mark source as User Input
+			const updatedMeta = {
+				...currentMeta,
+				value: value,
+				// Force source to user_input when edited manually
+				source: { type: "user_input" } as any,
 			};
-		});
-	}, []);
+
+			setFieldMetadata((prev) => ({
+				...prev,
+				[fieldId]: updatedMeta,
+			}));
+
+			// Call realtime sanity check
+			try {
+				const { checkRealtimeSanity } = await import(
+					"@/lib/api/realtimeSanityCheck"
+				);
+				const context = { ...formData, [fieldId]: value };
+				const result = await checkRealtimeSanity({
+					fieldId,
+					value,
+					resumeType: "project",
+					context,
+					existingFieldData: currentMeta,
+				});
+
+				// Update metadata with warnings from sanity check
+				setFieldMetadata((prev) => ({
+					...prev,
+					[fieldId]: {
+						...prev[fieldId],
+						warnings: result.warnings || [],
+					},
+				}));
+			} catch (error) {
+				console.error("Realtime sanity check failed:", error);
+				// Don't fail the input change if sanity check fails
+			}
+		},
+		[fieldMetadata, formData]
+	);
 
 	// Propagate form data changes to parent
 	useEffect(() => {
@@ -1209,11 +1309,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	const isFieldLocked = useCallback(
 		(fieldId: string, _sectionId?: string) => {
+			const meta = fieldMetadata[fieldId];
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+
+			// Fields with warnings must remain editable/red, never locked.
+			if (hasWarnings) return false;
+
 			if (unlockedFields.has(fieldId)) return false;
 			if (lockedFields.has(fieldId)) return true;
 			return false;
 		},
-		[lockedFields, unlockedFields]
+		[lockedFields, unlockedFields, fieldMetadata]
 	);
 
 	const toggleFieldLock = useCallback(
@@ -1290,27 +1396,42 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[formData, isSubsectionFullyLocked]
 	);
 
-	// Styling Logic: White, Blue, Green
+	// Styling Logic: Red, White, Blue, Green
 	const getFieldStylingClasses = useCallback(
 		(fieldId: string, sectionId?: string) => {
 			const value = (formData as any)[fieldId];
 			const hasValue = isProjectValueProvided(value);
 			const locked = isFieldLocked(fieldId, sectionId);
 			const meta = fieldMetadata[fieldId];
-			const hasSources =
-				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+			// Check single source (new format) or sources array (backward compatibility)
+			const hasSource =
+				meta?.source ||
+				(meta?.sources &&
+					Array.isArray(meta.sources) &&
+					meta.sources.length > 0);
 
 			const baseClasses =
 				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
 
+			// Red: warnings exist and not locked
+			if (hasWarnings && !locked) {
+				return cn(
+					baseClasses,
+					"border-red-500 bg-red-50 focus:ring-red-200 hover:border-red-600 text-gray-800"
+				);
+			}
+
+			// Green: locked (regardless of warnings)
+			if (locked) {
+				return cn(
+					baseClasses,
+					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
+				);
+			}
+
 			if (!hasValue) {
-				if (hasSources) {
-					if (locked) {
-						return cn(
-							baseClasses,
-							"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
-						);
-					}
+				if (hasSource) {
 					return cn(
 						baseClasses,
 						"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
@@ -1322,13 +1443,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				);
 			}
 
-			if (locked) {
-				return cn(
-					baseClasses,
-					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
-				);
-			}
-
+			// Blue: has value, not locked, no warnings
 			return cn(
 				baseClasses,
 				"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
@@ -1340,16 +1455,25 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const isFieldAutofilled = useCallback(
 		(fieldId: string) => {
 			const meta = fieldMetadata[fieldId];
-			if (!meta?.sources || meta.sources.length === 0) return false;
-			const isUserInput = meta.sources.some((src: any) => {
-				if (typeof src === "string")
-					return (
-						src.toLowerCase() === "user_input" ||
-						src.toLowerCase() === "user input"
-					);
-				return src.type === "user_input";
-			});
-			return !isUserInput;
+			if (!meta?.source) return false;
+			// Backward compatibility: check sources array if source doesn't exist
+			if (
+				!meta.source &&
+				meta.sources &&
+				Array.isArray(meta.sources) &&
+				meta.sources.length > 0
+			) {
+				const isUserInput = meta.sources.some((src: any) => {
+					if (typeof src === "string")
+						return (
+							src.toLowerCase() === "user_input" ||
+							src.toLowerCase() === "user input"
+						);
+					return src.type === "user_input";
+				});
+				return !isUserInput;
+			}
+			return meta.source.type !== "user_input";
 		},
 		[fieldMetadata]
 	);
@@ -1363,19 +1487,41 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		[fieldMetadata]
 	);
 
+	const isFieldRed = useCallback(
+		(fieldId: string, sectionId?: string): boolean => {
+			const locked = isFieldLocked(fieldId, sectionId);
+			const meta = fieldMetadata[fieldId];
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+			return hasWarnings && !locked;
+		},
+		[fieldMetadata, isFieldLocked]
+	);
+
 	const isFieldBlue = useCallback(
 		(fieldId: string, sectionId?: string): boolean => {
 			const value = (formData as any)[fieldId];
 			const hasValue = isProjectValueProvided(value);
 			const locked = isFieldLocked(fieldId, sectionId);
 			const meta = fieldMetadata[fieldId];
-			const hasSources =
-				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
+			// Check single source (new format) or sources array (backward compatibility)
+			const hasSource =
+				meta?.source ||
+				(meta?.sources &&
+					Array.isArray(meta.sources) &&
+					meta.sources.length > 0);
+			const sourceType = meta?.source?.type || meta?.sources?.[0]?.type;
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+
+			// Don't show as blue if there are warnings (should be red instead)
+			if (hasWarnings && !locked) {
+				return false;
+			}
 
 			if (!hasValue) {
-				return hasSources && !locked;
+				return hasSource && !locked && !hasWarnings;
 			}
-			return !locked;
+			// Blue: user_input source, no warnings, not locked
+			return sourceType === "user_input" && !hasWarnings && !locked;
 		},
 		[formData, fieldMetadata, isFieldLocked]
 	);
@@ -1385,24 +1531,24 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const value = (formData as any)[fieldId];
 			const hasValue = isProjectValueProvided(value);
 			const meta = fieldMetadata[fieldId];
-			const hasSources =
-				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
-			return !hasValue && !hasSources;
+			// Check single source (new format) or sources array (backward compatibility)
+			const hasSource =
+				meta?.source ||
+				(meta?.sources &&
+					Array.isArray(meta.sources) &&
+					meta.sources.length > 0);
+			return !hasValue && !hasSource;
 		},
 		[formData, fieldMetadata]
 	);
 
 	const isFieldGreen = useCallback(
 		(fieldId: string, sectionId?: string): boolean => {
-			const value = (formData as any)[fieldId];
-			const hasValue = isProjectValueProvided(value);
 			const locked = isFieldLocked(fieldId, sectionId);
-			const meta = fieldMetadata[fieldId];
-			const hasSources =
-				meta && Array.isArray(meta.sources) && meta.sources.length > 0;
-			return (hasValue || hasSources) && locked;
+			// Green: locked (regardless of warnings)
+			return locked;
 		},
-		[formData, fieldMetadata, isFieldLocked]
+		[isFieldLocked]
 	);
 
 	const renderFieldLockButton = useCallback(
@@ -1461,7 +1607,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			labelText: string,
 			required: boolean = false
 		) => {
-			const warning = getFieldWarning(fieldId);
 			return (
 				<div className="mb-1">
 					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
@@ -1475,12 +1620,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							fieldId={fieldId}
 							fieldMetadata={fieldMetadata[fieldId]}
 						/>
-						{warning && (
-							<span className="text-xs text-amber-700 flex items-center gap-1">
-								<AlertTriangle className="h-3 w-3" />
-								{warning}
-							</span>
-						)}
+						<FieldWarningsTooltip
+							warnings={fieldMetadata[fieldId]?.warnings}
+						/>
 						<div className="ml-auto flex items-center gap-1">
 							<button
 								type="button"
@@ -1495,7 +1637,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				</div>
 			);
 		},
-		[onAskAI, getFieldWarning, renderFieldLockButton, fieldMetadata]
+		[onAskAI, renderFieldLockButton, fieldMetadata]
 	);
 
 	useEffect(() => {
@@ -1683,7 +1825,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			if (typeof window !== "undefined") {
 				window.dispatchEvent(
 					new CustomEvent("local-save-started", {
-						detail: { projectId: dataToSave.id, context: "project" },
+						detail: {
+							projectId: dataToSave.id,
+							context: "project",
+						},
 					})
 				);
 			}
@@ -1805,7 +1950,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						derived !== null &&
 						Math.abs(current - derived) > 0.0001)
 				) {
-					next.targetLtvPercent = derived === null ? undefined : derived;
+					next.targetLtvPercent =
+						derived === null ? undefined : derived;
 					changed = true;
 				}
 			}
@@ -1824,7 +1970,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						derived !== null &&
 						Math.abs(current - derived) > 0.0001)
 				) {
-					next.targetLtcPercent = derived === null ? undefined : derived;
+					next.targetLtcPercent =
+						derived === null ? undefined : derived;
 					changed = true;
 				}
 			}
@@ -1846,7 +1993,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				if (
 					(current === null && derived !== null) ||
 					(current !== null && derived === null) ||
-					(current !== null && derived !== null && current !== derived)
+					(current !== null &&
+						derived !== null &&
+						current !== derived)
 				) {
 					next.totalCommercialGRSF =
 						derived === null ? undefined : derived;
@@ -1915,9 +2064,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				if (
 					(current === null && derived !== null) ||
 					(current !== null && derived === null) ||
-					(current !== null && derived !== null && current !== derived)
+					(current !== null &&
+						derived !== null &&
+						current !== derived)
 				) {
-					(next as any)[fieldId] = derived === null ? undefined : derived;
+					(next as any)[fieldId] =
+						derived === null ? undefined : derived;
 					changed = true;
 				}
 			};
@@ -2105,10 +2257,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 			// Determine if this field has any source metadata (e.g. touched by AI/user)
 			const metaFromState = fieldMetadata[fieldId];
+			// Check single source (new format) or sources array (backward compatibility)
 			const hasSources =
 				metaFromState &&
-				Array.isArray(metaFromState.sources) &&
-				metaFromState.sources.length > 0;
+				(metaFromState.source ||
+					(Array.isArray(metaFromState.sources) &&
+						metaFromState.sources.length > 0));
 			const hasValue = isProjectValueProvided(value);
 
 			const controlKind: ControlKind =
@@ -2377,15 +2531,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				if (fieldIds.length === 0) return;
 
 				// Check field states
-				const fieldStates = fieldIds.map((fieldId) => ({
-					isBlue: isFieldBlue(fieldId, sectionId),
-					isGreen: isFieldGreen(fieldId, sectionId),
-					isWhite: isFieldWhite(fieldId, sectionId),
-					hasValue: isProjectValueProvided(
-						(formData as any)[fieldId]
-					),
-					isLocked: isFieldLocked(fieldId, sectionId),
-				}));
+				const fieldStates = fieldIds.map((fieldId) => {
+					const meta = fieldMetadata[fieldId];
+					const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+					return {
+						isBlue: isFieldBlue(fieldId, sectionId),
+						isGreen: isFieldGreen(fieldId, sectionId),
+						isWhite: isFieldWhite(fieldId, sectionId),
+						hasValue: isProjectValueProvided(
+							(formData as any)[fieldId]
+						),
+						isLocked: isFieldLocked(fieldId, sectionId),
+						hasWarnings: hasWarnings,
+					};
+				});
 
 				// All green: all fields have values AND are locked
 				const allGreen =
@@ -2400,9 +2559,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						(s) => s.isWhite && !s.isBlue && !s.isGreen
 					);
 				const hasBlue = fieldStates.some((s) => s.isBlue);
+				const hasWarnings = fieldStates.some((s) => s.hasWarnings);
 
 				// Determine auto-state
-				if (hasBlue) {
+				// Auto-open if: has blue fields OR has warnings (errors)
+				// Auto-close if: all green (complete) OR all white (empty)
+				if (hasBlue || hasWarnings) {
 					autoOpenSubsections.add(subsectionKey);
 				} else if (allGreen || allWhite) {
 					autoCloseSubsections.add(subsectionKey);
@@ -2486,15 +2648,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				const subsectionLocked = isSubsectionFullyLocked(allFieldIds);
 				const fieldStates =
 					allFieldIds.length > 0
-						? allFieldIds.map((fieldId) => ({
-								isBlue: isFieldBlue(fieldId, sectionId),
-								isGreen: isFieldGreen(fieldId, sectionId),
-								isWhite: isFieldWhite(fieldId, sectionId),
-								hasValue: isProjectValueProvided(
-									(formData as any)[fieldId]
-								),
-								isLocked: isFieldLocked(fieldId, sectionId),
-						  }))
+						? allFieldIds.map((fieldId) => {
+								const meta = fieldMetadata[fieldId];
+								const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+								return {
+									isBlue: isFieldBlue(fieldId, sectionId),
+									isGreen: isFieldGreen(fieldId, sectionId),
+									isWhite: isFieldWhite(fieldId, sectionId),
+									hasValue: isProjectValueProvided(
+										(formData as any)[fieldId]
+									),
+									isLocked: isFieldLocked(fieldId, sectionId),
+									hasWarnings: hasWarnings,
+								};
+						  })
 						: [];
 
 				const allGreen =
@@ -2513,14 +2680,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							state.isWhite && !state.isBlue && !state.isGreen
 					);
 				const hasBlue = fieldStates.some((state) => state.isBlue);
+				const hasWarnings = fieldStates.some((state) => state.hasWarnings);
 
 				// Determine badge state
-				// Show "Complete" only if: all fields have values AND are locked (all green)
-				// Show "Needs Input" only if: at least one field is blue
-				// Show no badge in all other cases (all white, empty, mixed, etc.)
-				const showComplete =
-					allFieldIds.length > 0 && allGreen && !hasBlue;
+				// Multiple badges can show simultaneously:
+				// - Error badge: shows if any field has warnings (can coexist with Needs Input)
+				// - Needs Input badge: shows if any field is blue (can coexist with Error)
+				// - Complete badge: exclusive, only shows when all green AND no errors AND no needs input
+				const showError = hasWarnings;
 				const showNeedsInput = hasBlue;
+				const showComplete =
+					allFieldIds.length > 0 && allGreen && !hasBlue && !hasWarnings;
 
 				// A subsection can only be locked when all fields that should be part of it
 				// are non-empty. If any field is empty, we prevent locking the subsection
@@ -2591,14 +2761,19 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										</>
 									)}
 								</div>
-								{showComplete && (
-									<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
-										Complete
+								{showError && (
+									<span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 font-medium">
+										Error
 									</span>
 								)}
 								{showNeedsInput && (
 									<span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
 										Needs Input
+									</span>
+								)}
+								{showComplete && (
+									<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
+										Complete
 									</span>
 								)}
 							</div>
@@ -4285,7 +4460,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			if (typeof window !== "undefined") {
 				window.dispatchEvent(
 					new CustomEvent("local-save-started", {
-						detail: { projectId: dataToSave.id, context: "project" },
+						detail: {
+							projectId: dataToSave.id,
+							context: "project",
+						},
 					})
 				);
 			}

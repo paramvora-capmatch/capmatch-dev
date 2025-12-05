@@ -1,0 +1,16 @@
+ignore:
+  # Next.js build artifacts and type helpers
+  - .next/**
+  - next.config.ts
+
+  # App shell and API routes (used by framework routing, not imports)
+  - src/app/layout.tsx
+  - src/app/api/**
+
+  # Demo / mock helpers that are intentionally shared
+  - lib/mockData.ts
+  - src/services/mockBorrowerFieldExtraction.ts
+  - src/services/mockProjectFieldExtraction.ts
+  - src/services/mockOMData.ts
+
+

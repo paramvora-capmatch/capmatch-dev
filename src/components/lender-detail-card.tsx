@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from "./ui/card";
 import type { LenderProfile } from "../types/lender";
 import { LenderFilters } from "@/stores/useLenderStore";
 import { cn } from "@/utils/cn";
+import { memo, useMemo } from "react";
 
 interface LenderDetailCardProps {
   lender: LenderProfile;
@@ -17,7 +18,7 @@ interface LenderDetailCardProps {
   onContactLender?: () => void;
 }
 
-export default function LenderDetailCard({
+function LenderDetailCard({
   lender,
   formData,
   onClose,
@@ -43,6 +44,14 @@ export default function LenderDetailCard({
   const formatDebtRange = (range: string) => {
     return range.replace(/_/g, ' ');
   };
+
+  // Memoize formatted values to prevent recalculation
+  const formattedAssetTypes = useMemo(() => formatCriteria(lender.asset_types), [lender.asset_types]);
+  const formattedDealTypes = useMemo(() => formatCriteria(lender.deal_types), [lender.deal_types]);
+  const formattedCapitalTypes = useMemo(() => formatCriteria(lender.capital_types), [lender.capital_types]);
+  const formattedDebtRanges = useMemo(() => lender.debt_ranges?.map((range) => formatDebtRange(range)).join(", "), [lender.debt_ranges]);
+  const formattedLoanAmount = useMemo(() => `${formatCurrency(lender.min_deal_size)} - ${formatCurrency(lender.max_deal_size)}`, [lender.min_deal_size, lender.max_deal_size]);
+  const formattedLocations = useMemo(() => formatCriteria(lender.locations), [lender.locations]);
 
   // Removed criteriaMatches - just show the criteria without match/mismatch badges
 
@@ -77,32 +86,32 @@ export default function LenderDetailCard({
           <div className="grid grid-cols-[120px_1fr] gap-y-3">
             <div className="text-gray-600">Asset Types:</div>
             <div className="text-gray-900">
-              {formatCriteria(lender.asset_types)}
+              {formattedAssetTypes}
             </div>
 
             <div className="text-gray-600">Deal Types:</div>
             <div className="text-gray-900">
-              {formatCriteria(lender.deal_types)}
+              {formattedDealTypes}
             </div>
 
             <div className="text-gray-600">Capital Types:</div>
             <div className="text-gray-900">
-              {formatCriteria(lender.capital_types)}
+              {formattedCapitalTypes}
             </div>
 
             <div className="text-gray-600">Debt Range:</div>
             <div className="font-medium text-gray-900">
-              {lender.debt_ranges?.map((range) => formatDebtRange(range)).join(", ")}
+              {formattedDebtRanges}
             </div>
 
             <div className="text-gray-600">Loan Amount:</div>
             <div className="font-medium text-gray-900">
-              {formatCurrency(lender.min_deal_size)} - {formatCurrency(lender.max_deal_size)}
+              {formattedLoanAmount}
             </div>
 
             <div className="text-gray-600">Locations:</div>
             <div className="text-gray-900">
-              {formatCriteria(lender.locations)}
+              {formattedLocations}
             </div>
           </div>
         </div>
@@ -111,3 +120,35 @@ export default function LenderDetailCard({
     </Card>
   );
 }
+
+// Memoize the component to prevent unnecessary re-renders when props haven't changed
+export default memo(LenderDetailCard, (prevProps, nextProps) => {
+  // Return true if props are equal (skip re-render), false if different (re-render)
+  // Check if lender object reference changed or key properties changed
+  if (prevProps.lender !== nextProps.lender) {
+    // Deep comparison of lender properties that affect rendering
+    if (
+      prevProps.lender.lender_id !== nextProps.lender.lender_id ||
+      prevProps.lender.match_score !== nextProps.lender.match_score ||
+      JSON.stringify(prevProps.lender.asset_types) !== JSON.stringify(nextProps.lender.asset_types) ||
+      JSON.stringify(prevProps.lender.deal_types) !== JSON.stringify(nextProps.lender.deal_types) ||
+      JSON.stringify(prevProps.lender.capital_types) !== JSON.stringify(nextProps.lender.capital_types) ||
+      JSON.stringify(prevProps.lender.debt_ranges) !== JSON.stringify(nextProps.lender.debt_ranges) ||
+      prevProps.lender.min_deal_size !== nextProps.lender.min_deal_size ||
+      prevProps.lender.max_deal_size !== nextProps.lender.max_deal_size ||
+      JSON.stringify(prevProps.lender.locations) !== JSON.stringify(nextProps.lender.locations)
+    ) {
+      return false; // Props changed, re-render
+    }
+  }
+  
+  // Check other props
+  if (
+    prevProps.color !== nextProps.color ||
+    JSON.stringify(prevProps.formData) !== JSON.stringify(nextProps.formData)
+  ) {
+    return false; // Props changed, re-render
+  }
+  
+  return true; // Props are equal, skip re-render
+});

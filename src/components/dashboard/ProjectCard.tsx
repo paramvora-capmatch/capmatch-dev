@@ -63,7 +63,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const router = useRouter();
   const { deleteProject } = useProjects();
   const user = useAuthStore((state) => state.user);
+  const currentOrgRole = useAuthStore((state) => state.currentOrgRole);
   const isAdvisor = user?.role === "advisor";
+  const isOwner = currentOrgRole === "owner";
   const projectMembers: ProjectMember[] = Array.isArray(members) ? members : [];
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -186,7 +188,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               )}
             </h3>
             <div className="flex items-center space-x-2 flex-shrink-0">
-              {showDeleteButton && (
+              {showDeleteButton && isOwner && (
                 <div className="relative" ref={menuRef}>
                   <button
                     className="inline-flex items-center justify-center h-8 w-8 rounded-full text-gray-500 hover:bg-gray-100 transition-colors"
@@ -346,7 +348,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  router.push(`/project/om/${project.id}`);
+                  router.push(`/project/om/${project.id}/dashboard`);
                 }}
                 className="bg-green-600 hover:bg-green-700 text-white font-medium border-green-600"
               >
