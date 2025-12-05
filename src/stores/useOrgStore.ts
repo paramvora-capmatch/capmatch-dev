@@ -79,7 +79,6 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
     // Prevent duplicate loads for the same org
     if (loadingOrgId === orgId) {
-      console.log(`[OrgStore] Already loading org: ${orgId}`);
       return;
     }
 
@@ -91,8 +90,6 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
     // But if multiple cards call it simultaneously, loadingOrgId will catch it.
 
     set({ isLoading: true, loadingOrgId: orgId, error: null });
-
-    console.log(`[OrgStore] Loading org: ${orgId}`);
 
     try {
       // Load org details
@@ -192,10 +189,6 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
             member.user_id === currentUserId && member.role === "owner"
         ) || false;
 
-      console.log(`[OrgStore] Org loaded successfully`);
-      console.log(`[OrgStore] Current user ID: ${currentUserId}`);
-      console.log(`[OrgStore] Is owner: ${isOwner}`);
-      console.log(`[OrgStore] Members count: ${processedMembers.length}`);
 
       set({
         currentOrg: org,

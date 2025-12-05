@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useOrgStore } from '../stores/useOrgStore';
 import { useAuthStore } from '../stores/useAuthStore';
@@ -22,10 +22,26 @@ export const useProjectMembers = (
     const isAdvisor = user?.role === "advisor";
 
     // Create a stable key for projects to prevent unnecessary re-fetches
-    const projectsKey = projects
-        .map(p => `${p.id}:${p.assignedAdvisorUserId}:${p.owner_org_id}`)
-        .sort()
-        .join('|');
+    const projectsKey = useMemo(() => 
+        projects
+            .map(p => `${p.id}:${p.assignedAdvisorUserId}:${p.owner_org_id}`)
+            .sort()
+            .join('|'),
+        [projects]
+    );
+
+    // Create a stable key for orgMembers to prevent unnecessary re-fetches
+    // Only re-fetch if the actual member IDs change, not if the array reference changes
+    const orgMembersKey = useMemo(() => 
+        orgMembers
+            ?.map(m => `${m.user_id}:${m.role}`)
+            .sort()
+            .join('|') || '',
+        [orgMembers]
+    );
+
+    // Get currentOrg.id in a stable way
+    const currentOrgId = currentOrg?.id;
 
     useEffect(() => {
         const fetchAllMembers = async () => {
@@ -115,7 +131,6 @@ export const useProjectMembers = (
                 // 4. Batch fetch user profiles
                 if (allUserIds.size > 0) {
                     const userIdsArray = Array.from(allUserIds);
-                    console.log(`[useProjectMembers] Fetching profiles for ${userIdsArray.length} users:`, userIdsArray);
 
                     // Use direct RLS query instead of edge function
                     const { data: memberBasicData, error: basicDataError } = await supabase
@@ -125,8 +140,6 @@ export const useProjectMembers = (
 
                     if (basicDataError) {
                         console.error('[useProjectMembers] Error fetching user data:', basicDataError);
-                    } else {
-                        console.log(`[useProjectMembers] Fetched ${memberBasicData?.length || 0} profiles`);
                     }
 
                     if (!basicDataError && memberBasicData) {
@@ -154,7 +167,6 @@ export const useProjectMembers = (
 
                         setMembersByProjectId(result);
                     } else {
-                        console.error('[useProjectMembers] Failed to fetch member data via edge function:', basicDataError);
                         setMembersByProjectId({});
                     }
                 } else {
@@ -171,12 +183,10 @@ export const useProjectMembers = (
 
         fetchAllMembers();
     }, [
-        projects,
         projectsKey,
         isAdvisor,
-        currentOrg,
-        currentOrg?.id,
-        orgMembers
+        currentOrgId,
+        orgMembersKey
     ]);
 
     return { membersByProjectId, isLoading };
