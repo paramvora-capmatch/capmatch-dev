@@ -292,7 +292,29 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
       setInviteLink(link);
     } catch (err) {
       console.error('Failed to invite member:', err);
-      setError(err instanceof Error ? err.message : 'Failed to invite member');
+      
+      // Extract user-friendly error message
+      let errorMessage = 'Failed to invite member';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        
+        // Provide more specific error messages for common cases
+        if (errorMessage.toLowerCase().includes('already registered') || 
+            errorMessage.toLowerCase().includes('email already')) {
+          errorMessage = `This email address is already registered. Please invite them directly or ask them to join your organization.`;
+        } else if (errorMessage.toLowerCase().includes('active invite')) {
+          errorMessage = `An active invitation already exists for this email address.`;
+        } else if (errorMessage.toLowerCase().includes('authentication failed')) {
+          errorMessage = `Authentication failed. Please try logging in again.`;
+        } else if (errorMessage.toLowerCase().includes('must be an owner')) {
+          errorMessage = `You must be an organization owner to invite members.`;
+        }
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -333,7 +355,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto flex-shrink-0"
+              className="bg-white rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto flex-shrink-0 min-w-0"
             >
           <Card className="border-0 shadow-none">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -348,10 +370,10 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
 
             <CardContent>
               {!inviteLink ? (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4 min-w-0">
                   {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                      <p className="text-sm text-red-600">{error}</p>
+                    <div className="bg-red-50 border border-red-200 rounded-md p-3 min-w-0">
+                      <p className="text-sm text-red-600 break-words overflow-wrap-anywhere">{error}</p>
                     </div>
                   )}
 

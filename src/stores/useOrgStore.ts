@@ -251,7 +251,125 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
         }
       );
 
-      if (invokeError) throw invokeError;
+      // Check if data contains error information (Supabase may return error in data even when error is set)
+      if (data && typeof data === 'object' && 'error' in data && !('invite' in data)) {
+        const errorMessage = (data as any).error || 'Failed to invite member';
+        throw new Error(errorMessage);
+      }
+
+      if (invokeError) {
+        // Try to extract error message from response body
+        let errorMessage = invokeError.message;
+        
+        // Check if data was returned despite the error (some Supabase versions do this)
+        if (data && typeof data === 'object' && 'error' in data) {
+          errorMessage = (data as any).error || errorMessage;
+        }
+        
+        // For FunctionsHttpError, try to extract the actual error from the response
+        // The error object might have the response in different places depending on Supabase version
+        const errorAny = invokeError as any;
+        
+        // Debug: Log error structure to help diagnose (can be removed later)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Error details:', {
+            message: errorMessage,
+            hasContext: !!errorAny.context,
+            contextType: typeof errorAny.context,
+            isResponse: errorAny.context instanceof Response,
+            errorKeys: Object.keys(errorAny),
+            status: errorAny.status,
+            statusCode: errorAny.statusCode,
+          });
+        }
+        
+        // Try to get response body from various possible locations
+        let responseBody: any = null;
+        
+        // Method 1: Check if context is a Response object
+        if (errorAny.context instanceof Response) {
+          try {
+            // Clone the response before reading (Response can only be read once)
+            const clonedResponse = errorAny.context.clone();
+            responseBody = await clonedResponse.json();
+          } catch (e) {
+            // Failed to parse, try reading as text
+            try {
+              const clonedResponse = errorAny.context.clone();
+              const text = await clonedResponse.text();
+              try {
+                responseBody = JSON.parse(text);
+              } catch {
+                // Not JSON
+              }
+            } catch {
+              // Failed to read
+            }
+          }
+        }
+        // Method 2: Check if context has a json method
+        else if (errorAny.context && typeof errorAny.context.json === 'function') {
+          try {
+            responseBody = await errorAny.context.json();
+          } catch (e) {
+            // Failed to parse
+          }
+        }
+        // Method 3: Check if context is already the parsed response object
+        else if (errorAny.context && typeof errorAny.context === 'object' && !(errorAny.context instanceof Response)) {
+          // Check if it's already the error response
+          if (errorAny.context.error || errorAny.context.message) {
+            responseBody = errorAny.context;
+          }
+        }
+        // Method 4: Check if error has a response property
+        else if (errorAny.response) {
+          if (errorAny.response instanceof Response) {
+            try {
+              const clonedResponse = errorAny.response.clone();
+              responseBody = await clonedResponse.json();
+            } catch (e) {
+              // Failed to parse
+            }
+          } else if (typeof errorAny.response === 'object') {
+            responseBody = errorAny.response;
+          }
+        }
+        // Method 5: Check if error has a body property
+        else if (errorAny.body) {
+          if (typeof errorAny.body === 'string') {
+            try {
+              responseBody = JSON.parse(errorAny.body);
+            } catch (e) {
+              // Not JSON
+            }
+          } else if (typeof errorAny.body === 'object') {
+            responseBody = errorAny.body;
+          }
+        }
+        
+        // Extract error message from response body
+        if (responseBody) {
+          if (responseBody.error) {
+            errorMessage = responseBody.error;
+          } else if (responseBody.message) {
+            errorMessage = responseBody.message;
+          }
+        }
+        
+        // If we still have the generic message and it's a 409 status, provide a helpful message
+        if (errorMessage === 'Edge Function returned a non-2xx status code' || 
+            errorMessage.includes('non-2xx')) {
+          if (errorAny.status === 409 || errorAny.statusCode === 409) {
+            errorMessage = 'This email address is already registered. Please invite them directly or ask them to join your organization.';
+          }
+        }
+        
+        // Create a new error with the extracted message
+        const enhancedError = new Error(errorMessage);
+        (enhancedError as any).originalError = invokeError;
+        throw enhancedError;
+      }
       if (!data || !data.invite) throw new Error("Failed to create invite");
 
       // Generate invite link using the token from the response
