@@ -1157,6 +1157,64 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		const handler = () => {
 			setShowAutofillNotification(true);
 			setTimeout(() => setShowAutofillNotification(false), 5000);
+			
+			// After autofill, force-open subsections with errors or needs input
+			// This ensures users see issues immediately after autofill completes
+			setTimeout(() => {
+				const schemaSteps: any[] = (formSchema as any).steps || [];
+				const subsectionsToOpen = new Set<string>();
+				
+				schemaSteps.forEach((step) => {
+					const sectionId: string = step.id;
+					const subsections: any[] = step.subsections || [];
+					
+					subsections.forEach((subsection: any) => {
+						const subsectionKey = `${sectionId}::${subsection.id}`;
+						const fieldIds: string[] = subsection.fields || [];
+						
+						if (fieldIds.length === 0) return;
+						
+						// Check if subsection has errors or needs input
+						const hasErrors = fieldIds.some((fieldId) => {
+							const meta = fieldMetadata[fieldId];
+							return meta?.warnings && meta.warnings.length > 0;
+						});
+						
+						// Inline check for blue fields (needs input) - replicate isFieldBlue logic
+						const hasNeedsInput = fieldIds.some((fieldId) => {
+							const value = (formData as any)[fieldId];
+							const hasValue = isProjectValueProvided(value);
+							const meta = fieldMetadata[fieldId];
+							const hasSource = meta?.source || (meta?.sources && Array.isArray(meta.sources) && meta.sources.length > 0);
+							const sourceType = meta?.source?.type || meta?.sources?.[0]?.type;
+							const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+							const isLocked = lockedFields.has(fieldId) && !unlockedFields.has(fieldId);
+							
+							// Don't show as blue if there are warnings (should be red instead)
+							if (hasWarnings && !isLocked) {
+								return false;
+							}
+							
+							if (!hasValue) {
+								return hasSource && !isLocked && !hasWarnings;
+							}
+							// Blue: user_input source, no warnings, not locked
+							return sourceType === "user_input" && !hasWarnings && !isLocked;
+						});
+						
+						if (hasErrors || hasNeedsInput) {
+							subsectionsToOpen.add(subsectionKey);
+						}
+					});
+				});
+				
+				// Force-open subsections with errors or needs input
+				setExpandedSubsections((prev) => {
+					const next = new Set(prev);
+					subsectionsToOpen.forEach((key) => next.add(key));
+					return next;
+				});
+			}, 100); // Small delay to ensure formData/fieldMetadata have updated
 		};
 		if (typeof window !== "undefined") {
 			window.addEventListener("autofill-completed", handler as any);
@@ -1169,7 +1227,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				);
 			}
 		};
-	}, []);
+	}, [formData, fieldMetadata, lockedFields, unlockedFields]);
 
 	// Helper function to update metadata when user inputs data
 	const handleInputChange = useCallback(
@@ -1453,6 +1511,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					meta.sources.length > 0);
 			const sourceType = meta?.source?.type || meta?.sources?.[0]?.type;
 			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+
+			// Don't show as blue if there are warnings (should be red instead)
+			if (hasWarnings && !locked) {
+				return false;
+			}
 
 			if (!hasValue) {
 				return hasSource && !locked && !hasWarnings;
@@ -2468,15 +2531,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				if (fieldIds.length === 0) return;
 
 				// Check field states
-				const fieldStates = fieldIds.map((fieldId) => ({
-					isBlue: isFieldBlue(fieldId, sectionId),
-					isGreen: isFieldGreen(fieldId, sectionId),
-					isWhite: isFieldWhite(fieldId, sectionId),
-					hasValue: isProjectValueProvided(
-						(formData as any)[fieldId]
-					),
-					isLocked: isFieldLocked(fieldId, sectionId),
-				}));
+				const fieldStates = fieldIds.map((fieldId) => {
+					const meta = fieldMetadata[fieldId];
+					const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+					return {
+						isBlue: isFieldBlue(fieldId, sectionId),
+						isGreen: isFieldGreen(fieldId, sectionId),
+						isWhite: isFieldWhite(fieldId, sectionId),
+						hasValue: isProjectValueProvided(
+							(formData as any)[fieldId]
+						),
+						isLocked: isFieldLocked(fieldId, sectionId),
+						hasWarnings: hasWarnings,
+					};
+				});
 
 				// All green: all fields have values AND are locked
 				const allGreen =
@@ -2491,9 +2559,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						(s) => s.isWhite && !s.isBlue && !s.isGreen
 					);
 				const hasBlue = fieldStates.some((s) => s.isBlue);
+				const hasWarnings = fieldStates.some((s) => s.hasWarnings);
 
 				// Determine auto-state
-				if (hasBlue) {
+				// Auto-open if: has blue fields OR has warnings (errors)
+				// Auto-close if: all green (complete) OR all white (empty)
+				if (hasBlue || hasWarnings) {
 					autoOpenSubsections.add(subsectionKey);
 				} else if (allGreen || allWhite) {
 					autoCloseSubsections.add(subsectionKey);
@@ -2577,15 +2648,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				const subsectionLocked = isSubsectionFullyLocked(allFieldIds);
 				const fieldStates =
 					allFieldIds.length > 0
-						? allFieldIds.map((fieldId) => ({
-								isBlue: isFieldBlue(fieldId, sectionId),
-								isGreen: isFieldGreen(fieldId, sectionId),
-								isWhite: isFieldWhite(fieldId, sectionId),
-								hasValue: isProjectValueProvided(
-									(formData as any)[fieldId]
-								),
-								isLocked: isFieldLocked(fieldId, sectionId),
-						  }))
+						? allFieldIds.map((fieldId) => {
+								const meta = fieldMetadata[fieldId];
+								const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+								return {
+									isBlue: isFieldBlue(fieldId, sectionId),
+									isGreen: isFieldGreen(fieldId, sectionId),
+									isWhite: isFieldWhite(fieldId, sectionId),
+									hasValue: isProjectValueProvided(
+										(formData as any)[fieldId]
+									),
+									isLocked: isFieldLocked(fieldId, sectionId),
+									hasWarnings: hasWarnings,
+								};
+						  })
 						: [];
 
 				const allGreen =
@@ -2604,14 +2680,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							state.isWhite && !state.isBlue && !state.isGreen
 					);
 				const hasBlue = fieldStates.some((state) => state.isBlue);
+				const hasWarnings = fieldStates.some((state) => state.hasWarnings);
 
 				// Determine badge state
-				// Show "Complete" only if: all fields have values AND are locked (all green)
-				// Show "Needs Input" only if: at least one field is blue
-				// Show no badge in all other cases (all white, empty, mixed, etc.)
-				const showComplete =
-					allFieldIds.length > 0 && allGreen && !hasBlue;
+				// Multiple badges can show simultaneously:
+				// - Error badge: shows if any field has warnings (can coexist with Needs Input)
+				// - Needs Input badge: shows if any field is blue (can coexist with Error)
+				// - Complete badge: exclusive, only shows when all green AND no errors AND no needs input
+				const showError = hasWarnings;
 				const showNeedsInput = hasBlue;
+				const showComplete =
+					allFieldIds.length > 0 && allGreen && !hasBlue && !hasWarnings;
 
 				// A subsection can only be locked when all fields that should be part of it
 				// are non-empty. If any field is empty, we prevent locking the subsection
@@ -2682,14 +2761,19 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 										</>
 									)}
 								</div>
-								{showComplete && (
-									<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
-										Complete
+								{showError && (
+									<span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 font-medium">
+										Error
 									</span>
 								)}
 								{showNeedsInput && (
 									<span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
 										Needs Input
+									</span>
+								)}
+								{showComplete && (
+									<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
+										Complete
 									</span>
 								)}
 							</div>
