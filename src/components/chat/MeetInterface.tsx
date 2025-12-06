@@ -14,7 +14,6 @@ import {
   Play,
   Plus,
   Users as UsersIcon,
-  User,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -68,7 +67,30 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 
   // TODO: Replace with actual data from backend/database
   // This is mock data for demonstration
-  const meetings: Meeting[] = [
+  const allMeetings: Meeting[] = [
+    // Upcoming meetings
+    {
+      id: "upcoming-1",
+      title: "Weekly Project Sync",
+      date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+      duration: 30,
+      participants: ["John Doe", "Jane Smith", "Advisor Mike"],
+    },
+    {
+      id: "upcoming-2",
+      title: "Investor Pitch Preparation",
+      date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+      duration: 60,
+      participants: ["Jane Smith", "Advisor Mike"],
+    },
+    {
+      id: "upcoming-3",
+      title: "Site Visit Debrief",
+      date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+      duration: 45,
+      participants: ["John Doe", "Jane Smith"],
+    },
+    // Past meetings
     {
       id: "1",
       title: "Project Kickoff Meeting",
@@ -98,6 +120,16 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     },
   ];
 
+  // Separate upcoming and past meetings
+  const now = new Date();
+  const upcomingMeetings = allMeetings
+    .filter((m) => m.date > now)
+    .sort((a, b) => a.date.getTime() - b.date.getTime()); // Ascending order (soonest first)
+
+  const pastMeetings = allMeetings
+    .filter((m) => m.date <= now)
+    .sort((a, b) => b.date.getTime() - a.date.getTime()); // Descending order (most recent first)
+
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
@@ -115,6 +147,20 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
+  const getTimeUntil = (date: Date) => {
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 60) return `in ${diffMins}m`;
+    if (diffHours < 24) return `in ${diffHours}h`;
+    if (diffDays === 1) return "Tomorrow";
+    if (diffDays < 7) return `in ${diffDays} days`;
+    return formatDate(date);
+  };
+
   return (
     <div className={cn(
       "flex flex-col h-full bg-gradient-to-br from-gray-50 to-white",
@@ -128,10 +174,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
-              Meeting History
+              Meetings
             </h3>
             <p className="text-xs text-gray-500">
-              {meetings.length} meeting{meetings.length !== 1 ? "s" : ""} recorded
+              {upcomingMeetings.length} upcoming · {pastMeetings.length} past
             </p>
           </div>
         </div>
@@ -147,8 +193,8 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
       </div>
 
       {/* Meetings List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {meetings.length === 0 ? (
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {allMeetings.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <div className="p-4 bg-gray-100 rounded-full mb-4">
               <Video className="w-8 h-8 text-gray-400" />
@@ -161,119 +207,201 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {meetings.map((meeting, index) => (
-              <motion.div
-                key={meeting.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: index * 0.05 }}
-              >
-                <Card className="hover:shadow-md transition-all duration-200 border border-gray-200 bg-white">
-                  <div className="p-4">
-                    {/* Meeting Header */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
-                          {meeting.title}
-                        </h4>
-                        <div className="flex items-center space-x-3 text-xs text-gray-500">
-                          <span className="flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            {formatDate(meeting.date)}
-                          </span>
-                          <span className="flex items-center">
-                            <Clock className="w-3 h-3 mr-1" />
-                            {formatDuration(meeting.duration)}
-                          </span>
+          <>
+            {/* Upcoming Meetings Section */}
+            {upcomingMeetings.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2 px-1">
+                  <Calendar className="w-4 h-4 text-green-600" />
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    Upcoming Meetings
+                  </h4>
+                  <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                    {upcomingMeetings.length}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {upcomingMeetings.map((meeting, index) => (
+                    <motion.div
+                      key={meeting.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                    >
+                      <Card className="hover:shadow-md transition-all duration-200 border-l-4 border-l-green-500 border-t border-r border-b border-gray-200 bg-gradient-to-r from-green-50/50 to-white">
+                        <div className="p-4">
+                          {/* Meeting Header */}
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
+                                {meeting.title}
+                              </h4>
+                              <div className="flex items-center space-x-3 text-xs">
+                                <span className="flex items-center text-green-700 font-medium">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {getTimeUntil(meeting.date)}
+                                </span>
+                                <span className="flex items-center text-gray-500">
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                  {formatDate(meeting.date)}
+                                </span>
+                              </div>
+                            </div>
+                            <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md flex-shrink-0">
+                              {formatDuration(meeting.duration)}
+                            </span>
+                          </div>
+
+                          {/* Participants */}
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Participants:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {meeting.participants.map((participant, i) => (
+                                <span
+                                  key={i}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
+                                >
+                                  {participant}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      {meeting.recordingUrl && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(meeting.recordingUrl, "_blank")}
-                          className="p-1.5 hover:bg-purple-50 hover:text-purple-600 transition-colors flex-shrink-0"
-                          title="Play recording"
-                        >
-                          <Play className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                    {/* Participants */}
-                    <div className="mb-3">
-                      <p className="text-xs text-gray-500 mb-1">Participants:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {meeting.participants.map((participant, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
-                          >
-                            {participant}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+            {/* Past Meetings Section */}
+            {pastMeetings.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2 px-1">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    Past Meetings
+                  </h4>
+                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                    {pastMeetings.length}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {pastMeetings.map((meeting, index) => (
+                    <motion.div
+                      key={meeting.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                    >
+                      <Card className="hover:shadow-md transition-all duration-200 border border-gray-200 bg-white">
+                        <div className="p-4">
+                          {/* Meeting Header */}
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
+                                {meeting.title}
+                              </h4>
+                              <div className="flex items-center space-x-3 text-xs text-gray-500">
+                                <span className="flex items-center">
+                                  <Calendar className="w-3 h-3 mr-1" />
+                                  {formatDate(meeting.date)}
+                                </span>
+                                <span className="flex items-center">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {formatDuration(meeting.duration)}
+                                </span>
+                              </div>
+                            </div>
+                            {meeting.recordingUrl && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(meeting.recordingUrl, "_blank")}
+                                className="p-1.5 hover:bg-purple-50 hover:text-purple-600 transition-colors flex-shrink-0"
+                                title="Play recording"
+                              >
+                                <Play className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
 
-                    {/* Summary */}
-                    {meeting.summary && (
-                      <div className="mb-3">
-                        <p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
-                          <FileText className="w-3 h-3 mr-1" />
-                          Summary
-                        </p>
-                        <p className="text-xs text-gray-600 leading-relaxed">
-                          {meeting.summary}
-                        </p>
-                      </div>
-                    )}
+                          {/* Participants */}
+                          <div className="mb-3">
+                            <p className="text-xs text-gray-500 mb-1">Participants:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {meeting.participants.map((participant, i) => (
+                                <span
+                                  key={i}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
+                                >
+                                  {participant}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedMeeting(meeting);
-                          setViewMode("summary");
-                        }}
-                        className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                      >
-                        <FileText className="w-3 h-3 mr-1" />
-                        View Summary
-                      </Button>
-                      {meeting.transcript && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedMeeting(meeting);
-                            setViewMode("transcript");
-                          }}
-                          className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                        >
-                          <ChevronRight className="w-3 h-3" />
-                          Transcript
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          // TODO: Implement download functionality
-                          console.log("Download meeting", meeting.id);
-                        }}
-                        className="text-xs hover:bg-gray-50 hover:text-gray-700 transition-colors"
-                      >
-                        <Download className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                          {/* Summary */}
+                          {meeting.summary && (
+                            <div className="mb-3">
+                              <p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
+                                <FileText className="w-3 h-3 mr-1" />
+                                Summary
+                              </p>
+                              <p className="text-xs text-gray-600 leading-relaxed">
+                                {meeting.summary}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedMeeting(meeting);
+                                setViewMode("summary");
+                              }}
+                              className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            >
+                              <FileText className="w-3 h-3 mr-1" />
+                              View Summary
+                            </Button>
+                            {meeting.transcript && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedMeeting(meeting);
+                                  setViewMode("transcript");
+                                }}
+                                className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                              >
+                                <ChevronRight className="w-3 h-3" />
+                                Transcript
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // TODO: Implement download functionality
+                                console.log("Download meeting", meeting.id);
+                              }}
+                              className="text-xs hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                            >
+                              <Download className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
