@@ -9,6 +9,7 @@ interface FieldWarningsTooltipProps {
 	className?: string;
 	placement?: "top" | "bottom" | "left" | "right";
 	triggerRef?: React.RefObject<HTMLElement>;
+	triggerRefs?: React.RefObject<HTMLElement>[];
 	showIcon?: boolean;
 }
 
