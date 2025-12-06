@@ -298,6 +298,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 	const [refreshKey, setRefreshKey] = useState(0);
+	
+	// Map to store refs for field wrappers (for tooltip triggers)
+	const fieldWrapperRefs = useRef<Map<string, React.RefObject<HTMLDivElement>>>(new Map());
 
 	// Refs for autosave and dirty check
 	const initialSnapshotRef = useRef<{

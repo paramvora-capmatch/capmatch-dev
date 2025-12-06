@@ -2275,10 +2275,11 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const commonClassName = getFieldStylingClasses(fieldId, sectionId);
 
 			// Get or create a ref for the field wrapper to trigger tooltip on hover
-			if (!fieldWrapperRefs.current.has(fieldId)) {
-				fieldWrapperRefs.current.set(fieldId, { current: null } as React.RefObject<HTMLDivElement>);
+			let fieldWrapperRef = fieldWrapperRefs.current.get(fieldId);
+			if (!fieldWrapperRef) {
+				fieldWrapperRef = { current: null } as React.RefObject<HTMLDivElement>;
+				fieldWrapperRefs.current.set(fieldId, fieldWrapperRef);
 			}
-			const fieldWrapperRef = fieldWrapperRefs.current.get(fieldId)!;
 
 			const renderControl = () => {
 				if (controlKind === "textarea") {
