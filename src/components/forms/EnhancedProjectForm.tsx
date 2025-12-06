@@ -2276,7 +2276,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 			// Get or create a ref for the field wrapper to trigger tooltip on hover
 			if (!fieldWrapperRefs.current.has(fieldId)) {
-				fieldWrapperRefs.current.set(fieldId, React.createRef<HTMLDivElement>());
+				fieldWrapperRefs.current.set(fieldId, { current: null } as React.RefObject<HTMLDivElement>);
 			}
 			const fieldWrapperRef = fieldWrapperRefs.current.get(fieldId)!;
 
