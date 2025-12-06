@@ -2116,7 +2116,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			Building,
 			Globe,
 			Calendar,
-			Map,
+			Map: MapIcon,
 			Users,
 			Calculator,
 			AlertTriangle,
