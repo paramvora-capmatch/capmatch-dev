@@ -469,12 +469,36 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				other_values: [],
 			};
 
+			// Preserve original source in other_values if it exists and is not user_input
+			const originalSource = currentMeta.source;
+			const otherValues = Array.isArray(currentMeta.other_values) 
+				? [...currentMeta.other_values] 
+				: [];
+			
+			// If there's an original source that's not user_input, add it to other_values
+			if (originalSource && originalSource.type !== "user_input") {
+				const originalValue = currentMeta.value;
+				// Check if this source/value combination already exists in other_values
+				const alreadyExists = otherValues.some(
+					(ov: any) => 
+						ov.value === originalValue && 
+						ov.source?.type === originalSource.type
+				);
+				if (!alreadyExists && originalValue !== value) {
+					otherValues.push({
+						value: originalValue,
+						source: originalSource,
+					});
+				}
+			}
+
 			// Update metadata to mark source as User Input
 			const updatedMeta = {
 				...currentMeta,
 				value: value,
 				// Force source to user_input when edited manually
 				source: { type: "user_input" } as any,
+				other_values: otherValues,
 			};
 
 			setFieldMetadata((prev) => ({
@@ -511,6 +535,84 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		},
 		[fieldMetadata, formData]
 	);
+
+	// Map of field dependencies for borrower resume
+	const fieldDependencies = useMemo(() => {
+		const deps: Record<string, string[]> = {};
+		
+		// Fields that depend on primaryEntityStructure
+		deps["primaryEntityStructure"] = ["primaryEntityName"];
+		deps["primaryEntityName"] = ["primaryEntityStructure"];
+		
+		// Fields that depend on netWorthRange
+		deps["netWorthRange"] = ["liquidityRange"];
+		
+		// Fields that depend on liquidityRange
+		deps["liquidityRange"] = ["netWorthRange"];
+		
+		// Fields that depend on principals (for ownership percentage sum)
+		deps["principals"] = ["ownershipPercentage"];
+		
+		return deps;
+	}, []);
+
+	// Re-validate dependent fields when any field changes
+	useEffect(() => {
+		// Debounce to avoid excessive API calls
+		const timeoutId = setTimeout(async () => {
+			const fieldsToRevalidate = new Set<string>();
+			
+			Object.keys(formData).forEach((fieldId) => {
+				const dependentFields = fieldDependencies[fieldId];
+				if (dependentFields) {
+					dependentFields.forEach((depFieldId) => {
+						const depValue = (formData as any)[depFieldId];
+						if (depValue !== undefined && depValue !== null) {
+							fieldsToRevalidate.add(depFieldId);
+						}
+					});
+				}
+			});
+			
+			for (const fieldId of fieldsToRevalidate) {
+				const fieldValue = (formData as any)[fieldId];
+				if (fieldValue !== undefined && fieldValue !== null) {
+					// Re-run sanity check for dependent field
+					try {
+						const { checkRealtimeSanity } = await import(
+							"@/lib/api/realtimeSanityCheck"
+						);
+						const currentMeta = fieldMetadata[fieldId] || {
+							value: fieldValue,
+							source: null,
+							warnings: [],
+							other_values: [],
+						};
+						const context = { ...formData, [fieldId]: fieldValue };
+						const result = await checkRealtimeSanity({
+							fieldId,
+							value: fieldValue,
+							resumeType: "borrower",
+							context,
+							existingFieldData: currentMeta,
+						});
+
+						setFieldMetadata((prev) => ({
+							...prev,
+							[fieldId]: {
+								...prev[fieldId],
+								warnings: result.warnings || [],
+							},
+						}));
+					} catch (error) {
+						console.error(`Realtime sanity check failed for ${fieldId}:`, error);
+					}
+				}
+			}
+		}, 500);
+
+		return () => clearTimeout(timeoutId);
+	}, [formData, fieldDependencies, fieldMetadata]);
 
 	// Principals Management (table-style, similar to residential unit mix)
 	const handleRemovePrincipal = useCallback(

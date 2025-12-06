@@ -268,31 +268,6 @@ export const FieldHelpTooltip: React.FC<FieldHelpTooltipProps> = ({
 								onMouseLeave={() => setIsOpen(false)}
 							>
 								<div className="p-4">
-									{/* Field Type Badge - Only show if we have static metadata */}
-									{metadata && (
-										<div className="flex items-center justify-between mb-2">
-											<span
-												className={cn(
-													"text-xs font-semibold px-2 py-0.5 rounded",
-													metadata.fieldType ===
-														"derived"
-														? "bg-purple-100 text-purple-700"
-														: "bg-blue-100 text-blue-700"
-												)}
-											>
-												{metadata.fieldType ===
-												"derived"
-													? "Derived"
-													: "Direct"}
-											</span>
-											{metadata.dataType && (
-												<span className="text-xs text-gray-500">
-													{metadata.dataType}
-												</span>
-											)}
-										</div>
-									)}
-
 									{/* Description - Only show if we have static metadata */}
 									{metadata && (
 										<p className="text-sm text-gray-800 mb-3 leading-relaxed">

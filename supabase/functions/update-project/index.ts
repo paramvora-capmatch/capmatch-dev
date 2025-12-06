@@ -17,28 +17,52 @@ function isGroupedFormat(data: Record<string, unknown>): boolean {
   return keys.some(key => knownSectionIds.includes(key));
 }
 
+// Hardcoded field-to-subsection mapping (matching enhanced-project-form.schema.json)
+// This is used as a fallback when formSchema is not available
+const FIELD_TO_SUBSECTION: Record<string, string> = {
+  // basic-info section subsections
+  "projectName": "project-identity",
+  "propertyAddressStreet": "project-identity",
+  "propertyAddressCity": "project-identity",
+  "propertyAddressState": "project-identity",
+  "propertyAddressZip": "project-identity",
+  "propertyAddressCounty": "project-identity",
+  "dealStatus": "project-identity",
+  "assetType": "classification",
+  "constructionType": "classification",
+  "projectPhase": "classification",
+  "projectDescription": "classification",
+  "parcelNumber": "classification",
+  "zoningDesignation": "classification",
+  // Add more mappings as needed for other sections
+};
+
 // Helper to get subsection for a field (simplified - in production, load from schema)
 function getSubsectionForField(fieldId: string, sectionId: string, formSchema: any): string | null {
-  const steps = formSchema?.steps || [];
-  
-  for (const step of steps) {
-    if (step.id !== sectionId) continue;
+  // First try to use formSchema if available
+  if (formSchema) {
+    const steps = formSchema?.steps || [];
     
-    const subsections = step.subsections || [];
-    for (const subsection of subsections) {
-      const fields = subsection.fields || [];
-      if (fields.includes(fieldId)) {
-        return subsection.id;
+    for (const step of steps) {
+      if (step.id !== sectionId) continue;
+      
+      const subsections = step.subsections || [];
+      for (const subsection of subsections) {
+        const fields = subsection.fields || [];
+        if (fields.includes(fieldId)) {
+          return subsection.id;
+        }
       }
-    }
-    
-    // If section has no subsections, return null
-    if (subsections.length === 0) {
-      return null;
+      
+      // If section has no subsections, return null
+      if (subsections.length === 0) {
+        return null;
+      }
     }
   }
   
-  return null;
+  // Fallback to hardcoded mapping
+  return FIELD_TO_SUBSECTION[fieldId] || null;
 }
 
 function groupBySections(flatData: Record<string, unknown>, formSchema?: any): Record<string, any> {
