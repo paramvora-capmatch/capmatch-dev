@@ -992,8 +992,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 							fieldId={fieldId}
 							fieldMetadata={fieldMetadata[fieldId]}
 						/>
-						{fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0 && (
-							<AlertTriangle className="h-3 w-3 text-amber-500" />
+						{hasWarnings && (
+							<FieldWarningsTooltip
+								warnings={fieldMetadata[fieldId]?.warnings}
+								triggerRef={fieldWrapperRef}
+								showIcon={true}
+							/>
 						)}
 						<div className="ml-auto flex items-center gap-1">
 							<button

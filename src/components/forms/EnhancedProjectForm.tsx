@@ -1608,8 +1608,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			fieldId: string,
 			sectionId: string,
 			labelText: string,
-			required: boolean = false
+			required: boolean = false,
+			fieldWrapperRef?: React.RefObject<HTMLDivElement>
 		) => {
+			const hasWarnings = fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0;
 			return (
 				<div className="mb-1">
 					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
@@ -1623,8 +1625,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							fieldId={fieldId}
 							fieldMetadata={fieldMetadata[fieldId]}
 						/>
-						{fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0 && (
-							<AlertTriangle className="h-3 w-3 text-amber-500" />
+						{hasWarnings && fieldWrapperRef && (
+							<FieldWarningsTooltip
+								warnings={fieldMetadata[fieldId]?.warnings}
+								triggerRef={fieldWrapperRef}
+								showIcon={true}
+							/>
 						)}
 						<div className="ml-auto flex items-center gap-1">
 							<button
@@ -2474,7 +2480,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								fieldId,
 								sectionId,
 								label,
-								required
+								required,
+								fieldWrapperRef
 							)}
 							<div ref={fieldWrapperRef} className="relative">
 								{renderControl()}
