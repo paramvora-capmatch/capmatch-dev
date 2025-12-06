@@ -191,22 +191,41 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 		}
 	};
 
-	// Set up hover handlers on external trigger if provided
+	// Set up hover handlers on all trigger refs
 	useEffect(() => {
-		const element = externalTriggerRef?.current;
-		if (element) {
-			const handleMouseEnter = () => setIsOpen(true);
-			const handleMouseLeave = () => setIsOpen(false);
+		const cleanupFunctions: (() => void)[] = [];
 
-			element.addEventListener("mouseenter", handleMouseEnter);
-			element.addEventListener("mouseleave", handleMouseLeave);
+		allTriggerRefs.forEach((ref) => {
+			const element = ref?.current;
+			if (element) {
+				const handleMouseEnter = () => {
+					setActiveTriggerRef(ref);
+					setIsOpen(true);
+				};
+				const handleMouseLeave = () => {
+					setIsOpen(false);
+					// Clear active trigger after a short delay to allow tooltip to stay open if moving between triggers
+					setTimeout(() => {
+						if (!isOpen) {
+							setActiveTriggerRef(null);
+						}
+					}, 100);
+				};
 
-			return () => {
-				element.removeEventListener("mouseenter", handleMouseEnter);
-				element.removeEventListener("mouseleave", handleMouseLeave);
-			};
-		}
-	}, [externalTriggerRef]);
+				element.addEventListener("mouseenter", handleMouseEnter);
+				element.addEventListener("mouseleave", handleMouseLeave);
+
+				cleanupFunctions.push(() => {
+					element.removeEventListener("mouseenter", handleMouseEnter);
+					element.removeEventListener("mouseleave", handleMouseLeave);
+				});
+			}
+		});
+
+		return () => {
+			cleanupFunctions.forEach((cleanup) => cleanup());
+		};
+	}, [allTriggerRefs, isOpen]);
 
 	return (
 		<>
@@ -214,12 +233,9 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 				<div
 					ref={internalTriggerRef}
 					className={cn(
-						"relative inline-flex items-center",
-						!externalTriggerRef && "cursor-help",
+						"relative inline-flex items-center cursor-help",
 						className
 					)}
-					onMouseEnter={!externalTriggerRef ? () => setIsOpen(true) : undefined}
-					onMouseLeave={!externalTriggerRef ? () => setIsOpen(false) : undefined}
 				>
 					<AlertTriangle className="h-3 w-3 text-amber-500" />
 				</div>
