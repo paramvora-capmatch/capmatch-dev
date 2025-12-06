@@ -162,7 +162,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 			transform: "rotate(45deg)",
 		};
 
-		switch (placement) {
+		switch (effectivePlacement) {
 			case "top":
 				return {
 					...baseStyles,
