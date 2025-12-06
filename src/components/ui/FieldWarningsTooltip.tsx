@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,16 +8,50 @@ interface FieldWarningsTooltipProps {
 	warnings?: string[];
 	className?: string;
 	placement?: "top" | "bottom" | "left" | "right";
+	triggerRef?: React.RefObject<HTMLElement>;
+	triggerRefs?: React.RefObject<HTMLElement>[];
+	showIcon?: boolean;
 }
 
 export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 	warnings,
 	className,
 	placement = "top",
+	triggerRef: externalTriggerRef,
+	triggerRefs,
+	showIcon = true,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [position, setPosition] = useState({ top: 0, left: 0 });
-	const triggerRef = useRef<HTMLDivElement>(null);
+	const [activeTriggerRef, setActiveTriggerRef] = useState<React.RefObject<HTMLElement> | null>(null);
+	const [fieldHoverSide, setFieldHoverSide] = useState<"left" | "right">("right");
+	const internalTriggerRef = useRef<HTMLDivElement>(null);
+	
+	// Collect all trigger refs (icon, external, and any additional ones)
+	const allTriggerRefs = useMemo(() => {
+		const refs: React.RefObject<HTMLElement>[] = [];
+		if (showIcon && internalTriggerRef) refs.push(internalTriggerRef as React.RefObject<HTMLElement>);
+		if (externalTriggerRef) refs.push(externalTriggerRef);
+		if (triggerRefs) refs.push(...triggerRefs);
+		return refs;
+	}, [showIcon, externalTriggerRef, triggerRefs]);
+	
+	// Use the active trigger ref for positioning, or fall back to first available
+	const triggerRef = activeTriggerRef || allTriggerRefs[0] || internalTriggerRef;
+	
+	// Determine effective placement based on trigger and hover position
+	const effectivePlacement = useMemo(() => {
+		// If triggered by external ref (field wrapper), use opposite side of hover
+		if (activeTriggerRef && externalTriggerRef && activeTriggerRef === externalTriggerRef) {
+			return fieldHoverSide === "left" ? "right" : "left";
+		}
+		// If triggered by icon, use "bottom"
+		if (activeTriggerRef === internalTriggerRef) {
+			return "bottom";
+		}
+		// Default to provided placement
+		return placement;
+	}, [activeTriggerRef, externalTriggerRef, fieldHoverSide, placement]);
 
 	useEffect(() => {
 		if (isOpen && triggerRef.current) {
@@ -27,7 +61,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 					const scrollY = window.scrollY;
 					const scrollX = window.scrollX;
 
-					switch (placement) {
+					switch (effectivePlacement) {
 						case "top":
 							setPosition({
 								top: rect.top + scrollY - 8,
@@ -65,7 +99,55 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 				window.removeEventListener("resize", updatePosition);
 			};
 		}
-	}, [isOpen, placement]);
+	}, [isOpen, effectivePlacement, triggerRef]);
+
+	// Set up hover handlers on all trigger refs
+	useEffect(() => {
+		const cleanupFunctions: (() => void)[] = [];
+
+		allTriggerRefs.forEach((ref) => {
+			const element = ref?.current;
+			if (element) {
+				const handleMouseEnter = () => {
+					setActiveTriggerRef(ref);
+					setIsOpen(true);
+				};
+				
+				const handleMouseMove = (e: MouseEvent) => {
+					// Only track mouse position for field wrapper (external trigger)
+					if (ref === externalTriggerRef && element) {
+						const rect = element.getBoundingClientRect();
+						const mouseX = e.clientX - rect.left;
+						const fieldWidth = rect.width;
+						// Determine if mouse is on left or right half of the field
+						setFieldHoverSide(mouseX < fieldWidth / 2 ? "left" : "right");
+					}
+				};
+				
+				const handleMouseLeave = () => {
+					setIsOpen(false);
+					// Clear active trigger after a short delay
+					setTimeout(() => {
+						setActiveTriggerRef((prev) => (prev === ref ? null : prev));
+					}, 100);
+				};
+
+				element.addEventListener("mouseenter", handleMouseEnter);
+				element.addEventListener("mousemove", handleMouseMove);
+				element.addEventListener("mouseleave", handleMouseLeave);
+
+				cleanupFunctions.push(() => {
+					element.removeEventListener("mouseenter", handleMouseEnter);
+					element.removeEventListener("mousemove", handleMouseMove);
+					element.removeEventListener("mouseleave", handleMouseLeave);
+				});
+			}
+		});
+
+		return () => {
+			cleanupFunctions.forEach((cleanup) => cleanup());
+		};
+	}, [allTriggerRefs, externalTriggerRef]);
 
 	if (!warnings || warnings.length === 0) {
 		return null;
@@ -78,7 +160,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 			width: "20rem",
 		};
 
-		switch (placement) {
+		switch (effectivePlacement) {
 			case "top":
 				return {
 					...baseStyles,
@@ -133,7 +215,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 			transform: "rotate(45deg)",
 		};
 
-		switch (placement) {
+		switch (effectivePlacement) {
 			case "top":
 				return {
 					...baseStyles,
@@ -174,17 +256,17 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 
 	return (
 		<>
-			<div
-				ref={triggerRef}
-				className={cn(
-					"relative inline-flex items-center cursor-help",
-					className
-				)}
-				onMouseEnter={() => setIsOpen(true)}
-				onMouseLeave={() => setIsOpen(false)}
-			>
-				<AlertTriangle className="h-3 w-3 text-amber-500" />
-			</div>
+			{showIcon && (
+				<div
+					ref={internalTriggerRef}
+					className={cn(
+						"relative inline-flex items-center cursor-help",
+						className
+					)}
+				>
+					<AlertTriangle className="h-3 w-3 text-amber-500" />
+				</div>
+			)}
 
 			{typeof window !== "undefined" &&
 				createPortal(
@@ -194,15 +276,15 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 								initial={{
 									opacity: 0,
 									y:
-										placement === "top"
+										effectivePlacement === "top"
 											? 5
-											: placement === "bottom"
+											: effectivePlacement === "bottom"
 											? -5
 											: 0,
 									x:
-										placement === "left"
+										effectivePlacement === "left"
 											? 5
-											: placement === "right"
+											: effectivePlacement === "right"
 											? -5
 											: 0,
 									scale: 0.95,
@@ -211,15 +293,15 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 								exit={{
 									opacity: 0,
 									y:
-										placement === "top"
+										effectivePlacement === "top"
 											? 5
-											: placement === "bottom"
+											: effectivePlacement === "bottom"
 											? -5
 											: 0,
 									x:
-										placement === "left"
+										effectivePlacement === "left"
 											? 5
-											: placement === "right"
+											: effectivePlacement === "right"
 											? -5
 											: 0,
 									scale: 0.95,

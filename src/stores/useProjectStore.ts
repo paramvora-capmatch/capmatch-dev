@@ -285,7 +285,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						(p) => p.id === currentActive.id
 					);
 					if (updatedActive) {
-						nextActiveProject = updatedActive;
+						// Preserve borrower resource IDs from current active project
+						// since loadUserProjects doesn't fetch borrower resources
+						nextActiveProject = {
+							...updatedActive,
+							borrowerResumeResourceId: (currentActive as any)?.borrowerResumeResourceId ?? updatedActive.borrowerResumeResourceId ?? null,
+							borrowerDocsResourceId: (currentActive as any)?.borrowerDocsResourceId ?? updatedActive.borrowerDocsResourceId ?? null,
+						};
 					}
 				}
 
@@ -349,10 +355,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			set({ activeProject: project });
 
 			// When a project becomes active, load its permissions
+			// But only if we don't already have permissions for this project
 			if (project) {
-				usePermissionStore
-					.getState()
-					.loadPermissionsForProject(project.id);
+				const permissionStore = usePermissionStore.getState();
+				// Only load if we don't already have permissions for this project
+				if (permissionStore.currentProjectId !== project.id && !permissionStore.isLoading) {
+					permissionStore.loadPermissionsForProject(project.id);
+				}
 			} else {
 				usePermissionStore.getState().resetPermissions();
 			}

@@ -186,7 +186,10 @@ export const useProjectMembers = (
         projectsKey,
         isAdvisor,
         currentOrgId,
-        orgMembersKey
+        orgMembersKey,
+        currentOrg,
+        orgMembers,
+        projects
     ]);
 
     return { membersByProjectId, isLoading };

@@ -26,7 +26,7 @@ import {
 	Building,
 	Globe,
 	Calendar,
-	Map,
+	Map as MapIcon,
 	Users,
 	Calculator,
 	AlertTriangle,
@@ -1024,6 +1024,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [formSaved, setFormSaved] = useState(false);
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+	
+	// Map to store refs for field wrappers (for tooltip triggers)
+	const fieldWrapperRefs = useRef<Map<string, React.RefObject<HTMLDivElement>>>(new Map());
 
 	// Track the last state that was successfully persisted to the DB
 	// so we can detect "unsaved changes" (dirty state) on any kind of exit.
@@ -1053,6 +1056,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		setFormData(sanitized);
 		const metadata = sanitized._metadata || {};
 		setFieldMetadata(metadata);
+		
+		// Update prevFormDataRef when props change
+		prevFormDataRef.current = sanitized;
 
 		// Initialize locks strictly from backend (_lockedFields); do NOT auto-lock
 		// AI-sourced fields here. Warning-bearing fields should remain editable/red.
@@ -1231,13 +1237,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	// Helper function to update metadata when user inputs data
 	const handleInputChange = useCallback(
-		async (fieldId: string, value: any) => {
+		(fieldId: string, value: any) => {
 			setFormData((prev) => {
 				const next = { ...prev, [fieldId]: value };
 				return next;
 			});
 
-			// Get existing field metadata for realtime sanity check
+			// Get existing field metadata
 			const currentMeta = fieldMetadata[fieldId] || {
 				value: value,
 				source: null,
@@ -1245,28 +1251,73 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				other_values: [],
 			};
 
+			// Preserve original source in other_values if it exists and is not user_input
+			const originalSource = currentMeta.source;
+			const otherValues = Array.isArray(currentMeta.other_values) 
+				? [...currentMeta.other_values] 
+				: [];
+			
+			// If there's an original source that's not user_input, add it to other_values
+			if (originalSource && originalSource.type !== "user_input") {
+				const originalValue = currentMeta.value;
+				// Check if this source/value combination already exists in other_values
+				const alreadyExists = otherValues.some(
+					(ov: any) => 
+						ov.value === originalValue && 
+						ov.source?.type === originalSource.type
+				);
+				if (!alreadyExists && originalValue !== value) {
+					otherValues.push({
+						value: originalValue,
+						source: originalSource,
+					});
+				}
+			}
+
 			// Update metadata to mark source as User Input
 			const updatedMeta = {
 				...currentMeta,
 				value: value,
 				// Force source to user_input when edited manually
 				source: { type: "user_input" } as any,
+				other_values: otherValues,
 			};
 
 			setFieldMetadata((prev) => ({
 				...prev,
 				[fieldId]: updatedMeta,
 			}));
+		},
+		[fieldMetadata]
+	);
+
+	// Helper function to perform realtime sanity check on blur
+	const handleBlur = useCallback(
+		async (fieldId: string, value?: any) => {
+			// Use provided value or read from formData
+			const fieldValue = value !== undefined ? value : (formData as any)[fieldId];
+			if (fieldValue === undefined || fieldValue === null) {
+				return;
+			}
+
+			// Get existing field metadata for realtime sanity check
+			const currentMeta = fieldMetadata[fieldId] || {
+				value: fieldValue,
+				source: null,
+				warnings: [],
+				other_values: [],
+			};
 
 			// Call realtime sanity check
 			try {
 				const { checkRealtimeSanity } = await import(
 					"@/lib/api/realtimeSanityCheck"
 				);
-				const context = { ...formData, [fieldId]: value };
+				// Use current formData and override with the field value
+				const context = { ...formData, [fieldId]: fieldValue };
 				const result = await checkRealtimeSanity({
 					fieldId,
-					value,
+					value: fieldValue,
 					resumeType: "project",
 					context,
 					existingFieldData: currentMeta,
@@ -1282,11 +1333,203 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				}));
 			} catch (error) {
 				console.error("Realtime sanity check failed:", error);
-				// Don't fail the input change if sanity check fails
+				// Don't fail if sanity check fails
 			}
 		},
-		[fieldMetadata, formData]
+		[formData, fieldMetadata]
 	);
+
+	// Map of field dependencies: when field A changes, re-validate fields B, C, D
+	// This is built from the sanity check config - fields that reference other fields
+	const fieldDependencies = useMemo(() => {
+		const deps: Record<string, string[]> = {};
+		
+		// Fields that depend on buildingType
+		deps["buildingType"] = ["numberOfStories"];
+		
+		// Fields that depend on projectPhase
+		deps["projectPhase"] = ["constructionType", "purchasePrice"];
+		
+		// Fields that depend on constructionType
+		deps["constructionType"] = ["projectPhase"];
+		
+		// Fields that depend on dealStatus
+		deps["dealStatus"] = ["completionDate"];
+		deps["completionDate"] = ["dealStatus"];
+		
+		// Fields that depend on expectedZoningChanges
+		deps["expectedZoningChanges"] = ["entitlements"];
+		deps["entitlements"] = ["expectedZoningChanges"];
+		
+		// Fields that depend on totalResidentialUnits
+		deps["totalResidentialUnits"] = ["studioCount", "oneBedCount", "twoBedCount", "threeBedCount", "parkingRatio", "averageUnitSize", "affordableUnitsNumber"];
+		deps["studioCount"] = ["totalResidentialUnits"];
+		deps["oneBedCount"] = ["totalResidentialUnits"];
+		deps["twoBedCount"] = ["totalResidentialUnits"];
+		deps["threeBedCount"] = ["totalResidentialUnits"];
+		
+		// Fields that depend on totalResidentialNRSF
+		deps["totalResidentialNRSF"] = ["averageUnitSize", "grossBuildingArea"];
+		
+		// Fields that depend on totalCommercialGRSF
+		deps["totalCommercialGRSF"] = ["grossBuildingArea", "preLeasedSF"];
+		
+		// Fields that depend on grossBuildingArea
+		deps["grossBuildingArea"] = ["totalResidentialNRSF", "totalCommercialGRSF"];
+		
+		// Fields that depend on parkingSpaces
+		deps["parkingSpaces"] = ["parkingRatio"];
+		
+		// Fields that depend on loanAmountRequested
+		deps["loanAmountRequested"] = ["targetLtvPercent", "targetLtcPercent", "debtYield", "ltv", "loanFees", "netWorth", "guarantorLiquidity"];
+		
+		// Fields that depend on stabilizedValue
+		deps["stabilizedValue"] = ["targetLtvPercent", "ltv"];
+		
+		// Fields that depend on totalDevelopmentCost
+		deps["totalDevelopmentCost"] = ["targetLtcPercent", "yieldOnCost", "loanAmountRequested", "sponsorEquity"];
+		
+		// Fields that depend on noiYear1
+		deps["noiYear1"] = ["yieldOnCost", "debtYield", "dscr"];
+		
+		// Fields that depend on stabilizedNoiProjected
+		deps["stabilizedNoiProjected"] = ["stabilizedValue"];
+		
+		// Fields that depend on capRate
+		deps["capRate"] = ["stabilizedValue"];
+		
+		// Fields that depend on interestRate
+		deps["interestRate"] = ["underwritingRate", "allInRate", "dscr"];
+		
+		// Fields that depend on amortizationYears
+		deps["amortizationYears"] = ["dscr"];
+		
+		// Fields that depend on supplyPipeline
+		deps["supplyPipeline"] = ["monthsOfSupply"];
+		
+		// Fields that depend on submarketAbsorption
+		deps["submarketAbsorption"] = ["monthsOfSupply", "supplyPipeline"];
+		
+		// Fields that depend on affordableHousing
+		deps["affordableHousing"] = ["affordableUnitsNumber"];
+		
+		// Fields that depend on affordableUnitsNumber
+		deps["affordableUnitsNumber"] = ["totalResidentialUnits"];
+		
+		// Fields that depend on taxExemption
+		deps["taxExemption"] = ["exemptionStructure", "pfcStructuringFee"];
+		
+		// Fields that depend on environmental
+		deps["environmental"] = ["enviroRemediation"];
+		
+		// Fields that depend on phaseIESAFinding
+		deps["phaseIESAFinding"] = ["enviroRemediation"];
+		
+		// Fields that depend on enviroRemediation
+		deps["enviroRemediation"] = ["environmental", "phaseIESAFinding"];
+		
+		// Fields that depend on landAcqClose
+		deps["landAcqClose"] = ["groundbreakingDate"];
+		
+		// Fields that depend on groundbreakingDate
+		deps["groundbreakingDate"] = ["landAcqClose", "completionDate"];
+		
+		// Fields that depend on firstOccupancy
+		deps["firstOccupancy"] = ["stabilization"];
+		
+		// Fields that depend on stabilization
+		deps["stabilization"] = ["firstOccupancy"];
+		
+		// Fields that depend on totalSiteAcreage
+		deps["totalSiteAcreage"] = ["buildableAcreage"];
+		
+		// Fields that depend on buildableAcreage
+		deps["buildableAcreage"] = ["totalSiteAcreage"];
+		
+		// Fields that depend on densityBonus
+		deps["densityBonus"] = ["farUtilizedPercent"];
+		
+		return deps;
+	}, []);
+
+	// Track previous formData values to detect actual changes
+	const prevFormDataRef = useRef<ProjectProfile>(formData);
+	const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	
+	// Re-validate dependent fields when relevant fields change
+	useEffect(() => {
+		// Clear any existing timeout
+		if (validationTimeoutRef.current) {
+			clearTimeout(validationTimeoutRef.current);
+		}
+		
+		// Debounce to avoid excessive API calls
+		validationTimeoutRef.current = setTimeout(async () => {
+			const currentFormData = formData;
+			const prevFormData = prevFormDataRef.current;
+			
+			// Find fields that actually changed (only check fields in dependencies map)
+			const changedFields = new Set<string>();
+			const dependencyFieldIds = new Set(Object.keys(fieldDependencies));
+			
+			// Only check fields that are in the dependency map or are dependencies themselves
+			const allRelevantFields = new Set([
+				...Object.keys(fieldDependencies),
+				...Object.values(fieldDependencies).flat(),
+			]);
+			
+			allRelevantFields.forEach((fieldId) => {
+				const currentValue = (currentFormData as any)[fieldId];
+				const prevValue = (prevFormData as any)[fieldId];
+				// Use JSON.stringify for deep comparison of objects/arrays
+				if (JSON.stringify(currentValue) !== JSON.stringify(prevValue)) {
+					changedFields.add(fieldId);
+				}
+			});
+			
+			// Only proceed if there are actual changes to relevant fields
+			if (changedFields.size === 0) {
+				prevFormDataRef.current = currentFormData;
+				return;
+			}
+			
+			// Check all fields that might have dependencies
+			const fieldsToRevalidate = new Set<string>();
+			
+			// For each changed field, check if it has dependencies
+			changedFields.forEach((fieldId) => {
+				const dependentFields = fieldDependencies[fieldId];
+				if (dependentFields) {
+					dependentFields.forEach((depFieldId) => {
+						// Only re-validate if the dependent field has a value
+						const depValue = (currentFormData as any)[depFieldId];
+						if (depValue !== undefined && depValue !== null && depValue !== "") {
+							fieldsToRevalidate.add(depFieldId);
+						}
+					});
+				}
+			});
+			
+			// Re-validate all dependent fields
+			if (fieldsToRevalidate.size > 0) {
+				for (const fieldId of fieldsToRevalidate) {
+					const fieldValue = (currentFormData as any)[fieldId];
+					if (fieldValue !== undefined && fieldValue !== null && fieldValue !== "") {
+						await handleBlur(fieldId, fieldValue);
+					}
+				}
+			}
+			
+			// Update ref after processing
+			prevFormDataRef.current = currentFormData;
+		}, 1000); // 1000ms debounce to reduce API calls and re-renders
+
+		return () => {
+			if (validationTimeoutRef.current) {
+				clearTimeout(validationTimeoutRef.current);
+			}
+		};
+	}, [formData, fieldDependencies, handleBlur]);
 
 	// Propagate form data changes to parent
 	useEffect(() => {
@@ -1605,8 +1848,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			fieldId: string,
 			sectionId: string,
 			labelText: string,
-			required: boolean = false
+			required: boolean = false,
+			fieldWrapperRef?: React.RefObject<HTMLDivElement>
 		) => {
+			const hasWarnings = fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0;
 			return (
 				<div className="mb-1">
 					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
@@ -1620,9 +1865,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							fieldId={fieldId}
 							fieldMetadata={fieldMetadata[fieldId]}
 						/>
-						<FieldWarningsTooltip
-							warnings={fieldMetadata[fieldId]?.warnings}
-						/>
+						{hasWarnings && fieldWrapperRef && (
+							<FieldWarningsTooltip
+								warnings={fieldMetadata[fieldId]?.warnings}
+								triggerRef={fieldWrapperRef}
+								showIcon={true}
+							/>
+						)}
 						<div className="ml-auto flex items-center gap-1">
 							<button
 								type="button"
@@ -2113,7 +2362,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			Building,
 			Globe,
 			Calendar,
-			Map,
+			Map: MapIcon,
 			Users,
 			Calculator,
 			AlertTriangle,
@@ -2271,6 +2520,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 			const commonClassName = getFieldStylingClasses(fieldId, sectionId);
 
+			// Get or create a ref for the field wrapper to trigger tooltip on hover
+			let fieldWrapperRef = fieldWrapperRefs.current.get(fieldId);
+			if (!fieldWrapperRef) {
+				fieldWrapperRef = React.createRef<HTMLDivElement>() as React.RefObject<HTMLDivElement>;
+				fieldWrapperRefs.current.set(fieldId, fieldWrapperRef);
+			}
+
 			const renderControl = () => {
 				if (controlKind === "textarea") {
 					const displayValue =
@@ -2299,6 +2555,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							id={fieldId}
 							value={displayValue ?? ""}
 							onChange={handleTextareaChange}
+							onBlur={() => handleBlur(fieldId)}
 							disabled={disabled}
 							className={cn(
 								commonClassName,
@@ -2335,8 +2592,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								label=""
 								options={options}
 								selectedValue={value} // Pass value directly (supports boolean)
-								onSelect={(selected) => {
+								onSelect={async (selected) => {
 									handleInputChange(fieldId, selected);
+									// Call sanity check immediately after selection (ButtonSelect doesn't have blur)
+									await handleBlur(fieldId, selected);
 								}}
 								disabled={disabled}
 								// Use lock status to color the selection container
@@ -2376,6 +2635,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									// Store the abbreviation (option value) directly
 									handleInputChange(fieldId, e.target.value);
 								}}
+								onBlur={() => handleBlur(fieldId)}
 								options={options}
 								required={required}
 								disabled={disabled}
@@ -2401,6 +2661,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							onChange={(e) =>
 								handleInputChange(fieldId, e.target.value)
 							}
+							onBlur={() => handleBlur(fieldId)}
 							options={options}
 							required={required}
 							disabled={disabled}
@@ -2443,6 +2704,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								: ""
 						}
 						onChange={handleChange}
+						onBlur={() => handleBlur(fieldId)}
 						required={required}
 						disabled={disabled}
 						className={commonClassName}
@@ -2454,6 +2716,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				);
 			};
 
+			const hasWarnings = fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0;
+
 			return (
 				<FormGroup key={fieldId}>
 					<AskAIButton id={fieldId} onAskAI={onAskAI || (() => {})}>
@@ -2462,9 +2726,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								fieldId,
 								sectionId,
 								label,
-								required
+								required,
+								fieldWrapperRef
 							)}
-							{renderControl()}
+							<div ref={fieldWrapperRef} className="relative">
+								{renderControl()}
+							</div>
 						</div>
 					</AskAIButton>
 				</FormGroup>
@@ -2474,6 +2741,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			formData,
 			getFieldStylingClasses,
 			handleInputChange,
+			handleBlur,
 			onAskAI,
 			renderFieldLabel,
 			isFieldLocked,

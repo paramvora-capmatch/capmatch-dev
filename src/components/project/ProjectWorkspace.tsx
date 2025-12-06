@@ -31,6 +31,9 @@ import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 import { useAutofill } from "@/hooks/useAutofill";
+import { useChatStore } from "@/stores/useChatStore";
+import { usePermissionStore } from "@/stores/usePermissionStore";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const unwrapValue = (val: any) => {
   if (val && typeof val === "object" && "value" in val) {
@@ -94,6 +97,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const { loadOrg, isOwner } = useOrgStore();
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.isLoading);
+  const { setActiveThread, loadThreadsForProject } = useChatStore();
+  const loadPermissionsForProject = usePermissionStore((state) => state.loadPermissionsForProject);
 
   const [isEditing, setIsEditing] = useState(false);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
@@ -114,6 +119,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [borrowerResumeSnapshot, setBorrowerResumeSnapshot] = useState<
     Partial<BorrowerResumeContent> | null
   >(null);
+  const [permissionsLoadedForProject, setPermissionsLoadedForProject] = useState(false);
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [copySourceProjectId, setCopySourceProjectId] = useState<string>("");
   const [isCopyingBorrower, setIsCopyingBorrower] = useState(false);
@@ -211,6 +217,54 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     router.replace(nextPath);
   }, [pathname, router, searchParams, setBorrowerEditing]);
 
+  // Handle tab=chat, thread, and resourceId query parameters (for notification links)
+  useEffect(() => {
+    const tab = searchParams?.get("tab");
+    const threadId = searchParams?.get("thread");
+    const resourceId = searchParams?.get("resourceId");
+
+    if (!tab && !threadId && !resourceId) return;
+
+    // Only process if we have an active project loaded
+    if (!activeProject || activeProject.id !== projectId) return;
+
+    if (tab === "chat") {
+      // Switch to team chat tab and expand chat
+      setChatTab("team");
+      setShouldExpandChat(true);
+      // Reset expand flag after a short delay
+      setTimeout(() => setShouldExpandChat(false), 100);
+    }
+
+    if (threadId) {
+      // Ensure threads are loaded for the project, then set active thread
+      void loadThreadsForProject(projectId).then(() => {
+        setActiveThread(threadId);
+      });
+    }
+
+    if (resourceId) {
+      // Open the resource preview modal and highlight the resource
+      setPreviewingResourceId(resourceId);
+      setHighlightedResourceId(resourceId);
+      // Scroll to documents section if it exists
+      setTimeout(() => {
+        const documentsSection = document.getElementById("project-documents-section");
+        if (documentsSection) {
+          documentsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+
+    // Clean up query params after handling them
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("tab");
+    params.delete("thread");
+    params.delete("resourceId");
+    const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
+    router.replace(nextPath);
+  }, [searchParams, pathname, router, setActiveThread, loadThreadsForProject, activeProject, projectId]);
+
   // Load org data when we have a project
   // Note: Advisors may not have access to borrower orgs, so we handle errors gracefully
   useEffect(() => {
@@ -242,10 +296,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const handleResumeVersionChange = useCallback(async () => {
     try {
+      // Preserve borrower resource IDs before loading
+      const currentActive = activeProject;
+      const preservedBorrowerResumeResourceId = (currentActive as any)?.borrowerResumeResourceId;
+      const preservedBorrowerDocsResourceId = (currentActive as any)?.borrowerDocsResourceId;
+      
       await loadUserProjects();
       const updatedProject = getProject(projectId);
       if (updatedProject) {
-        setActiveProject(updatedProject);
+        // Preserve borrower resource IDs when setting active project
+        const projectWithPreservedIds = {
+          ...updatedProject,
+          borrowerResumeResourceId: preservedBorrowerResumeResourceId ?? (updatedProject as any)?.borrowerResumeResourceId ?? null,
+          borrowerDocsResourceId: preservedBorrowerDocsResourceId ?? (updatedProject as any)?.borrowerDocsResourceId ?? null,
+        };
+        setActiveProject(projectWithPreservedIds);
         setResumeRefreshKey((prev) => prev + 1);
       }
     } catch (error) {
@@ -254,7 +319,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         error
       );
     }
-  }, [projectId, setActiveProject, loadUserProjects, getProject]);
+  }, [projectId, setActiveProject, loadUserProjects, getProject, activeProject]);
 
   // useEffect for loading and setting active project
   // Always fetch the latest project + resume snapshot for this workspace on mount
@@ -284,6 +349,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         const projectResumeResource = resourcesData?.find(
           (r: any) => r.resource_type === "PROJECT_RESUME"
         );
+        const borrowerResumeResource = resourcesData?.find(
+          (r: any) => r.resource_type === "BORROWER_RESUME"
+        );
+        const borrowerDocsResource = resourcesData?.find(
+          (r: any) => r.resource_type === "BORROWER_DOCS_ROOT"
+        );
 
         const projectWithResources = {
           ...fetchedProject,
@@ -292,18 +363,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             projectResumeResource?.id ||
             fetchedProject.projectResumeResourceId ||
             null,
+          borrowerResumeResourceId: borrowerResumeResource?.id || null,
+          borrowerDocsResourceId: borrowerDocsResource?.id || null,
         };
-
-        // Update active project for this workspace
-        setActiveProject(projectWithResources);
-
-        // Keep the project list in sync so other views see the same data
-        const { projects } = useProjectStore.getState();
-        if (!projects.find((p) => p.id === projectId)) {
-          useProjectStore.setState({
-            projects: [...projects, projectWithResources],
-          });
-        }
 
         // Load org data for permission checks (skip for advisors)
         if (projectWithResources.owner_org_id && user?.role !== "advisor") {
@@ -316,6 +378,43 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
             );
           }
         }
+
+        // Load permissions for the project BEFORE setting active project
+        // This ensures permissions are loaded before setActiveProject triggers its own load
+        try {
+          await loadPermissionsForProject(projectId);
+          setPermissionsLoadedForProject(true);
+        } catch (error) {
+          console.warn(
+            `[ProjectWorkspace] Failed to load permissions (non-fatal):`,
+            error
+          );
+          // Even if loading fails, mark as loaded so we don't get stuck
+          setPermissionsLoadedForProject(true);
+        }
+
+        // Update active project for this workspace
+        // Note: setActiveProject also calls loadPermissionsForProject, but since we already loaded,
+        // it will just update the store with the same data
+        setActiveProject(projectWithResources);
+
+        // Keep the project list in sync so other views see the same data
+        const { projects, isLoading } = useProjectStore.getState();
+        const stateUpdates: { projects?: ProjectProfile[]; isLoading?: boolean } = {};
+        
+        if (!projects.find((p) => p.id === projectId)) {
+          stateUpdates.projects = [...projects, projectWithResources];
+        }
+        
+        // Ensure isLoading is set to false after successfully loading the project
+        // This fixes the issue where isLoading can get stuck if loadUserProjects() wasn't called
+        if (isLoading) {
+          stateUpdates.isLoading = false;
+        }
+        
+        if (Object.keys(stateUpdates).length > 0) {
+          useProjectStore.setState(stateUpdates);
+        }
       } catch (error) {
         console.error(
           `[ProjectWorkspace] Failed to fetch project ${projectId}:`,
@@ -326,7 +425,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     };
 
     loadProjectData();
-  }, [projectId, authLoading, setActiveProject, router, loadOrg, user?.role]);
+    
+    // Reset permissions loaded flag when projectId changes
+    return () => {
+      setPermissionsLoadedForProject(false);
+    };
+  }, [projectId, authLoading, setActiveProject, router, loadOrg, user?.role, loadPermissionsForProject]);
 
   // Subscribe to realtime changes for project resume
   useEffect(() => {
@@ -391,6 +495,61 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       projectResumeChannelRef.current = null;
     };
   }, [projectId, user?.id, isEditing, activeProject?.id, setActiveProject, loadUserProjects]);
+
+  // Check permissions for PROJECT_RESUME, PROJECT_DOCS_ROOT, and BORROWER_RESUME resources
+  // IMPORTANT: These must be called before any conditional returns to follow Rules of Hooks
+  const projectResumeResourceId = activeProject?.projectResumeResourceId || null;
+  const { canView: canViewProjectResume, canEdit: canEditProjectResume, isLoading: isLoadingProjectResumePermissions } = 
+    usePermissions(projectResumeResourceId);
+  
+  const projectDocsResourceId = activeProject?.projectDocsResourceId || null;
+  const { canView: canViewProjectDocs, isLoading: isLoadingProjectDocsPermissions } = 
+    usePermissions(projectDocsResourceId);
+  
+  const borrowerResumeResourceId = (activeProject as any)?.borrowerResumeResourceId || null;
+  const { canView: canViewBorrowerResume, canEdit: canEditBorrowerResume, isLoading: isLoadingBorrowerResumePermissions } = 
+    usePermissions(borrowerResumeResourceId);
+  
+  const borrowerDocsResourceId = (activeProject as any)?.borrowerDocsResourceId || null;
+  const { canView: canViewBorrowerDocs, isLoading: isLoadingBorrowerDocsPermissions } = 
+    usePermissions(borrowerDocsResourceId);
+  
+  // Get global loading state and permissions from permission store
+  const isPermissionStoreLoading = usePermissionStore((state) => state.isLoading);
+  
+  // Determine if we're still waiting for resource IDs or permissions to load
+  // We show loading if:
+  // 1. We don't have an active project yet (initial load)
+  // 2. OR resourceId is null AND permissions haven't been loaded for this project yet
+  // Note: If permissions are already loaded, we don't show loading even if resource IDs
+  // are temporarily missing (they'll be restored by loadProjectData useEffect)
+  const hasProject = activeProject && activeProject.id === projectId;
+  const isWaitingForBorrowerResume = !hasProject || 
+    (!borrowerResumeResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
+  const isWaitingForBorrowerDocs = !hasProject || 
+    (!borrowerDocsResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
+  const isWaitingForProjectResume = !hasProject || 
+    (!projectResumeResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
+  const isWaitingForProjectDocs = !hasProject || 
+    (!projectDocsResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
+
+  // Reload permissions when switching to borrower editing mode to ensure fresh data
+  useEffect(() => {
+    if (borrowerEditing && projectId && activeProject?.id === projectId && !isPermissionStoreLoading) {
+      // Check if we have the borrower resource IDs but permissions might be missing
+      const currentPermissions = usePermissionStore.getState().permissions;
+      const needsReload = 
+        (borrowerResumeResourceId && currentPermissions[borrowerResumeResourceId] === undefined) ||
+        (borrowerDocsResourceId && currentPermissions[borrowerDocsResourceId] === undefined);
+      
+      if (needsReload) {
+        console.log('[ProjectWorkspace] Reloading permissions for borrower view');
+        loadPermissionsForProject(projectId).catch((error) => {
+          console.warn('[ProjectWorkspace] Failed to reload permissions:', error);
+        });
+      }
+    }
+  }, [borrowerEditing, projectId, activeProject?.id, borrowerResumeResourceId, borrowerDocsResourceId, isPermissionStoreLoading, loadPermissionsForProject]);
 
   // Loading state render - show loading during initial loading or if project doesn't match
   if (shouldShowLoader || !activeProject || activeProject.id !== projectId) {
@@ -528,6 +687,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         }}
         copyDisabled={templateOptions.length === 0 || isCopyingBorrower}
         copyLoading={isCopyingBorrower}
+        canEdit={canEditBorrowerResume}
       />
     </div>
   );
@@ -566,20 +726,46 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   transition={{ duration: 0.2 }}
                   className="space-y-6"
                 >
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 }}
-                  >
-                    {renderBorrowerDocumentsSection()}
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.2 }}
-                  >
-                    {renderBorrowerResumeSection()}
-                  </motion.div>
+                  {/* Borrower Documents - Show loading or content based on permissions */}
+                  {isWaitingForBorrowerDocs || isLoadingBorrowerDocsPermissions ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex justify-center items-center py-12"
+                    >
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                      <span className="ml-3 text-gray-600">Loading borrower documents...</span>
+                    </motion.div>
+                  ) : canViewBorrowerDocs ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                    >
+                      {renderBorrowerDocumentsSection()}
+                    </motion.div>
+                  ) : null}
+                  {/* Borrower Resume - Show loading or content based on permissions */}
+                  {isWaitingForBorrowerResume || isLoadingBorrowerResumePermissions ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex justify-center items-center py-12"
+                    >
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                      <span className="ml-3 text-gray-600">Loading borrower resume...</span>
+                    </motion.div>
+                  ) : canViewBorrowerResume ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.2 }}
+                    >
+                      {renderBorrowerResumeSection()}
+                    </motion.div>
+                  ) : null}
                 </motion.div>
               ) : (
               <motion.div
@@ -600,27 +786,39 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   {(unwrapValue(activeProject?.projectName) as string) || "Project"}
                 </motion.h1>
 
-                {/* Project Progress Card */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.1 }}
-                  className="relative"
-                >
-                  <ProjectSummaryCard
-                    project={projectForProgress}
-                    isLoading={projectsLoading}
-                    onEdit={() => setIsEditing(true)}
-                    onBorrowerClick={() => {
-                      setIsEditing(false);
-                      setActiveFieldId(null);
-                      setChatTab("team");
-                      setShouldExpandChat(false);
-                      setBorrowerEditing(true);
-                    }}
-                    borrowerProgress={borrowerResumeProgress}
-                  />
-                </motion.div>
+                {/* Project Progress Card - Show loading or content based on permissions */}
+                {isWaitingForBorrowerResume || isWaitingForBorrowerDocs ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex justify-center items-center py-12"
+                  >
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-600">Loading borrower details...</span>
+                  </motion.div>
+                ) : (canViewBorrowerResume || canViewBorrowerDocs) ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                    className="relative"
+                  >
+                    <ProjectSummaryCard
+                      project={projectForProgress}
+                      isLoading={projectsLoading}
+                      onEdit={() => setIsEditing(true)}
+                      onBorrowerClick={() => {
+                        setIsEditing(false);
+                        setActiveFieldId(null);
+                        setChatTab("team");
+                        setShouldExpandChat(false);
+                        setBorrowerEditing(true);
+                      }}
+                      borrowerProgress={borrowerResumeProgress}
+                    />
+                  </motion.div>
+                ) : null}
 
                 {/* Section for OM Link - Only show if project is complete */}
                 {isProjectComplete && (
@@ -680,91 +878,131 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   </motion.div>
                 )}
 
-                {/* Project Documents */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.3 }}
-                  id="project-documents-section"
-                  className="overflow-visible"
-                >
-                  <DocumentManager
-                    projectId={projectId}
-                    resourceId="PROJECT_ROOT"
-                    title="Project Documents"
-                    orgId={activeProject?.owner_org_id ?? null}
-                    canUpload={true}
-                    canDelete={true}
-                    highlightedResourceId={highlightedResourceId}
-                    context="project"
-                  />
-                </motion.div>
-
-                {/* Project completion progress */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.4 }}
-                >
-                  <ProjectCompletionCard
-                    project={projectForProgress}
-                    isLoading={projectsLoading}
-                    onEdit={() => setIsEditing(true)}
-                  />
-                </motion.div>
-
-                {/* Project Resume (View or Edit) */}
-                {isEditing ? (
+                {/* Project Documents - Show loading or content based on permissions */}
+                {isWaitingForProjectDocs || isLoadingProjectDocsPermissions ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex justify-center items-center py-12"
+                    id="project-documents-section"
+                  >
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-600">Loading project documents...</span>
+                  </motion.div>
+                ) : canViewProjectDocs ? (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.5 }}
+                    transition={{ duration: 0.3, delay: 0.3 }}
+                    id="project-documents-section"
+                    className="overflow-visible"
                   >
-                    <EnhancedProjectForm
-                      key={`enhanced-form-${resumeRefreshKey}`}
-                      existingProject={activeProject}
-                      onComplete={() => setIsEditing(false)}
-                      onAskAI={(fieldId) => {
-                        setActiveFieldId(fieldId);
-                        void projectAskAi.activateField(fieldId, { autoSend: true });
-                        setChatTab("ai");
-                        setShouldExpandChat(true);
-                        setTimeout(() => setShouldExpandChat(false), 100);
-                      }}
-                      onFormDataChange={setCurrentFormData}
-                      onVersionChange={handleResumeVersionChange}
+                    <DocumentManager
+                      projectId={projectId}
+                      resourceId="PROJECT_ROOT"
+                      title="Project Documents"
+                      orgId={activeProject?.owner_org_id ?? null}
+                      canUpload={true}
+                      canDelete={true}
+                      highlightedResourceId={highlightedResourceId}
+                      context="project"
                     />
                   </motion.div>
-                ) : (
+                ) : null}
+
+                {/* Project completion progress - Show loading or content based on permissions */}
+                {isWaitingForProjectResume ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex justify-center items-center py-12"
+                  >
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-600">Loading project details...</span>
+                  </motion.div>
+                ) : canViewProjectResume ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4 }}
+                  >
+                    <ProjectCompletionCard
+                      project={projectForProgress}
+                      isLoading={projectsLoading}
+                      onEdit={() => setIsEditing(true)}
+                    />
+                  </motion.div>
+                ) : null}
+
+                {/* Project Resume (View or Edit) - Show loading or content based on permissions */}
+                {isWaitingForProjectResume || isLoadingProjectResumePermissions ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex justify-center items-center py-12"
+                  >
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-600">Loading project resume...</span>
+                  </motion.div>
+                ) : canViewProjectResume ? (
                   <>
-                    {/* Remote update notification */}
-                    {isProjectResumeRemoteUpdate && (
+                    {isEditing ? (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mb-4 rounded-md flex items-center gap-2"
+                        transition={{ duration: 0.3, delay: 0.5 }}
                       >
-                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                        <span className="text-sm font-medium">
-                          This project resume was updated by another user. Your view has been refreshed.
-                        </span>
+                        <EnhancedProjectForm
+                          key={`enhanced-form-${resumeRefreshKey}`}
+                          existingProject={activeProject}
+                          onComplete={() => setIsEditing(false)}
+                          onAskAI={(fieldId) => {
+                            setActiveFieldId(fieldId);
+                            void projectAskAi.activateField(fieldId, { autoSend: true });
+                            setChatTab("ai");
+                            setShouldExpandChat(true);
+                            setTimeout(() => setShouldExpandChat(false), 100);
+                          }}
+                          onFormDataChange={setCurrentFormData}
+                          onVersionChange={handleResumeVersionChange}
+                        />
                       </motion.div>
+                    ) : (
+                      <>
+                        {/* Remote update notification */}
+                        {isProjectResumeRemoteUpdate && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="bg-blue-50 border-l-4 border-blue-500 text-blue-800 px-4 py-3 mx-6 mb-4 rounded-md flex items-center gap-2"
+                          >
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                            <span className="text-sm font-medium">
+                              This project resume was updated by another user. Your view has been refreshed.
+                            </span>
+                          </motion.div>
+                        )}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: 0.5 }}
+                        >
+                          <ProjectResumeView
+                            key={`resume-view-${resumeRefreshKey}`}
+                            project={activeProject}
+                            onEdit={() => setIsEditing(true)}
+                            onVersionChange={handleResumeVersionChange}
+                            canEdit={canEditProjectResume}
+                          />
+                        </motion.div>
+                      </>
                     )}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.5 }}
-                    >
-                      <ProjectResumeView
-                        key={`resume-view-${resumeRefreshKey}`}
-                        project={activeProject}
-                        onEdit={() => setIsEditing(true)}
-                        onVersionChange={handleResumeVersionChange}
-                      />
-                    </motion.div>
                   </>
-                )}
+                ) : null}
                 </motion.div>
               )}
             </AnimatePresence>

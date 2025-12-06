@@ -57,6 +57,11 @@ interface AuthActions {
 // Global singleton to ensure auth listener is set up only once across all navigations
 let authListenerInitialized = false;
 let authSubscription: { unsubscribe: () => void } | null = null;
+// Track recovery attempts to prevent infinite loops
+let recoveryAttempts = 0;
+const MAX_RECOVERY_ATTEMPTS = 2;
+let lastRecoveryAttempt = 0;
+const RECOVERY_COOLDOWN_MS = 5000; // 5 seconds between recovery attempts
 
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   user: null,
@@ -240,8 +245,57 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             return;
           }
 
-          // Don't show loading spinner for token refresh
+          // Handle token refresh events
           if (event === "TOKEN_REFRESHED") {
+            // If session is null after refresh, the refresh failed
+            if (!session) {
+              console.warn("[AuthStore] Token refresh failed - session is null");
+              
+              // Check if we should attempt recovery
+              const now = Date.now();
+              const canAttemptRecovery = 
+                recoveryAttempts < MAX_RECOVERY_ATTEMPTS &&
+                (now - lastRecoveryAttempt) > RECOVERY_COOLDOWN_MS;
+              
+              if (canAttemptRecovery) {
+                recoveryAttempts++;
+                lastRecoveryAttempt = now;
+                
+                console.log(`[AuthStore] Attempting session recovery (attempt ${recoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})...`);
+                
+                try {
+                  // Try to get the current session - this might recover if it's a transient error
+                  const { data: { session: recoveredSession }, error: recoveryError } = 
+                    await supabase.auth.getSession();
+                  
+                  if (recoveryError) {
+                    console.error("[AuthStore] Session recovery failed:", recoveryError);
+                    // If recovery fails, check if user was previously authenticated
+                    const currentState = get();
+                    if (currentState.isAuthenticated && currentState.user) {
+                      // User was authenticated but recovery failed - this is unexpected
+                      console.error("[AuthStore] Unexpected sign out after token refresh failure");
+                      // Don't immediately sign out - let the SIGNED_OUT event handle it if needed
+                    }
+                  } else if (recoveredSession?.user) {
+                    console.log("[AuthStore] Session recovery successful");
+                    recoveryAttempts = 0; // Reset on success
+                    // The session recovery will trigger another auth state change event
+                    // which will handle setting up the user state
+                    return;
+                  } else {
+                    console.warn("[AuthStore] Session recovery returned no session");
+                  }
+                } catch (recoveryException) {
+                  console.error("[AuthStore] Exception during session recovery:", recoveryException);
+                }
+              } else {
+                console.warn("[AuthStore] Max recovery attempts reached or cooldown active, skipping recovery");
+              }
+            } else {
+              // Successful refresh - reset recovery attempts
+              recoveryAttempts = 0;
+            }
             return;
           }
 
@@ -258,6 +312,43 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             // User is already logged in, this is just a session revalidation (e.g., tab switch)
             return; // Don't process this event, user is already set up
           } else if (event === "SIGNED_OUT") {
+            // Check if this is an unexpected sign out (user was authenticated)
+            const currentState = get();
+            if (currentState.isAuthenticated && currentState.user) {
+              console.warn("[AuthStore] Unexpected SIGNED_OUT event - user was authenticated");
+              
+              // Attempt recovery before signing out
+              const now = Date.now();
+              const canAttemptRecovery = 
+                recoveryAttempts < MAX_RECOVERY_ATTEMPTS &&
+                (now - lastRecoveryAttempt) > RECOVERY_COOLDOWN_MS;
+              
+              if (canAttemptRecovery) {
+                recoveryAttempts++;
+                lastRecoveryAttempt = now;
+                
+                console.log(`[AuthStore] Attempting recovery from unexpected sign out (attempt ${recoveryAttempts}/${MAX_RECOVERY_ATTEMPTS})...`);
+                
+                try {
+                  const { data: { session: recoveredSession }, error: recoveryError } = 
+                    await supabase.auth.getSession();
+                  
+                  if (!recoveryError && recoveredSession?.user) {
+                    console.log("[AuthStore] Recovered from unexpected sign out");
+                    recoveryAttempts = 0; // Reset on success
+                    // Don't process SIGNED_OUT - the recovered session will trigger SIGNED_IN
+                    return;
+                  } else {
+                    console.warn("[AuthStore] Recovery from unexpected sign out failed:", recoveryError);
+                    // Fall through to normal SIGNED_OUT handling
+                  }
+                } catch (recoveryException) {
+                  console.error("[AuthStore] Exception during recovery from sign out:", recoveryException);
+                  // Fall through to normal SIGNED_OUT handling
+                }
+              }
+            }
+            
             set({ isLoading: true });
           }
 
@@ -379,6 +470,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 }
               }
             } else if (event === "SIGNED_OUT") {
+              // Only clear state if this is a legitimate sign out (not a recovery scenario)
+              // Recovery attempts are handled above, so if we reach here, it's a real sign out
+              recoveryAttempts = 0; // Reset recovery attempts on legitimate sign out
               set({
                 user: null,
                 isAuthenticated: false,
@@ -506,6 +600,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
   logout: async () => {
     set({ isLoading: true });
+    // Reset recovery attempts on manual logout
+    recoveryAttempts = 0;
 
     try {
       const { error } = await supabase.auth.signOut();

@@ -142,11 +142,21 @@ async function handleDocumentUpload(
     return jsonResponse({ inserted: 0, reason: "already_notified" });
   }
 
-  const notificationPayload = await buildDocumentPayload(supabaseAdmin, event);
+  // Build notification payload with simple, role-agnostic URLs
+  // Frontend will handle role-based routing
+  const fileName = (event.payload?.fileName as string | undefined) ?? "A new file";
+  const projectName = await getProjectName(supabaseAdmin, event.project_id);
+  const basePath = `/project/workspace/${event.project_id}`;
+  const linkUrl = event.resource_id 
+    ? `${basePath}?resourceId=${event.resource_id}` 
+    : basePath;
+  
   const rows = recipientsToInsert.map((userId) => ({
     user_id: userId,
     event_id: event.id,
-    ...notificationPayload,
+    title: `Document uploaded - ${projectName}`,
+    body: `New file **"${fileName}"** was uploaded to **${projectName}**.`,
+    link_url: linkUrl,
   }));
 
   const { error: insertError } = await supabaseAdmin
@@ -223,7 +233,11 @@ async function handleChatMessage(
       
       if (isMuted) continue;
 
-      // 5. Determine Notification Type
+      // 5. Generate simple, role-agnostic URL - frontend will handle role-based routing
+      const basePath = `/project/workspace/${projectId}`;
+      const linkUrl = `${basePath}?tab=chat&thread=${event.thread_id}`;
+
+      // 6. Determine Notification Type
       const isMentioned = mentionedUserIds.includes(userId);
       
       if (isMentioned) {
@@ -234,7 +248,7 @@ async function handleChatMessage(
               event_id: event.id,
               title: `${senderName} mentioned you in ${threadLabel} - ${projectName}`,
               body: fullContent,
-              link_url: `/project/workspace/${projectId}?tab=chat&thread=${event.thread_id}`,
+              link_url: linkUrl,
               payload: { ...threadPayloadBase, type: "mention" },
           });
           if (!error) insertedCount++;
@@ -267,7 +281,7 @@ async function handleChatMessage(
                   event_id: event.id,
                   title: `New messages in ${projectDescriptor}`,
                   body: `1 new message in **${threadDescriptor}**`,
-                  link_url: `/project/workspace/${projectId}?tab=chat&thread=${event.thread_id}`,
+                  link_url: linkUrl,
                   payload: threadPayloadBase
               });
               if (!error) insertedCount++;
@@ -402,17 +416,6 @@ async function fetchExistingRecipients(
   const { data } = await supabaseAdmin.from("notifications").select("user_id").eq("event_id", eventId);
   (data ?? []).forEach((row: { user_id: string | null }) => { if (row.user_id) existing.add(row.user_id); });
   return existing;
-}
-
-async function buildDocumentPayload(supabaseAdmin: SupabaseClient, event: DomainEventRow) {
-  const fileName = (event.payload?.fileName as string | undefined) ?? "A new file";
-  const projectName = await getProjectName(supabaseAdmin, event.project_id);
-  const linkUrl = event.resource_id ? `/project/workspace/${event.project_id}?resourceId=${event.resource_id}` : `/project/workspace/${event.project_id}`;
-  return {
-    title: `Document uploaded - ${projectName}`,
-    body: `New file **"${fileName}"** was uploaded to **${projectName}**.`,
-    link_url: linkUrl,
-  };
 }
 
 async function safeJson(req: Request) {

@@ -11,6 +11,8 @@ import {
 	groupBySections,
 } from "./section-grouping";
 import { computeProjectCompletion } from "@/utils/resumeCompletion";
+import { sectionHasSubsections, getAllFieldIds } from "./schema-utils";
+import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 
 // =============================================================================
 // JSONB Content Type Definitions
@@ -349,42 +351,46 @@ export interface AdvisorResumeContent {
 // =============================================================================
 
 // Helper to map borrower resume fields to sections for storage grouping
+// Using actual section IDs from borrower-resume-form.schema.json
 const BORROWER_FIELD_TO_SECTION: Record<string, string> = {
-	// section_1: basic-info
-	fullLegalName: "section_1",
-	primaryEntityName: "section_1",
-	primaryEntityStructure: "section_1",
-	contactEmail: "section_1",
-	contactPhone: "section_1",
-	contactAddress: "section_1",
-	// section_2: experience
-	yearsCREExperienceRange: "section_2",
-	assetClassesExperience: "section_2",
-	geographicMarketsExperience: "section_2",
-	totalDealValueClosedRange: "section_2",
-	existingLenderRelationships: "section_2",
-	bioNarrative: "section_2",
-	// section_3: borrower-financials
-	creditScoreRange: "section_3",
-	netWorthRange: "section_3",
-	liquidityRange: "section_3",
-	bankruptcyHistory: "section_3",
-	foreclosureHistory: "section_3",
-	litigationHistory: "section_3",
-	// section_4: online-presence
-	linkedinUrl: "section_4",
-	websiteUrl: "section_4",
-	// section_5: principals
-	principals: "section_5",
+	// basic-info section
+	fullLegalName: "basic-info",
+	primaryEntityName: "basic-info",
+	primaryEntityStructure: "basic-info",
+	contactEmail: "basic-info",
+	contactPhone: "basic-info",
+	contactAddress: "basic-info",
+	// experience section
+	yearsCREExperienceRange: "experience",
+	assetClassesExperience: "experience",
+	geographicMarketsExperience: "experience",
+	totalDealValueClosedRange: "experience",
+	existingLenderRelationships: "experience",
+	bioNarrative: "experience",
+	// borrower-financials section
+	creditScoreRange: "borrower-financials",
+	netWorthRange: "borrower-financials",
+	liquidityRange: "borrower-financials",
+	bankruptcyHistory: "borrower-financials",
+	foreclosureHistory: "borrower-financials",
+	litigationHistory: "borrower-financials",
+	// online-presence section
+	linkedinUrl: "online-presence",
+	websiteUrl: "online-presence",
+	// principals section
+	principals: "principals",
 };
 
 function convertToBorrowerSectionWise(flatContent: any): any {
 	const sectionWise: any = {};
 	for (const [fieldId, fieldValue] of Object.entries(flatContent)) {
+		// Preserve special root-level keys
 		if (
 			fieldId.startsWith("section_") ||
 			fieldId.startsWith("_") ||
-			fieldId === "completenessPercent"
+			fieldId === "completenessPercent" ||
+			fieldId === "projectSections" ||
+			fieldId === "borrowerSections"
 		) {
 			sectionWise[fieldId] = fieldValue;
 			continue;
@@ -395,6 +401,8 @@ function convertToBorrowerSectionWise(flatContent: any): any {
 		// the old per-principal fields) that we no longer want to persist.
 		if (!sectionId) continue;
 
+		// For borrower resumes, sections typically don't have subsections
+		// so we place fields directly in the section
 		if (!sectionWise[sectionId]) sectionWise[sectionId] = {};
 		sectionWise[sectionId][fieldId] = fieldValue;
 	}
@@ -407,10 +415,13 @@ function mergeIntoBorrowerSectionWise(
 ): any {
 	const merged = existingSectionWise ? { ...existingSectionWise } : {};
 	for (const [fieldId, fieldValue] of Object.entries(flatUpdates)) {
+		// Preserve special root-level keys
 		if (
 			fieldId.startsWith("section_") ||
 			fieldId.startsWith("_") ||
-			fieldId === "completenessPercent"
+			fieldId === "completenessPercent" ||
+			fieldId === "projectSections" ||
+			fieldId === "borrowerSections"
 		) {
 			if (
 				typeof fieldValue === "object" &&
@@ -429,6 +440,8 @@ function mergeIntoBorrowerSectionWise(
 		// deprecated principal sub-fields on save.
 		if (!sectionId) continue;
 
+		// For borrower resumes, sections typically don't have subsections
+		// so we place fields directly in the section
 		if (!merged[sectionId]) merged[sectionId] = {};
 		merged[sectionId][fieldId] = fieldValue;
 	}
@@ -544,7 +557,11 @@ export const getProjectWithResume = async (
 
 			// Prefer the single `source` object; fall back to first entry in legacy `sources` array.
 			let primarySource = anyItem.source;
-			if (!primarySource && Array.isArray(anyItem.sources) && anyItem.sources.length > 0) {
+			if (
+				!primarySource &&
+				Array.isArray(anyItem.sources) &&
+				anyItem.sources.length > 0
+			) {
 				primarySource = anyItem.sources[0];
 			}
 
@@ -674,7 +691,11 @@ export const getProjectsWithResumes = async (
 					(flatContent as any)[key] = anyItem.value;
 
 					let primarySource = anyItem.source;
-					if (!primarySource && Array.isArray(anyItem.sources) && anyItem.sources.length > 0) {
+					if (
+						!primarySource &&
+						Array.isArray(anyItem.sources) &&
+						anyItem.sources.length > 0
+					) {
 						primarySource = anyItem.sources[0];
 					}
 
@@ -775,6 +796,33 @@ export const saveProjectResume = async (
 	const lockedFields = (content as any)._lockedFields || {};
 	const fieldStates = (content as any)._fieldStates || {};
 
+	// Get valid resume field IDs from schema
+	const validFieldIds = new Set(getAllFieldIds());
+
+	// Also include fields from metadata (for backward compatibility)
+	Object.keys(projectResumeFieldMetadata).forEach((fieldId) =>
+		validFieldIds.add(fieldId)
+	);
+
+	// Fields that should never be saved to resume content (project-level metadata)
+	const excludedFields = new Set([
+		"_metadata",
+		"_lockedFields",
+		"_fieldStates",
+		"id",
+		"createdAt",
+		"updatedAt",
+		"owner_org_id",
+		"assignedAdvisorUserId",
+		"projectDocsResourceId",
+		"projectResumeResourceId",
+		"borrowerProfileId",
+		"borrowerProgress",
+		"totalProgress",
+		"projectSections",
+		"borrowerSections",
+	]);
+
 	// Helper to normalize various legacy source shapes into a single SourceMetadata-like object
 	const toSourceObject = (input: any): any => {
 		if (!input) return { type: "user_input" };
@@ -787,12 +835,19 @@ export const saveProjectResume = async (
 		// Legacy array form – take first entry
 		if (Array.isArray(input) && input.length > 0) {
 			const first = input[0];
-			if (typeof first === "object" && first !== null && "type" in first) {
+			if (
+				typeof first === "object" &&
+				first !== null &&
+				"type" in first
+			) {
 				return first;
 			}
 			if (typeof first === "string") {
 				const normalized = first.toLowerCase().trim();
-				if (normalized === "user_input" || normalized === "user input") {
+				if (
+					normalized === "user_input" ||
+					normalized === "user input"
+				) {
 					return { type: "user_input" };
 				}
 				return { type: "document", name: first };
@@ -812,12 +867,16 @@ export const saveProjectResume = async (
 	};
 
 	for (const key in content) {
-		if (
-			key === "_metadata" ||
-			key === "_lockedFields" ||
-			key === "_fieldStates"
-		)
+		// Skip excluded fields (project-level metadata)
+		if (excludedFields.has(key)) {
 			continue;
+		}
+
+		// Only process fields that are valid resume fields
+		if (!validFieldIds.has(key)) {
+			continue;
+		}
+
 		const currentValue = (content as any)[key];
 		const meta = metadata[key];
 
@@ -878,10 +937,42 @@ export const saveProjectResume = async (
 				groupedUpdates
 			)) {
 				if (!contentToSave[sectionKey]) contentToSave[sectionKey] = {};
-				contentToSave[sectionKey] = {
-					...contentToSave[sectionKey],
-					...sectionFields,
-				};
+
+				// Check if this section has subsections according to the schema
+				// If it does, sectionFields will have subsection keys (e.g., "project-identity")
+				// If it doesn't, sectionFields will have field keys directly
+				if (
+					typeof sectionFields === "object" &&
+					!Array.isArray(sectionFields) &&
+					sectionFields !== null &&
+					sectionHasSubsections(sectionKey)
+				) {
+					// Section has subsections - merge at subsection level
+					for (const [
+						subsectionKey,
+						subsectionFields,
+					] of Object.entries(sectionFields)) {
+						if (
+							typeof subsectionFields === "object" &&
+							!Array.isArray(subsectionFields) &&
+							subsectionFields !== null
+						) {
+							if (!contentToSave[sectionKey][subsectionKey]) {
+								contentToSave[sectionKey][subsectionKey] = {};
+							}
+							contentToSave[sectionKey][subsectionKey] = {
+								...contentToSave[sectionKey][subsectionKey],
+								...subsectionFields,
+							};
+						}
+					}
+				} else {
+					// Section has no subsections or sectionFields is not an object - merge directly
+					contentToSave[sectionKey] = {
+						...contentToSave[sectionKey],
+						...sectionFields,
+					};
+				}
 			}
 			contentToSave._lockedFields = lockedFields;
 			contentToSave._fieldStates = fieldStates;
@@ -893,6 +984,14 @@ export const saveProjectResume = async (
 				_fieldStates: fieldStates,
 			};
 		}
+
+		// Calculate and include completenessPercent for updates
+		const completionPercent = computeProjectCompletion({
+			...content,
+			...finalContent,
+		});
+		contentToSave.completenessPercent = completionPercent;
+
 		const { error } = await supabase
 			.from("project_resumes")
 			.update({ content: contentToSave })
@@ -1099,19 +1198,30 @@ export const saveProjectBorrowerResume = async (
 			if (!input) return { type: "user_input" };
 
 			// Already a SourceMetadata-like object
-			if (typeof input === "object" && input !== null && "type" in input) {
+			if (
+				typeof input === "object" &&
+				input !== null &&
+				"type" in input
+			) {
 				return input;
 			}
 
 			// Legacy array form – take first entry
 			if (Array.isArray(input) && input.length > 0) {
 				const first = input[0];
-				if (typeof first === "object" && first !== null && "type" in first) {
+				if (
+					typeof first === "object" &&
+					first !== null &&
+					"type" in first
+				) {
 					return first;
 				}
 				if (typeof first === "string") {
 					const normalized = first.toLowerCase().trim();
-					if (normalized === "user_input" || normalized === "user input") {
+					if (
+						normalized === "user_input" ||
+						normalized === "user input"
+					) {
 						return { type: "user_input" };
 					}
 					return { type: "document", name: first };
@@ -1121,7 +1231,10 @@ export const saveProjectBorrowerResume = async (
 			// Legacy string source
 			if (typeof input === "string") {
 				const normalized = input.toLowerCase().trim();
-				if (normalized === "user_input" || normalized === "user input") {
+				if (
+					normalized === "user_input" ||
+					normalized === "user input"
+				) {
 					return { type: "user_input" };
 				}
 				return { type: "document", name: input };

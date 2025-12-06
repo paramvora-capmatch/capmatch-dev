@@ -39,7 +39,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
 
-  const { activeOrg } = useAuthStore();
+  const { activeOrg, currentOrgRole } = useAuthStore();
   const docContext = resource?.storage_path?.includes('/borrower-docs/')
     ? 'borrower'
     : 'project';
@@ -182,16 +182,18 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
             {canEdit && isEditableInOffice && (
               <Link
                 href={`/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(resource.storage_path)}`}
-                passHref
-                legacyBehavior
+                className="inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-md text-sm px-4 py-2"
               >
-                <Button as="a" variant="primary" leftIcon={<Edit size={16}/>}>Edit</Button>
+                <Edit size={16} className="mr-2" />
+                Edit
               </Link>
             )}
             <Button variant="outline" onClick={handleDownload} leftIcon={<Download size={16}/>}>Download</Button>
             {canEdit && (
               <>
-                <Button variant="outline" onClick={() => setIsSharing(true)} leftIcon={<Share2 size={16}/>}>Share</Button>
+                {currentOrgRole === 'owner' && (
+                  <Button variant="outline" onClick={() => setIsSharing(true)} leftIcon={<Share2 size={16}/>}>Share</Button>
+                )}
                 <Button variant="danger" onClick={handleDelete} leftIcon={<Trash2 size={16}/>}>Delete</Button>
               </>
             )}

@@ -6,10 +6,66 @@ import { corsHeaders } from "../_shared/cors.ts";
 // Import section grouping utilities (inline for Deno compatibility)
 // We'll implement a simplified version here since we can't import TS files directly
 function isGroupedFormat(data: Record<string, unknown>): boolean {
-  return Object.keys(data).some(key => key.startsWith('section_'));
+  const keys = Object.keys(data);
+  // Check for new format with actual section IDs
+  // Note: In a Deno function, we can't import schema-utils, so we use a hardcoded list
+  // This should match the section IDs from enhanced-project-form.schema.json
+  const knownSectionIds = [
+    'basic-info', 'property-specs', 'dev-budget', 'loan-info', 'financials',
+    'market-context', 'special-considerations', 'timeline', 'site-context', 'sponsor-info'
+  ];
+  return keys.some(key => knownSectionIds.includes(key));
 }
 
-function groupBySections(flatData: Record<string, unknown>): Record<string, Record<string, unknown>> {
+// Hardcoded field-to-subsection mapping (matching enhanced-project-form.schema.json)
+// This is used as a fallback when formSchema is not available
+const FIELD_TO_SUBSECTION: Record<string, string> = {
+  // basic-info section subsections
+  "projectName": "project-identity",
+  "propertyAddressStreet": "project-identity",
+  "propertyAddressCity": "project-identity",
+  "propertyAddressState": "project-identity",
+  "propertyAddressZip": "project-identity",
+  "propertyAddressCounty": "project-identity",
+  "dealStatus": "project-identity",
+  "assetType": "classification",
+  "constructionType": "classification",
+  "projectPhase": "classification",
+  "projectDescription": "classification",
+  "parcelNumber": "classification",
+  "zoningDesignation": "classification",
+  // Add more mappings as needed for other sections
+};
+
+// Helper to get subsection for a field (simplified - in production, load from schema)
+function getSubsectionForField(fieldId: string, sectionId: string, formSchema: any): string | null {
+  // First try to use formSchema if available
+  if (formSchema) {
+    const steps = formSchema?.steps || [];
+    
+    for (const step of steps) {
+      if (step.id !== sectionId) continue;
+      
+      const subsections = step.subsections || [];
+      for (const subsection of subsections) {
+        const fields = subsection.fields || [];
+        if (fields.includes(fieldId)) {
+          return subsection.id;
+        }
+      }
+      
+      // If section has no subsections, return null
+      if (subsections.length === 0) {
+        return null;
+      }
+    }
+  }
+  
+  // Fallback to hardcoded mapping
+  return FIELD_TO_SUBSECTION[fieldId] || null;
+}
+
+function groupBySections(flatData: Record<string, unknown>, formSchema?: any): Record<string, any> {
   // Simplified field-to-section mapping (matching Backend/services/field_section_mapping.py)
   const FIELD_TO_SECTION: Record<string, string> = {
     "projectName": "basic-info", "propertyAddressStreet": "basic-info", "propertyAddressCity": "basic-info",
@@ -60,42 +116,93 @@ function groupBySections(flatData: Record<string, unknown>): Record<string, Reco
     "sponsorEntityName": "sponsor-info", "sponsorStructure": "sponsor-info", "equityPartner": "sponsor-info", "contactInfo": "sponsor-info",
   };
   
-  const SECTION_ID_TO_NUMBER: Record<string, string> = {
-    "basic-info": "section_1", "property-specs": "section_2", "dev-budget": "section_3_1",
-    "loan-info": "section_3_2", "financials": "section_3_3", "market-context": "section_4",
-    "special-considerations": "section_5", "timeline": "section_6", "site-context": "section_7", "sponsor-info": "section_8",
-  };
-  
-  const grouped: Record<string, Record<string, unknown>> = {};
+  const grouped: Record<string, any> = {};
   
   for (const [fieldId, fieldValue] of Object.entries(flatData)) {
-    if (fieldId.startsWith('_') || fieldId === 'projectSections' || fieldId === 'borrowerSections') continue;
+    if (fieldId.startsWith('_') || fieldId === 'projectSections' || fieldId === 'borrowerSections' || fieldId === 'completenessPercent') continue;
     
     const sectionId = FIELD_TO_SECTION[fieldId];
     if (sectionId) {
-      const sectionKey = SECTION_ID_TO_NUMBER[sectionId] || `section_unknown`;
-      if (!grouped[sectionKey]) grouped[sectionKey] = {};
-      grouped[sectionKey][fieldId] = fieldValue;
+      if (!grouped[sectionId]) {
+        grouped[sectionId] = {};
+      }
+      
+      // Check if this section has subsections
+      const subsectionId = formSchema ? getSubsectionForField(fieldId, sectionId, formSchema) : null;
+      
+      if (subsectionId) {
+        // Section has subsections - nest field in subsection
+        if (!grouped[sectionId][subsectionId]) {
+          grouped[sectionId][subsectionId] = {};
+        }
+        grouped[sectionId][subsectionId][fieldId] = fieldValue;
+      } else {
+        // Section has no subsections - place field directly in section
+        grouped[sectionId][fieldId] = fieldValue;
+      }
     } else {
-      if (!grouped["section_other"]) grouped["section_other"] = {};
-      grouped["section_other"][fieldId] = fieldValue;
+      if (!grouped["unknown"]) grouped["unknown"] = {};
+      grouped["unknown"][fieldId] = fieldValue;
     }
   }
   
   return grouped;
 }
 
-function ungroupFromSections(groupedData: Record<string, unknown>): Record<string, unknown> {
+function ungroupFromSections(groupedData: Record<string, unknown>, formSchema?: any): Record<string, unknown> {
   const flat: Record<string, unknown> = {};
+  
   for (const [sectionKey, sectionData] of Object.entries(groupedData)) {
-    if (sectionData && typeof sectionData === 'object' && !Array.isArray(sectionData)) {
+    // Preserve special root-level keys
+    if (sectionKey.startsWith('_') || sectionKey === 'completenessPercent' || 
+        sectionKey === 'projectSections' || sectionKey === 'borrowerSections') {
+      flat[sectionKey] = sectionData;
+      continue;
+    }
+    
+    if (!sectionData || typeof sectionData !== 'object' || Array.isArray(sectionData)) {
+      // Not a valid section structure - treat as field
+      flat[sectionKey] = sectionData;
+      continue;
+    }
+    
+    // New format - check if section has subsections
+    let hasSubsections = false;
+    if (formSchema) {
+      const steps = formSchema.steps || [];
+      for (const step of steps) {
+        if (step.id === sectionKey) {
+          const subsections = step.subsections || [];
+          if (subsections.length > 0) {
+            const firstKey = Object.keys(sectionData)[0];
+            const subsectionIds = subsections.map((sub: any) => sub.id);
+            hasSubsections = firstKey && subsectionIds.includes(firstKey);
+          }
+          break;
+        }
+      }
+    }
+    
+    if (hasSubsections) {
+      // Section has subsections - iterate through subsections
+      for (const [subsectionId, subsectionData] of Object.entries(sectionData as Record<string, unknown>)) {
+        if (subsectionData && typeof subsectionData === 'object' && !Array.isArray(subsectionData)) {
+          for (const [fieldId, fieldValue] of Object.entries(subsectionData as Record<string, unknown>)) {
+            flat[fieldId] = fieldValue;
+          }
+        } else {
+          // Invalid subsection structure - treat as field
+          flat[subsectionId] = subsectionData;
+        }
+      }
+    } else {
+      // Section has no subsections - fields are directly in section
       for (const [fieldId, fieldValue] of Object.entries(sectionData as Record<string, unknown>)) {
         flat[fieldId] = fieldValue;
       }
-    } else {
-      flat[sectionKey] = sectionData;
     }
   }
+  
   return flat;
 }
 
@@ -186,6 +293,7 @@ serve(async (req) => {
       let existingContent = (existing?.content ?? {}) as Record<string, unknown>;
       
       // Check if existing content is in section-grouped format and ungroup if needed
+      // Note: We don't have access to formSchema in this Deno function, so we use simplified logic
       if (isGroupedFormat(existingContent)) {
         existingContent = ungroupFromSections(existingContent) as Record<string, unknown>;
       }
@@ -382,6 +490,7 @@ serve(async (req) => {
       }
       
       // Group data by sections before saving
+      // Note: We don't have access to formSchema in this Deno function, so grouping will use simplified logic
       const finalContent = {
         ...rootKeys,
         ...groupBySections(finalContentFlat),
