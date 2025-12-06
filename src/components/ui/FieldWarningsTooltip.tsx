@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -204,11 +204,9 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 				};
 				const handleMouseLeave = () => {
 					setIsOpen(false);
-					// Clear active trigger after a short delay to allow tooltip to stay open if moving between triggers
+					// Clear active trigger after a short delay
 					setTimeout(() => {
-						if (!isOpen) {
-							setActiveTriggerRef(null);
-						}
+						setActiveTriggerRef((prev) => (prev === ref ? null : prev));
 					}, 100);
 				};
 
@@ -225,7 +223,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 		return () => {
 			cleanupFunctions.forEach((cleanup) => cleanup());
 		};
-	}, [allTriggerRefs, isOpen]);
+	}, [allTriggerRefs]);
 
 	return (
 		<>
