@@ -1236,13 +1236,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 									data-field-label={label}
 								/>
 							)}
-								{hasWarnings && (
-									<FieldWarningsTooltip
-										warnings={fieldMetadata[fieldId]?.warnings}
-										triggerRef={fieldWrapperRef}
-										showIcon={false}
-									/>
-								)}
 							</div>
 						</div>
 					</AskAIButton>
