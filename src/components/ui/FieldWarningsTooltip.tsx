@@ -257,15 +257,15 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 								initial={{
 									opacity: 0,
 									y:
-										placement === "top"
+										effectivePlacement === "top"
 											? 5
-											: placement === "bottom"
+											: effectivePlacement === "bottom"
 											? -5
 											: 0,
 									x:
-										placement === "left"
+										effectivePlacement === "left"
 											? 5
-											: placement === "right"
+											: effectivePlacement === "right"
 											? -5
 											: 0,
 									scale: 0.95,
@@ -274,15 +274,15 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 								exit={{
 									opacity: 0,
 									y:
-										placement === "top"
+										effectivePlacement === "top"
 											? 5
-											: placement === "bottom"
+											: effectivePlacement === "bottom"
 											? -5
 											: 0,
 									x:
-										placement === "left"
+										effectivePlacement === "left"
 											? 5
-											: placement === "right"
+											: effectivePlacement === "right"
 											? -5
 											: 0,
 									scale: 0.95,
