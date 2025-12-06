@@ -192,7 +192,8 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 				element.removeEventListener("mouseleave", handleMouseLeave);
 			};
 		}
-	}, [externalTriggerRef]);
+		// Re-run if the ref changes (e.g., when it gets attached to a DOM element)
+	}, [externalTriggerRef, externalTriggerRef?.current]);
 
 	return (
 		<>
