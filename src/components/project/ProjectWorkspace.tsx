@@ -296,10 +296,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   const handleResumeVersionChange = useCallback(async () => {
     try {
+      // Preserve borrower resource IDs before loading
+      const currentActive = activeProject;
+      const preservedBorrowerResumeResourceId = (currentActive as any)?.borrowerResumeResourceId;
+      const preservedBorrowerDocsResourceId = (currentActive as any)?.borrowerDocsResourceId;
+      
       await loadUserProjects();
       const updatedProject = getProject(projectId);
       if (updatedProject) {
-        setActiveProject(updatedProject);
+        // Preserve borrower resource IDs when setting active project
+        const projectWithPreservedIds = {
+          ...updatedProject,
+          borrowerResumeResourceId: preservedBorrowerResumeResourceId ?? (updatedProject as any)?.borrowerResumeResourceId ?? null,
+          borrowerDocsResourceId: preservedBorrowerDocsResourceId ?? (updatedProject as any)?.borrowerDocsResourceId ?? null,
+        };
+        setActiveProject(projectWithPreservedIds);
         setResumeRefreshKey((prev) => prev + 1);
       }
     } catch (error) {
@@ -308,7 +319,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         error
       );
     }
-  }, [projectId, setActiveProject, loadUserProjects, getProject]);
+  }, [projectId, setActiveProject, loadUserProjects, getProject, activeProject]);
 
   // useEffect for loading and setting active project
   // Always fetch the latest project + resume snapshot for this workspace on mount
@@ -508,18 +519,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   
   // Determine if we're still waiting for resource IDs or permissions to load
   // We show loading if:
-  // 1. ResourceId is null (still loading project data)
-  // 2. OR permissions haven't been loaded for this project yet
-  // Note: We don't check isPermissionStoreLoading after the first load because setActiveProject
-  // might trigger a second load, but we've already loaded permissions once
-  const isWaitingForBorrowerResume = !borrowerResumeResourceId || 
-    (!permissionsLoadedForProject && isPermissionStoreLoading);
-  const isWaitingForBorrowerDocs = !borrowerDocsResourceId || 
-    (!permissionsLoadedForProject && isPermissionStoreLoading);
-  const isWaitingForProjectResume = !projectResumeResourceId || 
-    (!permissionsLoadedForProject && isPermissionStoreLoading);
-  const isWaitingForProjectDocs = !projectDocsResourceId || 
-    (!permissionsLoadedForProject && isPermissionStoreLoading);
+  // 1. We don't have an active project yet (initial load)
+  // 2. OR resourceId is null AND permissions haven't been loaded for this project yet
+  // Note: If permissions are already loaded, we don't show loading even if resource IDs
+  // are temporarily missing (they'll be restored by loadProjectData useEffect)
+  const hasProject = activeProject && activeProject.id === projectId;
+  const isWaitingForBorrowerResume = !hasProject || 
+    (!borrowerResumeResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
+  const isWaitingForBorrowerDocs = !hasProject || 
+    (!borrowerDocsResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
+  const isWaitingForProjectResume = !hasProject || 
+    (!projectResumeResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
+  const isWaitingForProjectDocs = !hasProject || 
+    (!projectDocsResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
 
   // Reload permissions when switching to borrower editing mode to ensure fresh data
   useEffect(() => {

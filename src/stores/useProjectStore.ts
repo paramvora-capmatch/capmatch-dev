@@ -285,7 +285,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						(p) => p.id === currentActive.id
 					);
 					if (updatedActive) {
-						nextActiveProject = updatedActive;
+						// Preserve borrower resource IDs from current active project
+						// since loadUserProjects doesn't fetch borrower resources
+						nextActiveProject = {
+							...updatedActive,
+							borrowerResumeResourceId: (currentActive as any)?.borrowerResumeResourceId ?? updatedActive.borrowerResumeResourceId ?? null,
+							borrowerDocsResourceId: (currentActive as any)?.borrowerDocsResourceId ?? updatedActive.borrowerDocsResourceId ?? null,
+						};
 					}
 				}
 
