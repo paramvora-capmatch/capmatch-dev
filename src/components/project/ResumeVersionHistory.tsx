@@ -567,23 +567,58 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
             if (!metadata) return undefined;
             
             const sectionId = metadata.section;
-            const SECTION_ID_TO_NUMBER: Record<string, string> = {
-              "basic-info": "section_1",
-              "property-specs": "section_2",
-              "dev-budget": "section_3_1",
-              "loan-info": "section_3_2",
-              "financials": "section_3_3",
-              "market-context": "section_4",
-              "special-considerations": "section_5",
-              "timeline": "section_6",
-              "site-context": "section_7",
-              "sponsor-info": "section_8",
-            };
+            // Check if content is in new format (actual section IDs) or legacy format (section_*)
+            // Try new format first
+            let sectionData = content[sectionId];
+            let fieldData;
             
-            const sectionKey = SECTION_ID_TO_NUMBER[sectionId];
-            if (!sectionKey || !content[sectionKey]) return undefined;
+            if (sectionData) {
+              // New format - check if section has subsections
+              const steps = (formSchema as any).steps || [];
+              let hasSubsections = false;
+              
+              for (const step of steps) {
+                if (step.id === sectionId) {
+                  const subsections = step.subsections || [];
+                  if (subsections.length > 0 && typeof sectionData === 'object' && !Array.isArray(sectionData)) {
+                    const firstKey = Object.keys(sectionData)[0];
+                    const subsectionIds = subsections.map((sub: any) => sub.id);
+                    hasSubsections = firstKey && subsectionIds.includes(firstKey);
+                  }
+                  break;
+                }
+              }
+              
+              if (hasSubsections) {
+                // Section has subsections - find which subsection contains this field
+                for (const step of (formSchema as any).steps || []) {
+                  if (step.id === sectionId) {
+                    for (const subsection of step.subsections || []) {
+                      if ((subsection.fields || []).includes(fieldId)) {
+                        const subsectionData = sectionData[subsection.id];
+                        if (subsectionData && typeof subsectionData === 'object') {
+                          fieldData = subsectionData[fieldId];
+                        }
+                        break;
+                      }
+                    }
+                    break;
+                  }
+                }
+              } else {
+                // Section has no subsections - field is directly in section
+                if (typeof sectionData === 'object' && !Array.isArray(sectionData)) {
+                  fieldData = sectionData[fieldId];
+                }
+              }
+            } else {
+              // Legacy format no longer supported - only new format is used
+              // If we reach here, the section should already be in new format
+              // This code path should not be reached in normal operation
+              fieldData = undefined;
+            }
             
-            const fieldData = content[sectionKey][fieldId];
+            if (fieldData === undefined) return undefined;
             if (fieldData === undefined) return undefined;
             
             // Extract value from rich object format if needed

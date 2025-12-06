@@ -100,11 +100,14 @@ const getFieldValue = (
 		return resume._metadata[fieldId].value;
 	}
 
-	// 4. Fallback: look into grouped section_* structure directly
+	// 4. Fallback: look into grouped section structure directly
 	// This handles cases where the resume object is still in section-wise
-	// format (e.g., section_1.fullLegalName.value) instead of flattened.
+	// format (either legacy section_* or new format with actual section IDs)
 	for (const [key, sectionData] of Object.entries(resume as any)) {
-		if (!key.startsWith("section_")) continue;
+		// Check for both legacy format (section_*) and new format (actual section IDs)
+		const isLegacySection = key.startsWith("section_");
+		const isNewSection = ["basic-info", "experience", "borrower-financials", "online-presence", "principals"].includes(key);
+		if (!isLegacySection && !isNewSection) continue;
 		if (
 			sectionData &&
 			typeof sectionData === "object" &&

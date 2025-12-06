@@ -1234,13 +1234,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 	// Helper function to update metadata when user inputs data
 	const handleInputChange = useCallback(
-		async (fieldId: string, value: any) => {
+		(fieldId: string, value: any) => {
 			setFormData((prev) => {
 				const next = { ...prev, [fieldId]: value };
 				return next;
 			});
 
-			// Get existing field metadata for realtime sanity check
+			// Get existing field metadata
 			const currentMeta = fieldMetadata[fieldId] || {
 				value: value,
 				source: null,
@@ -1260,16 +1260,37 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				...prev,
 				[fieldId]: updatedMeta,
 			}));
+		},
+		[fieldMetadata]
+	);
+
+	// Helper function to perform realtime sanity check on blur
+	const handleBlur = useCallback(
+		async (fieldId: string, value?: any) => {
+			// Use provided value or read from formData
+			const fieldValue = value !== undefined ? value : (formData as any)[fieldId];
+			if (fieldValue === undefined || fieldValue === null) {
+				return;
+			}
+
+			// Get existing field metadata for realtime sanity check
+			const currentMeta = fieldMetadata[fieldId] || {
+				value: fieldValue,
+				source: null,
+				warnings: [],
+				other_values: [],
+			};
 
 			// Call realtime sanity check
 			try {
 				const { checkRealtimeSanity } = await import(
 					"@/lib/api/realtimeSanityCheck"
 				);
-				const context = { ...formData, [fieldId]: value };
+				// Use current formData and override with the field value
+				const context = { ...formData, [fieldId]: fieldValue };
 				const result = await checkRealtimeSanity({
 					fieldId,
-					value,
+					value: fieldValue,
 					resumeType: "project",
 					context,
 					existingFieldData: currentMeta,
@@ -1285,10 +1306,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				}));
 			} catch (error) {
 				console.error("Realtime sanity check failed:", error);
-				// Don't fail the input change if sanity check fails
+				// Don't fail if sanity check fails
 			}
 		},
-		[fieldMetadata, formData]
+		[formData, fieldMetadata]
 	);
 
 	// Propagate form data changes to parent
@@ -2315,6 +2336,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							id={fieldId}
 							value={displayValue ?? ""}
 							onChange={handleTextareaChange}
+							onBlur={() => handleBlur(fieldId)}
 							disabled={disabled}
 							className={cn(
 								commonClassName,
@@ -2351,8 +2373,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								label=""
 								options={options}
 								selectedValue={value} // Pass value directly (supports boolean)
-								onSelect={(selected) => {
+								onSelect={async (selected) => {
 									handleInputChange(fieldId, selected);
+									// Call sanity check immediately after selection (ButtonSelect doesn't have blur)
+									await handleBlur(fieldId, selected);
 								}}
 								disabled={disabled}
 								// Use lock status to color the selection container
@@ -2392,6 +2416,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 									// Store the abbreviation (option value) directly
 									handleInputChange(fieldId, e.target.value);
 								}}
+								onBlur={() => handleBlur(fieldId)}
 								options={options}
 								required={required}
 								disabled={disabled}
@@ -2417,6 +2442,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							onChange={(e) =>
 								handleInputChange(fieldId, e.target.value)
 							}
+							onBlur={() => handleBlur(fieldId)}
 							options={options}
 							required={required}
 							disabled={disabled}
@@ -2459,6 +2485,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								: ""
 						}
 						onChange={handleChange}
+						onBlur={() => handleBlur(fieldId)}
 						required={required}
 						disabled={disabled}
 						className={commonClassName}
@@ -2495,6 +2522,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			formData,
 			getFieldStylingClasses,
 			handleInputChange,
+			handleBlur,
 			onAskAI,
 			renderFieldLabel,
 			isFieldLocked,
