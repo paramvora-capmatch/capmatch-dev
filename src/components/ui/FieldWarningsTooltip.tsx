@@ -24,6 +24,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 	const [isOpen, setIsOpen] = useState(false);
 	const [position, setPosition] = useState({ top: 0, left: 0 });
 	const [activeTriggerRef, setActiveTriggerRef] = useState<React.RefObject<HTMLElement> | null>(null);
+	const [fieldHoverSide, setFieldHoverSide] = useState<"left" | "right">("right");
 	const internalTriggerRef = useRef<HTMLDivElement>(null);
 	
 	// Collect all trigger refs (icon, external, and any additional ones)
@@ -38,15 +39,19 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 	// Use the active trigger ref for positioning, or fall back to first available
 	const triggerRef = activeTriggerRef || allTriggerRefs[0] || internalTriggerRef;
 	
-	// Determine effective placement: use "left" for field wrapper, "top" for icon
+	// Determine effective placement based on trigger and hover position
 	const effectivePlacement = useMemo(() => {
-		// If triggered by external ref (field wrapper), use "left"
+		// If triggered by external ref (field wrapper), use opposite side of hover
 		if (activeTriggerRef && externalTriggerRef && activeTriggerRef === externalTriggerRef) {
-			return "left";
+			return fieldHoverSide === "left" ? "right" : "left";
 		}
-		// If triggered by icon or no active trigger, use the provided placement (default "top")
+		// If triggered by icon, use "bottom"
+		if (activeTriggerRef === internalTriggerRef) {
+			return "bottom";
+		}
+		// Default to provided placement
 		return placement;
-	}, [activeTriggerRef, externalTriggerRef, placement]);
+	}, [activeTriggerRef, externalTriggerRef, fieldHoverSide, placement]);
 
 	useEffect(() => {
 		if (isOpen && triggerRef.current) {
