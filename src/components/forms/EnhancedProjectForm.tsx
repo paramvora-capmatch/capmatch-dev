@@ -26,7 +26,7 @@ import {
 	Building,
 	Globe,
 	Calendar,
-	Map,
+	Map as MapIcon,
 	Users,
 	Calculator,
 	AlertTriangle,
