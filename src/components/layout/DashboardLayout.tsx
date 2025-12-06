@@ -4,13 +4,14 @@
 import React, { ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Users, Settings, BellRing, SlidersHorizontal } from "lucide-react";
+import { LogOut, Users, Settings, BellRing, SlidersHorizontal, Calendar } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import Image from "next/image";
 
 import { NotificationBell } from "../notifications/NotificationBell";
 import { SettingsModal, SettingsTabConfig } from "../settings/SettingsModal";
 import { NotificationSettingsPanel } from "../settings/NotificationSettingsPanel";
+import { CalendarSettingsPanel } from "../settings/CalendarSettingsPanel";
 import { DropdownButton } from "../ui/DropdownButton";
 
 interface DashboardLayoutProps {
@@ -46,6 +47,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         description: "Mute or customize in-app alerts.",
         icon: <BellRing className="h-4 w-4 text-blue-500" />,
         render: () => <NotificationSettingsPanel />,
+      },
+      {
+        id: "calendar",
+        label: "Calendar",
+        description: "Connect and sync your calendars.",
+        icon: <Calendar className="h-4 w-4 text-green-500" />,
+        render: () => <CalendarSettingsPanel />,
       },
       {
         id: "workspace",
