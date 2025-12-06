@@ -31,6 +31,7 @@ import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
 import { useAutofill } from "@/hooks/useAutofill";
+import { useChatStore } from "@/stores/useChatStore";
 
 const unwrapValue = (val: any) => {
   if (val && typeof val === "object" && "value" in val) {
@@ -94,6 +95,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const { loadOrg, isOwner } = useOrgStore();
   const user = useAuthStore((state) => state.user);
   const authLoading = useAuthStore((state) => state.isLoading);
+  const { setActiveThread, loadThreadsForProject } = useChatStore();
 
   const [isEditing, setIsEditing] = useState(false);
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
@@ -211,6 +213,54 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     router.replace(nextPath);
   }, [pathname, router, searchParams, setBorrowerEditing]);
 
+  // Handle tab=chat, thread, and resourceId query parameters (for notification links)
+  useEffect(() => {
+    const tab = searchParams?.get("tab");
+    const threadId = searchParams?.get("thread");
+    const resourceId = searchParams?.get("resourceId");
+
+    if (!tab && !threadId && !resourceId) return;
+
+    // Only process if we have an active project loaded
+    if (!activeProject || activeProject.id !== projectId) return;
+
+    if (tab === "chat") {
+      // Switch to team chat tab and expand chat
+      setChatTab("team");
+      setShouldExpandChat(true);
+      // Reset expand flag after a short delay
+      setTimeout(() => setShouldExpandChat(false), 100);
+    }
+
+    if (threadId) {
+      // Ensure threads are loaded for the project, then set active thread
+      void loadThreadsForProject(projectId).then(() => {
+        setActiveThread(threadId);
+      });
+    }
+
+    if (resourceId) {
+      // Open the resource preview modal and highlight the resource
+      setPreviewingResourceId(resourceId);
+      setHighlightedResourceId(resourceId);
+      // Scroll to documents section if it exists
+      setTimeout(() => {
+        const documentsSection = document.getElementById("project-documents-section");
+        if (documentsSection) {
+          documentsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+
+    // Clean up query params after handling them
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("tab");
+    params.delete("thread");
+    params.delete("resourceId");
+    const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
+    router.replace(nextPath);
+  }, [searchParams, pathname, router, setActiveThread, loadThreadsForProject, activeProject, projectId]);
+
   // Load org data when we have a project
   // Note: Advisors may not have access to borrower orgs, so we handle errors gracefully
   useEffect(() => {
@@ -298,11 +348,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         setActiveProject(projectWithResources);
 
         // Keep the project list in sync so other views see the same data
-        const { projects } = useProjectStore.getState();
+        const { projects, isLoading } = useProjectStore.getState();
+        const stateUpdates: { projects?: ProjectProfile[]; isLoading?: boolean } = {};
+        
         if (!projects.find((p) => p.id === projectId)) {
-          useProjectStore.setState({
-            projects: [...projects, projectWithResources],
-          });
+          stateUpdates.projects = [...projects, projectWithResources];
+        }
+        
+        // Ensure isLoading is set to false after successfully loading the project
+        // This fixes the issue where isLoading can get stuck if loadUserProjects() wasn't called
+        if (isLoading) {
+          stateUpdates.isLoading = false;
+        }
+        
+        if (Object.keys(stateUpdates).length > 0) {
+          useProjectStore.setState(stateUpdates);
         }
 
         // Load org data for permission checks (skip for advisors)
