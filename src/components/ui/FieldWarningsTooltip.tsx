@@ -37,6 +37,16 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 	
 	// Use the active trigger ref for positioning, or fall back to first available
 	const triggerRef = activeTriggerRef || allTriggerRefs[0] || internalTriggerRef;
+	
+	// Determine effective placement: use "left" for field wrapper, "top" for icon
+	const effectivePlacement = useMemo(() => {
+		// If triggered by external ref (field wrapper), use "left"
+		if (activeTriggerRef && activeTriggerRef !== internalTriggerRef) {
+			return "left";
+		}
+		// If triggered by icon or no active trigger, use the provided placement (default "top")
+		return placement;
+	}, [activeTriggerRef, placement]);
 
 	useEffect(() => {
 		if (isOpen && triggerRef.current) {
@@ -46,7 +56,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 					const scrollY = window.scrollY;
 					const scrollX = window.scrollX;
 
-					switch (placement) {
+					switch (effectivePlacement) {
 						case "top":
 							setPosition({
 								top: rect.top + scrollY - 8,
