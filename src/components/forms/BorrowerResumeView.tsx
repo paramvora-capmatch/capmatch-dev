@@ -29,6 +29,7 @@ interface BorrowerResumeViewProps {
 	projectId: string;
 	onEdit?: () => void;
 	onVersionChange?: () => void;
+	canEdit?: boolean; // Whether the user has edit permission
 }
 
 const formatCurrency = (amount: number | null | undefined): string => {
@@ -203,6 +204,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 	projectId,
 	onEdit,
 	onVersionChange,
+	canEdit = true, // Default to true for backward compatibility
 }) => {
 	const [collapsed, setCollapsed] = useState<boolean>(() => {
 		try {
@@ -277,7 +279,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 						<AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />
 						Borrower Resume
 					</h2>
-					{onEdit && (
+					{canEdit && onEdit && (
 						<Button
 							variant="outline"
 							size="sm"
@@ -312,43 +314,47 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = ({
 							{collapsed ? "Show Details" : "Hide Details"}
 						</span>
 					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={(e) => {
-							e.stopPropagation();
-							handleAutofillClick();
-						}}
-						disabled={isAutofilling}
-						className={cn(
-							"group relative flex items-center gap-1 px-2 py-1.5 rounded-md border transition-all",
-							isAutofilling
-								? "border-blue-400 bg-blue-50 text-blue-700"
-								: "border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700"
-						)}
-					>
-						{isAutofilling ? (
-							<Loader2 className="h-4 w-4 animate-spin" />
-						) : (
-							<Sparkles className="h-4 w-4 text-blue-600 mr-1" />
-						)}
-						<span className="text-xs font-medium">
-							{isAutofilling ? "Autofilling..." : "Autofill"}
-						</span>
-						{showSparkles && (
-							<span className="absolute -inset-1 pointer-events-none rounded-md border border-blue-200" />
-						)}
-					</Button>
-					<div className="ml-2">
-						<BorrowerResumeVersionHistory
-							projectId={projectId}
-							onRollbackSuccess={() => {
-								setAutofillAnimationKey((prev) => prev + 1);
-								if (onVersionChange) onVersionChange();
-							}}
-							onOpen={handleVersionHistoryOpen}
-						/>
-					</div>
+					{canEdit && (
+						<>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleAutofillClick();
+								}}
+								disabled={isAutofilling}
+								className={cn(
+									"group relative flex items-center gap-1 px-2 py-1.5 rounded-md border transition-all",
+									isAutofilling
+										? "border-blue-400 bg-blue-50 text-blue-700"
+										: "border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700"
+								)}
+							>
+								{isAutofilling ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<Sparkles className="h-4 w-4 text-blue-600 mr-1" />
+								)}
+								<span className="text-xs font-medium">
+									{isAutofilling ? "Autofilling..." : "Autofill"}
+								</span>
+								{showSparkles && (
+									<span className="absolute -inset-1 pointer-events-none rounded-md border border-blue-200" />
+								)}
+							</Button>
+							<div className="ml-2">
+								<BorrowerResumeVersionHistory
+									projectId={projectId}
+									onRollbackSuccess={() => {
+										setAutofillAnimationKey((prev) => prev + 1);
+										if (onVersionChange) onVersionChange();
+									}}
+									onOpen={handleVersionHistoryOpen}
+								/>
+							</div>
+						</>
+					)}
 				</div>
 			</div>
 

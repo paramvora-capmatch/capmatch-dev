@@ -297,16 +297,116 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
       <ModalBody>
         <div className="grid grid-cols-2 gap-4 h-[500px]">
           {/* Left Panel - Members */}
-          <div className="border-r border-gray-200 pr-4 flex flex-col min-h-0">
-            <div className="space-y-4 flex-shrink-0">
-              {/* Current Members Section */}
-              <div>
-                <h4 className="font-medium text-gray-800 mb-2">Current Members</h4>
-              </div>
+          <div className="border-r border-gray-200 pr-4 flex flex-col min-h-0 overflow-hidden">
+            {/* Add Members Section - Fixed at top */}
+            <div className="flex-shrink-0 pb-4 border-b border-gray-200 mb-4">
+              <h4 className="font-medium text-gray-800 mb-2">Add Members</h4>
+              {availableMembers.length === 0 ? (
+                <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+                  <div className="flex flex-col items-center justify-center text-center space-y-2">
+                    <UserPlus className="h-5 w-5 text-gray-400" />
+                    <p className="text-sm text-gray-600">Invite members</p>
+                    <p className="text-xs text-gray-500">
+                      Add members to your project to invite them to channels
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        router.push("/team");
+                        onClose();
+                      }}
+                      className="mt-2"
+                    >
+                      Go to Team Page
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {availableMembers.map((member) => {
+                    const isSelected = selectedMembersToAdd.includes(member.user_id);
+                    const normalizedRole = member.role;
+                    const isOwner = normalizedRole === "owner";
+                    const isAdvisor = normalizedRole === "advisor";
+
+                    return (
+                      <div
+                        key={member.user_id}
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedMembersToAdd(selectedMembersToAdd.filter(id => id !== member.user_id));
+                          } else {
+                            setSelectedMembersToAdd([...selectedMembersToAdd, member.user_id]);
+                          }
+                        }}
+                        className={`
+                          flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all
+                          ${isSelected
+                            ? 'border-blue-500 bg-blue-50 hover:bg-blue-100'
+                            : 'border-gray-200 hover:bg-gray-50'
+                          }
+                        `}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            isAdvisor ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
+                          }`}>
+                            <User size={16} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium">{member.userName || member.userEmail || 'Unknown'}</p>
+                              {isAdvisor && (
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                                  Advisor
+                                </span>
+                              )}
+                              {isOwner && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                                  Owner
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500">{member.userEmail}</p>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          {isSelected ? (
+                            <Check className="h-5 w-5 text-blue-600" />
+                          ) : (
+                            <Plus className="h-5 w-5 text-gray-400" />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {availableMembers.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-sm">
+                      {error}
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={handleAdd} 
+                      disabled={isLoading || selectedMembersToAdd.length === 0}
+                      className="min-w-[100px]"
+                    >
+                      <Plus size={16} className="mr-1" /> Add {selectedMembersToAdd.length > 0 && `(${selectedMembersToAdd.length})`}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex-1 overflow-y-auto mt-2">
-              <div className="space-y-4">
+            {/* Current Members Section - Scrollable */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <h4 className="font-medium text-gray-800 mb-2 flex-shrink-0">Current Members</h4>
+              <div className="flex-1 overflow-y-auto min-h-0">
                 {isLoading && enrichedParticipants.length === 0 ? (
                   <div className="text-center p-4"><Loader2 className="animate-spin" /></div>
                 ) : enrichedParticipants.length === 0 ? (
@@ -358,115 +458,12 @@ export const ManageChannelMembersModal: React.FC<ManageChannelMembersModalProps>
                     })}
                   </div>
                 )}
-
-                {/* Add Members Section */}
-                <div className="pt-4 border-t border-gray-200">
-                  <h4 className="font-medium text-gray-800 mb-2">Add Members</h4>
-                  {availableMembers.length === 0 ? (
-                    <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-                      <div className="flex flex-col items-center justify-center text-center space-y-2">
-                        <UserPlus className="h-5 w-5 text-gray-400" />
-                        <p className="text-sm text-gray-600">Invite members</p>
-                        <p className="text-xs text-gray-500">
-                          Add members to your project to invite them to channels
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            router.push("/team");
-                            onClose();
-                          }}
-                          className="mt-2"
-                        >
-                          Go to Team Page
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {availableMembers.map((member) => {
-                        const isSelected = selectedMembersToAdd.includes(member.user_id);
-                        const normalizedRole = member.role;
-                        const isOwner = normalizedRole === "owner";
-                        const isAdvisor = normalizedRole === "advisor";
-
-                        return (
-                          <div
-                            key={member.user_id}
-                            onClick={() => {
-                              if (isSelected) {
-                                setSelectedMembersToAdd(selectedMembersToAdd.filter(id => id !== member.user_id));
-                              } else {
-                                setSelectedMembersToAdd([...selectedMembersToAdd, member.user_id]);
-                              }
-                            }}
-                            className={`
-                              flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all
-                              ${isSelected
-                                ? 'border-blue-500 bg-blue-50 hover:bg-blue-100'
-                                : 'border-gray-200 hover:bg-gray-50'
-                              }
-                            `}
-                          >
-                            <div className="flex items-center space-x-2">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                isAdvisor ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'
-                              }`}>
-                                <User size={16} />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-medium">{member.userName || member.userEmail || 'Unknown'}</p>
-                                  {isAdvisor && (
-                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                                      Advisor
-                                    </span>
-                                  )}
-                                  {isOwner && (
-                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
-                                      Owner
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-xs text-gray-500">{member.userEmail}</p>
-                              </div>
-                            </div>
-                            <div className="flex-shrink-0">
-                              {isSelected ? (
-                                <Check className="h-5 w-5 text-blue-600" />
-                              ) : (
-                                <Plus className="h-5 w-5 text-gray-400" />
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div className="space-y-2 pt-2">
-                        {error && (
-                          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-sm">
-                            {error}
-                          </div>
-                        )}
-                        <div className="flex justify-end">
-                          <Button 
-                            onClick={handleAdd} 
-                            disabled={isLoading || selectedMembersToAdd.length === 0}
-                            className="min-w-[100px]"
-                          >
-                            <Plus size={16} className="mr-1" /> Add {selectedMembersToAdd.length > 0 && `(${selectedMembersToAdd.length})`}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>
 
           {/* Right Panel - Documents */}
-          <div className="flex flex-col pl-4 min-h-0">
+          <div className="flex flex-col pl-4 min-h-0 overflow-hidden">
             <div className="flex items-center justify-between mb-3 flex-shrink-0">
               <div className="text-sm font-semibold text-gray-900">
                 Documents everyone can mention
