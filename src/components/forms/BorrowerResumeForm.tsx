@@ -1105,7 +1105,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								fieldId,
 								sectionId,
 								label,
-								required
+								required,
+								fieldWrapperRef
 							)}
 
 							<div ref={fieldWrapperRef} className="relative">
