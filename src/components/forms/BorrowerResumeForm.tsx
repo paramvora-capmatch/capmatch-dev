@@ -73,6 +73,7 @@ interface BorrowerResumeFormProps {
 	copyLoading?: boolean;
 	progressPercent?: number;
 	onProgressChange?: (percent: number) => void;
+	canEdit?: boolean; // Whether the user has edit permission
 }
 
 // Options Arrays
@@ -261,6 +262,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	copyDisabled,
 	copyLoading,
 	onProgressChange,
+	canEdit = true, // Default to true for backward compatibility
 }) => {
 	const {
 		content: borrowerResume,
@@ -2001,6 +2003,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				projectId={projectId}
 				onEdit={() => setIsEditing(true)}
 				onVersionChange={reloadBorrowerResume}
+				canEdit={canEdit}
 			/>
 		);
 	}
@@ -2070,7 +2073,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					>
 						{formSaved ? "Saving..." : "Save & Exit"}
 					</Button>
-					{onCopyBorrowerResume && (
+					{canEdit && onCopyBorrowerResume && (
 						<Button
 							variant="outline"
 							size="sm"

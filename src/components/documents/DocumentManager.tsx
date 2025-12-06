@@ -595,7 +595,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         <Download className="h-4 w-4" />
                         <span>Download</span>
                       </button>
-                      {fileCanEdit && (
+                      {fileCanEdit && currentOrgRole === 'owner' && (
                         <button
                           className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
                           onMouseDown={(e) => {
