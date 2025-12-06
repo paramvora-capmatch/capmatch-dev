@@ -12,6 +12,8 @@ interface PermissionState {
   permissions: Record<string, Permission>; // Maps resource_id to permission level
   isLoading: boolean;
   error: string | null;
+  currentProjectId: string | null; // Track which project's permissions are loaded
+  loadingProjectId: string | null; // Track which project is currently loading
   loadPermissionsForProject: (projectId: string) => Promise<void>;
   getPermission: (resourceId: string | null | undefined) => Permission | null;
   resetPermissions: () => void;
@@ -21,10 +23,26 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
   permissions: {},
   isLoading: false,
   error: null,
+  currentProjectId: null,
+  loadingProjectId: null,
 
   loadPermissionsForProject: async (projectId: string) => {
+    const state = get();
+    
+    // Skip if already loading for this project
+    if (state.loadingProjectId === projectId) {
+      console.log(`[PermissionStore] Already loading permissions for project: ${projectId}, skipping duplicate call`);
+      return;
+    }
+    
+    // Skip if permissions are already loaded for this project and not currently loading
+    if (state.currentProjectId === projectId && !state.isLoading) {
+      console.log(`[PermissionStore] Permissions already loaded for project: ${projectId}, skipping duplicate call`);
+      return;
+    }
+    
     console.log(`[PermissionStore] Loading permissions for project: ${projectId}`);
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, loadingProjectId: projectId });
 
     try {
       const { data, error } = await supabase.rpc('get_all_user_permissions_for_project', {
@@ -44,12 +62,18 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
         return acc;
       }, {} as Record<string, Permission>);
 
-      set({ permissions: newPermissions, isLoading: false });
+      set({ 
+        permissions: newPermissions, 
+        isLoading: false, 
+        currentProjectId: projectId,
+        loadingProjectId: null 
+      });
     } catch (e) {
       set({ 
         error: e instanceof Error ? e.message : 'Unknown error occurred', 
         isLoading: false, 
-        permissions: {} 
+        permissions: {},
+        loadingProjectId: null
       });
     }
   },
@@ -61,6 +85,12 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
 
   resetPermissions: () => {
     console.log('[PermissionStore] Resetting permissions state.');
-    set({ permissions: {}, isLoading: false, error: null });
+    set({ 
+      permissions: {}, 
+      isLoading: false, 
+      error: null,
+      currentProjectId: null,
+      loadingProjectId: null
+    });
   },
 }));

@@ -119,6 +119,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const [borrowerResumeSnapshot, setBorrowerResumeSnapshot] = useState<
     Partial<BorrowerResumeContent> | null
   >(null);
+  const [permissionsLoadedForProject, setPermissionsLoadedForProject] = useState(false);
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [copySourceProjectId, setCopySourceProjectId] = useState<string>("");
   const [isCopyingBorrower, setIsCopyingBorrower] = useState(false);
@@ -355,7 +356,35 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           borrowerDocsResourceId: borrowerDocsResource?.id || null,
         };
 
+        // Load org data for permission checks (skip for advisors)
+        if (projectWithResources.owner_org_id && user?.role !== "advisor") {
+          try {
+            await loadOrg(projectWithResources.owner_org_id);
+          } catch (error) {
+            console.warn(
+              `[ProjectWorkspace] Failed to load org (non-fatal):`,
+              error
+            );
+          }
+        }
+
+        // Load permissions for the project BEFORE setting active project
+        // This ensures permissions are loaded before setActiveProject triggers its own load
+        try {
+          await loadPermissionsForProject(projectId);
+          setPermissionsLoadedForProject(true);
+        } catch (error) {
+          console.warn(
+            `[ProjectWorkspace] Failed to load permissions (non-fatal):`,
+            error
+          );
+          // Even if loading fails, mark as loaded so we don't get stuck
+          setPermissionsLoadedForProject(true);
+        }
+
         // Update active project for this workspace
+        // Note: setActiveProject also calls loadPermissionsForProject, but since we already loaded,
+        // it will just update the store with the same data
         setActiveProject(projectWithResources);
 
         // Keep the project list in sync so other views see the same data
@@ -375,28 +404,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         if (Object.keys(stateUpdates).length > 0) {
           useProjectStore.setState(stateUpdates);
         }
-
-        // Load org data for permission checks (skip for advisors)
-        if (projectWithResources.owner_org_id && user?.role !== "advisor") {
-          try {
-            await loadOrg(projectWithResources.owner_org_id);
-          } catch (error) {
-            console.warn(
-              `[ProjectWorkspace] Failed to load org (non-fatal):`,
-              error
-            );
-          }
-        }
-
-        // Load permissions for the project
-        try {
-          await loadPermissionsForProject(projectId);
-        } catch (error) {
-          console.warn(
-            `[ProjectWorkspace] Failed to load permissions (non-fatal):`,
-            error
-          );
-        }
       } catch (error) {
         console.error(
           `[ProjectWorkspace] Failed to fetch project ${projectId}:`,
@@ -407,6 +414,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     };
 
     loadProjectData();
+    
+    // Reset permissions loaded flag when projectId changes
+    return () => {
+      setPermissionsLoadedForProject(false);
+    };
   }, [projectId, authLoading, setActiveProject, router, loadOrg, user?.role]);
 
   // Subscribe to realtime changes for project resume
@@ -483,13 +495,49 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   const { canView: canViewProjectDocs, isLoading: isLoadingProjectDocsPermissions } = 
     usePermissions(projectDocsResourceId);
   
-  const borrowerResumeResourceId = activeProject?.borrowerResumeResourceId || null;
+  const borrowerResumeResourceId = (activeProject as any)?.borrowerResumeResourceId || null;
   const { canView: canViewBorrowerResume, canEdit: canEditBorrowerResume, isLoading: isLoadingBorrowerResumePermissions } = 
     usePermissions(borrowerResumeResourceId);
   
-  const borrowerDocsResourceId = activeProject?.borrowerDocsResourceId || null;
+  const borrowerDocsResourceId = (activeProject as any)?.borrowerDocsResourceId || null;
   const { canView: canViewBorrowerDocs, isLoading: isLoadingBorrowerDocsPermissions } = 
     usePermissions(borrowerDocsResourceId);
+  
+  // Get global loading state and permissions from permission store
+  const isPermissionStoreLoading = usePermissionStore((state) => state.isLoading);
+  
+  // Determine if we're still waiting for resource IDs or permissions to load
+  // We show loading if:
+  // 1. ResourceId is null (still loading project data)
+  // 2. OR permissions haven't been loaded for this project yet
+  // Note: We don't check isPermissionStoreLoading after the first load because setActiveProject
+  // might trigger a second load, but we've already loaded permissions once
+  const isWaitingForBorrowerResume = !borrowerResumeResourceId || 
+    (!permissionsLoadedForProject && isPermissionStoreLoading);
+  const isWaitingForBorrowerDocs = !borrowerDocsResourceId || 
+    (!permissionsLoadedForProject && isPermissionStoreLoading);
+  const isWaitingForProjectResume = !projectResumeResourceId || 
+    (!permissionsLoadedForProject && isPermissionStoreLoading);
+  const isWaitingForProjectDocs = !projectDocsResourceId || 
+    (!permissionsLoadedForProject && isPermissionStoreLoading);
+
+  // Reload permissions when switching to borrower editing mode to ensure fresh data
+  useEffect(() => {
+    if (borrowerEditing && projectId && activeProject?.id === projectId && !isPermissionStoreLoading) {
+      // Check if we have the borrower resource IDs but permissions might be missing
+      const currentPermissions = usePermissionStore.getState().permissions;
+      const needsReload = 
+        (borrowerResumeResourceId && currentPermissions[borrowerResumeResourceId] === undefined) ||
+        (borrowerDocsResourceId && currentPermissions[borrowerDocsResourceId] === undefined);
+      
+      if (needsReload) {
+        console.log('[ProjectWorkspace] Reloading permissions for borrower view');
+        loadPermissionsForProject(projectId).catch((error) => {
+          console.warn('[ProjectWorkspace] Failed to reload permissions:', error);
+        });
+      }
+    }
+  }, [borrowerEditing, projectId, activeProject?.id, borrowerResumeResourceId, borrowerDocsResourceId, isPermissionStoreLoading, loadPermissionsForProject]);
 
   // Loading state render - show loading during initial loading or if project doesn't match
   if (shouldShowLoader || !activeProject || activeProject.id !== projectId) {
@@ -666,8 +714,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   transition={{ duration: 0.2 }}
                   className="space-y-6"
                 >
-                  {/* Borrower Documents - Only show if user has permission */}
-                  {!isLoadingBorrowerDocsPermissions && canViewBorrowerDocs && (
+                  {/* Borrower Documents - Show loading or content based on permissions */}
+                  {isWaitingForBorrowerDocs || isLoadingBorrowerDocsPermissions ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex justify-center items-center py-12"
+                    >
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                      <span className="ml-3 text-gray-600">Loading borrower documents...</span>
+                    </motion.div>
+                  ) : canViewBorrowerDocs ? (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -675,9 +733,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     >
                       {renderBorrowerDocumentsSection()}
                     </motion.div>
-                  )}
-                  {/* Borrower Resume - Only show if user has permission */}
-                  {!isLoadingBorrowerResumePermissions && canViewBorrowerResume && (
+                  ) : null}
+                  {/* Borrower Resume - Show loading or content based on permissions */}
+                  {isWaitingForBorrowerResume || isLoadingBorrowerResumePermissions ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex justify-center items-center py-12"
+                    >
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                      <span className="ml-3 text-gray-600">Loading borrower resume...</span>
+                    </motion.div>
+                  ) : canViewBorrowerResume ? (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -685,7 +753,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     >
                       {renderBorrowerResumeSection()}
                     </motion.div>
-                  )}
+                  ) : null}
                 </motion.div>
               ) : (
               <motion.div
@@ -706,9 +774,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   {(unwrapValue(activeProject?.projectName) as string) || "Project"}
                 </motion.h1>
 
-                {/* Project Progress Card - Only show if user has permission to view borrower resume or docs */}
-                {(!isLoadingBorrowerResumePermissions && !isLoadingBorrowerDocsPermissions) && 
-                 (canViewBorrowerResume || canViewBorrowerDocs) && (
+                {/* Project Progress Card - Show loading or content based on permissions */}
+                {isWaitingForBorrowerResume || isWaitingForBorrowerDocs ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex justify-center items-center py-12"
+                  >
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-600">Loading borrower details...</span>
+                  </motion.div>
+                ) : (canViewBorrowerResume || canViewBorrowerDocs) ? (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -729,7 +806,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       borrowerProgress={borrowerResumeProgress}
                     />
                   </motion.div>
-                )}
+                ) : null}
 
                 {/* Section for OM Link - Only show if project is complete */}
                 {isProjectComplete && (
@@ -789,8 +866,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                   </motion.div>
                 )}
 
-                {/* Project Documents - Only show if user has permission */}
-                {!isLoadingProjectDocsPermissions && canViewProjectDocs && (
+                {/* Project Documents - Show loading or content based on permissions */}
+                {isWaitingForProjectDocs || isLoadingProjectDocsPermissions ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex justify-center items-center py-12"
+                    id="project-documents-section"
+                  >
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-600">Loading project documents...</span>
+                  </motion.div>
+                ) : canViewProjectDocs ? (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -809,10 +897,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       context="project"
                     />
                   </motion.div>
-                )}
+                ) : null}
 
-                {/* Project completion progress - Only show if user has permission to view project resume */}
-                {!isLoadingProjectResumePermissions && canViewProjectResume && (
+                {/* Project completion progress - Show loading or content based on permissions */}
+                {isWaitingForProjectResume ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex justify-center items-center py-12"
+                  >
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-600">Loading project details...</span>
+                  </motion.div>
+                ) : canViewProjectResume ? (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -824,10 +922,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       onEdit={() => setIsEditing(true)}
                     />
                   </motion.div>
-                )}
+                ) : null}
 
-                {/* Project Resume (View or Edit) - Only show if user has permission */}
-                {!isLoadingProjectResumePermissions && canViewProjectResume && (
+                {/* Project Resume (View or Edit) - Show loading or content based on permissions */}
+                {isWaitingForProjectResume || isLoadingProjectResumePermissions ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex justify-center items-center py-12"
+                  >
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <span className="ml-3 text-gray-600">Loading project resume...</span>
+                  </motion.div>
+                ) : canViewProjectResume ? (
                   <>
                     {isEditing ? (
                       <motion.div
@@ -882,7 +990,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                       </>
                     )}
                   </>
-                )}
+                ) : null}
                 </motion.div>
               )}
             </AnimatePresence>

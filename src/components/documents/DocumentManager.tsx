@@ -471,14 +471,6 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
               const fileCanEdit = getPermission(file.resource_id) === 'edit';
               const isEditable = /\.(docx|xlsx|pptx|pdf)$/i.test(file.name);
               const filePermission = getPermission(file.resource_id);
-              console.log("[DocumentManager] Rendering file:", {
-                name: file.name,
-                versionId: file.id,
-                resourceId: file.resource_id,
-                permission: filePermission,
-                canEdit: fileCanEdit,
-                allPermissions: usePermissionStore.getState().permissions,
-              });
               return (
                 <motion.div
                   key={file.id}
