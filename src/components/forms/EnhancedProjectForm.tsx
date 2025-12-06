@@ -2485,13 +2485,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							)}
 							<div ref={fieldWrapperRef} className="relative">
 								{renderControl()}
-								{hasWarnings && (
-									<FieldWarningsTooltip
-										warnings={fieldMetadata[fieldId]?.warnings}
-										triggerRef={fieldWrapperRef}
-										showIcon={false}
-									/>
-								)}
 							</div>
 						</div>
 					</AskAIButton>
