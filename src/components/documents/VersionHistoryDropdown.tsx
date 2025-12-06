@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../../../lib/supabaseClient";
 import { Button } from "../ui/Button";
 import {
@@ -78,6 +79,14 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
   } | null>(null);
   const [userInfoMap, setUserInfoMap] = useState<Map<string, UserInfo>>(new Map());
   const [currentVersionId, setCurrentVersionId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const anchorRef = useRef<HTMLElement | null>(null);
+
+  // Handle mounting for portal
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Sync isOpen state when defaultOpen prop changes
   useEffect(() => {
@@ -85,6 +94,32 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
       setIsOpen(true);
     }
   }, [defaultOpen, isOpen]);
+
+  // When hideTrigger is true, find the anchor element (kebab menu button or file card)
+  useEffect(() => {
+    if (hideTrigger && isOpen) {
+      // Find the closest file card to anchor to
+      const findAnchor = () => {
+        // Find the file card that contains this dropdown
+        const fileCard = dropdownRef.current?.closest('.group\\/file');
+        if (fileCard) {
+          anchorRef.current = fileCard as HTMLElement;
+          return;
+        }
+        // Fallback: try to find any file card (if we're in the document manager)
+        const anyFileCard = document.querySelector('.group\\/file');
+        if (anyFileCard) {
+          anchorRef.current = anyFileCard as HTMLElement;
+          return;
+        }
+        // Last resort: use the dropdown ref's parent
+        if (dropdownRef.current?.parentElement) {
+          anchorRef.current = dropdownRef.current.parentElement;
+        }
+      };
+      findAnchor();
+    }
+  }, [hideTrigger, isOpen]);
 
   const fetchVersions = useCallback(async () => {
     setIsLoading(true);
@@ -155,58 +190,76 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
 
   // Calculate dropdown position when it opens and update on scroll
   useEffect(() => {
-    if (hideTrigger) {
-      // Inline mode: do not compute fixed positioning
-      return;
-    }
     if (!isOpen) {
       setDropdownPosition(null);
       return;
     }
 
     const updatePosition = () => {
-      if (triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect();
-        const viewportWidth = document.documentElement.clientWidth;
-        const viewportHeight = document.documentElement.clientHeight;
-        const scrollX = window.scrollX;
-        const scrollY = window.scrollY;
-        const dropdownWidth =
-          dropdownContentRef.current?.offsetWidth ?? 384; // w-96 ≈ 384px
-        const dropdownHeight =
-          dropdownContentRef.current?.offsetHeight ?? 0;
-        const margin = 8;
-
-        let left = rect.right + scrollX - dropdownWidth;
-        const minLeft = scrollX + margin;
-        const maxLeft = scrollX + viewportWidth - dropdownWidth - margin;
-
-        if (maxLeft < minLeft) {
-          left = minLeft;
-        } else {
-          left = Math.min(Math.max(left, minLeft), maxLeft);
+      let anchorElement = hideTrigger ? anchorRef.current : triggerRef.current;
+      
+      // If hideTrigger and anchor not found yet, try to find it
+      if (hideTrigger && !anchorElement) {
+        const fileCard = dropdownRef.current?.closest('.group\\/file');
+        if (fileCard) {
+          anchorRef.current = fileCard as HTMLElement;
+          anchorElement = fileCard as HTMLElement;
         }
-
-        let top = rect.bottom + scrollY + margin;
-        const bottomEdge = top + dropdownHeight;
-        const maxBottom = scrollY + viewportHeight - margin;
-        const alternateTop = rect.top + scrollY - dropdownHeight - margin;
-
-        if (
-          dropdownHeight &&
-          bottomEdge > maxBottom &&
-          alternateTop >= scrollY + margin
-        ) {
-          top = alternateTop;
-        } else if (top < scrollY + margin) {
-          top = scrollY + margin;
-        }
-
-        setDropdownPosition({
-          top,
-          left,
-        });
       }
+      
+      if (!anchorElement) {
+        return;
+      }
+
+      const rect = anchorElement.getBoundingClientRect();
+      const viewportWidth = document.documentElement.clientWidth;
+      const viewportHeight = document.documentElement.clientHeight;
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      const dropdownWidth =
+        dropdownContentRef.current?.offsetWidth ?? 384; // w-96 ≈ 384px
+      const dropdownHeight =
+        dropdownContentRef.current?.offsetHeight ?? 0;
+      const margin = 8;
+
+      // Position to the RIGHT of the anchor element
+      let left = rect.right + scrollX + margin;
+      const minLeft = scrollX + margin;
+      const maxLeft = scrollX + viewportWidth - dropdownWidth - margin;
+
+      // If it would go off the right edge, position to the left instead
+      if (left + dropdownWidth > scrollX + viewportWidth - margin) {
+        left = rect.left + scrollX - dropdownWidth - margin;
+        // Ensure it doesn't go off the left edge either
+        if (left < minLeft) {
+          left = minLeft;
+        }
+      } else {
+        // Ensure it doesn't go off the right edge
+        left = Math.min(left, maxLeft);
+      }
+
+      let top = rect.top + scrollY;
+      const bottomEdge = top + dropdownHeight;
+      const maxBottom = scrollY + viewportHeight - margin;
+      const alternateTop = rect.top + scrollY - dropdownHeight - margin;
+
+      // Center vertically on the anchor element
+      top = rect.top + scrollY + (rect.height / 2) - (dropdownHeight / 2);
+
+      // Adjust if it goes off the bottom
+      if (bottomEdge > maxBottom) {
+        top = Math.max(alternateTop, scrollY + margin);
+      }
+      // Adjust if it goes off the top
+      if (top < scrollY + margin) {
+        top = scrollY + margin;
+      }
+
+      setDropdownPosition({
+        top,
+        left,
+      });
     };
 
     updatePosition();
@@ -277,6 +330,143 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
     ? versions.find((v) => v.id === currentVersionId)
     : null;
 
+  // Render dropdown content
+  const renderDropdownContent = () => (
+    <div className="p-4">
+      <h3 className="font-semibold text-gray-900 mb-3">
+        Version History
+      </h3>
+
+      {error && (
+        <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+        </div>
+      ) : (
+        <div className="max-h-96 overflow-y-auto space-y-2">
+          {versions.length === 0 ? (
+            <p className="text-sm text-gray-500">No versions found</p>
+          ) : (
+            versions.map((version) => (
+              <motion.div
+                key={version.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`relative p-3 rounded border ${
+                  version.id === currentVersionId
+                    ? "bg-blue-50 border-blue-200"
+                    : "bg-gray-50 border-gray-200"
+                }`}
+              >
+                {confirmRollback === version.id ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex flex-col items-center justify-center gap-3 py-2"
+                  >
+                    <p className="text-sm font-medium text-gray-900">
+                      Rollback to v{version.version_number}?
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {formatDate(version.created_at)}
+                    </p>
+                    <div className="flex gap-2 w-full">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        fullWidth
+                        onClick={() => setConfirmRollback(null)}
+                        disabled={isRollingBack}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        fullWidth
+                        onClick={() => handleRollback(version.id)}
+                        isLoading={isRollingBack}
+                      >
+                        Confirm
+                      </Button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm text-gray-900">
+                          v{version.version_number}
+                        </span>
+                        {version.id === currentVersionId && (
+                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        )}
+                        {version.id !== currentVersionId && (
+                          <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {formatDate(version.created_at)}
+                      </p>
+                      {version.created_by && userInfoMap.has(version.created_by) && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Created by {userInfoMap.get(version.created_by)?.full_name || userInfoMap.get(version.created_by)?.email || 'Unknown User'}
+                        </p>
+                      )}
+                      {version.metadata?.size && (
+                        <p className="text-xs text-gray-500">
+                          {formatFileSize(version.metadata.size)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-1">
+                      {version.id !== currentVersionId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setConfirmRollback(version.id)}
+                          disabled={isRollingBack}
+                          title="Restore this version"
+                        >
+                          Restore
+                        </Button>
+                      )}
+                      {currentVersion &&
+                        version.id !== currentVersion.id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              setCompareVersions([
+                                version.id,
+                                currentVersion.id,
+                              ])
+                            }
+                            title={`Compare with current version (v${currentVersion.version_number})`}
+                            aria-label={`Compare version ${version.version_number} with current version v${currentVersion.version_number}`}
+                          >
+                            <GitCompare className="h-4 w-4 mr-1" />
+                            Compare to v{currentVersion.version_number}
+                          </Button>
+                        )}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div ref={dropdownRef} className="relative">
       {!hideTrigger && (
@@ -292,155 +482,48 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
         </Button>
       )}
 
-      <AnimatePresence>
-        {isOpen && (hideTrigger || dropdownPosition) && (
-          <motion.div
-            ref={dropdownContentRef}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className={`${hideTrigger ? "w-96" : "fixed w-96"} bg-white border border-gray-200 rounded-lg shadow-lg z-[9999]`}
-            style={hideTrigger ? undefined : {
-              top: `${dropdownPosition!.top}px`,
-              left: `${dropdownPosition!.left}px`,
-            }}
-          >
-            <div className="p-4">
-              <h3 className="font-semibold text-gray-900 mb-3">
-                Version History
-              </h3>
-
-              {error && (
-                <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                  {error}
-                </div>
-              )}
-
-              {isLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-                </div>
-              ) : (
-                <div className="max-h-96 overflow-y-auto space-y-2">
-                  {versions.length === 0 ? (
-                    <p className="text-sm text-gray-500">No versions found</p>
-                  ) : (
-                    versions.map((version) => (
-                      <motion.div
-                        key={version.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className={`relative p-3 rounded border ${
-                          version.id === currentVersionId
-                            ? "bg-blue-50 border-blue-200"
-                            : "bg-gray-50 border-gray-200"
-                        }`}
-                      >
-                        {confirmRollback === version.id ? (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="flex flex-col items-center justify-center gap-3 py-2"
-                          >
-                            <p className="text-sm font-medium text-gray-900">
-                              Rollback to v{version.version_number}?
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {formatDate(version.created_at)}
-                            </p>
-                            <div className="flex gap-2 w-full">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                fullWidth
-                                onClick={() => setConfirmRollback(null)}
-                                disabled={isRollingBack}
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                fullWidth
-                                onClick={() => handleRollback(version.id)}
-                                isLoading={isRollingBack}
-                              >
-                                Confirm
-                              </Button>
-                            </div>
-                          </motion.div>
-                        ) : (
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-sm text-gray-900">
-                                  v{version.version_number}
-                                </span>
-                                {version.id === currentVersionId && (
-                                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                )}
-                                {version.id !== currentVersionId && (
-                                  <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                                )}
-                              </div>
-                              <p className="text-xs text-gray-600 mt-1">
-                                {formatDate(version.created_at)}
-                              </p>
-                              {version.created_by && userInfoMap.has(version.created_by) && (
-                                <p className="text-xs text-gray-500 mt-0.5">
-                                  Created by {userInfoMap.get(version.created_by)?.full_name || userInfoMap.get(version.created_by)?.email || 'Unknown User'}
-                                </p>
-                              )}
-                              {version.metadata?.size && (
-                                <p className="text-xs text-gray-500">
-                                  {formatFileSize(version.metadata.size)}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="flex gap-1">
-                              {version.id !== currentVersionId && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setConfirmRollback(version.id)}
-                                  disabled={isRollingBack}
-                                  title="Restore this version"
-                                >
-                                  Restore
-                                </Button>
-                              )}
-                              {currentVersion &&
-                                version.id !== currentVersion.id && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      setCompareVersions([
-                                        version.id,
-                                        currentVersion.id,
-                                      ])
-                                    }
-                                    title={`Compare with current version (v${currentVersion.version_number})`}
-                                    aria-label={`Compare version ${version.version_number} with current version v${currentVersion.version_number}`}
-                                  >
-                                    <GitCompare className="h-4 w-4 mr-1" />
-                                    Compare to v{currentVersion.version_number}
-                                  </Button>
-                                )}
-                            </div>
-                          </div>
-                        )}
-                      </motion.div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {mounted && hideTrigger && isOpen && dropdownPosition ? (
+        // Render in portal when hideTrigger is true to escape overflow
+        createPortal(
+          <AnimatePresence>
+            <motion.div
+              key={`version-dropdown-${resourceId}`}
+              ref={dropdownContentRef}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="fixed w-96 bg-white border border-gray-200 rounded-lg shadow-xl z-[99999]"
+              style={{
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+              }}
+            >
+              {renderDropdownContent()}
+            </motion.div>
+          </AnimatePresence>,
+          document.body
+        )
+      ) : (
+        // Regular fixed positioning when trigger is visible
+        <AnimatePresence>
+          {isOpen && dropdownPosition && (
+            <motion.div
+              key={`version-dropdown-${resourceId}`}
+              ref={dropdownContentRef}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="fixed w-96 bg-white border border-gray-200 rounded-lg shadow-xl z-[99999]"
+              style={{
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+              }}
+            >
+              {renderDropdownContent()}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       {compareVersions && (
         <DocumentDiffViewer

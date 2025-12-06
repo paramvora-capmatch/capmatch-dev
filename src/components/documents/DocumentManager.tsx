@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useDocumentManagement } from "@/hooks/useDocumentManagement";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { Button } from "../ui/Button";
@@ -125,6 +126,15 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [openVersionsDefault, setOpenVersionsDefault] = useState(false);
   const [inlineVersionsFor, setInlineVersionsFor] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const menuButtonRefs = React.useRef<Map<string, HTMLButtonElement>>(new Map());
+
+  // Handle mounting for portal
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Get the PROJECT_DOCS_ROOT or BORROWER_DOCS_ROOT resource ID for permission checking
   const [docsRootId, setDocsRootId] = React.useState<string | null>(null);
@@ -201,6 +211,16 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     return { Icon: File, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-200" };
   };
 
+  // Calculate menu position based on button position
+  const calculateMenuPosition = (buttonElement: HTMLButtonElement | null) => {
+    if (!buttonElement) return null;
+    const rect = buttonElement.getBoundingClientRect();
+    return {
+      top: rect.top + rect.height / 2, // Center vertically on button
+      left: rect.right + 8, // 8px to the right of button
+    };
+  };
+
   // Close kebab dropdown on outside click (native listener, but ignore clicks inside menu/trigger)
   React.useEffect(() => {
     const handleClickAway = (event: MouseEvent | PointerEvent) => {
@@ -210,10 +230,29 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
       if (withinMenuOrTrigger) return; // let button/menu handlers manage closing
       setOpenMenuId(null);
       setInlineVersionsFor(null);
+      setMenuPosition(null);
     };
     document.addEventListener('pointerdown', handleClickAway as EventListener);
     return () => document.removeEventListener('pointerdown', handleClickAway as EventListener);
   }, []);
+
+  // Update menu position on scroll/resize
+  React.useEffect(() => {
+    if (!openMenuId) return;
+    const updatePosition = () => {
+      const buttonElement = menuButtonRefs.current.get(openMenuId);
+      if (buttonElement) {
+        setMenuPosition(calculateMenuPosition(buttonElement));
+      }
+    };
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [openMenuId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -447,39 +486,69 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   className={cn(
-                    "group/file w-full bg-white border border-gray-200 rounded-2xl hover:shadow-md transition-all duration-300 text-left flex flex-col p-4 relative",
+                    "group/file w-full bg-white border border-gray-200 rounded-2xl hover:shadow-md transition-all duration-300 text-left flex flex-col p-4 relative overflow-visible",
                     file.id === highlightedResourceId &&
                       "border-blue-500 ring-2 ring-blue-300 ring-offset-1"
                   )}
                 >
                   {/* Kebab menu trigger */}
                   <button
+                    ref={(el) => {
+                      if (el) {
+                        menuButtonRefs.current.set(file.id, el);
+                      } else {
+                        menuButtonRefs.current.delete(file.id);
+                      }
+                    }}
                     type="button"
                     aria-label="More actions"
                     title="More actions"
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-100 border border-transparent hover:border-gray-200 opacity-0 pointer-events-none group-hover/file:opacity-100 group-hover/file:pointer-events-auto transition-opacity"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOpenMenuId((prev) => (prev === file.id ? null : file.id));
+                      setOpenMenuId((prev) => {
+                        if (prev === file.id) {
+                          // Closing menu
+                          setMenuPosition(null);
+                          return null;
+                        } else {
+                          // Opening menu - calculate position
+                          const buttonElement = e.currentTarget;
+                          const position = calculateMenuPosition(buttonElement);
+                          setMenuPosition(position);
+                          // Close version history dropdown if it's open for this file
+                          if (inlineVersionsFor === file.resource_id) {
+                            setInlineVersionsFor(null);
+                          }
+                          return file.id;
+                        }
+                      });
                     }}
                     data-dm-trigger="true"
                   >
                     <EllipsisVertical className="h-5 w-5 text-gray-600" />
                   </button>
 
-                  {/* Dropdown menu */}
-                  <AnimatePresence>
-                    {openMenuId === file.id && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute top-0 left-[calc(100%+8px)] z-[9999] w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 text-left"
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        data-dm-menu="true"
-                      >
+                  {/* Dropdown menu - rendered in portal to escape overflow */}
+                  {mounted && createPortal(
+                    <AnimatePresence>
+                      {openMenuId === file.id && menuPosition && (
+                        <motion.div
+                          key={`menu-${file.id}`}
+                          initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="fixed z-[99999] w-40 bg-white border border-gray-200 rounded-md shadow-xl py-1 text-left"
+                          style={{
+                            top: `${menuPosition.top}px`,
+                            left: `${menuPosition.left}px`,
+                            transform: 'translateY(-50%)', // Center vertically on button
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          data-dm-menu="true"
+                        >
                       {/* Versions */}
                       <button
                         className="w-full flex items-center justify-start gap-2 px-3 py-2 hover:bg-gray-50 text-sm text-gray-700 text-left"
@@ -487,6 +556,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                           e.preventDefault();
                           e.stopPropagation();
                           setOpenMenuId(null);
+                          setMenuPosition(null);
                           // Show inline version history dropdown anchored to this card
                           setInlineVersionsFor(file.resource_id);
                         }}
@@ -504,6 +574,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                             const url = `/documents/edit?bucket=${activeOrg?.id}&path=${encodeURIComponent(file.storage_path)}`;
                             window.location.assign(url);
                             setOpenMenuId(null);
+                            setMenuPosition(null);
                           }}
                           title="Edit"
                         >
@@ -517,6 +588,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                           e.preventDefault();
                           e.stopPropagation();
                           setOpenMenuId(null);
+                          setMenuPosition(null);
                           handleDownload(file);
                         }}
                       >
@@ -530,6 +602,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                             e.preventDefault();
                             e.stopPropagation();
                             setOpenMenuId(null);
+                            setMenuPosition(null);
                             setSharingFile(file);
                           }}
                         >
@@ -544,6 +617,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                             e.preventDefault();
                             e.stopPropagation();
                             setOpenMenuId(null);
+                            setMenuPosition(null);
                             handleDeleteFile(file);
                           }}
                         >
@@ -552,8 +626,10 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                         </button>
                       )}
                       </motion.div>
-                    )}
-                  </AnimatePresence>
+                      )}
+                    </AnimatePresence>,
+                    document.body
+                  )}
                   <button
                     onClick={() => setPreviewingResourceId(file.resource_id)}
                     className="flex items-center space-x-3 overflow-hidden text-left pr-0 group-hover/file:pr-10 transition-[padding] duration-200"
