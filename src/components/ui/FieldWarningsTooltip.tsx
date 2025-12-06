@@ -179,8 +179,8 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 
 	// Set up hover handlers on external trigger if provided
 	useEffect(() => {
-		if (externalTriggerRef?.current) {
-			const element = externalTriggerRef.current;
+		const element = externalTriggerRef?.current;
+		if (element) {
 			const handleMouseEnter = () => setIsOpen(true);
 			const handleMouseLeave = () => setIsOpen(false);
 
@@ -192,8 +192,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 				element.removeEventListener("mouseleave", handleMouseLeave);
 			};
 		}
-		// Re-run if the ref changes (e.g., when it gets attached to a DOM element)
-	}, [externalTriggerRef, externalTriggerRef?.current]);
+	}, [externalTriggerRef]);
 
 	return (
 		<>
