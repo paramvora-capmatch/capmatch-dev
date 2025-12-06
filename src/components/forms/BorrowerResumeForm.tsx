@@ -1197,7 +1197,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			// Get or create a ref for the field wrapper to trigger tooltip on hover
 			let fieldWrapperRef = fieldWrapperRefs.current.get(fieldId);
 			if (!fieldWrapperRef) {
-				fieldWrapperRef = { current: null } as React.RefObject<HTMLDivElement>;
+				fieldWrapperRef = React.createRef<HTMLDivElement>() as React.RefObject<HTMLDivElement>;
 				fieldWrapperRefs.current.set(fieldId, fieldWrapperRef);
 			}
 

@@ -569,7 +569,7 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
             const sectionId = metadata.section;
             // Check if content is in new format (actual section IDs) or legacy format (section_*)
             // Try new format first
-            let sectionData = content[sectionId];
+            const sectionData = content[sectionId];
             let fieldData;
             
             if (sectionData) {

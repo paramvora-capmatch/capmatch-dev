@@ -101,6 +101,54 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 		}
 	}, [isOpen, effectivePlacement, triggerRef]);
 
+	// Set up hover handlers on all trigger refs
+	useEffect(() => {
+		const cleanupFunctions: (() => void)[] = [];
+
+		allTriggerRefs.forEach((ref) => {
+			const element = ref?.current;
+			if (element) {
+				const handleMouseEnter = () => {
+					setActiveTriggerRef(ref);
+					setIsOpen(true);
+				};
+				
+				const handleMouseMove = (e: MouseEvent) => {
+					// Only track mouse position for field wrapper (external trigger)
+					if (ref === externalTriggerRef && element) {
+						const rect = element.getBoundingClientRect();
+						const mouseX = e.clientX - rect.left;
+						const fieldWidth = rect.width;
+						// Determine if mouse is on left or right half of the field
+						setFieldHoverSide(mouseX < fieldWidth / 2 ? "left" : "right");
+					}
+				};
+				
+				const handleMouseLeave = () => {
+					setIsOpen(false);
+					// Clear active trigger after a short delay
+					setTimeout(() => {
+						setActiveTriggerRef((prev) => (prev === ref ? null : prev));
+					}, 100);
+				};
+
+				element.addEventListener("mouseenter", handleMouseEnter);
+				element.addEventListener("mousemove", handleMouseMove);
+				element.addEventListener("mouseleave", handleMouseLeave);
+
+				cleanupFunctions.push(() => {
+					element.removeEventListener("mouseenter", handleMouseEnter);
+					element.removeEventListener("mousemove", handleMouseMove);
+					element.removeEventListener("mouseleave", handleMouseLeave);
+				});
+			}
+		});
+
+		return () => {
+			cleanupFunctions.forEach((cleanup) => cleanup());
+		};
+	}, [allTriggerRefs, externalTriggerRef]);
+
 	if (!warnings || warnings.length === 0) {
 		return null;
 	}
@@ -205,54 +253,6 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 				};
 		}
 	};
-
-	// Set up hover handlers on all trigger refs
-	useEffect(() => {
-		const cleanupFunctions: (() => void)[] = [];
-
-		allTriggerRefs.forEach((ref) => {
-			const element = ref?.current;
-			if (element) {
-				const handleMouseEnter = () => {
-					setActiveTriggerRef(ref);
-					setIsOpen(true);
-				};
-				
-				const handleMouseMove = (e: MouseEvent) => {
-					// Only track mouse position for field wrapper (external trigger)
-					if (ref === externalTriggerRef && element) {
-						const rect = element.getBoundingClientRect();
-						const mouseX = e.clientX - rect.left;
-						const fieldWidth = rect.width;
-						// Determine if mouse is on left or right half of the field
-						setFieldHoverSide(mouseX < fieldWidth / 2 ? "left" : "right");
-					}
-				};
-				
-				const handleMouseLeave = () => {
-					setIsOpen(false);
-					// Clear active trigger after a short delay
-					setTimeout(() => {
-						setActiveTriggerRef((prev) => (prev === ref ? null : prev));
-					}, 100);
-				};
-
-				element.addEventListener("mouseenter", handleMouseEnter);
-				element.addEventListener("mousemove", handleMouseMove);
-				element.addEventListener("mouseleave", handleMouseLeave);
-
-				cleanupFunctions.push(() => {
-					element.removeEventListener("mouseenter", handleMouseEnter);
-					element.removeEventListener("mousemove", handleMouseMove);
-					element.removeEventListener("mouseleave", handleMouseLeave);
-				});
-			}
-		});
-
-		return () => {
-			cleanupFunctions.forEach((cleanup) => cleanup());
-		};
-	}, [allTriggerRefs, externalTriggerRef]);
 
 	return (
 		<>

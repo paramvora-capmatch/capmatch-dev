@@ -430,7 +430,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     return () => {
       setPermissionsLoadedForProject(false);
     };
-  }, [projectId, authLoading, setActiveProject, router, loadOrg, user?.role]);
+  }, [projectId, authLoading, setActiveProject, router, loadOrg, user?.role, loadPermissionsForProject]);
 
   // Subscribe to realtime changes for project resume
   useEffect(() => {
