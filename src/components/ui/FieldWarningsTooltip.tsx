@@ -217,6 +217,18 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 					setActiveTriggerRef(ref);
 					setIsOpen(true);
 				};
+				
+				const handleMouseMove = (e: MouseEvent) => {
+					// Only track mouse position for field wrapper (external trigger)
+					if (ref === externalTriggerRef && element) {
+						const rect = element.getBoundingClientRect();
+						const mouseX = e.clientX - rect.left;
+						const fieldWidth = rect.width;
+						// Determine if mouse is on left or right half of the field
+						setFieldHoverSide(mouseX < fieldWidth / 2 ? "left" : "right");
+					}
+				};
+				
 				const handleMouseLeave = () => {
 					setIsOpen(false);
 					// Clear active trigger after a short delay
@@ -226,10 +238,12 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 				};
 
 				element.addEventListener("mouseenter", handleMouseEnter);
+				element.addEventListener("mousemove", handleMouseMove);
 				element.addEventListener("mouseleave", handleMouseLeave);
 
 				cleanupFunctions.push(() => {
 					element.removeEventListener("mouseenter", handleMouseEnter);
+					element.removeEventListener("mousemove", handleMouseMove);
 					element.removeEventListener("mouseleave", handleMouseLeave);
 				});
 			}
@@ -238,7 +252,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 		return () => {
 			cleanupFunctions.forEach((cleanup) => cleanup());
 		};
-	}, [allTriggerRefs]);
+	}, [allTriggerRefs, externalTriggerRef]);
 
 	return (
 		<>
