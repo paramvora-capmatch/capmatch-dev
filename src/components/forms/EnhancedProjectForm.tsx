@@ -1024,6 +1024,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [formSaved, setFormSaved] = useState(false);
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+	
+	// Map to store refs for field wrappers (for tooltip triggers)
+	const fieldWrapperRefs = useRef<Map<string, React.RefObject<HTMLDivElement>>>(new Map());
 
 	// Track the last state that was successfully persisted to the DB
 	// so we can detect "unsaved changes" (dirty state) on any kind of exit.
@@ -2271,6 +2274,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 			const commonClassName = getFieldStylingClasses(fieldId, sectionId);
 
+			// Get or create a ref for the field wrapper to trigger tooltip on hover
+			if (!fieldWrapperRefs.current.has(fieldId)) {
+				fieldWrapperRefs.current.set(fieldId, React.createRef<HTMLDivElement>());
+			}
+			const fieldWrapperRef = fieldWrapperRefs.current.get(fieldId)!;
+
 			const renderControl = () => {
 				if (controlKind === "textarea") {
 					const displayValue =
@@ -2454,6 +2463,8 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				);
 			};
 
+			const hasWarnings = fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0;
+
 			return (
 				<FormGroup key={fieldId}>
 					<AskAIButton id={fieldId} onAskAI={onAskAI || (() => {})}>
@@ -2464,7 +2475,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 								label,
 								required
 							)}
-							{renderControl()}
+							<div ref={fieldWrapperRef} className="relative">
+								{renderControl()}
+								{hasWarnings && (
+									<FieldWarningsTooltip
+										warnings={fieldMetadata[fieldId]?.warnings}
+										triggerRef={fieldWrapperRef}
+										showIcon={false}
+									/>
+								)}
+							</div>
 						</div>
 					</AskAIButton>
 				</FormGroup>

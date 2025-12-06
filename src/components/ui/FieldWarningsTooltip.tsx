@@ -8,16 +8,21 @@ interface FieldWarningsTooltipProps {
 	warnings?: string[];
 	className?: string;
 	placement?: "top" | "bottom" | "left" | "right";
+	triggerRef?: React.RefObject<HTMLElement>;
+	showIcon?: boolean;
 }
 
 export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 	warnings,
 	className,
 	placement = "top",
+	triggerRef: externalTriggerRef,
+	showIcon = true,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [position, setPosition] = useState({ top: 0, left: 0 });
-	const triggerRef = useRef<HTMLDivElement>(null);
+	const internalTriggerRef = useRef<HTMLDivElement>(null);
+	const triggerRef = externalTriggerRef || internalTriggerRef;
 
 	useEffect(() => {
 		if (isOpen && triggerRef.current) {
@@ -172,19 +177,39 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 		}
 	};
 
+	// Set up hover handlers on external trigger if provided
+	useEffect(() => {
+		if (externalTriggerRef?.current) {
+			const element = externalTriggerRef.current;
+			const handleMouseEnter = () => setIsOpen(true);
+			const handleMouseLeave = () => setIsOpen(false);
+
+			element.addEventListener("mouseenter", handleMouseEnter);
+			element.addEventListener("mouseleave", handleMouseLeave);
+
+			return () => {
+				element.removeEventListener("mouseenter", handleMouseEnter);
+				element.removeEventListener("mouseleave", handleMouseLeave);
+			};
+		}
+	}, [externalTriggerRef]);
+
 	return (
 		<>
-			<div
-				ref={triggerRef}
-				className={cn(
-					"relative inline-flex items-center cursor-help",
-					className
-				)}
-				onMouseEnter={() => setIsOpen(true)}
-				onMouseLeave={() => setIsOpen(false)}
-			>
-				<AlertTriangle className="h-3 w-3 text-amber-500" />
-			</div>
+			{showIcon && (
+				<div
+					ref={internalTriggerRef}
+					className={cn(
+						"relative inline-flex items-center",
+						!externalTriggerRef && "cursor-help",
+						className
+					)}
+					onMouseEnter={!externalTriggerRef ? () => setIsOpen(true) : undefined}
+					onMouseLeave={!externalTriggerRef ? () => setIsOpen(false) : undefined}
+				>
+					<AlertTriangle className="h-3 w-3 text-amber-500" />
+				</div>
+			)}
 
 			{typeof window !== "undefined" &&
 				createPortal(
