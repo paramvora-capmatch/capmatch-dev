@@ -1084,6 +1084,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			const options = optionsRegistry[fieldId] || [];
 
+			// Get or create a ref for the field wrapper to trigger tooltip on hover
+			let fieldWrapperRef = fieldWrapperRefs.current.get(fieldId);
+			if (!fieldWrapperRef) {
+				fieldWrapperRef = { current: null } as React.RefObject<HTMLDivElement>;
+				fieldWrapperRefs.current.set(fieldId, fieldWrapperRef);
+			}
+
+			const hasWarnings = fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0;
+
 			return (
 				<FormGroup key={fieldId}>
 					<AskAIButton id={fieldId} onAskAI={onAskAI || (() => {})}>
@@ -1095,7 +1104,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 								required
 							)}
 
-							{controlType === "textarea" && (
+							<div ref={fieldWrapperRef} className="relative">
+								{controlType === "textarea" && (
 								<textarea
 									id={fieldId}
 									value={value}
