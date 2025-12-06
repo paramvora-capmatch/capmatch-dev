@@ -213,12 +213,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     router.replace(nextPath);
   }, [pathname, router, searchParams, setBorrowerEditing]);
 
-  // Handle tab=chat and thread query parameters (for notification links)
+  // Handle tab=chat, thread, and resourceId query parameters (for notification links)
   useEffect(() => {
     const tab = searchParams?.get("tab");
     const threadId = searchParams?.get("thread");
+    const resourceId = searchParams?.get("resourceId");
 
-    if (!tab && !threadId) return;
+    if (!tab && !threadId && !resourceId) return;
 
     // Only process if we have an active project loaded
     if (!activeProject || activeProject.id !== projectId) return;
@@ -238,10 +239,24 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       });
     }
 
+    if (resourceId) {
+      // Open the resource preview modal and highlight the resource
+      setPreviewingResourceId(resourceId);
+      setHighlightedResourceId(resourceId);
+      // Scroll to documents section if it exists
+      setTimeout(() => {
+        const documentsSection = document.getElementById("project-documents-section");
+        if (documentsSection) {
+          documentsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+
     // Clean up query params after handling them
     const params = new URLSearchParams(searchParams.toString());
     params.delete("tab");
     params.delete("thread");
+    params.delete("resourceId");
     const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
     router.replace(nextPath);
   }, [searchParams, pathname, router, setActiveThread, loadThreadsForProject, activeProject, projectId]);
