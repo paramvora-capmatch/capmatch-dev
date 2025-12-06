@@ -94,7 +94,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 				window.removeEventListener("resize", updatePosition);
 			};
 		}
-	}, [isOpen, placement]);
+	}, [isOpen, effectivePlacement, triggerRef]);
 
 	if (!warnings || warnings.length === 0) {
 		return null;
@@ -107,7 +107,7 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 			width: "20rem",
 		};
 
-		switch (placement) {
+		switch (effectivePlacement) {
 			case "top":
 				return {
 					...baseStyles,
