@@ -2,150 +2,57 @@
 
 "use client";
 
-import React, { useCallback, useMemo, useState, useEffect, useRef } from "react";
-import { useParams, useSearchParams, usePathname } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout"; // Use the consolidated layout
-import { ProjectWorkspace } from "@/components/project/ProjectWorkspace"; // Import the workspace component
-import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute"; // Protect the route
-import { useProjects } from "@/hooks/useProjects"; // Import useProjects to get project name
-import { useRouter } from "next/navigation"; // Import useRouter for breadcrumb navigation
-import { ArrowLeft } from "lucide-react";
+import React, { useCallback, useMemo } from "react";
+import { useParams } from "next/navigation";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import { ProjectWorkspace } from "@/components/project/ProjectWorkspace";
+import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
+import { useProjects } from "@/hooks/useProjects";
+import { useRouter } from "next/navigation";
+import { useBorrowerViewSync } from "@/hooks/useBorrowerViewSync";
+import { ProjectWorkspaceBreadcrumb } from "@/components/project/ProjectWorkspaceBreadcrumb";
 
 export default function AdvisorProjectWorkspacePage() {
   const params = useParams();
-  const projectId = params?.id as string; // Get project ID from URL
-  const router = useRouter(); // Initialize useRouter
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  // Initialize state from URL on mount
-  const [isBorrowerEditing, setIsBorrowerEditing] = useState(() => {
-    return searchParams?.get("view") === "borrower";
-  });
-  const isUpdatingFromStateRef = useRef(false);
-  const lastUrlViewRef = useRef<string | null>(searchParams?.get("view"));
-  const isUserInitiatedChangeRef = useRef(false);
-  const isInitialMountRef = useRef(true);
+  const projectId = params?.id as string;
+  const router = useRouter();
 
   // Get the activeProject from the store. The workspace component handles loading it.
-  const { activeProject, isLoading } = useProjects();
+  const { activeProject } = useProjects();
 
-  // Determine the page title. Show loading state until the active project is loaded and matches the ID.
-  const pageTitle =
-    isLoading || !activeProject || activeProject.id !== projectId
-      ? "Loading Project..."
-      : activeProject.projectName;
+  // Use custom hook for URL/state synchronization
+  const {
+    isBorrowerEditing,
+    handleBorrowerEditingChange,
+  } = useBorrowerViewSync();
 
-  // Sync URL query parameter with isBorrowerEditing state (for browser back/forward)
-  useEffect(() => {
-    // Skip on initial mount
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      return;
-    }
-
-    const currentView = searchParams?.get("view");
-    
-    // Only update state if URL actually changed (not from our own update)
-    if (currentView !== lastUrlViewRef.current && !isUpdatingFromStateRef.current) {
-      const shouldBeEditing = currentView === "borrower";
-      setIsBorrowerEditing(shouldBeEditing);
-      lastUrlViewRef.current = currentView;
-      isUserInitiatedChangeRef.current = false; // This is a URL-initiated change
-    }
-  }, [searchParams]);
-
-  // Update URL when isBorrowerEditing changes programmatically (user-initiated)
-  useEffect(() => {
-    // Skip on initial mount - don't manipulate URL on first load
-    if (isInitialMountRef.current) {
-      return;
-    }
-
-    const currentView = searchParams?.get("view");
-    const shouldHaveView = isBorrowerEditing;
-    const hasView = currentView === "borrower";
-    
-    // Only update URL if state and URL are out of sync AND it's a user-initiated change
-    if (shouldHaveView !== hasView && isUserInitiatedChangeRef.current) {
-      isUpdatingFromStateRef.current = true;
-      const params = new URLSearchParams(searchParams?.toString() || "");
-      
-      if (shouldHaveView) {
-        params.set("view", "borrower");
-      } else {
-        params.delete("view");
-      }
-      
-      const newPath = params.toString() 
-        ? `${pathname}?${params.toString()}` 
-        : pathname;
-      
-      // Use push when entering borrower mode (to add history entry), replace when exiting
-      if (shouldHaveView) {
-        router.push(newPath);
-      } else {
-        router.replace(newPath);
-      }
-      lastUrlViewRef.current = shouldHaveView ? "borrower" : null;
-      
-      // Reset flags after URL update completes
-      setTimeout(() => {
-        isUpdatingFromStateRef.current = false;
-        isUserInitiatedChangeRef.current = false;
-      }, 100);
-    }
-  }, [isBorrowerEditing, pathname, router, searchParams]);
-
+  // Optimize handleBack callback - only depends on isBorrowerEditing and router
   const handleBack = useCallback(() => {
     if (isBorrowerEditing) {
-      isUserInitiatedChangeRef.current = true;
-      setIsBorrowerEditing(false);
+      handleBorrowerEditingChange(false);
     } else {
       router.push("/advisor/dashboard");
     }
-  }, [isBorrowerEditing, router]);
+  }, [isBorrowerEditing, router, handleBorrowerEditingChange]);
 
-  // Wrapper for setIsBorrowerEditing that marks it as user-initiated
-  const handleBorrowerEditingChange = useCallback((value: boolean) => {
-    isUserInitiatedChangeRef.current = true;
-    setIsBorrowerEditing(value);
-  }, []);
-
+  // Memoize breadcrumb component props
+  // Show loading state only if activeProject doesn't match projectId
   const breadcrumb = useMemo(() => {
-    const projectName = activeProject?.projectName || "Project";
+    const isProjectLoaded = activeProject?.id === projectId;
+    const projectName = isProjectLoaded 
+      ? (activeProject?.projectName || "Project")
+      : "Loading Project...";
+    
     return (
-      <nav className="flex items-center space-x-2 text-base mb-2">
-        <button
-          onClick={handleBack}
-          className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md mr-2 transition-colors"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => router.push("/advisor/dashboard")}
-          className="text-gray-500 hover:text-gray-700 font-medium"
-        >
-          Dashboard
-        </button>
-        <span className="text-gray-400">/</span>
-        {isBorrowerEditing ? (
-          <>
-            <button
-              onClick={() => handleBorrowerEditingChange(false)}
-              className="text-gray-500 hover:text-gray-700 font-medium"
-            >
-              {projectName}
-            </button>
-            <span className="text-gray-400">/</span>
-            <span className="text-gray-800 font-semibold">Borrower Details</span>
-          </>
-        ) : (
-          <span className="text-gray-800 font-semibold">{projectName}</span>
-        )}
-      </nav>
+      <ProjectWorkspaceBreadcrumb
+        projectName={projectName}
+        isBorrowerEditing={isBorrowerEditing}
+        onBack={handleBack}
+        onBorrowerEditingChange={handleBorrowerEditingChange}
+        dashboardPath="/advisor/dashboard"
+      />
     );
-  }, [activeProject?.projectName, handleBack, isBorrowerEditing, router, handleBorrowerEditingChange]);
+  }, [activeProject?.id, activeProject?.projectName, projectId, isBorrowerEditing, handleBack, handleBorrowerEditingChange]);
 
   if (!projectId) {
     // Handle case where ID is missing, maybe redirect or show error

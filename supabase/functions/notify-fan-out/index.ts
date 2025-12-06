@@ -223,7 +223,14 @@ async function handleChatMessage(
       
       if (isMuted) continue;
 
-      // 5. Determine Notification Type
+      // 5. Get user role to determine correct URL path
+      const userRole = await getUserRole(supabaseAdmin, userId);
+      const basePath = userRole === "advisor" 
+          ? `/advisor/project/${projectId}` 
+          : `/project/workspace/${projectId}`;
+      const linkUrl = `${basePath}?tab=chat&thread=${event.thread_id}`;
+
+      // 6. Determine Notification Type
       const isMentioned = mentionedUserIds.includes(userId);
       
       if (isMentioned) {
@@ -234,7 +241,7 @@ async function handleChatMessage(
               event_id: event.id,
               title: `${senderName} mentioned you in ${threadLabel} - ${projectName}`,
               body: fullContent,
-              link_url: `/project/workspace/${projectId}?tab=chat&thread=${event.thread_id}`,
+              link_url: linkUrl,
               payload: { ...threadPayloadBase, type: "mention" },
           });
           if (!error) insertedCount++;
@@ -267,7 +274,7 @@ async function handleChatMessage(
                   event_id: event.id,
                   title: `New messages in ${projectDescriptor}`,
                   body: `1 new message in **${threadDescriptor}**`,
-                  link_url: `/project/workspace/${projectId}?tab=chat&thread=${event.thread_id}`,
+                  link_url: linkUrl,
                   payload: threadPayloadBase
               });
               if (!error) insertedCount++;
@@ -338,6 +345,11 @@ async function getProfileName(supabaseAdmin: SupabaseClient, userId: string | nu
     if (!userId) return "Someone";
     const { data } = await supabaseAdmin.from("profiles").select("full_name, email").eq("id", userId).single();
     return data?.full_name || data?.email || "Someone";
+}
+
+async function getUserRole(supabaseAdmin: SupabaseClient, userId: string): Promise<string | null> {
+    const { data } = await supabaseAdmin.from("users").select("role").eq("id", userId).single();
+    return data?.role ?? null;
 }
 
 async function getProjectName(supabaseAdmin: SupabaseClient, projectId: string) {
