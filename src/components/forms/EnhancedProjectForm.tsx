@@ -1623,9 +1623,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 							fieldId={fieldId}
 							fieldMetadata={fieldMetadata[fieldId]}
 						/>
-						<FieldWarningsTooltip
-							warnings={fieldMetadata[fieldId]?.warnings}
-						/>
+						{fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0 && (
+							<AlertTriangle className="h-3 w-3 text-amber-500" />
+						)}
 						<div className="ml-auto flex items-center gap-1">
 							<button
 								type="button"
