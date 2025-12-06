@@ -18,12 +18,25 @@ export const FieldWarningsTooltip: React.FC<FieldWarningsTooltipProps> = ({
 	className,
 	placement = "top",
 	triggerRef: externalTriggerRef,
+	triggerRefs,
 	showIcon = true,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [position, setPosition] = useState({ top: 0, left: 0 });
+	const [activeTriggerRef, setActiveTriggerRef] = useState<React.RefObject<HTMLElement> | null>(null);
 	const internalTriggerRef = useRef<HTMLDivElement>(null);
-	const triggerRef = externalTriggerRef || internalTriggerRef;
+	
+	// Collect all trigger refs (icon, external, and any additional ones)
+	const allTriggerRefs = useMemo(() => {
+		const refs: React.RefObject<HTMLElement>[] = [];
+		if (showIcon && internalTriggerRef) refs.push(internalTriggerRef as React.RefObject<HTMLElement>);
+		if (externalTriggerRef) refs.push(externalTriggerRef);
+		if (triggerRefs) refs.push(...triggerRefs);
+		return refs;
+	}, [showIcon, externalTriggerRef, triggerRefs]);
+	
+	// Use the active trigger ref for positioning, or fall back to first available
+	const triggerRef = activeTriggerRef || allTriggerRefs[0] || internalTriggerRef;
 
 	useEffect(() => {
 		if (isOpen && triggerRef.current) {
