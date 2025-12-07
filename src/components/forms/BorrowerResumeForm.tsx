@@ -320,6 +320,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		lockedFields,
 	});
 	const isSavingRef = useRef(false);
+	
+	// Keep fieldMetadata ref in sync for use in effects
+	useEffect(() => {
+		stateRef.current.fieldMetadata = fieldMetadata;
+	}, [fieldMetadata]);
 
 	const {
 		isAutofilling,
@@ -327,10 +332,23 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		handleAutofill: startAutofill,
 	} = useAutofill(projectId, { context: "borrower" });
 
+	// Ref to store the last borrowerResume content hash to prevent unnecessary updates
+	const lastBorrowerResumeHashRef = useRef<string | null>(null);
+
 	// Effect to handle updates from parent/hook (e.g. after Autofill or Initial Load)
 	useEffect(() => {
 		if (isRestoring) return;
 		if (!borrowerResume) return;
+
+		// Create a hash of the borrowerResume content to detect actual changes
+		// This prevents infinite loops when borrowerResume gets a new object reference
+		// but the content hasn't actually changed
+		const currentHash = JSON.stringify(borrowerResume);
+		if (lastBorrowerResumeHashRef.current === currentHash) {
+			// Content hasn't changed, skip update
+			return;
+		}
+		lastBorrowerResumeHashRef.current = currentHash;
 
 		const sanitized = sanitizeBorrowerProfile(borrowerResume);
 		setFormData(sanitized);
@@ -558,63 +576,99 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		return deps;
 	}, []);
 
-	// Re-validate dependent fields when any field changes
+	// Track last formData hash to prevent re-validation loops
+	const lastFormDataHashRef = useRef<string>("");
+	const isRevalidatingRef = useRef(false);
+
+	// Re-validate dependent fields when formData changes (NOT when fieldMetadata changes)
 	useEffect(() => {
+		// Skip if we're already revalidating to prevent loops
+		if (isRevalidatingRef.current) return;
+
+		// Create hash of formData to detect actual changes
+		const currentFormDataHash = JSON.stringify(formData);
+		
+		// Skip if formData hasn't actually changed
+		if (currentFormDataHash === lastFormDataHashRef.current) return;
+		
+		// Update hash
+		lastFormDataHashRef.current = currentFormDataHash;
+
 		// Debounce to avoid excessive API calls
 		const timeoutId = setTimeout(async () => {
-			const fieldsToRevalidate = new Set<string>();
-			
-			Object.keys(formData).forEach((fieldId) => {
-				const dependentFields = fieldDependencies[fieldId];
-				if (dependentFields) {
-					dependentFields.forEach((depFieldId) => {
-						const depValue = (formData as any)[depFieldId];
-						if (depValue !== undefined && depValue !== null) {
-							fieldsToRevalidate.add(depFieldId);
-						}
-					});
-				}
-			});
-			
-			for (const fieldId of fieldsToRevalidate) {
-				const fieldValue = (formData as any)[fieldId];
-				if (fieldValue !== undefined && fieldValue !== null) {
-					// Re-run sanity check for dependent field
-					try {
-						const { checkRealtimeSanity } = await import(
-							"@/lib/api/realtimeSanityCheck"
-						);
-						const currentMeta = fieldMetadata[fieldId] || {
-							value: fieldValue,
-							source: null,
-							warnings: [],
-							other_values: [],
-						};
-						const context = { ...formData, [fieldId]: fieldValue };
-						const result = await checkRealtimeSanity({
-							fieldId,
-							value: fieldValue,
-							resumeType: "borrower",
-							context,
-							existingFieldData: currentMeta,
-						});
+			// Set flag to prevent re-triggering
+			isRevalidatingRef.current = true;
 
-						setFieldMetadata((prev) => ({
-							...prev,
-							[fieldId]: {
-								...prev[fieldId],
-								warnings: result.warnings || [],
-							},
-						}));
-					} catch (error) {
-						console.error(`Realtime sanity check failed for ${fieldId}:`, error);
+			try {
+				const fieldsToRevalidate = new Set<string>();
+				
+				Object.keys(formData).forEach((fieldId) => {
+					const dependentFields = fieldDependencies[fieldId];
+					if (dependentFields) {
+						dependentFields.forEach((depFieldId) => {
+							const depValue = (formData as any)[depFieldId];
+							if (depValue !== undefined && depValue !== null) {
+								fieldsToRevalidate.add(depFieldId);
+							}
+						});
+					}
+				});
+				
+				for (const fieldId of fieldsToRevalidate) {
+					const fieldValue = (formData as any)[fieldId];
+					if (fieldValue !== undefined && fieldValue !== null) {
+						// Re-run sanity check for dependent field
+						try {
+							const { checkRealtimeSanity } = await import(
+								"@/lib/api/realtimeSanityCheck"
+							);
+							// Use current fieldMetadata from ref to avoid stale closure
+							const currentMeta = stateRef.current.fieldMetadata[fieldId] || {
+								value: fieldValue,
+								source: null,
+								warnings: [],
+								other_values: [],
+							};
+							const context = { ...formData, [fieldId]: fieldValue };
+							const result = await checkRealtimeSanity({
+								fieldId,
+								value: fieldValue,
+								resumeType: "borrower",
+								context,
+								existingFieldData: currentMeta,
+							});
+
+							// Use functional update to avoid dependency on fieldMetadata
+							setFieldMetadata((prev) => {
+								// Only update if warnings actually changed to prevent loops
+								const currentWarnings = prev[fieldId]?.warnings || [];
+								const newWarnings = result.warnings || [];
+								if (JSON.stringify(currentWarnings) === JSON.stringify(newWarnings)) {
+									return prev; // No change, return same object
+								}
+								return {
+									...prev,
+									[fieldId]: {
+										...prev[fieldId],
+										warnings: newWarnings,
+									},
+								};
+							});
+						} catch (error) {
+							console.error(`Realtime sanity check failed for ${fieldId}:`, error);
+						}
 					}
 				}
+			} finally {
+				// Reset flag after a short delay to allow state updates to complete
+				setTimeout(() => {
+					isRevalidatingRef.current = false;
+				}, 100);
 			}
 		}, 500);
 
 		return () => clearTimeout(timeoutId);
-	}, [formData, fieldDependencies, fieldMetadata]);
+	}, [formData, fieldDependencies]); // Removed fieldMetadata from dependencies!
 
 	// Principals Management (table-style, similar to residential unit mix)
 	const handleRemovePrincipal = useCallback(

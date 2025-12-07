@@ -294,10 +294,20 @@ export const useProjectBorrowerResumeRealtime = (
 	const remoteUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const localSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const isAutofillRunningRef = useRef(false);
+	const lastContentHashRef = useRef<string | null>(null);
+
+	// Helper to update content only if it has actually changed
+	const updateContentIfChanged = useCallback((newContent: BorrowerResumeContent | null) => {
+		const newHash = newContent ? JSON.stringify(newContent) : null;
+		if (lastContentHashRef.current !== newHash) {
+			lastContentHashRef.current = newHash;
+			setContent(newContent);
+		}
+	}, []);
 
 	const load = useCallback(async () => {
 		if (!projectId) {
-			setContent(null);
+			updateContentIfChanged(null);
 			return;
 		}
 
@@ -305,7 +315,7 @@ export const useProjectBorrowerResumeRealtime = (
 		setError(null);
 		try {
 			const result = await getProjectBorrowerResumeContent(projectId);
-			setContent(result);
+			updateContentIfChanged(result);
 		} catch (err) {
 			setError(
 				err instanceof Error
@@ -315,7 +325,7 @@ export const useProjectBorrowerResumeRealtime = (
 		} finally {
 			setIsLoading(false);
 		}
-	}, [projectId]);
+	}, [projectId, updateContentIfChanged]);
 
 	// Listen for autofill state changes and local save events
 	useEffect(() => {
@@ -410,7 +420,7 @@ export const useProjectBorrowerResumeRealtime = (
 							projectId
 						);
 						if (latest) {
-							setContent(latest);
+							updateContentIfChanged(latest);
 
 							// Reset remote update flag after 3 seconds
 							remoteUpdateTimeoutRef.current = setTimeout(() => {
@@ -461,7 +471,7 @@ export const useProjectBorrowerResumeRealtime = (
 							projectId
 						);
 						if (latest) {
-							setContent(latest);
+							updateContentIfChanged(latest);
 							if (remoteUpdateTimeoutRef.current)
 								clearTimeout(remoteUpdateTimeoutRef.current);
 							remoteUpdateTimeoutRef.current = setTimeout(() => {
@@ -495,7 +505,7 @@ export const useProjectBorrowerResumeRealtime = (
 							projectId
 						);
 						if (latest) {
-							setContent(latest);
+							updateContentIfChanged(latest);
 						}
 					} catch (err) {
 						console.error(
@@ -565,7 +575,7 @@ export const useProjectBorrowerResumeRealtime = (
 				const reloaded = await getProjectBorrowerResumeContent(
 					projectId
 				);
-				setContent(reloaded);
+				updateContentIfChanged(reloaded);
 			} catch (err) {
 				const message =
 					err instanceof Error
