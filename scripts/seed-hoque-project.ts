@@ -9,8 +9,8 @@ import { resolve } from 'path';
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { ProjectResumeContent } from '../src/lib/project-queries';
-import formSchema from '../src/lib/enhanced-project-form.schema.json';
-import { projectResumeFieldMetadata } from '../src/lib/project-resume-field-metadata';
+import projectFormSchema from '../src/lib/enhanced-project-form.schema.json';
+import borrowerFormSchema from '../src/lib/borrower-resume-form.schema.json';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -95,46 +95,43 @@ const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
 const HOQUE_PROJECT_NAME = 'SoGood Apartments';
 
 /**
- * Default value helper so that EVERY field rendered by EnhancedProjectForm
- * has a non-empty value in the seeded resume. This guarantees:
- * - all fields are "filled" according to form logic
- * - when paired with _lockedFields they render as green/locked.
+ * Get all field IDs from a schema
  */
-function getDefaultValueForField(fieldId: string): any {
-  const meta = projectResumeFieldMetadata[fieldId];
-  const dataType = meta?.dataType?.toLowerCase();
-
-  switch (dataType) {
-    case 'boolean':
-      return false;
-    case 'currency':
-    case 'integer':
-    case 'numeric':
-      return 0;
-    case 'percent':
-    case 'decimal':
-      return 0;
-    case 'date':
-      // Reasonable generic ISO date; UI just needs non-empty.
-      return '2025-01-01';
-    case 'table':
-      return [];
-    case 'checklist':
-    case 'multi-select':
-      return [];
-    default:
-      // Fallback for text / dropdown-like fields – a non-empty placeholder.
-      return 'TBD';
-  }
+function getSchemaFieldIds(schema: any): string[] {
+  return Object.keys(schema.fields || {});
 }
 
-// Base Hoque project resume – we'll later ensure ALL EnhancedProjectForm /
-// metadata fields are present and locked using the schema + metadata.
-const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
+/**
+ * Default value helper for project fields
+ */
+function getDefaultValueForProjectField(fieldId: string): any {
+  // Check if it's a known array/table field
+  const arrayFields = ['residentialUnitMix', 'commercialSpaceMix', 'rentComps', 'drawSchedule', 'amenityList', 'incentiveStacking', 'noiseFactors'];
+  if (arrayFields.includes(fieldId)) {
+    return [];
+  }
+  
+  // Check if it's a known boolean field
+  const booleanFields = ['furnishedUnits', 'affordableHousing', 'opportunityZone', 'taxExemption', 'tifDistrict', 'taxAbatement', 'paceFinancing', 'historicTaxCredits', 'newMarketsCredits', 'wetlandsPresent', 'densityBonus', 'permTakeoutPlanned'];
+  if (booleanFields.includes(fieldId)) {
+    return false;
+  }
+  
+  // Check if it's a known numeric field
+  const numericFields = ['totalResidentialUnits', 'totalResidentialNRSF', 'averageUnitSize', 'totalCommercialGRSF', 'grossBuildingArea', 'numberOfStories', 'parkingSpaces', 'parkingRatio', 'buildingEfficiency', 'studioCount', 'oneBedCount', 'twoBedCount', 'threeBedCount', 'lossToLease', 'adaCompliantPercent', 'solarCapacity', 'evChargingStations', 'totalDevelopmentCost', 'totalProjectCost', 'capexBudget', 'purchasePrice', 'landAcquisition', 'baseConstruction', 'contingency', 'constructionFees', 'aeFees', 'thirdPartyReports', 'legalAndOrg', 'titleAndRecording', 'taxesDuringConstruction', 'developerFee', 'loanFees', 'interestReserve', 'ffe', 'workingCapital', 'opDeficitEscrow', 'leaseUpEscrow', 'relocationCosts', 'syndicationCosts', 'enviroRemediation', 'pfcStructuringFee', 'sponsorEquity', 'taxCreditEquity', 'gapFinancing', 'equityCommittedPercent', 'loanAmountRequested', 'amortizationYears', 'interestRate', 'underwritingRate', 'interestOnlyPeriodMonths', 'targetLtvPercent', 'targetLtcPercent', 'allInRate', 'realEstateTaxes', 'insurance', 'utilitiesCosts', 'repairsAndMaintenance', 'managementFee', 'generalAndAdmin', 'payroll', 'reserves', 'marketingLeasing', 'serviceCoordination', 'noiYear1', 'propertyNoiT12', 'stabilizedNoiProjected', 'yieldOnCost', 'capRate', 'stabilizedValue', 'ltv', 'debtYield', 'dscr', 'trendedNOIYear1', 'untrendedNOIYear1', 'trendedYield', 'untrendedYield', 'inflationAssumption', 'dscrStressTest', 'ltvStressMax', 'dscrStressMin', 'portfolioLTV', 'portfolioDSCR', 'expectedHoldPeriod', 'population3Mi', 'projGrowth202429', 'popGrowth201020', 'medianHHIncome', 'renterOccupiedPercent', 'unemploymentRate', 'employerConcentration', 'walkabilityScore', 'submarketAbsorption', 'supplyPipeline', 'monthsOfSupply', 'captureRate', 'affordableUnitsNumber', 'amiTargetPercent', 'exemptionTerm', 'preLeasedSF', 'absorptionProjection', 'totalSiteAcreage', 'buildableAcreage', 'allowableFAR', 'farUtilizedPercent', 'sponsorExpScore', 'priorDevelopments', 'netWorth', 'guarantorLiquidity'];
+  if (numericFields.includes(fieldId)) {
+    return 0;
+  }
+  
+  // Default to empty string for text fields
+  return '';
+}
+
+// Base Hoque project resume – only fields from the schema
+const hoqueProjectResumeBase: Record<string, any> = {
   projectName: 'SoGood Apartments',
   assetType: 'Mixed-Use',
   dealStatus: 'Underwriting',
-  projectStatus: 'Advisor Review',
   propertyAddressStreet: '2300 Hickory St',
   propertyAddressCity: 'Dallas',
   propertyAddressState: 'TX',
@@ -142,16 +139,11 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   propertyAddressZip: '75215',
   parcelNumber: '000472000A01B0100',
   zoningDesignation: 'PD317',
-  primaryAssetClass: 'Multifamily',
   constructionType: 'Ground-Up',
   groundbreakingDate: '2025-08-01',
   completionDate: '2027-09-30',
   totalDevelopmentCost: 29800000,
-  // Keep legacy requestedLoanTerm and also populate schema field requestedTerm
-  requestedLoanTerm: '2 Years',
   requestedTerm: '2 Years',
-  masterPlanName: 'SoGood Master Planned Development',
-  phaseNumber: 'Building B',
   projectDescription: 'Ground-up development of Building B within the SoGood master plan, delivering 116 units over activated ground-floor innovation space between the Dallas Farmers Market and Deep Ellum.',
   projectPhase: 'Construction',
   expectedZoningChanges: 'None',
@@ -167,14 +159,12 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   buildingType: 'Mid-rise',
   parkingSpaces: 180,
   parkingRatio: 1.55,
-  parkingType: 'Structured',
   amenityList: ['Fitness center', 'Shared working space', 'Lounge', 'Outdoor terrace', 'Swimming pool'],
-  amenitySF: 35264,
   // Explicit unit counts by type (in addition to detailed mix)
   studioCount: 84,
   oneBedCount: 24,
   twoBedCount: 8,
-  threeBedCount: 0,
+  threeBedCount: 0, // No 3-bedroom units in this development
   furnishedUnits: false,
   lossToLease: 5.0,
   adaCompliantPercent: 5.0,
@@ -283,19 +273,34 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   interestReserve: 1147500,
   opDeficitEscrow: 650000,
   leaseUpEscrow: 1300000,
-  relocationCosts: 0,
+  relocationCosts: 0, // No relocation required - vacant site
   syndicationCosts: 150000,
-  enviroRemediation: 0,
+  enviroRemediation: 0, // Phase 1 ESA clean - no remediation needed
+  totalProjectCost: 29807800,
+  capexBudget: 16950000,
+  purchasePrice: 6000000,
   
   // Sources of Funds & Loan Terms
   sponsorEquity: 11800000,
-  taxCreditEquity: 0,
-  gapFinancing: 0,
+  taxCreditEquity: 0, // Not utilizing tax credits for this project
+  gapFinancing: 0, // No gap financing required - fully capitalized
+  equityCommittedPercent: 39.6,
+  loanAmountRequested: 18000000,
+  loanType: 'Senior Construction Loan',
   interestRate: 8.0,
   underwritingRate: 8.0,
+  interestRateType: 'Floating',
+  amortizationYears: 30,
+  interestOnlyPeriodMonths: 24,
+  targetLtvPercent: 44,
+  targetLtcPercent: 60,
   prepaymentTerms: 'Minimum interest',
+  prepaymentPremium: 'None - prepayment allowed after interest-only period',
+  recoursePreference: 'Partial Recourse',
   permTakeoutPlanned: true,
   allInRate: 8.25,
+  targetCloseDate: '2025-08-15',
+  useOfProceeds: 'Land acquisition, vertical construction, soft costs, and financing reserves for Building B within the SoGood master plan.',
   
   // Operating Expenses & Investment Metrics
   realEstateTaxes: 34200,
@@ -309,6 +314,8 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   marketingLeasing: 68040,
   serviceCoordination: 10000,
   noiYear1: 2268000,
+  propertyNoiT12: 0, // Ground-up development - no existing NOI
+  stabilizedNoiProjected: 2268000,
   yieldOnCost: 7.6,
   capRate: 5.50,
   stabilizedValue: 41200000,
@@ -326,29 +333,9 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   dscrStressMin: 1.1,
   portfolioLTV: 60.0,
   portfolioDSCR: 1.3,
-  
-  // Loan Info
-  loanAmountRequested: 18000000,
-  loanType: 'Senior Construction Loan',
-  targetLtvPercent: 44,
-  targetLtcPercent: 60,
-  amortizationYears: 30,
-  interestOnlyPeriodMonths: 24,
-  interestRateType: 'Floating',
-  targetCloseDate: '2025-08-15',
-  useOfProceeds: 'Land acquisition, vertical construction, soft costs, and financing reserves for Building B within the SoGood master plan.',
-  recoursePreference: 'Partial Recourse',
-  
-  // Financials
-  purchasePrice: 6000000,
-  totalProjectCost: 29807800,
-  capexBudget: 16950000,
-  propertyNoiT12: 0,
-  stabilizedNoiProjected: 2268000,
   exitStrategy: 'Refinance',
   businessPlanSummary: 'Execute a Dallas PFC-backed workforce housing program (50% of units ≤80% AMI) inside a 6-story mixed-use podium with 30,000 SF of pre-leased Innovation Center space. The plan funds land acquisition, hard/soft costs, and reserves for a 24-month build schedule plus two 6-month extensions, targeting a refinancing or sale upon stabilization in 2027.',
   marketOverviewSummary: 'Site sits between the Dallas Farmers Market, Deep Ellum, and the CBD—walking distance to 5,000+ jobs, DART rail, and the I-30/I-45 interchange. Three-mile demographics show $85K+ median income, 6.9% population growth, and 76% renter share. The submarket has <6,000 units delivering over the next 24 months, keeping occupancy above 94%.',
-  equityCommittedPercent: 39.6,
   
   // Market Context
   submarketName: 'Downtown Dallas',
@@ -358,14 +345,10 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   projGrowth202429: 6.9,
   medianHHIncome: 85906,
   renterOccupiedPercent: 76.7,
-  bachelorsDegreePercent: 50.2,
   unemploymentRate: 3.5,
   largestEmployer: 'Downtown Dallas CBD employers',
   employerConcentration: 15.0,
   crimeRiskLevel: 'Moderate',
-  distanceToCBD: 0.5,
-  distanceToEmployment: '0.5 miles to Dallas CBD and Farmers Market',
-  distanceToTransit: 0.4,
   walkabilityScore: 92,
   infrastructureCatalyst: 'DART expansion and I-30/I-45 interchange improvements',
   broadbandSpeed: 'Fiber 1 Gbps available',
@@ -375,11 +358,7 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   captureRate: 2.1,
   marketConcessions: '1 month free on select units',
   northStarComp: 'SoGood Phase A and nearby Class A multifamily',
-  absorptionRate: 15,
-  penetrationRate: 2.5,
-  infrastructureProject: 'I-30 Canyon Reconstruction',
-  projectBudget: 150000000,
-  infraCompletion: '2028',
+  substantialComp: 'Farmers Market Lofts (220 units, 2018, 95% occupancy) - similar location and unit mix',
   // Seed basic rent comps so the Market Context table is populated
   rentComps: [
     {
@@ -413,27 +392,6 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
       rentPSF: 2.85,
     },
   ],
-  // Sale comparables
-  saleComps: [
-    {
-      propertyName: 'SoGood Phase A',
-      saleDate: '2023-06-01',
-      salePricePerUnit: 260000,
-      capRate: 4.75,
-    },
-    {
-      propertyName: 'South Side Flats',
-      saleDate: '2022-11-15',
-      salePricePerUnit: 245000,
-      capRate: 5.0,
-    },
-    {
-      propertyName: 'Hamilton Station Lofts',
-      saleDate: '2021-09-30',
-      salePricePerUnit: 235000,
-      capRate: 5.1,
-    },
-  ],
   
   // Special Considerations
   opportunityZone: true,
@@ -452,9 +410,8 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   newMarketsCredits: false,
   relocationPlan: 'N/A',
   seismicPMLRisk: '2.5% PML',
-  environmental: 'Clean',
   
-  // Timeline & Milestones & Site & Context
+  // Timeline & Milestones
   landAcqClose: '2024-07-12',
   firstOccupancy: '2027-10-15',
   stabilization: '2028-03-31',
@@ -463,27 +420,18 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   finalPlans: 'Pending',
   permitsIssued: 'Issued',
   verticalStart: '2025-08-01',
-  totalSiteAcreage: 2.5,
-  currentSiteStatus: 'Vacant',
-  siteAccess: 'Hickory St, Ferris St',
-  proximityShopping: 'Farmers Market, Deep Ellum nearby',
-  topography: 'Flat',
-  proximityRestaurants: 'Walking distance to Deep Ellum dining district',
-  proximityParks: '0.3 miles to Farmers Market Park',
-  proximitySchools: '1.2 miles to CityLab High School',
-  proximityHospitals: '1.5 miles to Baylor University Medical Center',
-  // Seeded draw schedule so the Timeline table renders with rows
-  drawSchedule: [
-    { drawNumber: 1, percentComplete: 10, amount: 2500000 },
-    { drawNumber: 2, percentComplete: 30, amount: 5000000 },
-    { drawNumber: 3, percentComplete: 60, amount: 6500000 },
-    { drawNumber: 4, percentComplete: 90, amount: 5500000 },
-  ],
   absorptionProjection: 12,
+  
+  // Site & Context
+  totalSiteAcreage: 2.5,
   buildableAcreage: 2.3,
   allowableFAR: 3.5,
   farUtilizedPercent: 85.0,
   densityBonus: true,
+  currentSiteStatus: 'Vacant',
+  siteAccess: 'Hickory St, Ferris St',
+  proximityShopping: 'Farmers Market, Deep Ellum nearby',
+  topography: 'Flat',
   soilConditions: 'Urban fill over clay; deep foundations recommended',
   accessPoints: 'Curb cuts on Hickory St and Ferris St',
   adjacentLandUse: 'Mixed-use, residential, and light industrial',
@@ -495,131 +443,85 @@ const hoqueProjectResumeBase: ProjectResumeContent & Record<string, any> = {
   noiseFactors: ['Highway', 'Rail'],
   utilityAvailability: 'Available',
   easements: 'Utility easement along northern property line',
-  utilityCapacity: 'Sufficient electric, water, and sewer capacity confirmed',
-  geotechSoilsRep: 'No critical issues; driven piles recommended for podium structure',
-  topEmployers: 'AT&T, Baylor Scott & White, JP Morgan Chase',
+  // Seeded draw schedule so the Timeline table renders with rows
+  drawSchedule: [
+    { drawNumber: 1, percentComplete: 10, amount: 2500000 },
+    { drawNumber: 2, percentComplete: 30, amount: 5000000 },
+    { drawNumber: 3, percentComplete: 60, amount: 6500000 },
+    { drawNumber: 4, percentComplete: 90, amount: 5500000 },
+  ],
   
-  // Sponsor Information & Metadata
+  // Sponsor Information
   sponsorEntityName: 'Hoque Global',
   sponsorStructure: 'General Partner',
   equityPartner: 'ACARA',
   syndicationStatus: 'In Process',
+  contactInfo: 'Cody Field (415.202.3258), Joel Heikenfeld (972.455.1943)',
   sponsorExperience: 'Seasoned (3+)',
   sponsorExpScore: 8,
   priorDevelopments: 1000,
   netWorth: 50000000,
   guarantorLiquidity: 7500000,
-  guarantorNames: 'Mike Hoque; Joel Heikenfeld',
-  contactInfo: 'Cody Field (415.202.3258), Joel Heikenfeld (972.455.1943)',
-  completenessPercent: 100,
-  internalAdvisorNotes: 'Seeded via scripts/seed-hoque-project.ts',
-  
-  // Additional sections
-  projectSections: {
-    timeline: [
-      { phase: 'Site Control & PFC Approval', date: '2024-07-12' },
-      { phase: 'Design Development Complete', date: '2024-11-01' },
-      { phase: 'Debt Marketing & DD', date: '2025-02-28' },
-      { phase: 'Groundbreaking', date: '2025-08-01' },
-      { phase: 'Topping Out', date: '2026-11-15' },
-      { phase: 'Substantial Completion', date: '2027-09-30' },
-    ],
-    scenarioReturns: {
-      base: { irr: 17.5, equityMultiple: 1.95, debtYield: 12.6, exitCap: 5.5 },
-      upside: { irr: 21.2, equityMultiple: 2.30, debtYield: 13.8, exitCap: 5.25 },
-      downside: { irr: 13.4, equityMultiple: 1.60, debtYield: 11.0, exitCap: 5.85 },
-    },
-    capitalStackHighlights: {
-      loanAmount: 18000000,
-      totalDevelopmentCost: 29807800,
-      equityRequirement: 11807800,
-      ltv: 44,
-      ltc: 60,
-      notes: 'Senior construction facility with two 6-month extensions and partial recourse completion guaranty.',
-    },
-    marketMetrics: {
-      oneMile: { population: 38500, medianIncome: 72000, medianAge: 32 },
-      threeMile: { population: 174270, medianIncome: 85906, medianAge: 33 },
-      fiveMile: { population: 410000, medianIncome: 79500, medianAge: 34 },
-      growthTrends: { population5yr: '6.9%', income5yr: '8.4%', job5yr: '12.1%' },
-      renterShare: '76.7%',
-      avgOccupancy: '94.2%',
-      supplyPipeline: [
-        { quarter: 'Q4 2024', units: 620 },
-        { quarter: 'Q1 2025', units: 880 },
-        { quarter: 'Q3 2025', units: 950 },
-        { quarter: 'Q1 2026', units: 760 },
-        { quarter: 'Q3 2026', units: 890 },
-      ],
-    },
-    certifications: [
-      { name: 'Opportunity Zone', status: 'Qualified' },
-      { name: 'Dallas PFC Tax Exemption', status: 'Executed' },
-      { name: 'Workforce Housing Covenant', status: '50% ≤80% AMI' },
-    ],
-    amenities: [
-      { name: 'Resort-Style Pool', size: '3,200 SF', description: 'Heated saltwater pool with cabanas overlooking the courtyard.' },
-      { name: 'Fitness Center', size: '2,500 SF', description: '24/7 performance studio with functional training + Peloton.' },
-      { name: 'Sky Lounge', size: '1,800 SF', description: 'Indoor/outdoor lounge with downtown skyline views.' },
-      { name: 'Co-Working Space', size: '1,200 SF', description: 'Private offices, maker space, and conference rooms.' },
-      { name: 'Pet Spa', size: '400 SF', description: 'Wash stations with on-site grooming.' },
-      { name: 'Package Concierge', size: '300 SF', description: 'Smart lockers with cold storage for meal delivery.' },
-    ],
-    commercialProgram: [
-      { name: 'Innovation Center (GSV Holdings)', size: '30,000 SF', status: 'Pre-leased', use: 'Flex / Education' },
-      { name: 'Office Suite 1', size: '6,785 SF', status: 'Marketed', use: 'Creative Office' },
-      { name: 'Office Suite 2', size: '5,264 SF', status: 'Marketed', use: 'Professional Services' },
-      { name: 'Retail Bay', size: '745 SF', status: 'Targeting local operator', use: 'Food & Beverage' },
-    ],
-  },
 };
 
 /**
  * Build a complete resume object that:
- * - includes ALL fields used by EnhancedProjectForm (from schema.fields)
- *   and all project resume metadata fields
+ * - includes ONLY fields from the schema
  * - gives every field a non-empty value
  * - locks every such field via _lockedFields so they render green.
  */
-const SCHEMA_FIELD_IDS: string[] = Object.keys(
-  (formSchema as any)?.fields || {}
-);
+const SCHEMA_FIELD_IDS: string[] = getSchemaFieldIds(projectFormSchema);
 
-const METADATA_FIELD_IDS: string[] = Object.keys(projectResumeFieldMetadata);
-
-const ALL_RELEVANT_FIELD_IDS: string[] = Array.from(
-  new Set([...SCHEMA_FIELD_IDS, ...METADATA_FIELD_IDS])
-);
-
-const hoqueProjectResume: ProjectResumeContent & Record<string, any> = (() => {
+const hoqueProjectResume: Record<string, any> = (() => {
   const result: Record<string, any> = { ...hoqueProjectResumeBase };
 
-  // Ensure every form field has a non-empty value.
-  for (const fieldId of ALL_RELEVANT_FIELD_IDS) {
+  // Ensure every schema field has a non-empty value.
+  for (const fieldId of SCHEMA_FIELD_IDS) {
     const current = result[fieldId];
     const isEmptyString =
       typeof current === 'string' && current.trim().length === 0;
     const isUnset = current === undefined || current === null;
 
     if (isUnset || isEmptyString) {
-      result[fieldId] = getDefaultValueForField(fieldId);
+      result[fieldId] = getDefaultValueForProjectField(fieldId);
+    }
+  }
+
+  // Remove any fields not in the schema
+  const schemaFieldSet = new Set(SCHEMA_FIELD_IDS);
+  for (const key of Object.keys(result)) {
+    if (key !== '_lockedFields' && key !== '_fieldStates' && key !== '_metadata' && !schemaFieldSet.has(key)) {
+      delete result[key];
     }
   }
 
   // Lock all form fields so they show as green/locked in the UI.
   const lockedFields: Record<string, boolean> = {};
-  for (const fieldId of ALL_RELEVANT_FIELD_IDS) {
-    lockedFields[fieldId] = true;
+  for (const fieldId of SCHEMA_FIELD_IDS) {
+    if (result[fieldId] !== undefined && result[fieldId] !== null) {
+      // Lock fields that have values (including 0 for numeric fields, as 0 is a valid value)
+      if (typeof result[fieldId] === 'string' && result[fieldId].trim() !== '') {
+        lockedFields[fieldId] = true;
+      } else if (typeof result[fieldId] === 'number') {
+        // Lock all numeric fields, including 0 (0 is a valid value that should be locked)
+        lockedFields[fieldId] = true;
+      } else if (typeof result[fieldId] === 'boolean') {
+        lockedFields[fieldId] = true;
+      } else if (Array.isArray(result[fieldId]) && result[fieldId].length > 0) {
+        lockedFields[fieldId] = true;
+      } else if (typeof result[fieldId] === 'object' && Object.keys(result[fieldId]).length > 0) {
+        lockedFields[fieldId] = true;
+      }
+    }
   }
 
-  // Preserve any existing _lockedFields, but override for form fields.
-  const existingLocked = (result._lockedFields || {}) as Record<string, boolean>;
-  result._lockedFields = { ...existingLocked, ...lockedFields };
+  result._lockedFields = lockedFields;
 
-  return result as ProjectResumeContent & Record<string, any>;
+  return result;
 })();
 
-const hoqueBorrowerResume = {
+// Borrower resume - only fields from the schema
+const hoqueBorrowerResumeBase: Record<string, any> = {
   fullLegalName: 'Hoque Global',
   primaryEntityName: 'Hoque Global / ACARA PFC JV',
   primaryEntityStructure: 'Master Developer + Public Facility Corporation Partnership',
@@ -638,42 +540,65 @@ const hoqueBorrowerResume = {
   bankruptcyHistory: false,
   foreclosureHistory: false,
   litigationHistory: false,
-  completenessPercent: 100,
-  borrowerSections: {
-    principals: [
-      {
-        name: 'Mike Hoque',
-        role: 'Chief Executive Officer',
-        experience: '22 years',
-        bio: 'Founder leading Hoque Global\'s master plan strategy and public-private initiatives across Dallas.',
-        education: 'BBA, University of Texas at Dallas',
-        specialties: ['Master Planning', 'Public-Private Partnerships', 'Mixed-Use Development'],
-        achievements: ['Delivered 1M+ SF of adaptive reuse', 'Dallas Regional Chamber Urban Taskforce Chair'],
-      },
-      {
-        name: 'Joel Heikenfeld',
-        role: 'Managing Director, ACARA',
-        experience: '18 years',
-        bio: 'Capital markets lead for ACARA structuring Opportunity Zone and PFC executions in Texas.',
-        education: 'MBA, SMU Cox School of Business',
-        specialties: ['Capital Markets', 'Workforce Housing', 'PFC Structures'],
-        achievements: ['Structured $300M+ in tax-exempt executions', 'Board Member, Dallas HFC'],
-      },
-    ],
-    trackRecord: [
-      { project: 'SoGood Phase A', year: 2023, units: 190, irr: '21.5%', type: 'Mixed-Use' },
-      { project: 'Hamilton Station Lofts', year: 2021, units: 165, irr: '20.3%', type: 'Multifamily' },
-      { project: 'South Side Flats', year: 2020, units: 230, irr: '22.8%', type: 'Multifamily' },
-      { project: 'Farmers Market West', year: 2019, units: 210, irr: '19.7%', type: 'Mixed-Use' },
-      { project: 'Lamar Urban Lofts', year: 2018, units: 150, irr: '24.0%', type: 'Adaptive Reuse' },
-    ],
-    references: [
-      { firm: 'Frost Bank', relationship: 'Construction Lender', years: '6+' },
-      { firm: 'Citi Community Capital', relationship: 'Permanent / Agency Lender', years: '4+' },
-      { firm: 'Dallas Housing Finance Corp', relationship: 'PFC Partner', years: '5+' },
-    ],
-  },
+  linkedinUrl: '',
+  websiteUrl: '',
+  principalLegalName: 'Mike Hoque',
+  principalRoleDefault: 'Chief Executive Officer',
+  principalEmail: 'mike@hoqueglobal.com',
+  ownershipPercentage: 50,
+  principalBio: 'Founder leading Hoque Global\'s master plan strategy and public-private initiatives across Dallas. Delivered 1M+ SF of adaptive reuse and serves as Dallas Regional Chamber Urban Taskforce Chair.',
 };
+
+/**
+ * Build borrower resume with only schema fields
+ */
+const BORROWER_SCHEMA_FIELD_IDS: string[] = getSchemaFieldIds(borrowerFormSchema);
+
+const hoqueBorrowerResume: Record<string, any> = (() => {
+  const result: Record<string, any> = { ...hoqueBorrowerResumeBase };
+
+  // Ensure every schema field has a value
+  for (const fieldId of BORROWER_SCHEMA_FIELD_IDS) {
+    if (result[fieldId] === undefined || result[fieldId] === null) {
+      // Set default empty values for missing fields
+      if (fieldId.includes('History') || fieldId === 'bankruptcyHistory' || fieldId === 'foreclosureHistory' || fieldId === 'litigationHistory') {
+        result[fieldId] = false;
+      } else if (fieldId.includes('Experience') && fieldId !== 'yearsCREExperienceRange') {
+        result[fieldId] = [];
+      } else {
+        result[fieldId] = '';
+      }
+    }
+  }
+
+  // Remove any fields not in the schema
+  const schemaFieldSet = new Set(BORROWER_SCHEMA_FIELD_IDS);
+  for (const key of Object.keys(result)) {
+    if (key !== '_lockedFields' && key !== '_fieldStates' && key !== '_metadata' && !schemaFieldSet.has(key)) {
+      delete result[key];
+    }
+  }
+
+  // Lock all fields that have values
+  const lockedFields: Record<string, boolean> = {};
+  for (const fieldId of BORROWER_SCHEMA_FIELD_IDS) {
+    if (result[fieldId] !== undefined && result[fieldId] !== null) {
+      if (typeof result[fieldId] === 'string' && result[fieldId].trim() !== '') {
+        lockedFields[fieldId] = true;
+      } else if (typeof result[fieldId] === 'number' && result[fieldId] !== 0) {
+        lockedFields[fieldId] = true;
+      } else if (typeof result[fieldId] === 'boolean') {
+        lockedFields[fieldId] = true;
+      } else if (Array.isArray(result[fieldId]) && result[fieldId].length > 0) {
+        lockedFields[fieldId] = true;
+      }
+    }
+  }
+
+  result._lockedFields = lockedFields;
+
+  return result;
+})();
 
 // ============================================================================
 // ACCOUNT CREATION FUNCTIONS
@@ -1342,7 +1267,7 @@ async function seedProjectResume(projectId: string, createdById: string): Promis
     .from('project_resumes')
     .insert({
       project_id: projectId,
-      content: hoqueProjectResume as any,
+      content: hoqueProjectResume,
       created_by: createdById,
     });
 
@@ -1367,34 +1292,8 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     console.warn(`[seed] Warning: Failed to ensure borrower root resources:`, rootError.message);
   }
 
-  // Build _lockedFields: lock all fields that have non-empty values
-  const lockedFields: Record<string, boolean> = {};
-  for (const [key, value] of Object.entries(hoqueBorrowerResume)) {
-    // Skip reserved keys
-    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata' || key === 'completenessPercent') {
-      continue;
-    }
-    
-    // Lock field if it has a meaningful value
-    if (value !== null && value !== undefined) {
-      if (typeof value === 'string' && value.trim() !== '') {
-        lockedFields[key] = true;
-      } else if (typeof value === 'number' && value !== 0) {
-        lockedFields[key] = true;
-      } else if (typeof value === 'boolean') {
-        lockedFields[key] = true;
-      } else if (Array.isArray(value) && value.length > 0) {
-        lockedFields[key] = true;
-      } else if (typeof value === 'object' && Object.keys(value).length > 0) {
-        lockedFields[key] = true;
-      }
-    }
-  }
-
-  const borrowerResumeWithLocks = {
-    ...hoqueBorrowerResume,
-    _lockedFields: lockedFields,
-  };
+  // hoqueBorrowerResume already has _lockedFields set
+  const borrowerResumeWithLocks = hoqueBorrowerResume;
 
   // Insert new resume version
   // version_number will be auto-assigned by trigger
@@ -1402,7 +1301,7 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
-      content: borrowerResumeWithLocks as any,
+      content: borrowerResumeWithLocks,
       created_by: createdById,
     });
 
@@ -1411,7 +1310,8 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     return false;
   }
 
-  console.log(`[seed] ✅ Updated borrower resume (locked fields: ${Object.keys(lockedFields).length})`);
+  const lockedCount = hoqueBorrowerResume._lockedFields ? Object.keys(hoqueBorrowerResume._lockedFields).length : 0;
+  console.log(`[seed] ✅ Updated borrower resume (locked fields: ${lockedCount})`);
   return true;
 }
 
@@ -1424,112 +1324,128 @@ async function seedDocuments(
 
   const documents: Record<string, string> = {};
 
-  // Map actual file names to meaningful document names
-  const documentPaths = [
-    // Project documents - from context/SoGood and docs/so-good-apartments
-    { file: 'Northmarq Hoque Loan Request Package - SoGood - 5.6.25.pdf', name: 'Loan Request Package', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'SoGood 2021_05_18_SoGood.pdf', name: 'SoGood Master Plan - Concept', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'Concept Combined (1).pdf', name: 'Building B - Concept Drawings', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'SoGood Tracts (2).pdf', name: 'Site Plan - SoGood Tracts', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'SoGood Building B - Pro Forma.xlsx', name: 'Building B - Pro Forma', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'SGCMMD - PFC Memorandum (SoGood) 4874-2859-9225 v.2.pdf', name: 'PFC Memorandum - SoGood', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'HB 2071 Summary.pdf', name: 'HB 2071 Summary - PFC Legislation', type: 'PROJECT_DOCS_ROOT' as const },
-    
-    // Additional documents from docs/so-good-apartments
-    { file: 'alta_survey.pdf', name: 'ALTA Survey', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'appraisal_summary.pdf', name: 'Appraisal Summary', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'architectural_plan_abstract.pdf', name: 'Architectural Plan Abstract', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'construction_draw_schedule.xlsx', name: 'Construction Draw Schedule', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'construction_schedule.pdf', name: 'Construction Schedule', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'development_budget.xlsx', name: 'Development Budget', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'geotechnical_report.pdf', name: 'Geotechnical Report', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'images.pdf', name: 'Project Images', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'incentive_agreement.docx', name: 'Incentive Agreement', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'market_study.pdf', name: 'Market Study', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'operating_proforma.xlsx', name: 'Operating Pro Forma', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'phase_1_esa.pdf', name: 'Phase 1 ESA', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'purchase_and_sale_agreement.docx', name: 'Purchase and Sale Agreement', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'regulatory_agreement.docx', name: 'Regulatory Agreement', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'relocation_plan.docx', name: 'Relocation Plan', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'rent_comp_survey.pdf', name: 'Rent Comp Survey', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'rent_roll.xlsx', name: 'Rent Roll', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'sales_comparables.xlsx', name: 'Sales Comparables', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'site_plan_abstract.pdf', name: 'Site Plan Abstract', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'sources_uses.xlsx', name: 'Sources & Uses', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'sponsor_financials.xlsx', name: 'Sponsor Financials', type: 'BORROWER_DOCS_ROOT' as const },
-    { file: 'sponsor_org_chart.docx', name: 'Sponsor Org Chart', type: 'BORROWER_DOCS_ROOT' as const },
-    { file: 'term_sheet.docx', name: 'Term Sheet', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'title_commitment.docx', name: 'Title Commitment', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'utility_letter.docx', name: 'Utility Letter', type: 'PROJECT_DOCS_ROOT' as const },
-    { file: 'zoning_verification_letter.docx', name: 'Zoning Verification Letter', type: 'PROJECT_DOCS_ROOT' as const },
+  // Project documents - from docs/so-good-apartments/project/
+  const projectDocuments = [
+    { file: 'alta_survey.pdf', name: 'ALTA Survey' },
+    { file: 'appraisal_summary.pdf', name: 'Appraisal Summary' },
+    { file: 'architectural_plan_abstract.docx', name: 'Architectural Plan Abstract' },
+    { file: 'construction_draw_schedule.xlsx', name: 'Construction Draw Schedule' },
+    { file: 'construction_schedule.pdf', name: 'Construction Schedule' },
+    { file: 'development_budget.xlsx', name: 'Development Budget' },
+    { file: 'geotechnical_report.docx', name: 'Geotechnical Report' },
+    { file: 'images.pdf', name: 'Project Images' },
+    { file: 'incentive_agreement.docx', name: 'Incentive Agreement' },
+    { file: 'market_study.docx', name: 'Market Study' },
+    { file: 'operating_proforma.xlsx', name: 'Operating Pro Forma' },
+    { file: 'phase_1_esa.docx', name: 'Phase 1 ESA' },
+    { file: 'purchase_and_sale_agreement.docx', name: 'Purchase and Sale Agreement' },
+    { file: 'regulatory_agreement.docx', name: 'Regulatory Agreement' },
+    { file: 'relocation_plan.docx', name: 'Relocation Plan' },
+    { file: 'rent_comp_survey.pdf', name: 'Rent Comp Survey' },
+    { file: 'rent_roll.xlsx', name: 'Rent Roll' },
+    { file: 'sales_comparables.xlsx', name: 'Sales Comparables' },
+    { file: 'site_plan_abstract.docx', name: 'Site Plan Abstract' },
+    { file: 'sources_uses.xlsx', name: 'Sources & Uses' },
+    { file: 'sponsor_financials.xlsx', name: 'Sponsor Financials' },
+    { file: 'sponsor_org_chart.docx', name: 'Sponsor Org Chart' },
+    { file: 'term_sheet.docx', name: 'Term Sheet' },
+    { file: 'title_commitment.docx', name: 'Title Commitment' },
+    { file: 'utility_letter.docx', name: 'Utility Letter' },
+    { file: 'zoning_verification_letter.docx', name: 'Zoning Verification Letter' },
   ];
 
-  // Try to find documents in common locations (prioritize context/SoGood and docs/so-good-apartments)
+  // Borrower documents - from docs/so-good-apartments/borrower/
+  const borrowerDocuments = [
+    { file: 'entity_structure.docx', name: 'Entity Structure' },
+    { file: 'operating_agreement.docx', name: 'Operating Agreement' },
+    { file: 'personal_financial_statement.xlsx', name: 'Personal Financial Statement' },
+    { file: 'principals.docx', name: 'Principals' },
+    { file: 'reo_track_record.xlsx', name: 'REO Track Record' },
+    { file: 'sponsor_track_record.xlsx', name: 'Sponsor Track Record' },
+  ];
+
+  // Possible base paths for docs/so-good-apartments
   const possibleBasePaths = [
-    resolve(process.cwd(), '../../context/SoGood'),
-    resolve(process.cwd(), '../context/SoGood'),
     resolve(process.cwd(), './docs/so-good-apartments'),
     resolve(process.cwd(), '../docs/so-good-apartments'),
-    resolve(process.cwd(), '../../CapMatch-Extra/SoGood'),
-    resolve(process.cwd(), '../CapMatch-Extra/SoGood'),
-    resolve(process.cwd(), '../SampleLoanPackage/SoGood'),
-    resolve(process.cwd(), './hoque-docs'),
-    resolve(process.cwd(), '../hoque-docs'),
+    resolve(process.cwd(), '../../docs/so-good-apartments'),
   ];
 
-  // Check multiple base paths - documents might be in different locations
-  const foundBasePaths: string[] = [];
+  // Find the base path
+  let basePath: string | null = null;
   for (const path of possibleBasePaths) {
     if (existsSync(path)) {
-      foundBasePaths.push(path);
+      basePath = path;
       console.log(`[seed] Found document directory: ${path}`);
+      break;
     }
   }
 
-  if (foundBasePaths.length === 0) {
+  if (!basePath) {
     console.log(`[seed] ⚠️  No document directory found. Skipping document upload.`);
     console.log(`[seed]    To upload documents, place them in one of:`);
     possibleBasePaths.forEach(p => console.log(`[seed]    - ${p}`));
     return documents;
   }
 
-  // Try to find each document in any of the found base paths
-  for (const doc of documentPaths) {
-    let filePath: string | null = null;
-    let foundInPath: string | null = null;
-    
-    // Check each found base path for this document
-    for (const basePath of foundBasePaths) {
-      const testPath = join(basePath, doc.file);
-      if (existsSync(testPath)) {
-        filePath = testPath;
-        foundInPath = basePath;
-        break;
+  // Upload project documents
+  const projectPath = join(basePath, 'project');
+  if (existsSync(projectPath)) {
+    for (const doc of projectDocuments) {
+      const filePath = join(projectPath, doc.file);
+      if (existsSync(filePath)) {
+        const fileExtension = doc.file.split('.').pop()?.toLowerCase();
+        const fileNameWithExtension = fileExtension 
+          ? `${doc.name}.${fileExtension}`
+          : doc.name;
+        
+        const resourceId = await uploadDocumentToProject(
+          projectId,
+          orgId,
+          filePath,
+          fileNameWithExtension,
+          'PROJECT_DOCS_ROOT',
+          uploadedById
+        );
+        if (resourceId) {
+          documents[doc.name] = resourceId;
+        }
+      } else {
+        console.log(`[seed] ⚠️  Project document not found: ${doc.file}`);
       }
     }
-    
-    if (filePath && foundInPath) {
-      // Extract file extension from the actual file path
-      const fileExtension = doc.file.split('.').pop()?.toLowerCase();
-      // Append extension to the display name so edit button logic works correctly
-      const fileNameWithExtension = fileExtension 
-        ? `${doc.name}.${fileExtension}`
-        : doc.name;
-      
-      const resourceId = await uploadDocumentToProject(
-        projectId,
-        orgId,
-        filePath,
-        fileNameWithExtension,
-        doc.type,
-        uploadedById
-      );
-      if (resourceId) {
-        documents[doc.name] = resourceId;
+  } else {
+    console.log(`[seed] ⚠️  Project documents directory not found: ${projectPath}`);
+  }
+
+  // Upload borrower documents
+  const borrowerPath = join(basePath, 'borrower');
+  if (existsSync(borrowerPath)) {
+    for (const doc of borrowerDocuments) {
+      const filePath = join(borrowerPath, doc.file);
+      if (existsSync(filePath)) {
+        const fileExtension = doc.file.split('.').pop()?.toLowerCase();
+        const fileNameWithExtension = fileExtension 
+          ? `${doc.name}.${fileExtension}`
+          : doc.name;
+        
+        const resourceId = await uploadDocumentToProject(
+          projectId,
+          orgId,
+          filePath,
+          fileNameWithExtension,
+          'BORROWER_DOCS_ROOT',
+          uploadedById
+        );
+        if (resourceId) {
+          documents[doc.name] = resourceId;
+        }
+      } else {
+        console.log(`[seed] ⚠️  Borrower document not found: ${doc.file}`);
       }
-    } else {
-      console.log(`[seed] ⚠️  Document not found in any directory: ${doc.file}`);
     }
+  } else {
+    console.log(`[seed] ⚠️  Borrower documents directory not found: ${borrowerPath}`);
   }
 
   console.log(`[seed] ✅ Seeded ${Object.keys(documents).length} documents`);
@@ -1710,39 +1626,38 @@ async function seedChatMessages(
 
   const threadId = generalThread.id;
   
-  // Get document IDs for references
-  const loanPackageId = documents['Loan Request Package'];
-  const proFormaId = documents['Building B - Pro Forma'];
-  const pfcMemoId = documents['PFC Memorandum - SoGood'];
-  const conceptDrawingsId = documents['Building B - Concept Drawings'];
-  const sitePlanId = documents['Site Plan - SoGood Tracts'];
-  const masterPlanId = documents['SoGood Master Plan - Concept'];
-  const hb2071Id = documents['HB 2071 Summary - PFC Legislation'];
+  // Get document IDs for references (using new document names)
+  const proFormaId = documents['Operating Pro Forma'];
+  const sitePlanId = documents['Site Plan Abstract'];
+  const architecturalPlanId = documents['Architectural Plan Abstract'];
+  const marketStudyId = documents['Market Study'];
+  const termSheetId = documents['Term Sheet'];
+  const sourcesUsesId = documents['Sources & Uses'];
 
   // Realistic chat messages about the SoGood Apartments deal
   const messages = [
     // Initial project kickoff
     {
       userId: borrowerId,
-      content: `Hi @[Cody Field](user:${advisorId})! Excited to work with you on SoGood Apartments Building B. I've uploaded the @[Loan Request Package](doc:${loanPackageId || ''}) which has all the key details for our 116-unit mixed-use development. This is Building B in the SoGood master plan, located between the Dallas Farmers Market and Deep Ellum.`,
-      resourceIds: loanPackageId ? [loanPackageId] : [],
+      content: `Hi @[Cody Field](user:${advisorId})! Excited to work with you on SoGood Apartments Building B. I've uploaded the key documents including the @[Term Sheet](doc:${termSheetId || ''}) and @[Sources & Uses](doc:${sourcesUsesId || ''}) which have all the key details for our 116-unit mixed-use development. This is Building B in the SoGood master plan, located between the Dallas Farmers Market and Deep Ellum.`,
+      resourceIds: [termSheetId, sourcesUsesId].filter(Boolean),
     },
     {
       userId: advisorId,
-      content: `Hi team! Thanks for getting everything uploaded. I've reviewed the loan request package - this is a strong deal. The PFC structure with 50% workforce housing is compelling, and having 30,000 SF pre-leased to GSV Holdings is great for lender comfort. What's our timeline for debt marketing?`,
+      content: `Hi team! Thanks for getting everything uploaded. I've reviewed the term sheet - this is a strong deal. The PFC structure with 50% workforce housing is compelling, and having 30,000 SF pre-leased to GSV Holdings is great for lender comfort. What's our timeline for debt marketing?`,
       resourceIds: [],
     },
     {
       userId: borrowerId,
-      content: `We're targeting Q1 2025 for debt marketing kickoff. Site control and PFC approval are complete as of July 2024. I've also uploaded the @[SoGood Master Plan - Concept](doc:${masterPlanId || ''}) so you can see how Building B fits into the overall development. Groundbreaking is scheduled for August 2025.`,
-      resourceIds: masterPlanId ? [masterPlanId] : [],
+      content: `We're targeting Q1 2025 for debt marketing kickoff. Site control and PFC approval are complete as of July 2024. I've also uploaded the @[Market Study](doc:${marketStudyId || ''}) so you can see the market context. Groundbreaking is scheduled for August 2025.`,
+      resourceIds: marketStudyId ? [marketStudyId] : [],
     },
     
     // PFC discussion
     {
       userId: advisorId,
-      content: `The PFC structure is really going to help with underwriting. I've reviewed the @[PFC Memorandum - SoGood](doc:${pfcMemoId || ''}) - having that tax exemption executed is a huge benefit. That's going to significantly improve NOI and exit value. The @[HB 2071 Summary - PFC Legislation](doc:${hb2071Id || ''}) shows the legislative framework is solid.`,
-      resourceIds: [pfcMemoId, hb2071Id].filter(Boolean),
+      content: `The PFC structure is really going to help with underwriting. I've reviewed the incentive agreement - having that tax exemption executed is a huge benefit. That's going to significantly improve NOI and exit value. The regulatory agreement shows the framework is solid.`,
+      resourceIds: [],
     },
     {
       userId: borrowerId,
@@ -1753,7 +1668,7 @@ async function seedChatMessages(
     // Financial discussion
     {
       userId: advisorId,
-      content: `I've been reviewing the @[Building B - Pro Forma](doc:${proFormaId || ''}) - $18M loan request against $29.8M TDC is 60% LTC, which is reasonable for construction. Your base case shows 17.5% IRR with 44% LTV at stabilization. The partial recourse structure should help with pricing.`,
+      content: `I've been reviewing the @[Operating Pro Forma](doc:${proFormaId || ''}) - $18M loan request against $29.8M TDC is 60% LTC, which is reasonable for construction. Your base case shows 7.6% yield on cost with 44% LTV at stabilization. The partial recourse structure should help with pricing.`,
       resourceIds: proFormaId ? [proFormaId] : [],
     },
     {
@@ -1765,8 +1680,8 @@ async function seedChatMessages(
     // Design and site discussion
     {
       userId: advisorId,
-      content: `The location between Farmers Market and Deep Ellum is excellent. I've looked at the @[Site Plan - SoGood Tracts](doc:${sitePlanId || ''}) - the site access from Hickory St and Ferris St works well. The @[Building B - Concept Drawings](doc:${conceptDrawingsId || ''}) show a solid 6-story podium design with good amenity spaces.`,
-      resourceIds: [sitePlanId, conceptDrawingsId].filter(Boolean),
+      content: `The location between Farmers Market and Deep Ellum is excellent. I've looked at the @[Site Plan Abstract](doc:${sitePlanId || ''}) - the site access from Hickory St and Ferris St works well. The @[Architectural Plan Abstract](doc:${architecturalPlanId || ''}) shows a solid 6-story podium design with good amenity spaces.`,
+      resourceIds: [sitePlanId, architecturalPlanId].filter(Boolean),
     },
     {
       userId: borrowerId,
@@ -1823,12 +1738,12 @@ async function seedChatMessages(
       const constructionMessages = [
         {
           userId: borrowerId,
-          content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Building B - Concept Drawings](doc:${conceptDrawingsId || ''}) show the full scope - 6-story podium with structured parking.`,
-          resourceIds: conceptDrawingsId ? [conceptDrawingsId] : [],
+          content: `Setting up a dedicated thread for construction updates. Our GC is lined up and ready to break ground in August 2025. Key milestone: topping out by November 2026. The @[Architectural Plan Abstract](doc:${architecturalPlanId || ''}) shows the full scope - 6-story podium with structured parking.`,
+          resourceIds: architecturalPlanId ? [architecturalPlanId] : [],
         },
         {
           userId: advisorId,
-          content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan - SoGood Tracts](doc:${sitePlanId || ''}) shows good site access - that should help with construction logistics.`,
+          content: `Good idea to have a separate thread. Lenders will want regular construction updates. Are you planning monthly progress reports? Also, I noticed the @[Site Plan Abstract](doc:${sitePlanId || ''}) shows good site access - that should help with construction logistics.`,
           resourceIds: sitePlanId ? [sitePlanId] : [],
         },
         {
@@ -1854,13 +1769,13 @@ async function seedChatMessages(
       const financingMessages = [
         {
           userId: advisorId,
-          content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Loan Request Package](doc:${loanPackageId || ''}) is comprehensive - I'll use this for initial outreach. Target list coming next week.`,
-          resourceIds: loanPackageId ? [loanPackageId] : [],
+          content: `Starting lender outreach thread. I'm identifying potential lenders who specialize in: 1) Mixed-use construction, 2) PFC/tax-exempt structures, 3) Workforce housing. The @[Term Sheet](doc:${termSheetId || ''}) and @[Sources & Uses](doc:${sourcesUsesId || ''}) are comprehensive - I'll use these for initial outreach. Target list coming next week.`,
+          resourceIds: [termSheetId, sourcesUsesId].filter(Boolean),
         },
         {
           userId: borrowerId,
-          content: `Thanks! We have existing relationships with Frost Bank and Citi Community Capital. Should we prioritize those or cast a wider net? The @[PFC Memorandum - SoGood](doc:${pfcMemoId || ''}) details the tax exemption structure which should be attractive to lenders.`,
-          resourceIds: pfcMemoId ? [pfcMemoId] : [],
+          content: `Thanks! We have existing relationships with Frost Bank and Citi Community Capital. Should we prioritize those or cast a wider net? The incentive agreement details the tax exemption structure which should be attractive to lenders.`,
+          resourceIds: [],
         },
         {
           userId: advisorId,
@@ -1869,7 +1784,7 @@ async function seedChatMessages(
         },
         {
           userId: borrowerId,
-          content: `Sounds good. The @[Building B - Pro Forma](doc:${proFormaId || ''}) shows strong returns - 17.5% base case IRR with multiple exit scenarios. That should help with lender underwriting.`,
+          content: `Sounds good. The @[Operating Pro Forma](doc:${proFormaId || ''}) shows strong returns - 7.6% yield on cost with multiple exit scenarios. That should help with lender underwriting.`,
           resourceIds: proFormaId ? [proFormaId] : [],
         },
       ];
@@ -2162,17 +2077,17 @@ async function seedHoqueProject(): Promise<void> {
     // Step 4.5: Seed OM data (single row per project, no versioning)
     // OM uses same content as project resume but without _lockedFields
     console.log('\n📋 Step 4.5: Seeding OM data...');
-    const omContent = { ...hoqueProjectResume };
+    const omContent: Record<string, any> = { ...hoqueProjectResume };
     // Remove _lockedFields and _fieldStates from OM content (OM doesn't track locks)
-    delete (omContent as any)._lockedFields;
-    delete (omContent as any)._fieldStates;
+    delete omContent._lockedFields;
+    delete omContent._fieldStates;
     
     const { error: omError } = await supabaseAdmin
       .from('om')
       .upsert(
         {
           project_id: projectId,
-          content: omContent as any,
+          content: omContent,
         },
         { onConflict: 'project_id' }
       );
