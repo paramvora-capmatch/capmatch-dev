@@ -4,7 +4,7 @@
 import React, { ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Users, Settings, BellRing, SlidersHorizontal, Calendar as CalendarIcon } from "lucide-react";
+import { LogOut, Users, Settings, BellRing, SlidersHorizontal, Calendar } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import Image from "next/image";
 
@@ -52,7 +52,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         id: "calendar",
         label: "Calendar",
         description: "Connect and sync your calendars.",
-        icon: <CalendarIcon className="h-4 w-4 text-green-500" />,
+        icon: <Calendar className="h-4 w-4 text-green-500" />,
         render: () => <CalendarSettingsPanel />,
       },
       {
@@ -141,14 +141,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
             {(isAuthenticated && user) && (
               <div className="flex items-center gap-3">
-                {/* Calendar button */}
-                <Link
-                  href="/calendar"
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-semibold bg-white text-gray-700 rounded-full border border-gray-300 hover:bg-green-50 hover:text-green-600 hover:border-green-600 transition-colors duration-200 shadow-sm"
-                >
-                  <CalendarIcon className="h-4 w-4" />
-                  Calendar
-                </Link>
                 {/* Team button */}
                 {!hideTeamButton && (
                   <Link
