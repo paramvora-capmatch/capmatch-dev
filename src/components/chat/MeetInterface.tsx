@@ -1,5 +1,5 @@
 // src/components/chat/MeetInterface.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card } from "../ui/card";
 import { Button } from "../ui/Button";
@@ -14,6 +14,7 @@ import {
   Play,
   Plus,
   Users as UsersIcon,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -45,8 +46,11 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [meetingTitle, setMeetingTitle] = useState("");
-  const [meetingDate, setMeetingDate] = useState("");
-  const [meetingTime, setMeetingTime] = useState("");
+  const [meetingDuration, setMeetingDuration] = useState("30");
+  const [selectedSlot, setSelectedSlot] = useState<{ start: string; end: string } | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<Array<{ start: string; end: string }>>([]);
+  const [isFetchingSlots, setIsFetchingSlots] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
 
   // Get project members
   const { members } = useOrgStore();
@@ -72,6 +76,76 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const projectMembers = useMemo(() => {
     return membersByProjectId[projectId] || [];
   }, [membersByProjectId, projectId]);
+
+  // Fetch available time slots when participants change
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      // Only fetch if we have at least one participant selected
+      if (selectedParticipants.length === 0) {
+        setAvailableSlots([]);
+        setSlotsError(null);
+        return;
+      }
+
+      setIsFetchingSlots(true);
+      setSlotsError(null);
+
+      try {
+        // Calculate date range for next 3 days
+        const now = new Date();
+        
+        // Round to next 15-minute interval
+        const startDate = new Date(now);
+        const minutes = startDate.getMinutes();
+        const roundedMinutes = Math.ceil(minutes / 15) * 15;
+        startDate.setMinutes(roundedMinutes, 0, 0);
+        
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 3);
+
+        const response = await fetch('/api/meetings/availability', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userIds: selectedParticipants,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            duration: parseInt(meetingDuration) || 30,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch availability');
+        }
+
+        const data = await response.json();
+        
+        // Filter slots to only show those starting at :00, :15, :30, or :45
+        // and between 9am and 6pm
+        const filteredSlots = (data.freeSlots || []).filter((slot: { start: string }) => {
+          const slotTime = new Date(slot.start);
+          const minutes = slotTime.getMinutes();
+          const hours = slotTime.getHours();
+          const validMinutes = minutes === 0 || minutes === 15 || minutes === 30 || minutes === 45;
+          const validHours = hours >= 9 && hours < 18; // 9am to 5:59pm (last slot at 5:30pm for 30min meeting)
+          return validMinutes && validHours;
+        });
+        
+        setAvailableSlots(filteredSlots);
+      } catch (error) {
+        console.error('Error fetching availability:', error);
+        setSlotsError('Unable to fetch available time slots');
+        setAvailableSlots([]);
+      } finally {
+        setIsFetchingSlots(false);
+      }
+    };
+
+    fetchAvailability();
+  }, [selectedParticipants, meetingDuration]);
 
   // TODO: Replace with actual data from backend/database
   // This is mock data for demonstration
@@ -427,12 +501,14 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
         onClose={() => {
           setIsScheduleModalOpen(false);
           setMeetingTitle("");
-          setMeetingDate("");
-          setMeetingTime("");
+          setMeetingDuration("30");
           setSelectedParticipants([]);
+          setSelectedSlot(null);
+          setAvailableSlots([]);
+          setSlotsError(null);
         }}
         title="Schedule New Meeting"
-        size="md"
+        size="4xl"
       >
         <div className="space-y-4">
           {/* Meeting Title */}
@@ -449,109 +525,183 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
             />
           </div>
 
-          {/* Date and Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date
-              </label>
-              <input
-                type="date"
-                value={meetingDate}
-                onChange={(e) => setMeetingDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Time
-              </label>
-              <input
-                type="time"
-                value={meetingTime}
-                onChange={(e) => setMeetingTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Participants */}
+          {/* Meeting Duration */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Participants
+              Meeting Duration (minutes)
             </label>
-            <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
-              {isMembersLoading ? (
-                <div className="p-4 text-center text-sm text-gray-500">
-                  Loading members...
+            <input
+              type="number"
+              value={meetingDuration}
+              onChange={(e) => setMeetingDuration(e.target.value)}
+              min="15"
+              max="240"
+              step="15"
+              placeholder="30"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Two Column Layout: Participants on left, Time Slots on right */}
+          <div className="grid grid-cols-5 gap-4">
+            {/* Left Column: Participants */}
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Participants
+              </label>
+              <div className="border border-gray-300 rounded-lg h-80 overflow-y-auto">
+                {isMembersLoading ? (
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    Loading members...
+                  </div>
+                ) : projectMembers.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    No team members available
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-1">
+                    {projectMembers.map((member) => {
+                      const displayName = member.userName || member.userEmail || "Unknown User";
+                      const isSelected = selectedParticipants.includes(member.userId);
+
+                      return (
+                        <label
+                          key={member.userId}
+                          className={cn(
+                            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
+                            isSelected ? "bg-purple-50 border border-purple-200" : "hover:bg-gray-50"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedParticipants([...selectedParticipants, member.userId]);
+                              } else {
+                                setSelectedParticipants(
+                                  selectedParticipants.filter((id) => id !== member.userId)
+                                );
+                              }
+                            }}
+                            className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                          />
+                          <div className="flex items-center space-x-2 flex-1 min-w-0">
+                            <div className={cn(
+                              "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0",
+                              "bg-gradient-to-br from-blue-500 to-blue-600"
+                            )}>
+                              {displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {displayName}
+                              </p>
+                              {member.userEmail && (
+                                <p className="text-xs text-gray-500 truncate">
+                                  {member.userEmail}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
                 </div>
-              ) : projectMembers.length === 0 ? (
-                <div className="p-4 text-center text-sm text-gray-500">
-                  No team members available
+              )}
+              </div>
+            </div>
+            
+            {/* Right Column: Available Time Slots */}
+            <div className="col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Available Time Slots
+              </label>
+              
+              {selectedParticipants.length === 0 ? (
+                <div className="border border-gray-200 rounded-lg p-8 bg-gray-50 h-80 flex items-center justify-center">
+                  <p className="text-sm text-gray-500 text-center">
+                    Select participants to see available times
+                  </p>
+                </div>
+              ) : isFetchingSlots ? (
+                <div className="flex items-center justify-center py-8 border border-gray-200 rounded-lg h-80">
+                  <div className="text-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-purple-600 mx-auto mb-2" />
+                    <span className="text-sm text-gray-600">Finding available times...</span>
+                  </div>
+                </div>
+              ) : slotsError ? (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg h-80 flex items-center justify-center">
+                  <p className="text-sm text-red-600">{slotsError}</p>
+                </div>
+              ) : availableSlots.length === 0 ? (
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg h-80 flex items-center justify-center">
+                  <p className="text-sm text-gray-600 text-center">
+                    No common available times found. Try selecting different participants or manually enter a time.
+                  </p>
                 </div>
               ) : (
-                <div className="p-2 space-y-1">
-                  {projectMembers.map((member) => {
-                    const displayName = member.userName || member.userEmail || "Unknown User";
-                    const isSelected = selectedParticipants.includes(member.userId);
+                <div className="border border-gray-200 rounded-lg h-80 overflow-y-auto">
+                  <div className="p-2 space-y-3">
+                    {(() => {
+                      // Group slots by day
+                      const slotsByDay: Record<string, Array<{ start: string; end: string }>> = {};
+                      availableSlots.forEach(slot => {
+                        const date = new Date(slot.start);
+                        const dayKey = date.toLocaleDateString('en-US', { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        });
+                        if (!slotsByDay[dayKey]) {
+                          slotsByDay[dayKey] = [];
+                        }
+                        slotsByDay[dayKey].push(slot);
+                      });
 
-                    return (
-                      <label
-                        key={member.userId}
-                        className={cn(
-                          "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
-                          isSelected ? "bg-purple-50 border border-purple-200" : "hover:bg-gray-50"
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedParticipants([...selectedParticipants, member.userId]);
-                            } else {
-                              setSelectedParticipants(
-                                selectedParticipants.filter((id) => id !== member.userId)
+                      return Object.entries(slotsByDay).map(([day, slots]) => (
+                        <div key={day} className="space-y-2">
+                          <h4 className="text-xs font-semibold text-gray-700 px-2 py-1 bg-gray-100 rounded">
+                            {day}
+                          </h4>
+                          <div className="grid grid-cols-4 gap-2 px-2">
+                            {slots.map((slot, idx) => {
+                              const startTime = new Date(slot.start);
+                              const timeStr = startTime.toLocaleTimeString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true,
+                              });
+                              const isSelected = selectedSlot?.start === slot.start;
+
+                              return (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedSlot(slot);
+                                  }}
+                                  className={cn(
+                                    "px-3 py-2 text-xs font-medium rounded-md transition-colors",
+                                    isSelected
+                                      ? "bg-purple-600 text-white"
+                                      : "bg-white border border-gray-300 text-gray-700 hover:bg-purple-50 hover:border-purple-300"
+                                  )}
+                                >
+                                  {timeStr}
+                                </button>
                               );
-                            }
-                          }}
-                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                        />
-                        <div className="flex items-center space-x-2 flex-1 min-w-0">
-                          <div className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0",
-                            "bg-gradient-to-br from-blue-500 to-blue-600"
-                          )}>
-                            {displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {displayName}
-                            </p>
-                            {member.userEmail && (
-                              <p className="text-xs text-gray-500 truncate">
-                                {member.userEmail}
-                              </p>
-                            )}
+                            })}
                           </div>
                         </div>
-                      </label>
-                    );
-                  })}
+                      ));
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
           </div>
-
-          {/* Selected Count */}
-          {selectedParticipants.length > 0 && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
-              <UsersIcon className="w-4 h-4" />
-              <span>
-                {selectedParticipants.length} participant{selectedParticipants.length !== 1 ? "s" : ""} selected
-              </span>
-            </div>
-          )}
 
           {/* Action Buttons */}
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
@@ -560,9 +710,11 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
               onClick={() => {
                 setIsScheduleModalOpen(false);
                 setMeetingTitle("");
-                setMeetingDate("");
-                setMeetingTime("");
+                setMeetingDuration("30");
                 setSelectedParticipants([]);
+                setSelectedSlot(null);
+                setAvailableSlots([]);
+                setSlotsError(null);
               }}
             >
               Cancel
@@ -572,8 +724,8 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                 // TODO: Implement actual meeting scheduling with backend
                 console.log("Scheduling meeting:", {
                   title: meetingTitle,
-                  date: meetingDate,
-                  time: meetingTime,
+                  duration: meetingDuration,
+                  slot: selectedSlot,
                   participants: selectedParticipants,
                   projectId,
                 });
@@ -581,11 +733,11 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                 // Close modal and reset
                 setIsScheduleModalOpen(false);
                 setMeetingTitle("");
-                setMeetingDate("");
-                setMeetingTime("");
+                setMeetingDuration("30");
                 setSelectedParticipants([]);
+                setSelectedSlot(null);
               }}
-              disabled={!meetingTitle || !meetingDate || !meetingTime || selectedParticipants.length === 0}
+              disabled={!meetingTitle || !selectedSlot || selectedParticipants.length === 0}
               className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Schedule Meeting
