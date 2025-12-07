@@ -20,6 +20,7 @@ import { cn } from "@/utils/cn";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useProjects } from "@/hooks/useProjects";
 import { useProjectMembers } from "@/hooks/useProjectMembers";
+import { useAuth } from "@/hooks/useAuth";
 
 interface MeetInterfaceProps {
   projectId: string;
@@ -55,6 +56,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   // Get project members
   const { members } = useOrgStore();
   const { projects } = useProjects();
+  const { user } = useAuth();
 
   const activeProject = useMemo(
     () => projects?.find((p) => p.id === projectId),
@@ -74,8 +76,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 
   // Get members for the current project
   const projectMembers = useMemo(() => {
-    return membersByProjectId[projectId] || [];
-  }, [membersByProjectId, projectId]);
+    const members = membersByProjectId[projectId] || [];
+    // Filter out the current user
+    return members.filter(member => member.userId !== user?.id);
+  }, [membersByProjectId, projectId, user?.id]);
 
   // Fetch available time slots when participants change
   useEffect(() => {
