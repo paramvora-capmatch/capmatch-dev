@@ -196,19 +196,19 @@ async function createMicrosoftCalendarEvent(
 }
 
 /**
- * Send calendar invites to all participants who have connected calendars
+ * Send calendar invites by creating an event on the organizer's calendar
  */
 export async function sendCalendarInvites(
-  participantUserIds: string[],
+  organizerId: string,
   invite: MeetingInvite
 ): Promise<CalendarEventResult[]> {
   const results: CalendarEventResult[] = [];
 
-  // Fetch all calendar connections for the participants
+  // Fetch calendar connection for the organizer
   const { data: connections, error: fetchError } = await supabaseAdmin
     .from('calendar_connections')
     .select('*')
-    .in('user_id', participantUserIds)
+    .eq('user_id', organizerId)
     .eq('sync_enabled', true);
 
   if (fetchError) {
@@ -217,11 +217,11 @@ export async function sendCalendarInvites(
   }
 
   if (!connections || connections.length === 0) {
-    console.warn('No calendar connections found for participants');
+    console.warn('No calendar connections found for organizer');
     return results;
   }
 
-  // Send invite to each connected calendar
+  // Send invite to each connected calendar (usually just one, but could be multiple providers)
   for (const connection of connections) {
     try {
       let eventId: string;
