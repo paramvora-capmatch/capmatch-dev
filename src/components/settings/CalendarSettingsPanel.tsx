@@ -92,6 +92,25 @@ export const CalendarSettingsPanel = () => {
     }
   }, [updateSyncSettings]);
 
+  const handleToggleCalendar = useCallback(async (connection: CalendarConnection, calendarId: string) => {
+    try {
+      // Get current selected calendars
+      const currentlySelected = connection.calendar_list
+        .filter(cal => cal.selected)
+        .map(cal => cal.id);
+
+      // Toggle the calendar
+      const newSelected = currentlySelected.includes(calendarId)
+        ? currentlySelected.filter(id => id !== calendarId) // Deselect
+        : [...currentlySelected, calendarId]; // Select
+
+      // Update sync settings with new calendar selection
+      await updateSyncSettings(connection.id, connection.sync_enabled, newSelected);
+    } catch (err) {
+      console.error("Failed to toggle calendar:", err);
+    }
+  }, [updateSyncSettings]);
+
   const formatLastSync = (lastSync?: string) => {
     if (!lastSync) return "Never synced";
     const date = new Date(lastSync);
@@ -258,29 +277,42 @@ export const CalendarSettingsPanel = () => {
                 {/* Calendar List (if expanded) */}
                 {isExpanded && connection.calendar_list.length > 0 && (
                   <div className="border-t border-gray-200 p-4">
-                    <h6 className="mb-3 text-sm font-medium text-gray-700">Calendars</h6>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h6 className="text-sm font-medium text-gray-700">Calendars</h6>
+                      <p className="text-xs text-gray-500">Click to select/deselect</p>
+                    </div>
                     <div className="space-y-2">
                       {connection.calendar_list.map((calendar) => (
-                        <div
+                        <button
                           key={calendar.id}
-                          className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+                          onClick={() => handleToggleCalendar(connection, calendar.id)}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-lg border p-3 text-left transition-all",
+                            calendar.selected
+                              ? "border-green-300 bg-green-50 hover:bg-green-100"
+                              : "border-gray-200 bg-gray-50 hover:bg-gray-100"
+                          )}
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className="h-3 w-3 rounded-full"
+                              className="h-3 w-3 flex-shrink-0 rounded-full"
                               style={{ backgroundColor: calendar.color || "#3b82f6" }}
                             />
-                            <div>
+                            <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-gray-900">{calendar.name}</p>
                               {calendar.description && (
                                 <p className="text-xs text-gray-500">{calendar.description}</p>
                               )}
                             </div>
                           </div>
-                          {calendar.selected && (
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          )}
-                        </div>
+                          <div className="flex-shrink-0">
+                            {calendar.selected ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            ) : (
+                              <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
+                            )}
+                          </div>
+                        </button>
                       ))}
                     </div>
                   </div>
