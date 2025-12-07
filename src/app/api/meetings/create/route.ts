@@ -146,15 +146,16 @@ export async function POST(request: NextRequest) {
     let inviteResults: CreateMeetingResponse['inviteResults'] = [];
 
     try {
-      const attendees = participants.map((p) => ({
-        email: p.email,
-        name: p.full_name,
-      }));
+      const attendees = participants
+        .filter((p) => p.id !== user.id)
+        .map((p) => ({
+          email: p.email,
+          name: p.full_name,
+        }));
 
-      // Ensure organizer is always included in calendar invites to prevent self-conflicts
-      const allParticipants = Array.from(new Set([user.id, ...body.participantIds]));
-
-      inviteResults = await sendCalendarInvites(allParticipants, {
+      // Only create the event on the organizer's calendar.
+      // The provider (Google/Outlook) will handle sending invites to attendees.
+      inviteResults = await sendCalendarInvites(user.id, {
         title: body.title,
         description: body.description,
         startTime: body.startTime,
