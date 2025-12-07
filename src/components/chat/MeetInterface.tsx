@@ -21,6 +21,8 @@ import { useOrgStore } from "@/stores/useOrgStore";
 import { useProjects } from "@/hooks/useProjects";
 import { useProjectMembers } from "@/hooks/useProjectMembers";
 import { useAuth } from "@/hooks/useAuth";
+import { useMeetings } from "@/hooks/useMeetings";
+import { supabase } from "@/lib/supabaseClient";
 
 interface MeetInterfaceProps {
   projectId: string;
@@ -52,11 +54,16 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const [availableSlots, setAvailableSlots] = useState<Array<{ start: string; end: string }>>([]);
   const [isFetchingSlots, setIsFetchingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+  const [createMeetingError, setCreateMeetingError] = useState<string | null>(null);
 
   // Get project members
   const { members } = useOrgStore();
   const { projects } = useProjects();
   const { user } = useAuth();
+
+  // Get meetings from database with realtime subscriptions
+  const { upcomingMeetings, pastMeetings, isLoading: isMeetingsLoading, refreshMeetings } = useMeetings();
 
   const activeProject = useMemo(
     () => projects?.find((p) => p.id === projectId),
@@ -97,15 +104,20 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
       try {
         // Calculate date range for next 3 days
         const now = new Date();
-        
+
         // Round to next 15-minute interval
         const startDate = new Date(now);
         const minutes = startDate.getMinutes();
         const roundedMinutes = Math.ceil(minutes / 15) * 15;
         startDate.setMinutes(roundedMinutes, 0, 0);
-        
+
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + 3);
+
+        // Include organizer's user ID to check their calendar for conflicts
+        const userIdsToCheck = user?.id
+          ? [user.id, ...selectedParticipants]
+          : selectedParticipants;
 
         const response = await fetch('/api/meetings/availability', {
           method: 'POST',
@@ -113,7 +125,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            userIds: selectedParticipants,
+            userIds: userIdsToCheck,
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
             duration: parseInt(meetingDuration) || 30,
@@ -151,70 +163,65 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     fetchAvailability();
   }, [selectedParticipants, meetingDuration]);
 
-  // TODO: Replace with actual data from backend/database
-  // This is mock data for demonstration
-  const allMeetings: Meeting[] = [
-    // Upcoming meetings
-    {
-      id: "upcoming-1",
-      title: "Weekly Project Sync",
-      date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
-      duration: 30,
-      participants: ["John Doe", "Jane Smith", "Advisor Mike"],
-    },
-    {
-      id: "upcoming-2",
-      title: "Investor Pitch Preparation",
-      date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-      duration: 60,
-      participants: ["Jane Smith", "Advisor Mike"],
-    },
-    {
-      id: "upcoming-3",
-      title: "Site Visit Debrief",
-      date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-      duration: 45,
-      participants: ["John Doe", "Jane Smith"],
-    },
-    // Past meetings
-    {
-      id: "1",
-      title: "Project Kickoff Meeting",
-      date: new Date("2024-12-01T10:00:00"),
-      duration: 45,
-      participants: ["John Doe", "Jane Smith", "Advisor Mike"],
-      summary: "Discussed project timeline, key milestones, and initial documentation requirements. Team agreed on weekly check-ins every Monday at 10 AM.",
-      transcript: "John: Welcome everyone to our project kickoff...\nJane: Thanks for organizing this meeting...\n[Full transcript would be loaded from backend]",
-      recordingUrl: "#",
-    },
-    {
-      id: "2",
-      title: "Q4 Financial Review",
-      date: new Date("2024-11-28T14:30:00"),
-      duration: 60,
-      participants: ["Jane Smith", "Advisor Mike"],
-      summary: "Reviewed Q4 financial projections and updated cash flow analysis. Discussed potential funding sources and timeline for capital raise.",
-      transcript: "Jane: Let's start with the Q4 numbers...\nAdvisor Mike: Looking at the projections...\n[Full transcript would be loaded from backend]",
-    },
-    {
-      id: "3",
-      title: "Document Review Session",
-      date: new Date("2024-11-25T16:00:00"),
-      duration: 30,
-      participants: ["John Doe", "Jane Smith"],
-      summary: "Reviewed project documents and identified missing information. Assigned action items for completing property analysis section.",
-    },
-  ];
+  // Handle meeting creation
+  const handleCreateMeeting = async () => {
+    if (!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || !user) {
+      return;
+    }
 
-  // Separate upcoming and past meetings
-  const now = new Date();
-  const upcomingMeetings = allMeetings
-    .filter((m) => m.date > now)
-    .sort((a, b) => a.date.getTime() - b.date.getTime()); // Ascending order (soonest first)
+    setIsCreatingMeeting(true);
+    setCreateMeetingError(null);
 
-  const pastMeetings = allMeetings
-    .filter((m) => m.date <= now)
-    .sort((a, b) => b.date.getTime() - a.date.getTime()); // Descending order (most recent first)
+    try {
+      // Get auth token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch('/api/meetings/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: meetingTitle,
+          startTime: selectedSlot.start,
+          endTime: selectedSlot.end,
+          participantIds: [...selectedParticipants, user.id], // Include organizer
+          projectId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create meeting');
+      }
+
+      const data = await response.json();
+      console.log('Meeting created:', data);
+
+      // Refresh meetings list
+      await refreshMeetings();
+
+      // Close modal and reset
+      setIsScheduleModalOpen(false);
+      setMeetingTitle("");
+      setMeetingDuration("30");
+      setSelectedParticipants([]);
+      setSelectedSlot(null);
+      setAvailableSlots([]);
+      setSlotsError(null);
+    } catch (error) {
+      console.error('Error creating meeting:', error);
+      setCreateMeetingError(error instanceof Error ? error.message : 'Failed to create meeting');
+    } finally {
+      setIsCreatingMeeting(false);
+    }
+  };
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
@@ -280,7 +287,11 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 
       {/* Meetings List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {allMeetings.length === 0 ? (
+        {isMeetingsLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+          </div>
+        ) : upcomingMeetings.length === 0 && pastMeetings.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <div className="p-4 bg-gray-100 rounded-full mb-4">
               <Video className="w-8 h-8 text-gray-400" />
@@ -307,7 +318,11 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {upcomingMeetings.map((meeting, index) => (
+                  {upcomingMeetings.map((meeting, index) => {
+                    const startTime = new Date(meeting.start_time);
+                    const participants = meeting.participants || [];
+
+                    return (
                     <motion.div
                       key={meeting.id}
                       initial={{ opacity: 0, y: 10 }}
@@ -325,16 +340,16 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                               <div className="flex items-center space-x-3 text-xs">
                                 <span className="flex items-center text-green-700 font-medium">
                                   <Clock className="w-3 h-3 mr-1" />
-                                  {getTimeUntil(meeting.date)}
+                                  {getTimeUntil(startTime)}
                                 </span>
                                 <span className="flex items-center text-gray-500">
                                   <Calendar className="w-3 h-3 mr-1" />
-                                  {formatDate(meeting.date)}
+                                  {formatDate(startTime)}
                                 </span>
                               </div>
                             </div>
                             <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md flex-shrink-0">
-                              {formatDuration(meeting.duration)}
+                              {formatDuration(meeting.duration_minutes)}
                             </span>
                           </div>
 
@@ -342,12 +357,12 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                           <div>
                             <p className="text-xs text-gray-500 mb-1">Participants:</p>
                             <div className="flex flex-wrap gap-1">
-                              {meeting.participants.map((participant, i) => (
+                              {participants.map((participant, i) => (
                                 <span
                                   key={i}
                                   className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
                                 >
-                                  {participant}
+                                  {participant.user?.full_name || participant.user?.email || 'Unknown'}
                                 </span>
                               ))}
                             </div>
@@ -355,7 +370,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                         </div>
                       </Card>
                     </motion.div>
-                  ))}
+                  )})}
                 </div>
               </div>
             )}
@@ -373,7 +388,11 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {pastMeetings.map((meeting, index) => (
+                  {pastMeetings.map((meeting, index) => {
+                    const startTime = new Date(meeting.start_time);
+                    const participants = meeting.participants || [];
+
+                    return (
                     <motion.div
                       key={meeting.id}
                       initial={{ opacity: 0, y: 10 }}
@@ -391,19 +410,19 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                               <div className="flex items-center space-x-3 text-xs text-gray-500">
                                 <span className="flex items-center">
                                   <Calendar className="w-3 h-3 mr-1" />
-                                  {formatDate(meeting.date)}
+                                  {formatDate(startTime)}
                                 </span>
                                 <span className="flex items-center">
                                   <Clock className="w-3 h-3 mr-1" />
-                                  {formatDuration(meeting.duration)}
+                                  {formatDuration(meeting.duration_minutes)}
                                 </span>
                               </div>
                             </div>
-                            {meeting.recordingUrl && (
+                            {meeting.recording_url && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(meeting.recordingUrl, "_blank")}
+                                onClick={() => window.open(meeting.recording_url, "_blank")}
                                 className="p-1.5 hover:bg-purple-50 hover:text-purple-600 transition-colors flex-shrink-0"
                                 title="Play recording"
                               >
@@ -416,12 +435,12 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                           <div className="mb-3">
                             <p className="text-xs text-gray-500 mb-1">Participants:</p>
                             <div className="flex flex-wrap gap-1">
-                              {meeting.participants.map((participant, i) => (
+                              {participants.map((participant, i) => (
                                 <span
                                   key={i}
                                   className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
                                 >
-                                  {participant}
+                                  {participant.user?.full_name || participant.user?.email || 'Unknown'}
                                 </span>
                               ))}
                             </div>
@@ -442,48 +461,38 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
 
                           {/* Actions */}
                           <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedMeeting(meeting);
-                                setViewMode("summary");
-                              }}
-                              className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                            >
-                              <FileText className="w-3 h-3 mr-1" />
-                              View Summary
-                            </Button>
-                            {meeting.transcript && (
+                            {meeting.transcript_text && (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  setSelectedMeeting(meeting);
-                                  setViewMode("transcript");
+                                  // TODO: Open transcript modal
+                                  console.log("View transcript", meeting.id);
                                 }}
                                 className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
                               >
-                                <ChevronRight className="w-3 h-3" />
+                                <FileText className="w-3 h-3 mr-1" />
                                 Transcript
                               </Button>
                             )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                // TODO: Implement download functionality
-                                console.log("Download meeting", meeting.id);
-                              }}
-                              className="text-xs hover:bg-gray-50 hover:text-gray-700 transition-colors"
-                            >
-                              <Download className="w-3 h-3" />
-                            </Button>
+                            {meeting.recording_url && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  // TODO: Implement download functionality
+                                  console.log("Download meeting", meeting.id);
+                                }}
+                                className="text-xs hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                              >
+                                <Download className="w-3 h-3" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </Card>
                     </motion.div>
-                  ))}
+                  )})}
                 </div>
               </div>
             )}
@@ -707,6 +716,13 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
             </div>
           </div>
 
+          {/* Error Message */}
+          {createMeetingError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{createMeetingError}</p>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
             <Button
@@ -719,32 +735,25 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                 setSelectedSlot(null);
                 setAvailableSlots([]);
                 setSlotsError(null);
+                setCreateMeetingError(null);
               }}
+              disabled={isCreatingMeeting}
             >
               Cancel
             </Button>
             <Button
-              onClick={() => {
-                // TODO: Implement actual meeting scheduling with backend
-                console.log("Scheduling meeting:", {
-                  title: meetingTitle,
-                  duration: meetingDuration,
-                  slot: selectedSlot,
-                  participants: selectedParticipants,
-                  projectId,
-                });
-
-                // Close modal and reset
-                setIsScheduleModalOpen(false);
-                setMeetingTitle("");
-                setMeetingDuration("30");
-                setSelectedParticipants([]);
-                setSelectedSlot(null);
-              }}
-              disabled={!meetingTitle || !selectedSlot || selectedParticipants.length === 0}
+              onClick={handleCreateMeeting}
+              disabled={!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || isCreatingMeeting}
               className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Schedule Meeting
+              {isCreatingMeeting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Schedule Meeting'
+              )}
             </Button>
           </div>
         </div>

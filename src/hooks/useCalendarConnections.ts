@@ -191,7 +191,7 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
           `client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}` +
           `&redirect_uri=${encodeURIComponent(redirectUri)}` +
           `&response_type=code` +
-          `&scope=${encodeURIComponent('openid email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly')}` +
+          `&scope=${encodeURIComponent('openid email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events')}` +
           `&access_type=offline` +
           `&prompt=consent` +
           `&state=${provider}`;
@@ -202,7 +202,7 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
           `client_id=${process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID}` +
           `&redirect_uri=${encodeURIComponent(redirectUri)}` +
           `&response_type=code` +
-          `&scope=${encodeURIComponent('Calendars.Read offline_access')}` +
+          `&scope=${encodeURIComponent('Calendars.ReadWrite offline_access')}` +
           `&state=${provider}`;
         break;
 
