@@ -556,89 +556,53 @@ const ResumeVersionDiffModal: React.FC<ResumeVersionDiffModalProps> = ({
         // Get all possible fields from metadata
         const resumeFieldIds = new Set(Object.keys(projectResumeFieldMetadata));
         
-        // Helper to extract field value from JSONB structure (handles section grouping)
+        // Helper to extract field value directly from content (without flattening)
+        // Searches through the content structure recursively to find the field
         const getFieldValue = (content: any, fieldId: string): any => {
-          // Check if content is in section-grouped format
-          const isGrouped = Object.keys(content || {}).some(key => key.startsWith('section_'));
-          
-          if (isGrouped) {
-            // Find which section this field belongs to
-            const metadata = projectResumeFieldMetadata[fieldId];
-            if (!metadata) return undefined;
-            
-            const sectionId = metadata.section;
-            // Check if content is in new format (actual section IDs) or legacy format (section_*)
-            // Try new format first
-            const sectionData = content[sectionId];
-            let fieldData;
-            
-            if (sectionData) {
-              // New format - check if section has subsections
-              const steps = (formSchema as any).steps || [];
-              let hasSubsections = false;
-              
-              for (const step of steps) {
-                if (step.id === sectionId) {
-                  const subsections = step.subsections || [];
-                  if (subsections.length > 0 && typeof sectionData === 'object' && !Array.isArray(sectionData)) {
-                    const firstKey = Object.keys(sectionData)[0];
-                    const subsectionIds = subsections.map((sub: any) => sub.id);
-                    hasSubsections = firstKey && subsectionIds.includes(firstKey);
-                  }
-                  break;
-                }
-              }
-              
-              if (hasSubsections) {
-                // Section has subsections - find which subsection contains this field
-                for (const step of (formSchema as any).steps || []) {
-                  if (step.id === sectionId) {
-                    for (const subsection of step.subsections || []) {
-                      if ((subsection.fields || []).includes(fieldId)) {
-                        const subsectionData = sectionData[subsection.id];
-                        if (subsectionData && typeof subsectionData === 'object') {
-                          fieldData = subsectionData[fieldId];
-                        }
-                        break;
-                      }
-                    }
-                    break;
-                  }
-                }
-              } else {
-                // Section has no subsections - field is directly in section
-                if (typeof sectionData === 'object' && !Array.isArray(sectionData)) {
-                  fieldData = sectionData[fieldId];
-                }
-              }
-            } else {
-              // Legacy format no longer supported - only new format is used
-              // If we reach here, the section should already be in new format
-              // This code path should not be reached in normal operation
-              fieldData = undefined;
+          if (!content || typeof content !== "object") return undefined;
+
+          // Helper to extract value from a field object (handles rich format)
+          const extractValue = (fieldObj: any): any => {
+            if (fieldObj === null || fieldObj === undefined) return fieldObj;
+            // If it's a rich format object with a value property, extract it
+            if (typeof fieldObj === "object" && !Array.isArray(fieldObj) && "value" in fieldObj) {
+              return (fieldObj as any).value;
             }
-            
-            if (fieldData === undefined) return undefined;
-            if (fieldData === undefined) return undefined;
-            
-            // Extract value from rich object format if needed
-            if (fieldData && typeof fieldData === "object" && "value" in fieldData) {
-              return fieldData.value;
-            }
-            
-            return fieldData;
-          } else {
-            // Flat format - get directly
-            const fieldData = content[fieldId];
-            if (fieldData === undefined) return undefined;
-            
-            // Extract value from rich object format if needed
-            if (fieldData && typeof fieldData === "object" && "value" in fieldData) {
-              return fieldData.value;
-            }
-            
-            return fieldData;
+            // Otherwise return as-is (could be primitive, array, or plain object)
+            return fieldObj;
+          };
+
+          // First, try to find the field directly at the root level
+          if (content.hasOwnProperty(fieldId)) {
+            return extractValue(content[fieldId]);
           }
+
+          // If not found at root, search recursively through sections and subsections
+          const searchInObject = (obj: any, depth: number = 0): any => {
+            if (!obj || typeof obj !== "object" || Array.isArray(obj)) return undefined;
+            if (depth > 5) return undefined; // Prevent infinite recursion
+
+            // Check if this object has the field directly
+            if (obj.hasOwnProperty(fieldId)) {
+              return extractValue(obj[fieldId]);
+            }
+
+            // Recursively search in nested objects (sections, subsections)
+            for (const [key, value] of Object.entries(obj)) {
+              // Skip metadata fields
+              if (key.startsWith("_")) continue;
+              if (key === "completenessPercent" || key === "projectSections" || key === "borrowerSections") continue;
+
+              if (value && typeof value === "object" && !Array.isArray(value)) {
+                const found = searchInObject(value, depth + 1);
+                if (found !== undefined) return found;
+              }
+            }
+
+            return undefined;
+          };
+
+          return searchInObject(content);
         };
         
         // Build diff fields map by comparing JSONB structures directly

@@ -58,6 +58,11 @@ function groupBySections(
 ): Record<string, any> {
 	const grouped: Record<string, any> = {};
 
+	const keys = Object.keys(flatData);
+	console.log(
+		`[project-utils] groupBySections called with ${keys.length} keys: ${keys.join(", ")}`
+	);
+
 	for (const [fieldId, fieldValue] of Object.entries(flatData)) {
 		// Skip special/metadata fields
 		if (
@@ -69,57 +74,72 @@ function groupBySections(
 			continue;
 		}
 
-		// Skip if this looks like a subsection ID (not a field ID)
+		// Check if this looks like a subsection ID (not a field ID)
 		// Subsection IDs like "project-identity" should not be processed as fields
-		if (fieldId.includes("-") && !FIELD_TO_SECTION[fieldId]) {
-			// This might be a subsection ID - check if it contains field data
-			if (
-				typeof fieldValue === "object" &&
-				fieldValue !== null &&
-				!Array.isArray(fieldValue)
-			) {
-				// This is likely a subsection structure that was incorrectly passed
-				// Process the fields inside it instead
-				console.warn(
-					`[project-utils] Found subsection ID '${fieldId}' as key, processing nested fields`
-				);
+		// MUST check this BEFORE checking FIELD_TO_SECTION to avoid placing subsection IDs in "unknown"
+		const hasDash = fieldId.includes("-");
+		const notInFieldMap = !FIELD_TO_SECTION[fieldId];
+		const isObject = typeof fieldValue === "object" && fieldValue !== null && !Array.isArray(fieldValue);
+		
+		console.log(
+			`[project-utils] Processing key '${fieldId}': hasDash=${hasDash}, notInFieldMap=${notInFieldMap}, isObject=${isObject}`
+		);
+		
+		if (hasDash && notInFieldMap && isObject) {
+			// This is a subsection ID with nested field data - process the nested fields
+			console.log(
+				`[project-utils] Found subsection ID '${fieldId}' as key, processing nested fields`
+			);
 
-				// Determine which section this subsection belongs to
-				// Hardcode "project-identity" to "basic-info" section
-				let targetSectionId = "basic-info"; // Default for project-identity
-
-				// You can add more subsection mappings here if needed
-				if (fieldId === "project-identity") {
-					targetSectionId = "basic-info";
-				} else if (fieldId === "classification") {
-					targetSectionId = "basic-info";
-				}
-
-				// Process nested fields and place them in the correct section
-				for (const [nestedFieldId, nestedValue] of Object.entries(
-					fieldValue as Record<string, unknown>
-				)) {
-					const nestedSectionId =
-						FIELD_TO_SECTION[nestedFieldId] || targetSectionId;
-					if (!grouped[nestedSectionId])
-						grouped[nestedSectionId] = {};
-					const nestedSubsectionId = getSubsectionForField(
-						nestedFieldId,
-						nestedSectionId
-					);
-					if (nestedSubsectionId) {
-						if (!grouped[nestedSectionId][nestedSubsectionId]) {
-							grouped[nestedSectionId][nestedSubsectionId] = {};
-						}
-						grouped[nestedSectionId][nestedSubsectionId][
-							nestedFieldId
-						] = nestedValue;
-					} else {
-						grouped[nestedSectionId][nestedFieldId] = nestedValue;
+			// Determine which section this subsection belongs to
+			let targetSectionId: string | null = null;
+			if (fieldId === "project-identity") {
+				targetSectionId = "basic-info";
+			} else if (fieldId === "classification") {
+				targetSectionId = "basic-info";
+			} else {
+				// Try to find the section by checking which fields in this subsection belong to which section
+				const nestedFields = Object.keys(fieldValue as Record<string, unknown>);
+				if (nestedFields.length > 0) {
+					const firstFieldSection = FIELD_TO_SECTION[nestedFields[0]];
+					if (firstFieldSection) {
+						targetSectionId = firstFieldSection;
 					}
 				}
-				continue; // Skip creating "unknown" entry for the subsection ID itself
 			}
+
+			if (!targetSectionId) {
+				console.warn(
+					`[project-utils] Could not determine section for subsection '${fieldId}', skipping`
+				);
+				continue; // Skip this subsection entirely
+			}
+
+			// Process nested fields and place them in the correct section
+			for (const [nestedFieldId, nestedValue] of Object.entries(
+				fieldValue as Record<string, unknown>
+			)) {
+				const nestedSectionId =
+					FIELD_TO_SECTION[nestedFieldId] || targetSectionId;
+				if (!grouped[nestedSectionId]) {
+					grouped[nestedSectionId] = {};
+				}
+				const nestedSubsectionId = getSubsectionForField(
+					nestedFieldId,
+					nestedSectionId
+				);
+				if (nestedSubsectionId) {
+					if (!grouped[nestedSectionId][nestedSubsectionId]) {
+						grouped[nestedSectionId][nestedSubsectionId] = {};
+					}
+					grouped[nestedSectionId][nestedSubsectionId][
+						nestedFieldId
+					] = nestedValue;
+				} else {
+					grouped[nestedSectionId][nestedFieldId] = nestedValue;
+				}
+			}
+			continue; // CRITICAL: Skip creating "unknown" entry for the subsection ID itself
 		}
 
 		const sectionId = FIELD_TO_SECTION[fieldId];
@@ -136,12 +156,76 @@ function groupBySections(
 				if (!grouped[sectionId][subsectionId]) {
 					grouped[sectionId][subsectionId] = {};
 				}
+				console.log(
+					`[project-utils] Placing field '${fieldId}' in '${sectionId}' > '${subsectionId}'`
+				);
 				grouped[sectionId][subsectionId][fieldId] = fieldValue;
 			} else {
 				// Section has no subsections - place field directly in section
+				console.log(
+					`[project-utils] Placing field '${fieldId}' in '${sectionId}' (no subsection)`
+				);
 				grouped[sectionId][fieldId] = fieldValue;
 			}
 		} else {
+			// Field not found in mapping
+			// BUT: if it's a subsection ID that we missed, don't put it in unknown
+			// Check again with more lenient conditions
+			if (
+				fieldId.includes("-") &&
+				typeof fieldValue === "object" &&
+				fieldValue !== null &&
+				!Array.isArray(fieldValue)
+			) {
+				// This might be a subsection ID we missed - try to process it
+				console.warn(
+					`[project-utils] Field '${fieldId}' not in FIELD_TO_SECTION but looks like subsection ID, attempting to process nested fields`
+				);
+				
+				let targetSectionId: string | null = null;
+				if (fieldId === "project-identity") {
+					targetSectionId = "basic-info";
+				} else if (fieldId === "classification") {
+					targetSectionId = "basic-info";
+				} else {
+					const nestedFields = Object.keys(fieldValue as Record<string, unknown>);
+					if (nestedFields.length > 0) {
+						const firstFieldSection = FIELD_TO_SECTION[nestedFields[0]];
+						if (firstFieldSection) {
+							targetSectionId = firstFieldSection;
+						}
+					}
+				}
+				
+				if (targetSectionId) {
+					// Process nested fields
+					for (const [nestedFieldId, nestedValue] of Object.entries(
+						fieldValue as Record<string, unknown>
+					)) {
+						const nestedSectionId =
+							FIELD_TO_SECTION[nestedFieldId] || targetSectionId;
+						if (!grouped[nestedSectionId]) {
+							grouped[nestedSectionId] = {};
+						}
+						const nestedSubsectionId = getSubsectionForField(
+							nestedFieldId,
+							nestedSectionId
+						);
+						if (nestedSubsectionId) {
+							if (!grouped[nestedSectionId][nestedSubsectionId]) {
+								grouped[nestedSectionId][nestedSubsectionId] = {};
+							}
+							grouped[nestedSectionId][nestedSubsectionId][
+								nestedFieldId
+							] = nestedValue;
+						} else {
+							grouped[nestedSectionId][nestedFieldId] = nestedValue;
+						}
+					}
+					continue; // Skip placing in unknown
+				}
+			}
+			
 			// Field not found in mapping - log for debugging
 			console.warn(
 				`[project-utils] Field '${fieldId}' not found in FIELD_TO_SECTION mapping, placing in 'unknown'`
@@ -724,30 +808,27 @@ export async function createProjectWithResumeAndStorage(
 		`[project-utils] Creating project: ${name} for org: ${owner_org_id}`
 	);
 
-	// Build initial project resume content with name and address if provided
-	// Store in flat format first, then group by sections/subsections
-	const initialResumeContentFlat: Record<string, unknown> = {
-		projectName: name,
+	// Build initial project resume content with fixed structure
+	// Directly create the correct nested structure - no grouping logic needed
+	const initialResumeContent: Record<string, any> = {
+		"basic-info": {
+			"project-identity": {
+				projectName: {
+					value: name,
+					source: {
+						type: "user_input",
+					},
+					warnings: [],
+					other_values: [],
+				},
+			},
+		},
 	};
-	if (address) {
-		// Store the full address string - backend will parse it into separate fields later
-		initialResumeContentFlat.propertyAddressStreet = address;
-	}
 
-	// Convert to rich format (with source metadata) and group by sections/subsections
-	const initialResumeContentGrouped: Record<string, any> = {};
-	for (const [fieldId, value] of Object.entries(initialResumeContentFlat)) {
-		// Only process if this is a valid field ID (exists in FIELD_TO_SECTION)
-		if (!FIELD_TO_SECTION[fieldId]) {
-			console.warn(
-				`[project-utils] Skipping invalid field ID: ${fieldId}`
-			);
-			continue;
-		}
-
-		// Convert to rich format
-		initialResumeContentGrouped[fieldId] = {
-			value,
+	// Add address if provided
+	if (address && typeof address === "string" && address.trim().length > 0) {
+		initialResumeContent["basic-info"]["project-identity"]["propertyAddressStreet"] = {
+			value: address.trim(),
 			source: {
 				type: "user_input",
 			},
@@ -756,8 +837,13 @@ export async function createProjectWithResumeAndStorage(
 		};
 	}
 
-	// Group by sections and subsections
-	const initialResumeContent = groupBySections(initialResumeContentGrouped);
+	console.log(
+		`[project-utils] Initial resume content structure: ${JSON.stringify(
+			initialResumeContent,
+			null,
+			2
+		)}`
+	);
 
 	console.log("[project-utils] Step 1: Creating project record");
 	const { data: project, error: projectError } = await supabaseAdmin

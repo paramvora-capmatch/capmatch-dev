@@ -525,24 +525,30 @@ const hoqueProjectResume: Record<string, any> = (() => {
 const hoqueBorrowerResumeBase: Record<string, any> = {
   fullLegalName: 'Hoque Global',
   primaryEntityName: 'Hoque Global / ACARA PFC JV',
-  primaryEntityStructure: 'Master Developer + Public Facility Corporation Partnership',
+  // Must be one of: "LLC", "LP", "S-Corp", "C-Corp", "Sole Proprietorship", "Trust", "Other"
+  primaryEntityStructure: 'Other', // Partnership structure doesn't fit standard options
   contactEmail: 'info@hoqueglobal.com',
   contactPhone: '972.455.1943',
   contactAddress: '2300 Hickory St, Dallas, TX 75215',
   bioNarrative: 'Hoque Global is a Dallas-based master developer delivering catalytic mixed-use districts and workforce housing through public-private partnerships, including PFC structures with the City of Dallas. ACARA serves as capital partner, structuring Opportunity Zone-aligned investments with a $950M+ track record across Texas.',
-  yearsCREExperienceRange: '20+ years',
+  // Must be one of: "0-2", "3-5", "6-10", "11-15", "16+"
+  yearsCREExperienceRange: '16+',
   assetClassesExperience: ['Mixed-Use', 'Multifamily', 'Office', 'Master-Planned Districts'],
   geographicMarketsExperience: ['Dallas-Fort Worth', 'Texas Triangle', 'Southeast US'],
-  totalDealValueClosedRange: '$950M+',
+  // Must be one of: "N/A", "<$10M", "$10M-$50M", "$50M-$100M", "$100M-$250M", "$250M-$500M", "$500M+"
+  totalDealValueClosedRange: '$500M+',
   existingLenderRelationships: 'Frost Bank; Citi Community Capital; Dallas Housing Finance Corp',
-  creditScoreRange: '720-760',
-  netWorthRange: '$50M+',
-  liquidityRange: '$5M - $10M',
+  // Must be one of: "N/A", "<600", "600-649", "650-699", "700-749", "750-799", "800+"
+  creditScoreRange: '700-749',
+  // Must be one of: "<$1M", "$1M-$5M", "$5M-$10M", "$10M-$25M", "$25M-$50M", "$50M-$100M", "$100M+"
+  netWorthRange: '$50M-$100M',
+  // Must be one of: "<$100k", "$100k-$500k", "$500k-$1M", "$1M-$5M", "$5M-$10M", "$10M+"
+  liquidityRange: '$5M-$10M',
   bankruptcyHistory: false,
   foreclosureHistory: false,
   litigationHistory: false,
-  linkedinUrl: '',
-  websiteUrl: '',
+  linkedinUrl: 'https://www.linkedin.com/company/hoque-global',
+  websiteUrl: 'https://www.hoqueglobal.com',
   principalLegalName: 'Mike Hoque',
   principalRoleDefault: 'Chief Executive Officer',
   principalEmail: 'mike@hoqueglobal.com',
@@ -561,12 +567,18 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
   // Ensure every schema field has a value
   for (const fieldId of BORROWER_SCHEMA_FIELD_IDS) {
     if (result[fieldId] === undefined || result[fieldId] === null) {
-      // Set default empty values for missing fields
+      // Set default values for missing fields based on field type
       if (fieldId.includes('History') || fieldId === 'bankruptcyHistory' || fieldId === 'foreclosureHistory' || fieldId === 'litigationHistory') {
         result[fieldId] = false;
+      } else if (fieldId === 'ownershipPercentage') {
+        // Numeric field - leave as undefined/null (don't set to 0 as that's a valid value)
+        // But we need a value, so set to 0 if truly missing
+        result[fieldId] = 0;
       } else if (fieldId.includes('Experience') && fieldId !== 'yearsCREExperienceRange') {
+        // Array fields
         result[fieldId] = [];
       } else {
+        // String fields - set to empty string
         result[fieldId] = '';
       }
     }
@@ -580,17 +592,21 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
     }
   }
 
-  // Lock all fields that have values
+  // Lock all fields that have values (matching project resume logic)
   const lockedFields: Record<string, boolean> = {};
   for (const fieldId of BORROWER_SCHEMA_FIELD_IDS) {
     if (result[fieldId] !== undefined && result[fieldId] !== null) {
+      // Lock fields that have values (including 0 for numeric fields, as 0 is a valid value)
       if (typeof result[fieldId] === 'string' && result[fieldId].trim() !== '') {
         lockedFields[fieldId] = true;
-      } else if (typeof result[fieldId] === 'number' && result[fieldId] !== 0) {
+      } else if (typeof result[fieldId] === 'number') {
+        // Lock all numeric fields, including 0 (0 is a valid value that should be locked)
         lockedFields[fieldId] = true;
       } else if (typeof result[fieldId] === 'boolean') {
         lockedFields[fieldId] = true;
       } else if (Array.isArray(result[fieldId]) && result[fieldId].length > 0) {
+        lockedFields[fieldId] = true;
+      } else if (typeof result[fieldId] === 'object' && Object.keys(result[fieldId]).length > 0) {
         lockedFields[fieldId] = true;
       }
     }

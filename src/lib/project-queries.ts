@@ -531,8 +531,13 @@ export const getProjectWithResume = async (
 		.eq("project_id", projectId)
 		.maybeSingle();
 
-	const borrowerResumeContent: BorrowerResumeContent =
+	let borrowerResumeContent: BorrowerResumeContent =
 		borrowerResume?.content || {};
+	// Ungroup borrower resume content if it's stored in grouped format
+	// This ensures computeBorrowerCompletion can find the fields
+	if (isGroupedFormat(borrowerResumeContent)) {
+		borrowerResumeContent = ungroupFromSections(borrowerResumeContent);
+	}
 	// Compute borrower completion instead of reading from stored value
 	const borrowerProgress = Math.round(
 		computeBorrowerCompletion(borrowerResumeContent)
@@ -717,7 +722,13 @@ export const getProjectsWithResumes = async (
 
 	const borrowerResumeMap = new Map<string, BorrowerResumeContent>();
 	borrowerResumes?.forEach((resume: any) => {
-		borrowerResumeMap.set(resume.project_id, resume.content || {});
+		let borrowerContent = resume.content || {};
+		// Ungroup borrower resume content if it's stored in grouped format
+		// This ensures computeBorrowerCompletion can find the fields
+		if (isGroupedFormat(borrowerContent)) {
+			borrowerContent = ungroupFromSections(borrowerContent);
+		}
+		borrowerResumeMap.set(resume.project_id, borrowerContent);
 	});
 
 	return (

@@ -259,12 +259,18 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				);
 
 				// Use stored completenessPercent from DB, with calculateProgress as fallback/validation
+				// borrowerProgress from getProjectsWithResumes is the source of truth since it's calculated
+				// directly from the borrower_resumes table content
 				const projectsWithProgress = projectsWithResources.map((p) => {
 					const calculated = get().calculateProgress(p);
 					const completenessPercentValue =
 						p.completenessPercent ?? calculated.completenessPercent;
+					// Prefer borrowerProgress from getProjectsWithResumes (already calculated from DB)
+					// Only use calculated if borrowerProgress is null/undefined (not if it's 0, as 0 is valid)
 					const borrowerProgressValue =
-						p.borrowerProgress ?? calculated.borrowerProgress;
+						p.borrowerProgress !== null && p.borrowerProgress !== undefined
+							? p.borrowerProgress
+							: calculated.borrowerProgress;
 					return {
 						...p,
 						completenessPercent: completenessPercentValue,
@@ -374,23 +380,23 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			if (!activeOrg)
 				throw new Error("Must be part of an org to create a project.");
 
-			// Use the create-project edge function (advisor auto-assignment happens server-side)
-			const projectSections = projectData.projectSections as any;
-			const address = projectSections?.propertyAddress;
-			
-			const { data, error } = await supabase.functions.invoke(
-				"create-project",
-				{
-					body: {
-						name:
-							projectData.projectName ||
-							`New Project ${get().projects.length + 1}`,
-						owner_org_id: activeOrg.id,
-						address: address || undefined,
-						// assigned_advisor_id is optional - edge function will auto-assign if not provided
-					},
-				}
-			);
+		// Use the create-project edge function (advisor auto-assignment happens server-side)
+		const projectSections = projectData.projectSections as any;
+		const address = projectSections?.propertyAddress;
+		
+		const { data, error } = await supabase.functions.invoke(
+			"create-project",
+			{
+				body: {
+					name:
+						projectData.projectName ||
+						`New Project ${get().projects.length + 1}`,
+					owner_org_id: activeOrg.id,
+					address: address || undefined,
+					// assigned_advisor_id is optional - edge function will auto-assign if not provided
+				},
+			}
+		);
 
 			if (error) throw error;
 			if (!data?.project) throw new Error("Failed to create project");
