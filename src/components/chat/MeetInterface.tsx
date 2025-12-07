@@ -18,7 +18,7 @@ import {
 import { cn } from "@/utils/cn";
 import { useOrgStore } from "@/stores/useOrgStore";
 import { useProjects } from "@/hooks/useProjects";
-import { useProjectEligibleMembers } from "@/hooks/useProjectEligibleMembers";
+import { useProjectMembers } from "@/hooks/useProjectMembers";
 
 interface MeetInterfaceProps {
   projectId: string;
@@ -57,13 +57,21 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     [projects, projectId]
   );
 
-  const {
-    eligibleMembers,
-  } = useProjectEligibleMembers({
-    projectId,
-    members,
-    advisorUserId: activeProject?.assignedAdvisorUserId,
-  });
+  // Memoize the projects array to prevent unnecessary re-fetches
+  const projectsArray = useMemo(
+    () => (activeProject ? [activeProject] : []),
+    [activeProject]
+  );
+
+  // Use useProjectMembers to get all members with access to this project
+  const { membersByProjectId, isLoading: isMembersLoading } = useProjectMembers(
+    projectsArray
+  );
+
+  // Get members for the current project
+  const projectMembers = useMemo(() => {
+    return membersByProjectId[projectId] || [];
+  }, [membersByProjectId, projectId]);
 
   // TODO: Replace with actual data from backend/database
   // This is mock data for demonstration
@@ -473,20 +481,23 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
               Select Participants
             </label>
             <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
-              {eligibleMembers.length === 0 ? (
+              {isMembersLoading ? (
+                <div className="p-4 text-center text-sm text-gray-500">
+                  Loading members...
+                </div>
+              ) : projectMembers.length === 0 ? (
                 <div className="p-4 text-center text-sm text-gray-500">
                   No team members available
                 </div>
               ) : (
                 <div className="p-2 space-y-1">
-                  {eligibleMembers.map((member) => {
+                  {projectMembers.map((member) => {
                     const displayName = member.userName || member.userEmail || "Unknown User";
-                    const isSelected = selectedParticipants.includes(member.user_id);
-                    const isAdvisor = member.role === "advisor";
+                    const isSelected = selectedParticipants.includes(member.userId);
 
                     return (
                       <label
-                        key={member.user_id}
+                        key={member.userId}
                         className={cn(
                           "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
                           isSelected ? "bg-purple-50 border border-purple-200" : "hover:bg-gray-50"
@@ -497,10 +508,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                           checked={isSelected}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedParticipants([...selectedParticipants, member.user_id]);
+                              setSelectedParticipants([...selectedParticipants, member.userId]);
                             } else {
                               setSelectedParticipants(
-                                selectedParticipants.filter((id) => id !== member.user_id)
+                                selectedParticipants.filter((id) => id !== member.userId)
                               );
                             }
                           }}
@@ -509,7 +520,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                         <div className="flex items-center space-x-2 flex-1 min-w-0">
                           <div className={cn(
                             "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0",
-                            isAdvisor ? "bg-gradient-to-br from-purple-500 to-purple-600" : "bg-gradient-to-br from-blue-500 to-blue-600"
+                            "bg-gradient-to-br from-blue-500 to-blue-600"
                           )}>
                             {displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
                           </div>
@@ -523,11 +534,6 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                               </p>
                             )}
                           </div>
-                          {isAdvisor && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 flex-shrink-0">
-                              Advisor
-                            </span>
-                          )}
                         </div>
                       </label>
                     );
