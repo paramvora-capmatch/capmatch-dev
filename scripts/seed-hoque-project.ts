@@ -11,6 +11,7 @@ import { join } from 'path';
 import { ProjectResumeContent } from '../src/lib/project-queries';
 import projectFormSchema from '../src/lib/enhanced-project-form.schema.json';
 import borrowerFormSchema from '../src/lib/borrower-resume-form.schema.json';
+import { computeBorrowerCompletion } from '../src/utils/resumeCompletion';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -596,6 +597,9 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
   }
 
   result._lockedFields = lockedFields;
+
+  // Calculate and set completenessPercent using the same logic as the frontend
+  result.completenessPercent = computeBorrowerCompletion(result);
 
   return result;
 })();

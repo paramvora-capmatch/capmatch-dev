@@ -10,7 +10,7 @@ import {
 	isGroupedFormat,
 	groupBySections,
 } from "./section-grouping";
-import { computeProjectCompletion } from "@/utils/resumeCompletion";
+import { computeProjectCompletion, computeBorrowerCompletion } from "@/utils/resumeCompletion";
 import { sectionHasSubsections, getAllFieldIds } from "./schema-utils";
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 
@@ -533,8 +533,9 @@ export const getProjectWithResume = async (
 
 	const borrowerResumeContent: BorrowerResumeContent =
 		borrowerResume?.content || {};
+	// Compute borrower completion instead of reading from stored value
 	const borrowerProgress = Math.round(
-		(borrowerResumeContent.completenessPercent as number | undefined) ?? 0
+		computeBorrowerCompletion(borrowerResumeContent)
 	);
 
 	const _metadata: Record<
@@ -727,10 +728,9 @@ export const getProjectsWithResumes = async (
 			const borrowerResumeContent =
 				borrowerResumeMap.get(project.id) ||
 				({} as BorrowerResumeContent);
+			// Compute borrower completion instead of reading from stored value
 			const borrowerProgress = Math.round(
-				(borrowerResumeContent.completenessPercent as
-					| number
-					| undefined) ?? 0
+				computeBorrowerCompletion(borrowerResumeContent)
 			);
 
 			const combinedProfile: ProjectProfile = {
@@ -1181,7 +1181,8 @@ export const saveProjectBorrowerResume = async (
 			key === "_metadata" ||
 			key === "_lockedFields" ||
 			key === "_fieldStates" ||
-			key === "_lockedSections"
+			key === "_lockedSections" ||
+			key === "completenessPercent"
 		)
 			continue;
 
@@ -1358,11 +1359,15 @@ export const saveProjectBorrowerResume = async (
 		// Append root keys
 		contentToSave._lockedFields = lockedFields;
 		contentToSave._fieldStates = fieldStates;
-		// completenessPercent should be part of flattened data usually, but ensure it's at root if sent separately
-		if ((content as any).completenessPercent !== undefined) {
-			contentToSave.completenessPercent = (
-				content as any
-			).completenessPercent;
+		// Always calculate and save completenessPercent to ensure it's always in sync
+		// Use provided value if available, otherwise calculate from the content
+		const providedCompleteness = (content as any).completenessPercent;
+		if (providedCompleteness !== undefined && typeof providedCompleteness === 'number') {
+			contentToSave.completenessPercent = providedCompleteness;
+		} else {
+			// Calculate from the actual content (excluding metadata fields)
+			const contentForCalculation = { ...finalContentFlat };
+			contentToSave.completenessPercent = computeBorrowerCompletion(contentForCalculation);
 		}
 
 		// Get resource pointer to update correct version
@@ -1410,12 +1415,24 @@ export const saveProjectBorrowerResume = async (
 			...fieldStates,
 		};
 
+		// Always calculate and save completenessPercent to ensure it's always in sync
+		// Use provided value if available, otherwise calculate from the content
+		const providedCompleteness = (content as any).completenessPercent;
+		let finalCompletenessPercent: number;
+		if (providedCompleteness !== undefined && typeof providedCompleteness === 'number') {
+			finalCompletenessPercent = providedCompleteness;
+		} else if (completenessPercent !== undefined && typeof completenessPercent === 'number') {
+			finalCompletenessPercent = completenessPercent;
+		} else {
+			// Calculate from the actual content (excluding metadata fields)
+			finalCompletenessPercent = computeBorrowerCompletion(mergedFlat);
+		}
+
 		const contentToInsert = {
 			...groupedContent,
 			_lockedFields: mergedLockedFields,
 			_fieldStates: mergedFieldStates,
-			completenessPercent:
-				(content as any).completenessPercent ?? completenessPercent,
+			completenessPercent: finalCompletenessPercent,
 		};
 
 		const { data: newResume, error } = await supabase
