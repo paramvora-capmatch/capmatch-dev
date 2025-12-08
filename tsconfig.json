@@ -28,6 +28,7 @@
     "supabase/functions/**/*",
     "scripts/**/*",
     "components/**/*",
-    "temp/**/*"
+    "temp/**/*",
+    "video-conferencing-app/**/*"
   ]
 }

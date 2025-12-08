@@ -163,6 +163,15 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     fetchAvailability();
   }, [selectedParticipants, meetingDuration]);
 
+  // Handle joining a video call
+  const handleJoinVideoCall = (meeting: any) => {
+    // Extract room name from meeting_link
+    const roomName = meeting.meeting_link?.split('/').pop();
+    if (roomName) {
+      window.open(`/meeting/${roomName}`, '_blank');
+    }
+  };
+
   // Handle meeting creation
   const handleCreateMeeting = async () => {
     if (!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || !user) {
@@ -354,7 +363,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                           </div>
 
                           {/* Participants */}
-                          <div>
+                          <div className="mb-3">
                             <p className="text-xs text-gray-500 mb-1">Participants:</p>
                             <div className="flex flex-wrap gap-1">
                               {participants.map((participant, i) => (
@@ -367,6 +376,20 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                               ))}
                             </div>
                           </div>
+
+                          {/* Video Call Actions */}
+                          {meeting.meeting_link && (
+                            <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                              <Button
+                                size="sm"
+                                onClick={() => handleJoinVideoCall(meeting)}
+                                className="bg-purple-600 hover:bg-purple-700 text-white"
+                              >
+                                <Video className="w-4 h-4 mr-1" />
+                                Join Video Call
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </Card>
                     </motion.div>

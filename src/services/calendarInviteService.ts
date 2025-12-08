@@ -50,11 +50,17 @@ async function createGoogleCalendarEvent(
   const selectedCalendar = connection.calendar_list.find((cal) => cal.selected);
   const calendarId = primaryCalendar?.id || selectedCalendar?.id || 'primary';
 
+  // Build description with meeting link prominently included
+  let description = invite.description || '';
+  if (invite.meetingLink) {
+    description = `📹 Join Video Meeting: ${invite.meetingLink}\n\n${description}`;
+  }
+
   // Build the event object for Google Calendar API
   const event = {
     summary: invite.title,
-    description: invite.description || '',
-    location: invite.location || '',
+    description,
+    location: invite.meetingLink || invite.location || '',
     start: {
       dateTime: invite.startTime,
       timeZone: 'UTC',
@@ -67,16 +73,6 @@ async function createGoogleCalendarEvent(
       email: attendee.email,
       displayName: attendee.name,
     })),
-    conferenceData: invite.meetingLink
-      ? {
-          conferenceSolution: {
-            key: { type: 'hangoutsMeet' },
-          },
-          createRequest: {
-            requestId: `meet-${Date.now()}`,
-          },
-        }
-      : undefined,
     reminders: {
       useDefault: true,
     },
@@ -131,12 +127,18 @@ async function createMicrosoftCalendarEvent(
     throw new Error('No calendar selected for Microsoft connection');
   }
 
+  // Build description with meeting link prominently included (HTML format for Outlook)
+  let bodyContent = invite.description || '';
+  if (invite.meetingLink) {
+    bodyContent = `<p><strong>📹 Join Video Meeting:</strong> <a href="${invite.meetingLink}">${invite.meetingLink}</a></p><br/>${bodyContent}`;
+  }
+
   // Build the event object for Microsoft Graph API
   const event = {
     subject: invite.title,
     body: {
       contentType: 'HTML',
-      content: invite.description || '',
+      content: bodyContent,
     },
     start: {
       dateTime: invite.startTime,
@@ -146,7 +148,11 @@ async function createMicrosoftCalendarEvent(
       dateTime: invite.endTime,
       timeZone: 'UTC',
     },
-    location: invite.location
+    location: invite.meetingLink
+      ? {
+          displayName: invite.meetingLink,
+        }
+      : invite.location
       ? {
           displayName: invite.location,
         }
@@ -158,13 +164,6 @@ async function createMicrosoftCalendarEvent(
       },
       type: 'required',
     })),
-    onlineMeeting: invite.meetingLink
-      ? {
-          conferenceId: `meet-${Date.now()}`,
-        }
-      : undefined,
-    isOnlineMeeting: !!invite.meetingLink,
-    onlineMeetingProvider: invite.meetingLink ? 'teamsForBusiness' : undefined,
   };
 
   // Create the event via Microsoft Graph API

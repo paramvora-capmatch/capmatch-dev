@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,
       token_expires_at: tokenData.expires_at,
-      calendar_list: calendars.map(cal => ({
+      calendar_list: calendars.map((cal: any) => ({
         ...cal,
         selected: cal.primary || false, // Auto-select primary calendar
       })),

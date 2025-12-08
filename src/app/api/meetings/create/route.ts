@@ -77,6 +77,52 @@ export async function POST(request: NextRequest) {
       (endTime.getTime() - startTime.getTime()) / (1000 * 60)
     );
 
+    // Create Daily.co room for video conferencing
+    let dailyRoomUrl: string | null = null;
+    let roomName: string | null = null;
+    try {
+      const dailyApiKey = process.env.DAILY_API_KEY;
+
+      if (dailyApiKey) {
+        const timestamp = Date.now();
+        roomName = `capmatch-${body.projectId || 'meeting'}-${timestamp}`;
+
+        const dailyResponse = await fetch('https://api.daily.co/v1/rooms', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${dailyApiKey}`,
+          },
+          body: JSON.stringify({
+            name: roomName,
+            privacy: 'private',
+            properties: {
+              enable_screenshare: true,
+              enable_chat: true,
+              enable_recording: 'cloud',
+              max_participants: 20,
+              start_video_off: false,
+              start_audio_off: false,
+              enable_prejoin_ui: true,
+            },
+          }),
+        });
+
+        if (dailyResponse.ok) {
+          // Use your domain instead of Daily.co's domain
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+          dailyRoomUrl = `${siteUrl}/meeting/${roomName}`;
+          console.log('Daily.co room created, meeting URL:', dailyRoomUrl);
+        } else {
+          const errorData = await dailyResponse.json();
+          console.error('Failed to create Daily.co room:', errorData);
+        }
+      }
+    } catch (dailyError) {
+      console.error('Error creating Daily.co room:', dailyError);
+      // Don't fail the whole operation if Daily.co room creation fails
+    }
+
     // Fetch participant emails from profiles
     const { data: participants, error: participantsError } = await supabaseAdmin
       .from('profiles')
@@ -108,7 +154,7 @@ export async function POST(request: NextRequest) {
         end_time: body.endTime,
         duration_minutes: durationMinutes,
         location: body.location || null,
-        meeting_link: body.meetingLink || null,
+        meeting_link: dailyRoomUrl || body.meetingLink || null,
         organizer_id: user.id,
         project_id: body.projectId || null,
         status: 'scheduled',
@@ -162,7 +208,7 @@ export async function POST(request: NextRequest) {
         endTime: body.endTime,
         attendees,
         location: body.location,
-        meetingLink: body.meetingLink,
+        meetingLink: dailyRoomUrl || body.meetingLink,
       });
 
       // Update calendar_event_ids in meeting record
