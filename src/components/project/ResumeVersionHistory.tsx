@@ -32,6 +32,7 @@ interface ResumeVersionHistoryProps {
 	resourceId?: string | null;
 	onRollbackSuccess?: () => void;
 	onOpen?: () => void;
+	disabled?: boolean;
 }
 
 interface ResumeVersionRow {
@@ -53,6 +54,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 	resourceId,
 	onRollbackSuccess,
 	onOpen,
+	disabled,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [versions, setVersions] = useState<ResumeVersionRow[]>([]);
@@ -285,6 +287,7 @@ export const ResumeVersionHistory: React.FC<ResumeVersionHistoryProps> = ({
 					event.stopPropagation();
 				}}
 				title="Resume versions"
+				disabled={disabled}
 			>
 				<History className="h-5 w-5 text-gray-600 flex-shrink-0" />
 				<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">

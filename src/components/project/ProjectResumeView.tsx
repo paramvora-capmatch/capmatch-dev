@@ -650,6 +650,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 								<ResumeVersionHistory
 									projectId={project.id}
 									resourceId={project.projectResumeResourceId ?? null}
+									disabled={isAutofilling}
 									onRollbackSuccess={() => {
 										onVersionChange?.();
 									}}

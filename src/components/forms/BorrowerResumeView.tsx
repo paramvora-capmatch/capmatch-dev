@@ -492,6 +492,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 							<div className="ml-2">
 								<BorrowerResumeVersionHistory
 									projectId={projectId}
+									disabled={isAutofilling}
 									onRollbackSuccess={handleRollbackSuccess}
 									onOpen={handleVersionHistoryOpen}
 								/>

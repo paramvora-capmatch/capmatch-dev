@@ -1085,6 +1085,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 
 		setLockedFields(newLockedFields);
 
+		// Clear unlockedFields when reloading from backend to ensure state consistency
+		setUnlockedFields(new Set());
+
 		// Establish / refresh the baseline snapshot from the DB-backed project.
 		// We treat this as the "saved" state until an explicit or implicit save succeeds.
 		const snapshotLocked = new Set(newLockedFields);
@@ -4836,6 +4839,49 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		fieldMetadata,
 	]);
 
+	// Helper function to check if all fields are locked
+	const areAllFieldsLocked = useCallback((): boolean => {
+		// Get all field IDs from schema (both required and optional)
+		const allFieldIds = new Set<string>();
+
+		// Get fields from steps/subsections
+		if (formSchema && (formSchema as any).steps) {
+			(formSchema as any).steps.forEach((step: any) => {
+				if (step.fields) {
+					step.fields.forEach((fieldId: string) =>
+						allFieldIds.add(fieldId)
+					);
+				}
+				if (step.subsections) {
+					step.subsections.forEach((subsection: any) => {
+						if (subsection.fields) {
+							subsection.fields.forEach((fieldId: string) =>
+								allFieldIds.add(fieldId)
+							);
+						}
+					});
+				}
+			});
+		}
+
+		// Also get fields from root-level fields object if it exists
+		if (formSchema && (formSchema as any).fields) {
+			Object.keys((formSchema as any).fields).forEach((fieldId) =>
+				allFieldIds.add(fieldId)
+			);
+		}
+
+		// If no fields found in schema, return false (can't determine, so allow autofill)
+		if (allFieldIds.size === 0) {
+			return false;
+		}
+
+		// Check if all fields are locked
+		return Array.from(allFieldIds).every((fieldId) =>
+			lockedFields.has(fieldId)
+		);
+	}, [lockedFields]);
+
 	const wrappedHandleAutofill = useCallback(async () => {
 		try {
 			// Before triggering autofill, persist the latest lock state (and any
@@ -4921,7 +4967,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						variant="outline"
 						size="sm"
 						onClick={wrappedHandleAutofill}
-						disabled={isAutofilling}
+						disabled={isAutofilling || areAllFieldsLocked()}
 						className={cn(
 							"group relative flex items-center gap-1 px-2 py-1.5 rounded-md border transition-all",
 							isAutofilling
@@ -4946,7 +4992,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						size="sm"
 						onClick={() => handleFormSubmit()}
 						isLoading={formSaved}
-						disabled={formSaved}
+						disabled={formSaved || isAutofilling}
 					>
 						{formSaved ? "Saving..." : "Save & Exit"}
 					</Button>
