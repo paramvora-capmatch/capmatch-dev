@@ -328,8 +328,12 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			try {
 				console.log(`[ProjectStore] 🔄 refreshProject called for project ${projectId}`);
 				
-				// Get existing project from state to preserve resource IDs
-				const existingProject = get().projects.find(p => p.id === projectId) || get().activeProject;
+				// Always prefer activeProject if it matches, as it has the most complete resource IDs
+				// The projects array may not have borrower resource IDs (loadUserProjects doesn't fetch them)
+				const currentActive = get().activeProject;
+				const existingProject = currentActive?.id === projectId 
+					? currentActive 
+					: get().projects.find(p => p.id === projectId) || currentActive;
 				
 				console.log(`[ProjectStore] 📦 Existing project resource IDs:`, {
 					projectDocsResourceId: existingProject?.projectDocsResourceId,
@@ -338,6 +342,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					borrowerDocsResourceId: (existingProject as any)?.borrowerDocsResourceId,
 					hasExistingProject: !!existingProject,
 					existingProjectId: existingProject?.id,
+					source: currentActive?.id === projectId ? 'activeProject' : 'projectsArray',
 				});
 
 				// 1. Fetch latest project data
