@@ -23,7 +23,7 @@ interface UseMeetingsReturn {
   refreshMeetings: () => Promise<void>;
 }
 
-export function useMeetings(): UseMeetingsReturn {
+export function useMeetings(projectId?: string): UseMeetingsReturn {
   const { user } = useAuth();
   const [upcomingMeetings, setUpcomingMeetings] = useState<Meeting[]>([]);
   const [pastMeetings, setPastMeetings] = useState<Meeting[]>([]);
@@ -45,7 +45,7 @@ export function useMeetings(): UseMeetingsReturn {
     try {
       const now = new Date().toISOString();
 
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('meetings')
         .select(
           `
@@ -61,6 +61,12 @@ export function useMeetings(): UseMeetingsReturn {
         .neq('status', 'cancelled')
         .order('start_time', { ascending: true });
 
+      if (projectId) {
+        query = query.eq('project_id', projectId);
+      }
+
+      const { data, error: fetchError } = await query;
+
       if (fetchError) {
         throw fetchError;
       }
@@ -72,7 +78,7 @@ export function useMeetings(): UseMeetingsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, projectId]);
 
   /**
    * Fetch past meetings (end_time < now)
@@ -86,7 +92,7 @@ export function useMeetings(): UseMeetingsReturn {
     try {
       const now = new Date().toISOString();
 
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('meetings')
         .select(
           `
@@ -102,6 +108,12 @@ export function useMeetings(): UseMeetingsReturn {
         .order('start_time', { ascending: false })
         .limit(50); // Limit to most recent 50
 
+      if (projectId) {
+        query = query.eq('project_id', projectId);
+      }
+
+      const { data, error: fetchError } = await query;
+
       if (fetchError) {
         throw fetchError;
       }
@@ -113,7 +125,7 @@ export function useMeetings(): UseMeetingsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, projectId]);
 
   /**
    * Refresh both upcoming and past meetings

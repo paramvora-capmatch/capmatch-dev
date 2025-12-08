@@ -9,6 +9,7 @@ import {
   FileText,
   Clock,
   ChevronRight,
+  ChevronDown,
   Calendar,
   Download,
   Play,
@@ -56,6 +57,8 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const [slotsError, setSlotsError] = useState<string | null>(null);
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [createMeetingError, setCreateMeetingError] = useState<string | null>(null);
+  const [isUpcomingExpanded, setIsUpcomingExpanded] = useState(true);
+  const [isPastExpanded, setIsPastExpanded] = useState(false);
 
   // Get project members
   const { members } = useOrgStore();
@@ -63,7 +66,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const { user } = useAuth();
 
   // Get meetings from database with realtime subscriptions
-  const { upcomingMeetings, pastMeetings, isLoading: isMeetingsLoading, refreshMeetings } = useMeetings();
+  const { upcomingMeetings, pastMeetings, isLoading: isMeetingsLoading, refreshMeetings } = useMeetings(projectId);
 
   const activeProject = useMemo(
     () => projects?.find((p) => p.id === projectId),
@@ -318,7 +321,15 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
             {/* Upcoming Meetings Section */}
             {upcomingMeetings.length > 0 && (
               <div className="space-y-3">
-                <div className="flex items-center space-x-2 px-1">
+                <button 
+                  onClick={() => setIsUpcomingExpanded(!isUpcomingExpanded)}
+                  className="flex items-center space-x-2 px-1 w-full hover:bg-gray-50 p-1 rounded-md transition-colors"
+                >
+                  {isUpcomingExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                  )}
                   <Calendar className="w-4 h-4 text-green-600" />
                   <h4 className="text-sm font-semibold text-gray-900">
                     Upcoming Meetings
@@ -326,83 +337,94 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                   <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
                     {upcomingMeetings.length}
                   </span>
-                </div>
-                <div className="space-y-3">
-                  {upcomingMeetings.map((meeting, index) => {
-                    const startTime = new Date(meeting.start_time);
-                    const participants = meeting.participants || [];
+                </button>
+                
+                {isUpcomingExpanded && (
+                  <div className="space-y-3">
+                    {upcomingMeetings.map((meeting, index) => {
+                      const startTime = new Date(meeting.start_time);
+                      const participants = meeting.participants || [];
 
-                    return (
-                    <motion.div
-                      key={meeting.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.05 }}
-                    >
-                      <Card className="hover:shadow-md transition-all duration-200 border-l-4 border-l-green-500 border-t border-r border-b border-gray-200 bg-gradient-to-r from-green-50/50 to-white">
-                        <div className="p-4">
-                          {/* Meeting Header */}
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
-                                {meeting.title}
-                              </h4>
-                              <div className="flex items-center space-x-3 text-xs">
-                                <span className="flex items-center text-green-700 font-medium">
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  {getTimeUntil(startTime)}
-                                </span>
-                                <span className="flex items-center text-gray-500">
-                                  <Calendar className="w-3 h-3 mr-1" />
-                                  {formatDate(startTime)}
-                                </span>
+                      return (
+                      <motion.div
+                        key={meeting.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: index * 0.05 }}
+                      >
+                        <Card className="hover:shadow-md transition-all duration-200 border-l-4 border-l-green-500 border-t border-r border-b border-gray-200 bg-gradient-to-r from-green-50/50 to-white">
+                          <div className="p-4">
+                            {/* Meeting Header */}
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
+                                  {meeting.title}
+                                </h4>
+                                <div className="flex items-center space-x-3 text-xs">
+                                  <span className="flex items-center text-green-700 font-medium">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    {getTimeUntil(startTime)}
+                                  </span>
+                                  <span className="flex items-center text-gray-500">
+                                    <Calendar className="w-3 h-3 mr-1" />
+                                    {formatDate(startTime)}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md flex-shrink-0">
+                                {formatDuration(meeting.duration_minutes)}
+                              </span>
+                            </div>
+
+                            {/* Participants */}
+                            <div className="mb-3">
+                              <p className="text-xs text-gray-500 mb-1">Participants:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {participants.map((participant, i) => (
+                                  <span
+                                    key={i}
+                                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
+                                  >
+                                    {participant.user?.full_name || participant.user?.email || 'Unknown'}
+                                  </span>
+                                ))}
                               </div>
                             </div>
-                            <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md flex-shrink-0">
-                              {formatDuration(meeting.duration_minutes)}
-                            </span>
-                          </div>
 
-                          {/* Participants */}
-                          <div className="mb-3">
-                            <p className="text-xs text-gray-500 mb-1">Participants:</p>
-                            <div className="flex flex-wrap gap-1">
-                              {participants.map((participant, i) => (
-                                <span
-                                  key={i}
-                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
+                            {/* Video Call Actions */}
+                            {meeting.meeting_link && (
+                              <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleJoinVideoCall(meeting)}
+                                  className="bg-purple-600 hover:bg-purple-700 text-white"
                                 >
-                                  {participant.user?.full_name || participant.user?.email || 'Unknown'}
-                                </span>
-                              ))}
-                            </div>
+                                  <Video className="w-4 h-4 mr-1" />
+                                  Join Video Call
+                                </Button>
+                              </div>
+                            )}
                           </div>
-
-                          {/* Video Call Actions */}
-                          {meeting.meeting_link && (
-                            <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                              <Button
-                                size="sm"
-                                onClick={() => handleJoinVideoCall(meeting)}
-                                className="bg-purple-600 hover:bg-purple-700 text-white"
-                              >
-                                <Video className="w-4 h-4 mr-1" />
-                                Join Video Call
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </Card>
-                    </motion.div>
-                  )})}
-                </div>
+                        </Card>
+                      </motion.div>
+                    )})}
+                  </div>
+                )}
               </div>
             )}
 
             {/* Past Meetings Section */}
             {pastMeetings.length > 0 && (
               <div className="space-y-3">
-                <div className="flex items-center space-x-2 px-1">
+                <button 
+                  onClick={() => setIsPastExpanded(!isPastExpanded)}
+                  className="flex items-center space-x-2 px-1 w-full hover:bg-gray-50 p-1 rounded-md transition-colors"
+                >
+                  {isPastExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                  )}
                   <FileText className="w-4 h-4 text-blue-600" />
                   <h4 className="text-sm font-semibold text-gray-900">
                     Past Meetings
@@ -410,9 +432,11 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                   <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
                     {pastMeetings.length}
                   </span>
-                </div>
-                <div className="space-y-3">
-                  {pastMeetings.map((meeting, index) => {
+                </button>
+                
+                {isPastExpanded && (
+                  <div className="space-y-3">
+                    {pastMeetings.map((meeting, index) => {
                     const startTime = new Date(meeting.start_time);
                     const participants = meeting.participants || [];
 
@@ -517,7 +541,8 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                       </Card>
                     </motion.div>
                   )})}
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </>
