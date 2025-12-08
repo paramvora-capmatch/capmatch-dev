@@ -137,14 +137,26 @@ export const useAutofill = (
 				const isComplete = await checkCompletion(projectId, startTime);
 
 				if (isComplete) {
+					console.log(
+						`[useAutofill] ✅ Autofill completed for project ${projectId}, context: ${context}`
+					);
 					clearAutofillState();
 					// Refresh project data so completion % and OM readiness update without full reload
 					try {
+						console.log(
+							`[useAutofill] 🔄 Calling refreshProject(${projectId})...`
+						);
 						await refreshProject(projectId);
+						console.log(
+							`[useAutofill] ✅ refreshProject completed for project ${projectId}`
+						);
 
 						// Show notification encouraging field locking for non-deterministic fields
 						// This will be handled by the component using this hook
 						if (typeof window !== "undefined") {
+							console.log(
+								`[useAutofill] 📢 Dispatching autofill-completed event for project ${projectId}, context: ${context}`
+							);
 							window.dispatchEvent(
 								new CustomEvent("autofill-completed", {
 									detail: { projectId, context },
@@ -153,7 +165,7 @@ export const useAutofill = (
 						}
 					} catch (err) {
 						console.error(
-							"Failed to refresh projects after autofill completion:",
+							`[useAutofill] ❌ Failed to refresh projects after autofill completion for project ${projectId}:`,
 							err
 						);
 					}

@@ -353,15 +353,82 @@ export const useProjectBorrowerResumeRealtime = (
 		};
 
 		const handleAutofillComplete = (e: any) => {
+			console.log(
+				`[useProjectBorrowerResumeRealtime] 📢 autofill-completed event received:`,
+				{
+					eventProjectId: e.detail?.projectId,
+					eventContext: e.detail?.context,
+					currentProjectId: projectId,
+					matches:
+						e.detail?.projectId === projectId &&
+						e.detail?.context === "borrower",
+				}
+			);
+
 			// Only track autofill for this project
 			if (
 				e.detail?.projectId === projectId &&
 				e.detail?.context === "borrower"
 			) {
-				// Keep flag true for a bit longer to catch any delayed database updates
-				setTimeout(() => {
-					isAutofillRunningRef.current = false;
-				}, 5000);
+				console.log(
+					`[useProjectBorrowerResumeRealtime] ✅ Handling autofill completion for borrower resume, projectId: ${projectId}`
+				);
+				// Reset flag immediately
+				isAutofillRunningRef.current = false;
+				// Reload content with retry logic to handle race conditions
+				const retryLoad = async (attempt = 1, maxAttempts = 5) => {
+					console.log(
+						`[useProjectBorrowerResumeRealtime] 🔄 Reloading borrower resume content (attempt ${attempt}/${maxAttempts})`
+					);
+					try {
+						const result = await getProjectBorrowerResumeContent(
+							projectId
+						);
+						console.log(
+							`[useProjectBorrowerResumeRealtime] 📥 Borrower resume content loaded:`,
+							{
+								hasContent: !!result,
+								contentKeys: result
+									? Object.keys(result).slice(0, 10)
+									: [],
+								attempt,
+							}
+						);
+						if (result || attempt >= maxAttempts) {
+							updateContentIfChanged(result);
+							console.log(
+								`[useProjectBorrowerResumeRealtime] ✅ Content updated (attempt ${attempt})`
+							);
+						} else {
+							// Retry after a delay if content is null
+							console.log(
+								`[useProjectBorrowerResumeRealtime] ⏳ Content is null, retrying in ${
+									1000 * attempt
+								}ms...`
+							);
+							setTimeout(
+								() => retryLoad(attempt + 1, maxAttempts),
+								1000 * attempt
+							);
+						}
+					} catch (err) {
+						console.error(
+							`[useProjectBorrowerResumeRealtime] ❌ Failed to reload after autofill (attempt ${attempt}):`,
+							err
+						);
+						if (attempt < maxAttempts) {
+							setTimeout(
+								() => retryLoad(attempt + 1, maxAttempts),
+								1000 * attempt
+							);
+						}
+					}
+				};
+				retryLoad();
+			} else {
+				console.log(
+					`[useProjectBorrowerResumeRealtime] ⏭️ Skipping autofill completion handler - event doesn't match this project/context`
+				);
 			}
 		};
 
@@ -398,7 +465,7 @@ export const useProjectBorrowerResumeRealtime = (
 				handleLocalSaveStart
 			);
 		};
-	}, [projectId]);
+	}, [projectId, load]);
 
 	// Subscribe to realtime changes
 	useEffect(() => {
