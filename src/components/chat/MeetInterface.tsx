@@ -17,6 +17,11 @@ import {
   Users as UsersIcon,
   Loader2,
   Trash2,
+  MessageSquare,
+  CheckCircle,
+  AlertCircle,
+  TrendingUp,
+  X
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -25,6 +30,7 @@ import { useProjectMembers } from "@/hooks/useProjectMembers";
 import { useAuth } from "@/hooks/useAuth";
 import { useMeetings } from "@/hooks/useMeetings";
 import { supabase } from "@/lib/supabaseClient";
+import type { MeetingSummary } from "@/lib/gemini-summarize";
 
 interface MeetInterfaceProps {
   projectId: string;
@@ -61,6 +67,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const [isUpcomingExpanded, setIsUpcomingExpanded] = useState(true);
   const [isPastExpanded, setIsPastExpanded] = useState(false);
   const [cancellingMeetingId, setCancellingMeetingId] = useState<string | null>(null);
+  const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
+  const [selectedTranscriptMeeting, setSelectedTranscriptMeeting] = useState<any>(null);
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const [selectedSummaryMeeting, setSelectedSummaryMeeting] = useState<any>(null);
 
   // Get project members
   const { members } = useOrgStore();
@@ -559,28 +569,62 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                             </div>
                           </div>
 
-                          {/* Summary */}
-                          {meeting.summary && (
-                            <div className="mb-3">
-                              <p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
-                                <FileText className="w-3 h-3 mr-1" />
-                                Summary
-                              </p>
-                              <p className="text-xs text-gray-600 leading-relaxed">
-                                {meeting.summary}
-                              </p>
-                            </div>
-                          )}
+                          {/* Summary - Parse and display structured summary */}
+                          {meeting.summary && (() => {
+                            try {
+                              const summaryData: MeetingSummary = typeof meeting.summary === 'string'
+                                ? JSON.parse(meeting.summary)
+                                : meeting.summary;
+
+                              return (
+                                <div className="mb-3">
+                                  <p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
+                                    <MessageSquare className="w-3 h-3 mr-1" />
+                                    Executive Summary
+                                  </p>
+                                  <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+                                    {summaryData.executive_summary}
+                                  </p>
+                                  {(summaryData.key_points?.length > 0 || summaryData.action_items?.length > 0) && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedSummaryMeeting(meeting);
+                                        setIsSummaryModalOpen(true);
+                                      }}
+                                      className="text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 mt-2 p-0"
+                                    >
+                                      View Full Summary →
+                                    </Button>
+                                  )}
+                                </div>
+                              );
+                            } catch (error) {
+                              // Fallback for non-JSON summaries
+                              return (
+                                <div className="mb-3">
+                                  <p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
+                                    <FileText className="w-3 h-3 mr-1" />
+                                    Summary
+                                  </p>
+                                  <p className="text-xs text-gray-600 leading-relaxed">
+                                    {meeting.summary}
+                                  </p>
+                                </div>
+                              );
+                            }
+                          })()}
 
                           {/* Actions */}
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                          <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                             {meeting.transcript_text && (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  // TODO: Open transcript modal
-                                  console.log("View transcript", meeting.id);
+                                  setSelectedTranscriptMeeting(meeting);
+                                  setIsTranscriptModalOpen(true);
                                 }}
                                 className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
                               >
@@ -593,12 +637,12 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  // TODO: Implement download functionality
-                                  console.log("Download meeting", meeting.id);
+                                  window.open(meeting.recording_url, '_blank');
                                 }}
                                 className="text-xs hover:bg-gray-50 hover:text-gray-700 transition-colors"
                               >
-                                <Download className="w-3 h-3" />
+                                <Download className="w-3 h-3 mr-1" />
+                                Recording
                               </Button>
                             )}
                           </div>
@@ -868,6 +912,384 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
               ) : (
                 'Schedule Meeting'
               )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Transcript Modal */}
+      <Modal
+        isOpen={isTranscriptModalOpen}
+        onClose={() => {
+          setIsTranscriptModalOpen(false);
+          setSelectedTranscriptMeeting(null);
+        }}
+        title={selectedTranscriptMeeting?.title || 'Meeting Transcript'}
+        size="4xl"
+      >
+        <div className="space-y-4">
+          {/* Meeting Info */}
+          <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <Calendar className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600">
+                {selectedTranscriptMeeting && formatDate(new Date(selectedTranscriptMeeting.start_time))}
+              </span>
+              <Clock className="w-4 h-4 text-gray-500 ml-4" />
+              <span className="text-sm text-gray-600">
+                {selectedTranscriptMeeting && formatDuration(selectedTranscriptMeeting.duration_minutes)}
+              </span>
+            </div>
+          </div>
+
+          {/* Transcript Content - Parsed WebVTT */}
+          <div className="max-h-[600px] overflow-y-auto">
+            {selectedTranscriptMeeting?.transcript_text ? (
+              <div className="space-y-4">
+                {(() => {
+                  // Parse WebVTT transcript
+                  const lines = selectedTranscriptMeeting.transcript_text.split('\n');
+                  const entries: Array<{ timestamp: string; speaker: string; text: string }> = [];
+
+                  let currentTimestamp = '';
+                  let currentSpeaker = '';
+                  let currentText = '';
+
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+
+                    // Skip WEBVTT header and empty lines
+                    if (line === '' || line.startsWith('WEBVTT') || line.startsWith('NOTE') || line.startsWith('transcript:')) {
+                      continue;
+                    }
+
+                    // Check for timestamp line (HH:MM:SS.mmm --> HH:MM:SS.mmm)
+                    if (line.match(/^\d{2}:\d{2}:\d{2}\.\d{3}/)) {
+                      // Save previous entry if exists
+                      if (currentSpeaker && currentText) {
+                        entries.push({
+                          timestamp: currentTimestamp,
+                          speaker: currentSpeaker,
+                          text: currentText.trim()
+                        });
+                      }
+
+                      // Extract start timestamp
+                      const timestampMatch = line.match(/^(\d{2}:\d{2}:\d{2})/);
+                      currentTimestamp = timestampMatch ? timestampMatch[1] : '';
+                      currentSpeaker = '';
+                      currentText = '';
+                      continue;
+                    }
+
+                    // Check for speaker tag: <v>Speaker Name:</v>text
+                    const speakerMatch = line.match(/<v>([^<]+):<\/v>(.*)/);
+                    if (speakerMatch) {
+                      currentSpeaker = speakerMatch[1].trim();
+                      currentText = speakerMatch[2].trim();
+                    } else if (currentSpeaker) {
+                      // Continuation of previous text
+                      currentText += ' ' + line;
+                    }
+                  }
+
+                  // Save last entry
+                  if (currentSpeaker && currentText) {
+                    entries.push({
+                      timestamp: currentTimestamp,
+                      speaker: currentSpeaker,
+                      text: currentText.trim()
+                    });
+                  }
+
+                  // Group consecutive messages by speaker
+                  const groupedEntries: Array<{ speaker: string; messages: Array<{ timestamp: string; text: string }> }> = [];
+
+                  for (const entry of entries) {
+                    const lastGroup = groupedEntries[groupedEntries.length - 1];
+
+                    if (lastGroup && lastGroup.speaker === entry.speaker) {
+                      // Same speaker, add to existing group
+                      lastGroup.messages.push({
+                        timestamp: entry.timestamp,
+                        text: entry.text
+                      });
+                    } else {
+                      // New speaker, create new group
+                      groupedEntries.push({
+                        speaker: entry.speaker,
+                        messages: [{
+                          timestamp: entry.timestamp,
+                          text: entry.text
+                        }]
+                      });
+                    }
+                  }
+
+                  // Render grouped transcript
+                  return groupedEntries.map((group, groupIndex) => (
+                    <div key={groupIndex} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                      {/* Speaker Avatar */}
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold">
+                          {group.speaker.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                      </div>
+
+                      {/* Speaker Messages */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="text-sm font-semibold text-gray-900">
+                            {group.speaker}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {group.messages[0].timestamp}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {group.messages.map((msg, msgIndex) => (
+                            <p key={msgIndex} className="text-sm text-gray-700 leading-relaxed">
+                              {msg.text}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No transcript available.
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <Button
+              variant="outline"
+              onClick={() => {
+                // Copy transcript to clipboard (plain text format)
+                if (selectedTranscriptMeeting?.transcript_text) {
+                  const lines = selectedTranscriptMeeting.transcript_text.split('\n');
+                  const plainText: string[] = [];
+
+                  for (const line of lines) {
+                    const speakerMatch = line.match(/<v>([^<]+):<\/v>(.*)/);
+                    if (speakerMatch) {
+                      plainText.push(`${speakerMatch[1]}: ${speakerMatch[2]}`);
+                    }
+                  }
+
+                  navigator.clipboard.writeText(plainText.join('\n'));
+                }
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Copy to Clipboard
+            </Button>
+            <Button
+              onClick={() => {
+                setIsTranscriptModalOpen(false);
+                setSelectedTranscriptMeeting(null);
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Full Summary Modal */}
+      <Modal
+        isOpen={isSummaryModalOpen}
+        onClose={() => {
+          setIsSummaryModalOpen(false);
+          setSelectedSummaryMeeting(null);
+        }}
+        title={selectedSummaryMeeting?.title || 'Meeting Summary'}
+        size="4xl"
+      >
+        <div className="space-y-4">
+          {/* Meeting Info */}
+          <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <Calendar className="w-4 h-4 text-gray-500" />
+              <span className="text-sm text-gray-600">
+                {selectedSummaryMeeting && formatDate(new Date(selectedSummaryMeeting.start_time))}
+              </span>
+              <Clock className="w-4 h-4 text-gray-500 ml-4" />
+              <span className="text-sm text-gray-600">
+                {selectedSummaryMeeting && formatDuration(selectedSummaryMeeting.duration_minutes)}
+              </span>
+            </div>
+          </div>
+
+          {/* Summary Content */}
+          {selectedSummaryMeeting?.summary && (() => {
+            try {
+              const summaryData: MeetingSummary = typeof selectedSummaryMeeting.summary === 'string'
+                ? JSON.parse(selectedSummaryMeeting.summary)
+                : selectedSummaryMeeting.summary;
+
+              return (
+                <div className="max-h-[600px] overflow-y-auto space-y-6">
+                  {/* Executive Summary */}
+                  {summaryData.executive_summary && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                        <MessageSquare className="w-4 h-4 mr-2 text-purple-600" />
+                        Executive Summary
+                      </h3>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {summaryData.executive_summary}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Key Points */}
+                  {summaryData.key_points && summaryData.key_points.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                        <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                        Key Points
+                      </h3>
+                      <ul className="space-y-2">
+                        {summaryData.key_points.map((point, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+                            <span className="text-sm text-gray-700">{point}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Action Items */}
+                  {summaryData.action_items && summaryData.action_items.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                        <CheckCircle className="w-4 h-4 mr-2 text-blue-600" />
+                        Action Items
+                      </h3>
+                      <ul className="space-y-2">
+                        {summaryData.action_items.map((item, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+                            <span className="text-sm text-gray-700">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Important Numbers */}
+                  {summaryData.important_numbers && summaryData.important_numbers.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                        <TrendingUp className="w-4 h-4 mr-2 text-orange-600" />
+                        Important Numbers & Metrics
+                      </h3>
+                      <ul className="space-y-2">
+                        {summaryData.important_numbers.map((number, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="inline-block w-1.5 h-1.5 bg-orange-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+                            <span className="text-sm text-gray-700">{number}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Questions Raised */}
+                  {summaryData.questions_raised && summaryData.questions_raised.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                        <MessageSquare className="w-4 h-4 mr-2 text-indigo-600" />
+                        Questions Raised
+                      </h3>
+                      <ul className="space-y-2">
+                        {summaryData.questions_raised.map((question, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="inline-block w-1.5 h-1.5 bg-indigo-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+                            <span className="text-sm text-gray-700">{question}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Open Questions */}
+                  {summaryData.open_questions && summaryData.open_questions.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2 text-red-600" />
+                        Open Questions
+                      </h3>
+                      <ul className="space-y-2">
+                        {summaryData.open_questions.map((question, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="inline-block w-1.5 h-1.5 bg-red-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+                            <span className="text-sm text-gray-700">{question}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Speaker Insights */}
+                  {summaryData.speaker_insights && summaryData.speaker_insights.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+                        <UsersIcon className="w-4 h-4 mr-2 text-purple-600" />
+                        Speaker Insights
+                      </h3>
+                      <ul className="space-y-2">
+                        {summaryData.speaker_insights.map((insight, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="inline-block w-1.5 h-1.5 bg-purple-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+                            <span className="text-sm text-gray-700">{insight}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            } catch (error) {
+              return (
+                <div className="text-sm text-gray-600">
+                  {selectedSummaryMeeting.summary}
+                </div>
+              );
+            }
+          })()}
+
+          {/* Actions */}
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            {selectedSummaryMeeting?.transcript_text && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsSummaryModalOpen(false);
+                  setSelectedTranscriptMeeting(selectedSummaryMeeting);
+                  setIsTranscriptModalOpen(true);
+                }}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                View Transcript
+              </Button>
+            )}
+            <Button
+              onClick={() => {
+                setIsSummaryModalOpen(false);
+                setSelectedSummaryMeeting(null);
+              }}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              Close
             </Button>
           </div>
         </div>
