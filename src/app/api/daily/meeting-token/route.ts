@@ -101,7 +101,7 @@ export async function POST(request: Request) {
         roomName = urlParts[urlParts.length - 1];
       } else {
         // If meeting has no link, we cannot generate a token for a specific room safely
-        roomName = null;
+        roomName = '';
       }
     } else if (roomName) {
       // Fallback: If only roomName provided, verify access via room name lookup

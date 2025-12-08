@@ -1,6 +1,6 @@
 // src/app/api/daily/create-room/route.ts
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '../../../../lib/supabase/server';
 import type {
   CreateRoomRequest,
   CreateRoomResponse,
