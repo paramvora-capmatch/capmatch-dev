@@ -82,10 +82,14 @@ export function DailyVideoCall({
   useEffect(() => {
     if (!token) return;
 
+    // Prevent duplicate instances
+    let daily: DailyCall | null = null;
+    let mounted = true;
+
     const dailyDomain = process.env.NEXT_PUBLIC_DAILY_DOMAIN || 'capmatch';
 
     // Create Daily iframe with prebuilt UI
-    const daily = DailyIframe.createFrame({
+    daily = DailyIframe.createFrame({
       showLeaveButton: true,
       showFullscreenButton: true,
       iframeStyle: {
@@ -98,7 +102,9 @@ export function DailyVideoCall({
       },
     });
 
-    setCallObject(daily);
+    if (mounted) {
+      setCallObject(daily);
+    }
 
     // Join the call
     daily
@@ -115,6 +121,11 @@ export function DailyVideoCall({
       });
 
     // Set up event listeners
+    daily.on('joined-meeting', () => {
+      console.log('User joined meeting');
+      // Transcription will be started automatically by the webhook when the meeting starts
+    });
+
     daily.on('left-meeting', () => {
       console.log('User left the meeting');
       // Optionally redirect to dashboard
@@ -128,6 +139,7 @@ export function DailyVideoCall({
 
     // Cleanup on unmount
     return () => {
+      mounted = false;
       if (daily) {
         daily.destroy();
       }

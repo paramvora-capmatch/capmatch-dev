@@ -100,6 +100,8 @@ export async function POST(request: NextRequest) {
               enable_screenshare: true,
               enable_chat: true,
               enable_recording: 'cloud',
+              enable_transcription: true, // Enable transcription capability
+              enable_transcription_storage: true, // Store transcript for webhook retrieval
               max_participants: 20,
               start_video_off: false,
               start_audio_off: false,
@@ -155,6 +157,7 @@ export async function POST(request: NextRequest) {
         duration_minutes: durationMinutes,
         location: body.location || null,
         meeting_link: dailyRoomUrl || body.meetingLink || null,
+        room_name: roomName, // Store Daily.co room name for webhook matching
         organizer_id: user.id,
         project_id: body.projectId || null,
         status: 'scheduled',

@@ -1,6 +1,6 @@
 // src/app/api/daily/create-room/route.ts
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import type {
   CreateRoomRequest,
   CreateRoomResponse,
@@ -9,20 +9,8 @@ import type {
   DailyApiError,
 } from '@/types/daily-types';
 
-// Create Supabase client with service role for server-side operations
-function getSupabaseServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Supabase credentials not configured');
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
-
 export async function POST(request: Request) {
-  const supabase = getSupabaseServiceClient();
+  const supabase = await createClient();
 
   // Authenticate user
   const {
@@ -100,14 +88,25 @@ export async function POST(request: Request) {
       name: roomName,
       privacy: 'private', // Requires token to join
       properties: {
-        enable_screenshare: roomConfig?.enableScreenshare ?? true,
-        enable_chat: roomConfig?.enableChat ?? true,
-        enable_recording: roomConfig?.enableRecording ? 'cloud' : 'cloud', // Always enable cloud recording
-        max_participants: roomConfig?.maxParticipants ?? 20,
-        start_video_off: false,
-        start_audio_off: false,
-        enable_prejoin_ui: true,
-      },
+          enable_chat: true,
+          enable_screenshare: true,
+          enable_recording: 'cloud',
+          enable_transcription: true, // Enable transcription capability
+          enable_transcription_storage: true, // Store transcript for webhook retrieval
+          enable_advanced_chat: true,
+          enable_emoji_reactions: true,
+          enable_hand_raising: true,
+          enable_breakout_rooms: true,
+          enable_pip_ui: true,
+          enable_people_ui: true,
+          enable_prejoin_ui: true,
+          enable_network_ui: true,
+          enable_noise_cancellation_ui: true,
+          enable_live_captions_ui: true,
+          start_video_off: false,
+          start_audio_off: false,
+          max_participants: 10,
+        },
     };
 
     // Call Daily.co API to create room
@@ -134,15 +133,29 @@ export async function POST(request: Request) {
 
     // If meetingId provided, update meeting record
     if (meetingId && meeting) {
-      const { error: updateError } = await supabase
+      console.log('[create-room] Updating meeting:', {
+        meetingId,
+        roomName,
+        roomUrl,
+      });
+
+      const { data: updateData, error: updateError } = await supabase
         .from('meetings')
-        .update({ meeting_link: roomUrl })
-        .eq('id', meetingId);
+        .update({
+          meeting_link: roomUrl,
+          room_name: roomName, // Store room name for webhook matching
+        })
+        .eq('id', meetingId)
+        .select();
 
       if (updateError) {
-        console.error('Failed to update meeting record:', updateError);
+        console.error('[create-room] Failed to update meeting record:', updateError);
         // Don't fail the request - room was created successfully
+      } else {
+        console.log('[create-room] Successfully updated meeting with room_name:', updateData);
       }
+    } else {
+      console.log('[create-room] No meetingId or meeting found, skipping database update');
     }
 
     // Return response

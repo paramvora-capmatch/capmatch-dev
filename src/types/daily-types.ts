@@ -145,13 +145,24 @@ export interface DailyCreateRoomApiRequest {
   name?: string; // Room name (optional, auto-generated if not provided)
   privacy?: 'public' | 'private';
   properties?: {
-    enable_screenshare?: boolean;
     enable_chat?: boolean;
-    enable_recording?: 'cloud' | 'local';
-    max_participants?: number;
+    enable_screenshare?: boolean;
+    enable_recording?: 'cloud' | 'local' | 'disabled';
+    enable_transcription?: boolean; // Enable transcription capability
+    enable_transcription_storage?: boolean; // Store transcript for webhook retrieval
+    enable_advanced_chat?: boolean;
+    enable_emoji_reactions?: boolean;
+    enable_hand_raising?: boolean;
+    enable_breakout_rooms?: boolean;
+    enable_pip_ui?: boolean;
+    enable_people_ui?: boolean;
+    enable_prejoin_ui?: boolean;
+    enable_network_ui?: boolean;
+    enable_noise_cancellation_ui?: boolean;
+    enable_live_captions_ui?: boolean;
     start_video_off?: boolean;
     start_audio_off?: boolean;
-    enable_prejoin_ui?: boolean;
+    max_participants?: number;
     exp?: number; // Unix timestamp for room expiration
     eject_at_room_exp?: boolean;
   };
