@@ -544,7 +544,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       projectResumeChannelRef.current?.unsubscribe();
       projectResumeChannelRef.current = null;
     };
-  }, [projectId, user?.id, isEditing, activeProject?.id, setActiveProject, loadUserProjects]);
+  }, [projectId, user?.id, isEditing, activeProject, setActiveProject, loadUserProjects]);
 
   // Check permissions for PROJECT_RESUME, PROJECT_DOCS_ROOT, and BORROWER_RESUME resources
   // IMPORTANT: These must be called before any conditional returns to follow Rules of Hooks

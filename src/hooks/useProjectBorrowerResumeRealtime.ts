@@ -368,7 +368,8 @@ export const useProjectBorrowerResumeRealtime = (
 			// Only track autofill for this project
 			if (
 				e.detail?.projectId === projectId &&
-				e.detail?.context === "borrower"
+				e.detail?.context === "borrower" &&
+				projectId
 			) {
 				console.log(
 					`[useProjectBorrowerResumeRealtime] ✅ Handling autofill completion for borrower resume, projectId: ${projectId}`
@@ -465,7 +466,7 @@ export const useProjectBorrowerResumeRealtime = (
 				handleLocalSaveStart
 			);
 		};
-	}, [projectId, load]);
+	}, [projectId, load, updateContentIfChanged]);
 
 	// Subscribe to realtime changes
 	useEffect(() => {

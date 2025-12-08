@@ -1173,6 +1173,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		(fieldId: string, sectionId: string) => {
 			const locked = isFieldLocked(fieldId, sectionId);
 			const value = (formData as any)[fieldId];
+			const meta = fieldMetadata[fieldId];
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 
 			let hasValue = isValueProvided(value);
 			// For principals table, require each row to be complete
@@ -1180,10 +1182,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				hasValue = hasCompletePrincipals((formData as any).principals);
 			}
 
-			const isDisabled = !hasValue && !locked;
+			// Disable if empty (and not already locked) OR if has warnings
+			const isDisabled = (!hasValue && !locked) || hasWarnings;
 
 			const tooltipTitle = isDisabled
-				? "Cannot lock an empty field. Please fill in a value first."
+				? hasWarnings
+					? "Cannot lock a field with warnings. Please resolve warnings first."
+					: "Cannot lock an empty field. Please fill in a value first."
 				: locked
 				? "Unlock field"
 				: "Lock field";
@@ -1216,7 +1221,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				</div>
 			);
 		},
-		[isFieldLocked, formData, toggleFieldLock]
+		[isFieldLocked, formData, toggleFieldLock, fieldMetadata]
 	);
 
 	const getFieldWarning = useCallback(

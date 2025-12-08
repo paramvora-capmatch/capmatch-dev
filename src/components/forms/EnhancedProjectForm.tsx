@@ -1919,14 +1919,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		(fieldId: string, sectionId: string) => {
 			const locked = isFieldLocked(fieldId, sectionId);
 			const value = (formData as any)[fieldId];
+			const meta = fieldMetadata[fieldId];
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 			const hasValue = isProjectValueProvided(value);
-			// Only allow locking when the field has a value; still allow unlocking
-			// even if the value is now empty so users are never stuck with a locked
-			// empty field.
-			const isDisabled = !hasValue && !locked;
+			// Disable if empty (and not already locked) OR if has warnings
+			// Still allow unlocking even if the value is now empty so users are never stuck with a locked empty field.
+			const isDisabled = (!hasValue && !locked) || hasWarnings;
 
 			const tooltipTitle = isDisabled
-				? "Cannot lock an empty field. Please fill in a value first."
+				? hasWarnings
+					? "Cannot lock a field with warnings. Please resolve warnings first."
+					: "Cannot lock an empty field. Please fill in a value first."
 				: locked
 				? "Unlock field"
 				: "Lock field";
@@ -1961,7 +1964,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				</div>
 			);
 		},
-		[formData, isFieldLocked, toggleFieldLock]
+		[formData, isFieldLocked, toggleFieldLock, fieldMetadata]
 	);
 
 	const renderFieldLabel = useCallback(
