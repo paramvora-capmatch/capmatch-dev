@@ -334,14 +334,25 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       }
 
       try {
+        console.log(`[ProjectWorkspace] 🔄 loadProjectData starting for projectId: ${projectId}`);
+        
         // Always fetch a fresh project with its current resume version
         const fetchedProject = await getProjectWithResume(projectId);
+        console.log(`[ProjectWorkspace] 📥 Fetched project from getProjectWithResume:`, {
+          projectId: fetchedProject.id,
+          projectResumeResourceId: fetchedProject.projectResumeResourceId,
+        });
 
         // Also fetch resources for the project so we can attach IDs needed by other components
         const { data: resourcesData } = await supabase
           .from("resources")
           .select("id, resource_type")
           .eq("project_id", projectId);
+
+        console.log(`[ProjectWorkspace] 📦 Fetched resources:`, {
+          count: resourcesData?.length || 0,
+          resources: resourcesData?.map((r: any) => ({ id: r.id, type: r.resource_type })),
+        });
 
         const projectDocsResource = resourcesData?.find(
           (r: any) => r.resource_type === "PROJECT_DOCS_ROOT"
@@ -366,6 +377,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           borrowerResumeResourceId: borrowerResumeResource?.id || null,
           borrowerDocsResourceId: borrowerDocsResource?.id || null,
         };
+
+        console.log(`[ProjectWorkspace] ✅ Project with resource IDs:`, {
+          projectDocsResourceId: projectWithResources.projectDocsResourceId,
+          projectResumeResourceId: projectWithResources.projectResumeResourceId,
+          borrowerResumeResourceId: projectWithResources.borrowerResumeResourceId,
+          borrowerDocsResourceId: projectWithResources.borrowerDocsResourceId,
+        });
 
         // Load org data for permission checks (skip for advisors)
         if (projectWithResources.owner_org_id && user?.role !== "advisor") {
@@ -462,19 +480,51 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
           
           // Defer state update to avoid updating during render
           setTimeout(async () => {
+            console.log(`[ProjectWorkspace] 🔄 Realtime UPDATE received for project_resumes, projectId: ${projectId}`);
+            console.log(`[ProjectWorkspace] 📦 Current activeProject resource IDs before update:`, {
+              projectDocsResourceId: activeProject?.projectDocsResourceId,
+              projectResumeResourceId: activeProject?.projectResumeResourceId,
+              borrowerResumeResourceId: (activeProject as any)?.borrowerResumeResourceId,
+              borrowerDocsResourceId: (activeProject as any)?.borrowerDocsResourceId,
+            });
+            
             // Reload only the specific project, not all projects
             try {
               const updatedProject = await getProjectWithResume(projectId);
+              console.log(`[ProjectWorkspace] 📥 Updated project from getProjectWithResume:`, {
+                projectResumeResourceId: updatedProject.projectResumeResourceId,
+                hasProjectResumeResourceId: !!updatedProject.projectResumeResourceId,
+              });
+              
               if (updatedProject) {
+                // Preserve resource IDs from current activeProject before updating
+                // getProjectWithResume doesn't return borrower resource IDs
+                const projectWithPreservedIds = {
+                  ...updatedProject,
+                  projectDocsResourceId: activeProject?.projectDocsResourceId ?? updatedProject.projectDocsResourceId ?? null,
+                  borrowerResumeResourceId: (activeProject as any)?.borrowerResumeResourceId ?? null,
+                  borrowerDocsResourceId: (activeProject as any)?.borrowerDocsResourceId ?? null,
+                  // projectResumeResourceId IS returned by getProjectWithResume, so prefer new one, fallback to existing
+                  projectResumeResourceId: updatedProject.projectResumeResourceId || activeProject?.projectResumeResourceId || null,
+                };
+                
+                console.log(`[ProjectWorkspace] ✅ Project with preserved resource IDs:`, {
+                  projectDocsResourceId: projectWithPreservedIds.projectDocsResourceId,
+                  projectResumeResourceId: projectWithPreservedIds.projectResumeResourceId,
+                  borrowerResumeResourceId: (projectWithPreservedIds as any).borrowerResumeResourceId,
+                  borrowerDocsResourceId: (projectWithPreservedIds as any).borrowerDocsResourceId,
+                });
+                
                 // Update active project if it's the current one
                 if (activeProject?.id === projectId) {
-                  setActiveProject(updatedProject);
+                  console.log(`[ProjectWorkspace] 🔄 Updating activeProject with preserved IDs`);
+                  setActiveProject(projectWithPreservedIds);
                 }
                 // Note: We don't update the projects array here to avoid full refresh
                 // The next time loadUserProjects is called, it will get the latest data
               }
             } catch (error) {
-              console.error('Error reloading project after remote update:', error);
+              console.error('[ProjectWorkspace] ❌ Error reloading project after remote update:', error);
               // Fallback to full reload if specific reload fails
               await loadUserProjects();
             }
@@ -494,7 +544,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       projectResumeChannelRef.current?.unsubscribe();
       projectResumeChannelRef.current = null;
     };
-  }, [projectId, user?.id, isEditing, activeProject?.id, setActiveProject, loadUserProjects]);
+  }, [projectId, user?.id, isEditing, activeProject, setActiveProject, loadUserProjects]);
 
   // Check permissions for PROJECT_RESUME, PROJECT_DOCS_ROOT, and BORROWER_RESUME resources
   // IMPORTANT: These must be called before any conditional returns to follow Rules of Hooks
@@ -532,6 +582,53 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     (!projectResumeResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
   const isWaitingForProjectDocs = !hasProject || 
     (!projectDocsResourceId && !permissionsLoadedForProject && isPermissionStoreLoading);
+
+  // Log resource IDs and loading states for debugging
+  useEffect(() => {
+    console.log(`[ProjectWorkspace] 📊 Resource IDs and loading states:`, {
+      projectId,
+      hasProject,
+      activeProjectId: activeProject?.id,
+      resourceIds: {
+        projectDocsResourceId,
+        projectResumeResourceId,
+        borrowerResumeResourceId,
+        borrowerDocsResourceId,
+      },
+      loadingStates: {
+        isWaitingForBorrowerResume,
+        isWaitingForBorrowerDocs,
+        isWaitingForProjectResume,
+        isWaitingForProjectDocs,
+      },
+      permissions: {
+        permissionsLoadedForProject,
+        isPermissionStoreLoading,
+        canViewBorrowerResume,
+        canViewBorrowerDocs,
+        canViewProjectResume,
+        canViewProjectDocs,
+      },
+    });
+  }, [
+    projectId,
+    hasProject,
+    activeProject?.id,
+    projectDocsResourceId,
+    projectResumeResourceId,
+    borrowerResumeResourceId,
+    borrowerDocsResourceId,
+    isWaitingForBorrowerResume,
+    isWaitingForBorrowerDocs,
+    isWaitingForProjectResume,
+    isWaitingForProjectDocs,
+    permissionsLoadedForProject,
+    isPermissionStoreLoading,
+    canViewBorrowerResume,
+    canViewBorrowerDocs,
+    canViewProjectResume,
+    canViewProjectDocs,
+  ]);
 
   // Reload permissions when switching to borrower editing mode to ensure fresh data
   useEffect(() => {

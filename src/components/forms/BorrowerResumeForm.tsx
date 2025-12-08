@@ -56,7 +56,6 @@ import {
 import { Principal, PrincipalRole } from "@/types/enhanced-types";
 import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
 import { BorrowerResumeView } from "./BorrowerResumeView";
-import { BorrowerResumeVersionHistory } from "./BorrowerResumeVersionHistory";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
 
 interface BorrowerResumeFormProps {
@@ -299,9 +298,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 	const [refreshKey, setRefreshKey] = useState(0);
-	
+
 	// Map to store refs for field wrappers (for tooltip triggers)
-	const fieldWrapperRefs = useRef<Map<string, React.RefObject<HTMLDivElement>>>(new Map());
+	const fieldWrapperRefs = useRef<
+		Map<string, React.RefObject<HTMLDivElement>>
+	>(new Map());
 
 	// Refs for autosave and dirty check
 	const initialSnapshotRef = useRef<{
@@ -320,7 +321,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		lockedFields,
 	});
 	const isSavingRef = useRef(false);
-	
+
 	// Keep fieldMetadata ref in sync for use in effects
 	useEffect(() => {
 		stateRef.current.fieldMetadata = fieldMetadata;
@@ -364,6 +365,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		);
 
 		setLockedFields(newLockedFields);
+
+		// Clear unlockedFields when reloading from backend to ensure state consistency
+		setUnlockedFields(new Set());
 
 		const snapshot = {
 			formData: sanitized,
@@ -495,17 +499,17 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			// Preserve original source in other_values if it exists and is not user_input
 			const originalSource = currentMeta.source;
-			const otherValues = Array.isArray(currentMeta.other_values) 
-				? [...currentMeta.other_values] 
+			const otherValues = Array.isArray(currentMeta.other_values)
+				? [...currentMeta.other_values]
 				: [];
-			
+
 			// If there's an original source that's not user_input, add it to other_values
 			if (originalSource && originalSource.type !== "user_input") {
 				const originalValue = currentMeta.value;
 				// Check if this source/value combination already exists in other_values
 				const alreadyExists = otherValues.some(
-					(ov: any) => 
-						ov.value === originalValue && 
+					(ov: any) =>
+						ov.value === originalValue &&
 						ov.source?.type === originalSource.type
 				);
 				if (!alreadyExists && originalValue !== value) {
@@ -533,11 +537,38 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		[fieldMetadata]
 	);
 
+	// Create debounced sanity checker instance
+	const sanityCheckerRef = useRef<
+		import("@/lib/debouncedSanityCheck").DebouncedSanityChecker | null
+	>(null);
+
+	useEffect(() => {
+		import("@/lib/debouncedSanityCheck").then(
+			({ DebouncedSanityChecker }) => {
+				sanityCheckerRef.current = new DebouncedSanityChecker({
+					resumeType: "borrower",
+					debounceMs: 1500, // 1.5 seconds debounce for individual field checks
+					batchDebounceMs: 2500, // 2.5 seconds debounce for batch/dependency validations
+				});
+			}
+		);
+
+		return () => {
+			sanityCheckerRef.current?.cancelAll();
+		};
+	}, []);
+
 	// Helper function to perform realtime sanity check on blur
 	const handleBlur = useCallback(
-		async (fieldId: string, value?: any) => {
+		(fieldId: string, value?: any) => {
+			// Only perform realtime checks when editing
+			if (!isEditing) {
+				return;
+			}
+
 			// Use provided value or read from formData
-			const fieldValue = value !== undefined ? value : (formData as any)[fieldId];
+			const fieldValue =
+				value !== undefined ? value : (formData as any)[fieldId];
 			if (fieldValue === undefined || fieldValue === null) {
 				return;
 			}
@@ -550,54 +581,54 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				other_values: [],
 			};
 
-			// Call realtime sanity check
-			try {
-				const { checkRealtimeSanity } = await import(
-					"@/lib/api/realtimeSanityCheck"
-				);
-				// Use current formData and override with the field value
-				const context = { ...formData, [fieldId]: fieldValue };
-				const result = await checkRealtimeSanity({
-					fieldId,
-					value: fieldValue,
-					resumeType: "borrower",
-					context,
-					existingFieldData: currentMeta,
-				});
+			// Use current formData and override with the field value
+			const context = { ...formData, [fieldId]: fieldValue };
 
-				// Update metadata with warnings from sanity check
-				setFieldMetadata((prev) => ({
-					...prev,
-					[fieldId]: {
-						...prev[fieldId],
-						warnings: result.warnings || [],
-					},
-				}));
-			} catch (error) {
-				console.error("Realtime sanity check failed:", error);
-				// Don't fail if sanity check fails
-			}
+			// Schedule debounced sanity check
+			sanityCheckerRef.current?.scheduleCheck(
+				fieldId,
+				fieldValue,
+				context,
+				currentMeta,
+				(fieldId, warnings) => {
+					// Update metadata with warnings from sanity check
+					setFieldMetadata((prev) => ({
+						...prev,
+						[fieldId]: {
+							...prev[fieldId],
+							warnings: warnings,
+						},
+					}));
+				},
+				(fieldId, error) => {
+					console.error(
+						`Realtime sanity check failed for ${fieldId}:`,
+						error
+					);
+					// Don't fail if sanity check fails
+				}
+			);
 		},
-		[formData, fieldMetadata]
+		[formData, fieldMetadata, isEditing]
 	);
 
 	// Map of field dependencies for borrower resume
 	const fieldDependencies = useMemo(() => {
 		const deps: Record<string, string[]> = {};
-		
+
 		// Fields that depend on primaryEntityStructure
 		deps["primaryEntityStructure"] = ["primaryEntityName"];
 		deps["primaryEntityName"] = ["primaryEntityStructure"];
-		
+
 		// Fields that depend on netWorthRange
 		deps["netWorthRange"] = ["liquidityRange"];
-		
+
 		// Fields that depend on liquidityRange
 		deps["liquidityRange"] = ["netWorthRange"];
-		
+
 		// Fields that depend on principals (for ownership percentage sum)
 		deps["principals"] = ["ownershipPercentage"];
-		
+
 		return deps;
 	}, []);
 
@@ -605,8 +636,20 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	const prevFormDataRef = useRef<any>(formData);
 	const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-	// Re-validate dependent fields when relevant fields change
+	// Re-validate dependent fields when relevant fields change (batched, only when editing)
 	useEffect(() => {
+		// Skip if not in edit mode - realtime checks should only happen when editing
+		if (!isEditing) {
+			prevFormDataRef.current = formData;
+			return;
+		}
+
+		// Skip if formData is empty or not yet initialized
+		if (!formData || Object.keys(formData).length === 0) {
+			prevFormDataRef.current = formData;
+			return;
+		}
+
 		// Clear any existing timeout
 		if (validationTimeoutRef.current) {
 			clearTimeout(validationTimeoutRef.current);
@@ -616,35 +659,37 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		validationTimeoutRef.current = setTimeout(async () => {
 			const currentFormData = formData;
 			const prevFormData = prevFormDataRef.current;
-			
+
 			// Find fields that actually changed (only check fields in dependencies map)
 			const changedFields = new Set<string>();
 			const dependencyFieldIds = new Set(Object.keys(fieldDependencies));
-			
+
 			// Only check fields that are in the dependency map or are dependencies themselves
 			const allRelevantFields = new Set([
 				...Object.keys(fieldDependencies),
 				...Object.values(fieldDependencies).flat(),
 			]);
-			
+
 			allRelevantFields.forEach((fieldId) => {
 				const currentValue = (currentFormData as any)[fieldId];
 				const prevValue = (prevFormData as any)[fieldId];
 				// Use JSON.stringify for deep comparison of objects/arrays
-				if (JSON.stringify(currentValue) !== JSON.stringify(prevValue)) {
+				if (
+					JSON.stringify(currentValue) !== JSON.stringify(prevValue)
+				) {
 					changedFields.add(fieldId);
 				}
 			});
-			
+
 			// Only proceed if there are actual changes to relevant fields
 			if (changedFields.size === 0) {
 				prevFormDataRef.current = currentFormData;
 				return;
 			}
-			
+
 			// Check all fields that might have dependencies
 			const fieldsToRevalidate = new Set<string>();
-			
+
 			// For each changed field, check if it has dependencies
 			changedFields.forEach((fieldId) => {
 				const dependentFields = fieldDependencies[fieldId];
@@ -652,23 +697,66 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					dependentFields.forEach((depFieldId) => {
 						// Only re-validate if the dependent field has a value
 						const depValue = (currentFormData as any)[depFieldId];
-						if (depValue !== undefined && depValue !== null && depValue !== "") {
+						if (
+							depValue !== undefined &&
+							depValue !== null &&
+							depValue !== ""
+						) {
 							fieldsToRevalidate.add(depFieldId);
 						}
 					});
 				}
 			});
-			
-			// Re-validate all dependent fields
-			if (fieldsToRevalidate.size > 0) {
-				for (const fieldId of fieldsToRevalidate) {
-					const fieldValue = (currentFormData as any)[fieldId];
-					if (fieldValue !== undefined && fieldValue !== null && fieldValue !== "") {
-						await handleBlur(fieldId, fieldValue);
-					}
+
+			// Batch validate all dependent fields in parallel
+			if (fieldsToRevalidate.size > 0 && sanityCheckerRef.current) {
+				const fieldsToCheck = Array.from(fieldsToRevalidate)
+					.map((fieldId) => {
+						const fieldValue = (currentFormData as any)[fieldId];
+						const currentMeta = fieldMetadata[fieldId] || {
+							value: fieldValue,
+							source: null,
+							warnings: [],
+							other_values: [],
+						};
+						return {
+							fieldId,
+							value: fieldValue,
+							context: currentFormData,
+							existingFieldData: currentMeta,
+						};
+					})
+					.filter(
+						(field) =>
+							field.value !== undefined &&
+							field.value !== null &&
+							field.value !== ""
+					);
+
+				if (fieldsToCheck.length > 0) {
+					// Batch check all fields in parallel
+					await sanityCheckerRef.current.batchCheck(
+						fieldsToCheck,
+						(fieldId, warnings) => {
+							// Update metadata with warnings from sanity check
+							setFieldMetadata((prev) => ({
+								...prev,
+								[fieldId]: {
+									...prev[fieldId],
+									warnings: warnings,
+								},
+							}));
+						},
+						(fieldId, error) => {
+							console.error(
+								`Batch sanity check failed for ${fieldId}:`,
+								error
+							);
+						}
+					);
 				}
 			}
-			
+
 			// Update ref after processing
 			prevFormDataRef.current = currentFormData;
 		}, 1000); // 1000ms debounce to reduce API calls and re-renders
@@ -678,7 +766,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				clearTimeout(validationTimeoutRef.current);
 			}
 		};
-	}, [formData, fieldDependencies, handleBlur]);
+	}, [formData, fieldDependencies, fieldMetadata, isEditing]);
 
 	// Principals Management (table-style, similar to residential unit mix)
 	const handleRemovePrincipal = useCallback(
@@ -752,6 +840,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				const dataToSave = {
 					...finalData,
 					_metadata: fieldMetadata,
+					_lockedFields: lockedFieldsObj,
 					completenessPercent,
 				};
 
@@ -966,7 +1055,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		[isSubsectionFullyLocked, formData]
 	);
 
-		const getFieldStylingClasses = useCallback(
+	const getFieldStylingClasses = useCallback(
 		(fieldId: string, sectionId?: string) => {
 			const value = (formData as any)[fieldId];
 			const hasValue = isValueProvided(value);
@@ -1084,6 +1173,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		(fieldId: string, sectionId: string) => {
 			const locked = isFieldLocked(fieldId, sectionId);
 			const value = (formData as any)[fieldId];
+			const meta = fieldMetadata[fieldId];
+			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 
 			let hasValue = isValueProvided(value);
 			// For principals table, require each row to be complete
@@ -1091,10 +1182,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				hasValue = hasCompletePrincipals((formData as any).principals);
 			}
 
-			const isDisabled = !hasValue && !locked;
+			// Disable if empty (and not already locked) OR if has warnings
+			const isDisabled = (!hasValue && !locked) || hasWarnings;
 
 			const tooltipTitle = isDisabled
-				? "Cannot lock an empty field. Please fill in a value first."
+				? hasWarnings
+					? "Cannot lock a field with warnings. Please resolve warnings first."
+					: "Cannot lock an empty field. Please fill in a value first."
 				: locked
 				? "Unlock field"
 				: "Lock field";
@@ -1127,7 +1221,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				</div>
 			);
 		},
-		[isFieldLocked, formData, toggleFieldLock]
+		[isFieldLocked, formData, toggleFieldLock, fieldMetadata]
 	);
 
 	const getFieldWarning = useCallback(
@@ -1147,8 +1241,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			required: boolean = false,
 			fieldWrapperRef?: React.RefObject<HTMLDivElement>
 		) => {
-			const hasWarnings = fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0;
-			
+			const hasWarnings =
+				fieldMetadata[fieldId]?.warnings &&
+				fieldMetadata[fieldId].warnings.length > 0;
+
 			return (
 				<div className="mb-1">
 					<label className="flex text-sm font-medium text-gray-700 items-center gap-2 relative group/field w-full">
@@ -1261,11 +1357,14 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			// Get or create a ref for the field wrapper to trigger tooltip on hover
 			let fieldWrapperRef = fieldWrapperRefs.current.get(fieldId);
 			if (!fieldWrapperRef) {
-				fieldWrapperRef = React.createRef<HTMLDivElement>() as React.RefObject<HTMLDivElement>;
+				fieldWrapperRef =
+					React.createRef<HTMLDivElement>() as React.RefObject<HTMLDivElement>;
 				fieldWrapperRefs.current.set(fieldId, fieldWrapperRef);
 			}
 
-			const hasWarnings = fieldMetadata[fieldId]?.warnings && fieldMetadata[fieldId].warnings.length > 0;
+			const hasWarnings =
+				fieldMetadata[fieldId]?.warnings &&
+				fieldMetadata[fieldId].warnings.length > 0;
 
 			return (
 				<FormGroup key={fieldId}>
@@ -1281,136 +1380,142 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 							<div ref={fieldWrapperRef} className="relative">
 								{controlType === "textarea" && (
-								<textarea
-									id={fieldId}
-									value={value}
-									onChange={(e) =>
-										handleInputChange(
-											fieldId,
-											e.target.value
-										)
-									}
-									onBlur={() => handleBlur(fieldId)}
-									disabled={disabled}
-									className={cn(
-										styling,
-										"h-24 font-mono text-xs"
-									)}
-									data-field-id={fieldId}
-									data-field-type="textarea"
-									data-field-section={sectionId}
-									data-field-label={label}
-								/>
-							)}
-
-							{controlType === "select" && (
-								<Select
-									id={fieldId}
-									value={value}
-									onChange={(e) =>
-										handleInputChange(
-											fieldId,
-											e.target.value
-										)
-									}
-									onBlur={() => handleBlur(fieldId)}
-									options={options.map((o) =>
-										typeof o === "string"
-											? { label: o, value: o }
-											: o
-									)}
-									disabled={disabled}
-									className={styling}
-									data-field-id={fieldId}
-									data-field-type="select"
-									data-field-section={sectionId}
-									data-field-label={label}
-								/>
-							)}
-
-							{controlType === "button-select" && (
-								<div
-									data-field-id={fieldId}
-									data-field-type="button-select"
-									data-field-section={sectionId}
-									data-field-label={label}
-								>
-									<ButtonSelect
-										label=""
-										options={
-											options.length
-												? options
-												: [
-														{
-															label: "Yes",
-															value: true,
-														},
-														{
-															label: "No",
-															value: false,
-														},
-												  ]
+									<textarea
+										id={fieldId}
+										value={value}
+										onChange={(e) =>
+											handleInputChange(
+												fieldId,
+												e.target.value
+											)
 										}
-										selectedValue={value}
-										onSelect={async (selected) => {
-											handleInputChange(fieldId, selected);
-											// Call sanity check immediately after selection (ButtonSelect doesn't have blur)
-											await handleBlur(fieldId, selected);
-										}}
+										onBlur={() => handleBlur(fieldId)}
 										disabled={disabled}
-										isLocked={isLocked}
-										isTouched={hasValue || hasSources}
+										className={cn(
+											styling,
+											"h-24 font-mono text-xs"
+										)}
+										data-field-id={fieldId}
+										data-field-type="textarea"
+										data-field-section={sectionId}
+										data-field-label={label}
 									/>
-								</div>
-							)}
+								)}
 
-							{controlType === "multi-select" && (
-								<div
-									data-field-id={fieldId}
-									data-field-type="multi-select"
-									data-field-section={sectionId}
-									data-field-label={label}
-								>
-									<MultiSelectPills
-										label=""
-										options={options}
-										selectedValues={value || []}
-										onSelect={(v) =>
-											handleInputChange(fieldId, v)
+								{controlType === "select" && (
+									<Select
+										id={fieldId}
+										value={value}
+										onChange={(e) =>
+											handleInputChange(
+												fieldId,
+												e.target.value
+											)
 										}
+										onBlur={() => handleBlur(fieldId)}
+										options={options.map((o) =>
+											typeof o === "string"
+												? { label: o, value: o }
+												: o
+										)}
 										disabled={disabled}
-										isLocked={isLocked}
+										className={styling}
+										data-field-id={fieldId}
+										data-field-type="select"
+										data-field-section={sectionId}
+										data-field-label={label}
 									/>
-								</div>
-							)}
+								)}
 
-							{(controlType === "input" ||
-								controlType === "number") && (
-								<Input
-									id={fieldId}
-									type={
-										controlType === "number"
-											? "number"
-											: "text"
-									}
-									value={value}
-									onChange={(e) =>
-										handleInputChange(
-											fieldId,
+								{controlType === "button-select" && (
+									<div
+										data-field-id={fieldId}
+										data-field-type="button-select"
+										data-field-section={sectionId}
+										data-field-label={label}
+									>
+										<ButtonSelect
+											label=""
+											options={
+												options.length
+													? options
+													: [
+															{
+																label: "Yes",
+																value: true,
+															},
+															{
+																label: "No",
+																value: false,
+															},
+													  ]
+											}
+											selectedValue={value}
+											onSelect={async (selected) => {
+												handleInputChange(
+													fieldId,
+													selected
+												);
+												// Call sanity check immediately after selection (ButtonSelect doesn't have blur)
+												await handleBlur(
+													fieldId,
+													selected
+												);
+											}}
+											disabled={disabled}
+											isLocked={isLocked}
+											isTouched={hasValue || hasSources}
+										/>
+									</div>
+								)}
+
+								{controlType === "multi-select" && (
+									<div
+										data-field-id={fieldId}
+										data-field-type="multi-select"
+										data-field-section={sectionId}
+										data-field-label={label}
+									>
+										<MultiSelectPills
+											label=""
+											options={options}
+											selectedValues={value || []}
+											onSelect={(v) =>
+												handleInputChange(fieldId, v)
+											}
+											disabled={disabled}
+											isLocked={isLocked}
+										/>
+									</div>
+								)}
+
+								{(controlType === "input" ||
+									controlType === "number") && (
+									<Input
+										id={fieldId}
+										type={
 											controlType === "number"
-												? parseFloat(e.target.value)
-												: e.target.value
-										)
-									}
-									onBlur={() => handleBlur(fieldId)}
-									disabled={disabled}
-									className={styling}
-									data-field-id={fieldId}
-									data-field-type={controlType}
-									data-field-section={sectionId}
-									data-field-label={label}
-								/>
-							)}
+												? "number"
+												: "text"
+										}
+										value={value}
+										onChange={(e) =>
+											handleInputChange(
+												fieldId,
+												controlType === "number"
+													? parseFloat(e.target.value)
+													: e.target.value
+											)
+										}
+										onBlur={() => handleBlur(fieldId)}
+										disabled={disabled}
+										className={styling}
+										data-field-id={fieldId}
+										data-field-type={controlType}
+										data-field-section={sectionId}
+										data-field-label={label}
+									/>
+								)}
 							</div>
 						</div>
 					</AskAIButton>
@@ -1468,7 +1573,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 				const fieldStates = fieldIds.map((fieldId) => {
 					const meta = fieldMetadata[fieldId];
-					const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+					const hasWarnings =
+						meta?.warnings && meta.warnings.length > 0;
 					return {
 						isBlue: isFieldBlue(fieldId, sectionId),
 						isGreen: isFieldGreen(fieldId, sectionId),
@@ -1538,6 +1644,49 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			(focusable as HTMLElement | null)?.focus?.();
 		}
 	}, [initialFocusFieldId]);
+
+	// Helper function to check if all fields are locked
+	const areAllFieldsLocked = useCallback((): boolean => {
+		// Get all field IDs from schema (both required and optional)
+		const allFieldIds = new Set<string>();
+
+		// Get fields from steps/subsections
+		if (formSchema && (formSchema as any).steps) {
+			(formSchema as any).steps.forEach((step: any) => {
+				if (step.fields) {
+					step.fields.forEach((fieldId: string) =>
+						allFieldIds.add(fieldId)
+					);
+				}
+				if (step.subsections) {
+					step.subsections.forEach((subsection: any) => {
+						if (subsection.fields) {
+							subsection.fields.forEach((fieldId: string) =>
+								allFieldIds.add(fieldId)
+							);
+						}
+					});
+				}
+			});
+		}
+
+		// Also get fields from root-level fields object if it exists
+		if (formSchema && (formSchema as any).fields) {
+			Object.keys((formSchema as any).fields).forEach((fieldId) =>
+				allFieldIds.add(fieldId)
+			);
+		}
+
+		// If no fields found in schema, return false (can't determine, so allow autofill)
+		if (allFieldIds.size === 0) {
+			return false;
+		}
+
+		// Check if all fields are locked
+		return Array.from(allFieldIds).every((fieldId) =>
+			lockedFields.has(fieldId)
+		);
+	}, [lockedFields]);
 
 	const wrappedHandleAutofill = useCallback(async () => {
 		try {
@@ -1668,7 +1817,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 									: subsectionFields.length > 0
 									? subsectionFields.map((fieldId) => {
 											const meta = fieldMetadata[fieldId];
-											const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+											const hasWarnings =
+												meta?.warnings &&
+												meta.warnings.length > 0;
 											return {
 												isBlue: isFieldBlue(
 													fieldId,
@@ -1709,7 +1860,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 									(s) => s.isWhite && !s.isBlue && !s.isGreen
 								);
 							const hasBlue = fieldStates.some((s) => s.isBlue);
-							const hasWarnings = fieldStates.some((s) => s.hasWarnings);
+							const hasWarnings = fieldStates.some(
+								(s) => s.hasWarnings
+							);
 
 							// Determine badge state
 							// Multiple badges can show simultaneously:
@@ -2283,7 +2436,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						variant="outline"
 						size="sm"
 						onClick={wrappedHandleAutofill}
-						disabled={isAutofilling}
+						disabled={isAutofilling || areAllFieldsLocked()}
 						className={cn(
 							"group relative flex items-center gap-1 px-2 py-1.5 rounded-md border transition-all",
 							isAutofilling
@@ -2308,7 +2461,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						size="sm"
 						onClick={() => handleFormSubmit()}
 						isLoading={formSaved}
-						disabled={formSaved}
+						disabled={formSaved || isAutofilling}
 					>
 						{formSaved ? "Saving..." : "Save & Exit"}
 					</Button>
@@ -2329,16 +2482,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 							)}
 						</Button>
 					)}
-					<div className="ml-2">
-						<BorrowerResumeVersionHistory
-							projectId={projectId}
-							onRollbackSuccess={() => {
-								setRefreshKey((prev) => prev + 1);
-								reloadBorrowerResume();
-								onVersionChange?.();
-							}}
-						/>
-					</div>
 				</div>
 			</div>
 

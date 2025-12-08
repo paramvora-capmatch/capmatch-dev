@@ -128,7 +128,7 @@ function groupBySections(flatData: Record<string, unknown>, formSchema?: any): R
       }
       
       // Check if this section has subsections
-      const subsectionId = formSchema ? getSubsectionForField(fieldId, sectionId, formSchema) : null;
+      const subsectionId = formSchema ? getSubsectionForField(fieldId, sectionId, formSchema) : getSubsectionForField(fieldId, sectionId, null);
       
       if (subsectionId) {
         // Section has subsections - nest field in subsection
@@ -161,12 +161,10 @@ function ungroupFromSections(groupedData: Record<string, unknown>, formSchema?: 
     }
     
     if (!sectionData || typeof sectionData !== 'object' || Array.isArray(sectionData)) {
-      // Not a valid section structure - treat as field
       flat[sectionKey] = sectionData;
       continue;
     }
     
-    // New format - check if section has subsections
     let hasSubsections = false;
     if (formSchema) {
       const steps = formSchema.steps || [];
@@ -182,21 +180,40 @@ function ungroupFromSections(groupedData: Record<string, unknown>, formSchema?: 
         }
       }
     }
+    // Heuristic: if sectionData values look like containers rather than fields, assume subsections
+    if (!hasSubsections && sectionData && typeof sectionData === 'object') {
+        const values = Object.values(sectionData);
+        if (values.length > 0) {
+            const firstVal = values[0];
+            // If the value is a rich field object, it has keys like 'value', 'source', 'warnings'
+            // If it's a primitive, it's a field
+            // If it's an object without those keys, it's likely a subsection container
+            const isFieldLike = (v: any) => {
+                if (v === null || typeof v !== 'object') return true;
+                if (Array.isArray(v)) return true;
+                if ('value' in v || 'source' in v || 'warnings' in v) return true;
+                return false;
+            };
+            
+            if (!isFieldLike(firstVal)) {
+                hasSubsections = true;
+            }
+        }
+    }
     
     if (hasSubsections) {
-      // Section has subsections - iterate through subsections
+      // Flatten subsections
       for (const [subsectionId, subsectionData] of Object.entries(sectionData as Record<string, unknown>)) {
         if (subsectionData && typeof subsectionData === 'object' && !Array.isArray(subsectionData)) {
           for (const [fieldId, fieldValue] of Object.entries(subsectionData as Record<string, unknown>)) {
             flat[fieldId] = fieldValue;
           }
         } else {
-          // Invalid subsection structure - treat as field
           flat[subsectionId] = subsectionData;
         }
       }
     } else {
-      // Section has no subsections - fields are directly in section
+      // Flatten fields directly
       for (const [fieldId, fieldValue] of Object.entries(sectionData as Record<string, unknown>)) {
         flat[fieldId] = fieldValue;
       }

@@ -27,6 +27,7 @@ interface BorrowerResumeVersionHistoryProps {
 	resourceId?: string | null;
 	onRollbackSuccess?: () => void;
 	onOpen?: () => void;
+	disabled?: boolean;
 }
 
 interface ResumeVersionRow {
@@ -45,7 +46,7 @@ interface CreatorProfile {
 
 export const BorrowerResumeVersionHistory: React.FC<
 	BorrowerResumeVersionHistoryProps
-> = ({ projectId, resourceId, onRollbackSuccess, onOpen }) => {
+> = ({ projectId, resourceId, onRollbackSuccess, onOpen, disabled }) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [versions, setVersions] = useState<ResumeVersionRow[]>([]);
 	const [resource, setResource] = useState<{
@@ -133,7 +134,10 @@ export const BorrowerResumeVersionHistory: React.FC<
 					if (!directError && directProfiles)
 						creatorProfiles = directProfiles as CreatorProfile[];
 					if (directError) {
-						console.error("Error fetching creator profiles:", directError);
+						console.error(
+							"Error fetching creator profiles:",
+							directError
+						);
 					}
 				} catch (err) {
 					console.error("Error fetching creator profiles:", err);
@@ -255,6 +259,7 @@ export const BorrowerResumeVersionHistory: React.FC<
 				}}
 				onMouseDown={(event) => event.stopPropagation()}
 				title="Resume versions"
+				disabled={disabled}
 			>
 				<History className="h-5 w-5 text-gray-600 flex-shrink-0" />
 				<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
@@ -515,7 +520,11 @@ const getFieldValueFromContent = (
 	const extractValue = (fieldObj: any): any => {
 		if (fieldObj === null || fieldObj === undefined) return fieldObj;
 		// If it's a rich format object with a value property, extract it
-		if (typeof fieldObj === "object" && !Array.isArray(fieldObj) && "value" in fieldObj) {
+		if (
+			typeof fieldObj === "object" &&
+			!Array.isArray(fieldObj) &&
+			"value" in fieldObj
+		) {
 			return (fieldObj as any).value;
 		}
 		// Otherwise return as-is (could be primitive, array, or plain object)
@@ -530,7 +539,8 @@ const getFieldValueFromContent = (
 	// If not found at root, check if content is grouped by sections
 	// Look through all sections and subsections recursively
 	const searchInObject = (obj: any, depth: number = 0): any => {
-		if (!obj || typeof obj !== "object" || Array.isArray(obj)) return undefined;
+		if (!obj || typeof obj !== "object" || Array.isArray(obj))
+			return undefined;
 		if (depth > 5) return undefined; // Prevent infinite recursion
 
 		// Check if this object has the field directly
@@ -542,7 +552,12 @@ const getFieldValueFromContent = (
 		for (const [key, value] of Object.entries(obj)) {
 			// Skip metadata fields
 			if (key.startsWith("_")) continue;
-			if (key === "completenessPercent" || key === "projectSections" || key === "borrowerSections") continue;
+			if (
+				key === "completenessPercent" ||
+				key === "projectSections" ||
+				key === "borrowerSections"
+			)
+				continue;
 
 			if (value && typeof value === "object" && !Array.isArray(value)) {
 				const found = searchInObject(value, depth + 1);
@@ -606,14 +621,26 @@ const BorrowerResumeVersionDiffModal: React.FC<{
 				const rightLocked = (rightContent as any)?._lockedFields || {};
 
 				// Helper to collect all field IDs from content (recursively, without flattening)
-				const collectFieldIds = (content: Record<string, any>, fieldIds: Set<string>): void => {
+				const collectFieldIds = (
+					content: Record<string, any>,
+					fieldIds: Set<string>
+				): void => {
 					for (const [key, value] of Object.entries(content)) {
 						// Skip metadata and special fields
 						if (key.startsWith("_")) continue;
-						if (key === "completenessPercent" || key === "projectSections" || key === "borrowerSections") continue;
+						if (
+							key === "completenessPercent" ||
+							key === "projectSections" ||
+							key === "borrowerSections"
+						)
+							continue;
 
 						// If this is a direct field (not a section), add it
-						if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+						if (
+							value !== null &&
+							typeof value === "object" &&
+							!Array.isArray(value)
+						) {
 							// Check if it's a rich format object with value property (a field)
 							if ("value" in value || "source" in value) {
 								fieldIds.add(key);
@@ -634,22 +661,33 @@ const BorrowerResumeVersionDiffModal: React.FC<{
 				collectFieldIds(rightContent, allFieldIds);
 				// Also include all schema fields
 				const schemaFields = (borrowerFormSchema as any)?.fields || {};
-				Object.keys(schemaFields).forEach(fid => allFieldIds.add(fid));
-				
+				Object.keys(schemaFields).forEach((fid) =>
+					allFieldIds.add(fid)
+				);
+
 				const diffFieldsMap = new Map<string, DiffField>();
 
 				// Compare all fields one-to-one directly from content (no flattening)
 				allFieldIds.forEach((fieldId) => {
 					// Get values directly from content structure
-					const beforeValue = getFieldValueFromContent(leftContent, fieldId);
-					const afterValue = getFieldValueFromContent(rightContent, fieldId);
+					const beforeValue = getFieldValueFromContent(
+						leftContent,
+						fieldId
+					);
+					const afterValue = getFieldValueFromContent(
+						rightContent,
+						fieldId
+					);
 
 					// Normalize for comparison
-					const normalizedBefore = normalizeValueForComparison(beforeValue);
-					const normalizedAfter = normalizeValueForComparison(afterValue);
+					const normalizedBefore =
+						normalizeValueForComparison(beforeValue);
+					const normalizedAfter =
+						normalizeValueForComparison(afterValue);
 
 					// Skip if values are equal (including both undefined/null)
-					if (valuesAreEqual(normalizedBefore, normalizedAfter)) return;
+					if (valuesAreEqual(normalizedBefore, normalizedAfter))
+						return;
 
 					const metadata = borrowerResumeFieldMetadata[fieldId];
 					diffFieldsMap.set(fieldId, {

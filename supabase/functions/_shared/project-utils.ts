@@ -56,6 +56,40 @@ function getSubsectionForField(
 function groupBySections(
 	flatData: Record<string, unknown>
 ): Record<string, any> {
+	// Known section IDs from the schema
+	const knownSectionIds = [
+		"basic-info",
+		"property-specs",
+		"financial-summary",
+		"borrower-info",
+		"online-presence",
+		"project-details",
+	];
+
+	// Check if data is already in grouped format (has known section IDs as top-level keys)
+	const topLevelKeys = Object.keys(flatData);
+	const isAlreadyGrouped = topLevelKeys.some((key) => {
+		if (knownSectionIds.includes(key)) {
+			// Check if the value is an object (section structure) not a primitive field
+			const value = flatData[key];
+			return (
+				value !== null &&
+				typeof value === "object" &&
+				!Array.isArray(value)
+			);
+		}
+		return false;
+	});
+
+	if (isAlreadyGrouped) {
+		console.log(
+			`[project-utils] Data is already grouped (detected section IDs: ${topLevelKeys
+				.filter((k) => knownSectionIds.includes(k))
+				.join(", ")}), returning as-is`
+		);
+		return flatData as Record<string, any>;
+	}
+
 	const grouped: Record<string, any> = {};
 
 	const keys = Object.keys(flatData);

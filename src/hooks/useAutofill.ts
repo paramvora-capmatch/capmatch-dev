@@ -87,7 +87,10 @@ export const useAutofill = (
 					.limit(1);
 
 				if (error) {
-					console.error("Error checking autofill completion:", error);
+					console.error(
+						`[useAutofill] Error checking autofill completion for ${context}:`,
+						error
+					);
 					return false;
 				}
 
@@ -99,18 +102,49 @@ export const useAutofill = (
 					const start = new Date(startTime);
 
 					// Ensure the row was updated after we started (with a small buffer for clock skew)
-					if (rowUpdatedTime.getTime() > start.getTime() - 1000) {
+					// Changed to >= to handle exact timestamp matches
+					if (rowUpdatedTime.getTime() >= start.getTime() - 1000) {
+						console.log(
+							`[useAutofill] ✅ Found ${context} resume row updated at ${row.updated_at} (start: ${startTime})`
+						);
+						return true;
+					}
+				}
+
+				// Fallback: Also check created_at in case updated_at wasn't set properly
+				// This is especially important for new rows where updated_at might not be detected
+				const { data: createdData, error: createdError } =
+					await supabase
+						.from(resumeTable)
+						.select("id, created_at, updated_at")
+						.eq("project_id", projectId)
+						.gte("created_at", startTime)
+						.order("created_at", { ascending: false })
+						.limit(1);
+
+				if (!createdError && createdData && createdData.length > 0) {
+					const row = createdData[0];
+					const rowCreatedTime = new Date(row.created_at);
+					const start = new Date(startTime);
+
+					if (rowCreatedTime.getTime() >= start.getTime() - 1000) {
+						console.log(
+							`[useAutofill] ✅ Found ${context} resume row created at ${row.created_at} (start: ${startTime})`
+						);
 						return true;
 					}
 				}
 
 				return false;
 			} catch (error) {
-				console.error("Error in checkCompletion:", error);
+				console.error(
+					`[useAutofill] Error in checkCompletion for ${context}:`,
+					error
+				);
 				return false;
 			}
 		},
-		[resumeTable]
+		[resumeTable, context]
 	);
 
 	const startPolling = useCallback(
@@ -137,14 +171,26 @@ export const useAutofill = (
 				const isComplete = await checkCompletion(projectId, startTime);
 
 				if (isComplete) {
+					console.log(
+						`[useAutofill] ✅ Autofill completed for project ${projectId}, context: ${context}`
+					);
 					clearAutofillState();
 					// Refresh project data so completion % and OM readiness update without full reload
 					try {
+						console.log(
+							`[useAutofill] 🔄 Calling refreshProject(${projectId})...`
+						);
 						await refreshProject(projectId);
+						console.log(
+							`[useAutofill] ✅ refreshProject completed for project ${projectId}`
+						);
 
 						// Show notification encouraging field locking for non-deterministic fields
 						// This will be handled by the component using this hook
 						if (typeof window !== "undefined") {
+							console.log(
+								`[useAutofill] 📢 Dispatching autofill-completed event for project ${projectId}, context: ${context}`
+							);
 							window.dispatchEvent(
 								new CustomEvent("autofill-completed", {
 									detail: { projectId, context },
@@ -153,7 +199,7 @@ export const useAutofill = (
 						}
 					} catch (err) {
 						console.error(
-							"Failed to refresh projects after autofill completion:",
+							`[useAutofill] ❌ Failed to refresh projects after autofill completion for project ${projectId}:`,
 							err
 						);
 					}
