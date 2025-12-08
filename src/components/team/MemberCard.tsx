@@ -1,5 +1,5 @@
 import React from "react";
-import { Edit, Check, X, Trash2 } from "lucide-react";
+import { Edit, Check, X, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { OrgMember } from "@/types/enhanced-types";
 import { formatDate } from "@/utils/dateUtils";
@@ -11,6 +11,7 @@ interface MemberCardProps {
   isEditing: boolean;
   editedName: string;
   isSavingName: boolean;
+  isRemoving?: boolean;
   onStartEdit: (member: OrgMember) => void;
   onCancelEdit: () => void;
   onSaveName: (memberId: string) => void;
@@ -20,13 +21,14 @@ interface MemberCardProps {
   showActions?: boolean;
 }
 
-export const MemberCard: React.FC<MemberCardProps> = ({
+export const MemberCard: React.FC<MemberCardProps> = React.memo(({
   member,
   currentUserId,
   isOwner,
   isEditing,
   editedName,
   isSavingName,
+  isRemoving = false,
   onStartEdit,
   onCancelEdit,
   onSaveName,
@@ -64,10 +66,14 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                 <button
                   onClick={() => onSaveName(member.user_id)}
                   disabled={isSavingName}
-                  className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+                  className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors disabled:opacity-50 flex items-center justify-center"
                   aria-label="Save name"
                 >
-                  <Check className="h-4 w-4" />
+                  {isSavingName ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
                 </button>
                 <button
                   onClick={onCancelEdit}
@@ -128,10 +134,20 @@ export const MemberCard: React.FC<MemberCardProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => onRemove(member.user_id)}
+                disabled={isRemoving}
                 className="text-red-600 border-red-200 hover:bg-red-50"
               >
-                <Trash2 size={16} className="mr-2" />
-                Remove
+                {isRemoving ? (
+                  <>
+                    <Loader2 size={16} className="mr-2 animate-spin" />
+                    Removing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} className="mr-2" />
+                    Remove
+                  </>
+                )}
               </Button>
             )}
           </div>
@@ -139,5 +155,6 @@ export const MemberCard: React.FC<MemberCardProps> = ({
       </div>
     </div>
   );
-};
+});
+MemberCard.displayName = "MemberCard";
 
