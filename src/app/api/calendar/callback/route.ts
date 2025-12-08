@@ -128,9 +128,9 @@ export async function GET(request: NextRequest) {
       throw insertError;
     }
 
-    // Redirect back to dashboard with success message
+    // Redirect back to dashboard with success message and open settings modal with calendar tab
     return NextResponse.redirect(
-      new URL('/dashboard?calendar_connected=true', request.url)
+      new URL('/dashboard?calendar_connected=true&open_settings=calendar', request.url)
     );
   } catch (err) {
     console.error('[Calendar OAuth] Connection failed:', err);

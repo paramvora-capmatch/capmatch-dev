@@ -1,9 +1,9 @@
 // src/components/layout/DashboardLayout.tsx
 "use client";
 
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { ReactNode, useMemo, useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LogOut, Users, Settings, BellRing, SlidersHorizontal, Calendar } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import Image from "next/image";
@@ -34,10 +34,25 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   scrollableContent = true,
 }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, logout, isAuthenticated, currentOrgRole, activeOrg } = useAuth();
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState("notifications");
   const [openDropdown, setOpenDropdown] = useState<'notifications' | 'settings' | null>(null);
+
+  // Check for open_settings URL parameter (e.g., from calendar OAuth callback)
+  useEffect(() => {
+    const openSettingsParam = searchParams.get('open_settings');
+    if (openSettingsParam) {
+      // Open the settings modal with the specified tab
+      setActiveSettingsTab(openSettingsParam);
+      setSettingsModalOpen(true);
+      // Clean up the URL parameter
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('open_settings');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+  }, [searchParams]);
 
   const settingsTabs = useMemo<SettingsTabConfig[]>(
     () => [
