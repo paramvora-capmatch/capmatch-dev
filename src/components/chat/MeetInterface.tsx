@@ -256,6 +256,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
+    if (diffMins < 0) return `Started ${Math.abs(diffMins)}m ago`;
     if (diffMins < 60) return `in ${diffMins}m`;
     if (diffHours < 24) return `in ${diffHours}h`;
     if (diffDays === 1) return "Tomorrow";

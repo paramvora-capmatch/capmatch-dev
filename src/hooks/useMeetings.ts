@@ -53,12 +53,12 @@ export function useMeetings(): UseMeetingsReturn {
           organizer:profiles!organizer_id(id, full_name, email),
           participants:meeting_participants(
             *,
-            user:profiles!user_id(id, full_name, email, avatar_url)
+            user:profiles!user_id(id, full_name, email)
           )
         `
         )
-        .gte('start_time', now)
-        .eq('status', 'scheduled')
+        .gt('end_time', now)
+        .neq('status', 'cancelled')
         .order('start_time', { ascending: true });
 
       if (fetchError) {
@@ -94,12 +94,11 @@ export function useMeetings(): UseMeetingsReturn {
           organizer:profiles!organizer_id(id, full_name, email),
           participants:meeting_participants(
             *,
-            user:profiles!user_id(id, full_name, email, avatar_url)
+            user:profiles!user_id(id, full_name, email)
           )
         `
         )
         .lt('end_time', now)
-        .in('status', ['completed', 'cancelled'])
         .order('start_time', { ascending: false })
         .limit(50); // Limit to most recent 50
 
