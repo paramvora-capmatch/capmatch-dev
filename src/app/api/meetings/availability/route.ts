@@ -22,26 +22,20 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user (skip in development for testing)
-    const isDevelopment = process.env.NODE_ENV === 'development';
+    // Authenticate user
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    let supabase;
-    
-    if (isDevelopment) {
-      // Use service role client in development to bypass RLS
-      supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        { auth: { persistSession: false, autoRefreshToken: false } }
-      );
-    } else {
-      // Use regular authenticated client in production
-      supabase = await createServerSupabaseClient();
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Create admin client for fetching calendar connections (requires service role)
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
 
     // Parse and validate request body
     const body: AvailabilityRequest = await request.json();
@@ -100,8 +94,9 @@ export async function POST(request: NextRequest) {
     const allBusySlots = [];
 
     for (const userId of userIds) {
-      // Fetch calendar connections for this user
-      const { data: connections, error: connectionsError } = await supabase
+      // Fetch calendar connections for this user using admin client
+      // We need admin access because RLS prevents users from seeing others' tokens
+      const { data: connections, error: connectionsError } = await supabaseAdmin
         .from('calendar_connections')
         .select('*')
         .eq('user_id', userId)
@@ -133,12 +128,13 @@ export async function POST(request: NextRequest) {
       console.log(`[Availability API] Found ${connections.length} connections for user ${userId}`);
 
       // Fetch busy periods for this user
+      // We pass supabaseAdmin to ensure we can update tokens if they need refreshing
       const busySlots = await fetchUserBusyPeriods(
         userId,
         connections,
         startDate,
         endDate,
-        supabase
+        supabaseAdmin
       );
 
       userAvailabilities.push({
