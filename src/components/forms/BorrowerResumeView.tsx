@@ -70,6 +70,19 @@ const formatArray = (value: any): string => {
 	return String(value);
 };
 
+const formatDate = (dateString: string | null | undefined): string => {
+	if (!dateString) return "N/A";
+	try {
+		return new Date(dateString).toLocaleDateString("en-US", {
+			year: "numeric",
+			month: "long",
+			day: "numeric",
+		});
+	} catch {
+		return "Invalid Date";
+	}
+};
+
 const hasValue = (value: any): boolean => {
 	if (value === null || value === undefined) return false;
 	if (typeof value === "string" && value.trim() === "") return false;
@@ -124,21 +137,142 @@ const getFieldConfig = (fieldId: string): any => {
 };
 
 const formatFieldValue = (value: any, dataType?: string): string => {
-	if (typeof value === "boolean") return formatBoolean(value);
-	if (!hasValue(value)) return "N/A";
-	if (Array.isArray(value)) return formatArray(value);
-	if (typeof value === "number") {
-		if (dataType === "Currency") return formatCurrency(value);
-		if (dataType === "Percent") return formatPercent(value);
-		return value.toLocaleString();
+	// Extract value from rich format object if present
+	// Rich format: {value, source, warnings, other_values}
+	if (
+		value &&
+		typeof value === "object" &&
+		!Array.isArray(value) &&
+		"value" in value
+	) {
+		value = value.value;
 	}
-	if (typeof value === "string") {
-		if (dataType === "Currency" && !isNaN(parseFloat(value.replace(/[^0-9.-]+/g, "")))) {
-			return value;
+
+	// Handle boolean values first, including false (which is a valid value)
+	// Check this before hasValue() because false is falsy but is a valid boolean value
+	if (typeof value === "boolean") {
+		if (dataType && dataType !== "Boolean") {
+			// Data type mismatch – underlying data is likely stale/incorrect.
+			// Hide the bad value by treating it as missing.
+			return "N/A";
 		}
-		return value;
+		return formatBoolean(value);
 	}
-	return String(value);
+
+	if (!hasValue(value)) return "N/A";
+
+	// First, check the actual runtime type of the value
+	// This handles cases where metadata says one thing but data is another
+
+	// If it's actually an array, format as array
+	if (Array.isArray(value)) {
+		return formatArray(value);
+	}
+
+	// If it's actually a number, use metadata for specific formatting
+	if (typeof value === "number") {
+		switch (dataType) {
+			case "Currency":
+				return formatCurrency(value);
+			case "Percent":
+				return formatPercent(value);
+			case "Decimal":
+				return value.toFixed(2);
+			case "Integer":
+				return value.toLocaleString();
+			default:
+				return value.toLocaleString();
+		}
+	}
+
+	// If it's a string, check metadata for special handling
+	if (typeof value === "string") {
+		switch (dataType) {
+			case "Date":
+				return formatDate(value);
+			case "Boolean":
+				// Handle string "true"/"false" from backend/mockAPI
+				return formatBoolean(value);
+			case "Currency":
+			case "Percent":
+			case "Decimal":
+			case "Integer":
+				// Try to parse and format
+				const num = parseFloat(value);
+				if (!isNaN(num)) {
+					return formatFieldValue(num, dataType);
+				}
+				return value;
+			case "Checklist":
+			case "Multi-select":
+			case "Checkbox":
+				// Metadata says it should be an array, but it's a string
+				// Return as-is (might be comma-separated or single value)
+				return value;
+			default:
+				// Check if string is "true" or "false" even if dataType is not explicitly Boolean
+				// This handles cases where backend returns boolean as string without proper metadata
+				const normalized = value.toLowerCase().trim();
+				if (normalized === "true" || normalized === "false") {
+					return formatBoolean(value);
+				}
+				return value;
+		}
+	}
+
+	// For other types, use metadata-based formatting
+	// BUT: Check if value is still an object and try to extract numeric value
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		// Try to extract numeric value if it's a rich format object
+		if (
+			"value" in value &&
+			(typeof value.value === "number" || typeof value.value === "string")
+		) {
+			const extractedValue = value.value;
+			if (typeof extractedValue === "number") {
+				switch (dataType) {
+					case "Currency":
+						return formatCurrency(extractedValue);
+					case "Percent":
+						return formatPercent(extractedValue);
+					case "Decimal":
+						return extractedValue.toFixed(2);
+					case "Integer":
+						return extractedValue.toLocaleString();
+				}
+			} else if (typeof extractedValue === "string") {
+				// Try to parse as number
+				const num = parseFloat(extractedValue);
+				if (!isNaN(num)) {
+					return formatFieldValue(num, dataType);
+				}
+			}
+		}
+		// If we can't extract a value, return string representation
+		return String(value);
+	}
+
+	switch (dataType) {
+		case "Currency":
+			return typeof value === "number" ? formatCurrency(value) : "N/A";
+		case "Percent":
+			return typeof value === "number" ? formatPercent(value) : "N/A";
+		case "Decimal":
+			return typeof value === "number" ? value.toFixed(2) : "N/A";
+		case "Integer":
+			return typeof value === "number"
+				? value.toLocaleString()
+				: String(value);
+		case "Boolean":
+			return formatBoolean(value);
+		case "Date":
+			return formatDate(value);
+		case "Textarea":
+		case "Text":
+			return String(value);
+		default:
+			return String(value);
+	}
 };
 
 const getFieldLabel = (fieldId: string, fieldMeta?: { description: string }): string => {
@@ -282,10 +416,10 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 		return cache;
 	}, [currentResumeHash, resume, allFieldMetas]);
 
-	// Memoize principals - only recalculate when hash changes
+	// Memoize principals - only recalculate when resume changes
 	const principals = useMemo(() => {
 		return getFieldValue(resume, "principals") as Principal[] | undefined;
-	}, [currentResumeHash, resume]);
+	}, [resume]);
 
 	return (
 		<div

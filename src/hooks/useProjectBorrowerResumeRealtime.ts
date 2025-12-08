@@ -187,7 +187,11 @@ const getProjectBorrowerResumeContent = async (
 				// Store metadata (new schema: value + source + warnings + other_values)
 				const anyVal: any = value;
 				let primarySource = anyVal.source;
-				if (!primarySource && Array.isArray(anyVal.sources) && anyVal.sources.length > 0) {
+				if (
+					!primarySource &&
+					Array.isArray(anyVal.sources) &&
+					anyVal.sources.length > 0
+				) {
 					primarySource = anyVal.sources[0];
 				}
 
@@ -219,7 +223,11 @@ const getProjectBorrowerResumeContent = async (
 			// Determine primary source (new schema prefers `source`, but we keep
 			// backward compat for legacy `sources` arrays).
 			let primarySource = anyVal.source;
-			if (!primarySource && Array.isArray(anyVal.sources) && anyVal.sources.length > 0) {
+			if (
+				!primarySource &&
+				Array.isArray(anyVal.sources) &&
+				anyVal.sources.length > 0
+			) {
 				primarySource = anyVal.sources[0];
 			}
 
@@ -297,13 +305,16 @@ export const useProjectBorrowerResumeRealtime = (
 	const lastContentHashRef = useRef<string | null>(null);
 
 	// Helper to update content only if it has actually changed
-	const updateContentIfChanged = useCallback((newContent: BorrowerResumeContent | null) => {
-		const newHash = newContent ? JSON.stringify(newContent) : null;
-		if (lastContentHashRef.current !== newHash) {
-			lastContentHashRef.current = newHash;
-			setContent(newContent);
-		}
-	}, []);
+	const updateContentIfChanged = useCallback(
+		(newContent: BorrowerResumeContent | null) => {
+			const newHash = newContent ? JSON.stringify(newContent) : null;
+			if (lastContentHashRef.current !== newHash) {
+				lastContentHashRef.current = newHash;
+				setContent(newContent);
+			}
+		},
+		[]
+	);
 
 	const load = useCallback(async () => {
 		if (!projectId) {
@@ -333,14 +344,20 @@ export const useProjectBorrowerResumeRealtime = (
 
 		const handleAutofillStart = (e: any) => {
 			// Only track autofill for this project
-			if (e.detail?.projectId === projectId && e.detail?.context === "borrower") {
+			if (
+				e.detail?.projectId === projectId &&
+				e.detail?.context === "borrower"
+			) {
 				isAutofillRunningRef.current = true;
 			}
 		};
 
 		const handleAutofillComplete = (e: any) => {
 			// Only track autofill for this project
-			if (e.detail?.projectId === projectId && e.detail?.context === "borrower") {
+			if (
+				e.detail?.projectId === projectId &&
+				e.detail?.context === "borrower"
+			) {
 				// Keep flag true for a bit longer to catch any delayed database updates
 				setTimeout(() => {
 					isAutofillRunningRef.current = false;
@@ -350,7 +367,10 @@ export const useProjectBorrowerResumeRealtime = (
 
 		const handleLocalSaveStart = (e: any) => {
 			// Only track local saves for this project
-			if (e.detail?.projectId === projectId && e.detail?.context === "borrower") {
+			if (
+				e.detail?.projectId === projectId &&
+				e.detail?.context === "borrower"
+			) {
 				isLocalSaveRef.current = true;
 				// Clear any pending timeout
 				if (localSaveTimeoutRef.current) {
@@ -369,8 +389,14 @@ export const useProjectBorrowerResumeRealtime = (
 
 		return () => {
 			window.removeEventListener("autofill-started", handleAutofillStart);
-			window.removeEventListener("autofill-completed", handleAutofillComplete);
-			window.removeEventListener("local-save-started", handleLocalSaveStart);
+			window.removeEventListener(
+				"autofill-completed",
+				handleAutofillComplete
+			);
+			window.removeEventListener(
+				"local-save-started",
+				handleLocalSaveStart
+			);
 		};
 	}, [projectId]);
 
@@ -495,7 +521,10 @@ export const useProjectBorrowerResumeRealtime = (
 				},
 				async (payload) => {
 					// Ignore resource updates during autofill or local saves
-					if (isLocalSaveRef.current || isAutofillRunningRef.current) {
+					if (
+						isLocalSaveRef.current ||
+						isAutofillRunningRef.current
+					) {
 						return;
 					}
 
@@ -529,7 +558,7 @@ export const useProjectBorrowerResumeRealtime = (
 			channelRef.current?.unsubscribe();
 			channelRef.current = null;
 		};
-	}, [projectId, user?.id]);
+	}, [projectId, user?.id, updateContentIfChanged]);
 
 	// Initial load
 	useEffect(() => {
@@ -595,7 +624,7 @@ export const useProjectBorrowerResumeRealtime = (
 				}, 3000);
 			}
 		},
-		[projectId]
+		[projectId, updateContentIfChanged]
 	);
 
 	return {

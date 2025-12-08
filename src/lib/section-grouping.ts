@@ -114,9 +114,23 @@ export function ungroupFromSections(
 		}
 
 		// Check if this section has subsections using schema utilities
+		// Also detect subsections from data structure (for borrower resumes using project schema)
 		const hasSubsections = sectionHasSubsections(sectionKey);
 		
-		if (hasSubsections) {
+		// Detect subsections from data structure: if all values in sectionData are objects
+		// that contain field-like structures (objects with 'value' property or primitive values),
+		// then this section likely has subsections
+		const detectedHasSubsections = hasSubsections || (
+			Object.values(sectionData).every(val => 
+				val && typeof val === "object" && !Array.isArray(val) &&
+				Object.values(val).some(v => 
+					(v && typeof v === "object" && "value" in v) || 
+					(typeof v !== "object" && v !== null)
+				)
+			)
+		);
+		
+		if (detectedHasSubsections) {
 			// Section has subsections - iterate through subsections
 			for (const [subsectionId, subsectionData] of Object.entries(sectionData)) {
 				if (subsectionData && typeof subsectionData === "object" && !Array.isArray(subsectionData)) {

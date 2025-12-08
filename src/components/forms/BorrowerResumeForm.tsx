@@ -477,11 +477,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		};
 	}, [projectId, reloadBorrowerResume]);
 
+	// Helper function to update metadata when user inputs data
 	const handleInputChange = useCallback(
-		async (fieldId: string, value: any) => {
-			setFormData((prev) => ({ ...prev, [fieldId]: value }));
+		(fieldId: string, value: any) => {
+			setFormData((prev) => {
+				const next = { ...prev, [fieldId]: value };
+				return next;
+			});
 
-			// Get existing field metadata for realtime sanity check
+			// Get existing field metadata
 			const currentMeta = fieldMetadata[fieldId] || {
 				value: value,
 				source: null,
@@ -525,16 +529,37 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				...prev,
 				[fieldId]: updatedMeta,
 			}));
+		},
+		[fieldMetadata]
+	);
+
+	// Helper function to perform realtime sanity check on blur
+	const handleBlur = useCallback(
+		async (fieldId: string, value?: any) => {
+			// Use provided value or read from formData
+			const fieldValue = value !== undefined ? value : (formData as any)[fieldId];
+			if (fieldValue === undefined || fieldValue === null) {
+				return;
+			}
+
+			// Get existing field metadata for realtime sanity check
+			const currentMeta = fieldMetadata[fieldId] || {
+				value: fieldValue,
+				source: null,
+				warnings: [],
+				other_values: [],
+			};
 
 			// Call realtime sanity check
 			try {
 				const { checkRealtimeSanity } = await import(
 					"@/lib/api/realtimeSanityCheck"
 				);
-				const context = { ...formData, [fieldId]: value };
+				// Use current formData and override with the field value
+				const context = { ...formData, [fieldId]: fieldValue };
 				const result = await checkRealtimeSanity({
 					fieldId,
-					value,
+					value: fieldValue,
 					resumeType: "borrower",
 					context,
 					existingFieldData: currentMeta,
@@ -550,10 +575,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				}));
 			} catch (error) {
 				console.error("Realtime sanity check failed:", error);
-				// Don't fail the input change if sanity check fails
+				// Don't fail if sanity check fails
 			}
 		},
-		[fieldMetadata, formData]
+		[formData, fieldMetadata]
 	);
 
 	// Map of field dependencies for borrower resume
@@ -576,99 +601,84 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		return deps;
 	}, []);
 
-	// Track last formData hash to prevent re-validation loops
-	const lastFormDataHashRef = useRef<string>("");
-	const isRevalidatingRef = useRef(false);
+	// Track previous formData to detect actual changes (for dependency revalidation)
+	const prevFormDataRef = useRef<any>(formData);
+	const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-	// Re-validate dependent fields when formData changes (NOT when fieldMetadata changes)
+	// Re-validate dependent fields when relevant fields change
 	useEffect(() => {
-		// Skip if we're already revalidating to prevent loops
-		if (isRevalidatingRef.current) return;
-
-		// Create hash of formData to detect actual changes
-		const currentFormDataHash = JSON.stringify(formData);
-		
-		// Skip if formData hasn't actually changed
-		if (currentFormDataHash === lastFormDataHashRef.current) return;
-		
-		// Update hash
-		lastFormDataHashRef.current = currentFormDataHash;
+		// Clear any existing timeout
+		if (validationTimeoutRef.current) {
+			clearTimeout(validationTimeoutRef.current);
+		}
 
 		// Debounce to avoid excessive API calls
-		const timeoutId = setTimeout(async () => {
-			// Set flag to prevent re-triggering
-			isRevalidatingRef.current = true;
-
-			try {
-				const fieldsToRevalidate = new Set<string>();
-				
-				Object.keys(formData).forEach((fieldId) => {
-					const dependentFields = fieldDependencies[fieldId];
-					if (dependentFields) {
-						dependentFields.forEach((depFieldId) => {
-							const depValue = (formData as any)[depFieldId];
-							if (depValue !== undefined && depValue !== null) {
-								fieldsToRevalidate.add(depFieldId);
-							}
-						});
-					}
-				});
-				
-				for (const fieldId of fieldsToRevalidate) {
-					const fieldValue = (formData as any)[fieldId];
-					if (fieldValue !== undefined && fieldValue !== null) {
-						// Re-run sanity check for dependent field
-						try {
-							const { checkRealtimeSanity } = await import(
-								"@/lib/api/realtimeSanityCheck"
-							);
-							// Use current fieldMetadata from ref to avoid stale closure
-							const currentMeta = stateRef.current.fieldMetadata[fieldId] || {
-								value: fieldValue,
-								source: null,
-								warnings: [],
-								other_values: [],
-							};
-							const context = { ...formData, [fieldId]: fieldValue };
-							const result = await checkRealtimeSanity({
-								fieldId,
-								value: fieldValue,
-								resumeType: "borrower",
-								context,
-								existingFieldData: currentMeta,
-							});
-
-							// Use functional update to avoid dependency on fieldMetadata
-							setFieldMetadata((prev) => {
-								// Only update if warnings actually changed to prevent loops
-								const currentWarnings = prev[fieldId]?.warnings || [];
-								const newWarnings = result.warnings || [];
-								if (JSON.stringify(currentWarnings) === JSON.stringify(newWarnings)) {
-									return prev; // No change, return same object
-								}
-								return {
-									...prev,
-									[fieldId]: {
-										...prev[fieldId],
-										warnings: newWarnings,
-									},
-								};
-							});
-						} catch (error) {
-							console.error(`Realtime sanity check failed for ${fieldId}:`, error);
+		validationTimeoutRef.current = setTimeout(async () => {
+			const currentFormData = formData;
+			const prevFormData = prevFormDataRef.current;
+			
+			// Find fields that actually changed (only check fields in dependencies map)
+			const changedFields = new Set<string>();
+			const dependencyFieldIds = new Set(Object.keys(fieldDependencies));
+			
+			// Only check fields that are in the dependency map or are dependencies themselves
+			const allRelevantFields = new Set([
+				...Object.keys(fieldDependencies),
+				...Object.values(fieldDependencies).flat(),
+			]);
+			
+			allRelevantFields.forEach((fieldId) => {
+				const currentValue = (currentFormData as any)[fieldId];
+				const prevValue = (prevFormData as any)[fieldId];
+				// Use JSON.stringify for deep comparison of objects/arrays
+				if (JSON.stringify(currentValue) !== JSON.stringify(prevValue)) {
+					changedFields.add(fieldId);
+				}
+			});
+			
+			// Only proceed if there are actual changes to relevant fields
+			if (changedFields.size === 0) {
+				prevFormDataRef.current = currentFormData;
+				return;
+			}
+			
+			// Check all fields that might have dependencies
+			const fieldsToRevalidate = new Set<string>();
+			
+			// For each changed field, check if it has dependencies
+			changedFields.forEach((fieldId) => {
+				const dependentFields = fieldDependencies[fieldId];
+				if (dependentFields) {
+					dependentFields.forEach((depFieldId) => {
+						// Only re-validate if the dependent field has a value
+						const depValue = (currentFormData as any)[depFieldId];
+						if (depValue !== undefined && depValue !== null && depValue !== "") {
+							fieldsToRevalidate.add(depFieldId);
 						}
+					});
+				}
+			});
+			
+			// Re-validate all dependent fields
+			if (fieldsToRevalidate.size > 0) {
+				for (const fieldId of fieldsToRevalidate) {
+					const fieldValue = (currentFormData as any)[fieldId];
+					if (fieldValue !== undefined && fieldValue !== null && fieldValue !== "") {
+						await handleBlur(fieldId, fieldValue);
 					}
 				}
-			} finally {
-				// Reset flag after a short delay to allow state updates to complete
-				setTimeout(() => {
-					isRevalidatingRef.current = false;
-				}, 100);
 			}
-		}, 500);
+			
+			// Update ref after processing
+			prevFormDataRef.current = currentFormData;
+		}, 1000); // 1000ms debounce to reduce API calls and re-renders
 
-		return () => clearTimeout(timeoutId);
-	}, [formData, fieldDependencies]); // Removed fieldMetadata from dependencies!
+		return () => {
+			if (validationTimeoutRef.current) {
+				clearTimeout(validationTimeoutRef.current);
+			}
+		};
+	}, [formData, fieldDependencies, handleBlur]);
 
 	// Principals Management (table-style, similar to residential unit mix)
 	const handleRemovePrincipal = useCallback(
@@ -956,7 +966,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		[isSubsectionFullyLocked, formData]
 	);
 
-	const getFieldStylingClasses = useCallback(
+		const getFieldStylingClasses = useCallback(
 		(fieldId: string, sectionId?: string) => {
 			const value = (formData as any)[fieldId];
 			const hasValue = isValueProvided(value);
@@ -970,13 +980,13 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					Array.isArray(meta.sources) &&
 					meta.sources.length > 0);
 
-			const base =
+			const baseClasses =
 				"w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 text-sm transition-colors duration-200";
 
 			// Red: warnings exist and not locked
 			if (hasWarnings && !locked) {
 				return cn(
-					base,
+					baseClasses,
 					"border-red-500 bg-red-50 focus:ring-red-200 hover:border-red-600 text-gray-800"
 				);
 			}
@@ -984,7 +994,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			// Green: locked (regardless of warnings)
 			if (locked) {
 				return cn(
-					base,
+					baseClasses,
 					"border-emerald-500 bg-emerald-50 focus:ring-emerald-200 hover:border-emerald-600 text-gray-800"
 				);
 			}
@@ -992,19 +1002,19 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			if (!hasValue) {
 				if (hasSource) {
 					return cn(
-						base,
+						baseClasses,
 						"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
 					);
 				}
 				return cn(
-					base,
+					baseClasses,
 					"border-gray-200 bg-white focus:ring-blue-200 hover:border-gray-300"
 				);
 			}
 
 			// Blue: has value, not locked, no warnings
 			return cn(
-				base,
+				baseClasses,
 				"border-blue-600 bg-blue-50 focus:ring-blue-200 hover:border-blue-700 text-gray-800"
 			);
 		},
@@ -1280,6 +1290,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											e.target.value
 										)
 									}
+									onBlur={() => handleBlur(fieldId)}
 									disabled={disabled}
 									className={cn(
 										styling,
@@ -1302,6 +1313,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 											e.target.value
 										)
 									}
+									onBlur={() => handleBlur(fieldId)}
 									options={options.map((o) =>
 										typeof o === "string"
 											? { label: o, value: o }
@@ -1340,9 +1352,11 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												  ]
 										}
 										selectedValue={value}
-										onSelect={(v) =>
-											handleInputChange(fieldId, v)
-										}
+										onSelect={async (selected) => {
+											handleInputChange(fieldId, selected);
+											// Call sanity check immediately after selection (ButtonSelect doesn't have blur)
+											await handleBlur(fieldId, selected);
+										}}
 										disabled={disabled}
 										isLocked={isLocked}
 										isTouched={hasValue || hasSources}
@@ -1388,6 +1402,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												: e.target.value
 										)
 									}
+									onBlur={() => handleBlur(fieldId)}
 									disabled={disabled}
 									className={styling}
 									data-field-id={fieldId}
@@ -1406,6 +1421,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			formData,
 			getFieldStylingClasses,
 			handleInputChange,
+			handleBlur,
 			isFieldLocked,
 			onAskAI,
 			renderFieldLabel,
@@ -1450,17 +1466,36 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 				if (fieldIds.length === 0) return;
 
-				const fieldStates = fieldIds.map((fieldId) => ({
-					isBlue: isFieldBlue(fieldId, sectionId),
-					isGreen: isFieldGreen(fieldId, sectionId),
-					isWhite: isFieldWhite(fieldId, sectionId),
-				}));
+				const fieldStates = fieldIds.map((fieldId) => {
+					const meta = fieldMetadata[fieldId];
+					const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+					return {
+						isBlue: isFieldBlue(fieldId, sectionId),
+						isGreen: isFieldGreen(fieldId, sectionId),
+						isWhite: isFieldWhite(fieldId, sectionId),
+						hasValue: isValueProvided((formData as any)[fieldId]),
+						isLocked: isFieldLocked(fieldId, sectionId),
+						hasWarnings: hasWarnings,
+					};
+				});
 
-				const allGreen = fieldStates.every((s) => s.isGreen);
-				const allWhite = fieldStates.every((s) => s.isWhite);
+				const allGreen =
+					fieldStates.length > 0 &&
+					fieldStates.every(
+						(s) =>
+							s.isGreen && !s.isBlue && !s.isWhite && s.isLocked
+					);
+				const allWhite =
+					fieldStates.length > 0 &&
+					fieldStates.every(
+						(s) => s.isWhite && !s.isBlue && !s.isGreen
+					);
 				const hasBlue = fieldStates.some((s) => s.isBlue);
+				const hasWarnings = fieldStates.some((s) => s.hasWarnings);
 
-				if (hasBlue) {
+				// Auto-open if: has blue fields OR has warnings (errors)
+				// Auto-close if: all green (complete) OR all white (empty)
+				if (hasBlue || hasWarnings) {
 					autoOpenSubsections.add(subsectionKey);
 				} else if (allGreen || allWhite) {
 					autoCloseSubsections.add(subsectionKey);
@@ -1486,6 +1521,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		isFieldBlue,
 		isFieldGreen,
 		isFieldWhite,
+		isFieldLocked,
 		manuallyToggledSubsections,
 	]);
 
@@ -1615,37 +1651,78 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 														"principals",
 														sectionId
 													),
+												isWhite: isFieldWhite(
+													"principals",
+													sectionId
+												),
 												hasValue: hasCompletePrincipals(
 													formData.principals
 												),
+												isLocked: isFieldLocked(
+													"principals",
+													sectionId
+												),
+												hasWarnings: false,
 											},
 									  ]
 									: subsectionFields.length > 0
-									? subsectionFields.map((fieldId) => ({
-											isBlue: isFieldBlue(
-												fieldId,
-												sectionId
-											),
-											isGreen: isFieldGreen(
-												fieldId,
-												sectionId
-											),
-											hasValue: isValueProvided(
-												(formData as any)[fieldId]
-											),
-									  }))
+									? subsectionFields.map((fieldId) => {
+											const meta = fieldMetadata[fieldId];
+											const hasWarnings = meta?.warnings && meta.warnings.length > 0;
+											return {
+												isBlue: isFieldBlue(
+													fieldId,
+													sectionId
+												),
+												isGreen: isFieldGreen(
+													fieldId,
+													sectionId
+												),
+												isWhite: isFieldWhite(
+													fieldId,
+													sectionId
+												),
+												hasValue: isValueProvided(
+													(formData as any)[fieldId]
+												),
+												isLocked: isFieldLocked(
+													fieldId,
+													sectionId
+												),
+												hasWarnings: hasWarnings,
+											};
+									  })
 									: [];
 
-							const hasBlue = fieldStates.some((s) => s.isBlue);
 							const allGreen =
 								fieldStates.length > 0 &&
-								fieldStates.every((s) => s.isGreen);
+								fieldStates.every(
+									(s) =>
+										s.isGreen &&
+										!s.isBlue &&
+										!s.isWhite &&
+										s.isLocked
+								);
+							const allWhite =
+								fieldStates.length > 0 &&
+								fieldStates.every(
+									(s) => s.isWhite && !s.isBlue && !s.isGreen
+								);
+							const hasBlue = fieldStates.some((s) => s.isBlue);
+							const hasWarnings = fieldStates.some((s) => s.hasWarnings);
 
+							// Determine badge state
+							// Multiple badges can show simultaneously:
+							// - Error badge: shows if any field has warnings (can coexist with Needs Input)
+							// - Needs Input badge: shows if any field is blue (can coexist with Error)
+							// - Complete badge: exclusive, only shows when all green AND no errors AND no needs input
+							const showError = hasWarnings;
+							const showNeedsInput = hasBlue;
 							const showComplete =
 								subsectionFields.length > 0 &&
 								allGreen &&
-								!hasBlue;
-							const showNeedsInput = hasBlue;
+								!hasBlue &&
+								!hasWarnings;
 
 							const hasEmptyField = fieldStates.some(
 								(s) => !s.hasValue
@@ -1745,14 +1822,19 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 													</>
 												)}
 											</div>
-											{showComplete && (
-												<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
-													Complete
+											{showError && (
+												<span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700 font-medium">
+													Error
 												</span>
 											)}
 											{showNeedsInput && (
 												<span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
 													Needs Input
+												</span>
+											)}
+											{showComplete && (
+												<span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
+													Complete
 												</span>
 											)}
 										</div>
@@ -2150,6 +2232,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		isFieldLocked,
 		isFieldBlue,
 		isFieldGreen,
+		isFieldWhite,
 	]);
 
 	if (!isEditing) {
