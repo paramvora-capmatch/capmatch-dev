@@ -16,6 +16,7 @@ import {
   Plus,
   Users as UsersIcon,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -59,6 +60,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const [createMeetingError, setCreateMeetingError] = useState<string | null>(null);
   const [isUpcomingExpanded, setIsUpcomingExpanded] = useState(true);
   const [isPastExpanded, setIsPastExpanded] = useState(false);
+  const [cancellingMeetingId, setCancellingMeetingId] = useState<string | null>(null);
 
   // Get project members
   const { members } = useOrgStore();
@@ -172,6 +174,53 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     const roomName = meeting.meeting_link?.split('/').pop();
     if (roomName) {
       window.open(`/meeting/${roomName}`, '_blank');
+    }
+  };
+
+  // Handle cancelling a meeting
+  const handleCancelMeeting = async (meetingId: string) => {
+    if (!confirm('Are you sure you want to cancel this meeting? This action cannot be undone.')) {
+      return;
+    }
+
+    setCancellingMeetingId(meetingId);
+
+    try {
+      // Get auth token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`/api/meetings/${meetingId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to cancel meeting');
+      }
+
+      const data = await response.json();
+      if (data.errors && data.errors.length > 0) {
+        console.warn('Meeting cancelled but some calendar events failed:', data.errors);
+        // Optional: Show a warning to the user
+      } else if (data.cancelledEvents > 0) {
+        console.log(`Meeting cancelled and ${data.cancelledEvents} calendar events removed`);
+      }
+
+      // Refresh meetings list
+      await refreshMeetings();
+    } catch (error) {
+      console.error('Error cancelling meeting:', error);
+      alert(error instanceof Error ? error.message : 'Failed to cancel meeting');
+    } finally {
+      setCancellingMeetingId(null);
     }
   };
 
@@ -392,18 +441,34 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                             </div>
 
                             {/* Video Call Actions */}
-                            {meeting.meeting_link && (
-                              <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                            <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                              {meeting.meeting_link && (
                                 <Button
                                   size="sm"
                                   onClick={() => handleJoinVideoCall(meeting)}
-                                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                                  className="bg-purple-600 hover:bg-purple-700 text-white flex-1"
                                 >
                                   <Video className="w-4 h-4 mr-1" />
                                   Join Video Call
                                 </Button>
-                              </div>
-                            )}
+                              )}
+                              
+                              {meeting.organizer_id === user?.id && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelMeeting(meeting.id)}
+                                  disabled={cancellingMeetingId === meeting.id}
+                                  className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
+                                >
+                                  {cancellingMeetingId === meeting.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </Card>
                       </motion.div>
