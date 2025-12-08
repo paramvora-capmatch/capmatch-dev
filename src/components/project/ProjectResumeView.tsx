@@ -47,6 +47,7 @@ interface ProjectResumeViewProps {
 	project: ProjectProfile;
 	onEdit: () => void;
 	onVersionChange?: () => void;
+	canEdit?: boolean; // Whether the user has edit permission
 }
 
 const formatCurrency = (amount: number | null | undefined): string => {
@@ -446,6 +447,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 	project,
 	onEdit,
 	onVersionChange,
+	canEdit = true, // Default to true for backward compatibility
 }) => {
 	const completeness = project.completenessPercent ?? 0;
 	const progressColor = completeness >= 100 ? "bg-green-600" : "bg-blue-600";
@@ -539,20 +541,22 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 						<AlertCircle className="h-5 w-5 text-blue-600 mr-2 animate-pulse" />
 						Project Resume
 					</h2>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={(e) => {
-							e.stopPropagation();
-							onEdit();
-						}}
-						className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
-					>
-						<Edit className="h-5 w-5 text-gray-600 flex-shrink-0" />
-						<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
-							Edit
-						</span>
-					</Button>
+					{canEdit && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={(e) => {
+								e.stopPropagation();
+								onEdit();
+							}}
+							className="flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 overflow-hidden text-base"
+						>
+							<Edit className="h-5 w-5 text-gray-600 flex-shrink-0" />
+							<span className="text-sm font-medium text-gray-700 whitespace-nowrap max-w-0 group-hover:max-w-[100px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+								Edit
+							</span>
+						</Button>
+					)}
 					<Button
 						variant="outline"
 						size="sm"
@@ -577,79 +581,84 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 								: "Hide Project Details"}
 						</span>
 					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={(e) => {
-							e.stopPropagation();
-							handleAutofill();
-						}}
-						disabled={isAutofilling}
-						className={cn(
-							"group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-hidden text-base",
-							isAutofilling
-								? "border-blue-400 bg-blue-50 text-blue-700"
-								: "border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 hover:border-blue-400 text-blue-700 hover:text-blue-800 shadow-sm hover:shadow-md"
-						)}
-					>
-						{isAutofilling ? (
-							<>
-								<Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
-								<span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
-									Autofilling...
-								</span>
-							</>
-						) : (
-							<>
-								<Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />
-								<span className="text-sm font-medium text-blue-700 whitespace-nowrap max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
-									Autofill Resume
-								</span>
-							</>
-						)}
-						{/* Sparkle animation overlay */}
-						{showSparkles && (
-							<div className="absolute inset-0 pointer-events-none overflow-hidden">
-								{[...Array(20)].map((_, i) => (
-									<motion.div
-										key={i}
-										className="absolute w-1 h-1 bg-yellow-400 rounded-full"
-										initial={{
-											x: "50%",
-											y: "50%",
-											opacity: 1,
-											scale: 0,
-										}}
-										animate={{
-											x: `${Math.random() * 100}%`,
-											y: `${Math.random() * 100}%`,
-											opacity: [1, 1, 0],
-											scale: [0, 1.5, 0],
-										}}
-										transition={{
-											duration: 0.8,
-											delay: Math.random() * 0.3,
-											ease: "easeOut",
-										}}
-										style={{
-											left: "50%",
-											top: "50%",
-										}}
-									/>
-								))}
+					{canEdit && (
+						<>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={(e) => {
+									e.stopPropagation();
+									handleAutofill();
+								}}
+								disabled={isAutofilling}
+								className={cn(
+									"group relative flex items-center gap-0 group-hover:gap-2 px-2 group-hover:px-3 py-1.5 rounded-md border transition-all duration-300 overflow-hidden text-base",
+									isAutofilling
+										? "border-blue-400 bg-blue-50 text-blue-700"
+										: "border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 hover:border-blue-400 text-blue-700 hover:text-blue-800 shadow-sm hover:shadow-md"
+								)}
+							>
+								{isAutofilling ? (
+									<>
+										<Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+										<span className="text-sm font-medium whitespace-nowrap max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+											Autofilling...
+										</span>
+									</>
+								) : (
+									<>
+										<Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />
+										<span className="text-sm font-medium text-blue-700 whitespace-nowrap max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden">
+											Autofill Resume
+										</span>
+									</>
+								)}
+								{/* Sparkle animation overlay */}
+								{showSparkles && (
+									<div className="absolute inset-0 pointer-events-none overflow-hidden">
+										{[...Array(20)].map((_, i) => (
+											<motion.div
+												key={i}
+												className="absolute w-1 h-1 bg-yellow-400 rounded-full"
+												initial={{
+													x: "50%",
+													y: "50%",
+													opacity: 1,
+													scale: 0,
+												}}
+												animate={{
+													x: `${Math.random() * 100}%`,
+													y: `${Math.random() * 100}%`,
+													opacity: [1, 1, 0],
+													scale: [0, 1.5, 0],
+												}}
+												transition={{
+													duration: 0.8,
+													delay: Math.random() * 0.3,
+													ease: "easeOut",
+												}}
+												style={{
+													left: "50%",
+													top: "50%",
+												}}
+											/>
+										))}
+									</div>
+								)}
+							</Button>
+							<div className="ml-2">
+								<ResumeVersionHistory
+									projectId={project.id}
+									resourceId={project.projectResumeResourceId ?? null}
+									disabled={isAutofilling}
+									onRollbackSuccess={() => {
+										onVersionChange?.();
+									}}
+									onOpen={handleVersionHistoryOpen}
+								/>
 							</div>
-						)}
-					</Button>
-					<div className="ml-2">
-						<ResumeVersionHistory
-							projectId={project.id}
-							resourceId={project.projectResumeResourceId ?? null}
-							onRollbackSuccess={() => {
-								onVersionChange?.();
-							}}
-							onOpen={handleVersionHistoryOpen}
-						/>
-					</div>
+						</>
+					)}
 				</div>
 				<div />
 			</div>

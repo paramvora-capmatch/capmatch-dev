@@ -53,7 +53,7 @@ export const KeyValueDisplay: React.FC<KeyValueDisplayProps> = ({
           {label}
        </p>
       <p className={cn(
-          "text-gray-800",
+          "text-gray-900",
           isLarge ? "text-lg md:text-xl font-semibold" : "text-sm md:text-base"
       )}>
           {val}

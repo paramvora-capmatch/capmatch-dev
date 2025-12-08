@@ -1,7 +1,7 @@
 // src/components/auth/RoleBasedRoute.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -20,6 +20,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
+  const redirectInitiated = useRef(false);
 
   useEffect(() => {
     // Don't do anything until the initial auth load is complete.
@@ -31,11 +32,18 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
 
     if (authorized) {
       setIsAuthorized(true);
+      // Reset redirect flag if user becomes authorized
+      redirectInitiated.current = false;
     } else {
       // If not authorized after the check, redirect.
       // This also handles the case where a user's session expires.
       setIsAuthorized(false);
-      router.push(redirectTo);
+      
+      // Prevent multiple redirects
+      if (!redirectInitiated.current) {
+        redirectInitiated.current = true;
+        router.push(redirectTo);
+      }
     }
 
     // Mark that the initial check has been performed.

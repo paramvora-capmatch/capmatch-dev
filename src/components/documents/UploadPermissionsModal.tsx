@@ -134,11 +134,11 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
           <div className="max-w-5xl mx-auto">
             <div className="grid grid-cols-2 gap-4 h-[500px]">
             {/* Left Column: Document List */}
-            <div className="border-r border-gray-200 pr-4 flex flex-col">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+            <div className="border-r border-gray-200 pr-4 flex flex-col min-h-0 overflow-hidden">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex-shrink-0">
                 Documents ({files.length})
               </h3>
-              <div className="flex-1 overflow-y-auto space-y-2">
+              <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
                 {files.map((file) => {
                   const fKey = fileKey(file);
                   const isSelected = selectedFileKey === fKey;
@@ -211,8 +211,8 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
             </div>
 
             {/* Right Column: Member List */}
-            <div className="flex flex-col">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">
+            <div className="flex flex-col min-h-0 overflow-hidden">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex-shrink-0">
                 {selectedFile ? (
                   <>
                     Permissions for{" "}
@@ -223,7 +223,7 @@ export const UploadPermissionsModal: React.FC<UploadPermissionsModalProps> = ({
                 )}
               </h3>
               {selectedFile ? (
-                <div className="flex-1 overflow-y-auto space-y-2">
+                <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
                   {memberList.map((member) => {
                     const fKey = fileKey(selectedFile);
                     const current =

@@ -17,6 +17,7 @@ import {
 import { ProjectProfile } from "@/types/enhanced-types";
 import { useProjectStore as useProjects } from "@/stores/useProjectStore";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { formatDateShort } from "@/utils/dateUtils";
 
 interface ProjectMember {
   userId: string;
@@ -113,21 +114,6 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     };
   }, [isMenuOpen]);
 
-  // Format date helper (could be moved to utils)
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A";
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return "Invalid Date";
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return "Invalid Date";
-    }
-  };
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -252,7 +238,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
               <span>
                 Updated:{" "}
                 <span className="font-medium">
-                  {formatDate(
+                  {formatDateShort(
                     unwrapValue(project.updatedAt) as string | undefined
                   )}
                 </span>

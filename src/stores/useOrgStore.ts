@@ -39,6 +39,7 @@ interface OrgActions {
     projectGrants: ProjectGrant[],
     orgGrants: OrgGrant | null
   ) => Promise<void>;
+  updateMemberName: (userId: string, fullName: string) => Promise<void>;
 
   // Role management (Note: Roles are immutable in new schema - must remove and re-invite)
 
@@ -79,7 +80,6 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
     // Prevent duplicate loads for the same org
     if (loadingOrgId === orgId) {
-      console.log(`[OrgStore] Already loading org: ${orgId}`);
       return;
     }
 
@@ -91,8 +91,6 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
     // But if multiple cards call it simultaneously, loadingOrgId will catch it.
 
     set({ isLoading: true, loadingOrgId: orgId, error: null });
-
-    console.log(`[OrgStore] Loading org: ${orgId}`);
 
     try {
       // Load org details
@@ -192,10 +190,6 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
             member.user_id === currentUserId && member.role === "owner"
         ) || false;
 
-      console.log(`[OrgStore] Org loaded successfully`);
-      console.log(`[OrgStore] Current user ID: ${currentUserId}`);
-      console.log(`[OrgStore] Is owner: ${isOwner}`);
-      console.log(`[OrgStore] Members count: ${processedMembers.length}`);
 
       set({
         currentOrg: org,
@@ -389,7 +383,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
   },
 
   cancelInvite: async (inviteId: string) => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
 
     try {
       const { error } = await supabase
@@ -401,19 +395,18 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
       // Refresh members list
       await get().refreshMembers();
-      set({ isLoading: false });
     } catch (error) {
       console.error("Error cancelling invite:", error);
       set({
         error:
           error instanceof Error ? error.message : "Failed to cancel invite",
-        isLoading: false,
       });
+      throw error;
     }
   },
 
   removeMember: async (userId: string) => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
 
     try {
       const { members, currentOrg } = get();
@@ -439,14 +432,13 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
       // Refresh members list
       await get().refreshMembers();
-      set({ isLoading: false });
     } catch (error) {
       console.error("Error removing member:", error);
       set({
         error:
           error instanceof Error ? error.message : "Failed to remove member",
-        isLoading: false,
       });
+      throw error;
     }
   },
 
@@ -455,7 +447,7 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
     projectGrants: ProjectGrant[],
     orgGrants: OrgGrant | null
   ) => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
 
     try {
       const { currentOrg } = get();
@@ -478,13 +470,35 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
 
       // Refresh members list after successful update
       await get().refreshMembers();
-      set({ isLoading: false });
     } catch (error) {
       console.error("Error updating member permissions:", error);
       set({
         error:
           error instanceof Error ? error.message : "Failed to update permissions",
-        isLoading: false,
+      });
+      throw error;
+    }
+  },
+
+  updateMemberName: async (userId: string, fullName: string) => {
+    set({ error: null });
+
+    try {
+      // Update the user's full_name in the profiles table
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: fullName.trim() })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      // Refresh members list to show the updated name
+      await get().refreshMembers();
+    } catch (error) {
+      console.error("Error updating member name:", error);
+      set({
+        error:
+          error instanceof Error ? error.message : "Failed to update member name",
       });
       throw error;
     }

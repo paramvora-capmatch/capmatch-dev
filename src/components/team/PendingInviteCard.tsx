@@ -1,5 +1,5 @@
 import React from "react";
-import { Clock } from "lucide-react";
+import { Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Invite } from "@/types/enhanced-types";
 import { formatDate, isInviteExpired } from "@/utils/dateUtils";
@@ -9,6 +9,7 @@ interface PendingInviteCardProps {
   isOwner: boolean;
   onCancel: (inviteId: string) => void;
   index: number;
+  isCanceling?: boolean;
 }
 
 export const PendingInviteCard: React.FC<PendingInviteCardProps> = ({
@@ -16,6 +17,7 @@ export const PendingInviteCard: React.FC<PendingInviteCardProps> = ({
   isOwner,
   onCancel,
   index,
+  isCanceling = false,
 }) => {
   const expired = isInviteExpired(invite.expires_at);
 
@@ -70,9 +72,17 @@ export const PendingInviteCard: React.FC<PendingInviteCardProps> = ({
               variant="outline"
               size="sm"
               onClick={() => onCancel(invite.id)}
+              disabled={isCanceling}
               className="text-red-600 border-red-200 hover:bg-red-50"
             >
-              Cancel
+              {isCanceling ? (
+                <>
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                  Canceling...
+                </>
+              ) : (
+                "Cancel"
+              )}
             </Button>
           </div>
         )}

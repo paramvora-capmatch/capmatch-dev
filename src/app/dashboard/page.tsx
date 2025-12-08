@@ -19,11 +19,11 @@ import { Button } from "../../components/ui/Button";
 import { ProjectProfile } from "@/types/enhanced-types";
 import { useOrgStore } from "@/stores/useOrgStore";
 import NewProjectAccessModal from "@/components/project/NewProjectAccessModal";
-import type { ProjectFormData } from "@/components/project/NewProjectAccessModal";
-import { ProjectGrant } from "@/types/enhanced-types";
-import { supabase } from "../../../lib/supabaseClient";
 import { Modal } from "../../components/ui/Modal";
 import { cn } from "../../utils/cn";
+import { GRID_LAYOUT_THRESHOLD, PROGRESS_THRESHOLDS } from "@/constants/dashboard";
+import { useProjectCreation } from "../../hooks/useProjectCreation";
+import { useProjectModals } from "../../hooks/useProjectModals";
 
 interface OnboardingProgressCardProps {
   project: ProjectProfile | null;
@@ -39,13 +39,13 @@ const OnboardingProgressCard: React.FC<OnboardingProgressCardProps> = ({
   onCreateProject,
 }) => {
   const hasProject = Boolean(project);
-  const isBorrowerComplete = progress >= 100;
+  const isBorrowerComplete = progress >= PROGRESS_THRESHOLDS.COMPLETE;
   const progressColor = isBorrowerComplete ? 'bg-green-600' : 'bg-blue-600';
 
   // Determine bullet color based on progress
   const getBorrowerBulletColor = () => {
-    if (progress >= 90) return "bg-green-500";
-    if (progress >= 50) return "bg-yellow-500";
+    if (progress >= PROGRESS_THRESHOLDS.HIGH) return "bg-green-500";
+    if (progress >= PROGRESS_THRESHOLDS.MEDIUM) return "bg-yellow-500";
     return "bg-red-500";
   };
 
@@ -124,16 +124,12 @@ export default function DashboardPage() {
   } = useAuth();
   const {
     projects,
-    createProject,
-    deleteProject,
     isLoading: projectsLoading,
     loadUserProjects,
   } = useProjects();
   const {
     members: orgMembers,
     isLoading: orgLoading,
-    loadOrg,
-    currentOrg,
   } = useOrgStore();
 
   // Batch fetch project members to optimize performance
@@ -146,15 +142,25 @@ export default function DashboardPage() {
   // Track if we've attempted to load projects to prevent duplicate calls
   const hasAttemptedLoad = useRef(false);
 
-  // State to track when a project is being created
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
-  const [accessModalError, setAccessModalError] = useState<string | null>(null);
-  const [createdProject, setCreatedProject] = useState<ProjectProfile | null>(null);
+  // Project creation logic extracted to custom hook
+  const {
+    isCreatingProject,
+    isAccessModalOpen,
+    accessModalError,
+    handleCreateNewProject,
+    handleAccessModalClose,
+    handleAccessModalSubmit,
+  } = useProjectCreation();
 
-  // State for project selection modal (when multiple projects exist)
-  const [isProjectSelectModalOpen, setIsProjectSelectModalOpen] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  // Modal management extracted to custom hook
+  const {
+    isProjectSelectModalOpen,
+    selectedProjectId,
+    openProjectSelectModal,
+    closeProjectSelectModal,
+    setSelectedProjectId,
+    handleProjectSelectSubmit,
+  } = useProjectModals(projects);
 
   const combinedLoading = authLoading || projectsLoading || isCreatingProject;
 
@@ -207,8 +213,8 @@ export default function DashboardPage() {
   // Count total projects (all projects have borrower resumes, even if at 0%)
   const totalProjects = projects.length;
 
-  // Use grid layout when there are 5 or more projects for better space utilization
-  const useGridLayout = totalProjects >= 5;
+  // Use grid layout when threshold is reached for better space utilization
+  const useGridLayout = totalProjects >= GRID_LAYOUT_THRESHOLD;
 
   // Handle opening borrower resume - check if single or multiple projects
   const handleOpenBorrowerResume = useCallback(() => {
@@ -223,25 +229,14 @@ export default function DashboardPage() {
     }
 
     // If multiple projects, open selection modal
-    setIsProjectSelectModalOpen(true);
     // Pre-select the most complete project if available
-    if (primaryProject) {
-      setSelectedProjectId(primaryProject.id);
-    } else {
-      setSelectedProjectId("");
-    }
-  }, [projects, primaryProject, router]);
+    openProjectSelectModal(primaryProject?.id);
+  }, [projects, primaryProject, router, openProjectSelectModal]);
 
-  // Handle project selection and navigation
-  const handleProjectSelectSubmit = useCallback(() => {
-    if (!selectedProjectId) {
-      return;
-    }
-
-    setIsProjectSelectModalOpen(false);
-    router.push(`/project/workspace/${selectedProjectId}?step=borrower`);
-    setSelectedProjectId("");
-  }, [selectedProjectId, router]);
+  // Stabilize loadUserProjects reference to prevent unnecessary effect runs
+  const stableLoadUserProjects = useCallback(() => {
+    return loadUserProjects();
+  }, [loadUserProjects]);
 
   // Explicitly load projects when user is authenticated and ready
   // This fixes the issue where projects don't load when navigating from login/landing page
@@ -260,7 +255,7 @@ export default function DashboardPage() {
       !hasAttemptedLoad.current
     ) {
       hasAttemptedLoad.current = true;
-      loadUserProjects().catch((error) => {
+      stableLoadUserProjects().catch((error) => {
         console.error("[Dashboard] Failed to load projects:", error);
         // Reset flag on error so we can retry
         hasAttemptedLoad.current = false;
@@ -271,188 +266,15 @@ export default function DashboardPage() {
     if (!user || !activeOrg) {
       hasAttemptedLoad.current = false;
     }
-  }, [user, authLoading, activeOrg, loadUserProjects]);
+  }, [user, authLoading, activeOrg, stableLoadUserProjects]);
 
-  // Control Flow Logic & Loading
+  // Mark initial load as complete once loading finishes
   useEffect(() => {
-    // If still loading, do nothing.
-    if (combinedLoading && !initialLoadComplete) {
-      return;
-    }
-
-    // Once loading is finished for the first time, mark it.
     if (!combinedLoading && !initialLoadComplete) {
       setInitialLoadComplete(true);
     }
+  }, [combinedLoading, initialLoadComplete]);
 
-    // This logic is simplified. New user onboarding is complex.
-    // The main redirect for new users is after profile completion.
-    // Let's keep the dashboard stable for now.
-    // A `from=signup` param could trigger an onboarding modal in the future.
-  }, [
-    user,
-    projects,
-    loginSource,
-    router,
-    initialLoadComplete,
-    combinedLoading,
-  ]);
-
-  // Handle creating a new project
-  const applyMemberPermissions = useCallback(
-    async (projectId: string, selections: Record<string, ProjectGrant>) => {
-      if (!user?.id) {
-        throw new Error("User context missing while granting permissions.");
-      }
-
-      for (const [memberId, grant] of Object.entries(selections)) {
-        // Skip if no permissions are set
-        if (!grant.permissions || grant.permissions.length === 0) {
-          continue;
-        }
-
-        // Convert ProjectGrant permissions to the format expected by grant_project_access RPC
-        const permissionPayload = grant.permissions.map((perm) => ({
-          resource_type: perm.resource_type,
-          permission: perm.permission,
-        }));
-
-        const { error: grantError } = await supabase.rpc("grant_project_access", {
-          p_project_id: projectId,
-          p_user_id: memberId,
-          p_granted_by_id: user.id,
-          p_permissions: permissionPayload,
-        });
-
-        if (grantError) {
-          throw new Error(
-            grantError.message || `Failed to grant access to selected member.`
-          );
-        }
-      }
-    },
-    [user?.id]
-  );
-
-  const resetModalState = () => {
-    setIsAccessModalOpen(false);
-    setAccessModalError(null);
-    setCreatedProject(null);
-  };
-
-  const handleAccessModalClose = () => {
-    if (isCreatingProject) return;
-    resetModalState();
-  };
-
-  const handleCreateNewProject = useCallback(async () => {
-    if (isCreatingProject) return;
-
-    if (!activeOrg?.id) {
-      console.error("Cannot load organization members: no active organization.");
-      return;
-    }
-
-    try {
-      if (!currentOrg || currentOrg.id !== activeOrg.id) {
-        await loadOrg(activeOrg.id);
-      }
-
-      setAccessModalError(null);
-      setCreatedProject(null);
-      setIsAccessModalOpen(true);
-    } catch (error) {
-      console.error("Failed to prepare organization data:", error);
-    }
-  }, [activeOrg?.id, currentOrg, isCreatingProject, loadOrg]);
-
-  const handleAccessModalSubmit = useCallback(
-    async (selections: Record<string, ProjectGrant>, projectData: ProjectFormData) => {
-      if (!activeOrg?.id) {
-        setAccessModalError(
-          "No active organization is set. Please reload and try again."
-        );
-        return;
-      }
-
-      setIsCreatingProject(true);
-      setAccessModalError(null);
-
-      let project: ProjectProfile | null = createdProject;
-      try {
-        if (!project) {
-          // Build project sections with name and address
-          // Address will be parsed/derived on the backend
-          const projectSections: any = {
-            projectName: projectData.projectName,
-          };
-          
-          // Pass the full address string - backend will parse it
-          if (projectData.propertyAddress) {
-            projectSections.propertyAddress = projectData.propertyAddress;
-          }
-
-          project = await createProject({
-            projectName: projectData.projectName,
-            projectSections,
-          });
-          setCreatedProject(project);
-        }
-
-        if (!project) {
-          throw new Error("Project was not created successfully.");
-        }
-
-        // At this point, project is guaranteed to be non-null
-        const finalProject = project;
-
-        // Set projectId in each grant before applying permissions
-        const grantsWithProjectId: Record<string, ProjectGrant> = {};
-        Object.entries(selections).forEach(([memberId, grant]) => {
-          grantsWithProjectId[memberId] = {
-            ...grant,
-            projectId: finalProject.id,
-          };
-        });
-
-        await applyMemberPermissions(finalProject.id, grantsWithProjectId);
-
-        resetModalState();
-        router.push(`/project/workspace/${finalProject.id}`);
-      } catch (error) {
-        console.error("Failed to create new project or grant access:", error);
-
-        if (project) {
-          try {
-            await deleteProject(project.id);
-          } catch (deleteError) {
-            console.error(
-              "Failed to roll back project after permission error:",
-              deleteError
-            );
-          } finally {
-            setCreatedProject(null);
-          }
-        }
-
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Failed to create project. Please try again.";
-        setAccessModalError(message);
-      } finally {
-        setIsCreatingProject(false);
-      }
-    },
-    [
-      activeOrg?.id,
-      applyMemberPermissions,
-      createProject,
-      deleteProject,
-      router,
-      createdProject,
-    ]
-  );
 
   // --- Render Logic ---
 
@@ -586,23 +408,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Local styles for subtle animations */}
-        <style jsx>{`
-          @keyframes fadeUp {
-            0% { opacity: 0; transform: translateY(16px); }
-            100% { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fade-up {
-            animation: fadeUp 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
-          }
-          @keyframes slowPulse {
-            0%, 100% { opacity: 0.2; }
-            50% { opacity: 0.4; }
-          }
-          .animate-slow-pulse {
-            animation: slowPulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-          }
-        `}</style>
       </DashboardLayout>
       <NewProjectAccessModal
         isOpen={isAccessModalOpen}
@@ -615,10 +420,7 @@ export default function DashboardPage() {
       />
       <Modal
         isOpen={isProjectSelectModalOpen}
-        onClose={() => {
-          setIsProjectSelectModalOpen(false);
-          setSelectedProjectId("");
-        }}
+        onClose={closeProjectSelectModal}
         title="Select Project"
         size={useGridLayout ? "lg" : "md"}
       >
@@ -640,16 +442,16 @@ export default function DashboardPage() {
             {projectSelectOptions.map((project) => {
               const isSelected = selectedProjectId === project.value;
 
-              // Determine colors: red < 50%, blue 50-99%, green 100%
+              // Determine colors based on progress thresholds
               const getProgressBarColor = () => {
-                if (project.progress === 100) return "bg-green-500";
-                if (project.progress >= 50) return "bg-blue-500";
+                if (project.progress === PROGRESS_THRESHOLDS.COMPLETE) return "bg-green-500";
+                if (project.progress >= PROGRESS_THRESHOLDS.MEDIUM) return "bg-blue-500";
                 return "bg-red-500";
               };
 
               const getBadgeColor = () => {
-                if (project.progress === 100) return "bg-green-100 text-green-800 border-green-300";
-                if (project.progress >= 50) return "bg-blue-100 text-blue-800 border-blue-300";
+                if (project.progress === PROGRESS_THRESHOLDS.COMPLETE) return "bg-green-100 text-green-800 border-green-300";
+                if (project.progress >= PROGRESS_THRESHOLDS.MEDIUM) return "bg-blue-100 text-blue-800 border-blue-300";
                 return "bg-red-100 text-red-800 border-red-300";
               };
 
@@ -714,10 +516,7 @@ export default function DashboardPage() {
           <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
             <Button
               variant="outline"
-              onClick={() => {
-                setIsProjectSelectModalOpen(false);
-                setSelectedProjectId("");
-              }}
+              onClick={closeProjectSelectModal}
             >
               Cancel
             </Button>

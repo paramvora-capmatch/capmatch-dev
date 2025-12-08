@@ -71,6 +71,9 @@ interface ChatState {
   // Safe attachment UX
   attachableDocuments: AttachableDocument[];
   isLoadingAttachable: boolean;
+  
+  // Message cache per thread (prevents reloads when switching tabs)
+  messageCache: Map<string, ProjectMessage[]>;
 }
 
 interface ChatActions {
@@ -166,6 +169,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
   membershipChannel: null,
   attachableDocuments: [],
   isLoadingAttachable: false,
+  messageCache: new Map<string, ProjectMessage[]>(),
 
   // Actions
   loadThreadsForProject: async (projectId: string) => {
@@ -217,15 +221,43 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
   setActiveThread: (threadId: string | null) => {
     if (get().activeThreadId === threadId) return;
     
+    const state = get();
+    
+    // Save current thread's messages to cache before switching
+    if (state.activeThreadId && state.messages.length > 0) {
+      const cache = new Map(state.messageCache);
+      cache.set(state.activeThreadId, state.messages);
+      set({ messageCache: cache });
+    }
+    
     get().unsubscribeFromMessages();
-    set({ activeThreadId: threadId, messages: [], participants: [], attachableDocuments: [] });
-
+    
+    // Check if we have cached messages for this thread
+    const cachedMessages = threadId ? state.messageCache.get(threadId) : undefined;
+    
     if (threadId) {
+      // Set cached messages immediately if available (for instant UI update)
+      if (cachedMessages && cachedMessages.length > 0) {
+        set({ 
+          activeThreadId: threadId, 
+          messages: cachedMessages, 
+          participants: [], 
+          attachableDocuments: [],
+          isLoading: false, // Don't show loading if we have cache
+        });
+      } else {
+        // Clear messages only if no cache
+        set({ activeThreadId: threadId, messages: [], participants: [], attachableDocuments: [] });
+      }
+      
+      // Always load fresh data in background (realtime will update cache)
       get().loadMessages(threadId);
       get().loadParticipants(threadId);
       get().subscribeToMessages(threadId);
       get().loadAttachableDocuments(threadId);
       void get().markThreadRead(threadId);
+    } else {
+      set({ activeThreadId: null, messages: [], participants: [], attachableDocuments: [] });
     }
   },
 
@@ -379,6 +411,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       });
 
       set({ messages: messagesWithReplies, isLoading: false });
+      
+      // Update cache with fresh messages
+      const state = get();
+      const cache = new Map(state.messageCache);
+      cache.set(threadId, messagesWithReplies);
+      set({ messageCache: cache });
     } catch (err) {
       set({ 
         error: err instanceof Error ? err.message : 'Failed to load messages',
@@ -430,9 +468,16 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     };
 
     // Add optimistic message immediately (instant UI feedback)
-    set((state) => ({
-      messages: [...state.messages, optimisticMessage],
-    }));
+    set((state) => {
+      const updatedMessages = [...state.messages, optimisticMessage];
+      // Update cache with optimistic message
+      const cache = new Map(state.messageCache);
+      cache.set(threadId, updatedMessages);
+      return {
+        messages: updatedMessages,
+        messageCache: cache,
+      };
+    });
 
     try {
       // Call RPC directly - much faster than edge function!
@@ -449,9 +494,18 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
       if (insertError) {
         // Remove optimistic message on error
-        set((state) => ({
-          messages: state.messages.filter((msg) => msg.id !== tempId),
-        }));
+        set((state) => {
+          const updatedMessages = state.messages.filter((msg) => msg.id !== tempId);
+          // Update cache when removing optimistic message
+          const cache = new Map(state.messageCache);
+          if (state.activeThreadId === threadId) {
+            cache.set(threadId, updatedMessages);
+          }
+          return {
+            messages: updatedMessages,
+            messageCache: cache,
+          };
+        });
 
         // Handle DOC_ACCESS_DENIED error
         if (insertError.message?.includes('DOC_ACCESS_DENIED')) {
@@ -492,9 +546,18 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
       if (!messageId) {
         // Remove optimistic message if no ID returned
-        set((state) => ({
-          messages: state.messages.filter((msg) => msg.id !== tempId),
-        }));
+        set((state) => {
+          const updatedMessages = state.messages.filter((msg) => msg.id !== tempId);
+          // Update cache when removing optimistic message
+          const cache = new Map(state.messageCache);
+          if (state.activeThreadId === threadId) {
+            cache.set(threadId, updatedMessages);
+          }
+          return {
+            messages: updatedMessages,
+            messageCache: cache,
+          };
+        });
         throw new Error('Failed to send message');
       }
 
@@ -511,9 +574,18 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       // Real message will arrive via postgres_changes and replace this with "delivered" status
     } catch (err) {
       // Remove optimistic message on any error
-      set((state) => ({
-        messages: state.messages.filter((msg) => msg.id !== tempId),
-      }));
+      set((state) => {
+        const updatedMessages = state.messages.filter((msg) => msg.id !== tempId);
+        // Update cache when removing optimistic message
+        const cache = new Map(state.messageCache);
+        if (state.activeThreadId === threadId) {
+          cache.set(threadId, updatedMessages);
+        }
+        return {
+          messages: updatedMessages,
+          messageCache: cache,
+        };
+      });
 
       if (typeof err === 'object' && err && 'code' in err) {
         throw err;
@@ -589,21 +661,26 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
           // Replace optimistic message with real one, or append if no match
           set((state) => {
+            let updatedMessages: ProjectMessage[];
+            
             if (optimisticMatch) {
               // Replace optimistic message with real one
               const optimisticIndex = state.messages.findIndex((msg) => msg.id === optimisticMatch.id);
-              const newMessages = [...state.messages];
-              newMessages[optimisticIndex] = newMessage;
-              
-              return {
-                messages: newMessages,
-              };
+              updatedMessages = [...state.messages];
+              updatedMessages[optimisticIndex] = newMessage;
             } else {
               // Append new message (from another user or no optimistic match)
-              return {
-            messages: [...state.messages, newMessage],
-              };
+              updatedMessages = [...state.messages, newMessage];
             }
+            
+            // Update cache with new messages
+            const cache = new Map(state.messageCache);
+            cache.set(threadId, updatedMessages);
+            
+            return {
+              messages: updatedMessages,
+              messageCache: cache,
+            };
           });
         }
       )
@@ -743,7 +820,8 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       isLoading: false,
       error: null,
       attachableDocuments: [],
-      isLoadingAttachable: false
+      isLoadingAttachable: false,
+      messageCache: new Map<string, ProjectMessage[]>(),
     });
   },
 

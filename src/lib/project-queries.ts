@@ -10,7 +10,9 @@ import {
 	isGroupedFormat,
 	groupBySections,
 } from "./section-grouping";
-import { computeProjectCompletion } from "@/utils/resumeCompletion";
+import { computeProjectCompletion, computeBorrowerCompletion } from "@/utils/resumeCompletion";
+import { sectionHasSubsections, getAllFieldIds } from "./schema-utils";
+import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 
 // =============================================================================
 // JSONB Content Type Definitions
@@ -349,42 +351,46 @@ export interface AdvisorResumeContent {
 // =============================================================================
 
 // Helper to map borrower resume fields to sections for storage grouping
+// Using actual section IDs from borrower-resume-form.schema.json
 const BORROWER_FIELD_TO_SECTION: Record<string, string> = {
-	// section_1: basic-info
-	fullLegalName: "section_1",
-	primaryEntityName: "section_1",
-	primaryEntityStructure: "section_1",
-	contactEmail: "section_1",
-	contactPhone: "section_1",
-	contactAddress: "section_1",
-	// section_2: experience
-	yearsCREExperienceRange: "section_2",
-	assetClassesExperience: "section_2",
-	geographicMarketsExperience: "section_2",
-	totalDealValueClosedRange: "section_2",
-	existingLenderRelationships: "section_2",
-	bioNarrative: "section_2",
-	// section_3: borrower-financials
-	creditScoreRange: "section_3",
-	netWorthRange: "section_3",
-	liquidityRange: "section_3",
-	bankruptcyHistory: "section_3",
-	foreclosureHistory: "section_3",
-	litigationHistory: "section_3",
-	// section_4: online-presence
-	linkedinUrl: "section_4",
-	websiteUrl: "section_4",
-	// section_5: principals
-	principals: "section_5",
+	// basic-info section
+	fullLegalName: "basic-info",
+	primaryEntityName: "basic-info",
+	primaryEntityStructure: "basic-info",
+	contactEmail: "basic-info",
+	contactPhone: "basic-info",
+	contactAddress: "basic-info",
+	// experience section
+	yearsCREExperienceRange: "experience",
+	assetClassesExperience: "experience",
+	geographicMarketsExperience: "experience",
+	totalDealValueClosedRange: "experience",
+	existingLenderRelationships: "experience",
+	bioNarrative: "experience",
+	// borrower-financials section
+	creditScoreRange: "borrower-financials",
+	netWorthRange: "borrower-financials",
+	liquidityRange: "borrower-financials",
+	bankruptcyHistory: "borrower-financials",
+	foreclosureHistory: "borrower-financials",
+	litigationHistory: "borrower-financials",
+	// online-presence section
+	linkedinUrl: "online-presence",
+	websiteUrl: "online-presence",
+	// principals section
+	principals: "principals",
 };
 
 function convertToBorrowerSectionWise(flatContent: any): any {
 	const sectionWise: any = {};
 	for (const [fieldId, fieldValue] of Object.entries(flatContent)) {
+		// Preserve special root-level keys
 		if (
 			fieldId.startsWith("section_") ||
 			fieldId.startsWith("_") ||
-			fieldId === "completenessPercent"
+			fieldId === "completenessPercent" ||
+			fieldId === "projectSections" ||
+			fieldId === "borrowerSections"
 		) {
 			sectionWise[fieldId] = fieldValue;
 			continue;
@@ -395,6 +401,8 @@ function convertToBorrowerSectionWise(flatContent: any): any {
 		// the old per-principal fields) that we no longer want to persist.
 		if (!sectionId) continue;
 
+		// For borrower resumes, sections typically don't have subsections
+		// so we place fields directly in the section
 		if (!sectionWise[sectionId]) sectionWise[sectionId] = {};
 		sectionWise[sectionId][fieldId] = fieldValue;
 	}
@@ -407,10 +415,13 @@ function mergeIntoBorrowerSectionWise(
 ): any {
 	const merged = existingSectionWise ? { ...existingSectionWise } : {};
 	for (const [fieldId, fieldValue] of Object.entries(flatUpdates)) {
+		// Preserve special root-level keys
 		if (
 			fieldId.startsWith("section_") ||
 			fieldId.startsWith("_") ||
-			fieldId === "completenessPercent"
+			fieldId === "completenessPercent" ||
+			fieldId === "projectSections" ||
+			fieldId === "borrowerSections"
 		) {
 			if (
 				typeof fieldValue === "object" &&
@@ -429,6 +440,8 @@ function mergeIntoBorrowerSectionWise(
 		// deprecated principal sub-fields on save.
 		if (!sectionId) continue;
 
+		// For borrower resumes, sections typically don't have subsections
+		// so we place fields directly in the section
 		if (!merged[sectionId]) merged[sectionId] = {};
 		merged[sectionId][fieldId] = fieldValue;
 	}
@@ -518,10 +531,16 @@ export const getProjectWithResume = async (
 		.eq("project_id", projectId)
 		.maybeSingle();
 
-	const borrowerResumeContent: BorrowerResumeContent =
+	let borrowerResumeContent: BorrowerResumeContent =
 		borrowerResume?.content || {};
+	// Ungroup borrower resume content if it's stored in grouped format
+	// This ensures computeBorrowerCompletion can find the fields
+	if (isGroupedFormat(borrowerResumeContent)) {
+		borrowerResumeContent = ungroupFromSections(borrowerResumeContent);
+	}
+	// Compute borrower completion instead of reading from stored value
 	const borrowerProgress = Math.round(
-		(borrowerResumeContent.completenessPercent as number | undefined) ?? 0
+		computeBorrowerCompletion(borrowerResumeContent, _lockedFields)
 	);
 
 	const _metadata: Record<
@@ -544,7 +563,11 @@ export const getProjectWithResume = async (
 
 			// Prefer the single `source` object; fall back to first entry in legacy `sources` array.
 			let primarySource = anyItem.source;
-			if (!primarySource && Array.isArray(anyItem.sources) && anyItem.sources.length > 0) {
+			if (
+				!primarySource &&
+				Array.isArray(anyItem.sources) &&
+				anyItem.sources.length > 0
+			) {
 				primarySource = anyItem.sources[0];
 			}
 
@@ -583,7 +606,7 @@ export const getProjectWithResume = async (
 		projectResumeResourceId: resource?.id ?? null,
 	} as ProjectProfile;
 
-	const recomputedCompletion = computeProjectCompletion(combinedProfile);
+	const recomputedCompletion = computeProjectCompletion(combinedProfile, _lockedFields);
 	const storedCompletion = combinedProfile.completenessPercent;
 	const finalCompletion =
 		typeof storedCompletion === "number" && storedCompletion > 0
@@ -674,7 +697,11 @@ export const getProjectsWithResumes = async (
 					(flatContent as any)[key] = anyItem.value;
 
 					let primarySource = anyItem.source;
-					if (!primarySource && Array.isArray(anyItem.sources) && anyItem.sources.length > 0) {
+					if (
+						!primarySource &&
+						Array.isArray(anyItem.sources) &&
+						anyItem.sources.length > 0
+					) {
 						primarySource = anyItem.sources[0];
 					}
 
@@ -695,7 +722,13 @@ export const getProjectsWithResumes = async (
 
 	const borrowerResumeMap = new Map<string, BorrowerResumeContent>();
 	borrowerResumes?.forEach((resume: any) => {
-		borrowerResumeMap.set(resume.project_id, resume.content || {});
+		let borrowerContent = resume.content || {};
+		// Ungroup borrower resume content if it's stored in grouped format
+		// This ensures computeBorrowerCompletion can find the fields
+		if (isGroupedFormat(borrowerContent)) {
+			borrowerContent = ungroupFromSections(borrowerContent);
+		}
+		borrowerResumeMap.set(resume.project_id, borrowerContent);
 	});
 
 	return (
@@ -706,10 +739,10 @@ export const getProjectsWithResumes = async (
 			const borrowerResumeContent =
 				borrowerResumeMap.get(project.id) ||
 				({} as BorrowerResumeContent);
+			// Compute borrower completion instead of reading from stored value
+			const lockedFieldsForProject = lockedFieldsMap.get(project.id) || {};
 			const borrowerProgress = Math.round(
-				(borrowerResumeContent.completenessPercent as
-					| number
-					| undefined) ?? 0
+				computeBorrowerCompletion(borrowerResumeContent, lockedFieldsForProject)
 			);
 
 			const combinedProfile: ProjectProfile = {
@@ -738,7 +771,7 @@ export const getProjectsWithResumes = async (
 			} as ProjectProfile;
 
 			const recomputedCompletion =
-				computeProjectCompletion(combinedProfile);
+				computeProjectCompletion(combinedProfile, lockedFieldsMap.get(project.id) || {});
 			const storedCompletion = combinedProfile.completenessPercent;
 			const finalCompletion =
 				typeof storedCompletion === "number" && storedCompletion > 0
@@ -775,6 +808,33 @@ export const saveProjectResume = async (
 	const lockedFields = (content as any)._lockedFields || {};
 	const fieldStates = (content as any)._fieldStates || {};
 
+	// Get valid resume field IDs from schema
+	const validFieldIds = new Set(getAllFieldIds());
+
+	// Also include fields from metadata (for backward compatibility)
+	Object.keys(projectResumeFieldMetadata).forEach((fieldId) =>
+		validFieldIds.add(fieldId)
+	);
+
+	// Fields that should never be saved to resume content (project-level metadata)
+	const excludedFields = new Set([
+		"_metadata",
+		"_lockedFields",
+		"_fieldStates",
+		"id",
+		"createdAt",
+		"updatedAt",
+		"owner_org_id",
+		"assignedAdvisorUserId",
+		"projectDocsResourceId",
+		"projectResumeResourceId",
+		"borrowerProfileId",
+		"borrowerProgress",
+		"totalProgress",
+		"projectSections",
+		"borrowerSections",
+	]);
+
 	// Helper to normalize various legacy source shapes into a single SourceMetadata-like object
 	const toSourceObject = (input: any): any => {
 		if (!input) return { type: "user_input" };
@@ -787,12 +847,19 @@ export const saveProjectResume = async (
 		// Legacy array form – take first entry
 		if (Array.isArray(input) && input.length > 0) {
 			const first = input[0];
-			if (typeof first === "object" && first !== null && "type" in first) {
+			if (
+				typeof first === "object" &&
+				first !== null &&
+				"type" in first
+			) {
 				return first;
 			}
 			if (typeof first === "string") {
 				const normalized = first.toLowerCase().trim();
-				if (normalized === "user_input" || normalized === "user input") {
+				if (
+					normalized === "user_input" ||
+					normalized === "user input"
+				) {
 					return { type: "user_input" };
 				}
 				return { type: "document", name: first };
@@ -812,12 +879,16 @@ export const saveProjectResume = async (
 	};
 
 	for (const key in content) {
-		if (
-			key === "_metadata" ||
-			key === "_lockedFields" ||
-			key === "_fieldStates"
-		)
+		// Skip excluded fields (project-level metadata)
+		if (excludedFields.has(key)) {
 			continue;
+		}
+
+		// Only process fields that are valid resume fields
+		if (!validFieldIds.has(key)) {
+			continue;
+		}
+
 		const currentValue = (content as any)[key];
 		const meta = metadata[key];
 
@@ -878,10 +949,42 @@ export const saveProjectResume = async (
 				groupedUpdates
 			)) {
 				if (!contentToSave[sectionKey]) contentToSave[sectionKey] = {};
-				contentToSave[sectionKey] = {
-					...contentToSave[sectionKey],
-					...sectionFields,
-				};
+
+				// Check if this section has subsections according to the schema
+				// If it does, sectionFields will have subsection keys (e.g., "project-identity")
+				// If it doesn't, sectionFields will have field keys directly
+				if (
+					typeof sectionFields === "object" &&
+					!Array.isArray(sectionFields) &&
+					sectionFields !== null &&
+					sectionHasSubsections(sectionKey)
+				) {
+					// Section has subsections - merge at subsection level
+					for (const [
+						subsectionKey,
+						subsectionFields,
+					] of Object.entries(sectionFields)) {
+						if (
+							typeof subsectionFields === "object" &&
+							!Array.isArray(subsectionFields) &&
+							subsectionFields !== null
+						) {
+							if (!contentToSave[sectionKey][subsectionKey]) {
+								contentToSave[sectionKey][subsectionKey] = {};
+							}
+							contentToSave[sectionKey][subsectionKey] = {
+								...contentToSave[sectionKey][subsectionKey],
+								...subsectionFields,
+							};
+						}
+					}
+				} else {
+					// Section has no subsections or sectionFields is not an object - merge directly
+					contentToSave[sectionKey] = {
+						...contentToSave[sectionKey],
+						...sectionFields,
+					};
+				}
 			}
 			contentToSave._lockedFields = lockedFields;
 			contentToSave._fieldStates = fieldStates;
@@ -893,6 +996,14 @@ export const saveProjectResume = async (
 				_fieldStates: fieldStates,
 			};
 		}
+
+		// Calculate and include completenessPercent for updates
+		const completionPercent = computeProjectCompletion({
+			...content,
+			...finalContent,
+		}, lockedFields);
+		contentToSave.completenessPercent = completionPercent;
+
 		const { error } = await supabase
 			.from("project_resumes")
 			.update({ content: contentToSave })
@@ -918,18 +1029,14 @@ export const saveProjectResume = async (
 		}
 		const mergedContent = { ...existingContentFlat, ...finalContent };
 		const groupedContent = groupBySections(mergedContent);
-		const mergedLockedFields = {
-			...(existing?.content?._lockedFields || {}),
-			...lockedFields,
-		};
-		const mergedFieldStates = {
-			...(existing?.content?._fieldStates || {}),
-			...fieldStates,
-		};
+		// Use the provided lock state directly as the authoritative source.
+		// Do not merge with existing locks, as that would resurrect locks the user explicitly removed.
+		const mergedLockedFields = lockedFields;
+		const mergedFieldStates = fieldStates;
 		const completionPercent = computeProjectCompletion({
 			...content,
 			...mergedContent,
-		});
+		}, mergedLockedFields);
 
 		const contentToInsert = {
 			...groupedContent,
@@ -1082,7 +1189,8 @@ export const saveProjectBorrowerResume = async (
 			key === "_metadata" ||
 			key === "_lockedFields" ||
 			key === "_fieldStates" ||
-			key === "_lockedSections"
+			key === "_lockedSections" ||
+			key === "completenessPercent"
 		)
 			continue;
 
@@ -1099,19 +1207,30 @@ export const saveProjectBorrowerResume = async (
 			if (!input) return { type: "user_input" };
 
 			// Already a SourceMetadata-like object
-			if (typeof input === "object" && input !== null && "type" in input) {
+			if (
+				typeof input === "object" &&
+				input !== null &&
+				"type" in input
+			) {
 				return input;
 			}
 
 			// Legacy array form – take first entry
 			if (Array.isArray(input) && input.length > 0) {
 				const first = input[0];
-				if (typeof first === "object" && first !== null && "type" in first) {
+				if (
+					typeof first === "object" &&
+					first !== null &&
+					"type" in first
+				) {
 					return first;
 				}
 				if (typeof first === "string") {
 					const normalized = first.toLowerCase().trim();
-					if (normalized === "user_input" || normalized === "user input") {
+					if (
+						normalized === "user_input" ||
+						normalized === "user input"
+					) {
 						return { type: "user_input" };
 					}
 					return { type: "document", name: first };
@@ -1121,7 +1240,10 @@ export const saveProjectBorrowerResume = async (
 			// Legacy string source
 			if (typeof input === "string") {
 				const normalized = input.toLowerCase().trim();
-				if (normalized === "user_input" || normalized === "user input") {
+				if (
+					normalized === "user_input" ||
+					normalized === "user input"
+				) {
 					return { type: "user_input" };
 				}
 				return { type: "document", name: input };
@@ -1245,11 +1367,15 @@ export const saveProjectBorrowerResume = async (
 		// Append root keys
 		contentToSave._lockedFields = lockedFields;
 		contentToSave._fieldStates = fieldStates;
-		// completenessPercent should be part of flattened data usually, but ensure it's at root if sent separately
-		if ((content as any).completenessPercent !== undefined) {
-			contentToSave.completenessPercent = (
-				content as any
-			).completenessPercent;
+		// Always calculate and save completenessPercent to ensure it's always in sync
+		// Use provided value if available, otherwise calculate from the content
+		const providedCompleteness = (content as any).completenessPercent;
+		if (providedCompleteness !== undefined && typeof providedCompleteness === 'number') {
+			contentToSave.completenessPercent = providedCompleteness;
+		} else {
+			// Calculate from the actual content (excluding metadata fields)
+			const contentForCalculation = { ...finalContentFlat };
+			contentToSave.completenessPercent = computeBorrowerCompletion(contentForCalculation, lockedFields);
 		}
 
 		// Get resource pointer to update correct version
@@ -1288,21 +1414,29 @@ export const saveProjectBorrowerResume = async (
 		const mergedFlat = { ...cleanExisting, ...finalContentFlat };
 		const groupedContent = convertToBorrowerSectionWise(mergedFlat);
 
-		const mergedLockedFields = {
-			...(existingContent._lockedFields || {}),
-			...lockedFields,
-		};
-		const mergedFieldStates = {
-			...(existingContent._fieldStates || {}),
-			...fieldStates,
-		};
+		// Use the provided lock state directly as the authoritative source.
+		// Do not merge with existing locks, as that would resurrect locks the user explicitly removed.
+		const mergedLockedFields = lockedFields;
+		const mergedFieldStates = fieldStates;
+
+		// Always calculate and save completenessPercent to ensure it's always in sync
+		// Use provided value if available, otherwise calculate from the content
+		const providedCompleteness = (content as any).completenessPercent;
+		let finalCompletenessPercent: number;
+		if (providedCompleteness !== undefined && typeof providedCompleteness === 'number') {
+			finalCompletenessPercent = providedCompleteness;
+		} else if (completenessPercent !== undefined && typeof completenessPercent === 'number') {
+			finalCompletenessPercent = completenessPercent;
+		} else {
+			// Calculate from the actual content (excluding metadata fields)
+			finalCompletenessPercent = computeBorrowerCompletion(mergedFlat, mergedLockedFields);
+		}
 
 		const contentToInsert = {
 			...groupedContent,
 			_lockedFields: mergedLockedFields,
 			_fieldStates: mergedFieldStates,
-			completenessPercent:
-				(content as any).completenessPercent ?? completenessPercent,
+			completenessPercent: finalCompletenessPercent,
 		};
 
 		const { data: newResume, error } = await supabase

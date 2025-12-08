@@ -109,20 +109,20 @@ export const isBorrowerPlaceholderValue = (
 };
 
 export const computeBorrowerCompletion = (
-	data: Partial<BorrowerResumeContent> | null | undefined
+	data: Partial<BorrowerResumeContent> | null | undefined,
+	lockedFields?: Record<string, boolean>
 ): number => {
 	const source = data || {};
+	
+	// Count fields that are BOTH required AND locked
+	const requiredAndLockedFields = lockedFields
+		? BORROWER_REQUIRED_FIELDS.filter((field) => lockedFields[field] === true)
+		: [];
+	
 	const total = BORROWER_REQUIRED_FIELDS.length;
 	if (total === 0) return 0;
 
-	let answered = 0;
-	BORROWER_REQUIRED_FIELDS.forEach((field) => {
-		const value = source[field];
-		if (!valueProvided(value)) return;
-
-		// Count all provided values, including placeholders, without requiring confirmation
-		answered += 1;
-	});
+	const answered = requiredAndLockedFields.length;
 
 	return clampPercent((answered / total) * 100);
 };
@@ -165,20 +165,20 @@ export const isProjectPlaceholderValue = (
 };
 
 export const computeProjectCompletion = (
-	project: Partial<ProjectProfile> | null | undefined
+	project: Partial<ProjectProfile> | null | undefined,
+	lockedFields?: Record<string, boolean>
 ): number => {
 	const source = project || {};
+	
+	// Count fields that are BOTH required AND locked
+	const requiredAndLockedFields = lockedFields
+		? PROJECT_REQUIRED_FIELDS.filter((field) => lockedFields[field] === true)
+		: [];
+	
 	const total = PROJECT_REQUIRED_FIELDS.length;
 	if (total === 0) return 0;
 
-	let answered = 0;
-	PROJECT_REQUIRED_FIELDS.forEach((field) => {
-		const value = source[field];
-		if (!valueProvided(value)) return;
-
-		// Count all provided values, including placeholders, without requiring confirmation
-		answered += 1;
-	});
+	const answered = requiredAndLockedFields.length;
 
 	return clampPercent((answered / total) * 100);
 };

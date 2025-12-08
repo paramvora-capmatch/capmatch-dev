@@ -187,7 +187,11 @@ const getProjectBorrowerResumeContent = async (
 				// Store metadata (new schema: value + source + warnings + other_values)
 				const anyVal: any = value;
 				let primarySource = anyVal.source;
-				if (!primarySource && Array.isArray(anyVal.sources) && anyVal.sources.length > 0) {
+				if (
+					!primarySource &&
+					Array.isArray(anyVal.sources) &&
+					anyVal.sources.length > 0
+				) {
 					primarySource = anyVal.sources[0];
 				}
 
@@ -219,7 +223,11 @@ const getProjectBorrowerResumeContent = async (
 			// Determine primary source (new schema prefers `source`, but we keep
 			// backward compat for legacy `sources` arrays).
 			let primarySource = anyVal.source;
-			if (!primarySource && Array.isArray(anyVal.sources) && anyVal.sources.length > 0) {
+			if (
+				!primarySource &&
+				Array.isArray(anyVal.sources) &&
+				anyVal.sources.length > 0
+			) {
 				primarySource = anyVal.sources[0];
 			}
 
@@ -294,10 +302,23 @@ export const useProjectBorrowerResumeRealtime = (
 	const remoteUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const localSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const isAutofillRunningRef = useRef(false);
+	const lastContentHashRef = useRef<string | null>(null);
+
+	// Helper to update content only if it has actually changed
+	const updateContentIfChanged = useCallback(
+		(newContent: BorrowerResumeContent | null) => {
+			const newHash = newContent ? JSON.stringify(newContent) : null;
+			if (lastContentHashRef.current !== newHash) {
+				lastContentHashRef.current = newHash;
+				setContent(newContent);
+			}
+		},
+		[]
+	);
 
 	const load = useCallback(async () => {
 		if (!projectId) {
-			setContent(null);
+			updateContentIfChanged(null);
 			return;
 		}
 
@@ -305,7 +326,7 @@ export const useProjectBorrowerResumeRealtime = (
 		setError(null);
 		try {
 			const result = await getProjectBorrowerResumeContent(projectId);
-			setContent(result);
+			updateContentIfChanged(result);
 		} catch (err) {
 			setError(
 				err instanceof Error
@@ -315,7 +336,7 @@ export const useProjectBorrowerResumeRealtime = (
 		} finally {
 			setIsLoading(false);
 		}
-	}, [projectId]);
+	}, [projectId, updateContentIfChanged]);
 
 	// Listen for autofill state changes and local save events
 	useEffect(() => {
@@ -323,24 +344,101 @@ export const useProjectBorrowerResumeRealtime = (
 
 		const handleAutofillStart = (e: any) => {
 			// Only track autofill for this project
-			if (e.detail?.projectId === projectId && e.detail?.context === "borrower") {
+			if (
+				e.detail?.projectId === projectId &&
+				e.detail?.context === "borrower"
+			) {
 				isAutofillRunningRef.current = true;
 			}
 		};
 
 		const handleAutofillComplete = (e: any) => {
+			console.log(
+				`[useProjectBorrowerResumeRealtime] 📢 autofill-completed event received:`,
+				{
+					eventProjectId: e.detail?.projectId,
+					eventContext: e.detail?.context,
+					currentProjectId: projectId,
+					matches:
+						e.detail?.projectId === projectId &&
+						e.detail?.context === "borrower",
+				}
+			);
+
 			// Only track autofill for this project
-			if (e.detail?.projectId === projectId && e.detail?.context === "borrower") {
-				// Keep flag true for a bit longer to catch any delayed database updates
-				setTimeout(() => {
-					isAutofillRunningRef.current = false;
-				}, 5000);
+			if (
+				e.detail?.projectId === projectId &&
+				e.detail?.context === "borrower" &&
+				projectId
+			) {
+				console.log(
+					`[useProjectBorrowerResumeRealtime] ✅ Handling autofill completion for borrower resume, projectId: ${projectId}`
+				);
+				// Reset flag immediately
+				isAutofillRunningRef.current = false;
+				// Reload content with retry logic to handle race conditions
+				const retryLoad = async (attempt = 1, maxAttempts = 5) => {
+					console.log(
+						`[useProjectBorrowerResumeRealtime] 🔄 Reloading borrower resume content (attempt ${attempt}/${maxAttempts})`
+					);
+					try {
+						const result = await getProjectBorrowerResumeContent(
+							projectId
+						);
+						console.log(
+							`[useProjectBorrowerResumeRealtime] 📥 Borrower resume content loaded:`,
+							{
+								hasContent: !!result,
+								contentKeys: result
+									? Object.keys(result).slice(0, 10)
+									: [],
+								attempt,
+							}
+						);
+						if (result || attempt >= maxAttempts) {
+							updateContentIfChanged(result);
+							console.log(
+								`[useProjectBorrowerResumeRealtime] ✅ Content updated (attempt ${attempt})`
+							);
+						} else {
+							// Retry after a delay if content is null
+							console.log(
+								`[useProjectBorrowerResumeRealtime] ⏳ Content is null, retrying in ${
+									1000 * attempt
+								}ms...`
+							);
+							setTimeout(
+								() => retryLoad(attempt + 1, maxAttempts),
+								1000 * attempt
+							);
+						}
+					} catch (err) {
+						console.error(
+							`[useProjectBorrowerResumeRealtime] ❌ Failed to reload after autofill (attempt ${attempt}):`,
+							err
+						);
+						if (attempt < maxAttempts) {
+							setTimeout(
+								() => retryLoad(attempt + 1, maxAttempts),
+								1000 * attempt
+							);
+						}
+					}
+				};
+				retryLoad();
+			} else {
+				console.log(
+					`[useProjectBorrowerResumeRealtime] ⏭️ Skipping autofill completion handler - event doesn't match this project/context`
+				);
 			}
 		};
 
 		const handleLocalSaveStart = (e: any) => {
 			// Only track local saves for this project
-			if (e.detail?.projectId === projectId && e.detail?.context === "borrower") {
+			if (
+				e.detail?.projectId === projectId &&
+				e.detail?.context === "borrower"
+			) {
 				isLocalSaveRef.current = true;
 				// Clear any pending timeout
 				if (localSaveTimeoutRef.current) {
@@ -359,10 +457,16 @@ export const useProjectBorrowerResumeRealtime = (
 
 		return () => {
 			window.removeEventListener("autofill-started", handleAutofillStart);
-			window.removeEventListener("autofill-completed", handleAutofillComplete);
-			window.removeEventListener("local-save-started", handleLocalSaveStart);
+			window.removeEventListener(
+				"autofill-completed",
+				handleAutofillComplete
+			);
+			window.removeEventListener(
+				"local-save-started",
+				handleLocalSaveStart
+			);
 		};
-	}, [projectId]);
+	}, [projectId, load, updateContentIfChanged]);
 
 	// Subscribe to realtime changes
 	useEffect(() => {
@@ -410,7 +514,7 @@ export const useProjectBorrowerResumeRealtime = (
 							projectId
 						);
 						if (latest) {
-							setContent(latest);
+							updateContentIfChanged(latest);
 
 							// Reset remote update flag after 3 seconds
 							remoteUpdateTimeoutRef.current = setTimeout(() => {
@@ -461,7 +565,7 @@ export const useProjectBorrowerResumeRealtime = (
 							projectId
 						);
 						if (latest) {
-							setContent(latest);
+							updateContentIfChanged(latest);
 							if (remoteUpdateTimeoutRef.current)
 								clearTimeout(remoteUpdateTimeoutRef.current);
 							remoteUpdateTimeoutRef.current = setTimeout(() => {
@@ -485,7 +589,10 @@ export const useProjectBorrowerResumeRealtime = (
 				},
 				async (payload) => {
 					// Ignore resource updates during autofill or local saves
-					if (isLocalSaveRef.current || isAutofillRunningRef.current) {
+					if (
+						isLocalSaveRef.current ||
+						isAutofillRunningRef.current
+					) {
 						return;
 					}
 
@@ -495,7 +602,7 @@ export const useProjectBorrowerResumeRealtime = (
 							projectId
 						);
 						if (latest) {
-							setContent(latest);
+							updateContentIfChanged(latest);
 						}
 					} catch (err) {
 						console.error(
@@ -519,7 +626,7 @@ export const useProjectBorrowerResumeRealtime = (
 			channelRef.current?.unsubscribe();
 			channelRef.current = null;
 		};
-	}, [projectId, user?.id]);
+	}, [projectId, user?.id, updateContentIfChanged]);
 
 	// Initial load
 	useEffect(() => {
@@ -565,7 +672,7 @@ export const useProjectBorrowerResumeRealtime = (
 				const reloaded = await getProjectBorrowerResumeContent(
 					projectId
 				);
-				setContent(reloaded);
+				updateContentIfChanged(reloaded);
 			} catch (err) {
 				const message =
 					err instanceof Error
@@ -585,7 +692,7 @@ export const useProjectBorrowerResumeRealtime = (
 				}, 3000);
 			}
 		},
-		[projectId]
+		[projectId, updateContentIfChanged]
 	);
 
 	return {

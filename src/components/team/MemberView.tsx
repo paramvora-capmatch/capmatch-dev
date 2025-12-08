@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Users, Clock, User, Edit, Check, X } from "lucide-react";
+import { Users, Clock, User, Edit, Check, X, Loader2 } from "lucide-react";
 import { OrgMember } from "@/types/enhanced-types";
 import { formatDate } from "@/utils/dateUtils";
 
@@ -19,7 +19,7 @@ interface MemberViewProps {
   onNameChange: (name: string) => void;
 }
 
-export const MemberView: React.FC<MemberViewProps> = ({
+export const MemberView: React.FC<MemberViewProps> = React.memo(({
   currentUserMember,
   userName,
   userEmail,
@@ -75,10 +75,14 @@ export const MemberView: React.FC<MemberViewProps> = ({
                       <button
                         onClick={() => currentUserMember && onSaveName(currentUserMember.user_id)}
                         disabled={isSavingName}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors disabled:opacity-50"
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors disabled:opacity-50 flex items-center justify-center"
                         aria-label="Save name"
                       >
-                        <Check className="h-4 w-4" />
+                        {isSavingName ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Check className="h-4 w-4" />
+                        )}
                       </button>
                       <button
                         onClick={onCancelEditName}
@@ -153,5 +157,6 @@ export const MemberView: React.FC<MemberViewProps> = ({
       </Card>
     </div>
   );
-};
+});
+MemberView.displayName = "MemberView";
 

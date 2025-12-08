@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Users, UserPlus, Mail, Crown, User } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { OrgMember, Invite } from "@/types/enhanced-types";
@@ -19,13 +19,15 @@ interface OwnerViewProps {
   editingMemberId: string | null;
   editedName: string;
   isSavingName: boolean;
+  removingMemberId: string | null;
+  cancelingInviteId: string | null;
   onStartEditName: (member: OrgMember) => void;
   onCancelEditName: () => void;
   onSaveName: (memberId: string) => void;
   onNameChange: (name: string) => void;
 }
 
-export const OwnerView: React.FC<OwnerViewProps> = ({
+export const OwnerView: React.FC<OwnerViewProps> = React.memo(({
   orgName,
   members,
   pendingInvites,
@@ -38,13 +40,22 @@ export const OwnerView: React.FC<OwnerViewProps> = ({
   editingMemberId,
   editedName,
   isSavingName,
+  removingMemberId,
+  cancelingInviteId,
   onStartEditName,
   onCancelEditName,
   onSaveName,
   onNameChange,
 }) => {
-  const owners = members.filter((m) => m.role === "owner");
-  const regularMembers = members.filter((m) => m.role === "member");
+  // Memoized filtered members to prevent recalculation on every render
+  const owners = useMemo(
+    () => members.filter((m) => m.role === "owner"),
+    [members]
+  );
+  const regularMembers = useMemo(
+    () => members.filter((m) => m.role === "member"),
+    [members]
+  );
 
   return (
     <div className="space-y-6">
@@ -83,6 +94,7 @@ export const OwnerView: React.FC<OwnerViewProps> = ({
                 isOwner={isOwner}
                 onCancel={onCancelInvite}
                 index={index}
+                isCanceling={cancelingInviteId === invite.id}
               />
             ))}
           </div>
@@ -126,7 +138,8 @@ export const OwnerView: React.FC<OwnerViewProps> = ({
                         isOwner={isOwner}
                         isEditing={editingMemberId === member.user_id}
                         editedName={editedName}
-                        isSavingName={isSavingName}
+                        isSavingName={isSavingName && editingMemberId === member.user_id}
+                        isRemoving={removingMemberId === member.user_id}
                         onStartEdit={onStartEditName}
                         onCancelEdit={onCancelEditName}
                         onSaveName={onSaveName}
@@ -194,5 +207,6 @@ export const OwnerView: React.FC<OwnerViewProps> = ({
       </div>
     </div>
   );
-};
+});
+OwnerView.displayName = "OwnerView";
 

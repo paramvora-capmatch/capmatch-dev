@@ -1,7 +1,7 @@
 // src/app/team/page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -10,14 +10,38 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/Button";
 import { InviteMemberModal } from "@/components/team/InviteMemberModal";
 import { EditMemberPermissionsModal } from "@/components/team/EditMemberPermissionsModal";
-import { SplashScreen } from "@/components/ui/SplashScreen";
 import { AnimatePresence } from "framer-motion";
 import { MemberView } from "@/components/team/MemberView";
 import { OwnerView } from "@/components/team/OwnerView";
-import { OrgMemberRole } from "@/types/enhanced-types";
-import { ProjectGrant, OrgGrant, OrgMember } from "@/types/enhanced-types";
-import { supabase } from "../../../lib/supabaseClient";
+import { OrgMemberRole, ProjectGrant, OrgGrant, OrgMember } from "@/types/enhanced-types";
 import { ArrowLeft } from "lucide-react";
+
+type ModalState =
+  | { type: "invite" }
+  | { type: "edit"; member: OrgMember }
+  | { type: null };
+
+// Memoized Breadcrumb Component
+const TeamBreadcrumb = React.memo<{ onNavigate: () => void }>(({ onNavigate }) => (
+  <nav className="flex items-center space-x-2 text-base mb-2">
+    <button
+      onClick={onNavigate}
+      className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md mr-2 transition-colors"
+      aria-label="Go back to Dashboard"
+    >
+      <ArrowLeft className="h-4 w-4" />
+    </button>
+    <button
+      onClick={onNavigate}
+      className="text-gray-500 hover:text-gray-700 font-medium"
+    >
+      Dashboard
+    </button>
+    <span className="text-gray-400">/</span>
+    <span className="text-gray-800 font-semibold">Team Management</span>
+  </nav>
+));
+TeamBreadcrumb.displayName = "TeamBreadcrumb";
 
 export default function TeamPage() {
   const router = useRouter();
@@ -34,38 +58,36 @@ export default function TeamPage() {
     cancelInvite,
     removeMember,
     updateMemberPermissions,
+    updateMemberName,
     clearError,
   } = useOrgStore();
 
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [showEditPermissionsModal, setShowEditPermissionsModal] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<OrgMember | null>(null);
+  const [modalState, setModalState] = useState<ModalState>({ type: null });
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState<string>("");
   const [isSavingName, setIsSavingName] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [cancelingInviteId, setCancelingInviteId] = useState<string | null>(null);
 
-  // Get current user's member information
-  const currentUserMember = members.find((m) => m.user_id === user?.id);
-  const isMember = currentOrgRole === "member";
+  // Memoized computed values
+  const currentUserMember = useMemo(
+    () => members.find((m) => m.user_id === user?.id),
+    [members, user?.id]
+  );
+  const isMember = useMemo(
+    () => currentOrgRole === "member",
+    [currentOrgRole]
+  );
 
-  const breadcrumb = (
-    <nav className="flex items-center space-x-2 text-base mb-2">
-      <button
-        onClick={() => router.push("/dashboard")}
-        className="flex items-center justify-center w-8 h-8 text-gray-500 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md mr-2 transition-colors"
-        aria-label="Go back to Dashboard"
-      >
-        <ArrowLeft className="h-4 w-4" />
-      </button>
-      <button
-        onClick={() => router.push("/dashboard")}
-        className="text-gray-500 hover:text-gray-700 font-medium"
-      >
-        Dashboard
-      </button>
-      <span className="text-gray-400">/</span>
-      <span className="text-gray-800 font-semibold">Team Management</span>
-    </nav>
+  // Memoized navigation handler
+  const handleNavigateToDashboard = useCallback(() => {
+    router.push("/dashboard");
+  }, [router]);
+
+  // Memoized breadcrumb
+  const breadcrumb = useMemo(
+    () => <TeamBreadcrumb onNavigate={handleNavigateToDashboard} />,
+    [handleNavigateToDashboard]
   );
 
   useEffect(() => {
@@ -74,121 +96,139 @@ export default function TeamPage() {
     }
   }, [activeOrg, loadOrg]);
 
-  const handleInviteMember = async (
-    email: string,
-    role: OrgMemberRole,
-    projectGrants: ProjectGrant[],
-    orgGrants: OrgGrant | null
-  ) => {
-    try {
-      const inviteLink = await inviteMember(email, role, projectGrants, orgGrants);
-      // Reload org data to show the new pending invite
-      if (activeOrg) {
-        loadOrg(activeOrg.id).catch((error) => {
-          console.error("Failed to reload org after inviting member:", error);
-        });
-      }
-      return inviteLink as string;
-    } catch (error) {
-      console.error("Failed to invite member:", error);
-      throw error;
-    }
-  };
-
-  const handleRemoveMember = async (memberId: string) => {
-    if (
-      confirm(
-        "Are you sure you want to remove this member? This action cannot be undone."
-      )
-    ) {
+  // Memoized event handlers
+  const handleInviteMember = useCallback(
+    async (
+      email: string,
+      role: OrgMemberRole,
+      projectGrants: ProjectGrant[],
+      orgGrants: OrgGrant | null
+    ) => {
       try {
-        await removeMember(memberId);
+        const inviteLink = await inviteMember(email, role, projectGrants, orgGrants);
+        // Reload org data to show the new pending invite
+        if (activeOrg) {
+          loadOrg(activeOrg.id).catch((error) => {
+            console.error("Failed to reload org after inviting member:", error);
+          });
+        }
+        return inviteLink as string;
       } catch (error) {
-        console.error("Failed to remove member:", error);
+        console.error("Failed to invite member:", error);
+        throw error;
       }
-    }
-  };
+    },
+    [inviteMember, activeOrg, loadOrg]
+  );
 
-  const handleCancelInvite = async (inviteId: string): Promise<void> => {
-    if (window.confirm("Are you sure you want to cancel this invitation?")) {
+  const handleRemoveMember = useCallback(
+    async (memberId: string) => {
+      if (
+        confirm(
+          "Are you sure you want to remove this member? This action cannot be undone."
+        )
+      ) {
+        setRemovingMemberId(memberId);
+        try {
+          await removeMember(memberId);
+        } catch (error) {
+          console.error("Failed to remove member:", error);
+        } finally {
+          setRemovingMemberId(null);
+        }
+      }
+    },
+    [removeMember]
+  );
+
+  const handleCancelInvite = useCallback(
+    async (inviteId: string): Promise<void> => {
+      if (window.confirm("Are you sure you want to cancel this invitation?")) {
+        setCancelingInviteId(inviteId);
+        try {
+          await cancelInvite(inviteId);
+        } catch (error) {
+          console.error("Failed to cancel invite:", error);
+        } finally {
+          setCancelingInviteId(null);
+        }
+      }
+    },
+    [cancelInvite]
+  );
+
+  const handleEditPermissions = useCallback((member: OrgMember) => {
+    setModalState({ type: "edit", member });
+  }, []);
+
+  const handleUpdatePermissions = useCallback(
+    async (
+      userId: string,
+      projectGrants: ProjectGrant[],
+      orgGrants: OrgGrant | null
+    ): Promise<void> => {
       try {
-        await cancelInvite(inviteId);
+        await updateMemberPermissions(userId, projectGrants, orgGrants);
+        // Reload org data to show the updated permissions
+        if (activeOrg) {
+          loadOrg(activeOrg.id);
+        }
       } catch (error) {
-        console.error("Failed to cancel invite:", error);
+        console.error("Failed to update member permissions:", error);
+        throw error;
       }
-    }
-  };
+    },
+    [updateMemberPermissions, activeOrg, loadOrg]
+  );
 
-  const handleEditPermissions = (member: OrgMember) => {
-    setSelectedMember(member);
-    setShowEditPermissionsModal(true);
-  };
-
-  const handleUpdatePermissions = async (
-    userId: string,
-    projectGrants: ProjectGrant[],
-    orgGrants: OrgGrant | null
-  ): Promise<void> => {
-    try {
-      await updateMemberPermissions(userId, projectGrants, orgGrants);
-      // Reload org data to show the updated permissions
-      if (activeOrg) {
-        loadOrg(activeOrg.id);
-      }
-    } catch (error) {
-      console.error("Failed to update member permissions:", error);
-      throw error;
-    }
-  };
-
-  const handleStartEditName = (member: OrgMember) => {
+  const handleStartEditName = useCallback((member: OrgMember) => {
     setEditingMemberId(member.user_id);
     setEditedName(member.userName || "");
-  };
+  }, []);
 
-  const handleCancelEditName = () => {
+  const handleCancelEditName = useCallback(() => {
     setEditingMemberId(null);
     setEditedName("");
-  };
+  }, []);
 
-  const handleSaveName = async (memberId: string) => {
-    if (!editedName.trim()) {
-      handleCancelEditName();
-      return;
-    }
-
-    setIsSavingName(true);
-    try {
-      // Update the user's full_name in the profiles table
-      const { error } = await supabase
-        .from("profiles")
-        .update({ full_name: editedName.trim() })
-        .eq("id", memberId);
-
-      if (error) throw error;
-
-      // Reload org data to show the updated name
-      if (activeOrg) {
-        await loadOrg(activeOrg.id);
+  const handleSaveName = useCallback(
+    async (memberId: string) => {
+      if (!editedName.trim()) {
+        handleCancelEditName();
+        return;
       }
 
-      setEditingMemberId(null);
-      setEditedName("");
-    } catch (error) {
-      console.error("Failed to update member name:", error);
-      alert("Failed to update member name. Please try again.");
-    } finally {
-      setIsSavingName(false);
-    }
-  };
+      setIsSavingName(true);
+      try {
+        await updateMemberName(memberId, editedName.trim());
+        setEditingMemberId(null);
+        setEditedName("");
+      } catch (error) {
+        console.error("Failed to update member name:", error);
+        alert("Failed to update member name. Please try again.");
+      } finally {
+        setIsSavingName(false);
+      }
+    },
+    [editedName, updateMemberName, handleCancelEditName]
+  );
+
+  const handleOpenInviteModal = useCallback(() => {
+    setModalState({ type: "invite" });
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setModalState({ type: null });
+  }, []);
+
+  // Memoized name change handler (setState is stable, but wrapping for consistency)
+  const handleNameChange = useCallback((name: string) => {
+    setEditedName(name);
+  }, []);
 
   return (
     <RoleBasedRoute roles={["borrower"]}>
       <DashboardLayout breadcrumb={breadcrumb} mainClassName="flex-1 overflow-auto">
-        <AnimatePresence>
-          {isLoading && !isInviting && !showInviteModal && !showEditPermissionsModal && <SplashScreen text="Loading team..." />}
-        </AnimatePresence>
-
         {!activeOrg ? (
           <div className="text-center py-8">
             <p className="text-gray-500">
@@ -237,7 +277,7 @@ export default function TeamPage() {
                     onStartEditName={handleStartEditName}
                     onCancelEditName={handleCancelEditName}
                     onSaveName={handleSaveName}
-                    onNameChange={setEditedName}
+                    onNameChange={handleNameChange}
                   />
                 ) : (
                   <OwnerView
@@ -246,37 +286,36 @@ export default function TeamPage() {
                     pendingInvites={pendingInvites}
                     isOwner={isOwner}
                     currentUserId={user?.id}
-                    onInviteClick={() => setShowInviteModal(true)}
+                    onInviteClick={handleOpenInviteModal}
                     onCancelInvite={handleCancelInvite}
                     onRemoveMember={handleRemoveMember}
                     onEditPermissions={handleEditPermissions}
                     editingMemberId={editingMemberId}
                     editedName={editedName}
                     isSavingName={isSavingName}
+                    removingMemberId={removingMemberId}
+                    cancelingInviteId={cancelingInviteId}
                     onStartEditName={handleStartEditName}
                     onCancelEditName={handleCancelEditName}
                     onSaveName={handleSaveName}
-                    onNameChange={setEditedName}
+                    onNameChange={handleNameChange}
                   />
                 )}
 
                 {/* Modals */}
-                {showInviteModal && (
+                {modalState.type === "invite" && (
                   <InviteMemberModal
-                    isOpen={showInviteModal}
-                    onClose={() => setShowInviteModal(false)}
+                    isOpen={true}
+                    onClose={handleCloseModal}
                     onInvite={handleInviteMember}
                   />
                 )}
 
-                {showEditPermissionsModal && selectedMember && (
+                {modalState.type === "edit" && (
                   <EditMemberPermissionsModal
-                    isOpen={showEditPermissionsModal}
-                    onClose={() => {
-                      setShowEditPermissionsModal(false);
-                      setSelectedMember(null);
-                    }}
-                    member={selectedMember}
+                    isOpen={true}
+                    onClose={handleCloseModal}
+                    member={modalState.member}
                     orgId={activeOrg.id}
                     onUpdate={handleUpdatePermissions}
                   />

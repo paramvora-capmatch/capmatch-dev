@@ -140,6 +140,7 @@ serve(async (req) => {
       address: address || undefined,
     });
 
+
     // --- Atomic Operation End ---
     const duration = Date.now() - startTime;
     console.log(`[create-project] [${requestId}] Project created successfully:`, {

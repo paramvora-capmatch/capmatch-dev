@@ -259,12 +259,18 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 				);
 
 				// Use stored completenessPercent from DB, with calculateProgress as fallback/validation
+				// borrowerProgress from getProjectsWithResumes is the source of truth since it's calculated
+				// directly from the borrower_resumes table content
 				const projectsWithProgress = projectsWithResources.map((p) => {
 					const calculated = get().calculateProgress(p);
 					const completenessPercentValue =
 						p.completenessPercent ?? calculated.completenessPercent;
+					// Prefer borrowerProgress from getProjectsWithResumes (already calculated from DB)
+					// Only use calculated if borrowerProgress is null/undefined (not if it's 0, as 0 is valid)
 					const borrowerProgressValue =
-						p.borrowerProgress ?? calculated.borrowerProgress;
+						p.borrowerProgress !== null && p.borrowerProgress !== undefined
+							? p.borrowerProgress
+							: calculated.borrowerProgress;
 					return {
 						...p,
 						completenessPercent: completenessPercentValue,
@@ -285,7 +291,13 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 						(p) => p.id === currentActive.id
 					);
 					if (updatedActive) {
-						nextActiveProject = updatedActive;
+						// Preserve borrower resource IDs from current active project
+						// since loadUserProjects doesn't fetch borrower resources
+						nextActiveProject = {
+							...updatedActive,
+							borrowerResumeResourceId: (currentActive as any)?.borrowerResumeResourceId ?? updatedActive.borrowerResumeResourceId ?? null,
+							borrowerDocsResourceId: (currentActive as any)?.borrowerDocsResourceId ?? updatedActive.borrowerDocsResourceId ?? null,
+						};
 					}
 				}
 
@@ -314,8 +326,32 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 
 		refreshProject: async (projectId: string) => {
 			try {
+				console.log(`[ProjectStore] 🔄 refreshProject called for project ${projectId}`);
+				
+				// Always prefer activeProject if it matches, as it has the most complete resource IDs
+				// The projects array may not have borrower resource IDs (loadUserProjects doesn't fetch them)
+				const currentActive = get().activeProject;
+				const existingProject = currentActive?.id === projectId 
+					? currentActive 
+					: get().projects.find(p => p.id === projectId) || currentActive;
+				
+				console.log(`[ProjectStore] 📦 Existing project resource IDs:`, {
+					projectDocsResourceId: existingProject?.projectDocsResourceId,
+					projectResumeResourceId: existingProject?.projectResumeResourceId,
+					borrowerResumeResourceId: (existingProject as any)?.borrowerResumeResourceId,
+					borrowerDocsResourceId: (existingProject as any)?.borrowerDocsResourceId,
+					hasExistingProject: !!existingProject,
+					existingProjectId: existingProject?.id,
+					source: currentActive?.id === projectId ? 'activeProject' : 'projectsArray',
+				});
+
 				// 1. Fetch latest project data
 				const updatedProject = await getProjectWithResume(projectId);
+				
+				console.log(`[ProjectStore] 📥 Updated project from getProjectWithResume:`, {
+					projectResumeResourceId: updatedProject.projectResumeResourceId,
+					hasProjectResumeResourceId: !!updatedProject.projectResumeResourceId,
+				});
 				
 				// 2. Calculate progress
 				const progressResult = get().calculateProgress(updatedProject);
@@ -323,22 +359,44 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					...updatedProject,
 					...progressResult,
 					completenessPercent: progressResult.completenessPercent,
+					// Preserve resource IDs from existing project state as they are not returned by getProjectWithResume
+					projectDocsResourceId: existingProject?.projectDocsResourceId ?? null,
+					borrowerResumeResourceId: (existingProject as any)?.borrowerResumeResourceId ?? null,
+					borrowerDocsResourceId: (existingProject as any)?.borrowerDocsResourceId ?? null,
+					// projectResumeResourceId IS returned by getProjectWithResume, so prefer new one, fallback to existing
+					projectResumeResourceId: updatedProject.projectResumeResourceId || existingProject?.projectResumeResourceId || null,
 				};
 
+				console.log(`[ProjectStore] ✅ Final project with preserved resource IDs:`, {
+					projectDocsResourceId: finalProject.projectDocsResourceId,
+					projectResumeResourceId: finalProject.projectResumeResourceId,
+					borrowerResumeResourceId: (finalProject as any).borrowerResumeResourceId,
+					borrowerDocsResourceId: (finalProject as any).borrowerDocsResourceId,
+					completenessPercent: finalProject.completenessPercent,
+					borrowerProgress: finalProject.borrowerProgress,
+				});
+
 				// 3. Update state
-				set((state) => ({
-					// Update in projects list
-					projects: state.projects.map((p) =>
-						p.id === projectId ? finalProject : p
-					),
-					// Update activeProject if it matches
-					activeProject:
-						state.activeProject?.id === projectId
-							? finalProject
-							: state.activeProject,
-				}));
+				set((state) => {
+					const isActiveProject = state.activeProject?.id === projectId;
+					console.log(`[ProjectStore] 🔄 Updating state - isActiveProject: ${isActiveProject}`);
+					
+					return {
+						// Update in projects list
+						projects: state.projects.map((p) =>
+							p.id === projectId ? finalProject : p
+						),
+						// Update activeProject if it matches
+						activeProject:
+							isActiveProject
+								? finalProject
+								: state.activeProject,
+					};
+				});
+				
+				console.log(`[ProjectStore] ✅ refreshProject completed for project ${projectId}`);
 			} catch (error) {
-				console.error(`[ProjectStore] Failed to refresh project ${projectId}:`, error);
+				console.error(`[ProjectStore] ❌ Failed to refresh project ${projectId}:`, error);
 				// Don't throw, just log - this is a background refresh
 			}
 		},
@@ -346,14 +404,30 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 		getProject: (id) => get().projects.find((p) => p.id === id) || null,
 
 		setActiveProject: async (project) => {
+			console.log(`[ProjectStore] 🔄 setActiveProject called:`, {
+				projectId: project?.id,
+				projectDocsResourceId: project?.projectDocsResourceId,
+				projectResumeResourceId: project?.projectResumeResourceId,
+				borrowerResumeResourceId: (project as any)?.borrowerResumeResourceId,
+				borrowerDocsResourceId: (project as any)?.borrowerDocsResourceId,
+				hasProject: !!project,
+			});
+			
 			set({ activeProject: project });
 
 			// When a project becomes active, load its permissions
+			// But only if we don't already have permissions for this project
 			if (project) {
-				usePermissionStore
-					.getState()
-					.loadPermissionsForProject(project.id);
+				const permissionStore = usePermissionStore.getState();
+				// Only load if we don't already have permissions for this project
+				if (permissionStore.currentProjectId !== project.id && !permissionStore.isLoading) {
+					console.log(`[ProjectStore] 🔐 Loading permissions for project ${project.id}`);
+					permissionStore.loadPermissionsForProject(project.id);
+				} else {
+					console.log(`[ProjectStore] ⏭️ Skipping permission load - already loaded or loading`);
+				}
 			} else {
+				console.log(`[ProjectStore] 🔄 Resetting permissions (project is null)`);
 				usePermissionStore.getState().resetPermissions();
 			}
 		},
@@ -365,23 +439,23 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			if (!activeOrg)
 				throw new Error("Must be part of an org to create a project.");
 
-			// Use the create-project edge function (advisor auto-assignment happens server-side)
-			const projectSections = projectData.projectSections as any;
-			const address = projectSections?.propertyAddress;
-			
-			const { data, error } = await supabase.functions.invoke(
-				"create-project",
-				{
-					body: {
-						name:
-							projectData.projectName ||
-							`New Project ${get().projects.length + 1}`,
-						owner_org_id: activeOrg.id,
-						address: address || undefined,
-						// assigned_advisor_id is optional - edge function will auto-assign if not provided
-					},
-				}
-			);
+		// Use the create-project edge function (advisor auto-assignment happens server-side)
+		const projectSections = projectData.projectSections as any;
+		const address = projectSections?.propertyAddress;
+		
+		const { data, error } = await supabase.functions.invoke(
+			"create-project",
+			{
+				body: {
+					name:
+						projectData.projectName ||
+						`New Project ${get().projects.length + 1}`,
+					owner_org_id: activeOrg.id,
+					address: address || undefined,
+					// assigned_advisor_id is optional - edge function will auto-assign if not provided
+				},
+			}
+		);
 
 			if (error) throw error;
 			if (!data?.project) throw new Error("Failed to create project");

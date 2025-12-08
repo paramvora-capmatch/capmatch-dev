@@ -17,7 +17,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   isOpen: controlledOpen,
   onOpenChange,
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { notifications, unreadCount, isLoading, markAsRead } = useNotifications();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"unread" | "read">("unread");
@@ -191,10 +191,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       await markAsRead(notificationId);
       closeDropdown();
       if (linkUrl) {
-        router.push(linkUrl);
+        // Rewrite URL based on user role
+        // If user is advisor and URL is for borrower workspace, redirect to advisor workspace
+        let finalUrl = linkUrl;
+        if (user?.role === "advisor" && linkUrl.startsWith("/project/workspace/")) {
+          // Replace /project/workspace/ with /advisor/project/
+          finalUrl = linkUrl.replace("/project/workspace/", "/advisor/project/");
+        }
+        router.push(finalUrl);
       }
     },
-    [closeDropdown, markAsRead, router]
+    [closeDropdown, markAsRead, router, user?.role]
   );
 
   if (!isAuthenticated) {
