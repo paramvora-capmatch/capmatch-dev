@@ -29,6 +29,8 @@ const LoginForm = () => {
     signUp,
     signInWithGoogle,
     isLoading: authLoading,
+    user,
+    isAuthenticated,
   } = useAuth();
   const [loginSource, setLoginSource] = useState<"direct" | "lenderline">(
     "direct"
@@ -44,6 +46,31 @@ const LoginForm = () => {
       setLoginSource("direct");
     }
   }, [searchParams]);
+
+  // Handle redirection after successful authentication
+  useEffect(() => {
+    if (authLoading || !isAuthenticated || !user) return;
+
+    const redirectUrl = searchParams.get("redirect");
+    if (redirectUrl) {
+      router.replace(redirectUrl);
+      return;
+    }
+
+    switch (user.role) {
+      case "borrower":
+        router.replace("/dashboard");
+        break;
+      case "advisor":
+        router.replace("/advisor/dashboard");
+        break;
+      case "lender":
+        router.replace("/lender/dashboard");
+        break;
+      default:
+        router.replace("/dashboard");
+    }
+  }, [authLoading, isAuthenticated, user, router, searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +140,8 @@ const LoginForm = () => {
           try {
             await signUp(email, password, loginSource);
             // After successful sign-up + sign-in, send them straight to the dashboard.
-            router.replace("/dashboard");
+            const redirectUrl = searchParams.get("redirect");
+            router.replace(redirectUrl || "/dashboard");
           } catch (signUpErr) {
             console.error("[Login] LenderLine sign-up failed:", signUpErr);
             const msg =
@@ -158,7 +186,8 @@ const LoginForm = () => {
       // After successful sign-up and automatic sign-in, proactively route the
       // new user to the main borrower dashboard. The global auth listener will
       // also update state, but this avoids leaving them on the login page.
-      router.replace("/dashboard");
+      const redirectUrl = searchParams.get("redirect");
+      router.replace(redirectUrl || "/dashboard");
     } catch (err) {
       console.error("[Login] Error during confirmed sign-up:", err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -307,29 +336,6 @@ const LoginForm = () => {
 
 // Main page component with Suspense boundary
 export default function LoginPage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
-
-  // If a user is already authenticated (including after Google OAuth redirect),
-  // immediately send them to the correct dashboard based on their role.
-  useEffect(() => {
-    if (isLoading || !isAuthenticated || !user) return;
-
-    switch (user.role) {
-      case "borrower":
-        router.replace("/dashboard");
-        break;
-      case "advisor":
-        router.replace("/advisor/dashboard");
-        break;
-      case "lender":
-        router.replace("/lender/dashboard");
-        break;
-      default:
-        router.replace("/dashboard");
-    }
-  }, [isLoading, isAuthenticated, user, router]);
-
   return (
     <AuthLayout>
       <Suspense
