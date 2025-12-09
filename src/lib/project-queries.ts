@@ -491,73 +491,27 @@ async function fetchProjectResumeData(projectId: string): Promise<{
 
 /**
  * Helper: Fetch and process borrower resume for a single project
+ * Uses the centralized getProjectBorrowerResume function
  */
 async function fetchBorrowerResumeData(projectId: string): Promise<{
 	content: BorrowerResumeContent;
 	completenessPercent: number | undefined;
 	lockedFields: Record<string, boolean>;
 }> {
-	const { data: borrowerResource } = await supabase
-		.from("resources")
-		.select("id, current_version_id")
-		.eq("resource_type", "BORROWER_RESUME")
-		.eq("project_id", projectId)
-		.maybeSingle();
+	const borrowerResumeContent = await getProjectBorrowerResume(projectId);
 
-	let borrowerResume: {
-		content: BorrowerResumeContent;
-		completeness_percent?: number;
-		locked_fields?: Record<string, boolean>;
-	} | null = null;
-	let borrowerCompletenessPercent: number | undefined;
-	let borrowerLockedFields: Record<string, boolean> = {};
-
-	if (borrowerResource?.current_version_id) {
-		const result = await supabase
-			.from("borrower_resumes")
-			.select("content, completeness_percent, locked_fields")
-			.eq("id", borrowerResource.current_version_id)
-			.maybeSingle();
-		borrowerResume = result.data;
-		borrowerCompletenessPercent = result.data?.completeness_percent;
-		borrowerLockedFields =
-			(result.data?.locked_fields as
-				| Record<string, boolean>
-				| undefined) || {};
-	} else {
-		const result = await supabase
-			.from("borrower_resumes")
-			.select("content, completeness_percent, locked_fields")
-			.eq("project_id", projectId)
-			.order("created_at", { ascending: false })
-			.limit(1)
-			.maybeSingle();
-		borrowerResume = result.data;
-		borrowerCompletenessPercent = result.data?.completeness_percent;
-		borrowerLockedFields =
-			(result.data?.locked_fields as
-				| Record<string, boolean>
-				| undefined) || {};
+	if (!borrowerResumeContent) {
+		return {
+			content: {},
+			completenessPercent: undefined,
+			lockedFields: {},
+		};
 	}
-
-	let borrowerResumeContent: BorrowerResumeContent =
-		borrowerResume?.content || {};
-
-	// Fall back to content._lockedFields during migration period if column is empty
-	if (
-		!borrowerLockedFields ||
-		Object.keys(borrowerLockedFields).length === 0
-	) {
-		borrowerLockedFields =
-			(borrowerResumeContent as any)?._lockedFields || {};
-	}
-
-	// Content is always flat now, no conversion needed
 
 	return {
 		content: borrowerResumeContent,
-		completenessPercent: borrowerCompletenessPercent,
-		lockedFields: borrowerLockedFields,
+		completenessPercent: borrowerResumeContent.completenessPercent,
+		lockedFields: (borrowerResumeContent as any)._lockedFields || {},
 	};
 }
 
@@ -1156,8 +1110,86 @@ export const saveProjectResume = async (
 // Borrower Resume Functions
 // =============================================================================
 
+// Known boolean-only borrower fields
+const BOOLEAN_BORROWER_FIELDS: Record<string, true> = {
+	bankruptcyHistory: true,
+	foreclosureHistory: true,
+	litigationHistory: true,
+};
+
+// Field ids from the borrower form schema – used to validate content
+const BORROWER_FIELD_IDS: string[] = (() => {
+	try {
+		const borrowerFormSchema = require("@/lib/borrower-resume-form.schema.json");
+		return Object.keys((borrowerFormSchema as any).fields || {});
+	} catch {
+		return [];
+	}
+})();
+
+/**
+ * Heuristic to detect a "corrupted" borrower resume row where the core
+ * borrower fields have been replaced by bare booleans (e.g. mirrors of
+ * _lockedFields), which should not be treated as the active resume.
+ */
+function isCorruptedBooleanSnapshot(content: any): boolean {
+	if (!content || typeof content !== "object") return false;
+
+	// Strip metadata/root keys - content is always flat now
+	const raw = { ...content };
+	delete raw._lockedFields;
+	delete raw._fieldStates;
+	delete raw._metadata;
+	delete raw.completenessPercent;
+
+	const flat = raw; // Content is always flat now
+
+	// If at least one known borrower field has a non-boolean value (or a rich
+	// { value: ... } object with a non-boolean value), we consider the snapshot valid.
+	let hasNonBooleanForKnownField = false;
+
+	for (const fieldId of BORROWER_FIELD_IDS) {
+		const v = flat[fieldId];
+		if (v === undefined) continue;
+
+		// Rich format { value, ... }
+		if (v && typeof v === "object" && !Array.isArray(v) && "value" in v) {
+			const innerValue = (v as any).value;
+
+			// Treat rich-format booleans for non-boolean fields as suspicious
+			if (
+				typeof innerValue === "boolean" &&
+				!BOOLEAN_BORROWER_FIELDS[fieldId]
+			) {
+				continue;
+			}
+
+			// Otherwise, this looks like a real value
+			hasNonBooleanForKnownField = true;
+			break;
+		}
+
+		// Primitive non-boolean value
+		if (typeof v !== "boolean") {
+			hasNonBooleanForKnownField = true;
+			break;
+		}
+
+		// Boolean is fine only for the explicit boolean borrower fields
+		if (typeof v === "boolean" && BOOLEAN_BORROWER_FIELDS[fieldId]) {
+			hasNonBooleanForKnownField = true;
+			break;
+		}
+	}
+
+	// If *none* of the known fields have a proper value, treat as corrupted.
+	return !hasNonBooleanForKnownField;
+}
+
 /**
  * Loads borrower resume content from the JSONB column.
+ * This is the centralized function for fetching borrower resumes.
+ * Includes corruption detection to filter out invalid snapshots.
  */
 export const getProjectBorrowerResume = async (
 	projectId: string
@@ -1171,26 +1203,43 @@ export const getProjectBorrowerResume = async (
 
 	let query = supabase
 		.from("borrower_resumes")
-		.select("content, completeness_percent, locked_fields");
+		.select("id, content, completeness_percent, locked_fields, created_at");
+
+	// Use current_version_id if available, otherwise fall back to latest
 	if (resource?.current_version_id) {
 		query = query.eq("id", resource.current_version_id);
 	} else {
+		// Fetch the latest few rows and pick the first valid one
 		query = query
 			.eq("project_id", projectId)
 			.order("created_at", { ascending: false })
-			.limit(1);
+			.limit(5);
 	}
 
-	const { data, error } = await query.maybeSingle();
+	const { data, error } = await query;
+
 	if (error && error.code !== "PGRST116")
 		throw new Error(`Failed to load borrower resume: ${error.message}`);
-	if (!data) return null;
+	if (!data || data.length === 0) return null;
+
+	// If we used current_version_id, we have a single row; otherwise find the first non-corrupted snapshot
+	const chosen = resource?.current_version_id
+		? data[0]
+		: data.find((row) => !isCorruptedBooleanSnapshot(row.content));
+	const chosenRow = chosen ?? data[0];
+
+	if (!chosenRow) return null;
+
+	const contentRaw = chosenRow.content as any;
+	const completenessPercent = chosenRow.completeness_percent;
+
+	if (!contentRaw) return null;
 
 	// Read from locked_fields column, fall back to content._lockedFields during migration
 	let lockedFields: Record<string, boolean> =
-		(data.locked_fields as Record<string, boolean> | undefined) || {};
+		(chosenRow.locked_fields as Record<string, boolean> | undefined) || {};
 
-	let content = (data.content || {}) as any;
+	let content = { ...contentRaw };
 
 	// Content is always flat now - use column value if available, otherwise fall back to content
 	if (!lockedFields || Object.keys(lockedFields).length === 0) {
@@ -1204,10 +1253,89 @@ export const getProjectBorrowerResume = async (
 	// Add completeness_percent from column to content for UI consumption
 	// This ensures the UI always has access to the stored value
 	if (
-		data.completeness_percent !== undefined &&
-		data.completeness_percent !== null
+		completenessPercent !== undefined &&
+		completenessPercent !== null
 	) {
-		(content as any).completenessPercent = data.completeness_percent;
+		(content as any).completenessPercent = completenessPercent;
+	}
+
+	// Extract metadata from rich format fields and create _metadata object
+	const metadata: Record<string, any> = {};
+	const working = { ...content };
+	delete working._lockedFields;
+	delete working._fieldStates;
+	delete working._metadata;
+
+	// Process all fields to extract metadata
+	for (const [key, value] of Object.entries(working)) {
+		// Skip if already processed
+		if (key.startsWith("_")) {
+			continue;
+		}
+
+		// Handle principals specially - it can be an array or in rich format
+		if (key === "principals") {
+			// Check if it's in rich format
+			if (
+				value &&
+				typeof value === "object" &&
+				!Array.isArray(value) &&
+				"value" in value
+			) {
+				// Store metadata (new schema: value + source + warnings + other_values)
+				const anyVal: any = value;
+				let primarySource = anyVal.source;
+				if (
+					!primarySource &&
+					Array.isArray(anyVal.sources) &&
+					anyVal.sources.length > 0
+				) {
+					primarySource = anyVal.sources[0];
+				}
+
+				metadata[key] = {
+					value: anyVal.value,
+					source: primarySource ?? null,
+					warnings: anyVal.warnings || [],
+					other_values: anyVal.other_values || [],
+				};
+			}
+			continue;
+		}
+
+		// Check if value is in rich format { value, source, warnings, other_values }
+		if (
+			value &&
+			typeof value === "object" &&
+			!Array.isArray(value) &&
+			"value" in value
+		) {
+			const anyVal: any = value;
+
+			// Determine primary source (new schema prefers `source`, but we keep
+			// backward compat for legacy `sources` arrays).
+			let primarySource = anyVal.source;
+			if (
+				!primarySource &&
+				Array.isArray(anyVal.sources) &&
+				anyVal.sources.length > 0
+			) {
+				primarySource = anyVal.sources[0];
+			}
+
+			// Store metadata aligned with new FieldMetadata type
+			metadata[key] = {
+				value: anyVal.value,
+				source: primarySource ?? null,
+				warnings: anyVal.warnings || [],
+				other_values: anyVal.other_values || [],
+			};
+		}
+	}
+
+	// Add metadata if we have any
+	if (Object.keys(metadata).length > 0) {
+		content._metadata = metadata;
 	}
 
 	// Unwrap rich values if present (handle cases where DB returns { value, source, ... })
@@ -1258,16 +1386,43 @@ export const saveProjectBorrowerResume = async (
 		options?.lockedFields || (content as any)._lockedFields || {};
 	const fieldStates = (content as any)._fieldStates || {};
 
-	// Get existing content
-	const { data: existingResume } = await supabase
-		.from("borrower_resumes")
-		.select("id, content")
+	// Get resource pointer to find the current version
+	const { data: resource } = await supabase
+		.from("resources")
+		.select("current_version_id")
 		.eq("project_id", projectId)
-		.order("created_at", { ascending: false })
-		.limit(1)
+		.eq("resource_type", "BORROWER_RESUME")
 		.maybeSingle();
 
+	// Get existing content - fetch via current_version_id if available, otherwise latest
+	let existingResume: {
+		id: string;
+		content: any;
+		locked_fields?: Record<string, boolean>;
+		completeness_percent?: number;
+	} | null = null;
+
+	if (resource?.current_version_id) {
+		const result = await supabase
+			.from("borrower_resumes")
+			.select("id, content, locked_fields, completeness_percent")
+			.eq("id", resource.current_version_id)
+			.maybeSingle();
+		existingResume = result.data;
+	} else {
+		const result = await supabase
+			.from("borrower_resumes")
+			.select("id, content, locked_fields, completeness_percent")
+			.eq("project_id", projectId)
+			.order("created_at", { ascending: false })
+			.limit(1)
+			.maybeSingle();
+		existingResume = result.data;
+	}
+
 	const existingContent = existingResume?.content || {};
+	const existingLockedFields = (existingResume?.locked_fields as Record<string, boolean> | undefined) || {};
+	const existingCompletenessPercent = existingResume?.completeness_percent;
 	// Content is always flat now, no grouping needed
 
 	// Prepare rich content payload
@@ -1422,59 +1577,11 @@ export const saveProjectBorrowerResume = async (
 		}
 	}
 
-	// Handle Update (In Place) vs Insert (New Version)
+	// Always create a new version - never update in place
+	// This ensures we maintain a complete history and never overwrite
+	// locked_fields or completeness_percent columns
 	// Content is always flat now, no grouping needed
-
-	if (existingResume && !options?.createNewVersion) {
-		// UPDATE IN PLACE - merge flat content
-		const contentToSave = {
-			...existingContent,
-			...finalContentFlat,
-			_fieldStates: fieldStates,
-		};
-
-		// Calculate completeness_percent (stored in column, not content)
-		// Use provided value if available, otherwise calculate from the content
-		const providedCompleteness = (content as any).completenessPercent;
-		let completenessPercent: number;
-		if (
-			providedCompleteness !== undefined &&
-			typeof providedCompleteness === "number"
-		) {
-			completenessPercent = providedCompleteness;
-		} else {
-			// Calculate from the actual content (excluding metadata fields)
-			const contentForCalculation = { ...finalContentFlat };
-			completenessPercent = computeBorrowerCompletion(
-				contentForCalculation,
-				lockedFields
-			);
-		}
-
-		// Get resource pointer to update correct version
-		const { data: resource } = await supabase
-			.from("resources")
-			.select("current_version_id")
-			.eq("project_id", projectId)
-			.eq("resource_type", "BORROWER_RESUME")
-			.maybeSingle();
-
-		const targetId = resource?.current_version_id || existingResume.id;
-
-		const { error } = await supabase
-			.from("borrower_resumes")
-			.update({
-				content: contentToSave,
-				locked_fields: lockedFields,
-				completeness_percent: completenessPercent,
-			})
-			.eq("id", targetId);
-
-		if (error)
-			throw new Error(
-				`Failed to update borrower resume: ${error.message}`
-			);
-	} else {
+	{
 		// NEW VERSION - content is always flat now
 		const { _lockedFields, _fieldStates, _metadata, ...cleanExisting } =
 			existingContent;
@@ -1524,6 +1631,35 @@ export const saveProjectBorrowerResume = async (
 			throw new Error(
 				`Failed to create borrower resume: ${error.message}`
 			);
+
+		// Preserve previous version's locked_fields and completeness_percent
+		// This ensures historical versions retain their metadata
+		if (existingResume?.id) {
+			// Only update if the previous version doesn't have these values set
+			// or if they need to be preserved from what we fetched
+			const updatePreviousVersion: {
+				locked_fields?: Record<string, boolean>;
+				completeness_percent?: number;
+			} = {};
+
+			// Preserve locked_fields if they exist
+			if (existingLockedFields && Object.keys(existingLockedFields).length > 0) {
+				updatePreviousVersion.locked_fields = existingLockedFields;
+			}
+
+			// Preserve completeness_percent if it exists
+			if (existingCompletenessPercent !== undefined && existingCompletenessPercent !== null) {
+				updatePreviousVersion.completeness_percent = existingCompletenessPercent;
+			}
+
+			// Only update if we have values to preserve
+			if (Object.keys(updatePreviousVersion).length > 0) {
+				await supabase
+					.from("borrower_resumes")
+					.update(updatePreviousVersion)
+					.eq("id", existingResume.id);
+			}
+		}
 
 		// Update resource pointer
 		const { error: resourceError } = await supabase

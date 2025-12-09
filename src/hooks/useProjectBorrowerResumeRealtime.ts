@@ -3,11 +3,10 @@ import { RealtimeChannel } from "@supabase/supabase-js";
 import {
 	BorrowerResumeContent,
 	saveProjectBorrowerResume,
+	getProjectBorrowerResume,
 } from "@/lib/project-queries";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
-// Removed imports: ungroupFromSections, isGroupedFormat - storage is now always flat format
-import borrowerFormSchema from "@/lib/borrower-resume-form.schema.json";
 
 interface UseProjectBorrowerResumeRealtimeResult {
 	content: BorrowerResumeContent | null;
@@ -25,252 +24,14 @@ interface UseProjectBorrowerResumeRealtimeResult {
 	isRemoteUpdate: boolean;
 }
 
-// Known boolean-only borrower fields
-const BOOLEAN_BORROWER_FIELDS: Record<string, true> = {
-	bankruptcyHistory: true,
-	foreclosureHistory: true,
-	litigationHistory: true,
-};
-
-// Field ids from the borrower form schema – used to validate content
-const BORROWER_FIELD_IDS: string[] = Object.keys(
-	((borrowerFormSchema as any).fields || {}) as Record<string, unknown>
-);
-
-/**
- * Heuristic to detect a "corrupted" borrower resume row where the core
- * borrower fields have been replaced by bare booleans (e.g. mirrors of
- * _lockedFields), which should not be treated as the active resume.
- */
-const isCorruptedBooleanSnapshot = (content: any): boolean => {
-	if (!content || typeof content !== "object") return false;
-
-	// Strip metadata/root keys - content is always flat now
-	const raw = { ...content };
-	delete raw._lockedFields;
-	delete raw._fieldStates;
-	delete raw._metadata;
-	delete raw.completenessPercent;
-
-	const flat = raw; // Content is always flat now
-
-	// If at least one known borrower field has a non-boolean value (or a rich
-	// { value: ... } object with a non-boolean value), we consider the snapshot valid.
-	let hasNonBooleanForKnownField = false;
-
-	for (const fieldId of BORROWER_FIELD_IDS) {
-		const v = flat[fieldId];
-		if (v === undefined) continue;
-
-		// Rich format { value, ... }
-		if (v && typeof v === "object" && !Array.isArray(v) && "value" in v) {
-			const innerValue = (v as any).value;
-
-			// Treat rich-format booleans for non-boolean fields as suspicious
-			if (
-				typeof innerValue === "boolean" &&
-				!BOOLEAN_BORROWER_FIELDS[fieldId]
-			) {
-				continue;
-			}
-
-			// Otherwise, this looks like a real value
-			hasNonBooleanForKnownField = true;
-			break;
-		}
-
-		// Primitive non-boolean value
-		if (typeof v !== "boolean") {
-			hasNonBooleanForKnownField = true;
-			break;
-		}
-
-		// Boolean is fine only for the explicit boolean borrower fields
-		if (typeof v === "boolean" && BOOLEAN_BORROWER_FIELDS[fieldId]) {
-			hasNonBooleanForKnownField = true;
-			break;
-		}
-	}
-
-	// If *none* of the known fields have a proper value, treat as corrupted.
-	return !hasNonBooleanForKnownField;
-};
-
 /**
  * Fetches the *current* borrower resume content.
- *
- * Behavior:
- *  - Ignores obviously corrupted "boolean-only" snapshots where core borrower
- *    fields have been replaced by bare booleans.
- *  - Picks the most recent *valid* row for the project.
+ * Uses the centralized getProjectBorrowerResume function from project-queries.ts
  */
 const getProjectBorrowerResumeContent = async (
 	projectId: string
 ): Promise<BorrowerResumeContent | null> => {
-	// Fetch the latest few rows and pick the first valid one.
-	const { data, error } = await supabase
-		.from("borrower_resumes")
-		.select("id, content, completeness_percent, locked_fields, created_at")
-		.eq("project_id", projectId)
-		.order("created_at", { ascending: false })
-		.limit(5);
-
-	if (error && error.code !== "PGRST116") {
-		throw new Error(
-			`[useProjectBorrowerResumeRealtime] Failed to load borrower resume: ${error.message}`
-		);
-	}
-
-	if (!data || data.length === 0) return null;
-
-	// Find the first non-corrupted snapshot
-	const chosen = data.find((row) => !isCorruptedBooleanSnapshot(row.content));
-	const chosenRow = chosen ?? data[0];
-	const contentRaw = chosenRow.content as any;
-	const completenessPercent = chosenRow.completeness_percent;
-
-	if (!contentRaw) return null;
-
-	// Read from locked_fields column, fall back to content._lockedFields during migration
-	let _lockedFields: Record<string, boolean> =
-		(chosenRow.locked_fields as Record<string, boolean> | undefined) || {};
-	if (!_lockedFields || Object.keys(_lockedFields).length === 0) {
-		_lockedFields =
-			(contentRaw._lockedFields as Record<string, boolean> | undefined) ||
-			{};
-	}
-	const _fieldStates = (contentRaw._fieldStates as any) || {};
-
-	// Make a copy and remove metadata fields for processing
-	let working = { ...contentRaw };
-	delete working._lockedFields;
-	delete working._fieldStates;
-	delete working._metadata;
-
-	// Content is always flat now, no conversion needed
-
-	// Extract metadata from rich format fields and create _metadata object
-	const flatContent: any = {};
-	const metadata: Record<string, any> = {};
-
-	// Process all fields
-	for (const [key, value] of Object.entries(working)) {
-		// Skip if already processed
-		if (key.startsWith("_")) {
-			continue;
-		}
-
-		// Handle principals specially - it can be an array or in rich format
-		if (key === "principals") {
-			// Check if it's in rich format
-			if (
-				value &&
-				typeof value === "object" &&
-				!Array.isArray(value) &&
-				"value" in value
-			) {
-				// Extract the array from rich format
-				const principalsValue = (value as any).value;
-				flatContent[key] = Array.isArray(principalsValue)
-					? principalsValue
-					: [];
-
-				// Store metadata (new schema: value + source + warnings + other_values)
-				const anyVal: any = value;
-				let primarySource = anyVal.source;
-				if (
-					!primarySource &&
-					Array.isArray(anyVal.sources) &&
-					anyVal.sources.length > 0
-				) {
-					primarySource = anyVal.sources[0];
-				}
-
-				metadata[key] = {
-					value: principalsValue,
-					source: primarySource ?? null,
-					warnings: anyVal.warnings || [],
-					other_values: anyVal.other_values || [],
-				};
-			} else {
-				// It's already an array or null/undefined
-				flatContent[key] = Array.isArray(value) ? value : [];
-			}
-			continue;
-		}
-
-		// Check if value is in rich format { value, source, warnings, other_values }
-		if (
-			value &&
-			typeof value === "object" &&
-			!Array.isArray(value) &&
-			"value" in value
-		) {
-			const anyVal: any = value;
-
-			// Extract the actual value
-			flatContent[key] = anyVal.value;
-
-			// Determine primary source (new schema prefers `source`, but we keep
-			// backward compat for legacy `sources` arrays).
-			let primarySource = anyVal.source;
-			if (
-				!primarySource &&
-				Array.isArray(anyVal.sources) &&
-				anyVal.sources.length > 0
-			) {
-				primarySource = anyVal.sources[0];
-			}
-
-			// Store metadata aligned with new FieldMetadata type
-			metadata[key] = {
-				value: anyVal.value,
-				source: primarySource ?? null,
-				warnings: anyVal.warnings || [],
-				other_values: anyVal.other_values || [],
-			};
-		} else {
-			// Flat value - preserve as-is
-			flatContent[key] = value;
-		}
-	}
-
-	// Add metadata if we have any
-	if (Object.keys(metadata).length > 0) {
-		flatContent._metadata = metadata;
-	}
-
-	// Restore locked fields and other metadata from original content
-	flatContent._lockedFields = _lockedFields;
-	flatContent._fieldStates = _fieldStates;
-
-	// Add completeness_percent from column (not from content)
-	if (completenessPercent !== undefined && completenessPercent !== null) {
-		flatContent.completenessPercent = completenessPercent;
-	}
-
-	// Final pass: ensure any remaining rich objects are unwrapped to their `.value`
-	// property for UI consumption, while preserving metadata containers and section data.
-	const unwrappedContent: any = {};
-	for (const [key, val] of Object.entries(flatContent)) {
-		if (
-			val &&
-			typeof val === "object" &&
-			!Array.isArray(val) &&
-			"value" in val &&
-			key !== "_metadata" &&
-			key !== "_lockedFields" &&
-			key !== "_fieldStates" &&
-			key !== "borrowerSections" &&
-			key !== "projectSections"
-		) {
-			unwrappedContent[key] = (val as any).value;
-		} else {
-			unwrappedContent[key] = val;
-		}
-	}
-
-	return unwrappedContent as BorrowerResumeContent;
+	return await getProjectBorrowerResume(projectId);
 };
 
 export const useProjectBorrowerResumeRealtime = (
@@ -624,7 +385,7 @@ export const useProjectBorrowerResumeRealtime = (
 			updates: Partial<BorrowerResumeContent>,
 			lockedFieldsToSave?: Record<string, boolean>,
 			lockedSectionsToSave?: Record<string, boolean>,
-			createNewVersion: boolean = false
+			createNewVersion: boolean = true
 		) => {
 			if (!projectId) {
 				throw new Error(
