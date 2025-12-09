@@ -334,6 +334,11 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Configure Edge Functions
+[functions.daily-webhook]
+# Disable JWT verification for webhooks (Daily.co doesn't send auth headers)
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
