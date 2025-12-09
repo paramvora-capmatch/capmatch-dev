@@ -103,7 +103,7 @@ export default function MeetingPage({ params }: MeetingPageProps) {
           </p>
           <a
             href="/dashboard"
-            className="text-purple-600 hover:text-purple-700 font-medium"
+            className="text-blue-600 hover:text-blue-700 font-medium"
           >
             Return to Dashboard
           </a>

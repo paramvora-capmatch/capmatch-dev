@@ -9,24 +9,15 @@ import type { CalendarProvider, CalendarConnection } from "@/types/calendar-type
 const PROVIDER_INFO = {
   google: {
     name: "Google Calendar",
-    icon: "🗓️",
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="32px" height="32px">
+        <path fill="#4285F4" d="M35,42H13c-3.866,0-7-3.134-7-7V13c0-3.866,3.134-7,7-7h22c3.866,0,7,3.134,7,7v22C42,38.866,38.866,42,35,42z"/>
+        <path fill="#FFF" d="M31,12h-3v4h-8v-4h-3v4h-8v20h28V16h-6V12z M14,32h-3v-3h3V32z M14,27h-3v-3h3V27z M14,22h-3v-3h3V22z M19,32h-3v-3h3V32z M19,27h-3v-3h3V27z M19,22h-3v-3h3V22z M24,32h-3v-3h3V32z M24,27h-3v-3h3V27z M24,22h-3v-3h3V22z M29,32h-3v-3h3V32z M29,27h-3v-3h3V27z M29,22h-3v-3h3V22z M34,32h-3v-3h3V32z M34,27h-3v-3h3V27z M34,22h-3v-3h3V22z"/>
+      </svg>
+    ),
     color: "text-blue-600",
     bgColor: "bg-blue-50",
     description: "Connect your Google Calendar to sync meetings and events",
-  },
-  microsoft: {
-    name: "Microsoft Outlook",
-    icon: "📅",
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-50",
-    description: "Connect your Outlook Calendar to sync meetings and events",
-  },
-  apple: {
-    name: "Apple Calendar",
-    icon: "🍎",
-    color: "text-gray-600",
-    bgColor: "bg-gray-50",
-    description: "Connect your iCloud Calendar to sync meetings and events",
   },
 };
 
