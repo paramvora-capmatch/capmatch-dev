@@ -365,6 +365,7 @@ serve(async (req) => {
           if (key === '_metadata') continue;
 
           // Reserved root-level keys (e.g. _lockedFields / _lockedSections) should stay at the top level
+          // Note: _lockedFields is now stored in locked_fields column, not content
           if (key.startsWith('_') || key === 'projectSections' || key === 'borrowerSections') {
             rootKeys[key] = resume_updates[key];
             continue;
@@ -506,10 +507,14 @@ serve(async (req) => {
         }
       }
       
+      // Extract _lockedFields from rootKeys (now stored in locked_fields column, not content)
+      const lockedFields = (rootKeys._lockedFields as Record<string, boolean> | undefined) || {};
+      const { _lockedFields, ...rootKeysWithoutLockedFields } = rootKeys;
+      
       // Group data by sections before saving
       // Note: We don't have access to formSchema in this Deno function, so grouping will use simplified logic
       const finalContent = {
-        ...rootKeys,
+        ...rootKeysWithoutLockedFields,
         ...groupBySections(finalContentFlat),
       };
 
@@ -519,10 +524,16 @@ serve(async (req) => {
       // Prepare update payload
       const updatePayload: { 
         content: Record<string, unknown>;
+        locked_fields?: Record<string, boolean>;
         completeness_percent?: number;
       } = {
         content: finalContent
       };
+      
+      // Add locked_fields to payload
+      if (lockedFields && Object.keys(lockedFields).length > 0) {
+        updatePayload.locked_fields = lockedFields;
+      }
       
       // Add completeness_percent to payload if provided
       if (completenessPercent !== undefined && typeof completenessPercent === 'number') {
@@ -541,11 +552,17 @@ serve(async (req) => {
         const insertPayload: { 
           project_id: string; 
           content: Record<string, unknown>;
+          locked_fields?: Record<string, boolean>;
           completeness_percent?: number;
         } = {
           project_id,
           content: finalContent
         };
+        
+        // Add locked_fields to insert payload
+        if (lockedFields && Object.keys(lockedFields).length > 0) {
+          insertPayload.locked_fields = lockedFields;
+        }
         
         // Add completeness_percent to insert payload if provided
         if (completenessPercent !== undefined && typeof completenessPercent === 'number') {

@@ -496,29 +496,45 @@ export const getProjectWithResume = async (
 	let resume: { content: ProjectResumeContent } | null = null;
 
 	let projectCompletenessPercent: number | undefined;
+	let projectLockedFields: Record<string, boolean> = {};
 	if (resource?.current_version_id) {
 		const result = await supabase
 			.from("project_resumes")
-			.select("content, completeness_percent")
+			.select("content, completeness_percent, locked_fields")
 			.eq("id", resource.current_version_id)
 			.single();
 		resume = result.data;
 		projectCompletenessPercent = result.data?.completeness_percent;
+		// Read from locked_fields column, fall back to content._lockedFields during migration
+		projectLockedFields =
+			(result.data?.locked_fields as
+				| Record<string, boolean>
+				| undefined) || {};
 	} else {
 		const result = await supabase
 			.from("project_resumes")
-			.select("content, completeness_percent")
+			.select("content, completeness_percent, locked_fields")
 			.eq("project_id", projectId)
 			.order("created_at", { ascending: false })
 			.limit(1)
 			.maybeSingle();
 		resume = result.data;
 		projectCompletenessPercent = result.data?.completeness_percent;
+		// Read from locked_fields column, fall back to content._lockedFields during migration
+		projectLockedFields =
+			(result.data?.locked_fields as
+				| Record<string, boolean>
+				| undefined) || {};
 	}
 
 	let rawContent = (resume?.content || {}) as any;
-	const _lockedFields =
-		(rawContent._lockedFields as Record<string, boolean> | undefined) || {};
+	// Fall back to content._lockedFields during migration period if column is empty
+	if (!projectLockedFields || Object.keys(projectLockedFields).length === 0) {
+		projectLockedFields =
+			(rawContent._lockedFields as Record<string, boolean> | undefined) ||
+			{};
+	}
+	const _lockedFields = projectLockedFields;
 	const _fieldStates = (rawContent._fieldStates as any) || {};
 
 	rawContent = { ...rawContent };
@@ -541,47 +557,57 @@ export const getProjectWithResume = async (
 	let borrowerResume: {
 		content: BorrowerResumeContent;
 		completeness_percent?: number;
+		locked_fields?: Record<string, boolean>;
 	} | null = null;
 	let borrowerCompletenessPercent: number | undefined;
+	let borrowerLockedFields: Record<string, boolean> = {};
 
 	if (borrowerResource?.current_version_id) {
 		const result = await supabase
 			.from("borrower_resumes")
-			.select("content, completeness_percent")
+			.select("content, completeness_percent, locked_fields")
 			.eq("id", borrowerResource.current_version_id)
 			.maybeSingle();
 		borrowerResume = result.data;
 		borrowerCompletenessPercent = result.data?.completeness_percent;
+		// Read from locked_fields column, fall back to content._lockedFields during migration
+		borrowerLockedFields =
+			(result.data?.locked_fields as
+				| Record<string, boolean>
+				| undefined) || {};
 	} else {
 		const result = await supabase
 			.from("borrower_resumes")
-			.select("content, completeness_percent")
+			.select("content, completeness_percent, locked_fields")
 			.eq("project_id", projectId)
 			.order("created_at", { ascending: false })
 			.limit(1)
 			.maybeSingle();
 		borrowerResume = result.data;
 		borrowerCompletenessPercent = result.data?.completeness_percent;
+		// Read from locked_fields column, fall back to content._lockedFields during migration
+		borrowerLockedFields =
+			(result.data?.locked_fields as
+				| Record<string, boolean>
+				| undefined) || {};
 	}
 
 	let borrowerResumeContent: BorrowerResumeContent =
 		borrowerResume?.content || {};
 
-	// Extract borrower's locked fields BEFORE ungrouping (they're preserved as root-level keys)
-	let borrowerLockedFields =
-		(borrowerResumeContent as any)?._lockedFields || {};
+	// Fall back to content._lockedFields during migration period if column is empty
+	if (
+		!borrowerLockedFields ||
+		Object.keys(borrowerLockedFields).length === 0
+	) {
+		borrowerLockedFields =
+			(borrowerResumeContent as any)?._lockedFields || {};
+	}
 
 	// Ungroup borrower resume content if it's stored in grouped format
 	// This ensures we can access the fields for other purposes
 	if (isGroupedFormat(borrowerResumeContent)) {
 		borrowerResumeContent = ungroupFromSections(borrowerResumeContent);
-		// After ungrouping, locked fields are preserved as root-level keys
-		// Use the locked fields from ungrouped content (they should be the same, but this is safer)
-		const postUngroupLockedFields =
-			(borrowerResumeContent as any)?._lockedFields || {};
-		if (Object.keys(postUngroupLockedFields).length > 0) {
-			borrowerLockedFields = postUngroupLockedFields;
-		}
 	}
 
 	// Use stored completeness_percent from column instead of calculating
@@ -691,7 +717,9 @@ export const getProjectsWithResumes = async (
 
 	const { data: resumes, error: resumesError } = await supabase
 		.from("project_resumes")
-		.select("project_id, content, completeness_percent, created_at")
+		.select(
+			"project_id, content, completeness_percent, locked_fields, created_at"
+		)
 		.in("project_id", projectIds)
 		.order("created_at", { ascending: false });
 	if (resumesError)
@@ -702,7 +730,7 @@ export const getProjectsWithResumes = async (
 	const { data: borrowerResumes, error: borrowerResumesError } =
 		await supabase
 			.from("borrower_resumes")
-			.select("project_id, content, completeness_percent")
+			.select("project_id, content, completeness_percent, locked_fields")
 			.in("project_id", projectIds);
 	if (borrowerResumesError)
 		throw new Error(
@@ -731,10 +759,16 @@ export const getProjectsWithResumes = async (
 				);
 			}
 			let rawContent = (resume.content || {}) as any;
-			const rawLockedFields =
-				(rawContent._lockedFields as
-					| Record<string, boolean>
-					| undefined) || {};
+			// Read from locked_fields column, fall back to content._lockedFields during migration
+			let rawLockedFields =
+				(resume.locked_fields as Record<string, boolean> | undefined) ||
+				{};
+			if (!rawLockedFields || Object.keys(rawLockedFields).length === 0) {
+				rawLockedFields =
+					(rawContent._lockedFields as
+						| Record<string, boolean>
+						| undefined) || {};
+			}
 			const rawFieldStates = (rawContent._fieldStates as any) || {};
 
 			lockedFieldsMap.set(resume.project_id, rawLockedFields);
@@ -1081,13 +1115,11 @@ export const saveProjectResume = async (
 					};
 				}
 			}
-			contentToSave._lockedFields = lockedFields;
 			contentToSave._fieldStates = fieldStates;
 		} else {
 			contentToSave = {
 				...existing.content,
 				...finalContent,
-				_lockedFields: lockedFields,
 				_fieldStates: fieldStates,
 			};
 		}
@@ -1105,6 +1137,7 @@ export const saveProjectResume = async (
 			.from("project_resumes")
 			.update({
 				content: contentToSave,
+				locked_fields: lockedFields,
 				completeness_percent: completionPercent,
 			})
 			.eq("id", existing.id);
@@ -1138,7 +1171,6 @@ export const saveProjectResume = async (
 
 		const contentToInsert = {
 			...groupedContent,
-			_lockedFields: mergedLockedFields,
 			_fieldStates: mergedFieldStates,
 		};
 
@@ -1147,6 +1179,7 @@ export const saveProjectResume = async (
 			.insert({
 				project_id: projectId,
 				content: contentToInsert,
+				locked_fields: mergedLockedFields,
 				completeness_percent: completionPercent,
 				created_by: user?.id ?? null,
 			})
@@ -1184,7 +1217,7 @@ export const getProjectBorrowerResume = async (
 
 	let query = supabase
 		.from("borrower_resumes")
-		.select("content, completeness_percent");
+		.select("content, completeness_percent, locked_fields");
 	if (resource?.current_version_id) {
 		query = query.eq("id", resource.current_version_id);
 	} else {
@@ -1199,25 +1232,44 @@ export const getProjectBorrowerResume = async (
 		throw new Error(`Failed to load borrower resume: ${error.message}`);
 	if (!data) return null;
 
+	// Read from locked_fields column, fall back to content._lockedFields during migration
+	let lockedFields: Record<string, boolean> =
+		(data.locked_fields as Record<string, boolean> | undefined) || {};
+
 	let content = (data.content || {}) as any;
 
 	// Ungroup if needed for UI consumption
 	if (isGroupedFormat(content)) {
 		// Extract root keys
 		const {
-			_lockedFields,
+			_lockedFields: contentLockedFields,
 			_fieldStates,
 			_metadata,
 			completenessPercent: _oldCompletenessPercent, // Remove old one from content if present
 			...sections
 		} = content;
+		// Use column value if available, otherwise fall back to content during migration
+		if (!lockedFields || Object.keys(lockedFields).length === 0) {
+			lockedFields =
+				(contentLockedFields as Record<string, boolean> | undefined) ||
+				{};
+		}
 		const flat = ungroupFromSections(sections);
 		content = {
 			...flat,
-			_lockedFields,
+			_lockedFields: lockedFields,
 			_fieldStates,
 			_metadata,
 		};
+	} else {
+		// For flat format, use column value if available, otherwise fall back to content
+		if (!lockedFields || Object.keys(lockedFields).length === 0) {
+			lockedFields =
+				(content._lockedFields as
+					| Record<string, boolean>
+					| undefined) || {};
+		}
+		content._lockedFields = lockedFields;
 	}
 
 	// Add completeness_percent from column to content for UI consumption
@@ -1473,7 +1525,6 @@ export const saveProjectBorrowerResume = async (
 		}
 
 		// Append root keys
-		contentToSave._lockedFields = lockedFields;
 		contentToSave._fieldStates = fieldStates;
 
 		// Calculate completeness_percent (stored in column, not content)
@@ -1508,6 +1559,7 @@ export const saveProjectBorrowerResume = async (
 			.from("borrower_resumes")
 			.update({
 				content: contentToSave,
+				locked_fields: lockedFields,
 				completeness_percent: completenessPercent,
 			})
 			.eq("id", targetId);
@@ -1552,7 +1604,6 @@ export const saveProjectBorrowerResume = async (
 
 		const contentToInsert = {
 			...groupedContent,
-			_lockedFields: mergedLockedFields,
 			_fieldStates: mergedFieldStates,
 		};
 
@@ -1561,6 +1612,7 @@ export const saveProjectBorrowerResume = async (
 			.insert({
 				project_id: projectId,
 				content: contentToInsert,
+				locked_fields: mergedLockedFields,
 				completeness_percent: finalCompletenessPercent,
 				created_by: user?.id ?? null,
 			})

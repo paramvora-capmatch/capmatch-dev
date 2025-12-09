@@ -122,7 +122,7 @@ const getProjectBorrowerResumeContent = async (
 	// Fetch the latest few rows and pick the first valid one.
 	const { data, error } = await supabase
 		.from("borrower_resumes")
-		.select("id, content, completeness_percent, created_at")
+		.select("id, content, completeness_percent, locked_fields, created_at")
 		.eq("project_id", projectId)
 		.order("created_at", { ascending: false })
 		.limit(5);
@@ -143,9 +143,14 @@ const getProjectBorrowerResumeContent = async (
 
 	if (!contentRaw) return null;
 
-	// Preserve locked fields and field states before processing
-	const _lockedFields =
-		(contentRaw._lockedFields as Record<string, boolean> | undefined) || {};
+	// Read from locked_fields column, fall back to content._lockedFields during migration
+	let _lockedFields: Record<string, boolean> =
+		(chosenRow.locked_fields as Record<string, boolean> | undefined) || {};
+	if (!_lockedFields || Object.keys(_lockedFields).length === 0) {
+		_lockedFields =
+			(contentRaw._lockedFields as Record<string, boolean> | undefined) ||
+			{};
+	}
 	const _fieldStates = (contentRaw._fieldStates as any) || {};
 
 	// Make a copy and remove metadata fields for processing

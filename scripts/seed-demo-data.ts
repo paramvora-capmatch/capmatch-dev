@@ -445,18 +445,14 @@ async function updateProjectResume(
     }
   }
   
-  const resumeWithProgress: ProjectResumeContent & Record<string, any> = {
-    ...resumeContent,
-    _lockedFields: lockedFields,
-  };
-
   // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('project_resumes')
     .insert({
       project_id: projectId,
-      content: resumeWithProgress as any,
+      content: resumeContent as any,
+      locked_fields: lockedFields,
       completeness_percent: completenessPercent,
       created_by: createdById,
     });
@@ -510,20 +506,14 @@ async function updateBorrowerResume(
     }
   }
 
-  // Ensure completenessPercent is set to 100 for complete projects
-  // The calculation logic only counts booleans when true, but we want to show 100% for complete data
-  const borrowerResumeWithProgress = {
-    ...resumeContent,
-    _lockedFields: lockedFields,
-  };
-
   // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
-      content: borrowerResumeWithProgress as any,
+      content: resumeContent as any,
+      locked_fields: lockedFields,
       completeness_percent: 100, // Explicitly set to 100% since all fields are filled
       created_by: createdById,
     });

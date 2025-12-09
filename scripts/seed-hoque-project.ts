@@ -1282,10 +1282,14 @@ async function seedProjectResume(projectId: string, createdById: string): Promis
   console.log(`[seed] Updating project resume for SoGood Apartments...`);
 
   // Calculate completeness_percent (stored in column, not content)
+  // Extract locked_fields from content (now stored in column, not content)
+  const lockedFields = hoqueProjectResume._lockedFields || {};
+  const { _lockedFields, ...contentWithoutLockedFields } = hoqueProjectResume;
+
   const { computeProjectCompletion } = await import('../src/utils/resumeCompletion');
   const completenessPercent = computeProjectCompletion(
     hoqueProjectResume,
-    hoqueProjectResume._lockedFields || {}
+    lockedFields
   );
 
   // Insert new resume version
@@ -1294,7 +1298,8 @@ async function seedProjectResume(projectId: string, createdById: string): Promis
     .from('project_resumes')
     .insert({
       project_id: projectId,
-      content: hoqueProjectResume,
+      content: contentWithoutLockedFields,
+      locked_fields: lockedFields,
       completeness_percent: completenessPercent,
       created_by: createdById,
     });
@@ -1320,14 +1325,15 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     console.warn(`[seed] Warning: Failed to ensure borrower root resources:`, rootError.message);
   }
 
-  // hoqueBorrowerResume already has _lockedFields set
-  const borrowerResumeWithLocks = hoqueBorrowerResume;
+  // Extract locked_fields from content (now stored in column, not content)
+  const borrowerLockedFields = hoqueBorrowerResume._lockedFields || {};
+  const { _lockedFields, ...borrowerContentWithoutLockedFields } = hoqueBorrowerResume;
 
   // Calculate completeness_percent (stored in column, not content)
   const { computeBorrowerCompletion } = await import('../src/utils/resumeCompletion');
   const completenessPercent = computeBorrowerCompletion(
-    borrowerResumeWithLocks,
-    borrowerResumeWithLocks._lockedFields || {}
+    hoqueBorrowerResume,
+    borrowerLockedFields
   );
 
   // Insert new resume version
@@ -1336,7 +1342,8 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
-      content: borrowerResumeWithLocks,
+      content: borrowerContentWithoutLockedFields,
+      locked_fields: borrowerLockedFields,
       completeness_percent: completenessPercent,
       created_by: createdById,
     });
