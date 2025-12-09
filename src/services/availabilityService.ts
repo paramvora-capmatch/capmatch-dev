@@ -58,57 +58,6 @@ async function fetchGoogleCalendarEvents(
 }
 
 /**
- * Fetch events from Microsoft Calendar for a specific time range
- */
-async function fetchMicrosoftCalendarEvents(
-  accessToken: string,
-  calendarIds: string[],
-  timeMin: string,
-  timeMax: string
-): Promise<CalendarEventSimple[]> {
-  const allEvents: CalendarEventSimple[] = [];
-
-  for (const calendarId of calendarIds) {
-    const params = new URLSearchParams({
-      $top: '1000',
-      $orderby: 'start/dateTime',
-      $filter: `start/dateTime ge '${timeMin}' and start/dateTime lt '${timeMax}'`,
-    });
-
-    const response = await fetch(
-      `https://graph.microsoft.com/v1.0/me/calendars/${calendarId}/events?${params}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('[Microsoft Calendar] Fetch events failed:', {
-        status: response.status,
-        calendarId,
-        error,
-      });
-      // Continue with other calendars instead of throwing
-      continue;
-    }
-
-    const data = await response.json();
-    const events = (data.value || []).map((event: any) => ({
-      start: event.start.dateTime,
-      end: event.end.dateTime,
-      allDay: event.isAllDay || false,
-    }));
-
-    allEvents.push(...events);
-  }
-
-  return allEvents;
-}
-
-/**
  * Fetch all busy periods for a user's calendar connections
  */
 export async function fetchUserBusyPeriods(
@@ -147,15 +96,6 @@ export async function fetchUserBusyPeriods(
       switch (connection.provider) {
         case 'google':
           events = await fetchGoogleCalendarEvents(
-            accessToken,
-            selectedCalendars,
-            startDate,
-            endDate
-          );
-          break;
-
-        case 'microsoft':
-          events = await fetchMicrosoftCalendarEvents(
             accessToken,
             selectedCalendars,
             startDate,

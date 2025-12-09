@@ -197,21 +197,6 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
           `&state=${provider}`;
         break;
 
-      case 'microsoft':
-        authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
-          `client_id=${process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID}` +
-          `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-          `&response_type=code` +
-          `&scope=${encodeURIComponent('Calendars.ReadWrite offline_access')}` +
-          `&state=${provider}`;
-        break;
-
-      case 'apple':
-        // Apple Calendar uses CalDAV, requires different approach
-        console.warn('Apple Calendar integration not yet implemented');
-        setError('Apple Calendar integration coming soon');
-        return;
-
       default:
         setError(`Unknown calendar provider: ${provider}`);
         return;

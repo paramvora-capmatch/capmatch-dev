@@ -4,7 +4,7 @@
  * Calendar integration types
  */
 
-export type CalendarProvider = 'google' | 'microsoft' | 'apple';
+export type CalendarProvider = 'google';
 
 export interface CalendarConnection {
   id: string;

@@ -99,9 +99,9 @@ export const CalendarSettingsPanel = () => {
   };
 
   const connectedProviders = new Set(connections.map((conn) => conn.provider));
-  const availableProviders = (Object.keys(PROVIDER_INFO) as CalendarProvider[]).filter(
-    (provider) => !connectedProviders.has(provider)
-  );
+  const availableProviders = (Object.keys(PROVIDER_INFO) as CalendarProvider[])
+    .filter((provider) => !connectedProviders.has(provider))
+    .filter((provider) => provider === 'google'); // Only show Google Calendar option
 
   if (isLoading) {
     return (
@@ -303,10 +303,8 @@ export const CalendarSettingsPanel = () => {
                 <button
                   key={provider}
                   onClick={() => handleConnect(provider)}
-                  disabled={provider === 'apple'} // Apple not yet implemented
                   className={cn(
-                    "flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-sm",
-                    provider === 'apple' && "opacity-50 cursor-not-allowed"
+                    "flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-sm"
                   )}
                 >
                   <div className={cn("flex h-12 w-12 items-center justify-center rounded-lg text-2xl", providerInfo.bgColor)}>
@@ -315,7 +313,7 @@ export const CalendarSettingsPanel = () => {
                   <div className="flex-1">
                     <h5 className="font-semibold text-gray-900">{providerInfo.name}</h5>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      {provider === 'apple' ? 'Coming soon' : 'Click to connect'}
+                      Click to connect
                     </p>
                   </div>
                 </button>

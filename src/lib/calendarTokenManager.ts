@@ -38,35 +38,6 @@ export async function refreshAccessToken(provider: string, refreshToken: string)
       };
     }
 
-    case 'microsoft': {
-      const response = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          refresh_token: refreshToken,
-          client_id: process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID!,
-          client_secret: process.env.MICROSOFT_CLIENT_SECRET!,
-          grant_type: 'refresh_token',
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error('[Microsoft OAuth] Token refresh failed:', error);
-        throw new Error(`Microsoft token refresh failed: ${error}`);
-      }
-
-      const data = await response.json();
-
-      return {
-        access_token: data.access_token,
-        expires_at: new Date(Date.now() + data.expires_in * 1000).toISOString(),
-        refresh_token: data.refresh_token,
-      };
-    }
-
     default:
       throw new Error(`Unsupported provider for token refresh: ${provider}`);
   }
