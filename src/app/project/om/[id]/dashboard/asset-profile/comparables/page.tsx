@@ -5,28 +5,33 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Building2, DollarSign, BarChart3 } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { parseNumeric, calculateAverage, formatFixed } from '@/lib/om-utils';
 
 export default function ComparablesPage() {
   const { content } = useOmContent();
-  const assetProfileDetails = content?.assetProfileDetails ?? null;
-  const comparableDetails = assetProfileDetails?.comparableDetails ?? [];
+  
+  // Access flat rentComps array directly
+  const rentComps = Array.isArray(content?.rentComps) ? content.rentComps : [];
+  
+  // Transform flat rentComps to comparableDetails structure for UI
+  const comparableDetails = rentComps.map((comp: any) => ({
+    name: comp.propertyName || comp.name || 'Unknown Property',
+    address: comp.address || comp.location || null,
+    distance: comp.distance ? `${comp.distance} mi` : null,
+    yearBuilt: comp.yearBuilt || comp.year || null,
+    units: comp.totalUnits || comp.units || 0,
+    occupancy: comp.occupancy ? `${comp.occupancy}%` : null,
+    avgRent: comp.rentPerSF ? `$${comp.rentPerSF}/SF` : comp.rentPSF || null,
+    lastSale: {
+      date: comp.saleDate || comp.lastSaleDate || null,
+      price: comp.salePrice ? `$${comp.salePrice.toLocaleString()}` : null,
+      capRate: comp.capRate ? `${comp.capRate}%` : null,
+    },
+  }));
 
-  const parseNumeric = (value?: string | null) => {
-    if (!value) return null;
-    const parsed = parseFloat(value.replace(/[^\d.]/g, ''));
-    return Number.isNaN(parsed) ? null : parsed;
-  };
-
-  const average = (items: typeof comparableDetails, accessor: (item: typeof comparableDetails[number]) => number | null) => {
-    if (!items.length) return null;
-    const values = items.map(accessor).filter((value: number | null): value is number => value != null);
-    if (!values.length) return null;
-    return values.reduce((sum: number, value: number) => sum + value, 0) / values.length;
-  };
-
-  const avgRentPSF = average(comparableDetails, (comp) => parseNumeric(comp.avgRent));
-  const avgCapRate = average(comparableDetails, (comp) => parseNumeric(comp.lastSale?.capRate));
-  const avgDistance = average(comparableDetails, (comp) => parseNumeric(comp.distance));
+  const avgRentPSF = calculateAverage(comparableDetails, (comp: typeof comparableDetails[0]) => parseNumeric(comp.avgRent));
+  const avgCapRate = calculateAverage(comparableDetails, (comp: typeof comparableDetails[0]) => parseNumeric(comp.lastSale?.capRate));
+  const avgDistance = calculateAverage(comparableDetails, (comp: typeof comparableDetails[0]) => parseNumeric(comp.distance));
   const comparablesCount = comparableDetails.length;
 
   const getDistanceColor = (distance: string | undefined) => {
@@ -89,7 +94,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {avgRentPSF != null ? `$${avgRentPSF.toFixed(2)}` : null}
+              {formatFixed(avgRentPSF, 2) != null ? `$${formatFixed(avgRentPSF, 2)}` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Market average</p>
           </CardContent>
@@ -104,7 +109,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {avgCapRate != null ? `${avgCapRate.toFixed(1)}%` : null}
+              {formatFixed(avgCapRate, 1) != null ? `${formatFixed(avgCapRate, 1)}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Market average</p>
           </CardContent>
@@ -116,7 +121,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {avgDistance != null ? `${avgDistance.toFixed(1)} mi` : null}
+              {formatFixed(avgDistance, 1) != null ? `${formatFixed(avgDistance, 1)} mi` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
           </CardContent>
@@ -221,7 +226,7 @@ export default function ComparablesPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Market Average</span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {avgRentPSF != null ? `$${avgRentPSF.toFixed(2)}` : null}
+                    {formatFixed(avgRentPSF, 2) != null ? `$${formatFixed(avgRentPSF, 2)}` : null}
                   </Badge>
                 </div>
               </div>
@@ -263,7 +268,7 @@ export default function ComparablesPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Market Average</span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {avgCapRate != null ? `${avgCapRate.toFixed(1)}%` : null}
+                    {formatFixed(avgCapRate, 1) != null ? `${formatFixed(avgCapRate, 1)}%` : null}
                   </Badge>
                 </div>
               </div>
@@ -284,15 +289,15 @@ export default function ComparablesPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Rent Premium</span>
-                  <Badge className="bg-green-100 text-green-800">+15%</Badge>
+                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">+15%</span></Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Quality Tier</span>
-                  <Badge variant="outline" className="border-gray-200">Luxury</Badge>
+                  <Badge variant="outline" className="border-gray-200"><span className="text-red-600">Luxury</span></Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Competition Level</span>
-                  <Badge className="bg-blue-100 text-blue-800">Moderate</Badge>
+                  <Badge className="bg-blue-100 text-blue-800"><span className="text-red-600">Moderate</span></Badge>
                 </div>
               </div>
             </div>
@@ -302,15 +307,15 @@ export default function ComparablesPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Workforce housing with PFC tax exemption
+                  <span className="text-red-600">Workforce housing with PFC tax exemption</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Pre-leased Innovation Center (30,000 SF)
+                  <span className="text-red-600">Pre-leased Innovation Center (30,000 SF)</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Adjacent to Farmers Market and Deep Ellum
+                  <span className="text-red-600">Adjacent to Farmers Market and Deep Ellum</span>
                 </li>
               </ul>
             </div>
@@ -320,15 +325,15 @@ export default function ComparablesPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Demand Trend</span>
-                  <Badge className="bg-green-100 text-green-800">↑ Growing</Badge>
+                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">↑ Growing</span></Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pipeline</span>
-                  <Badge className="bg-green-100 text-green-800">{'<'}6K units (24mo)</Badge>
+                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">{'<'}6K units (24mo)</span></Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Rent Growth</span>
-                  <Badge className="bg-green-100 text-green-800">+6.9% (5yr)</Badge>
+                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">+6.9% (5yr)</span></Badge>
                 </div>
               </div>
             </div>

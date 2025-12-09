@@ -6,6 +6,7 @@ import { Building2, TrendingUp, MapPin, Users } from 'lucide-react';
 import EmploymentMap from '@/components/om/EmploymentMap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { parseNumeric, calculateAverage, formatLocale, formatFixed } from '@/lib/om-utils';
 
 export default function EmploymentPage() {
   const { content } = useOmContent();
@@ -44,21 +45,13 @@ export default function EmploymentPage() {
     0
   );
 
-  const avgGrowth =
-    majorEmployers.length > 0
-      ? majorEmployers.reduce((sum: number, employer: { growth?: string | null }) => {
-          const growthValue = employer.growth ?? '0';
-          return sum + parseInt(growthValue.replace(/[^\d-]/g, ''));
-        }, 0) / majorEmployers.length
-      : null;
+  const avgGrowth = calculateAverage(majorEmployers, (employer: typeof majorEmployers[0]) => {
+    const growthValue = employer.growth ?? '0';
+    const parsed = parseInt(growthValue.replace(/[^\d-]/g, ''));
+    return isNaN(parsed) ? null : parsed;
+  });
 
-  const avgDistance =
-    majorEmployers.length > 0
-      ? majorEmployers.reduce((sum: number, employer: { distance?: string | null }) => {
-          const distanceValue = employer.distance ?? '0';
-          return sum + parseFloat(distanceValue.replace(/[^\d.]/g, ''));
-        }, 0) / majorEmployers.length
-      : null;
+  const avgDistance = calculateAverage(majorEmployers, (employer: typeof majorEmployers[0]) => parseNumeric(employer.distance));
 
   useOMPageHeader({
     subtitle: "Job base composition, employer proximity, and growth trends.",
@@ -90,7 +83,7 @@ export default function EmploymentPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">{totalEmployees.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-green-600">{formatLocale(totalEmployees) ?? 0}</p>
             <p className="text-sm text-gray-500 mt-1">Direct employment</p>
           </CardContent>
         </Card>
@@ -104,7 +97,7 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {avgGrowth != null ? `+${avgGrowth.toFixed(1)}%` : null}
+              {formatFixed(avgGrowth, 1) != null ? `+${formatFixed(avgGrowth, 1)}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Annual average</p>
           </CardContent>
@@ -116,7 +109,7 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {avgDistance != null ? `${avgDistance.toFixed(1)} mi` : null}
+              {formatFixed(avgDistance, 1) != null ? `${formatFixed(avgDistance, 1)} mi` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
           </CardContent>
@@ -149,13 +142,13 @@ export default function EmploymentPage() {
                       <div>
                         <p className="font-medium text-gray-800">{employer.name ?? null}</p>
                         <p className="text-sm text-gray-500">
-                          {employees.toLocaleString()} employees
+                          {formatLocale(employees) ?? 0} employees
                         </p>
                       </div>
                     </td>
                     <td className="py-4 px-4">
                       <Badge className={getEmployeeSizeColor(employees)}>
-                        {employees.toLocaleString()}
+                        {formatLocale(employees) ?? 0}
                       </Badge>
                     </td>
                     <td className="py-4 px-4">
@@ -206,7 +199,7 @@ export default function EmploymentPage() {
                   <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">{employer.name}</span>
-                    <span className="text-sm text-gray-500">{(employer.employees ?? 0).toLocaleString()}</span>
+                    <span className="text-sm text-gray-500">{formatLocale(employer.employees ?? 0) ?? 0}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
@@ -221,7 +214,7 @@ export default function EmploymentPage() {
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Total Employment</span>
-                  <Badge className="bg-blue-100 text-blue-800">{totalEmployees.toLocaleString()}</Badge>
+                  <Badge className="bg-blue-100 text-blue-800">{formatLocale(totalEmployees) ?? 0}</Badge>
                 </div>
               </div>
             </div>
@@ -238,7 +231,7 @@ export default function EmploymentPage() {
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-800">{employer.name}</p>
-                    <p className="text-sm text-gray-500">{(employer.employees ?? 0).toLocaleString()} employees</p>
+                    <p className="text-sm text-gray-500">{formatLocale(employer.employees ?? 0) ?? 0} employees</p>
                   </div>
                   <div className="text-right">
                     <Badge className={getGrowthColor(employer.growth)}>
@@ -265,15 +258,15 @@ export default function EmploymentPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Strong tech sector presence
+                  <span className="text-red-600">Strong tech sector presence</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Healthcare employment stability
+                  <span className="text-red-600">Healthcare employment stability</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Financial services growth
+                  <span className="text-red-600">Financial services growth</span>
                 </li>
               </ul>
             </div>
@@ -283,15 +276,15 @@ export default function EmploymentPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  High-income tech workers
+                  <span className="text-red-600">High-income tech workers</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Growing employment base
+                  <span className="text-red-600">Growing employment base</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government
+                  <span className="text-red-600">Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government</span>
                 </li>
               </ul>
             </div>
@@ -301,15 +294,15 @@ export default function EmploymentPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Downtown Dallas professionals (AT&T, JP Morgan Chase)
+                  <span className="text-red-600">Downtown Dallas professionals (AT&T, JP Morgan Chase)</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Healthcare workers (Baylor Medical Center)
+                  <span className="text-red-600">Healthcare workers (Baylor Medical Center)</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Government employees (Dallas County)
+                  <span className="text-red-600">Government employees (Dallas County)</span>
                 </li>
               </ul>
             </div>

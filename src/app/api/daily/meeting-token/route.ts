@@ -51,7 +51,8 @@ export async function POST(request: Request) {
 
   try {
     const body: MeetingTokenRequest = await request.json();
-    let { roomName, meetingId } = body;
+    const { roomName: roomNameParam, meetingId } = body;
+    let roomName = roomNameParam;
 
     if (!roomName && !meetingId) {
       return NextResponse.json(

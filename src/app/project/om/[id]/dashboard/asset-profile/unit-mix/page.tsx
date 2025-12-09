@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Home, DollarSign, Users } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { formatLocale, formatFixed } from '@/lib/om-utils';
 
 type UnitMixUnit = {
   count?: number | null;
@@ -15,8 +16,22 @@ type UnitMixUnit = {
 
 export default function UnitMixPage() {
   const { content } = useOmContent();
-  const assetProfileDetails = content?.assetProfileDetails ?? null;
-  const unitMixDetails = assetProfileDetails?.unitMixDetails ?? {};
+  
+  // Access flat residentialUnitMix array directly
+  const residentialUnitMix = Array.isArray(content?.residentialUnitMix) ? content.residentialUnitMix : [];
+  
+  // Transform flat array to unit mix details structure for UI
+  const unitMixDetails: Record<string, UnitMixUnit> = {};
+  residentialUnitMix.forEach((unit: any) => {
+    const unitType = unit.unitType || unit.type || 'unknown';
+    unitMixDetails[unitType] = {
+      count: unit.unitCount || unit.units || 0,
+      avgSF: unit.avgSF || unit.averageUnitSize || 0,
+      rentRange: unit.monthlyRent ? `$${unit.monthlyRent}` : null,
+      deposit: unit.deposit || null,
+    };
+  });
+  
   const unitEntries = Object.entries(unitMixDetails) as [string, UnitMixUnit][];
   const totalUnits = unitEntries.reduce(
     (sum: number, [, unit]: [string, UnitMixUnit]) => sum + (unit.count ?? 0),
@@ -75,14 +90,20 @@ export default function UnitMixPage() {
     
     return {
       path: `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`,
-      percentage: Math.round(percentage * 100),
+      percentage: Math.round(percentage * 10000) / 100, // Round to 2 decimal places
       startAngle,
       endAngle
     };
   };
 
   let currentAngle = 0;
-  const detailedUnitMix = assetProfileDetails?.detailedUnitMix ?? [];
+  // Use residentialUnitMix array for detailed unit mix
+  const detailedUnitMix = residentialUnitMix.map((unit: any) => ({
+    code: unit.unitType || unit.type || '',
+    type: unit.unitType || unit.type || '',
+    units: unit.unitCount || unit.units || 0,
+    avgSF: unit.avgSF || unit.averageUnitSize || 0,
+  }));
   const pieSegments =
     totalUnits > 0
       ? unitEntries.map(([type, unit]: [string, UnitMixUnit]) => {
@@ -109,7 +130,9 @@ export default function UnitMixPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{totalUnits}</p>
+            <p className="text-3xl font-bold text-blue-600">
+              {content?.totalResidentialUnits ?? totalUnits}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Residential units</p>
           </CardContent>
         </Card>
@@ -122,7 +145,9 @@ export default function UnitMixPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">{totalRentableSF.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-green-600">
+              {formatLocale(content?.totalResidentialNRSF ?? totalRentableSF) ?? 0}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Rentable square feet</p>
           </CardContent>
         </Card>
@@ -137,7 +162,7 @@ export default function UnitMixPage() {
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
               {blendedAverageRentDisplay != null
-                ? `$${blendedAverageRentDisplay.toLocaleString()}`
+                ? `$${formatLocale(blendedAverageRentDisplay) ?? 0}`
                 : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per unit average</p>
@@ -177,7 +202,7 @@ export default function UnitMixPage() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-500">Average SF</p>
-                      <p className="font-medium text-gray-800">{(unit.avgSF ?? 0).toLocaleString()} SF</p>
+                      <p className="font-medium text-gray-800">{formatLocale(unit.avgSF ?? 0) ?? 0} SF</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Rent Range</p>
@@ -233,7 +258,7 @@ export default function UnitMixPage() {
                     <span className="text-sm font-medium text-gray-800">{getUnitTypeLabel(segment.type)}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-semibold text-gray-800">{segment.percentage}%</span>
+                    <span className="text-sm font-semibold text-gray-800">{segment.percentage.toFixed(2)}%</span>
                     <span className="text-xs text-gray-500 ml-1">({(segment.unit as UnitMixUnit).count} units)</span>
                   </div>
                 </div>
@@ -259,7 +284,7 @@ export default function UnitMixPage() {
                   return (
                     <div key={type} className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">{getUnitTypeLabel(type)}</span>
-                      <Badge variant="outline" className="border-gray-200">${rentPSF.toFixed(2)}/SF</Badge>
+                      <Badge variant="outline" className="border-gray-200">${formatFixed(rentPSF, 2) ?? "0.00"}/SF</Badge>
                     </div>
                   );
                 })}
@@ -283,15 +308,15 @@ export default function UnitMixPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Luxury Tier</span>
-                  <Badge className="bg-blue-100 text-blue-800">Premium</Badge>
+                  <Badge className="bg-blue-100 text-blue-800"><span className="text-red-600">Premium</span></Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Target Market</span>
-                  <Badge variant="outline" className="border-gray-200">Young Professionals</Badge>
+                  <Badge variant="outline" className="border-gray-200"><span className="text-red-600">Young Professionals</span></Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Competitive Position</span>
-                  <Badge className="bg-green-100 text-green-800">Top 20%</Badge>
+                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">Top 20%</span></Badge>
                 </div>
               </div>
             </div>
@@ -322,7 +347,7 @@ export default function UnitMixPage() {
                     <td className="py-3 px-2 font-medium text-gray-800">{plan.code}</td>
                     <td className="py-3 px-2 text-gray-600">{plan.type}</td>
                     <td className="py-3 px-2 text-gray-600">{plan.units}</td>
-                    <td className="py-3 px-2 text-gray-600">{(plan.avgSF ?? 0).toLocaleString()} SF</td>
+                    <td className="py-3 px-2 text-gray-600">{formatLocale(plan.avgSF ?? 0) ?? 0} SF</td>
                   </tr>
                 ))}
               </tbody>

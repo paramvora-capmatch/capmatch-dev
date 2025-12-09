@@ -11,6 +11,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { formatFixed } from '@/lib/om-utils';
 
 export default function CapitalStackPage() {
   const params = useParams();
@@ -27,7 +28,7 @@ export default function CapitalStackPage() {
   const formatPercent = (value: number | null | undefined) =>
     value != null ? `${value}%` : null;
   const formatMillions = (value: number | null | undefined) =>
-    value != null ? `$${(value / 1_000_000).toFixed(1)}M` : null;
+    value != null ? `$${formatFixed(value / 1_000_000, 1) ?? "0.0"}M` : null;
 
   useOMPageHeader({
     subtitle: project
@@ -291,12 +292,12 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Construction Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> Cost overruns and delays could strain
-                cash flow
+                <strong>Risk:</strong> <span className="text-red-600">Cost overruns and delays could strain
+                cash flow</span>
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> Fixed-price GMP contract with
-                experienced contractor
+                <strong>Mitigant:</strong> <span className="text-red-600">Fixed-price GMP contract with
+                experienced contractor</span>
               </p>
             </div>
           </div>
@@ -305,12 +306,12 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Interest Rate Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> Rising SOFR could increase debt service
-                costs
+                <strong>Risk:</strong> <span className="text-red-600">Rising SOFR could increase debt service
+                costs</span>
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> 12-month interest reserve and rate
-                floor protection
+                <strong>Mitigant:</strong> <span className="text-red-600">12-month interest reserve and rate
+                floor protection</span>
               </p>
             </div>
           </div>
@@ -319,12 +320,12 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Pre-Leasing Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> Insufficient pre-leasing could delay
-                permanent financing
+                <strong>Risk:</strong> <span className="text-red-600">Insufficient pre-leasing could delay
+                permanent financing</span>
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> Strong market fundamentals and
-                marketing plan
+                <strong>Mitigant:</strong> <span className="text-red-600">Strong market fundamentals and
+                marketing plan</span>
               </p>
             </div>
           </div>
@@ -333,12 +334,12 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Exit Strategy Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> Market conditions may not support target
-                exit cap rate
+                <strong>Risk:</strong> <span className="text-red-600">Market conditions may not support target
+                exit cap rate</span>
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> Multiple exit strategies (sale,
-                refinance, hold)
+                <strong>Mitigant:</strong> <span className="text-red-600">Multiple exit strategies (sale,
+                refinance, hold)</span>
               </p>
             </div>
           </div>

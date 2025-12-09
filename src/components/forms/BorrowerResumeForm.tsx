@@ -415,8 +415,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		stateRef.current = { formData, fieldMetadata, lockedFields };
 		onFormDataChange?.(formData);
 
+		// Convert Set to Record for the utility function
+		const lockedFieldsObj: Record<string, boolean> = {};
+		lockedFields.forEach((id) => { lockedFieldsObj[id] = true; });
+
 		// Report progress
-		const completeness = computeBorrowerCompletion(formData);
+		const completeness = computeBorrowerCompletion(formData, lockedFieldsObj);
 		onProgressChange?.(completeness);
 	}, [
 		formData,
@@ -835,7 +839,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 				// Calculate completeness before saving
 				const completenessPercent =
-					computeBorrowerCompletion(finalData);
+					computeBorrowerCompletion(finalData, lockedFieldsObj);
 
 				const dataToSave = {
 					...finalData,
@@ -894,61 +898,6 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		},
 		[formData, saveToDatabase, onComplete, reloadBorrowerResume]
 	);
-
-	// Save on Unmount
-	useEffect(() => {
-		return () => {
-			if (isSavingRef.current) return;
-			if (!hasUnsavedChanges()) return;
-
-			const {
-				formData: currentData,
-				fieldMetadata: currentMeta,
-				lockedFields: currentLocks,
-			} = stateRef.current;
-
-			const lockedFieldsObj: Record<string, boolean> = {};
-			currentLocks.forEach((id) => (lockedFieldsObj[id] = true));
-
-			// Recompute completion for the background save
-			const completenessPercent = computeBorrowerCompletion(currentData);
-
-			const dataToSave = {
-				...currentData,
-				_metadata: currentMeta,
-				_lockedFields: lockedFieldsObj,
-				completenessPercent,
-			};
-
-			// Signal to realtime hooks that this is a local save
-			if (typeof window !== "undefined") {
-				window.dispatchEvent(
-					new CustomEvent("local-save-started", {
-						detail: { projectId, context: "borrower" },
-					})
-				);
-			}
-
-			void saveProjectBorrowerResume(projectId, dataToSave, {
-				// Background autosave on unmount should NOT create a new
-				// borrower_resumes version row every time. Persist changes
-				// in-place instead to avoid cluttering history with
-				// minor/autosave-only snapshots.
-				createNewVersion: false,
-			})
-				.then(() => {
-					if (typeof window !== "undefined") {
-						localStorage.removeItem(storageKey);
-					}
-				})
-				.catch((err) =>
-					console.error(
-						"[BorrowerResumeForm] Unmount save failed",
-						err
-					)
-				);
-		};
-	}, [hasUnsavedChanges, projectId, storageKey]);
 
 	// Warn on close
 	useEffect(() => {
@@ -1199,7 +1148,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						type="button"
 						onClick={(e) => {
 							e.stopPropagation();
-							if (!isDisabled) toggleFieldLock(fieldId);
+							e.preventDefault();
+							if (isDisabled) return;
+							toggleFieldLock(fieldId);
 						}}
 						disabled={isDisabled}
 						className={cn(
@@ -1712,7 +1663,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 			try {
 				await saveProjectBorrowerResume(projectId, dataToSave, {
-					createNewVersion: false,
+					// Create a new version before autofill to preserve current state
+					// The autofill will create another version with the extracted data
+					createNewVersion: true,
 				});
 			} catch (saveErr) {
 				console.error(

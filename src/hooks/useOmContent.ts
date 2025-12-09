@@ -10,7 +10,7 @@ export function useOmContent() {
 
   return {
     projectId,
-    content: omData?.content ?? null,
+    content: omData?.content ?? {},
     isLoading,
     error,
   };

@@ -18,13 +18,78 @@ export default function DealSnapshotPage() {
     const project = projectId ? getProject(projectId) : null;
     const { scenario } = useOMDashboard();
     const { content } = useOmContent();
-    const dealSnapshotDetails = content?.dealSnapshotDetails ?? null;
-    const scenarioData = content?.scenarioData ?? null;
-    const data = scenarioData?.[scenario] ?? null;
-    const debtPercent = data?.ltc ?? null;
+    
+    // Access flat fields directly
+    const loanAmount = content?.loanAmountRequested ?? 0;
+    const totalDevCost = content?.totalDevelopmentCost ?? 0;
+    const ltc = content?.ltc ?? null;
+    const ltv = content?.ltv ?? null;
+    const interestRate = content?.interestRate ?? null;
+    const allInRate = content?.allInRate ?? null;
+    const requestedTerm = content?.requestedTerm ?? null;
+    const recoursePreference = content?.recoursePreference ?? null;
+    const dscrStressMin = content?.dscrStressMin ?? null;
+    const ltvStressMax = content?.ltvStressMax ?? null;
+    const guarantorLiquidity = content?.guarantorLiquidity ?? null;
+    const interestReserve = content?.interestReserve ?? null;
+    const realEstateTaxes = content?.realEstateTaxes ?? null;
+    const insurance = content?.insurance ?? null;
+    const opDeficitEscrow = content?.opDeficitEscrow ?? null;
+    
+    // Calculate percentages from flat fields
+    const debtPercent = ltc ?? (totalDevCost > 0 ? (loanAmount / totalDevCost) * 100 : null);
     const equityPercent = debtPercent != null ? 100 - debtPercent : null;
-    const formatPercent = (value: number | null | undefined) =>
-      value != null ? `${value}%` : null;
+    const formatPercent = (value: number | null | undefined) => {
+      if (value == null) return null;
+      const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+      return !Number.isNaN(numValue) ? `${numValue.toFixed(1)}%` : null;
+    };
+    
+    // Build key terms from flat fields
+    const keyTerms = {
+      rate: allInRate != null ? `${allInRate}% all-in` : interestRate != null ? `${interestRate}%` : null,
+      term: requestedTerm ?? null,
+      recourse: recoursePreference ?? null,
+      origination: "1.00%",
+      covenants: {
+        minDSCR: dscrStressMin != null ? `${dscrStressMin.toFixed(2)}x` : null,
+        maxLTV: ltvStressMax != null ? `${ltvStressMax}%` : null,
+        minLiquidity: guarantorLiquidity != null ? `$${Number(guarantorLiquidity).toLocaleString()}` : null,
+      },
+    };
+    
+    // Build milestones from flat date fields
+    const milestones = [
+      { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: "completed" as const },
+      { phase: "Entitlements", date: content?.entitlements ?? null, status: "completed" as const },
+      { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: "current" as const },
+      { phase: "Completion", date: content?.completionDate ?? null, status: "upcoming" as const },
+      { phase: "Stabilization", date: content?.stabilization ?? null, status: "upcoming" as const },
+    ].filter(item => item.date);
+    
+    // Build scenario data from flat fields
+    const scenarioData = {
+      base: {
+        loanAmount,
+        ltv: ltv ?? null,
+        ltc: ltc ?? null,
+        constructionCost: totalDevCost,
+      },
+      upside: {
+        loanAmount,
+        ltv: ltv ?? null,
+        ltc: ltc ?? null,
+        constructionCost: totalDevCost,
+      },
+      downside: {
+        loanAmount,
+        ltv: ltv ?? null,
+        ltc: ltc ?? null,
+        constructionCost: totalDevCost,
+      },
+    };
+    
+    const data = scenarioData[scenario] ?? scenarioData.base;
     
     useOMPageHeader({
         subtitle: project
@@ -63,7 +128,7 @@ export default function DealSnapshotPage() {
                     </div>
                     <MetricCard
                         label="Total Capitalization"
-                        value={data?.constructionCost ?? null}
+                        value={data.constructionCost ?? null}
                         format="currency"
                         size="sm"
                     />
@@ -84,28 +149,28 @@ export default function DealSnapshotPage() {
                                 <Percent className="h-3 w-3 text-green-600" />
                                 <p className="text-xs font-medium text-green-600">Rate</p>
                             </div>
-                            <p className="font-bold text-gray-900 text-xs leading-tight">{dealSnapshotDetails?.keyTerms?.rate ?? null}</p>
+                            <p className="font-bold text-gray-900 text-xs leading-tight">{keyTerms.rate ?? null}</p>
                         </div>
                         <div className="text-sm p-2 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
                             <div className="flex items-center space-x-1 mb-1">
                                 <Clock className="h-3 w-3 text-red-600" />
                                 <p className="text-xs font-medium text-red-600">Term</p>
                             </div>
-                            <p className="font-bold text-gray-900 text-xs">{dealSnapshotDetails?.keyTerms?.term ?? null}</p>
+                            <p className="font-bold text-gray-900 text-xs">{keyTerms.term ?? null}</p>
                         </div>
                         <div className="text-sm p-2 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
                             <div className="flex items-center space-x-1 mb-1">
                                 <Shield className="h-3 w-3 text-red-600" />
                                 <p className="text-xs font-medium text-red-600">Recourse</p>
                             </div>
-                            <p className="font-bold text-gray-900 text-xs leading-tight">{dealSnapshotDetails?.keyTerms?.recourse ?? null}</p>
+                            <p className="font-bold text-gray-900 text-xs leading-tight">{keyTerms.recourse ?? null}</p>
                         </div>
                         <div className="text-sm p-2 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
                             <div className="flex items-center space-x-1 mb-1">
                                 <DollarSign className="h-3 w-3 text-red-600" />
                                 <p className="text-xs font-medium text-red-600">Origination</p>
                             </div>
-                            <p className="font-bold text-gray-900 text-xs">{dealSnapshotDetails?.keyTerms?.origination ?? null}</p>
+                            <p className="font-bold text-gray-900 text-xs">{keyTerms.origination ?? null}</p>
                         </div>
                     </div>
                     <div className="pt-2 border-t-2 border-blue-200">
@@ -117,19 +182,19 @@ export default function DealSnapshotPage() {
                             <div className="flex items-center justify-between p-1.5 bg-blue-50 rounded border border-blue-200">
                                 <span className="text-xs font-medium text-blue-700">Min DSCR</span>
                                 <span className="text-xs font-bold text-blue-900">
-                                    {dealSnapshotDetails?.keyTerms?.covenants?.minDSCR ?? null}
+                                    {keyTerms.covenants.minDSCR ?? null}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between p-1.5 bg-blue-50 rounded border border-blue-200">
                                 <span className="text-xs font-medium text-blue-700">Max LTV / LTC</span>
                                 <span className="text-xs font-bold text-blue-900">
-                                    {dealSnapshotDetails?.keyTerms?.covenants?.maxLTV ?? null}
+                                    {keyTerms.covenants.maxLTV ?? null}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between p-1.5 bg-blue-50 rounded border border-blue-200">
                                 <span className="text-xs font-medium text-blue-700">Liquidity</span>
                                 <span className="text-xs font-bold text-blue-900">
-                                    {dealSnapshotDetails?.keyTerms?.covenants?.minLiquidity ?? null}
+                                    {keyTerms.covenants.minLiquidity ?? null}
                                 </span>
                             </div>
                         </div>
@@ -146,7 +211,7 @@ export default function DealSnapshotPage() {
             metrics: (
                 <div className="space-y-3">
                     <div className="space-y-2">
-                        {dealSnapshotDetails?.milestones?.slice(0, 3).map((milestone: { phase?: string | null; date?: string | null; status?: string | null }, idx: number) => (
+                        {milestones.slice(0, 3).map((milestone, idx: number) => (
                             <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                                 <span className="text-sm">{milestone.phase ?? null}</span>
                                 <div className="flex items-center space-x-2">
@@ -174,37 +239,10 @@ export default function DealSnapshotPage() {
             metrics: (
                 <div className="space-y-3">
                     <div className="space-y-2">
-                        {(() => {
-                            const medium = (dealSnapshotDetails?.riskMatrix?.medium ?? []).map((item: { risk?: string | null; mitigation?: string | null }) => ({
-                                ...item,
-                                level: 'Medium',
-                            }));
-                            const low = (dealSnapshotDetails?.riskMatrix?.low ?? []).map((item: { risk?: string | null; mitigation?: string | null }) => ({
-                                ...item,
-                                level: 'Low',
-                            }));
-                            return [...medium, ...low]
-                                .slice(0, 3)
-                                .map((item, idx) => (
-                                    <div key={idx} className="p-2 bg-gray-50 rounded">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="text-sm font-medium">{item.risk ?? null}</p>
-                                                <p className="text-xs text-gray-500">{item.mitigation ?? null}</p>
-                                            </div>
-                                            <span
-                                                className={`text-xs px-2 py-1 rounded ${
-                                                    item.level === 'Low'
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : 'bg-red-100 text-red-700'
-                                                }`}
-                                            >
-                                                {item.level}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ));
-                        })()}
+                        {/* Risk matrix - empty for now, can be populated from flat fields in the future */}
+                        <div className="p-2 bg-gray-50 rounded text-sm text-gray-500 text-center">
+                            <span className="text-red-600">No risk flags identified</span>
+                        </div>
                     </div>
                 </div>
             )

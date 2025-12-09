@@ -115,7 +115,7 @@ export function DailyVideoCall({
       .then(() => {
         console.log('Successfully joined Daily.co call');
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         console.error('Error joining call:', err);
         setError('Failed to join video call');
       });
@@ -132,7 +132,7 @@ export function DailyVideoCall({
       window.location.href = '/dashboard';
     });
 
-    daily.on('error', (err) => {
+    daily.on('error', (err: unknown) => {
       console.error('Daily.co error:', err);
       setError('An error occurred during the call');
     });

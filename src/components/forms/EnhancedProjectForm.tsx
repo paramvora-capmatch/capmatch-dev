@@ -219,21 +219,6 @@ const loanTypeOptions = [
 	"Other",
 ];
 const constructionTypeOptions = ["Ground-Up", "Renovation", "Adaptive Reuse"];
-const primaryAssetClassOptions = [
-	"Multifamily",
-	"Office",
-	"Retail",
-	"Industrial",
-	"Hospitality",
-	"Land",
-	"Mixed-Use",
-	"Self-Storage",
-	"Data Center",
-	"Medical Office",
-	"Senior Housing",
-	"Student Housing",
-	"Other",
-];
 const buildingTypeOptions = ["High-rise", "Mid-rise", "Garden", "Podium"];
 const hvacSystemOptions = ["Central", "Split System", "PTAC", "VRF"];
 const leedGreenRatingOptions = [
@@ -2507,7 +2492,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			recoursePreference: "button-select",
 			exitStrategy: "button-select",
 			// Convert all dropdown fields to button-select (except state which stays as dropdown)
-			primaryAssetClass: "button-select",
 			dealStatus: "button-select",
 			expectedZoningChanges: "button-select",
 			syndicationStatus: "button-select",
@@ -2540,7 +2524,6 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			recoursePreference: recourseOptions,
 			exitStrategy: exitStrategyOptions,
 			// Dropdown field options
-			primaryAssetClass: primaryAssetClassOptions,
 			dealStatus: dealStatusOptions,
 			expectedZoningChanges: expectedZoningChangesOptions,
 			syndicationStatus: syndicationStatusOptions,

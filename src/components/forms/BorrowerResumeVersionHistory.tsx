@@ -20,7 +20,7 @@ import {
 } from "../shared/resumeVersionUtils";
 import { borrowerResumeFieldMetadata } from "@/lib/borrower-resume-field-metadata";
 import borrowerFormSchema from "@/lib/borrower-resume-form.schema.json";
-import { isGroupedFormat, ungroupFromSections } from "@/lib/section-grouping";
+// Removed imports: isGroupedFormat, ungroupFromSections - storage is now always flat format
 
 interface BorrowerResumeVersionHistoryProps {
 	projectId: string;

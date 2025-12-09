@@ -38,19 +38,19 @@ export default function MarketContextPage() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-xs text-gray-500">Population</p>
-              <p className="text-sm font-medium">425,000</p>
+              <p className="text-sm font-medium"><span className="text-red-600">425,000</span></p>
             </div>
             <div>
               <p className="text-xs text-gray-500">5yr Growth</p>
-              <p className="text-sm font-medium text-green-600">+14.2%</p>
+              <p className="text-sm font-medium text-green-600"><span className="text-red-600">+14.2%</span></p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Median Age</p>
-              <p className="text-sm font-medium">32.5</p>
+              <p className="text-sm font-medium"><span className="text-red-600">32.5</span></p>
             </div>
             <div>
               <p className="text-xs text-gray-500">College Grad%</p>
-              <p className="text-sm font-medium">45%</p>
+              <p className="text-sm font-medium"><span className="text-red-600">45%</span></p>
             </div>
           </div>
         </div>
@@ -68,19 +68,19 @@ export default function MarketContextPage() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-xs text-gray-500">Unemployment</p>
-              <p className="text-sm font-medium text-green-600">3.2%</p>
+              <p className="text-sm font-medium text-green-600"><span className="text-red-600">3.2%</span></p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Job Growth</p>
-              <p className="text-sm font-medium text-green-600">+3.5%</p>
+              <p className="text-sm font-medium text-green-600"><span className="text-red-600">+3.5%</span></p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Total Jobs</p>
-              <p className="text-sm font-medium">42,000</p>
+              <p className="text-sm font-medium"><span className="text-red-600">42,000</span></p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Avg Growth</p>
-              <p className="text-sm font-medium text-green-600">+8.2%</p>
+              <p className="text-sm font-medium text-green-600"><span className="text-red-600">+8.2%</span></p>
             </div>
           </div>
         </div>
@@ -98,19 +98,19 @@ export default function MarketContextPage() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-xs text-gray-500">Units U/C</p>
-              <p className="text-sm font-medium">2,450</p>
+              <p className="text-sm font-medium"><span className="text-red-600">2,450</span></p>
             </div>
             <div>
               <p className="text-xs text-gray-500">24mo Pipeline</p>
-              <p className="text-sm font-medium">4,200</p>
+              <p className="text-sm font-medium"><span className="text-red-600">4,200</span></p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Current Supply</p>
-              <p className="text-sm font-medium">12,500</p>
+              <p className="text-sm font-medium"><span className="text-red-600">12,500</span></p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Occupancy</p>
-              <p className="text-sm font-medium text-green-600">93.5%</p>
+              <p className="text-sm font-medium text-green-600"><span className="text-red-600">93.5%</span></p>
             </div>
           </div>
         </div>
@@ -121,29 +121,30 @@ export default function MarketContextPage() {
       title: "Regulatory / Incentives",
       icon: Zap,
       color: "from-green-400 to-green-500",
+      href: `/project/om/${projectId}/dashboard/market-context/regulatory-incentives`,
       metrics: (
         <div className="space-y-3">
           <div className="space-y-2">
             <div className="flex items-center justify-between p-2 bg-green-50 rounded">
               <span className="text-sm">Opportunity Zone</span>
               <span className="text-xs text-green-700 font-medium">
-                Qualified
+                <span className="text-red-600">Qualified</span>
               </span>
             </div>
             <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
               <span className="text-sm">Tax Abatement</span>
               <span className="text-xs text-blue-700 font-medium">
-                10 Years
+                <span className="text-red-600">10 Years</span>
               </span>
             </div>
             <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
               <span className="text-sm">Impact Fees</span>
-              <span className="text-xs text-gray-700 font-medium">$12/SF</span>
+              <span className="text-xs text-gray-700 font-medium"><span className="text-red-600">$12/SF</span></span>
             </div>
           </div>
           <div className="pt-2 border-t">
             <p className="text-xs text-gray-500 mb-1">Total Incentive Value</p>
-            <p className="text-xl font-semibold text-green-600">$2.4M</p>
+            <p className="text-xl font-semibold text-green-600"><span className="text-red-600">$2.4M</span></p>
           </div>
         </div>
       ),

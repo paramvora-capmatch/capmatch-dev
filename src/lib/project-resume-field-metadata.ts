@@ -94,15 +94,6 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Dropdown",
 		section: "basic-info",
 	},
-	primaryAssetClass: {
-		fieldId: "primaryAssetClass",
-		description:
-			"Primary asset class for loan product matching and risk assessment.",
-		backupSource: "User Input",
-		expectedValue: "e.g., Multifamily",
-		dataType: "Dropdown",
-		section: "basic-info",
-	},
 	projectPhase: {
 		fieldId: "projectPhase",
 		description:
@@ -306,30 +297,6 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 			'Text description, e.g., "Land acquisition, vertical construction, soft costs..."',
 		dataType: "Textarea",
 		section: "loan-info",
-	},
-	requestedLoanTerm: {
-		fieldId: "requestedLoanTerm",
-		description: "Requested loan term length (alternate field).",
-		backupSource: "User Input",
-		expectedValue: 'Text, e.g., "2 years"',
-		dataType: "Text",
-		section: "loan-info",
-	},
-	masterPlanName: {
-		fieldId: "masterPlanName",
-		description: "Name of the master planned development, if applicable.",
-		backupSource: "User Input",
-		expectedValue: "e.g., SoGood Master Planned Development",
-		dataType: "Text",
-		section: "basic-info",
-	},
-	phaseNumber: {
-		fieldId: "phaseNumber",
-		description: "Phase number/identifier within the master plan.",
-		backupSource: "User Input",
-		expectedValue: "e.g., Building B",
-		dataType: "Numeric",
-		section: "basic-info",
 	},
 
 	// Section 2: Property Specifications
@@ -1790,14 +1757,6 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		backupSource: "Derived (Port NOI/Debt)",
 		expectedValue: "Decimal, e.g., 1.35",
 		dataType: "Decimal",
-		section: "sponsor-info",
-	},
-	guarantorNames: {
-		fieldId: "guarantorNames",
-		description: "Names of loan guarantors.",
-		backupSource: "User Input",
-		expectedValue: "Text",
-		dataType: "Text",
 		section: "sponsor-info",
 	},
 	internalAdvisorNotes: {

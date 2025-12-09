@@ -11,6 +11,7 @@ import ZoningMap from '@/components/om/ZoningMap';
 import { ImageSlideshow } from '@/components/om/ImageSlideshow';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { parseNumeric, calculateAverage, formatFixed, formatLocale } from '@/lib/om-utils';
 
 export default function AssetProfilePage() {
   const params = useParams();
@@ -20,29 +21,39 @@ export default function AssetProfilePage() {
   const router = useRouter();
   const { content } = useOmContent();
 
-  const assetProfileDetails = content?.assetProfileDetails ?? null;
-  const projectOverview = content?.projectOverview ?? null;
-  const unitMixData = content?.unitMixData ?? [];
-  const marketComps = content?.marketComps ?? [];
-  const sitePlan = assetProfileDetails?.sitePlan ?? null;
-  const zoningDetails = sitePlan?.zoningDetails ?? null;
-  const amenityDetails = assetProfileDetails?.amenityDetails ?? [];
-  const totalAmenitySF =
-    amenityDetails.length > 0
-      ? amenityDetails.reduce((sum: number, amenity: { size?: string | null }) => {
-          const numeric = parseInt(
-            (amenity.size ?? '').replace(/[^\d]/g, ''),
-            10
-          );
-          return sum + (Number.isNaN(numeric) ? 0 : numeric);
-        }, 0)
-      : null;
-  const propertyStats = projectOverview?.propertyStats ?? null;
+  // Access flat fields directly
+  const amenityList = Array.isArray(content?.amenityList) ? content.amenityList : [];
+  const amenitySF = parseNumeric(content?.amenitySF) ?? 0;
+  const residentialUnitMix = Array.isArray(content?.residentialUnitMix) ? content.residentialUnitMix : [];
+  const rentComps = Array.isArray(content?.rentComps) ? content.rentComps : [];
+  
+  // Build unit mix data from flat residentialUnitMix array
+  const unitMixData = residentialUnitMix.map((unit: any) => ({
+    type: unit.unitType || unit.type || "",
+    units: unit.unitCount || unit.units || 0,
+    avgSF: unit.avgSF || 0,
+    avgRent: unit.monthlyRent || 0,
+  }));
 
-  const avgCompRentPSF =
-    marketComps.length > 0
-      ? (marketComps.reduce((sum: number, comp: { rentPSF?: number | null }) => sum + (comp.rentPSF ?? 0), 0) / marketComps.length).toFixed(2)
-      : null;
+  // Build market comps from flat rentComps array
+  const marketComps = rentComps.map((comp: any) => ({
+    name: comp.name || "",
+    units: comp.units || 0,
+    yearBuilt: comp.yearBuilt || "",
+    rentPSF: comp.rentPSF || 0,
+    capRate: comp.capRate || "",
+  }));
+
+  // Extract flat field values
+  const totalSiteAcreage = content?.totalSiteAcreage ?? null;
+  const zoningDesignation = content?.zoningDesignation ?? null;
+  const allowableFAR = content?.allowableFAR ?? null;
+  const farUtilizedPercent = content?.farUtilizedPercent ?? null;
+  const numberOfStories = content?.numberOfStories ?? null;
+  const parkingRatio = parseNumeric(content?.parkingRatio) ?? null;
+  const parkingSpaces = parseNumeric(content?.parkingSpaces) ?? null;
+
+  const avgCompRentPSF = calculateAverage(marketComps, (comp: typeof marketComps[0]) => comp.rentPSF ?? null);
 
   useOMPageHeader({
     subtitle: project
@@ -52,7 +63,10 @@ export default function AssetProfilePage() {
   
   if (!project) return <div>Project not found</div>;
   
-  const amenityLabels = amenityDetails.map((a: { name?: string | null }) => a.name);
+  // Extract amenity names from flat amenityList array
+  const amenityLabels = amenityList.map((a: string | { name?: string }) => 
+    typeof a === "string" ? a : a.name || ""
+  ).filter(Boolean);
   const quadrants = [
     {
       id: 'site-zoning',
@@ -66,23 +80,21 @@ export default function AssetProfilePage() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-xs text-gray-500">Lot Size</p>
-              <p className="text-sm font-medium">{sitePlan?.lotSize ?? null}</p>
+              <p className="text-sm font-medium">{totalSiteAcreage ? `${totalSiteAcreage} acres` : null}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Zoning</p>
-              <p className="text-sm font-medium">{zoningDetails?.current ?? null}</p>
+              <p className="text-sm font-medium">{zoningDesignation ?? null}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">FAR</p>
               <p className="text-sm font-medium">
-                {zoningDetails?.usedFAR ?? null} / {zoningDetails?.allowedFAR ?? null}
+                {farUtilizedPercent ?? null}% / {allowableFAR ?? null}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Height</p>
-              <p className="text-sm font-medium">
-                {zoningDetails?.actualHeight ?? null} / {zoningDetails?.heightLimit ?? null}
-              </p>
+              <p className="text-xs text-gray-500">Stories</p>
+              <p className="text-sm font-medium">{numberOfStories ?? null}</p>
             </div>
           </div>
         </div>
@@ -108,24 +120,30 @@ export default function AssetProfilePage() {
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Stories</span>
-                <span className="font-medium">{propertyStats?.stories ?? null}</span>
+                <span className="font-medium">{numberOfStories ?? null}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Parking Ratio</span>
                 <span className="font-medium">
-                  {propertyStats?.parkingRatio != null
-                    ? `${propertyStats.parkingRatio.toFixed(2)} / unit`
+                  {parkingRatio != null
+                    ? `${formatFixed(parkingRatio, 2)} / unit`
                     : null}
                 </span>
               </div>
+              {parkingSpaces != null && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Amenity SF</span>
-                  <span className="font-medium">
-                    {totalAmenitySF !== null
-                      ? `${totalAmenitySF.toLocaleString()} SF`
-                      : null}
-                  </span>
+                  <span className="text-gray-600">Parking Spaces</span>
+                  <span className="font-medium">{formatLocale(parkingSpaces)}</span>
                 </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Amenity SF</span>
+                <span className="font-medium">
+                  {amenitySF > 0
+                    ? `${formatLocale(amenitySF)} SF`
+                    : null}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -157,7 +175,7 @@ export default function AssetProfilePage() {
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Avg Rent PSF</span>
               <span className="font-medium">
-                {avgCompRentPSF ? `$${avgCompRentPSF}` : null}
+                {formatFixed(avgCompRentPSF, 2) != null ? `$${formatFixed(avgCompRentPSF, 2)}` : null}
               </span>
             </div>
           </div>
@@ -173,8 +191,8 @@ export default function AssetProfilePage() {
       metrics: (
         <div className="space-y-3">
           <div className="space-y-2">
-            {marketComps.slice(0, 3).map((comp: { name?: string | null; units?: number | null; yearBuilt?: string | null; rentPSF?: number | null; capRate?: string | null }) => (
-              <div key={comp.name} className="p-2 bg-gray-50 rounded">
+            {marketComps.slice(0, 3).map((comp: { name?: string | null; units?: number | null; yearBuilt?: string | null; rentPSF?: number | null; capRate?: string | null }, index: number) => (
+              <div key={`comp-${index}`} className="p-2 bg-gray-50 rounded">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm font-medium">{comp.name}</p>

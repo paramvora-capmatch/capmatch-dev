@@ -176,7 +176,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     };
 
     fetchAvailability();
-  }, [selectedParticipants, meetingDuration]);
+  }, [selectedParticipants, meetingDuration, user?.id]);
 
   // Handle joining a video call
   const handleJoinVideoCall = (meeting: any) => {

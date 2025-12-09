@@ -75,6 +75,7 @@
             "parkingSpaces",
             "parkingRatio",
             "amenityList",
+            "amenitySF",
             "furnishedUnits",
             "lossToLease",
             "studioCount",
@@ -110,6 +111,7 @@
         "parkingSpaces",
         "parkingRatio",
         "amenityList",
+        "amenitySF",
         "furnishedUnits",
         "lossToLease",
         "studioCount",
@@ -221,8 +223,11 @@
             "capRate",
             "stabilizedValue",
             "ltv",
+            "ltc",
             "debtYield",
             "dscr",
+            "irr",
+            "equityMultiple",
             "trendedNOIYear1",
             "untrendedNOIYear1",
             "trendedYield",
@@ -302,8 +307,11 @@
         "capRate",
         "stabilizedValue",
         "ltv",
+        "ltc",
         "debtYield",
         "dscr",
+        "irr",
+        "equityMultiple",
         "trendedNOIYear1",
         "untrendedNOIYear1",
         "trendedYield",
@@ -1417,6 +1425,22 @@
     },
     "rentComps": {
       "label": "Rent Comparables",
+      "required": false
+    },
+    "amenitySF": {
+      "label": "Amenity SF",
+      "required": false
+    },
+    "irr": {
+      "label": "IRR",
+      "required": false
+    },
+    "equityMultiple": {
+      "label": "Equity Multiple",
+      "required": false
+    },
+    "ltc": {
+      "label": "LTC",
       "required": false
     }
   }

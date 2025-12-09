@@ -6,14 +6,58 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import ReturnsCharts from "@/components/om/ReturnsCharts";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
+import { getOMValue, parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
 
 export default function ReturnsPage() {
   const { content } = useOmContent();
-  const financialDetails = content?.financialDetails ?? null;
-  const returnProjections = financialDetails?.returnProjections ?? null;
-  const upsideScenario = returnProjections?.upside ?? null;
-  const baseScenario = returnProjections?.base ?? null;
-  const downsideScenario = returnProjections?.downside ?? null;
+  
+  // Build return projections from flat fields
+  const baseIRR = parseNumeric(content?.irr) ?? null;
+  const baseEquityMultiple = parseNumeric(content?.equityMultiple) ?? null;
+  const stabilizedValue = parseNumeric(content?.stabilizedValue) ?? null;
+  const totalDevCost = parseNumeric(content?.totalDevelopmentCost) ?? null;
+  
+  // Extract NOI/yield fields
+  const propertyNoiT12 = parseNumeric(content?.propertyNoiT12) ?? null;
+  const trendedNOIYear1 = parseNumeric(content?.trendedNOIYear1) ?? null;
+  const untrendedNOIYear1 = parseNumeric(content?.untrendedNOIYear1) ?? null;
+  const trendedYield = parseNumeric(content?.trendedYield) ?? null;
+  const untrendedYield = parseNumeric(content?.untrendedYield) ?? null;
+  const inflationAssumption = parseNumeric(content?.inflationAssumption) ?? null;
+  const dscrStressTest = parseNumeric(content?.dscrStressTest) ?? null;
+  const exitStrategy = getOMValue(content, "exitStrategy");
+  const expectedHoldPeriod = parseNumeric(content?.expectedHoldPeriod) ?? null;
+  const businessPlanSummary = getOMValue(content, "businessPlanSummary");
+  
+  const baseProfitMargin = (stabilizedValue && totalDevCost) 
+    ? ((stabilizedValue - totalDevCost) / totalDevCost) * 100 
+    : null;
+  
+  const returnProjections = {
+    base: {
+      irr: baseIRR,
+      multiple: baseEquityMultiple,
+      profitMargin: baseProfitMargin,
+    },
+    upside: {
+      irr: baseIRR != null ? baseIRR * 1.1 : null,
+      multiple: baseEquityMultiple != null ? baseEquityMultiple * 1.1 : null,
+      profitMargin: (stabilizedValue && totalDevCost) 
+        ? (((stabilizedValue * 1.02) - totalDevCost) / totalDevCost) * 100 
+        : null,
+    },
+    downside: {
+      irr: baseIRR != null ? baseIRR * 0.9 : null,
+      multiple: baseEquityMultiple != null ? baseEquityMultiple * 0.9 : null,
+      profitMargin: (stabilizedValue && totalDevCost) 
+        ? (((stabilizedValue * 0.97) - totalDevCost) / totalDevCost) * 100 
+        : null,
+    },
+  };
+  
+  const upsideScenario = returnProjections.upside;
+  const baseScenario = returnProjections.base;
+  const downsideScenario = returnProjections.downside;
 
   const getIRRColor = (irr?: number | null) => {
     if (irr == null || Number.isNaN(irr)) return "bg-red-100 text-red-800";
@@ -157,7 +201,7 @@ export default function ReturnsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Risk Level</span>
-                  <Badge className="bg-green-100 text-green-800">Low</Badge>
+                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">Low</span></Badge>
                 </div>
               </div>
             </div>
@@ -204,7 +248,7 @@ export default function ReturnsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Risk Level</span>
-                  <Badge className="bg-blue-100 text-blue-800">Medium</Badge>
+                  <Badge className="bg-blue-100 text-blue-800"><span className="text-red-600">Medium</span></Badge>
                 </div>
               </div>
             </div>
@@ -251,7 +295,7 @@ export default function ReturnsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Risk Level</span>
-                  <Badge className="bg-red-100 text-red-800">High</Badge>
+                  <Badge className="bg-red-100 text-red-800"><span className="text-red-600">High</span></Badge>
                 </div>
               </div>
             </div>
@@ -319,7 +363,7 @@ export default function ReturnsPage() {
                   </td>
                   <td className="py-4 px-4">
                     <Badge className="bg-green-100 text-green-800">
-                      Low Risk
+                      <span className="text-red-600">Low Risk</span>
                     </Badge>
                   </td>
                 </tr>
@@ -353,7 +397,7 @@ export default function ReturnsPage() {
                   </td>
                   <td className="py-4 px-4">
                     <Badge className="bg-blue-100 text-blue-800">
-                      Medium Risk
+                      <span className="text-red-600">Medium Risk</span>
                     </Badge>
                   </td>
                 </tr>
@@ -388,7 +432,7 @@ export default function ReturnsPage() {
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge className="bg-red-100 text-red-800">High Risk</Badge>
+                    <Badge className="bg-red-100 text-red-800"><span className="text-red-600">High Risk</span></Badge>
                   </td>
                 </tr>
               </tbody>
@@ -413,15 +457,15 @@ export default function ReturnsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Strong market fundamentals
+                  <span className="text-red-600">Strong market fundamentals</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Premium location & amenities
+                  <span className="text-red-600">Premium location & amenities</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Experienced development team
+                  <span className="text-red-600">Experienced development team</span>
                 </li>
               </ul>
             </div>
@@ -431,15 +475,15 @@ export default function ReturnsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Construction cost overruns
+                  <span className="text-red-600">Construction cost overruns</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Market timing risks
+                  <span className="text-red-600">Market timing risks</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Interest rate volatility
+                  <span className="text-red-600">Interest rate volatility</span>
                 </li>
               </ul>
             </div>
@@ -451,21 +495,113 @@ export default function ReturnsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Fixed-price contracts
+                  <span className="text-red-600">Fixed-price contracts</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Pre-leasing commitments
+                  <span className="text-red-600">Pre-leasing commitments</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Interest rate hedging
+                  <span className="text-red-600">Interest rate hedging</span>
                 </li>
               </ul>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* NOI & Yield Metrics */}
+      {(propertyNoiT12 != null || trendedNOIYear1 != null || untrendedNOIYear1 != null || trendedYield != null || untrendedYield != null || inflationAssumption != null || dscrStressTest != null) && (
+        <Card className="hover:shadow-lg transition-shadow mb-8">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">NOI & Yield Analysis</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {propertyNoiT12 != null && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Current/T12 NOI</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(propertyNoiT12)}</p>
+                </div>
+              )}
+              {trendedNOIYear1 != null && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Trended NOI (Yr 1)</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(trendedNOIYear1)}</p>
+                </div>
+              )}
+              {untrendedNOIYear1 != null && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Untrended NOI (Yr 1)</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(untrendedNOIYear1)}</p>
+                </div>
+              )}
+              {trendedYield != null && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Trended Yield</p>
+                  <p className="text-lg font-semibold text-gray-800">{formatFixed(trendedYield, 2)}%</p>
+                </div>
+              )}
+              {untrendedYield != null && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Untrended Yield</p>
+                  <p className="text-lg font-semibold text-gray-800">{formatFixed(untrendedYield, 2)}%</p>
+                </div>
+              )}
+              {inflationAssumption != null && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Inflation Assumption</p>
+                  <p className="text-lg font-semibold text-gray-800">{formatFixed(inflationAssumption, 2)}%</p>
+                </div>
+              )}
+              {dscrStressTest != null && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">DSCR Stress Test</p>
+                  <p className="text-lg font-semibold text-gray-800">{formatFixed(dscrStressTest, 2)}x</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Exit Strategy & Hold Period */}
+      {(exitStrategy || expectedHoldPeriod != null) && (
+        <Card className="hover:shadow-lg transition-shadow mb-8">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Exit Strategy</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {exitStrategy && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Exit Strategy</p>
+                  <p className="text-sm text-gray-800">{exitStrategy}</p>
+                </div>
+              )}
+              {expectedHoldPeriod != null && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Expected Hold Period</p>
+                  <p className="text-lg font-semibold text-gray-800">{expectedHoldPeriod} years</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Business Plan Summary */}
+      {businessPlanSummary && (
+        <Card className="hover:shadow-lg transition-shadow mb-8">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Business Plan Summary</h3>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-700 leading-relaxed">{businessPlanSummary}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Interactive Return Charts */}
       <ReturnsCharts />

@@ -1,5 +1,5 @@
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
-import { isGroupedFormat, ungroupFromSections } from "@/lib/section-grouping";
+// Removed imports: isGroupedFormat, ungroupFromSections - storage is now always flat format
 import formSchema from "@/lib/enhanced-project-form.schema.json";
 
 export const formatDate = (dateString: string): string => {
@@ -157,10 +157,8 @@ export const flattenResumeContent = (
 	rawContent: Record<string, any> | null | undefined
 ) => {
 	if (!rawContent) return {};
-	let content = rawContent;
-	if (isGroupedFormat(content)) {
-		content = ungroupFromSections(content);
-	}
+	// Content is always flat now, no conversion needed
+	const content = rawContent;
 
 	const flat: Record<string, unknown> = {};
 	Object.entries(content).forEach(([key, value]) => {

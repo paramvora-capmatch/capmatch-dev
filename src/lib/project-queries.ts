@@ -5,13 +5,13 @@ import {
 	ProjectMessage,
 	Principal,
 } from "@/types/enhanced-types";
+// Removed imports: ungroupFromSections, isGroupedFormat, groupBySections
+// Storage is now always flat format
 import {
-	ungroupFromSections,
-	isGroupedFormat,
-	groupBySections,
-} from "./section-grouping";
-import { computeProjectCompletion, computeBorrowerCompletion } from "@/utils/resumeCompletion";
-import { sectionHasSubsections, getAllFieldIds } from "./schema-utils";
+	computeProjectCompletion,
+	computeBorrowerCompletion,
+} from "@/utils/resumeCompletion";
+import { getAllFieldIds } from "./schema-utils";
 import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata";
 
 // =============================================================================
@@ -22,10 +22,10 @@ import { projectResumeFieldMetadata } from "@/lib/project-resume-field-metadata"
  * Defines the structure of project_resumes.content JSONB column
  */
 export interface ProjectResumeContent {
-	// ... (Project fields remain unchanged, preserving existing definition)
+	// Section 1: Basic Info
 	projectName: string;
 	assetType: string;
-	projectStatus: string;
+	dealStatus?: string;
 	propertyAddressStreet?: string;
 	propertyAddressCity?: string;
 	propertyAddressState?: string;
@@ -33,20 +33,15 @@ export interface ProjectResumeContent {
 	propertyAddressZip?: string;
 	parcelNumber?: string;
 	zoningDesignation?: string;
-	currentZoning?: string;
 	expectedZoningChanges?: string;
-	primaryAssetClass?: string;
 	constructionType?: string;
 	groundbreakingDate?: string;
 	completionDate?: string;
 	totalDevelopmentCost?: number;
 	loanAmountRequested?: number;
 	loanType?: string;
-	requestedLoanTerm?: string;
-	masterPlanName?: string;
-	phaseNumber?: string;
+	requestedTerm?: string;
 	syndicationStatus?: string;
-	guarantorNames?: string;
 	projectDescription?: string;
 	projectPhase?: string;
 
@@ -350,104 +345,6 @@ export interface AdvisorResumeContent {
 // Database Query Functions
 // =============================================================================
 
-// Helper to map borrower resume fields to sections for storage grouping
-// Using actual section IDs from borrower-resume-form.schema.json
-const BORROWER_FIELD_TO_SECTION: Record<string, string> = {
-	// basic-info section
-	fullLegalName: "basic-info",
-	primaryEntityName: "basic-info",
-	primaryEntityStructure: "basic-info",
-	contactEmail: "basic-info",
-	contactPhone: "basic-info",
-	contactAddress: "basic-info",
-	// experience section
-	yearsCREExperienceRange: "experience",
-	assetClassesExperience: "experience",
-	geographicMarketsExperience: "experience",
-	totalDealValueClosedRange: "experience",
-	existingLenderRelationships: "experience",
-	bioNarrative: "experience",
-	// borrower-financials section
-	creditScoreRange: "borrower-financials",
-	netWorthRange: "borrower-financials",
-	liquidityRange: "borrower-financials",
-	bankruptcyHistory: "borrower-financials",
-	foreclosureHistory: "borrower-financials",
-	litigationHistory: "borrower-financials",
-	// online-presence section
-	linkedinUrl: "online-presence",
-	websiteUrl: "online-presence",
-	// principals section
-	principals: "principals",
-};
-
-function convertToBorrowerSectionWise(flatContent: any): any {
-	const sectionWise: any = {};
-	for (const [fieldId, fieldValue] of Object.entries(flatContent)) {
-		// Preserve special root-level keys
-		if (
-			fieldId.startsWith("section_") ||
-			fieldId.startsWith("_") ||
-			fieldId === "completenessPercent" ||
-			fieldId === "projectSections" ||
-			fieldId === "borrowerSections"
-		) {
-			sectionWise[fieldId] = fieldValue;
-			continue;
-		}
-		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
-		// If we don't have a section mapping for this field, drop it from the
-		// grouped structure entirely. These are legacy/unused fields (like
-		// the old per-principal fields) that we no longer want to persist.
-		if (!sectionId) continue;
-
-		// For borrower resumes, sections typically don't have subsections
-		// so we place fields directly in the section
-		if (!sectionWise[sectionId]) sectionWise[sectionId] = {};
-		sectionWise[sectionId][fieldId] = fieldValue;
-	}
-	return sectionWise;
-}
-
-function mergeIntoBorrowerSectionWise(
-	existingSectionWise: any,
-	flatUpdates: any
-): any {
-	const merged = existingSectionWise ? { ...existingSectionWise } : {};
-	for (const [fieldId, fieldValue] of Object.entries(flatUpdates)) {
-		// Preserve special root-level keys
-		if (
-			fieldId.startsWith("section_") ||
-			fieldId.startsWith("_") ||
-			fieldId === "completenessPercent" ||
-			fieldId === "projectSections" ||
-			fieldId === "borrowerSections"
-		) {
-			if (
-				typeof fieldValue === "object" &&
-				fieldValue !== null &&
-				!Array.isArray(fieldValue)
-			) {
-				merged[fieldId] = { ...(merged[fieldId] || {}), ...fieldValue };
-			} else {
-				merged[fieldId] = fieldValue;
-			}
-			continue;
-		}
-		const sectionId = BORROWER_FIELD_TO_SECTION[fieldId];
-		// Unknown/legacy fields (no section mapping) are dropped rather than
-		// being placed in a catch-all section. This prevents re-creating
-		// deprecated principal sub-fields on save.
-		if (!sectionId) continue;
-
-		// For borrower resumes, sections typically don't have subsections
-		// so we place fields directly in the section
-		if (!merged[sectionId]) merged[sectionId] = {};
-		merged[sectionId][fieldId] = fieldValue;
-	}
-	return merged;
-}
-
 // Helper to normalize legacy sources
 const toSourcesArray = (input: any): any[] => {
 	if (!input) return [];
@@ -469,6 +366,232 @@ const toSourcesArray = (input: any): any[] => {
 // Project Resume Functions
 // =============================================================================
 
+/**
+ * Helper: Process raw resume content to extract flat content and metadata
+ */
+function processResumeContent(rawContent: any): {
+	flatContent: Partial<ProjectResumeContent>;
+	metadata: Record<string, import("@/types/enhanced-types").FieldMetadata>;
+} {
+	const flatContent: Partial<ProjectResumeContent> = {};
+	const metadata: Record<
+		string,
+		import("@/types/enhanced-types").FieldMetadata
+	> = {};
+
+	for (const key in rawContent) {
+		const item = rawContent[key];
+		if (
+			item &&
+			typeof item === "object" &&
+			"value" in item &&
+			("source" in item || "sources" in item)
+		) {
+			// Rich format from backend: { value, source, warnings, other_values }
+			const anyItem: any = item;
+			(flatContent as any)[key] = anyItem.value;
+
+			// Prefer the single `source` object; fall back to first entry in legacy `sources` array.
+			let primarySource = anyItem.source;
+			if (
+				!primarySource &&
+				Array.isArray(anyItem.sources) &&
+				anyItem.sources.length > 0
+			) {
+				primarySource = anyItem.sources[0];
+			}
+
+			metadata[key] = {
+				value: anyItem.value,
+				source: primarySource ?? null,
+				warnings: anyItem.warnings || [],
+				other_values: anyItem.other_values || [],
+			};
+		} else {
+			(flatContent as any)[key] = item;
+		}
+	}
+
+	return { flatContent, metadata };
+}
+
+/**
+ * Helper: Fetch and process project resume for a single project
+ */
+async function fetchProjectResumeData(projectId: string): Promise<{
+	resume: { content: ProjectResumeContent } | null;
+	completenessPercent: number | undefined;
+	lockedFields: Record<string, boolean>;
+	fieldStates: any;
+	resourceId: string | null;
+}> {
+	const { data: resource } = await supabase
+		.from("resources")
+		.select("id, current_version_id")
+		.eq("resource_type", "PROJECT_RESUME")
+		.eq("project_id", projectId)
+		.maybeSingle();
+
+	let resume: { content: ProjectResumeContent } | null = null;
+	let projectCompletenessPercent: number | undefined;
+	let projectLockedFields: Record<string, boolean> = {};
+
+	if (resource?.current_version_id) {
+		const result = await supabase
+			.from("project_resumes")
+			.select("content, completeness_percent, locked_fields")
+			.eq("id", resource.current_version_id)
+			.single();
+		resume = result.data;
+		projectCompletenessPercent = result.data?.completeness_percent;
+		projectLockedFields =
+			(result.data?.locked_fields as
+				| Record<string, boolean>
+				| undefined) || {};
+	} else {
+		const result = await supabase
+			.from("project_resumes")
+			.select("content, completeness_percent, locked_fields")
+			.eq("project_id", projectId)
+			.order("created_at", { ascending: false })
+			.limit(1)
+			.maybeSingle();
+		resume = result.data;
+		projectCompletenessPercent = result.data?.completeness_percent;
+		projectLockedFields =
+			(result.data?.locked_fields as
+				| Record<string, boolean>
+				| undefined) || {};
+	}
+
+	let rawContent = (resume?.content || {}) as any;
+	// Fall back to content._lockedFields during migration period if column is empty
+	if (!projectLockedFields || Object.keys(projectLockedFields).length === 0) {
+		projectLockedFields =
+			(rawContent._lockedFields as Record<string, boolean> | undefined) ||
+			{};
+	}
+	const fieldStates = (rawContent._fieldStates as any) || {};
+
+	rawContent = { ...rawContent };
+	delete rawContent._lockedFields;
+	delete rawContent._fieldStates;
+	delete rawContent._metadata;
+
+	// Content is always flat now, no conversion needed
+
+	return {
+		resume: resume ? { content: rawContent } : null,
+		completenessPercent: projectCompletenessPercent,
+		lockedFields: projectLockedFields,
+		fieldStates,
+		resourceId: resource?.id ?? null,
+	};
+}
+
+/**
+ * Helper: Fetch and process borrower resume for a single project
+ * Uses the centralized getProjectBorrowerResume function
+ */
+async function fetchBorrowerResumeData(projectId: string): Promise<{
+	content: BorrowerResumeContent;
+	completenessPercent: number | undefined;
+	lockedFields: Record<string, boolean>;
+}> {
+	const borrowerResumeContent = await getProjectBorrowerResume(projectId);
+
+	if (!borrowerResumeContent) {
+		return {
+			content: {},
+			completenessPercent: undefined,
+			lockedFields: {},
+		};
+	}
+
+	return {
+		content: borrowerResumeContent,
+		completenessPercent: borrowerResumeContent.completenessPercent,
+		lockedFields: (borrowerResumeContent as any)._lockedFields || {},
+	};
+}
+
+/**
+ * Helper: Build a ProjectProfile from project and resume data
+ */
+function buildProjectProfile(
+	project: any,
+	resumeData: {
+		flatContent: Partial<ProjectResumeContent>;
+		metadata: Record<string, import("@/types/enhanced-types").FieldMetadata>;
+		completenessPercent: number | undefined;
+		lockedFields: Record<string, boolean>;
+		fieldStates: any;
+		resourceId: string | null;
+	},
+	borrowerData: {
+		content: BorrowerResumeContent;
+		completenessPercent: number | undefined;
+		lockedFields: Record<string, boolean>;
+	}
+): ProjectProfile {
+	const { flatContent, metadata, completenessPercent, lockedFields, fieldStates, resourceId } = resumeData;
+	const { content: borrowerResumeContent, completenessPercent: borrowerCompletenessPercent, lockedFields: borrowerLockedFields } = borrowerData;
+
+	// Use stored completeness_percent from column instead of calculating
+	// Fall back to calculation only if stored value is missing/invalid
+	const borrowerProgress =
+		borrowerCompletenessPercent !== undefined &&
+		borrowerCompletenessPercent !== null &&
+		typeof borrowerCompletenessPercent === "number"
+			? Math.round(borrowerCompletenessPercent)
+			: Math.round(
+					computeBorrowerCompletion(
+						borrowerResumeContent,
+						borrowerLockedFields
+					)
+			  );
+
+	const combinedProfile: ProjectProfile = {
+		id: project.id,
+		owner_org_id: project.owner_org_id,
+		assignedAdvisorUserId: project.assigned_advisor_id,
+		createdAt: project.created_at,
+		updatedAt: project.updated_at,
+		...flatContent,
+		projectName: flatContent.projectName || project.name,
+		assetType: flatContent.assetType || "",
+		projectStatus: (flatContent.dealStatus as any) || "",
+		dealStatus: flatContent.dealStatus || "",
+		interestRateType: (flatContent.interestRateType as any) || "",
+		recoursePreference: (flatContent.recoursePreference as any) || "",
+		exitStrategy: flatContent.exitStrategy as any,
+		completenessPercent: completenessPercent ?? 0,
+		internalAdvisorNotes: flatContent.internalAdvisorNotes || "",
+		borrowerProgress,
+		projectSections: flatContent.projectSections || {},
+		borrowerSections: borrowerResumeContent || {},
+		_metadata: metadata,
+		_lockedFields: lockedFields,
+		_fieldStates: fieldStates,
+		projectResumeResourceId: resourceId,
+	} as ProjectProfile;
+
+	const recomputedCompletion = computeProjectCompletion(
+		combinedProfile,
+		lockedFields
+	);
+	const storedCompletion = combinedProfile.completenessPercent;
+	const finalCompletion =
+		typeof storedCompletion === "number" && storedCompletion > 0
+			? storedCompletion
+			: recomputedCompletion;
+
+	return {
+		...combinedProfile,
+		completenessPercent: finalCompletion,
+	};
+}
+
 export const getProjectWithResume = async (
 	projectId: string
 ): Promise<ProjectProfile> => {
@@ -482,141 +605,24 @@ export const getProjectWithResume = async (
 	if (projectError)
 		throw new Error(`Failed to fetch project: ${projectError.message}`);
 
-	// Fetch resume content
-	const { data: resource } = await supabase
-		.from("resources")
-		.select("id, current_version_id")
-		.eq("resource_type", "PROJECT_RESUME")
-		.eq("project_id", projectId)
-		.maybeSingle();
-
-	let resume: { content: ProjectResumeContent } | null = null;
-
-	if (resource?.current_version_id) {
-		const result = await supabase
-			.from("project_resumes")
-			.select("content")
-			.eq("id", resource.current_version_id)
-			.single();
-		resume = result.data;
-	} else {
-		const result = await supabase
-			.from("project_resumes")
-			.select("content")
-			.eq("project_id", projectId)
-			.order("created_at", { ascending: false })
-			.limit(1)
-			.maybeSingle();
-		resume = result.data;
-	}
-
-	let rawContent = (resume?.content || {}) as any;
-	const _lockedFields =
-		(rawContent._lockedFields as Record<string, boolean> | undefined) || {};
-	const _fieldStates = (rawContent._fieldStates as any) || {};
-
-	rawContent = { ...rawContent };
-	delete rawContent._lockedFields;
-	delete rawContent._fieldStates;
-	delete rawContent._metadata;
-
-	if (isGroupedFormat(rawContent)) {
-		rawContent = ungroupFromSections(rawContent);
-	}
-
-	// Fetch borrower resume for progress calc
-	const { data: borrowerResume } = await supabase
-		.from("borrower_resumes")
-		.select("content")
-		.eq("project_id", projectId)
-		.maybeSingle();
-
-	let borrowerResumeContent: BorrowerResumeContent =
-		borrowerResume?.content || {};
-	// Ungroup borrower resume content if it's stored in grouped format
-	// This ensures computeBorrowerCompletion can find the fields
-	if (isGroupedFormat(borrowerResumeContent)) {
-		borrowerResumeContent = ungroupFromSections(borrowerResumeContent);
-	}
-	// Compute borrower completion instead of reading from stored value
-	const borrowerProgress = Math.round(
-		computeBorrowerCompletion(borrowerResumeContent, _lockedFields)
+	// Fetch resume data using helper
+	const resumeData = await fetchProjectResumeData(projectId);
+	const { flatContent, metadata } = processResumeContent(
+		resumeData.resume?.content || {}
 	);
 
-	const _metadata: Record<
-		string,
-		import("@/types/enhanced-types").FieldMetadata
-	> = {};
-	const resumeContent: Partial<ProjectResumeContent> = {};
+	// Fetch borrower resume data using helper
+	const borrowerData = await fetchBorrowerResumeData(projectId);
 
-	for (const key in rawContent) {
-		const item = rawContent[key];
-		if (
-			item &&
-			typeof item === "object" &&
-			"value" in item &&
-			("source" in item || "sources" in item)
-		) {
-			// Rich format from backend: { value, source, warnings, other_values }
-			const anyItem: any = item;
-			(resumeContent as any)[key] = anyItem.value;
-
-			// Prefer the single `source` object; fall back to first entry in legacy `sources` array.
-			let primarySource = anyItem.source;
-			if (
-				!primarySource &&
-				Array.isArray(anyItem.sources) &&
-				anyItem.sources.length > 0
-			) {
-				primarySource = anyItem.sources[0];
-			}
-
-			_metadata[key] = {
-				value: anyItem.value,
-				source: primarySource ?? null,
-				warnings: anyItem.warnings || [],
-				other_values: anyItem.other_values || [],
-			};
-		} else {
-			(resumeContent as any)[key] = item;
-		}
-	}
-
-	const combinedProfile: ProjectProfile = {
-		id: project.id,
-		owner_org_id: project.owner_org_id,
-		assignedAdvisorUserId: project.assigned_advisor_id,
-		createdAt: project.created_at,
-		updatedAt: project.updated_at,
-		...resumeContent,
-		projectName: resumeContent.projectName || project.name,
-		assetType: resumeContent.assetType || "",
-		projectStatus: (resumeContent.projectStatus as any) || "",
-		interestRateType: (resumeContent.interestRateType as any) || "",
-		recoursePreference: (resumeContent.recoursePreference as any) || "",
-		exitStrategy: resumeContent.exitStrategy as any,
-		completenessPercent: resumeContent.completenessPercent ?? 0,
-		internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
-		borrowerProgress,
-		projectSections: resumeContent.projectSections || {},
-		borrowerSections: borrowerResumeContent || {},
-		_metadata,
-		_lockedFields,
-		_fieldStates,
-		projectResumeResourceId: resource?.id ?? null,
-	} as ProjectProfile;
-
-	const recomputedCompletion = computeProjectCompletion(combinedProfile, _lockedFields);
-	const storedCompletion = combinedProfile.completenessPercent;
-	const finalCompletion =
-		typeof storedCompletion === "number" && storedCompletion > 0
-			? storedCompletion
-			: recomputedCompletion;
-
-	return {
-		...combinedProfile,
-		completenessPercent: finalCompletion,
-	};
+	// Build and return profile
+	return buildProjectProfile(project, {
+		flatContent,
+		metadata,
+		completenessPercent: resumeData.completenessPercent,
+		lockedFields: resumeData.lockedFields,
+		fieldStates: resumeData.fieldStates,
+		resourceId: resumeData.resourceId,
+	}, borrowerData);
 };
 
 export const getProjectsWithResumes = async (
@@ -624,6 +630,7 @@ export const getProjectsWithResumes = async (
 ): Promise<ProjectProfile[]> => {
 	if (projectIds.length === 0) return [];
 
+	// Fetch core projects
 	const { data: projects, error: projectsError } = await supabase
 		.from("projects")
 		.select("*")
@@ -631,157 +638,239 @@ export const getProjectsWithResumes = async (
 	if (projectsError)
 		throw new Error(`Failed to fetch projects: ${projectsError.message}`);
 
-	const { data: resumes, error: resumesError } = await supabase
-		.from("project_resumes")
-		.select("project_id, content, created_at")
+	// Fetch resources for all projects to get current version IDs
+	const { data: projectResources, error: resourcesError } = await supabase
+		.from("resources")
+		.select("id, project_id, current_version_id, resource_type")
 		.in("project_id", projectIds)
-		.order("created_at", { ascending: false });
-	if (resumesError)
-		throw new Error(
-			`Failed to fetch project resumes: ${resumesError.message}`
-		);
+		.in("resource_type", ["PROJECT_RESUME", "BORROWER_RESUME"]);
 
-	const { data: borrowerResumes, error: borrowerResumesError } =
-		await supabase
-			.from("borrower_resumes")
-			.select("project_id, content")
-			.in("project_id", projectIds);
-	if (borrowerResumesError)
-		throw new Error(
-			`Failed to fetch borrower resumes: ${borrowerResumesError.message}`
-		);
+	if (resourcesError)
+		throw new Error(`Failed to fetch resources: ${resourcesError.message}`);
 
-	const resumeMap = new Map<string, any>();
-	const metadataMap = new Map<
+	// Build maps: project_id -> resource data
+	const projectResumeResources = new Map<
 		string,
-		Record<string, import("@/types/enhanced-types").FieldMetadata>
+		{ id: string; current_version_id: string | null }
 	>();
-	const lockedFieldsMap = new Map<string, Record<string, boolean>>();
-	const fieldStatesMap = new Map<string, any>();
+	const borrowerResumeResources = new Map<
+		string,
+		{ current_version_id: string | null }
+	>();
 
-	resumes?.forEach((resume: any) => {
-		if (!resumeMap.has(resume.project_id)) {
-			let rawContent = (resume.content || {}) as any;
-			const rawLockedFields =
-				(rawContent._lockedFields as
+	projectResources?.forEach((resource: any) => {
+		if (resource.resource_type === "PROJECT_RESUME") {
+			projectResumeResources.set(resource.project_id, {
+				id: resource.id,
+				current_version_id: resource.current_version_id,
+			});
+		} else if (resource.resource_type === "BORROWER_RESUME") {
+			borrowerResumeResources.set(resource.project_id, {
+				current_version_id: resource.current_version_id,
+			});
+		}
+	});
+
+	// Collect all current version IDs
+	const projectResumeVersionIds = Array.from(
+		projectResumeResources.values()
+	)
+		.map((r) => r.current_version_id)
+		.filter((id): id is string => id !== null);
+	const borrowerResumeVersionIds = Array.from(
+		borrowerResumeResources.values()
+	)
+		.map((r) => r.current_version_id)
+		.filter((id): id is string => id !== null);
+
+	// Fetch project resumes by version ID (current versions)
+	const projectResumeQueries: Array<Promise<{ data: any; error: any }>> = [];
+	if (projectResumeVersionIds.length > 0) {
+		projectResumeQueries.push(
+			Promise.resolve(
+				supabase
+					.from("project_resumes")
+					.select("id, content, completeness_percent, locked_fields")
+					.in("id", projectResumeVersionIds)
+			)
+		);
+	}
+
+	// Also fetch by project_id for projects without resources (fallback)
+	projectResumeQueries.push(
+		Promise.resolve(
+			supabase
+				.from("project_resumes")
+				.select("project_id, id, content, completeness_percent, locked_fields, created_at")
+				.in("project_id", projectIds)
+				.order("created_at", { ascending: false })
+		)
+	);
+
+	const projectResumeResults = await Promise.all(projectResumeQueries);
+	const projectResumesByVersionId = new Map<string, any>();
+	const projectResumesByProjectId = new Map<string, any[]>();
+
+	projectResumeResults.forEach((result) => {
+		if (result.error) return;
+		result.data?.forEach((resume: any) => {
+			if (resume.id && !resume.project_id) {
+				// This is from the version ID query
+				projectResumesByVersionId.set(resume.id, resume);
+			} else if (resume.project_id) {
+				// This is from the project_id query (fallback)
+				if (!projectResumesByProjectId.has(resume.project_id)) {
+					projectResumesByProjectId.set(resume.project_id, []);
+				}
+				projectResumesByProjectId.get(resume.project_id)!.push(resume);
+			}
+		});
+	});
+
+	// Fetch borrower resumes by version ID (current versions)
+	const borrowerResumeQueries: Array<Promise<{ data: any; error: any }>> = [];
+	if (borrowerResumeVersionIds.length > 0) {
+		borrowerResumeQueries.push(
+			Promise.resolve(
+				supabase
+					.from("borrower_resumes")
+					.select("id, content, completeness_percent, locked_fields")
+					.in("id", borrowerResumeVersionIds)
+			)
+		);
+	}
+
+	// Also fetch by project_id for projects without resources (fallback)
+	borrowerResumeQueries.push(
+		Promise.resolve(
+			supabase
+				.from("borrower_resumes")
+				.select("project_id, id, content, completeness_percent, locked_fields, created_at")
+				.in("project_id", projectIds)
+				.order("created_at", { ascending: false })
+		)
+	);
+
+	const borrowerResumeResults = await Promise.all(borrowerResumeQueries);
+	const borrowerResumesByVersionId = new Map<string, any>();
+	const borrowerResumesByProjectId = new Map<string, any[]>();
+
+	borrowerResumeResults.forEach((result) => {
+		if (result.error) return;
+		result.data?.forEach((resume: any) => {
+			if (resume.id && !resume.project_id) {
+				// This is from the version ID query
+				borrowerResumesByVersionId.set(resume.id, resume);
+			} else if (resume.project_id) {
+				// This is from the project_id query (fallback)
+				if (!borrowerResumesByProjectId.has(resume.project_id)) {
+					borrowerResumesByProjectId.set(resume.project_id, []);
+				}
+				borrowerResumesByProjectId.get(resume.project_id)!.push(resume);
+			}
+		});
+	});
+
+	// Process each project
+	return (
+		projects?.map((project: any) => {
+			// Get project resume
+			const projectResource = projectResumeResources.get(project.id);
+			let projectResume: any = null;
+			let projectResumeResourceId: string | null = null;
+
+			if (projectResource?.current_version_id) {
+				projectResume = projectResumesByVersionId.get(
+					projectResource.current_version_id
+				);
+				projectResumeResourceId = projectResource.id;
+			}
+
+			// Fallback: get latest by project_id
+			if (!projectResume) {
+				const fallbackResumes = projectResumesByProjectId.get(project.id);
+				if (fallbackResumes && fallbackResumes.length > 0) {
+					projectResume = fallbackResumes[0]; // Already sorted by created_at desc
+				}
+			}
+
+			// Get borrower resume
+			const borrowerResource = borrowerResumeResources.get(project.id);
+			let borrowerResume: any = null;
+
+			if (borrowerResource?.current_version_id) {
+				borrowerResume = borrowerResumesByVersionId.get(
+					borrowerResource.current_version_id
+				);
+			}
+
+			// Fallback: get latest by project_id
+			if (!borrowerResume) {
+				const fallbackResumes = borrowerResumesByProjectId.get(project.id);
+				if (fallbackResumes && fallbackResumes.length > 0) {
+					borrowerResume = fallbackResumes[0]; // Already sorted by created_at desc
+				}
+			}
+
+			// Process project resume content
+			let rawContent = (projectResume?.content || {}) as any;
+			let projectLockedFields: Record<string, boolean> =
+				(projectResume?.locked_fields as
 					| Record<string, boolean>
 					| undefined) || {};
-			const rawFieldStates = (rawContent._fieldStates as any) || {};
 
-			lockedFieldsMap.set(resume.project_id, rawLockedFields);
-			fieldStatesMap.set(resume.project_id, rawFieldStates);
+			if (!projectLockedFields || Object.keys(projectLockedFields).length === 0) {
+				projectLockedFields =
+					(rawContent._lockedFields as
+						| Record<string, boolean>
+						| undefined) || {};
+			}
 
+			const fieldStates = (rawContent._fieldStates as any) || {};
 			rawContent = { ...rawContent };
 			delete rawContent._lockedFields;
 			delete rawContent._fieldStates;
+			delete rawContent._metadata;
 
-			if (isGroupedFormat(rawContent)) {
-				rawContent = ungroupFromSections(rawContent);
+			// Content is always flat now, no conversion needed
+
+			const { flatContent, metadata } = processResumeContent(rawContent);
+
+			// Process borrower resume content
+			const borrowerResumeContent: BorrowerResumeContent =
+				borrowerResume?.content || {};
+			let borrowerLockedFields: Record<string, boolean> =
+				(borrowerResume?.locked_fields as
+					| Record<string, boolean>
+					| undefined) || {};
+
+			if (
+				!borrowerLockedFields ||
+				Object.keys(borrowerLockedFields).length === 0
+			) {
+				borrowerLockedFields =
+					(borrowerResumeContent as any)?._lockedFields || {};
 			}
 
-			const flatContent: Partial<ProjectResumeContent> = {};
-			const metadata: Record<
-				string,
-				import("@/types/enhanced-types").FieldMetadata
-			> = {};
+			// Content is always flat now, no conversion needed
 
-			for (const key in rawContent) {
-				const item = rawContent[key];
-				if (
-					item &&
-					typeof item === "object" &&
-					"value" in item &&
-					("source" in item || "sources" in item)
-				) {
-					const anyItem: any = item;
-					(flatContent as any)[key] = anyItem.value;
-
-					let primarySource = anyItem.source;
-					if (
-						!primarySource &&
-						Array.isArray(anyItem.sources) &&
-						anyItem.sources.length > 0
-					) {
-						primarySource = anyItem.sources[0];
-					}
-
-					metadata[key] = {
-						value: anyItem.value,
-						source: primarySource ?? null,
-						warnings: anyItem.warnings || [],
-						other_values: anyItem.other_values || [],
-					};
-				} else {
-					(flatContent as any)[key] = item;
+			// Build profile using helper
+			return buildProjectProfile(
+				project,
+				{
+					flatContent,
+					metadata,
+					completenessPercent: projectResume?.completeness_percent,
+					lockedFields: projectLockedFields,
+					fieldStates,
+					resourceId: projectResumeResourceId,
+				},
+				{
+					content: borrowerResumeContent,
+					completenessPercent: borrowerResume?.completeness_percent,
+					lockedFields: borrowerLockedFields,
 				}
-			}
-			resumeMap.set(resume.project_id, flatContent);
-			metadataMap.set(resume.project_id, metadata);
-		}
-	});
-
-	const borrowerResumeMap = new Map<string, BorrowerResumeContent>();
-	borrowerResumes?.forEach((resume: any) => {
-		let borrowerContent = resume.content || {};
-		// Ungroup borrower resume content if it's stored in grouped format
-		// This ensures computeBorrowerCompletion can find the fields
-		if (isGroupedFormat(borrowerContent)) {
-			borrowerContent = ungroupFromSections(borrowerContent);
-		}
-		borrowerResumeMap.set(resume.project_id, borrowerContent);
-	});
-
-	return (
-		projects?.map((project: any) => {
-			const resumeContent =
-				resumeMap.get(project.id) || ({} as ProjectResumeContent);
-			const metadata = metadataMap.get(project.id) || {};
-			const borrowerResumeContent =
-				borrowerResumeMap.get(project.id) ||
-				({} as BorrowerResumeContent);
-			// Compute borrower completion instead of reading from stored value
-			const lockedFieldsForProject = lockedFieldsMap.get(project.id) || {};
-			const borrowerProgress = Math.round(
-				computeBorrowerCompletion(borrowerResumeContent, lockedFieldsForProject)
 			);
-
-			const combinedProfile: ProjectProfile = {
-				id: project.id,
-				owner_org_id: project.owner_org_id,
-				assignedAdvisorUserId: project.assigned_advisor_id,
-				createdAt: project.created_at,
-				updatedAt: project.updated_at,
-				...resumeContent,
-				projectName: resumeContent.projectName || project.name,
-				assetType: resumeContent.assetType || "",
-				projectStatus: (resumeContent.projectStatus as any) || "",
-				interestRateType: (resumeContent.interestRateType as any) || "",
-				recoursePreference:
-					(resumeContent.recoursePreference as any) || "",
-				exitStrategy: resumeContent.exitStrategy as any,
-				completenessPercent: resumeContent.completenessPercent ?? 0,
-				internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
-				borrowerProgress,
-				projectSections: resumeContent.projectSections || {},
-				borrowerSections: borrowerResumeContent || {},
-				_metadata: metadata,
-				_lockedFields: lockedFieldsMap.get(project.id) || {},
-				_fieldStates: fieldStatesMap.get(project.id) || {},
-				borrowerProfileId: undefined,
-			} as ProjectProfile;
-
-			const recomputedCompletion =
-				computeProjectCompletion(combinedProfile, lockedFieldsMap.get(project.id) || {});
-			const storedCompletion = combinedProfile.completenessPercent;
-			const finalCompletion =
-				typeof storedCompletion === "number" && storedCompletion > 0
-					? storedCompletion
-					: recomputedCompletion;
-
-			return {
-				...combinedProfile,
-				completenessPercent: finalCompletion,
-			};
 		}) || []
 	);
 };
@@ -938,111 +1027,59 @@ export const saveProjectResume = async (
 		}
 	}
 
-	const isExistingSectionGrouped = isGroupedFormat(existing?.content || {});
-
+	// Content is always flat now, no grouping needed
 	if (existing && !options?.createNewVersion) {
-		let contentToSave: any;
-		if (isExistingSectionGrouped) {
-			const groupedUpdates = groupBySections(finalContent);
-			contentToSave = { ...existing.content };
-			for (const [sectionKey, sectionFields] of Object.entries(
-				groupedUpdates
-			)) {
-				if (!contentToSave[sectionKey]) contentToSave[sectionKey] = {};
-
-				// Check if this section has subsections according to the schema
-				// If it does, sectionFields will have subsection keys (e.g., "project-identity")
-				// If it doesn't, sectionFields will have field keys directly
-				if (
-					typeof sectionFields === "object" &&
-					!Array.isArray(sectionFields) &&
-					sectionFields !== null &&
-					sectionHasSubsections(sectionKey)
-				) {
-					// Section has subsections - merge at subsection level
-					for (const [
-						subsectionKey,
-						subsectionFields,
-					] of Object.entries(sectionFields)) {
-						if (
-							typeof subsectionFields === "object" &&
-							!Array.isArray(subsectionFields) &&
-							subsectionFields !== null
-						) {
-							if (!contentToSave[sectionKey][subsectionKey]) {
-								contentToSave[sectionKey][subsectionKey] = {};
-							}
-							contentToSave[sectionKey][subsectionKey] = {
-								...contentToSave[sectionKey][subsectionKey],
-								...subsectionFields,
-							};
-						}
-					}
-				} else {
-					// Section has no subsections or sectionFields is not an object - merge directly
-					contentToSave[sectionKey] = {
-						...contentToSave[sectionKey],
-						...sectionFields,
-					};
-				}
-			}
-			contentToSave._lockedFields = lockedFields;
-			contentToSave._fieldStates = fieldStates;
-		} else {
-			contentToSave = {
-				...existing.content,
-				...finalContent,
-				_lockedFields: lockedFields,
-				_fieldStates: fieldStates,
-			};
-		}
-
-		// Calculate and include completenessPercent for updates
-		const completionPercent = computeProjectCompletion({
-			...content,
+		const contentToSave = {
+			...existing.content,
 			...finalContent,
-		}, lockedFields);
-		contentToSave.completenessPercent = completionPercent;
+			_fieldStates: fieldStates,
+		};
+
+		// Calculate completeness_percent for updates (stored in column, not content)
+		const completionPercent = computeProjectCompletion(
+			{
+				...content,
+				...finalContent,
+			},
+			lockedFields
+		);
 
 		const { error } = await supabase
 			.from("project_resumes")
-			.update({ content: contentToSave })
+			.update({
+				content: contentToSave,
+				locked_fields: lockedFields,
+				completeness_percent: completionPercent,
+			})
 			.eq("id", existing.id);
 		if (error)
 			throw new Error(
 				`Failed to update project resume: ${error.message}`
 			);
 	} else {
+		// Create new version - content is always flat now
 		let existingContentFlat: Record<string, any> = {};
 		if (existing?.content) {
-			existingContentFlat = isGroupedFormat(existing.content)
-				? ungroupFromSections(existing.content)
-				: existing.content;
-			const {
-				_lockedFields,
-				_fieldStates,
-				_metadata,
-				completenessPercent,
-				...cleanExisting
-			} = existingContentFlat;
+			const { _lockedFields, _fieldStates, _metadata, ...cleanExisting } =
+				existing.content;
 			existingContentFlat = cleanExisting;
 		}
 		const mergedContent = { ...existingContentFlat, ...finalContent };
-		const groupedContent = groupBySections(mergedContent);
 		// Use the provided lock state directly as the authoritative source.
 		// Do not merge with existing locks, as that would resurrect locks the user explicitly removed.
 		const mergedLockedFields = lockedFields;
 		const mergedFieldStates = fieldStates;
-		const completionPercent = computeProjectCompletion({
-			...content,
-			...mergedContent,
-		}, mergedLockedFields);
+		const completionPercent = computeProjectCompletion(
+			{
+				...content,
+				...mergedContent,
+			},
+			mergedLockedFields
+		);
 
 		const contentToInsert = {
-			...groupedContent,
-			_lockedFields: mergedLockedFields,
+			...mergedContent,
 			_fieldStates: mergedFieldStates,
-			completenessPercent: completionPercent,
 		};
 
 		const { data: newResume, error } = await supabase
@@ -1050,6 +1087,8 @@ export const saveProjectResume = async (
 			.insert({
 				project_id: projectId,
 				content: contentToInsert,
+				locked_fields: mergedLockedFields,
+				completeness_percent: completionPercent,
 				created_by: user?.id ?? null,
 			})
 			.select("id")
@@ -1071,8 +1110,86 @@ export const saveProjectResume = async (
 // Borrower Resume Functions
 // =============================================================================
 
+// Known boolean-only borrower fields
+const BOOLEAN_BORROWER_FIELDS: Record<string, true> = {
+	bankruptcyHistory: true,
+	foreclosureHistory: true,
+	litigationHistory: true,
+};
+
+// Field ids from the borrower form schema – used to validate content
+let BORROWER_FIELD_IDS: string[] = [];
+try {
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const borrowerFormSchema = require("@/lib/borrower-resume-form.schema.json");
+	BORROWER_FIELD_IDS = Object.keys((borrowerFormSchema as any).fields || {});
+} catch {
+	BORROWER_FIELD_IDS = [];
+}
+
+/**
+ * Heuristic to detect a "corrupted" borrower resume row where the core
+ * borrower fields have been replaced by bare booleans (e.g. mirrors of
+ * _lockedFields), which should not be treated as the active resume.
+ */
+function isCorruptedBooleanSnapshot(content: any): boolean {
+	if (!content || typeof content !== "object") return false;
+
+	// Strip metadata/root keys - content is always flat now
+	const raw = { ...content };
+	delete raw._lockedFields;
+	delete raw._fieldStates;
+	delete raw._metadata;
+	delete raw.completenessPercent;
+
+	const flat = raw; // Content is always flat now
+
+	// If at least one known borrower field has a non-boolean value (or a rich
+	// { value: ... } object with a non-boolean value), we consider the snapshot valid.
+	let hasNonBooleanForKnownField = false;
+
+	for (const fieldId of BORROWER_FIELD_IDS) {
+		const v = flat[fieldId];
+		if (v === undefined) continue;
+
+		// Rich format { value, ... }
+		if (v && typeof v === "object" && !Array.isArray(v) && "value" in v) {
+			const innerValue = (v as any).value;
+
+			// Treat rich-format booleans for non-boolean fields as suspicious
+			if (
+				typeof innerValue === "boolean" &&
+				!BOOLEAN_BORROWER_FIELDS[fieldId]
+			) {
+				continue;
+			}
+
+			// Otherwise, this looks like a real value
+			hasNonBooleanForKnownField = true;
+			break;
+		}
+
+		// Primitive non-boolean value
+		if (typeof v !== "boolean") {
+			hasNonBooleanForKnownField = true;
+			break;
+		}
+
+		// Boolean is fine only for the explicit boolean borrower fields
+		if (typeof v === "boolean" && BOOLEAN_BORROWER_FIELDS[fieldId]) {
+			hasNonBooleanForKnownField = true;
+			break;
+		}
+	}
+
+	// If *none* of the known fields have a proper value, treat as corrupted.
+	return !hasNonBooleanForKnownField;
+}
+
 /**
  * Loads borrower resume content from the JSONB column.
+ * This is the centralized function for fetching borrower resumes.
+ * Includes corruption detection to filter out invalid snapshots.
  */
 export const getProjectBorrowerResume = async (
 	projectId: string
@@ -1084,41 +1201,141 @@ export const getProjectBorrowerResume = async (
 		.eq("resource_type", "BORROWER_RESUME")
 		.maybeSingle();
 
-	let query = supabase.from("borrower_resumes").select("content");
+	let query = supabase
+		.from("borrower_resumes")
+		.select("id, content, completeness_percent, locked_fields, created_at");
+
+	// Use current_version_id if available, otherwise fall back to latest
 	if (resource?.current_version_id) {
 		query = query.eq("id", resource.current_version_id);
 	} else {
+		// Fetch the latest few rows and pick the first valid one
 		query = query
 			.eq("project_id", projectId)
 			.order("created_at", { ascending: false })
-			.limit(1);
+			.limit(5);
 	}
 
-	const { data, error } = await query.maybeSingle();
+	const { data, error } = await query;
+
 	if (error && error.code !== "PGRST116")
 		throw new Error(`Failed to load borrower resume: ${error.message}`);
-	if (!data) return null;
+	if (!data || data.length === 0) return null;
 
-	let content = (data.content || {}) as any;
+	// If we used current_version_id, we have a single row; otherwise find the first non-corrupted snapshot
+	const chosen = resource?.current_version_id
+		? data[0]
+		: data.find((row) => !isCorruptedBooleanSnapshot(row.content));
+	const chosenRow = chosen ?? data[0];
 
-	// Ungroup if needed for UI consumption
-	if (isGroupedFormat(content)) {
-		// Extract root keys
-		const {
-			_lockedFields,
-			_fieldStates,
-			_metadata,
-			completenessPercent,
-			...sections
-		} = content;
-		const flat = ungroupFromSections(sections);
-		content = {
-			...flat,
-			_lockedFields,
-			_fieldStates,
-			_metadata,
-			completenessPercent,
-		};
+	if (!chosenRow) return null;
+
+	const contentRaw = chosenRow.content as any;
+	const completenessPercent = chosenRow.completeness_percent;
+
+	if (!contentRaw) return null;
+
+	// Read from locked_fields column, fall back to content._lockedFields during migration
+	let lockedFields: Record<string, boolean> =
+		(chosenRow.locked_fields as Record<string, boolean> | undefined) || {};
+
+	const content = { ...contentRaw };
+
+	// Content is always flat now - use column value if available, otherwise fall back to content
+	if (!lockedFields || Object.keys(lockedFields).length === 0) {
+		lockedFields =
+			(content._lockedFields as
+				| Record<string, boolean>
+				| undefined) || {};
+	}
+	content._lockedFields = lockedFields;
+
+	// Add completeness_percent from column to content for UI consumption
+	// This ensures the UI always has access to the stored value
+	if (
+		completenessPercent !== undefined &&
+		completenessPercent !== null
+	) {
+		(content as any).completenessPercent = completenessPercent;
+	}
+
+	// Extract metadata from rich format fields and create _metadata object
+	const metadata: Record<string, any> = {};
+	const working = { ...content };
+	delete working._lockedFields;
+	delete working._fieldStates;
+	delete working._metadata;
+
+	// Process all fields to extract metadata
+	for (const [key, value] of Object.entries(working)) {
+		// Skip if already processed
+		if (key.startsWith("_")) {
+			continue;
+		}
+
+		// Handle principals specially - it can be an array or in rich format
+		if (key === "principals") {
+			// Check if it's in rich format
+			if (
+				value &&
+				typeof value === "object" &&
+				!Array.isArray(value) &&
+				"value" in value
+			) {
+				// Store metadata (new schema: value + source + warnings + other_values)
+				const anyVal: any = value;
+				let primarySource = anyVal.source;
+				if (
+					!primarySource &&
+					Array.isArray(anyVal.sources) &&
+					anyVal.sources.length > 0
+				) {
+					primarySource = anyVal.sources[0];
+				}
+
+				metadata[key] = {
+					value: anyVal.value,
+					source: primarySource ?? null,
+					warnings: anyVal.warnings || [],
+					other_values: anyVal.other_values || [],
+				};
+			}
+			continue;
+		}
+
+		// Check if value is in rich format { value, source, warnings, other_values }
+		if (
+			value &&
+			typeof value === "object" &&
+			!Array.isArray(value) &&
+			"value" in value
+		) {
+			const anyVal: any = value;
+
+			// Determine primary source (new schema prefers `source`, but we keep
+			// backward compat for legacy `sources` arrays).
+			let primarySource = anyVal.source;
+			if (
+				!primarySource &&
+				Array.isArray(anyVal.sources) &&
+				anyVal.sources.length > 0
+			) {
+				primarySource = anyVal.sources[0];
+			}
+
+			// Store metadata aligned with new FieldMetadata type
+			metadata[key] = {
+				value: anyVal.value,
+				source: primarySource ?? null,
+				warnings: anyVal.warnings || [],
+				other_values: anyVal.other_values || [],
+			};
+		}
+	}
+
+	// Add metadata if we have any
+	if (Object.keys(metadata).length > 0) {
+		content._metadata = metadata;
 	}
 
 	// Unwrap rich values if present (handle cases where DB returns { value, source, ... })
@@ -1169,17 +1386,44 @@ export const saveProjectBorrowerResume = async (
 		options?.lockedFields || (content as any)._lockedFields || {};
 	const fieldStates = (content as any)._fieldStates || {};
 
-	// Get existing content
-	const { data: existingResume } = await supabase
-		.from("borrower_resumes")
-		.select("id, content")
+	// Get resource pointer to find the current version
+	const { data: resource } = await supabase
+		.from("resources")
+		.select("current_version_id")
 		.eq("project_id", projectId)
-		.order("created_at", { ascending: false })
-		.limit(1)
+		.eq("resource_type", "BORROWER_RESUME")
 		.maybeSingle();
 
+	// Get existing content - fetch via current_version_id if available, otherwise latest
+	let existingResume: {
+		id: string;
+		content: any;
+		locked_fields?: Record<string, boolean>;
+		completeness_percent?: number;
+	} | null = null;
+
+	if (resource?.current_version_id) {
+		const result = await supabase
+			.from("borrower_resumes")
+			.select("id, content, locked_fields, completeness_percent")
+			.eq("id", resource.current_version_id)
+			.maybeSingle();
+		existingResume = result.data;
+	} else {
+		const result = await supabase
+			.from("borrower_resumes")
+			.select("id, content, locked_fields, completeness_percent")
+			.eq("project_id", projectId)
+			.order("created_at", { ascending: false })
+			.limit(1)
+			.maybeSingle();
+		existingResume = result.data;
+	}
+
 	const existingContent = existingResume?.content || {};
-	const isExistingSectionWise = isGroupedFormat(existingContent);
+	const existingLockedFields = (existingResume?.locked_fields as Record<string, boolean> | undefined) || {};
+	const existingCompletenessPercent = existingResume?.completeness_percent;
+	// Content is always flat now, no grouping needed
 
 	// Prepare rich content payload
 	const finalContentFlat: any = {};
@@ -1268,14 +1512,8 @@ export const saveProjectBorrowerResume = async (
 			typeof currentValue === "boolean" &&
 			!BOOLEAN_BORROWER_FIELDS[key]
 		) {
-			// Look up the existing item in either flat or section-wise content
-			let existingItemForBooleanGuard: any;
-			if (isExistingSectionWise) {
-				const flatExisting = ungroupFromSections(existingContent);
-				existingItemForBooleanGuard = flatExisting[key];
-			} else {
-				existingItemForBooleanGuard = existingContent[key];
-			}
+			// Look up the existing item - content is always flat now
+			const existingItemForBooleanGuard = existingContent[key];
 
 			// If we have an existing item, keep it as-is and skip this key so we
 			// don't replace real data with a bare boolean. If we don't, simply
@@ -1302,16 +1540,8 @@ export const saveProjectBorrowerResume = async (
 				other_values: metaAny?.other_values || [],
 			};
 		} else {
-			// Check if existing had rich data
-			// Need to check in flat or sectioned existing content
-			let existingItem: any;
-			if (isExistingSectionWise) {
-				// Try to find in sections
-				const flatExisting = ungroupFromSections(existingContent);
-				existingItem = flatExisting[key];
-			} else {
-				existingItem = existingContent[key];
-			}
+			// Check if existing had rich data - content is always flat now
+			const existingItem = existingContent[key];
 
 			if (
 				existingItem &&
@@ -1347,96 +1577,42 @@ export const saveProjectBorrowerResume = async (
 		}
 	}
 
-	// Handle Update (In Place) vs Insert (New Version)
-	let contentToSave: any;
-
-	if (existingResume && !options?.createNewVersion) {
-		// UPDATE IN PLACE
-		if (isExistingSectionWise) {
-			// Merge flat updates into section-wise structure
-			contentToSave = mergeIntoBorrowerSectionWise(
-				existingContent,
-				finalContentFlat
-			);
-		} else {
-			// Convert to section-wise
-			const mergedFlat = { ...existingContent, ...finalContentFlat };
-			contentToSave = convertToBorrowerSectionWise(mergedFlat);
-		}
-
-		// Append root keys
-		contentToSave._lockedFields = lockedFields;
-		contentToSave._fieldStates = fieldStates;
-		// Always calculate and save completenessPercent to ensure it's always in sync
-		// Use provided value if available, otherwise calculate from the content
-		const providedCompleteness = (content as any).completenessPercent;
-		if (providedCompleteness !== undefined && typeof providedCompleteness === 'number') {
-			contentToSave.completenessPercent = providedCompleteness;
-		} else {
-			// Calculate from the actual content (excluding metadata fields)
-			const contentForCalculation = { ...finalContentFlat };
-			contentToSave.completenessPercent = computeBorrowerCompletion(contentForCalculation, lockedFields);
-		}
-
-		// Get resource pointer to update correct version
-		const { data: resource } = await supabase
-			.from("resources")
-			.select("current_version_id")
-			.eq("project_id", projectId)
-			.eq("resource_type", "BORROWER_RESUME")
-			.maybeSingle();
-
-		const targetId = resource?.current_version_id || existingResume.id;
-
-		const { error } = await supabase
-			.from("borrower_resumes")
-			.update({ content: contentToSave })
-			.eq("id", targetId);
-
-		if (error)
-			throw new Error(
-				`Failed to update borrower resume: ${error.message}`
-			);
-	} else {
-		// NEW VERSION
-		// Flatten existing to merge cleanly
-		const existingFlat = isExistingSectionWise
-			? ungroupFromSections(existingContent)
-			: existingContent;
-		const {
-			_lockedFields,
-			_fieldStates,
-			_metadata,
-			completenessPercent,
-			...cleanExisting
-		} = existingFlat;
+	// Always create a new version - never update in place
+	// This ensures we maintain a complete history and never overwrite
+	// locked_fields or completeness_percent columns
+	// Content is always flat now, no grouping needed
+	{
+		// NEW VERSION - content is always flat now
+		const { _lockedFields, _fieldStates, _metadata, ...cleanExisting } =
+			existingContent;
 
 		const mergedFlat = { ...cleanExisting, ...finalContentFlat };
-		const groupedContent = convertToBorrowerSectionWise(mergedFlat);
 
 		// Use the provided lock state directly as the authoritative source.
 		// Do not merge with existing locks, as that would resurrect locks the user explicitly removed.
 		const mergedLockedFields = lockedFields;
 		const mergedFieldStates = fieldStates;
 
-		// Always calculate and save completenessPercent to ensure it's always in sync
+		// Calculate completeness_percent (stored in column, not content)
 		// Use provided value if available, otherwise calculate from the content
 		const providedCompleteness = (content as any).completenessPercent;
 		let finalCompletenessPercent: number;
-		if (providedCompleteness !== undefined && typeof providedCompleteness === 'number') {
+		if (
+			providedCompleteness !== undefined &&
+			typeof providedCompleteness === "number"
+		) {
 			finalCompletenessPercent = providedCompleteness;
-		} else if (completenessPercent !== undefined && typeof completenessPercent === 'number') {
-			finalCompletenessPercent = completenessPercent;
 		} else {
 			// Calculate from the actual content (excluding metadata fields)
-			finalCompletenessPercent = computeBorrowerCompletion(mergedFlat, mergedLockedFields);
+			finalCompletenessPercent = computeBorrowerCompletion(
+				mergedFlat,
+				mergedLockedFields
+			);
 		}
 
 		const contentToInsert = {
-			...groupedContent,
-			_lockedFields: mergedLockedFields,
+			...mergedFlat,
 			_fieldStates: mergedFieldStates,
-			completenessPercent: finalCompletenessPercent,
 		};
 
 		const { data: newResume, error } = await supabase
@@ -1444,6 +1620,8 @@ export const saveProjectBorrowerResume = async (
 			.insert({
 				project_id: projectId,
 				content: contentToInsert,
+				locked_fields: mergedLockedFields,
+				completeness_percent: finalCompletenessPercent,
 				created_by: user?.id ?? null,
 			})
 			.select("id")
@@ -1453,6 +1631,35 @@ export const saveProjectBorrowerResume = async (
 			throw new Error(
 				`Failed to create borrower resume: ${error.message}`
 			);
+
+		// Preserve previous version's locked_fields and completeness_percent
+		// This ensures historical versions retain their metadata
+		if (existingResume?.id) {
+			// Only update if the previous version doesn't have these values set
+			// or if they need to be preserved from what we fetched
+			const updatePreviousVersion: {
+				locked_fields?: Record<string, boolean>;
+				completeness_percent?: number;
+			} = {};
+
+			// Preserve locked_fields if they exist
+			if (existingLockedFields && Object.keys(existingLockedFields).length > 0) {
+				updatePreviousVersion.locked_fields = existingLockedFields;
+			}
+
+			// Preserve completeness_percent if it exists
+			if (existingCompletenessPercent !== undefined && existingCompletenessPercent !== null) {
+				updatePreviousVersion.completeness_percent = existingCompletenessPercent;
+			}
+
+			// Only update if we have values to preserve
+			if (Object.keys(updatePreviousVersion).length > 0) {
+				await supabase
+					.from("borrower_resumes")
+					.update(updatePreviousVersion)
+					.eq("id", existingResume.id);
+			}
+		}
 
 		// Update resource pointer
 		const { error: resourceError } = await supabase

@@ -614,8 +614,8 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 
   result._lockedFields = lockedFields;
 
-  // Calculate and set completenessPercent using the same logic as the frontend
-  result.completenessPercent = computeBorrowerCompletion(result);
+  // Note: completenessPercent is now stored in a separate column, not in content
+  // It will be calculated and set during insert
 
   return result;
 })();
@@ -1281,13 +1281,26 @@ async function grantMemberProjectAccess(
 async function seedProjectResume(projectId: string, createdById: string): Promise<boolean> {
   console.log(`[seed] Updating project resume for SoGood Apartments...`);
 
+  // Calculate completeness_percent (stored in column, not content)
+  // Extract locked_fields from content (now stored in column, not content)
+  const lockedFields = hoqueProjectResume._lockedFields || {};
+  const { _lockedFields, ...contentWithoutLockedFields } = hoqueProjectResume;
+
+  const { computeProjectCompletion } = await import('../src/utils/resumeCompletion');
+  const completenessPercent = computeProjectCompletion(
+    hoqueProjectResume,
+    lockedFields
+  );
+
   // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('project_resumes')
     .insert({
       project_id: projectId,
-      content: hoqueProjectResume,
+      content: contentWithoutLockedFields,
+      locked_fields: lockedFields,
+      completeness_percent: completenessPercent,
       created_by: createdById,
     });
 
@@ -1312,8 +1325,16 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     console.warn(`[seed] Warning: Failed to ensure borrower root resources:`, rootError.message);
   }
 
-  // hoqueBorrowerResume already has _lockedFields set
-  const borrowerResumeWithLocks = hoqueBorrowerResume;
+  // Extract locked_fields from content (now stored in column, not content)
+  const borrowerLockedFields = hoqueBorrowerResume._lockedFields || {};
+  const { _lockedFields, ...borrowerContentWithoutLockedFields } = hoqueBorrowerResume;
+
+  // Calculate completeness_percent (stored in column, not content)
+  const { computeBorrowerCompletion } = await import('../src/utils/resumeCompletion');
+  const completenessPercent = computeBorrowerCompletion(
+    hoqueBorrowerResume,
+    borrowerLockedFields
+  );
 
   // Insert new resume version
   // version_number will be auto-assigned by trigger
@@ -1321,7 +1342,9 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
-      content: borrowerResumeWithLocks,
+      content: borrowerContentWithoutLockedFields,
+      locked_fields: borrowerLockedFields,
+      completeness_percent: completenessPercent,
       created_by: createdById,
     });
 
@@ -2096,11 +2119,26 @@ async function seedHoqueProject(): Promise<void> {
 
     // Step 4.5: Seed OM data (single row per project, no versioning)
     // OM uses same content as project resume but without _lockedFields
+    // Also merges borrower resume data (flat format)
     console.log('\n📋 Step 4.5: Seeding OM data...');
     const omContent: Record<string, any> = { ...hoqueProjectResume };
     // Remove _lockedFields and _fieldStates from OM content (OM doesn't track locks)
     delete omContent._lockedFields;
     delete omContent._fieldStates;
+    delete omContent.completenessPercent;
+    
+    // Merge borrower resume data into OM (flat format, same as backend sync)
+    const borrowerContent: Record<string, any> = { ...hoqueBorrowerResume };
+    delete borrowerContent._lockedFields;
+    delete borrowerContent._fieldStates;
+    delete borrowerContent.completenessPercent;
+    
+    // Merge borrower fields into OM content (filter out metadata fields)
+    for (const key in borrowerContent) {
+      if (!key.startsWith('_') && key !== 'completenessPercent' && key !== 'projectSections' && key !== 'borrowerSections') {
+        omContent[key] = borrowerContent[key];
+      }
+    }
     
     const { error: omError } = await supabaseAdmin
       .from('om')
@@ -2115,7 +2153,7 @@ async function seedHoqueProject(): Promise<void> {
     if (omError) {
       console.warn(`[seed] ⚠️  Failed to seed OM data:`, omError.message);
     } else {
-      console.log(`[seed] ✅ Seeded OM data`);
+      console.log(`[seed] ✅ Seeded OM data (includes project + borrower resume fields)`);
     }
 
     // Step 5: Seed documents

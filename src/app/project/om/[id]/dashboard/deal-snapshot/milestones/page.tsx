@@ -5,11 +5,21 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { getOMValue, parseNumeric, formatLocale } from '@/lib/om-utils';
 
 export default function MilestonesPage() {
   const { content } = useOmContent();
-  const dealSnapshotDetails = content?.dealSnapshotDetails ?? null;
-  const milestones = dealSnapshotDetails?.milestones ?? [];
+  
+  // Build milestones from flat date fields
+  const milestones = [
+    { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: "completed" as const },
+    { phase: "Entitlements", date: content?.entitlements ?? null, status: "completed" as const },
+    { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: "current" as const },
+    { phase: "Vertical Start", date: content?.verticalStart ?? null, status: "current" as const },
+    { phase: "First Occupancy", date: content?.firstOccupancy ?? null, status: "upcoming" as const },
+    { phase: "Completion", date: content?.completionDate ?? null, status: "upcoming" as const },
+    { phase: "Stabilization", date: content?.stabilization ?? null, status: "upcoming" as const },
+  ].filter(item => item.date);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -37,10 +47,14 @@ export default function MilestonesPage() {
     }
   };
 
-  const totalDuration = milestones.reduce(
-    (sum: number, milestone: { duration?: number | null }) => sum + (milestone.duration ?? 0),
-    0
-  );
+  // Calculate total duration from milestone dates (in days)
+  // For now, use a placeholder since we don't have duration data
+  const totalDuration = 0;
+
+  // Extract construction/lease-up fields
+  const preLeasedSF = parseNumeric(content?.preLeasedSF) ?? null;
+  const drawSchedule = content?.drawSchedule;
+  const absorptionProjection = getOMValue(content, "absorptionProjection");
 
   useOMPageHeader({
     subtitle: "Timeline of critical phases, durations, and current status.",
@@ -87,12 +101,12 @@ export default function MilestonesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => {
-              const previousDuration = milestones
-                .slice(0, index)
-                .reduce((sum: number, m: { duration?: number | null }) => sum + (m.duration ?? 0), 0);
+            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null }, index: number) => {
+              // Calculate duration placeholder - milestones don't have duration, using equal distribution
+              const equalDuration = totalDuration > 0 ? totalDuration / milestones.length : 0;
+              const previousDuration = index * equalDuration;
               const startPercentage = totalDuration > 0 ? (previousDuration / totalDuration) * 100 : 0;
-              const duration = milestone.duration ?? 0;
+              const duration = equalDuration;
               const widthPercentage = totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
 
               return (
@@ -121,7 +135,7 @@ export default function MilestonesPage() {
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-xs font-medium text-white">
-                        {milestone.date}
+                        {milestone.date ?? ''}
                       </span>
                     </div>
                   </div>
@@ -168,6 +182,53 @@ export default function MilestonesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Construction & Lease-Up Status */}
+      {(preLeasedSF != null || drawSchedule || absorptionProjection) && (
+        <Card>
+          <CardHeader>
+            <h2 className="text-xl">Construction & Lease-Up Status</h2>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {preLeasedSF != null && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-2">Pre-Leased SF</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatLocale(preLeasedSF)} SF</p>
+                </div>
+              )}
+              {absorptionProjection && (
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <p className="text-xs font-medium text-green-600 uppercase tracking-wider mb-2">Absorption Projection</p>
+                  <p className="text-sm text-gray-800">{absorptionProjection}</p>
+                </div>
+              )}
+              {drawSchedule && Array.isArray(drawSchedule) && drawSchedule.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 uppercase tracking-wider mb-3">Draw Schedule</p>
+                  <div className="space-y-2">
+                    {drawSchedule.map((draw: any, index: number) => (
+                      <div key={index} className="p-3 bg-gray-50 rounded border border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-800">
+                            {draw.phase || draw.description || `Draw ${index + 1}`}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            {draw.amount != null ? `$${formatLocale(draw.amount)}` : draw.percentage != null ? `${draw.percentage}%` : null}
+                          </span>
+                        </div>
+                        {draw.date && (
+                          <p className="text-xs text-gray-500 mt-1">Due: {draw.date}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 } 

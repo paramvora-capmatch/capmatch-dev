@@ -425,7 +425,7 @@ async function updateProjectResume(
   const lockedFields: Record<string, boolean> = {};
   for (const [key, value] of Object.entries(resumeContent)) {
     // Skip reserved keys
-    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata' || key === 'completenessPercent') {
+    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata') {
       continue;
     }
     
@@ -445,19 +445,15 @@ async function updateProjectResume(
     }
   }
   
-  const resumeWithProgress: ProjectResumeContent & Record<string, any> = {
-    ...resumeContent,
-    completenessPercent,
-    _lockedFields: lockedFields,
-  };
-
   // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('project_resumes')
     .insert({
       project_id: projectId,
-      content: resumeWithProgress as any,
+      content: resumeContent as any,
+      locked_fields: lockedFields,
+      completeness_percent: completenessPercent,
       created_by: createdById,
     });
 
@@ -490,7 +486,7 @@ async function updateBorrowerResume(
   const lockedFields: Record<string, boolean> = {};
   for (const [key, value] of Object.entries(resumeContent)) {
     // Skip reserved keys
-    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata' || key === 'completenessPercent') {
+    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata') {
       continue;
     }
     
@@ -510,21 +506,15 @@ async function updateBorrowerResume(
     }
   }
 
-  // Ensure completenessPercent is set to 100 for complete projects
-  // The calculation logic only counts booleans when true, but we want to show 100% for complete data
-  const borrowerResumeWithProgress = {
-    ...resumeContent,
-    completenessPercent: 100, // Explicitly set to 100% since all fields are filled
-    _lockedFields: lockedFields,
-  };
-
   // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
     .from('borrower_resumes')
     .insert({
       project_id: projectId,
-      content: borrowerResumeWithProgress as any,
+      content: resumeContent as any,
+      locked_fields: lockedFields,
+      completeness_percent: 100, // Explicitly set to 100% since all fields are filled
       created_by: createdById,
     });
 
