@@ -101,17 +101,12 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
         return "w-[35%]";
       }
     }
-    // For meet tab: also use hover-based width
+    // For meet tab: use consistent width (no hover expansion)
     if (rightTab === "meet") {
-      if (isChatHovered) {
-        // Expanded: wider when hovered, capped at 50% max
-        return "!w-[min(45%,50%)] md:!w-[min(50%,50%)] xl:!w-[min(55%,50%)] max-w-[700px]";
-      } else {
-        // Collapsed: 35% width consistently
-        return "w-[35%]";
-      }
+      // Use consistent width like AI tab, no hover-based expansion
+      return widthClassName || "w-[45%] md:w-[50%] xl:w-[55%] max-w-[700px]";
     }
-    // For AI tab: also use hover-based width
+    // For AI tab: use consistent width (no hover expansion)
     if (rightTab === "ai" || hideTeamTab) {
       // Use the provided widthClassName or fallback to a consistent width
       return widthClassName || "w-[45%] md:w-[50%] xl:w-[55%] max-w-[700px]";
