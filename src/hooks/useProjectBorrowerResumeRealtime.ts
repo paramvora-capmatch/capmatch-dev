@@ -122,7 +122,7 @@ const getProjectBorrowerResumeContent = async (
 	// Fetch the latest few rows and pick the first valid one.
 	const { data, error } = await supabase
 		.from("borrower_resumes")
-		.select("id, content, created_at")
+		.select("id, content, completeness_percent, created_at")
 		.eq("project_id", projectId)
 		.order("created_at", { ascending: false })
 		.limit(5);
@@ -137,7 +137,9 @@ const getProjectBorrowerResumeContent = async (
 
 	// Find the first non-corrupted snapshot
 	const chosen = data.find((row) => !isCorruptedBooleanSnapshot(row.content));
-	const contentRaw = (chosen ?? data[0]).content as any;
+	const chosenRow = chosen ?? data[0];
+	const contentRaw = chosenRow.content as any;
+	const completenessPercent = chosenRow.completeness_percent;
 
 	if (!contentRaw) return null;
 
@@ -151,7 +153,6 @@ const getProjectBorrowerResumeContent = async (
 	delete working._lockedFields;
 	delete working._fieldStates;
 	delete working._metadata;
-	delete working.completenessPercent;
 
 	// Convert section-wise format to flat format for form/view consumption
 	if (isGroupedFormat(working)) {
@@ -253,14 +254,9 @@ const getProjectBorrowerResumeContent = async (
 	flatContent._lockedFields = _lockedFields;
 	flatContent._fieldStates = _fieldStates;
 
-	// Restore completenessPercent from original content
-	if (
-		contentRaw &&
-		typeof (contentRaw as any).completenessPercent === "number"
-	) {
-		flatContent.completenessPercent = (
-			contentRaw as any
-		).completenessPercent;
+	// Add completeness_percent from column (not from content)
+	if (completenessPercent !== undefined && completenessPercent !== null) {
+		flatContent.completenessPercent = completenessPercent;
 	}
 
 	// Final pass: ensure any remaining rich objects are unwrapped to their `.value`

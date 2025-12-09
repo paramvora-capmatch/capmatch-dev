@@ -94,7 +94,9 @@ function groupBySections(
 
 	const keys = Object.keys(flatData);
 	console.log(
-		`[project-utils] groupBySections called with ${keys.length} keys: ${keys.join(", ")}`
+		`[project-utils] groupBySections called with ${
+			keys.length
+		} keys: ${keys.join(", ")}`
 	);
 
 	for (const [fieldId, fieldValue] of Object.entries(flatData)) {
@@ -113,12 +115,15 @@ function groupBySections(
 		// MUST check this BEFORE checking FIELD_TO_SECTION to avoid placing subsection IDs in "unknown"
 		const hasDash = fieldId.includes("-");
 		const notInFieldMap = !FIELD_TO_SECTION[fieldId];
-		const isObject = typeof fieldValue === "object" && fieldValue !== null && !Array.isArray(fieldValue);
-		
+		const isObject =
+			typeof fieldValue === "object" &&
+			fieldValue !== null &&
+			!Array.isArray(fieldValue);
+
 		console.log(
 			`[project-utils] Processing key '${fieldId}': hasDash=${hasDash}, notInFieldMap=${notInFieldMap}, isObject=${isObject}`
 		);
-		
+
 		if (hasDash && notInFieldMap && isObject) {
 			// This is a subsection ID with nested field data - process the nested fields
 			console.log(
@@ -133,7 +138,9 @@ function groupBySections(
 				targetSectionId = "basic-info";
 			} else {
 				// Try to find the section by checking which fields in this subsection belong to which section
-				const nestedFields = Object.keys(fieldValue as Record<string, unknown>);
+				const nestedFields = Object.keys(
+					fieldValue as Record<string, unknown>
+				);
 				if (nestedFields.length > 0) {
 					const firstFieldSection = FIELD_TO_SECTION[nestedFields[0]];
 					if (firstFieldSection) {
@@ -215,22 +222,25 @@ function groupBySections(
 				console.warn(
 					`[project-utils] Field '${fieldId}' not in FIELD_TO_SECTION but looks like subsection ID, attempting to process nested fields`
 				);
-				
+
 				let targetSectionId: string | null = null;
 				if (fieldId === "project-identity") {
 					targetSectionId = "basic-info";
 				} else if (fieldId === "classification") {
 					targetSectionId = "basic-info";
 				} else {
-					const nestedFields = Object.keys(fieldValue as Record<string, unknown>);
+					const nestedFields = Object.keys(
+						fieldValue as Record<string, unknown>
+					);
 					if (nestedFields.length > 0) {
-						const firstFieldSection = FIELD_TO_SECTION[nestedFields[0]];
+						const firstFieldSection =
+							FIELD_TO_SECTION[nestedFields[0]];
 						if (firstFieldSection) {
 							targetSectionId = firstFieldSection;
 						}
 					}
 				}
-				
+
 				if (targetSectionId) {
 					// Process nested fields
 					for (const [nestedFieldId, nestedValue] of Object.entries(
@@ -247,19 +257,21 @@ function groupBySections(
 						);
 						if (nestedSubsectionId) {
 							if (!grouped[nestedSectionId][nestedSubsectionId]) {
-								grouped[nestedSectionId][nestedSubsectionId] = {};
+								grouped[nestedSectionId][nestedSubsectionId] =
+									{};
 							}
 							grouped[nestedSectionId][nestedSubsectionId][
 								nestedFieldId
 							] = nestedValue;
 						} else {
-							grouped[nestedSectionId][nestedFieldId] = nestedValue;
+							grouped[nestedSectionId][nestedFieldId] =
+								nestedValue;
 						}
 					}
 					continue; // Skip placing in unknown
 				}
 			}
-			
+
 			// Field not found in mapping - log for debugging
 			console.warn(
 				`[project-utils] Field '${fieldId}' not found in FIELD_TO_SECTION mapping, placing in 'unknown'`
@@ -414,11 +426,16 @@ async function fetchMostCompleteBorrowerResume(
 	supabaseAdmin: any,
 	ownerOrgId: string,
 	excludeProjectId: string
-): Promise<{ content: Record<string, unknown>; projectId: string | null }> {
+): Promise<{
+	content: Record<string, unknown>;
+	projectId: string | null;
+	completeness_percent: number | null;
+	created_by: string | null;
+}> {
 	const { data, error } = await supabaseAdmin
 		.from("borrower_resumes")
 		.select(
-			`project_id, content, updated_at,
+			`project_id, content, completeness_percent, created_by, updated_at,
        projects!inner(id, owner_org_id, updated_at)`
 		)
 		.eq("projects.owner_org_id", ownerOrgId)
@@ -429,7 +446,12 @@ async function fetchMostCompleteBorrowerResume(
 			"[project-utils] Error fetching borrower resumes for duplication",
 			error
 		);
-		return { content: {}, projectId: null };
+		return {
+			content: {},
+			projectId: null,
+			completeness_percent: null,
+			created_by: null,
+		};
 	}
 
 	const candidates =
@@ -440,9 +462,13 @@ async function fetchMostCompleteBorrowerResume(
 						| Record<string, unknown>
 						| null
 						| undefined) ?? {};
-				const completeness = parseCompletenessPercent(
-					(content as Record<string, unknown>)?.completenessPercent
-				);
+				// Use completeness_percent from column instead of parsing from content
+				const completeness =
+					row?.completeness_percent ??
+					parseCompletenessPercent(
+						(content as Record<string, unknown>)
+							?.completenessPercent
+					);
 				const updatedAt =
 					row?.updated_at ?? row?.projects?.updated_at ?? null;
 
@@ -450,6 +476,7 @@ async function fetchMostCompleteBorrowerResume(
 					projectId: row?.project_id as string | undefined,
 					content,
 					completeness,
+					created_by: row?.created_by as string | null | undefined,
 					updatedAt: updatedAt ? new Date(updatedAt).getTime() : 0,
 					hasMeaningfulContent: hasMeaningfulBorrowerContent(content),
 				};
@@ -461,13 +488,19 @@ async function fetchMostCompleteBorrowerResume(
 					projectId: string;
 					content: Record<string, unknown>;
 					completeness: number;
+					created_by: string | null;
 					updatedAt: number;
 					hasMeaningfulContent: boolean;
 				} => Boolean(row?.projectId)
 			) ?? [];
 
 	if (!candidates.length) {
-		return { content: {}, projectId: null };
+		return {
+			content: {},
+			projectId: null,
+			completeness_percent: null,
+			created_by: null,
+		};
 	}
 
 	candidates.sort((a, b) => {
@@ -486,12 +519,19 @@ async function fetchMostCompleteBorrowerResume(
 	const selected = filledCandidate ?? candidates[0];
 
 	if (!selected || !selected.projectId) {
-		return { content: {}, projectId: null };
+		return {
+			content: {},
+			projectId: null,
+			completeness_percent: null,
+			created_by: null,
+		};
 	}
 
 	return {
 		content: selected.content,
 		projectId: selected.projectId,
+		completeness_percent: selected.completeness,
+		created_by: selected.created_by ?? null,
 	};
 }
 
@@ -861,7 +901,9 @@ export async function createProjectWithResumeAndStorage(
 
 	// Add address if provided
 	if (address && typeof address === "string" && address.trim().length > 0) {
-		initialResumeContent["basic-info"]["project-identity"]["propertyAddressStreet"] = {
+		initialResumeContent["basic-info"]["project-identity"][
+			"propertyAddressStreet"
+		] = {
 			value: address.trim(),
 			source: {
 				type: "user_input",
@@ -1033,8 +1075,12 @@ export async function createProjectWithResumeAndStorage(
 		projectDocsRootResourceResult as ResourceRecord;
 	const borrowerRoots = borrowerRootsResult as BorrowerRootsRow[] | null;
 	const borrowerRootRow = borrowerRoots?.[0];
-	const { content: borrowerResumeContent, projectId: sourceResumeProjectId } =
-		borrowerResumeFetchResult;
+	const {
+		content: borrowerResumeContent,
+		projectId: sourceResumeProjectId,
+		completeness_percent: sourceCompletenessPercent,
+		created_by: sourceCreatedBy,
+	} = borrowerResumeFetchResult;
 
 	// Build owner IDs set
 	const ownerIds = new Set<string>([options.creator_id]);
@@ -1058,6 +1104,8 @@ export async function createProjectWithResumeAndStorage(
 				.insert({
 					project_id: project.id,
 					content: borrowerResumeContent,
+					completeness_percent: sourceCompletenessPercent ?? 0,
+					created_by: sourceCreatedBy, // Copy created_by from source borrower resume
 				})
 				.then(({ error }) => {
 					if (error) {

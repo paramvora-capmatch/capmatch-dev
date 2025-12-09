@@ -614,8 +614,8 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 
   result._lockedFields = lockedFields;
 
-  // Calculate and set completenessPercent using the same logic as the frontend
-  result.completenessPercent = computeBorrowerCompletion(result);
+  // Note: completenessPercent is now stored in a separate column, not in content
+  // It will be calculated and set during insert
 
   return result;
 })();
@@ -1281,6 +1281,13 @@ async function grantMemberProjectAccess(
 async function seedProjectResume(projectId: string, createdById: string): Promise<boolean> {
   console.log(`[seed] Updating project resume for SoGood Apartments...`);
 
+  // Calculate completeness_percent (stored in column, not content)
+  const { computeProjectCompletion } = await import('../src/utils/resumeCompletion');
+  const completenessPercent = computeProjectCompletion(
+    hoqueProjectResume,
+    hoqueProjectResume._lockedFields || {}
+  );
+
   // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
@@ -1288,6 +1295,7 @@ async function seedProjectResume(projectId: string, createdById: string): Promis
     .insert({
       project_id: projectId,
       content: hoqueProjectResume,
+      completeness_percent: completenessPercent,
       created_by: createdById,
     });
 
@@ -1315,6 +1323,13 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
   // hoqueBorrowerResume already has _lockedFields set
   const borrowerResumeWithLocks = hoqueBorrowerResume;
 
+  // Calculate completeness_percent (stored in column, not content)
+  const { computeBorrowerCompletion } = await import('../src/utils/resumeCompletion');
+  const completenessPercent = computeBorrowerCompletion(
+    borrowerResumeWithLocks,
+    borrowerResumeWithLocks._lockedFields || {}
+  );
+
   // Insert new resume version
   // version_number will be auto-assigned by trigger
   const { error } = await supabaseAdmin
@@ -1322,6 +1337,7 @@ async function seedBorrowerResume(projectId: string, createdById: string): Promi
     .insert({
       project_id: projectId,
       content: borrowerResumeWithLocks,
+      completeness_percent: completenessPercent,
       created_by: createdById,
     });
 

@@ -319,7 +319,6 @@ BEGIN
       'sponsorStructure', 'General Partner',
       'equityPartner', 'ACARA',
       'contactInfo', 'Cody Field (415.202.3258), Joel Heikenfeld (972.455.1943)',
-      'completenessPercent', 100,
       'internalAdvisorNotes', 'Seeded via scripts/seed-hoque-project.sql',
       'projectSections', jsonb_build_object(
         'timeline', v_timeline,
@@ -351,7 +350,6 @@ BEGIN
     'bankruptcyHistory', false,
     'foreclosureHistory', false,
     'litigationHistory', false,
-    'completenessPercent', 100,
     'borrowerSections', jsonb_build_object(
       'principals', v_principals,
       'trackRecord', v_track_record,
@@ -825,12 +823,12 @@ BEGIN
   DELETE FROM public.borrower_resumes WHERE project_id = v_target_project_id;
 
   -- Insert project resume (versioning triggers will assign version_number/status)
-  INSERT INTO public.project_resumes (project_id, content)
-  VALUES (v_target_project_id, v_project_resume);
+  INSERT INTO public.project_resumes (project_id, content, completeness_percent)
+  VALUES (v_target_project_id, v_project_resume, 100);
 
   -- Insert borrower resume (versioning triggers will assign version_number/status)
-  INSERT INTO public.borrower_resumes (project_id, content)
-  VALUES (v_target_project_id, v_borrower_resume);
+  INSERT INTO public.borrower_resumes (project_id, content, completeness_percent)
+  VALUES (v_target_project_id, v_borrower_resume, 100);
 
   -- Ensure borrower root resources exist for this project
   PERFORM public.ensure_project_borrower_roots(v_target_project_id);

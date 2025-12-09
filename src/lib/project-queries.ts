@@ -495,22 +495,25 @@ export const getProjectWithResume = async (
 
 	let resume: { content: ProjectResumeContent } | null = null;
 
+	let projectCompletenessPercent: number | undefined;
 	if (resource?.current_version_id) {
 		const result = await supabase
 			.from("project_resumes")
-			.select("content")
+			.select("content, completeness_percent")
 			.eq("id", resource.current_version_id)
 			.single();
 		resume = result.data;
+		projectCompletenessPercent = result.data?.completeness_percent;
 	} else {
 		const result = await supabase
 			.from("project_resumes")
-			.select("content")
+			.select("content, completeness_percent")
 			.eq("project_id", projectId)
 			.order("created_at", { ascending: false })
 			.limit(1)
 			.maybeSingle();
 		resume = result.data;
+		projectCompletenessPercent = result.data?.completeness_percent;
 	}
 
 	let rawContent = (resume?.content || {}) as any;
@@ -527,12 +530,39 @@ export const getProjectWithResume = async (
 		rawContent = ungroupFromSections(rawContent);
 	}
 
-	// Fetch borrower resume for progress calc
-	const { data: borrowerResume } = await supabase
-		.from("borrower_resumes")
-		.select("content")
+	// Fetch borrower resume - use resource's current_version_id if available
+	const { data: borrowerResource } = await supabase
+		.from("resources")
+		.select("id, current_version_id")
+		.eq("resource_type", "BORROWER_RESUME")
 		.eq("project_id", projectId)
 		.maybeSingle();
+
+	let borrowerResume: {
+		content: BorrowerResumeContent;
+		completeness_percent?: number;
+	} | null = null;
+	let borrowerCompletenessPercent: number | undefined;
+
+	if (borrowerResource?.current_version_id) {
+		const result = await supabase
+			.from("borrower_resumes")
+			.select("content, completeness_percent")
+			.eq("id", borrowerResource.current_version_id)
+			.maybeSingle();
+		borrowerResume = result.data;
+		borrowerCompletenessPercent = result.data?.completeness_percent;
+	} else {
+		const result = await supabase
+			.from("borrower_resumes")
+			.select("content, completeness_percent")
+			.eq("project_id", projectId)
+			.order("created_at", { ascending: false })
+			.limit(1)
+			.maybeSingle();
+		borrowerResume = result.data;
+		borrowerCompletenessPercent = result.data?.completeness_percent;
+	}
 
 	let borrowerResumeContent: BorrowerResumeContent =
 		borrowerResume?.content || {};
@@ -542,7 +572,7 @@ export const getProjectWithResume = async (
 		(borrowerResumeContent as any)?._lockedFields || {};
 
 	// Ungroup borrower resume content if it's stored in grouped format
-	// This ensures computeBorrowerCompletion can find the fields
+	// This ensures we can access the fields for other purposes
 	if (isGroupedFormat(borrowerResumeContent)) {
 		borrowerResumeContent = ungroupFromSections(borrowerResumeContent);
 		// After ungrouping, locked fields are preserved as root-level keys
@@ -554,10 +584,19 @@ export const getProjectWithResume = async (
 		}
 	}
 
-	// Compute borrower completion using BORROWER's locked fields, not project's
-	const borrowerProgress = Math.round(
-		computeBorrowerCompletion(borrowerResumeContent, borrowerLockedFields)
-	);
+	// Use stored completeness_percent from column instead of calculating
+	// Fall back to calculation only if stored value is missing/invalid
+	const borrowerProgress =
+		borrowerCompletenessPercent !== undefined &&
+		borrowerCompletenessPercent !== null &&
+		typeof borrowerCompletenessPercent === "number"
+			? Math.round(borrowerCompletenessPercent)
+			: Math.round(
+					computeBorrowerCompletion(
+						borrowerResumeContent,
+						borrowerLockedFields
+					)
+			  );
 
 	const _metadata: Record<
 		string,
@@ -611,7 +650,7 @@ export const getProjectWithResume = async (
 		interestRateType: (resumeContent.interestRateType as any) || "",
 		recoursePreference: (resumeContent.recoursePreference as any) || "",
 		exitStrategy: resumeContent.exitStrategy as any,
-		completenessPercent: resumeContent.completenessPercent ?? 0,
+		completenessPercent: projectCompletenessPercent ?? 0,
 		internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
 		borrowerProgress,
 		projectSections: resumeContent.projectSections || {},
@@ -652,7 +691,7 @@ export const getProjectsWithResumes = async (
 
 	const { data: resumes, error: resumesError } = await supabase
 		.from("project_resumes")
-		.select("project_id, content, created_at")
+		.select("project_id, content, completeness_percent, created_at")
 		.in("project_id", projectIds)
 		.order("created_at", { ascending: false });
 	if (resumesError)
@@ -663,7 +702,7 @@ export const getProjectsWithResumes = async (
 	const { data: borrowerResumes, error: borrowerResumesError } =
 		await supabase
 			.from("borrower_resumes")
-			.select("project_id, content")
+			.select("project_id, content, completeness_percent")
 			.in("project_id", projectIds);
 	if (borrowerResumesError)
 		throw new Error(
@@ -677,9 +716,20 @@ export const getProjectsWithResumes = async (
 	>();
 	const lockedFieldsMap = new Map<string, Record<string, boolean>>();
 	const fieldStatesMap = new Map<string, any>();
+	const completenessPercentMap = new Map<string, number>();
 
 	resumes?.forEach((resume: any) => {
 		if (!resumeMap.has(resume.project_id)) {
+			// Store completeness_percent from column
+			if (
+				resume.completeness_percent !== undefined &&
+				resume.completeness_percent !== null
+			) {
+				completenessPercentMap.set(
+					resume.project_id,
+					resume.completeness_percent
+				);
+			}
 			let rawContent = (resume.content || {}) as any;
 			const rawLockedFields =
 				(rawContent._lockedFields as
@@ -740,14 +790,25 @@ export const getProjectsWithResumes = async (
 	});
 
 	const borrowerResumeMap = new Map<string, BorrowerResumeContent>();
+	const borrowerCompletenessMap = new Map<string, number>();
 	borrowerResumes?.forEach((resume: any) => {
 		let borrowerContent = resume.content || {};
 		// Ungroup borrower resume content if it's stored in grouped format
-		// This ensures computeBorrowerCompletion can find the fields
+		// This ensures we can access the fields for other purposes
 		if (isGroupedFormat(borrowerContent)) {
 			borrowerContent = ungroupFromSections(borrowerContent);
 		}
 		borrowerResumeMap.set(resume.project_id, borrowerContent);
+		// Store completeness_percent from column
+		if (
+			resume.completeness_percent !== undefined &&
+			resume.completeness_percent !== null
+		) {
+			borrowerCompletenessMap.set(
+				resume.project_id,
+				resume.completeness_percent
+			);
+		}
 	});
 
 	return (
@@ -758,15 +819,23 @@ export const getProjectsWithResumes = async (
 			const borrowerResumeContent =
 				borrowerResumeMap.get(project.id) ||
 				({} as BorrowerResumeContent);
-			// Compute borrower completion instead of reading from stored value
+			// Use stored completeness_percent from column instead of calculating
+			// Fall back to calculation only if stored value is missing/invalid
+			const storedBorrowerProgress = borrowerCompletenessMap.get(
+				project.id
+			);
 			const lockedFieldsForProject =
 				lockedFieldsMap.get(project.id) || {};
-			const borrowerProgress = Math.round(
-				computeBorrowerCompletion(
-					borrowerResumeContent,
-					lockedFieldsForProject
-				)
-			);
+			const borrowerProgress =
+				storedBorrowerProgress !== undefined &&
+				storedBorrowerProgress !== null
+					? Math.round(storedBorrowerProgress)
+					: Math.round(
+							computeBorrowerCompletion(
+								borrowerResumeContent,
+								lockedFieldsForProject
+							)
+					  );
 
 			const combinedProfile: ProjectProfile = {
 				id: project.id,
@@ -782,7 +851,8 @@ export const getProjectsWithResumes = async (
 				recoursePreference:
 					(resumeContent.recoursePreference as any) || "",
 				exitStrategy: resumeContent.exitStrategy as any,
-				completenessPercent: resumeContent.completenessPercent ?? 0,
+				completenessPercent:
+					completenessPercentMap.get(project.id) ?? 0,
 				internalAdvisorNotes: resumeContent.internalAdvisorNotes || "",
 				borrowerProgress,
 				projectSections: resumeContent.projectSections || {},
@@ -1022,7 +1092,7 @@ export const saveProjectResume = async (
 			};
 		}
 
-		// Calculate and include completenessPercent for updates
+		// Calculate completeness_percent for updates (stored in column, not content)
 		const completionPercent = computeProjectCompletion(
 			{
 				...content,
@@ -1030,11 +1100,13 @@ export const saveProjectResume = async (
 			},
 			lockedFields
 		);
-		contentToSave.completenessPercent = completionPercent;
 
 		const { error } = await supabase
 			.from("project_resumes")
-			.update({ content: contentToSave })
+			.update({
+				content: contentToSave,
+				completeness_percent: completionPercent,
+			})
 			.eq("id", existing.id);
 		if (error)
 			throw new Error(
@@ -1046,13 +1118,8 @@ export const saveProjectResume = async (
 			existingContentFlat = isGroupedFormat(existing.content)
 				? ungroupFromSections(existing.content)
 				: existing.content;
-			const {
-				_lockedFields,
-				_fieldStates,
-				_metadata,
-				completenessPercent,
-				...cleanExisting
-			} = existingContentFlat;
+			const { _lockedFields, _fieldStates, _metadata, ...cleanExisting } =
+				existingContentFlat;
 			existingContentFlat = cleanExisting;
 		}
 		const mergedContent = { ...existingContentFlat, ...finalContent };
@@ -1073,7 +1140,6 @@ export const saveProjectResume = async (
 			...groupedContent,
 			_lockedFields: mergedLockedFields,
 			_fieldStates: mergedFieldStates,
-			completenessPercent: completionPercent,
 		};
 
 		const { data: newResume, error } = await supabase
@@ -1081,6 +1147,7 @@ export const saveProjectResume = async (
 			.insert({
 				project_id: projectId,
 				content: contentToInsert,
+				completeness_percent: completionPercent,
 				created_by: user?.id ?? null,
 			})
 			.select("id")
@@ -1115,7 +1182,9 @@ export const getProjectBorrowerResume = async (
 		.eq("resource_type", "BORROWER_RESUME")
 		.maybeSingle();
 
-	let query = supabase.from("borrower_resumes").select("content");
+	let query = supabase
+		.from("borrower_resumes")
+		.select("content, completeness_percent");
 	if (resource?.current_version_id) {
 		query = query.eq("id", resource.current_version_id);
 	} else {
@@ -1139,7 +1208,7 @@ export const getProjectBorrowerResume = async (
 			_lockedFields,
 			_fieldStates,
 			_metadata,
-			completenessPercent,
+			completenessPercent: _oldCompletenessPercent, // Remove old one from content if present
 			...sections
 		} = content;
 		const flat = ungroupFromSections(sections);
@@ -1148,8 +1217,16 @@ export const getProjectBorrowerResume = async (
 			_lockedFields,
 			_fieldStates,
 			_metadata,
-			completenessPercent,
 		};
+	}
+
+	// Add completeness_percent from column to content for UI consumption
+	// This ensures the UI always has access to the stored value
+	if (
+		data.completeness_percent !== undefined &&
+		data.completeness_percent !== null
+	) {
+		(content as any).completenessPercent = data.completeness_percent;
 	}
 
 	// Unwrap rich values if present (handle cases where DB returns { value, source, ... })
@@ -1398,18 +1475,20 @@ export const saveProjectBorrowerResume = async (
 		// Append root keys
 		contentToSave._lockedFields = lockedFields;
 		contentToSave._fieldStates = fieldStates;
-		// Always calculate and save completenessPercent to ensure it's always in sync
+
+		// Calculate completeness_percent (stored in column, not content)
 		// Use provided value if available, otherwise calculate from the content
 		const providedCompleteness = (content as any).completenessPercent;
+		let completenessPercent: number;
 		if (
 			providedCompleteness !== undefined &&
 			typeof providedCompleteness === "number"
 		) {
-			contentToSave.completenessPercent = providedCompleteness;
+			completenessPercent = providedCompleteness;
 		} else {
 			// Calculate from the actual content (excluding metadata fields)
 			const contentForCalculation = { ...finalContentFlat };
-			contentToSave.completenessPercent = computeBorrowerCompletion(
+			completenessPercent = computeBorrowerCompletion(
 				contentForCalculation,
 				lockedFields
 			);
@@ -1427,7 +1506,10 @@ export const saveProjectBorrowerResume = async (
 
 		const { error } = await supabase
 			.from("borrower_resumes")
-			.update({ content: contentToSave })
+			.update({
+				content: contentToSave,
+				completeness_percent: completenessPercent,
+			})
 			.eq("id", targetId);
 
 		if (error)
@@ -1440,13 +1522,8 @@ export const saveProjectBorrowerResume = async (
 		const existingFlat = isExistingSectionWise
 			? ungroupFromSections(existingContent)
 			: existingContent;
-		const {
-			_lockedFields,
-			_fieldStates,
-			_metadata,
-			completenessPercent,
-			...cleanExisting
-		} = existingFlat;
+		const { _lockedFields, _fieldStates, _metadata, ...cleanExisting } =
+			existingFlat;
 
 		const mergedFlat = { ...cleanExisting, ...finalContentFlat };
 		const groupedContent = convertToBorrowerSectionWise(mergedFlat);
@@ -1456,7 +1533,7 @@ export const saveProjectBorrowerResume = async (
 		const mergedLockedFields = lockedFields;
 		const mergedFieldStates = fieldStates;
 
-		// Always calculate and save completenessPercent to ensure it's always in sync
+		// Calculate completeness_percent (stored in column, not content)
 		// Use provided value if available, otherwise calculate from the content
 		const providedCompleteness = (content as any).completenessPercent;
 		let finalCompletenessPercent: number;
@@ -1465,11 +1542,6 @@ export const saveProjectBorrowerResume = async (
 			typeof providedCompleteness === "number"
 		) {
 			finalCompletenessPercent = providedCompleteness;
-		} else if (
-			completenessPercent !== undefined &&
-			typeof completenessPercent === "number"
-		) {
-			finalCompletenessPercent = completenessPercent;
 		} else {
 			// Calculate from the actual content (excluding metadata fields)
 			finalCompletenessPercent = computeBorrowerCompletion(
@@ -1482,7 +1554,6 @@ export const saveProjectBorrowerResume = async (
 			...groupedContent,
 			_lockedFields: mergedLockedFields,
 			_fieldStates: mergedFieldStates,
-			completenessPercent: finalCompletenessPercent,
 		};
 
 		const { data: newResume, error } = await supabase
@@ -1490,6 +1561,7 @@ export const saveProjectBorrowerResume = async (
 			.insert({
 				project_id: projectId,
 				content: contentToInsert,
+				completeness_percent: finalCompletenessPercent,
 				created_by: user?.id ?? null,
 			})
 			.select("id")

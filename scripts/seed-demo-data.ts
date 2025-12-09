@@ -425,7 +425,7 @@ async function updateProjectResume(
   const lockedFields: Record<string, boolean> = {};
   for (const [key, value] of Object.entries(resumeContent)) {
     // Skip reserved keys
-    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata' || key === 'completenessPercent') {
+    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata') {
       continue;
     }
     
@@ -447,7 +447,6 @@ async function updateProjectResume(
   
   const resumeWithProgress: ProjectResumeContent & Record<string, any> = {
     ...resumeContent,
-    completenessPercent,
     _lockedFields: lockedFields,
   };
 
@@ -458,6 +457,7 @@ async function updateProjectResume(
     .insert({
       project_id: projectId,
       content: resumeWithProgress as any,
+      completeness_percent: completenessPercent,
       created_by: createdById,
     });
 
@@ -490,7 +490,7 @@ async function updateBorrowerResume(
   const lockedFields: Record<string, boolean> = {};
   for (const [key, value] of Object.entries(resumeContent)) {
     // Skip reserved keys
-    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata' || key === 'completenessPercent') {
+    if (key === '_lockedFields' || key === '_fieldStates' || key === '_metadata') {
       continue;
     }
     
@@ -514,7 +514,6 @@ async function updateBorrowerResume(
   // The calculation logic only counts booleans when true, but we want to show 100% for complete data
   const borrowerResumeWithProgress = {
     ...resumeContent,
-    completenessPercent: 100, // Explicitly set to 100% since all fields are filled
     _lockedFields: lockedFields,
   };
 
@@ -525,6 +524,7 @@ async function updateBorrowerResume(
     .insert({
       project_id: projectId,
       content: borrowerResumeWithProgress as any,
+      completeness_percent: 100, // Explicitly set to 100% since all fields are filled
       created_by: createdById,
     });
 

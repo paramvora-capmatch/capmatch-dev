@@ -513,12 +513,21 @@ serve(async (req) => {
         ...groupBySections(finalContentFlat),
       };
 
+      // Extract completenessPercent from resume_updates if present (stored in column, not content)
+      const completenessPercent = (resume_updates as any).completenessPercent;
+      
       // Prepare update payload
       const updatePayload: { 
-        content: Record<string, unknown>; 
+        content: Record<string, unknown>;
+        completeness_percent?: number;
       } = {
         content: finalContent
       };
+      
+      // Add completeness_percent to payload if provided
+      if (completenessPercent !== undefined && typeof completenessPercent === 'number') {
+        updatePayload.completeness_percent = completenessPercent;
+      }
 
       // Update the existing row (update in place, don't create new version)
       if (existing?.id) {
@@ -531,11 +540,18 @@ serve(async (req) => {
         // No existing resume - create new one
         const insertPayload: { 
           project_id: string; 
-          content: Record<string, unknown>; 
+          content: Record<string, unknown>;
+          completeness_percent?: number;
         } = {
           project_id,
           content: finalContent
         };
+        
+        // Add completeness_percent to insert payload if provided
+        if (completenessPercent !== undefined && typeof completenessPercent === 'number') {
+          insertPayload.completeness_percent = completenessPercent;
+        }
+        
         const { error: insertError } = await supabase
           .from("project_resumes")
           .insert(insertPayload);

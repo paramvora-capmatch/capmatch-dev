@@ -181,7 +181,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
   useEffect(() => {
     if (borrowerResumeData) {
-      const percent = computeBorrowerCompletion(borrowerResumeData);
+      // Prefer stored completenessPercent from DB column (fetched fresh)
+      // Fall back to calculation only if stored value is missing
+      const storedPercent = (borrowerResumeData as any)?.completenessPercent;
+      const percent =
+        storedPercent !== undefined &&
+        storedPercent !== null &&
+        typeof storedPercent === "number"
+          ? clampPercentage(storedPercent)
+          : computeBorrowerCompletion(borrowerResumeData);
       setBorrowerProgress(percent);
       setBorrowerResumeSnapshot(borrowerResumeData || null);
     } else {
@@ -302,6 +310,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       const preservedBorrowerDocsResourceId = (currentActive as any)?.borrowerDocsResourceId;
       
       await loadUserProjects();
+      // Reload borrower resume to get fresh completeness_percent from column
+      await reloadBorrowerResume();
       const updatedProject = getProject(projectId);
       if (updatedProject) {
         // Preserve borrower resource IDs when setting active project
@@ -319,7 +329,41 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
         error
       );
     }
-  }, [projectId, setActiveProject, loadUserProjects, getProject, activeProject]);
+  }, [projectId, setActiveProject, loadUserProjects, getProject, activeProject, reloadBorrowerResume]);
+
+  // Listen for autofill completion to refresh borrower resume data
+  useEffect(() => {
+    const handleAutofillCompleted = async (event: CustomEvent) => {
+      const { projectId: eventProjectId, context } = event.detail || {};
+      // Refresh borrower resume if autofill was for this project
+      // Refresh for both project and borrower autofills since they might affect each other
+      if (eventProjectId === projectId) {
+        console.log(
+          `[ProjectWorkspace] Autofill completed for ${context}, refreshing borrower resume...`
+        );
+        try {
+          await reloadBorrowerResume();
+          await loadUserProjects(); // Also refresh project store
+        } catch (error) {
+          console.error(
+            "[ProjectWorkspace] Failed to refresh after autofill:",
+            error
+          );
+        }
+      }
+    };
+
+    window.addEventListener(
+      "autofill-completed",
+      handleAutofillCompleted as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        "autofill-completed",
+        handleAutofillCompleted as EventListener
+      );
+    };
+  }, [projectId, reloadBorrowerResume, loadUserProjects]);
 
   // useEffect for loading and setting active project
   // Always fetch the latest project + resume snapshot for this workspace on mount

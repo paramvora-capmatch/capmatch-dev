@@ -53,6 +53,7 @@ const projectProfileToResumeContent = (
 		"projectSections",
 		"borrowerSections",
 		"borrowerProgress",
+		"completenessPercent", // Stored in separate column, not in content
 	]);
 
 	// Preserve ALL fields from profileData that are valid ProjectResumeContent fields
@@ -133,8 +134,27 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					| BorrowerResumeContent
 					| undefined) || null;
 
-			const completenessPercent = computeProjectCompletion(project);
-			const borrowerProgress = computeBorrowerCompletion(borrowerContent);
+			// Prefer stored values from project profile (fetched from DB columns)
+			// Only calculate if stored values are missing/invalid
+			const storedCompletenessPercent = project.completenessPercent;
+			const storedBorrowerProgress = project.borrowerProgress;
+
+			const completenessPercent =
+				storedCompletenessPercent !== undefined &&
+				storedCompletenessPercent !== null &&
+				typeof storedCompletenessPercent === "number" &&
+				storedCompletenessPercent >= 0
+					? storedCompletenessPercent
+					: computeProjectCompletion(project);
+
+			const borrowerProgress =
+				storedBorrowerProgress !== undefined &&
+				storedBorrowerProgress !== null &&
+				typeof storedBorrowerProgress === "number" &&
+				storedBorrowerProgress >= 0
+					? storedBorrowerProgress
+					: computeBorrowerCompletion(borrowerContent);
+
 			const totalProgress = Math.round(
 				(completenessPercent + borrowerProgress) / 2
 			);
@@ -567,10 +587,10 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			try {
 				// Delegate update to edge function so RLS and permissions are enforced server-side
 				const coreUpdates = projectProfileToDbProject(updates);
-				// Include completenessPercent in resume content to save to DB
+				// Note: completenessPercent is now stored in a separate column, not in content
+				// saveProjectResume will calculate and save it automatically
 				const resumeContent = {
 					...projectProfileToResumeContent(updates),
-					completenessPercent: progressResult.completenessPercent,
 				};
 
 				// Include metadata if present in updates
