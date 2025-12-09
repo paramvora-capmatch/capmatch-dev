@@ -8,6 +8,9 @@
 
 import { getOMValue } from "./om-queries";
 
+// Re-export getOMValue for convenience
+export { getOMValue };
+
 /**
  * Safely extracts and converts numeric values from OM content.
  * 

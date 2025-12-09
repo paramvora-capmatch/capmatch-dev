@@ -94,7 +94,8 @@ export async function getLatestOM(projectId: string) {
 /**
  * Extracts a value from OM content (handles rich format)
  */
-export function getOMValue(content: Record<string, any>, fieldId: string): any {
+export function getOMValue(content: Record<string, any> | null | undefined, fieldId: string): any {
+  if (!content) return null;
   const field = content[fieldId];
   if (field && typeof field === "object" && "value" in field) {
     return field.value;

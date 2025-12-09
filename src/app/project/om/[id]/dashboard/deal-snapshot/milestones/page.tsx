@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { getOMValue, parseNumeric, formatLocale } from '@/lib/om-utils';
 
 export default function MilestonesPage() {
   const { content } = useOmContent();
@@ -50,6 +51,11 @@ export default function MilestonesPage() {
     (sum: number, milestone: { duration?: number | null }) => sum + (milestone.duration ?? 0),
     0
   );
+
+  // Extract construction/lease-up fields
+  const preLeasedSF = parseNumeric(content?.preLeasedSF) ?? null;
+  const drawSchedule = content?.drawSchedule;
+  const absorptionProjection = getOMValue(content, "absorptionProjection");
 
   useOMPageHeader({
     subtitle: "Timeline of critical phases, durations, and current status.",
@@ -177,6 +183,53 @@ export default function MilestonesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Construction & Lease-Up Status */}
+      {(preLeasedSF != null || drawSchedule || absorptionProjection) && (
+        <Card>
+          <CardHeader>
+            <h2 className="text-xl">Construction & Lease-Up Status</h2>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {preLeasedSF != null && (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-2">Pre-Leased SF</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatLocale(preLeasedSF)} SF</p>
+                </div>
+              )}
+              {absorptionProjection && (
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <p className="text-xs font-medium text-green-600 uppercase tracking-wider mb-2">Absorption Projection</p>
+                  <p className="text-sm text-gray-800">{absorptionProjection}</p>
+                </div>
+              )}
+              {drawSchedule && Array.isArray(drawSchedule) && drawSchedule.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 uppercase tracking-wider mb-3">Draw Schedule</p>
+                  <div className="space-y-2">
+                    {drawSchedule.map((draw: any, index: number) => (
+                      <div key={index} className="p-3 bg-gray-50 rounded border border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-800">
+                            {draw.phase || draw.description || `Draw ${index + 1}`}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            {draw.amount != null ? `$${formatLocale(draw.amount)}` : draw.percentage != null ? `${draw.percentage}%` : null}
+                          </span>
+                        </div>
+                        {draw.date && (
+                          <p className="text-xs text-gray-500 mt-1">Due: {draw.date}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 } 

@@ -350,23 +350,23 @@ export default function SupplyDemandPage() {
                     >
                       {occupancyPercentValue != null
                         ? occupancyPercentValue >= 95
-                          ? "Tight"
+                          ? <span className="text-red-600">Tight</span>
                           : occupancyPercentValue >= 90
-                          ? "Balanced"
-                          : "Soft"
+                          ? <span className="text-red-600">Balanced</span>
+                          : <span className="text-red-600">Soft</span>
                         : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Demand Trend</span>
                   <Badge className="bg-green-100 text-green-800">
-                    ↑ Growing
+                    <span className="text-red-600">↑ Growing</span>
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pressure</span>
                   <Badge className="bg-red-100 text-red-800">
-                    Moderate
+                    <span className="text-red-600">Moderate</span>
                   </Badge>
                 </div>
               </div>
@@ -391,15 +391,15 @@ export default function SupplyDemandPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Limited new supply in Deep Ellum/Farmers Market corridor
+                  <span className="text-red-600">Limited new supply in Deep Ellum/Farmers Market corridor</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Downtown Dallas occupancy above 94%
+                  <span className="text-red-600">Downtown Dallas occupancy above 94%</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  &lt;6,000 units delivering over next 24 months
+                  <span className="text-red-600">&lt;6,000 units delivering over next 24 months</span>
                 </li>
               </ul>
             </div>
@@ -411,15 +411,15 @@ export default function SupplyDemandPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Strong job growth in Downtown Dallas (12.1% 5-year)
+                  <span className="text-red-600">Strong job growth in Downtown Dallas (12.1% 5-year)</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Workforce housing demand with PFC tax exemption
+                  <span className="text-red-600">Workforce housing demand with PFC tax exemption</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Proximity to DART rail and I-30/I-45 interchange
+                  <span className="text-red-600">Proximity to DART rail and I-30/I-45 interchange</span>
                 </li>
               </ul>
             </div>
@@ -429,15 +429,15 @@ export default function SupplyDemandPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-red-500 mr-2">•</span>
-                  Pipeline delivery timing
+                  <span className="text-red-600">Pipeline delivery timing</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-red-500 mr-2">•</span>
-                  Economic sensitivity
+                  <span className="text-red-600">Economic sensitivity</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-red-500 mr-2">•</span>
-                  Interest rate impact
+                  <span className="text-red-600">Interest rate impact</span>
                 </li>
               </ul>
             </div>

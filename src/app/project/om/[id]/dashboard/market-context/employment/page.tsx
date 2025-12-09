@@ -258,15 +258,15 @@ export default function EmploymentPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Strong tech sector presence
+                  <span className="text-red-600">Strong tech sector presence</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Healthcare employment stability
+                  <span className="text-red-600">Healthcare employment stability</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Financial services growth
+                  <span className="text-red-600">Financial services growth</span>
                 </li>
               </ul>
             </div>
@@ -276,15 +276,15 @@ export default function EmploymentPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  High-income tech workers
+                  <span className="text-red-600">High-income tech workers</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Growing employment base
+                  <span className="text-red-600">Growing employment base</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government
+                  <span className="text-red-600">Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government</span>
                 </li>
               </ul>
             </div>
@@ -294,15 +294,15 @@ export default function EmploymentPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Downtown Dallas professionals (AT&T, JP Morgan Chase)
+                  <span className="text-red-600">Downtown Dallas professionals (AT&T, JP Morgan Chase)</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Healthcare workers (Baylor Medical Center)
+                  <span className="text-red-600">Healthcare workers (Baylor Medical Center)</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Government employees (Dallas County)
+                  <span className="text-red-600">Government employees (Dallas County)</span>
                 </li>
               </ul>
             </div>

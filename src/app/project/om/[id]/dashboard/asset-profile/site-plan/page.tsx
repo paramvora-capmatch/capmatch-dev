@@ -6,7 +6,7 @@ import { MapPin, Building2, TreePine, Car } from 'lucide-react';
 import InteractiveSiteMap from '@/components/om/InteractiveSiteMap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatFixed } from '@/lib/om-utils';
+import { formatFixed, getOMValue } from '@/lib/om-utils';
 
 export default function SitePlanPage() {
   const { content } = useOmContent();
@@ -63,6 +63,23 @@ export default function SitePlanPage() {
     parkingSpaces != null && totalSiteAcreage != null
       ? Math.round((parkingSpaces / (totalSiteAcreage * 43560 / 1000)) * 100) / 100
       : parkingRatioValue;
+
+  // Extract site context fields
+  const currentSiteStatus = getOMValue(content, "currentSiteStatus");
+  const siteAccess = getOMValue(content, "siteAccess");
+  const proximityShopping = getOMValue(content, "proximityShopping");
+  const soilConditions = getOMValue(content, "soilConditions");
+  const wetlandsPresent = getOMValue(content, "wetlandsPresent");
+  const seismicRisk = getOMValue(content, "seismicRisk");
+  const phaseIESAFinding = getOMValue(content, "phaseIESAFinding");
+  const utilityAvailability = getOMValue(content, "utilityAvailability");
+  const easements = getOMValue(content, "easements");
+  const accessPoints = getOMValue(content, "accessPoints");
+  const adjacentLandUse = getOMValue(content, "adjacentLandUse");
+  const noiseFactors = getOMValue(content, "noiseFactors");
+  const viewCorridors = getOMValue(content, "viewCorridors");
+  const topography = getOMValue(content, "topography");
+  const floodZone = getOMValue(content, "floodZone");
 
   useOMPageHeader({
     subtitle: "Layout of buildings, circulation, zoning, and site efficiencies.",
@@ -238,12 +255,121 @@ export default function SitePlanPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Zoning Compliance</span>
-                <Badge className="bg-green-100 text-green-800">Compliant</Badge>
+                <Badge className="bg-green-100 text-green-800"><span className="text-red-600">Compliant</span></Badge>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Site Context */}
+      {(currentSiteStatus || siteAccess || proximityShopping || soilConditions || wetlandsPresent || 
+        seismicRisk || phaseIESAFinding || utilityAvailability || easements || accessPoints ||
+        adjacentLandUse || noiseFactors || viewCorridors || topography || floodZone) && (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Site Context & Conditions</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {currentSiteStatus && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Current Site Status</p>
+                  <p className="text-sm font-semibold text-gray-800">{currentSiteStatus}</p>
+                </div>
+              )}
+              {siteAccess && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Site Access</p>
+                  <p className="text-sm font-semibold text-gray-800">{siteAccess}</p>
+                </div>
+              )}
+              {proximityShopping && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Proximity to Shopping</p>
+                  <p className="text-sm font-semibold text-gray-800">{proximityShopping}</p>
+                </div>
+              )}
+              {soilConditions && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Soil Conditions</p>
+                  <p className="text-sm font-semibold text-gray-800">{soilConditions}</p>
+                </div>
+              )}
+              {wetlandsPresent && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Wetlands Present</p>
+                  <Badge className={wetlandsPresent === 'Yes' || wetlandsPresent === true ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}>
+                    {wetlandsPresent}
+                  </Badge>
+                </div>
+              )}
+              {seismicRisk && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Seismic Risk</p>
+                  <p className="text-sm font-semibold text-gray-800">{seismicRisk}</p>
+                </div>
+              )}
+              {phaseIESAFinding && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Phase I ESA Finding</p>
+                  <p className="text-sm font-semibold text-gray-800">{phaseIESAFinding}</p>
+                </div>
+              )}
+              {utilityAvailability && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Utility Availability</p>
+                  <p className="text-sm font-semibold text-gray-800">{utilityAvailability}</p>
+                </div>
+              )}
+              {easements && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Easements</p>
+                  <p className="text-sm font-semibold text-gray-800">{easements}</p>
+                </div>
+              )}
+              {accessPoints && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Access Points</p>
+                  <p className="text-sm font-semibold text-gray-800">{accessPoints}</p>
+                </div>
+              )}
+              {adjacentLandUse && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Adjacent Land Use</p>
+                  <p className="text-sm font-semibold text-gray-800">{adjacentLandUse}</p>
+                </div>
+              )}
+              {noiseFactors && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Noise Factors</p>
+                  <p className="text-sm font-semibold text-gray-800">{noiseFactors}</p>
+                </div>
+              )}
+              {viewCorridors && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">View Corridors</p>
+                  <p className="text-sm font-semibold text-gray-800">{viewCorridors}</p>
+                </div>
+              )}
+              {topography && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Topography</p>
+                  <p className="text-sm font-semibold text-gray-800">{topography}</p>
+                </div>
+              )}
+              {floodZone && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Flood Zone</p>
+                  <Badge className={floodZone === 'Yes' || floodZone === true ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}>
+                    {floodZone}
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 } 

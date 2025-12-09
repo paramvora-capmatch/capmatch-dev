@@ -126,16 +126,10 @@ export function ImageSlideshow({
   };
 
 
-  if (isLoading) {
-    return (
-      <div className={cn('w-full bg-gray-100 rounded-lg flex items-center justify-center', height)}>
-        <div className="text-gray-500">Loading images...</div>
-      </div>
-    );
-  }
-
-  if (images.length === 0) {
-    return null; // Don't show anything if there are no images
+  // Don't show loading state or empty state - silent failure
+  // Images will just appear when loaded, or component stays hidden if no images
+  if (isLoading || images.length === 0) {
+    return null;
   }
 
   return (

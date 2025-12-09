@@ -39,8 +39,11 @@ export default function DealSnapshotPage() {
     // Calculate percentages from flat fields
     const debtPercent = ltc ?? (totalDevCost > 0 ? (loanAmount / totalDevCost) * 100 : null);
     const equityPercent = debtPercent != null ? 100 - debtPercent : null;
-    const formatPercent = (value: number | null | undefined) =>
-      value != null ? `${value.toFixed(1)}%` : null;
+    const formatPercent = (value: number | null | undefined) => {
+      if (value == null) return null;
+      const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+      return !Number.isNaN(numValue) ? `${numValue.toFixed(1)}%` : null;
+    };
     
     // Build key terms from flat fields
     const keyTerms = {
@@ -238,7 +241,7 @@ export default function DealSnapshotPage() {
                     <div className="space-y-2">
                         {/* Risk matrix - empty for now, can be populated from flat fields in the future */}
                         <div className="p-2 bg-gray-50 rounded text-sm text-gray-500 text-center">
-                            No risk flags identified
+                            <span className="text-red-600">No risk flags identified</span>
                         </div>
                     </div>
                 </div>

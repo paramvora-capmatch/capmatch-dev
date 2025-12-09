@@ -226,15 +226,15 @@ export default function RiskAnalysisPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2">•</span>
-                  Fixed-price GMP contract with contingency
+                  <span className="text-red-600">Fixed-price GMP contract with contingency</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2">•</span>
-                  Strong pre-leasing commitments
+                  <span className="text-red-600">Strong pre-leasing commitments</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2">•</span>
-                  Full entitlement and permits secured
+                  <span className="text-red-600">Full entitlement and permits secured</span>
                 </li>
               </ul>
             </div>
@@ -245,15 +245,15 @@ export default function RiskAnalysisPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-start">
                   <span className="text-blue-500 mr-2">•</span>
-                  Monthly construction cost reviews
+                  <span className="text-red-600">Monthly construction cost reviews</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-blue-500 mr-2">•</span>
-                  Quarterly market demand analysis
+                  <span className="text-red-600">Quarterly market demand analysis</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-blue-500 mr-2">•</span>
-                  Regular entitlement compliance checks
+                  <span className="text-red-600">Regular entitlement compliance checks</span>
                 </li>
               </ul>
             </div>

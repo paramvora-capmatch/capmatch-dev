@@ -132,6 +132,7 @@ export default function FinancialSponsorPage() {
                     </div>
                     <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2">5-Year Cash Flow</p>
+                        {/* Hardcoded chart data */}
                         <MiniChart
                             type="line"
                             data={[
@@ -205,7 +206,7 @@ export default function FinancialSponsorPage() {
                         </div>
                         <div>
                             <p className="text-gray-500">Break-even</p>
-                            <p className="font-medium">78%</p>
+                            <p className="font-medium"><span className="text-red-600">78%</span></p>
                         </div>
                     </div>
                 </div>

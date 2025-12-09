@@ -75,6 +75,13 @@ export default function OMDashboardPage() {
 	const equityMultiple = getNumericValue(content, "equityMultiple", 0);
 	const totalDevCost = getNumericValue(content, "totalDevelopmentCost", 0);
 
+	// Extract project info fields
+	const dealStatus = getOMValue(content, "dealStatus");
+	const assetType = getOMValue(content, "assetType");
+	const constructionType = getOMValue(content, "constructionType");
+	const projectPhase = getOMValue(content, "projectPhase");
+	const projectDescription = getOMValue(content, "projectDescription");
+
 	// Build scenario data from flat fields (for UI display only)
 	// Note: In the future, scenario-specific fields may be stored separately
 	const scenarioDataAll = {
@@ -167,13 +174,13 @@ export default function OMDashboardPage() {
 											{item.phase.split(" ")[0]}
 										</div>
 										<div
-											className={`h-3 rounded-full ${
-												item.status === "completed"
-													? "bg-green-500"
-													: item.status === "current"
-													? "bg-blue-500"
-													: "bg-gray-200"
-											}`}
+										className={`h-3 rounded-full ${
+											item.status === "completed"
+												? "bg-green-500"
+												: item.status === "current"
+												? "bg-blue-500"
+												: "bg-gray-200"
+										}`}
 										/>
 										{item.status === "current" && (
 											<div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-600 rounded-full animate-pulse" />
@@ -183,7 +190,7 @@ export default function OMDashboardPage() {
 							</div>
 							{/* Today marker */}
 							<div className="flex justify-center">
-								<div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+								<div className="bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold">
 									Today
 								</div>
 							</div>
@@ -376,7 +383,7 @@ export default function OMDashboardPage() {
 														: "text-green-600"
 												} group-hover:scale-110 transition-transform duration-200`}
 											>
-												{irr}%
+												{(key === "upside" || key === "downside") ? <span className="text-red-600">{irr}%</span> : <span>{irr}%</span>}
 											</div>
 										</div>
 									)
@@ -405,6 +412,45 @@ export default function OMDashboardPage() {
 						)
 					}
 				/>
+			)}
+
+			{/* Project Info Summary */}
+			{(dealStatus || assetType || constructionType || projectPhase || projectDescription) && (
+				<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+					<h2 className="text-lg font-semibold text-gray-800 mb-4">Project Overview</h2>
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+						{dealStatus && (
+							<div>
+								<p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Deal Status</p>
+								<p className="text-sm font-medium text-gray-800">{dealStatus}</p>
+							</div>
+						)}
+						{assetType && (
+							<div>
+								<p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Asset Type</p>
+								<p className="text-sm font-medium text-gray-800">{assetType}</p>
+							</div>
+						)}
+						{constructionType && (
+							<div>
+								<p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Construction Type</p>
+								<p className="text-sm font-medium text-gray-800">{constructionType}</p>
+							</div>
+						)}
+						{projectPhase && (
+							<div>
+								<p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Project Phase</p>
+								<p className="text-sm font-medium text-gray-800">{projectPhase}</p>
+							</div>
+						)}
+					</div>
+					{projectDescription && (
+						<div>
+							<p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Project Description</p>
+							<p className="text-sm text-gray-700">{projectDescription}</p>
+						</div>
+					)}
+				</div>
 			)}
 
 			{/* Case Switcher (Downside/Base/Upside) */}

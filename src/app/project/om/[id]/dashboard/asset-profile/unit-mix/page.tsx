@@ -90,7 +90,7 @@ export default function UnitMixPage() {
     
     return {
       path: `M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`,
-      percentage: Math.round(percentage * 100),
+      percentage: Math.round(percentage * 10000) / 100, // Round to 2 decimal places
       startAngle,
       endAngle
     };
@@ -258,7 +258,7 @@ export default function UnitMixPage() {
                     <span className="text-sm font-medium text-gray-800">{getUnitTypeLabel(segment.type)}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-semibold text-gray-800">{segment.percentage}%</span>
+                    <span className="text-sm font-semibold text-gray-800">{segment.percentage.toFixed(2)}%</span>
                     <span className="text-xs text-gray-500 ml-1">({(segment.unit as UnitMixUnit).count} units)</span>
                   </div>
                 </div>
@@ -308,15 +308,15 @@ export default function UnitMixPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Luxury Tier</span>
-                  <Badge className="bg-blue-100 text-blue-800">Premium</Badge>
+                  <Badge className="bg-blue-100 text-blue-800"><span className="text-red-600">Premium</span></Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Target Market</span>
-                  <Badge variant="outline" className="border-gray-200">Young Professionals</Badge>
+                  <Badge variant="outline" className="border-gray-200"><span className="text-red-600">Young Professionals</span></Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Competitive Position</span>
-                  <Badge className="bg-green-100 text-green-800">Top 20%</Badge>
+                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">Top 20%</span></Badge>
                 </div>
               </div>
             </div>

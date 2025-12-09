@@ -16,11 +16,14 @@ import {
 import PlaceholderImage from "@/components/ui/PlaceholderImage";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { formatLocale } from "@/lib/om-utils";
+import { formatLocale, parseNumeric, getOMValue } from "@/lib/om-utils";
 
 export default function SponsorProfilePage() {
   const { content } = useOmContent();
   
+  // Extract sponsor experience score
+  const sponsorExpScore = parseNumeric(content?.sponsorExpScore) ?? null;
+
   // Build sponsor profile from flat fields
   const sponsorProfile = {
     firmName: content?.sponsorEntityName ?? null,
@@ -35,6 +38,7 @@ export default function SponsorProfilePage() {
     guarantorLiquidity: content?.guarantorLiquidity ?? null,
     portfolioDSCR: content?.portfolioDSCR ?? null,
     portfolioLTV: content?.portfolioLTV ?? null,
+    sponsorExpScore,
   };
   
   // Principals, references, and track record not directly available in flat fields
@@ -185,6 +189,12 @@ export default function SponsorProfilePage() {
                     {sponsorProfile?.activeProjects ?? null}
                   </p>
                 </div>
+                {sponsorExpScore != null && (
+                  <div>
+                    <p className="text-sm text-gray-500">Sponsor Experience Score</p>
+                    <p className="font-medium text-gray-800">{sponsorExpScore}</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -196,13 +206,13 @@ export default function SponsorProfilePage() {
                 <div className="flex items-center">
                   <Phone className="h-4 w-4 text-gray-400 mr-2" />
                   <span className="text-sm text-gray-600">
-                    Available upon request
+                    <span className="text-red-600">Available upon request</span>
                   </span>
                 </div>
                 <div className="flex items-center">
                   <Mail className="h-4 w-4 text-gray-400 mr-2" />
                   <span className="text-sm text-gray-600">
-                    Available upon request
+                    <span className="text-red-600">Available upon request</span>
                   </span>
                 </div>
                 <div className="pt-4">
@@ -489,7 +499,7 @@ export default function SponsorProfilePage() {
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Proven track record across multiple projects
+                  <span className="text-red-600">Proven track record across multiple projects</span>
                 </li>
               </ul>
             </div>
@@ -502,7 +512,7 @@ export default function SponsorProfilePage() {
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Strong IRR performance (18-26%)
+                  <span className="text-red-600">Strong IRR performance (18-26%)</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
@@ -511,7 +521,7 @@ export default function SponsorProfilePage() {
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Consistent project delivery
+                  <span className="text-red-600">Consistent project delivery</span>
                 </li>
               </ul>
             </div>
@@ -524,15 +534,15 @@ export default function SponsorProfilePage() {
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Established lender relationships
+                  <span className="text-red-600">Established lender relationships</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Strong local market knowledge
+                  <span className="text-red-600">Strong local market knowledge</span>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  Reputation for quality execution
+                  <span className="text-red-600">Reputation for quality execution</span>
                 </li>
               </ul>
             </div>

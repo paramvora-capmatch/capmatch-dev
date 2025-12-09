@@ -51,6 +51,7 @@ export default function AssetProfilePage() {
   const farUtilizedPercent = content?.farUtilizedPercent ?? null;
   const numberOfStories = content?.numberOfStories ?? null;
   const parkingRatio = parseNumeric(content?.parkingRatio) ?? null;
+  const parkingSpaces = parseNumeric(content?.parkingSpaces) ?? null;
 
   const avgCompRentPSF = calculateAverage(marketComps, (comp) => comp.rentPSF ?? null);
 
@@ -129,14 +130,20 @@ export default function AssetProfilePage() {
                     : null}
                 </span>
               </div>
+              {parkingSpaces != null && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Amenity SF</span>
-                  <span className="font-medium">
-                    {amenitySF > 0
-                      ? `${formatLocale(amenitySF)} SF`
-                      : null}
-                  </span>
+                  <span className="text-gray-600">Parking Spaces</span>
+                  <span className="font-medium">{formatLocale(parkingSpaces)}</span>
                 </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Amenity SF</span>
+                <span className="font-medium">
+                  {amenitySF > 0
+                    ? `${formatLocale(amenitySF)} SF`
+                    : null}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -185,7 +192,7 @@ export default function AssetProfilePage() {
         <div className="space-y-3">
           <div className="space-y-2">
             {marketComps.slice(0, 3).map((comp: { name?: string | null; units?: number | null; yearBuilt?: string | null; rentPSF?: number | null; capRate?: string | null }, index: number) => (
-              <div key={comp.name || `comp-${index}`} className="p-2 bg-gray-50 rounded">
+              <div key={`comp-${index}`} className="p-2 bg-gray-50 rounded">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm font-medium">{comp.name}</p>

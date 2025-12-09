@@ -5,11 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingDown, PieChart } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { formatCurrency, formatPercentage } from "@/lib/om-utils";
+import { formatCurrency, formatPercentage, parseNumeric, formatLocale } from "@/lib/om-utils";
 
 export default function SourcesUsesPage() {
   const { content } = useOmContent();
   
+  // Extract equity committed percent
+  const equityCommittedPercent = parseNumeric(content?.equityCommittedPercent) ?? null;
+
   // Build sources & uses from flat fields
   const sources = [
     { type: "Senior Debt", amount: content?.loanAmountRequested ?? 0 },
@@ -45,19 +48,21 @@ export default function SourcesUsesPage() {
     0
   );
 
-  // Calculate percentages
+  // Calculate percentages (rounded to 2 decimal places)
   sources.forEach(source => {
-    source.percentage = totalSources > 0 ? (source.amount ?? 0) / totalSources * 100 : 0;
+    const rawPercentage = totalSources > 0 ? (source.amount ?? 0) / totalSources * 100 : 0;
+    source.percentage = Math.round(rawPercentage * 100) / 100; // Round to 2 decimal places
   });
   uses.forEach(use => {
-    use.percentage = totalUses > 0 ? (use.amount ?? 0) / totalUses * 100 : 0;
+    const rawPercentage = totalUses > 0 ? (use.amount ?? 0) / totalUses * 100 : 0;
+    use.percentage = Math.round(rawPercentage * 100) / 100; // Round to 2 decimal places
   });
 
   const primaryDebtSource =
     (sources.find((source: { type?: string | null }) =>
       /debt|loan/i.test((source.type ?? "").toLowerCase())
     ) ?? sources[0]) ?? null;
-  const leveragePercent = formatPercentage(primaryDebtSource?.amount, totalSources);
+  const leveragePercent = formatPercentage(primaryDebtSource?.amount, totalSources, 2);
 
   useOMPageHeader({
     subtitle: "Detailed breakdown of capital sources and where funds are deployed.",
@@ -132,7 +137,7 @@ export default function SourcesUsesPage() {
                       {formatCurrency(source.amount)}
                     </span>
                     <Badge className="bg-blue-100 text-blue-800">
-                      {source.percentage != null ? `${source.percentage}%` : null}
+                      {source.percentage != null ? `${source.percentage.toFixed(2)}%` : null}
                     </Badge>
                   </div>
                 </div>
@@ -145,6 +150,16 @@ export default function SourcesUsesPage() {
               </div>
             ))}
 
+            {equityCommittedPercent != null && (
+              <div className="pt-2">
+                <div className="flex justify-between items-center p-2 bg-blue-50 rounded">
+                  <span className="text-sm font-medium text-blue-700">Equity Committed</span>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {equityCommittedPercent}%
+                  </Badge>
+                </div>
+              </div>
+            )}
             <div className="pt-4 border-t border-gray-200">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-gray-900">
@@ -177,7 +192,7 @@ export default function SourcesUsesPage() {
                       {formatCurrency(use.amount)}
                     </span>
                     <Badge className="bg-green-100 text-green-800">
-                      {use.percentage != null ? `${use.percentage}%` : null}
+                      {use.percentage != null ? `${use.percentage.toFixed(2)}%` : null}
                     </Badge>
                   </div>
                 </div>
@@ -251,7 +266,7 @@ export default function SourcesUsesPage() {
                           {formatCurrency(source.amount)}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {source.percentage}%
+                          {source.percentage != null ? `${source.percentage.toFixed(2)}%` : '0%'}
                         </div>
                       </div>
                     </div>
@@ -298,7 +313,7 @@ export default function SourcesUsesPage() {
                           {formatCurrency(use.amount)}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {use.percentage}%
+                          {use.percentage != null ? `${use.percentage.toFixed(2)}%` : '0%'}
                         </div>
                       </div>
                     </div>
@@ -319,11 +334,11 @@ export default function SourcesUsesPage() {
           <CardContent>
             <div className="space-y-4">
               {sources.map((source: { type?: string | null; amount?: number | null }, index: number) => (
-                <div key={source.type ?? index} className="flex justify-between items-center">
+                <div key={`source-${index}`} className="flex justify-between items-center">
                   <span className="text-gray-600">{source.type ?? null}</span>
                   <Badge className="bg-blue-50 text-blue-800">
-                    {formatPercentage(source.amount, totalSources) != null
-                      ? `${formatPercentage(source.amount, totalSources)}%`
+                    {formatPercentage(source.amount, totalSources, 2) != null
+                      ? `${formatPercentage(source.amount, totalSources, 2)}%`
                       : null}
                   </Badge>
                 </div>
@@ -353,11 +368,11 @@ export default function SourcesUsesPage() {
                 .sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))
                 .slice(0, 3)
                 .map((use, index) => (
-                  <div key={use.type ?? index} className="flex justify-between items-center">
+                  <div key={`use-${index}`} className="flex justify-between items-center">
                     <span className="text-gray-600">{use.type ?? null}</span>
                     <Badge className="bg-green-50 text-green-800">
-                      {formatPercentage(use.amount, totalUses) != null
-                        ? `${formatPercentage(use.amount, totalUses)}%`
+                      {formatPercentage(use.amount, totalUses, 2) != null
+                        ? `${formatPercentage(use.amount, totalUses, 2)}%`
                         : null}
                     </Badge>
                   </div>
@@ -377,6 +392,106 @@ export default function SourcesUsesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Operating Expenses */}
+      {(content?.realEstateTaxes != null || content?.insurance != null || content?.utilitiesCosts != null || 
+        content?.repairsAndMaintenance != null || content?.managementFee != null || content?.generalAndAdmin != null ||
+        content?.payroll != null || content?.reserves != null || content?.marketingLeasing != null || 
+        content?.serviceCoordination != null) && (
+        <Card>
+          <CardHeader>
+            <h3 className="text-xl font-semibold">Operating Expenses (Proforma)</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {content?.realEstateTaxes != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Real Estate Taxes</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.realEstateTaxes)}</p>
+                </div>
+              )}
+              {content?.insurance != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Insurance</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.insurance)}</p>
+                </div>
+              )}
+              {content?.utilitiesCosts != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Utilities</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.utilitiesCosts)}</p>
+                </div>
+              )}
+              {content?.repairsAndMaintenance != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Repairs & Maintenance</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.repairsAndMaintenance)}</p>
+                </div>
+              )}
+              {content?.managementFee != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Management Fee</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.managementFee)}</p>
+                </div>
+              )}
+              {content?.generalAndAdmin != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">General & Administrative</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.generalAndAdmin)}</p>
+                </div>
+              )}
+              {content?.payroll != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Payroll</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.payroll)}</p>
+                </div>
+              )}
+              {content?.reserves != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Reserves</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.reserves)}</p>
+                </div>
+              )}
+              {content?.marketingLeasing != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Marketing/Leasing</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.marketingLeasing)}</p>
+                </div>
+              )}
+              {content?.serviceCoordination != null && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Service Coordination</p>
+                  <p className="text-lg font-semibold text-gray-800">${formatLocale(content.serviceCoordination)}</p>
+                </div>
+              )}
+            </div>
+            {(content?.realEstateTaxes != null || content?.insurance != null || content?.utilitiesCosts != null || 
+              content?.repairsAndMaintenance != null || content?.managementFee != null || content?.generalAndAdmin != null ||
+              content?.payroll != null || content?.reserves != null || content?.marketingLeasing != null || 
+              content?.serviceCoordination != null) && (
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-900">Total Operating Expenses</span>
+                  <Badge className="bg-gray-100 text-gray-800">
+                    ${formatLocale(
+                      (parseNumeric(content?.realEstateTaxes) ?? 0) +
+                      (parseNumeric(content?.insurance) ?? 0) +
+                      (parseNumeric(content?.utilitiesCosts) ?? 0) +
+                      (parseNumeric(content?.repairsAndMaintenance) ?? 0) +
+                      (parseNumeric(content?.managementFee) ?? 0) +
+                      (parseNumeric(content?.generalAndAdmin) ?? 0) +
+                      (parseNumeric(content?.payroll) ?? 0) +
+                      (parseNumeric(content?.reserves) ?? 0) +
+                      (parseNumeric(content?.marketingLeasing) ?? 0) +
+                      (parseNumeric(content?.serviceCoordination) ?? 0)
+                    )}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

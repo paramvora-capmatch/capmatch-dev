@@ -2119,11 +2119,26 @@ async function seedHoqueProject(): Promise<void> {
 
     // Step 4.5: Seed OM data (single row per project, no versioning)
     // OM uses same content as project resume but without _lockedFields
+    // Also merges borrower resume data (flat format)
     console.log('\n📋 Step 4.5: Seeding OM data...');
     const omContent: Record<string, any> = { ...hoqueProjectResume };
     // Remove _lockedFields and _fieldStates from OM content (OM doesn't track locks)
     delete omContent._lockedFields;
     delete omContent._fieldStates;
+    delete omContent.completenessPercent;
+    
+    // Merge borrower resume data into OM (flat format, same as backend sync)
+    const borrowerContent: Record<string, any> = { ...hoqueBorrowerResume };
+    delete borrowerContent._lockedFields;
+    delete borrowerContent._fieldStates;
+    delete borrowerContent.completenessPercent;
+    
+    // Merge borrower fields into OM content (filter out metadata fields)
+    for (const key in borrowerContent) {
+      if (!key.startsWith('_') && key !== 'completenessPercent' && key !== 'projectSections' && key !== 'borrowerSections') {
+        omContent[key] = borrowerContent[key];
+      }
+    }
     
     const { error: omError } = await supabaseAdmin
       .from('om')
@@ -2138,7 +2153,7 @@ async function seedHoqueProject(): Promise<void> {
     if (omError) {
       console.warn(`[seed] ⚠️  Failed to seed OM data:`, omError.message);
     } else {
-      console.log(`[seed] ✅ Seeded OM data`);
+      console.log(`[seed] ✅ Seeded OM data (includes project + borrower resume fields)`);
     }
 
     // Step 5: Seed documents
