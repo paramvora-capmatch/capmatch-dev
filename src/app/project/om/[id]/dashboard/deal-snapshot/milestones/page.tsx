@@ -8,8 +8,17 @@ import { useOmContent } from '@/hooks/useOmContent';
 
 export default function MilestonesPage() {
   const { content } = useOmContent();
-  const dealSnapshotDetails = content?.dealSnapshotDetails ?? null;
-  const milestones = dealSnapshotDetails?.milestones ?? [];
+  
+  // Build milestones from flat date fields
+  const milestones = [
+    { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: "completed" as const },
+    { phase: "Entitlements", date: content?.entitlements ?? null, status: "completed" as const },
+    { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: "current" as const },
+    { phase: "Vertical Start", date: content?.verticalStart ?? null, status: "current" as const },
+    { phase: "First Occupancy", date: content?.firstOccupancy ?? null, status: "upcoming" as const },
+    { phase: "Completion", date: content?.completionDate ?? null, status: "upcoming" as const },
+    { phase: "Stabilization", date: content?.stabilization ?? null, status: "upcoming" as const },
+  ].filter(item => item.date);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

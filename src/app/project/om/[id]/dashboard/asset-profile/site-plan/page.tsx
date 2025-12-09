@@ -10,20 +10,38 @@ import { formatFixed } from '@/lib/om-utils';
 
 export default function SitePlanPage() {
   const { content } = useOmContent();
-  const assetProfileDetails = content?.assetProfileDetails ?? null;
-  const sitePlan = assetProfileDetails?.sitePlan ?? null;
-  const zoningDetails = sitePlan?.zoningDetails ?? null;
-  const setbacks = zoningDetails?.setbacks ?? null;
-  const lotSize = sitePlan?.lotSize ?? null;
-  const buildingFootprint = sitePlan?.buildingFootprint ?? null;
-  const parkingSpaces = sitePlan?.parkingSpaces ?? null;
-  const greenSpace = sitePlan?.greenSpace ?? null;
-  const allowedFAR = parseFloat(zoningDetails?.allowedFAR ?? '0');
-  const usedFAR = parseFloat(zoningDetails?.usedFAR ?? '0');
+  
+  // Access flat fields directly
+  const totalSiteAcreage = content?.totalSiteAcreage ?? null;
+  const lotSize = totalSiteAcreage ? `${totalSiteAcreage} Acres` : null;
+  const buildingFootprint = content?.grossBuildingArea ? `${content.grossBuildingArea} SF` : null;
+  const parkingSpaces = content?.parkingSpaces ?? null;
+  const greenSpace = null; // Not directly available in flat fields
+  
+  // Zoning details from flat fields
+  const allowedFAR = parseFloat(String(content?.allowableFAR ?? '0'));
+  const usedFAR = parseFloat(String(content?.farUtilizedPercent ?? '0'));
+  const heightLimit = parseFloat(String(content?.numberOfStories ?? '0')) * 10; // Approximate: 10ft per story
+  const actualHeight = parseFloat(String(content?.numberOfStories ?? '0')) * 10;
+  
+  // Setbacks not directly available - using placeholders
+  const setbacks = {
+    front: null,
+    side: null,
+    rear: null,
+  };
+  
+  const zoningDetails = {
+    current: content?.zoningDesignation ?? null,
+    allowedFAR: content?.allowableFAR ?? null,
+    usedFAR: content?.farUtilizedPercent ?? null,
+    heightLimit: heightLimit > 0 ? `${heightLimit} ft` : null,
+    actualHeight: actualHeight > 0 ? `${actualHeight} ft` : null,
+  };
+  
   const farUtilization =
     allowedFAR > 0 ? Math.round((usedFAR / allowedFAR) * 100) : null;
-  const heightLimit = parseFloat(zoningDetails?.heightLimit ?? '0');
-  const actualHeight = parseFloat(zoningDetails?.actualHeight ?? '0');
+  
   const heightRemaining =
     !Number.isNaN(heightLimit) && !Number.isNaN(actualHeight)
       ? heightLimit - actualHeight
@@ -32,15 +50,19 @@ export default function SitePlanPage() {
     !Number.isNaN(allowedFAR) && !Number.isNaN(usedFAR)
       ? allowedFAR - usedFAR
       : null;
-  const buildingCoverageValue = buildingFootprint
-    ? parseFloat(buildingFootprint.toString().replace(/[^\d.]/g, '')) || 0
-    : 0;
+  
+  const buildingCoverageValue = content?.grossBuildingArea ?? 0;
+  const totalSiteSF = totalSiteAcreage ? totalSiteAcreage * 43560 : 1; // Convert acres to SF
   const buildingCoveragePercent =
-    buildingCoverageValue > 0
-      ? Math.round((buildingCoverageValue / 108900) * 100)
+    buildingCoverageValue > 0 && totalSiteSF > 0
+      ? Math.round((buildingCoverageValue / totalSiteSF) * 100)
       : null;
+  
+  const parkingRatioValue = content?.parkingRatio ?? null;
   const parkingRatio =
-    parkingSpaces != null ? Math.round((parkingSpaces / 108) * 100) : null;
+    parkingSpaces != null && totalSiteAcreage != null
+      ? Math.round((parkingSpaces / (totalSiteAcreage * 43560 / 1000)) * 100) / 100
+      : parkingRatioValue;
 
   useOMPageHeader({
     subtitle: "Layout of buildings, circulation, zoning, and site efficiencies.",
@@ -114,26 +136,26 @@ export default function SitePlanPage() {
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-gray-500">Current Zoning</p>
-                <p className="font-semibold text-gray-800">{zoningDetails?.current ?? null}</p>
+                <p className="font-semibold text-gray-800">{zoningDetails.current ?? null}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Allowed FAR</p>
-                <p className="font-semibold text-gray-800">{zoningDetails?.allowedFAR ?? null}</p>
+                <p className="font-semibold text-gray-800">{zoningDetails.allowedFAR ?? null}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Used FAR</p>
-                <p className="font-semibold text-gray-800">{zoningDetails?.usedFAR ?? null}</p>
+                <p className="font-semibold text-gray-800">{zoningDetails.usedFAR ?? null}</p>
               </div>
             </div>
 
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-gray-500">Height Limit</p>
-                <p className="font-semibold text-gray-800">{zoningDetails?.heightLimit ?? null}</p>
+                <p className="font-semibold text-gray-800">{zoningDetails.heightLimit ?? null}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Actual Height</p>
-                <p className="font-semibold text-gray-800">{zoningDetails?.actualHeight ?? null}</p>
+                <p className="font-semibold text-gray-800">{zoningDetails.actualHeight ?? null}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">FAR Utilization</p>

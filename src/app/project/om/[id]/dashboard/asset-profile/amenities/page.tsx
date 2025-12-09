@@ -17,9 +17,34 @@ import { formatLocale } from '@/lib/om-utils';
 
 export default function AmenitiesPage() {
   const { content } = useOmContent();
-  const assetProfileDetails = content?.assetProfileDetails ?? null;
-  const amenityDetails = assetProfileDetails?.amenityDetails ?? [];
-  const commercialSpaces = assetProfileDetails?.commercialSpaces ?? [];
+  
+  // Access flat amenityList array directly
+  const amenityList = Array.isArray(content?.amenityList) ? content.amenityList : [];
+  
+  // Transform flat amenityList to amenityDetails structure for UI
+  const amenityDetails = amenityList.map((amenity: string | { name?: string; size?: string; description?: string }, index: number) => {
+    if (typeof amenity === 'string') {
+      return {
+        name: amenity,
+        size: null,
+        description: null,
+      };
+    }
+    return {
+      name: amenity.name || `Amenity ${index + 1}`,
+      size: amenity.size || null,
+      description: amenity.description || null,
+    };
+  });
+  
+  // Commercial spaces from commercialSpaceMix if available
+  const commercialSpaceMix = Array.isArray(content?.commercialSpaceMix) ? content.commercialSpaceMix : [];
+  const commercialSpaces = commercialSpaceMix.map((space: any, index: number) => ({
+    name: space.name || space.type || `Commercial Space ${index + 1}`,
+    use: space.use || space.type || null,
+    size: space.size || space.sf ? `${space.sf} SF` : null,
+    status: space.status || 'Available',
+  }));
 
   const totalAmenitySF =
     amenityDetails.length > 0
@@ -161,7 +186,7 @@ export default function AmenitiesPage() {
         <CardContent>
           <div className="space-y-3">
             {commercialSpaces.map((space: { name?: string | null; use?: string | null; size?: string | null; status?: string | null }, index: number) => (
-              <div key={space.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={`commercial-${index}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
                   <p className="text-sm font-semibold text-gray-800">{space.name ?? null}</p>
                   <p className="text-xs text-gray-500">{space.use ?? null}</p>

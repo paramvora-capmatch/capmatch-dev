@@ -9,11 +9,42 @@ import { useOmContent } from "@/hooks/useOmContent";
 
 export default function ReturnsPage() {
   const { content } = useOmContent();
-  const financialDetails = content?.financialDetails ?? null;
-  const returnProjections = financialDetails?.returnProjections ?? null;
-  const upsideScenario = returnProjections?.upside ?? null;
-  const baseScenario = returnProjections?.base ?? null;
-  const downsideScenario = returnProjections?.downside ?? null;
+  
+  // Build return projections from flat fields
+  const baseIRR = content?.irr ?? null;
+  const baseEquityMultiple = content?.equityMultiple ?? null;
+  const stabilizedValue = content?.stabilizedValue ?? null;
+  const totalDevCost = content?.totalDevelopmentCost ?? null;
+  
+  const baseProfitMargin = (stabilizedValue && totalDevCost) 
+    ? ((stabilizedValue - totalDevCost) / totalDevCost) * 100 
+    : null;
+  
+  const returnProjections = {
+    base: {
+      irr: baseIRR,
+      multiple: baseEquityMultiple,
+      profitMargin: baseProfitMargin,
+    },
+    upside: {
+      irr: baseIRR != null ? baseIRR * 1.1 : null,
+      multiple: baseEquityMultiple != null ? baseEquityMultiple * 1.1 : null,
+      profitMargin: (stabilizedValue && totalDevCost) 
+        ? (((stabilizedValue * 1.02) - totalDevCost) / totalDevCost) * 100 
+        : null,
+    },
+    downside: {
+      irr: baseIRR != null ? baseIRR * 0.9 : null,
+      multiple: baseEquityMultiple != null ? baseEquityMultiple * 0.9 : null,
+      profitMargin: (stabilizedValue && totalDevCost) 
+        ? (((stabilizedValue * 0.97) - totalDevCost) / totalDevCost) * 100 
+        : null,
+    },
+  };
+  
+  const upsideScenario = returnProjections.upside;
+  const baseScenario = returnProjections.base;
+  const downsideScenario = returnProjections.downside;
 
   const getIRRColor = (irr?: number | null) => {
     if (irr == null || Number.isNaN(irr)) return "bg-red-100 text-red-800";

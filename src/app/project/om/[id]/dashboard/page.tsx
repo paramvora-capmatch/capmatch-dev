@@ -18,6 +18,7 @@ import {
 	formatFixed,
 	formatLocale,
 } from "@/lib/om-utils";
+import { getOMValue } from "@/lib/om-queries";
 import { OMErrorState } from "@/components/om/OMErrorState";
 import { OMLoadingState } from "@/components/om/OMLoadingState";
 import {
@@ -57,37 +58,60 @@ export default function OMDashboardPage() {
 		return <OMErrorState error={error} />;
 	}
 
-	// Extract values from OM data
+	// Extract values from OM data (flat structure)
 	const content = omData.content || {};
-	const scenarioDataAll = content.scenarioData || {};
-	const marketContextDetails = content.marketContextDetails || {};
-	const supplyAnalysis = marketContextDetails.supplyAnalysis || {};
 
-	// Extract numeric values using shared utility
+	// Extract numeric values using shared utility (access flat fields directly)
 	const loanAmount = getNumericValue(content, "loanAmountRequested", 0);
 	const ltv = getNumericValue(content, "ltv", 0);
+	const ltc = getNumericValue(content, "ltc", 0);
 	const totalUnits = getNumericValue(content, "totalResidentialUnits", 0);
 	const grossBuildingArea = getNumericValue(content, "grossBuildingArea", 0);
 	const parkingRatio = getNumericValue(content, "parkingRatio", 0);
 	const affordableUnits = getNumericValue(content, "affordableUnitsNumber", 0);
 	const popGrowth201020 = getNumericValue(content, "popGrowth201020", 0);
 	const projGrowth202429 = getNumericValue(content, "projGrowth202429", 0);
+	const irr = getNumericValue(content, "irr", 0);
+	const equityMultiple = getNumericValue(content, "equityMultiple", 0);
+	const totalDevCost = getNumericValue(content, "totalDevelopmentCost", 0);
+
+	// Build scenario data from flat fields (for UI display only)
+	// Note: In the future, scenario-specific fields may be stored separately
+	const scenarioDataAll = {
+		base: {
+			loanAmount,
+			ltv,
+			ltc,
+			irr,
+			equityMultiple,
+			constructionCost: totalDevCost,
+		},
+		upside: {
+			loanAmount,
+			ltv,
+			ltc,
+			irr: irr * 1.1, // Placeholder - adjust based on actual scenario data
+			equityMultiple: equityMultiple * 1.1,
+			constructionCost: totalDevCost,
+		},
+		downside: {
+			loanAmount,
+			ltv,
+			ltc,
+			irr: irr * 0.9, // Placeholder - adjust based on actual scenario data
+			equityMultiple: equityMultiple * 0.9,
+			constructionCost: totalDevCost,
+		},
+	};
 
 	// Scenario-specific metrics
-	const activeScenarioData =
-		(scenarioDataAll[scenario] as any) ||
-		(scenarioDataAll.base as any) || {
-			ltv: 0,
-			irr: 0,
-			equityMultiple: 0,
-			loanAmount,
-		};
+	const activeScenarioData = scenarioDataAll[scenario] || scenarioDataAll.base;
 
 	const data = {
 		loanAmount: activeScenarioData.loanAmount ?? loanAmount,
 		ltv: activeScenarioData.ltv ?? ltv,
-		irr: activeScenarioData.irr ?? 0,
-		equityMultiple: activeScenarioData.equityMultiple ?? 0,
+		irr: activeScenarioData.irr ?? irr,
+		equityMultiple: activeScenarioData.equityMultiple ?? equityMultiple,
 	};
 
 	// Normalized scenario set for UI using shared utility
@@ -98,16 +122,14 @@ export default function OMDashboardPage() {
 		ltv: data.ltv,
 	});
 
-	// Timeline preview – use milestones from dealSnapshotDetails if available, otherwise fallback
-	const dealSnapshotDetails = content.dealSnapshotDetails || {};
-	const timelineData =
-		(dealSnapshotDetails.milestones as { phase: string; status: string }[]) ??
-		[
-			{ phase: "Land Acquisition", status: "completed" },
-			{ phase: "Entitlements", status: "completed" },
-			{ phase: "Construction", status: "current" },
-			{ phase: "Stabilization", status: "pending" },
-		];
+	// Build timeline from flat date fields (extract values from rich format if needed)
+	const timelineData = [
+		{ phase: "Land Acquisition", date: getOMValue(content, "landAcqClose"), status: "completed" },
+		{ phase: "Entitlements", date: getOMValue(content, "entitlements"), status: "completed" },
+		{ phase: "Groundbreaking", date: getOMValue(content, "groundbreakingDate"), status: "current" },
+		{ phase: "Completion", date: getOMValue(content, "completionDate"), status: "pending" },
+		{ phase: "Stabilization", date: getOMValue(content, "stabilization"), status: "pending" },
+	].filter(item => item.date); // Only show items with dates
 	const quadrants = [
 		{
 			id: "deal-snapshot",
@@ -251,20 +273,23 @@ export default function OMDashboardPage() {
 							<div className="h-16 bg-gray-50 rounded-lg overflow-hidden">
 								<PopulationHeatmap compact={true} />
 							</div>
-							{/* Quick supply stats - TODO: Add to OM */}
+							{/* Quick supply stats from flat fields */}
 							<div className="grid grid-cols-2 gap-2">
 								<div className="text-sm">
-									<span className="text-gray-500">U/C:</span>
+									<span className="text-gray-500">Supply Pipeline:</span>
 									<span className="font-medium ml-1">
-										{formatLocale(supplyAnalysis.underConstruction) ?? "-"}
+										{(() => {
+											const supplyPipeline = getOMValue(content, "supplyPipeline");
+											return supplyPipeline ? formatLocale(Array.isArray(supplyPipeline) ? supplyPipeline.length : supplyPipeline) : "-";
+										})()}
 									</span>
 								</div>
 								<div className="text-sm">
 									<span className="text-gray-500">
-										Pipeline:
+										Months of Supply:
 									</span>
 									<span className="font-medium ml-1">
-										{formatLocale(supplyAnalysis.planned24Months) ?? "-"}
+										{getOMValue(content, "monthsOfSupply") ?? "-"}
 									</span>
 								</div>
 							</div>

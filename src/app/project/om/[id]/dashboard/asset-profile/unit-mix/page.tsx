@@ -16,8 +16,22 @@ type UnitMixUnit = {
 
 export default function UnitMixPage() {
   const { content } = useOmContent();
-  const assetProfileDetails = content?.assetProfileDetails ?? null;
-  const unitMixDetails = assetProfileDetails?.unitMixDetails ?? {};
+  
+  // Access flat residentialUnitMix array directly
+  const residentialUnitMix = Array.isArray(content?.residentialUnitMix) ? content.residentialUnitMix : [];
+  
+  // Transform flat array to unit mix details structure for UI
+  const unitMixDetails: Record<string, UnitMixUnit> = {};
+  residentialUnitMix.forEach((unit: any) => {
+    const unitType = unit.unitType || unit.type || 'unknown';
+    unitMixDetails[unitType] = {
+      count: unit.unitCount || unit.units || 0,
+      avgSF: unit.avgSF || unit.averageUnitSize || 0,
+      rentRange: unit.monthlyRent ? `$${unit.monthlyRent}` : null,
+      deposit: unit.deposit || null,
+    };
+  });
+  
   const unitEntries = Object.entries(unitMixDetails) as [string, UnitMixUnit][];
   const totalUnits = unitEntries.reduce(
     (sum: number, [, unit]: [string, UnitMixUnit]) => sum + (unit.count ?? 0),
@@ -83,7 +97,13 @@ export default function UnitMixPage() {
   };
 
   let currentAngle = 0;
-  const detailedUnitMix = assetProfileDetails?.detailedUnitMix ?? [];
+  // Use residentialUnitMix array for detailed unit mix
+  const detailedUnitMix = residentialUnitMix.map((unit: any) => ({
+    code: unit.unitType || unit.type || '',
+    type: unit.unitType || unit.type || '',
+    units: unit.unitCount || unit.units || 0,
+    avgSF: unit.avgSF || unit.averageUnitSize || 0,
+  }));
   const pieSegments =
     totalUnits > 0
       ? unitEntries.map(([type, unit]: [string, UnitMixUnit]) => {
@@ -110,7 +130,9 @@ export default function UnitMixPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{totalUnits}</p>
+            <p className="text-3xl font-bold text-blue-600">
+              {content?.totalResidentialUnits ?? totalUnits}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Residential units</p>
           </CardContent>
         </Card>
@@ -123,7 +145,9 @@ export default function UnitMixPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">{formatLocale(totalRentableSF) ?? 0}</p>
+            <p className="text-3xl font-bold text-green-600">
+              {formatLocale(content?.totalResidentialNRSF ?? totalRentableSF) ?? 0}
+            </p>
             <p className="text-sm text-gray-500 mt-1">Rentable square feet</p>
           </CardContent>
         </Card>

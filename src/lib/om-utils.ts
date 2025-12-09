@@ -11,14 +11,11 @@ import { getOMValue } from "./om-queries";
 /**
  * Safely extracts and converts numeric values from OM content.
  * 
- * Searches in multiple locations:
- * 1. Top-level content object
- * 2. projectSections by section ID
- * 3. Nested subsections within sections
+ * OM data is stored FLAT, so we access fields directly from the content object.
  * 
  * Handles string-to-number conversion and provides default values.
  * 
- * @param content - The OM content object
+ * @param content - The OM content object (flat structure)
  * @param fieldId - The field ID to extract
  * @param defaultValue - Default value if field is not found or invalid (default: 0)
  * @returns The numeric value or defaultValue
@@ -28,43 +25,8 @@ export function getNumericValue(
 	fieldId: string,
 	defaultValue: number = 0
 ): number {
-	const projectSections = content.projectSections || {};
-	
-	// Try top-level first
+	// Access field directly from flat content object
 	let value = getOMValue(content, fieldId);
-	
-	// If not found, search in projectSections
-	if ((value === undefined || value === null) && projectSections) {
-		// Check each section
-		for (const sectionKey in projectSections) {
-			const section = projectSections[sectionKey];
-			if (section && typeof section === "object") {
-				// Check direct field in section
-				const sectionValue = getOMValue(section, fieldId);
-				if (sectionValue !== undefined && sectionValue !== null) {
-					value = sectionValue;
-					break;
-				}
-				
-				// Check nested subsections (e.g., "amenities-unit-details")
-				for (const subsectionKey in section) {
-					const subsection = section[subsectionKey];
-					if (
-						subsection &&
-						typeof subsection === "object" &&
-						!Array.isArray(subsection)
-					) {
-						const subsectionValue = getOMValue(subsection, fieldId);
-						if (subsectionValue !== undefined && subsectionValue !== null) {
-							value = subsectionValue;
-							break;
-						}
-					}
-				}
-				if (value !== undefined && value !== null) break;
-			}
-		}
-	}
 	
 	// Convert to number if it's a string
 	if (typeof value === "string") {

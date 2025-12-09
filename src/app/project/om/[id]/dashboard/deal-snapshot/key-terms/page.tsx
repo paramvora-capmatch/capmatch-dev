@@ -8,11 +8,44 @@ import { useOmContent } from "@/hooks/useOmContent";
 
 export default function KeyTermsPage() {
   const { content } = useOmContent();
-  const dealSnapshotDetails = content?.dealSnapshotDetails ?? null;
-  const keyTerms = dealSnapshotDetails?.keyTerms ?? null;
-  const covenants = keyTerms?.covenants ?? null;
-  const lenderReserves = keyTerms?.lenderReserves ?? null;
-  const specialPrograms = dealSnapshotDetails?.specialPrograms ?? [];
+  
+  // Build key terms from flat fields
+  const keyTerms = {
+    loanType: content?.loanType ?? null,
+    rate: content?.allInRate != null ? `${content.allInRate}% all-in` : content?.interestRate != null ? `${content.interestRate}%` : null,
+    floor: content?.underwritingRate != null ? `${content.underwritingRate}%` : null,
+    term: content?.requestedTerm ?? null,
+    extension: null, // Not directly available
+    recourse: content?.recoursePreference ?? null,
+    origination: "1.00%", // Placeholder
+    exitFee: content?.prepaymentPremium ?? null,
+    covenants: {
+      minDSCR: content?.dscrStressMin != null ? `${content.dscrStressMin.toFixed(2)}x` : null,
+      maxLTV: content?.ltvStressMax != null ? `${content.ltvStressMax}%` : null,
+      minLiquidity: content?.guarantorLiquidity != null ? `$${Number(content.guarantorLiquidity).toLocaleString()}` : null,
+      completionGuaranty: null, // Not directly available
+    },
+    lenderReserves: {
+      interest: content?.interestReserve != null ? `$${Number(content.interestReserve).toLocaleString()}` : null,
+      taxInsurance: null, // Not directly available - could calculate from realEstateTaxes + insurance
+      capEx: null, // Not directly available
+    },
+  };
+  
+  const covenants = keyTerms.covenants;
+  const lenderReserves = keyTerms.lenderReserves;
+  
+  // Build special programs from flat fields
+  const specialPrograms = [];
+  if (content?.opportunityZone === true) {
+    specialPrograms.push({ name: "Opportunity Zone", description: "Qualified Opportunity Zone benefits" });
+  }
+  if (content?.taxExemption === true) {
+    specialPrograms.push({ name: "Tax Exemption", description: content?.exemptionStructure || "Tax exemption structure" });
+  }
+  if (content?.affordableHousing === true) {
+    specialPrograms.push({ name: "Affordable Housing", description: `${content?.affordableUnitsNumber || 0} affordable units` });
+  }
 
 
   useOMPageHeader({

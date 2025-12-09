@@ -20,11 +20,28 @@ import { formatLocale } from "@/lib/om-utils";
 
 export default function SponsorProfilePage() {
   const { content } = useOmContent();
-  const financialDetails = content?.financialDetails ?? null;
-  const sponsorProfile = financialDetails?.sponsorProfile ?? null;
-  const principals = sponsorProfile?.principals ?? [];
-  const references = sponsorProfile?.references ?? [];
-  const trackRecord = sponsorProfile?.trackRecord ?? [];
+  
+  // Build sponsor profile from flat fields
+  const sponsorProfile = {
+    firmName: content?.sponsorEntityName ?? null,
+    yearFounded: null, // Not directly available - placeholder
+    totalDeveloped: content?.priorDevelopments ?? null,
+    totalUnits: content?.totalResidentialUnits ?? null, // Using project units as placeholder
+    activeProjects: null, // Not directly available
+    sponsorEntityName: content?.sponsorEntityName ?? null,
+    sponsoringEntity: content?.sponsoringEntity ?? null,
+    sponsorExperience: content?.sponsorExperience ?? null,
+    netWorth: content?.netWorth ?? null,
+    guarantorLiquidity: content?.guarantorLiquidity ?? null,
+    portfolioDSCR: content?.portfolioDSCR ?? null,
+    portfolioLTV: content?.portfolioLTV ?? null,
+  };
+  
+  // Principals, references, and track record not directly available in flat fields
+  // These would typically come from borrower resume or separate data source
+  const principals: any[] = [];
+  const references: any[] = [];
+  const trackRecord: any[] = [];
 
   const getIRRColor = (irr?: string | number | null) => {
     const irrNum =

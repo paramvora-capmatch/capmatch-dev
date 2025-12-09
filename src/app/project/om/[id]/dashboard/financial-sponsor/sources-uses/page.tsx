@@ -9,9 +9,32 @@ import { formatCurrency, formatPercentage } from "@/lib/om-utils";
 
 export default function SourcesUsesPage() {
   const { content } = useOmContent();
-  const financialDetails = content?.financialDetails ?? null;
-  const sources = financialDetails?.sourcesUses?.sources ?? [];
-  const uses = financialDetails?.sourcesUses?.uses ?? [];
+  
+  // Build sources & uses from flat fields
+  const sources = [
+    { type: "Senior Debt", amount: content?.loanAmountRequested ?? 0 },
+    { type: "Sponsor Equity", amount: content?.sponsorEquity ?? 0 },
+    { type: "Tax Credit Equity", amount: content?.taxCreditEquity ?? 0 },
+    { type: "Gap Financing", amount: content?.gapFinancing ?? 0 },
+  ].filter(s => s.amount > 0).map(source => ({
+    ...source,
+    percentage: 0, // Will be calculated below
+  }));
+  
+  const uses = [
+    { type: "Land Acquisition", amount: content?.landAcquisition ?? content?.purchasePrice ?? 0 },
+    { type: "Base Construction", amount: content?.baseConstruction ?? 0 },
+    { type: "Contingency", amount: content?.contingency ?? 0 },
+    { type: "Construction Fees", amount: content?.constructionFees ?? 0 },
+    { type: "A&E Fees", amount: content?.aeFees ?? 0 },
+    { type: "Developer Fee", amount: content?.developerFee ?? 0 },
+    { type: "Interest Reserve", amount: content?.interestReserve ?? 0 },
+    { type: "Working Capital", amount: content?.workingCapital ?? 0 },
+    { type: "Op. Deficit Escrow", amount: content?.opDeficitEscrow ?? 0 },
+  ].filter(u => u.amount > 0).map(use => ({
+    ...use,
+    percentage: 0, // Will be calculated below
+  }));
 
   const totalSources = sources.reduce(
     (sum: number, source: { amount?: number | null }) => sum + (source.amount ?? 0),
@@ -21,6 +44,14 @@ export default function SourcesUsesPage() {
     (sum: number, use: { amount?: number | null }) => sum + (use.amount ?? 0),
     0
   );
+
+  // Calculate percentages
+  sources.forEach(source => {
+    source.percentage = totalSources > 0 ? (source.amount ?? 0) / totalSources * 100 : 0;
+  });
+  uses.forEach(use => {
+    use.percentage = totalUses > 0 ? (use.amount ?? 0) / totalUses * 100 : 0;
+  });
 
   const primaryDebtSource =
     (sources.find((source: { type?: string | null }) =>

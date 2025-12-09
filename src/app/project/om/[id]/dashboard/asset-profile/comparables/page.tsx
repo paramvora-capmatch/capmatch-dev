@@ -9,8 +9,25 @@ import { parseNumeric, calculateAverage, formatFixed } from '@/lib/om-utils';
 
 export default function ComparablesPage() {
   const { content } = useOmContent();
-  const assetProfileDetails = content?.assetProfileDetails ?? null;
-  const comparableDetails = assetProfileDetails?.comparableDetails ?? [];
+  
+  // Access flat rentComps array directly
+  const rentComps = Array.isArray(content?.rentComps) ? content.rentComps : [];
+  
+  // Transform flat rentComps to comparableDetails structure for UI
+  const comparableDetails = rentComps.map((comp: any) => ({
+    name: comp.propertyName || comp.name || 'Unknown Property',
+    address: comp.address || comp.location || null,
+    distance: comp.distance ? `${comp.distance} mi` : null,
+    yearBuilt: comp.yearBuilt || comp.year || null,
+    units: comp.totalUnits || comp.units || 0,
+    occupancy: comp.occupancy ? `${comp.occupancy}%` : null,
+    avgRent: comp.rentPerSF ? `$${comp.rentPerSF}/SF` : comp.rentPSF || null,
+    lastSale: {
+      date: comp.saleDate || comp.lastSaleDate || null,
+      price: comp.salePrice ? `$${comp.salePrice.toLocaleString()}` : null,
+      capRate: comp.capRate ? `${comp.capRate}%` : null,
+    },
+  }));
 
   const avgRentPSF = calculateAverage(comparableDetails, (comp) => parseNumeric(comp.avgRent));
   const avgCapRate = calculateAverage(comparableDetails, (comp) => parseNumeric(comp.lastSale?.capRate));
