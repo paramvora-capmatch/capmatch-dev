@@ -415,8 +415,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		stateRef.current = { formData, fieldMetadata, lockedFields };
 		onFormDataChange?.(formData);
 
+		// Convert Set to Record for the utility function
+		const lockedFieldsObj: Record<string, boolean> = {};
+		lockedFields.forEach((id) => { lockedFieldsObj[id] = true; });
+
 		// Report progress
-		const completeness = computeBorrowerCompletion(formData);
+		const completeness = computeBorrowerCompletion(formData, lockedFieldsObj);
 		onProgressChange?.(completeness);
 	}, [
 		formData,
@@ -835,7 +839,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 				// Calculate completeness before saving
 				const completenessPercent =
-					computeBorrowerCompletion(finalData);
+					computeBorrowerCompletion(finalData, lockedFieldsObj);
 
 				const dataToSave = {
 					...finalData,
@@ -911,7 +915,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			currentLocks.forEach((id) => (lockedFieldsObj[id] = true));
 
 			// Recompute completion for the background save
-			const completenessPercent = computeBorrowerCompletion(currentData);
+			const completenessPercent = computeBorrowerCompletion(currentData, lockedFieldsObj);
 
 			const dataToSave = {
 				...currentData,
