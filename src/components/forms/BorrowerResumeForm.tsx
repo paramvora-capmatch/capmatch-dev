@@ -1148,7 +1148,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 						type="button"
 						onClick={(e) => {
 							e.stopPropagation();
-							if (!isDisabled) toggleFieldLock(fieldId);
+							e.preventDefault();
+							if (isDisabled) return;
+							toggleFieldLock(fieldId);
 						}}
 						disabled={isDisabled}
 						className={cn(
