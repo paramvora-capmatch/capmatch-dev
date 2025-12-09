@@ -13,6 +13,7 @@ import {
 import { LucideIcon } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { formatLocale } from '@/lib/om-utils';
 
 export default function AmenitiesPage() {
   const { content } = useOmContent();
@@ -87,8 +88,8 @@ export default function AmenitiesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {totalAmenitySF !== null
-                ? `${totalAmenitySF.toLocaleString()} SF`
+              {formatLocale(totalAmenitySF) != null
+                ? `${formatLocale(totalAmenitySF)} SF`
                 : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Combined amenity space</p>
@@ -101,8 +102,8 @@ export default function AmenitiesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {avgAmenitySize !== null
-                ? `${avgAmenitySize.toLocaleString()} SF`
+              {formatLocale(avgAmenitySize) != null
+                ? `${formatLocale(avgAmenitySize)} SF`
                 : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per amenity space</p>

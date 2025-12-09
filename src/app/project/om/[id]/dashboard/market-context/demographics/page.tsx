@@ -6,6 +6,7 @@ import { Users, TrendingUp, MapPin, BarChart3 } from 'lucide-react';
 import PopulationHeatmap from '@/components/om/PopulationHeatmap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { formatLocale, formatCurrency } from '@/lib/om-utils';
 
 export default function DemographicsPage() {
   const { content } = useOmContent();
@@ -21,11 +22,6 @@ export default function DemographicsPage() {
           !['growthTrends', 'renterShare', 'bachelorsShare'].includes(key)
       )
     : [];
-
-  const formatNumber = (value?: number | null) =>
-    value != null ? value.toLocaleString() : null;
-  const formatCurrency = (value?: number | null) =>
-    value != null ? `$${value.toLocaleString()}` : null;
 
   const getGrowthColor = (growth?: string | null) => {
     const growthNum = parseFloat(growth ?? '0');
@@ -61,12 +57,12 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {formatNumber(oneMile?.population)}
+              {formatLocale(oneMile?.population) ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
             <div className="mt-2">
               <Badge className={getIncomeTier(oneMile?.medianIncome)}>
-                {formatCurrency(oneMile?.medianIncome)}
+                {formatCurrency(oneMile?.medianIncome) ?? null}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">Median Income</p>
             </div>
@@ -82,12 +78,12 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {formatNumber(threeMile?.population)}
+              {formatLocale(threeMile?.population) ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
             <div className="mt-2">
               <Badge className={getIncomeTier(threeMile?.medianIncome)}>
-                {formatCurrency(threeMile?.medianIncome)}
+                {formatCurrency(threeMile?.medianIncome) ?? null}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">Median Income</p>
             </div>
@@ -103,12 +99,12 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {formatNumber(fiveMile?.population)}
+              {formatLocale(fiveMile?.population) ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
             <div className="mt-2">
               <Badge className={getIncomeTier(fiveMile?.medianIncome)}>
-                {formatCurrency(fiveMile?.medianIncome)}
+                {formatCurrency(fiveMile?.medianIncome) ?? null}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">Median Income</p>
             </div>
@@ -182,14 +178,14 @@ export default function DemographicsPage() {
                         {radius.replace(/([A-Z])/g, ' $1').trim()} Radius
                       </h4>
                       <Badge variant="outline" className="border-gray-200 bg-white">
-                      {formatNumber((data as Record<string, number | undefined>).population)}
+                      {formatLocale((data as Record<string, number | undefined>).population) ?? null}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Income</p>
                       <p className="font-semibold text-gray-800">
-                        {formatCurrency((data as Record<string, number | undefined>).medianIncome)}
+                        {formatCurrency((data as Record<string, number | undefined>).medianIncome) ?? null}
                       </p>
                       </div>
                       <div className="bg-white bg-opacity-60 rounded p-2">
@@ -271,7 +267,7 @@ export default function DemographicsPage() {
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  High median income ({formatCurrency(oneMile?.medianIncome)} within 1-mile)
+                  High median income ({formatCurrency(oneMile?.medianIncome) ?? null} within 1-mile)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>

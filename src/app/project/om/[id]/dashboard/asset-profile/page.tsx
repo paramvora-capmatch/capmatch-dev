@@ -11,6 +11,7 @@ import ZoningMap from '@/components/om/ZoningMap';
 import { ImageSlideshow } from '@/components/om/ImageSlideshow';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { parseNumeric, calculateAverage, formatFixed, formatLocale } from '@/lib/om-utils';
 
 export default function AssetProfilePage() {
   const params = useParams();
@@ -39,10 +40,7 @@ export default function AssetProfilePage() {
       : null;
   const propertyStats = projectOverview?.propertyStats ?? null;
 
-  const avgCompRentPSF =
-    marketComps.length > 0
-      ? (marketComps.reduce((sum: number, comp: { rentPSF?: number | null }) => sum + (comp.rentPSF ?? 0), 0) / marketComps.length).toFixed(2)
-      : null;
+  const avgCompRentPSF = calculateAverage(marketComps, (comp) => comp.rentPSF ?? null);
 
   useOMPageHeader({
     subtitle: project
@@ -113,16 +111,16 @@ export default function AssetProfilePage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Parking Ratio</span>
                 <span className="font-medium">
-                  {propertyStats?.parkingRatio != null
-                    ? `${propertyStats.parkingRatio.toFixed(2)} / unit`
+                  {formatFixed(propertyStats?.parkingRatio, 2) != null
+                    ? `${formatFixed(propertyStats.parkingRatio, 2)} / unit`
                     : null}
                 </span>
               </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Amenity SF</span>
                   <span className="font-medium">
-                    {totalAmenitySF !== null
-                      ? `${totalAmenitySF.toLocaleString()} SF`
+                    {formatLocale(totalAmenitySF) != null
+                      ? `${formatLocale(totalAmenitySF)} SF`
                       : null}
                   </span>
                 </div>
@@ -157,7 +155,7 @@ export default function AssetProfilePage() {
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Avg Rent PSF</span>
               <span className="font-medium">
-                {avgCompRentPSF ? `$${avgCompRentPSF}` : null}
+                {formatFixed(avgCompRentPSF, 2) != null ? `$${formatFixed(avgCompRentPSF, 2)}` : null}
               </span>
             </div>
           </div>

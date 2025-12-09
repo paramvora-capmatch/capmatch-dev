@@ -12,6 +12,7 @@ import { DollarSign, BarChart3, Users, Activity } from 'lucide-react';
 import ReturnsCharts from '@/components/om/ReturnsCharts';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { formatFixed } from '@/lib/om-utils';
 
 export default function FinancialSponsorPage() {
     const params = useParams();
@@ -40,7 +41,7 @@ export default function FinancialSponsorPage() {
         ? new Date().getFullYear() - sponsorProfile.yearFounded
         : null;
     const formatMillions = (value?: number | null) =>
-      value != null ? `$${(value / 1_000_000).toFixed(1)}M` : null;
+      value != null ? `$${formatFixed(value / 1_000_000, 1) ?? "0.0"}M` : null;
     const baseIRR = returnProjections?.base?.irr ?? null;
     const upsideIRR = returnProjections?.upside?.irr ?? null;
     const downsideIRR = returnProjections?.downside?.irr ?? null;

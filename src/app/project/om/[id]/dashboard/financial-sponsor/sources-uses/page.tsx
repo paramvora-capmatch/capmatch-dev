@@ -5,26 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingDown, PieChart } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
+import { formatCurrency, formatPercentage } from "@/lib/om-utils";
 
 export default function SourcesUsesPage() {
   const { content } = useOmContent();
   const financialDetails = content?.financialDetails ?? null;
   const sources = financialDetails?.sourcesUses?.sources ?? [];
   const uses = financialDetails?.sourcesUses?.uses ?? [];
-  const formatCurrency = (amount?: number | null) => {
-    if (amount == null) return null;
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatPercentage = (amount?: number | null, total?: number | null) => {
-    if (amount == null || total == null || total === 0) return null;
-    return ((amount / total) * 100).toFixed(1);
-  };
 
   const totalSources = sources.reduce(
     (sum: number, source: { amount?: number | null }) => sum + (source.amount ?? 0),

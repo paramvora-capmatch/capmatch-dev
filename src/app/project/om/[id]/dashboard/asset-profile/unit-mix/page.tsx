@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Home, DollarSign, Users } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { formatLocale, formatFixed } from '@/lib/om-utils';
 
 type UnitMixUnit = {
   count?: number | null;
@@ -122,7 +123,7 @@ export default function UnitMixPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">{totalRentableSF.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-green-600">{formatLocale(totalRentableSF) ?? 0}</p>
             <p className="text-sm text-gray-500 mt-1">Rentable square feet</p>
           </CardContent>
         </Card>
@@ -137,7 +138,7 @@ export default function UnitMixPage() {
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
               {blendedAverageRentDisplay != null
-                ? `$${blendedAverageRentDisplay.toLocaleString()}`
+                ? `$${formatLocale(blendedAverageRentDisplay) ?? 0}`
                 : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per unit average</p>
@@ -177,7 +178,7 @@ export default function UnitMixPage() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-gray-500">Average SF</p>
-                      <p className="font-medium text-gray-800">{(unit.avgSF ?? 0).toLocaleString()} SF</p>
+                      <p className="font-medium text-gray-800">{formatLocale(unit.avgSF ?? 0) ?? 0} SF</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Rent Range</p>
@@ -259,7 +260,7 @@ export default function UnitMixPage() {
                   return (
                     <div key={type} className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">{getUnitTypeLabel(type)}</span>
-                      <Badge variant="outline" className="border-gray-200">${rentPSF.toFixed(2)}/SF</Badge>
+                      <Badge variant="outline" className="border-gray-200">${formatFixed(rentPSF, 2) ?? "0.00"}/SF</Badge>
                     </div>
                   );
                 })}
@@ -322,7 +323,7 @@ export default function UnitMixPage() {
                     <td className="py-3 px-2 font-medium text-gray-800">{plan.code}</td>
                     <td className="py-3 px-2 text-gray-600">{plan.type}</td>
                     <td className="py-3 px-2 text-gray-600">{plan.units}</td>
-                    <td className="py-3 px-2 text-gray-600">{(plan.avgSF ?? 0).toLocaleString()} SF</td>
+                    <td className="py-3 px-2 text-gray-600">{formatLocale(plan.avgSF ?? 0) ?? 0} SF</td>
                   </tr>
                 ))}
               </tbody>

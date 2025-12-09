@@ -11,8 +11,15 @@ import { ImageSlideshow } from "@/components/om/ImageSlideshow";
 import { useOMDashboard } from "@/contexts/OMDashboardContext";
 import { cn } from "@/utils/cn";
 import { useOMData } from "@/hooks/useOMData";
-import { getOMValue } from "@/lib/om-queries";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
+import {
+	getNumericValue,
+	normalizeScenarioData,
+	formatFixed,
+	formatLocale,
+} from "@/lib/om-utils";
+import { OMErrorState } from "@/components/om/OMErrorState";
+import { OMLoadingState } from "@/components/om/OMLoadingState";
 import {
 	DollarSign,
 	Building,
@@ -43,25 +50,11 @@ export default function OMDashboardPage() {
 	}
 
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center p-8">
-				Loading OM data...
-			</div>
-		);
+		return <OMLoadingState />;
 	}
 
 	if (error || !omData) {
-		return (
-			<div className="flex items-center justify-center p-8">
-				<div className="text-center">
-					<p className="text-red-600 mb-2">Error loading OM data</p>
-					<p className="text-sm text-gray-500">
-						{error?.message ||
-							"No OM data available. Please trigger autofill first."}
-					</p>
-				</div>
-			</div>
-		);
+		return <OMErrorState error={error} />;
 	}
 
 	// Extract values from OM data
@@ -70,18 +63,15 @@ export default function OMDashboardPage() {
 	const marketContextDetails = content.marketContextDetails || {};
 	const supplyAnalysis = marketContextDetails.supplyAnalysis || {};
 
-	// "Real" flat OM structure - these are the field IDs created by autofill
-	const loanAmount = getOMValue(content, "loanAmountRequested") || 0;
-	const ltv = getOMValue(content, "ltv") || 0;
-	const totalUnits = getOMValue(content, "totalResidentialUnits") || 0;
-	const grossBuildingArea = getOMValue(content, "grossBuildingArea") || 0;
-	const parkingRatio = getOMValue(content, "parkingRatio") || 0;
-	const affordableUnits =
-		getOMValue(content, "affordableUnitsNumber") || 0;
-	const popGrowth201020 =
-		getOMValue(content, "popGrowth201020") || 0;
-	const projGrowth202429 =
-		getOMValue(content, "projGrowth202429") || 0;
+	// Extract numeric values using shared utility
+	const loanAmount = getNumericValue(content, "loanAmountRequested", 0);
+	const ltv = getNumericValue(content, "ltv", 0);
+	const totalUnits = getNumericValue(content, "totalResidentialUnits", 0);
+	const grossBuildingArea = getNumericValue(content, "grossBuildingArea", 0);
+	const parkingRatio = getNumericValue(content, "parkingRatio", 0);
+	const affordableUnits = getNumericValue(content, "affordableUnitsNumber", 0);
+	const popGrowth201020 = getNumericValue(content, "popGrowth201020", 0);
+	const projGrowth202429 = getNumericValue(content, "projGrowth202429", 0);
 
 	// Scenario-specific metrics
 	const activeScenarioData =
@@ -100,30 +90,13 @@ export default function OMDashboardPage() {
 		equityMultiple: activeScenarioData.equityMultiple ?? 0,
 	};
 
-	// Normalized scenario set for UI (used in "Returns by Scenario" cards)
-	const scenarioData = {
-		downside: {
-			irr: scenarioDataAll.downside?.irr ?? data.irr,
-			equityMultiple:
-				scenarioDataAll.downside?.equityMultiple ?? data.equityMultiple,
-			loanAmount: scenarioDataAll.downside?.loanAmount ?? data.loanAmount,
-			ltv: scenarioDataAll.downside?.ltv ?? data.ltv,
-		},
-		base: {
-			irr: scenarioDataAll.base?.irr ?? data.irr,
-			equityMultiple:
-				scenarioDataAll.base?.equityMultiple ?? data.equityMultiple,
-			loanAmount: scenarioDataAll.base?.loanAmount ?? data.loanAmount,
-			ltv: scenarioDataAll.base?.ltv ?? data.ltv,
-		},
-		upside: {
-			irr: scenarioDataAll.upside?.irr ?? data.irr,
-			equityMultiple:
-				scenarioDataAll.upside?.equityMultiple ?? data.equityMultiple,
-			loanAmount: scenarioDataAll.upside?.loanAmount ?? data.loanAmount,
-			ltv: scenarioDataAll.upside?.ltv ?? data.ltv,
-		},
-	} as const;
+	// Normalized scenario set for UI using shared utility
+	const scenarioData = normalizeScenarioData(scenarioDataAll, {
+		irr: data.irr,
+		equityMultiple: data.equityMultiple,
+		loanAmount: data.loanAmount,
+		ltv: data.ltv,
+	});
 
 	// Timeline preview – use milestones from dealSnapshotDetails if available, otherwise fallback
 	const dealSnapshotDetails = content.dealSnapshotDetails || {};
@@ -212,7 +185,7 @@ export default function OMDashboardPage() {
 							label="Gross Building Area"
 							value={
 								grossBuildingArea
-									? `${grossBuildingArea.toLocaleString()} SF`
+									? `${formatLocale(grossBuildingArea)} SF`
 									: null
 							}
 						/>
@@ -226,7 +199,7 @@ export default function OMDashboardPage() {
 							<div className="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded hover:bg-gray-100 transition-colors duration-200">
 								<div className="text-center">
 									<div className="text-xl font-bold text-green-600">
-										{parkingRatio ? `${parkingRatio.toFixed(2)}x` : "-"}
+										{parkingRatio ? `${formatFixed(parkingRatio, 2)}x` : "-"}
 									</div>
 									<div className="text-xs text-gray-500">
 										Parking Ratio
@@ -283,9 +256,7 @@ export default function OMDashboardPage() {
 								<div className="text-sm">
 									<span className="text-gray-500">U/C:</span>
 									<span className="font-medium ml-1">
-										{typeof supplyAnalysis.underConstruction === "number"
-											? supplyAnalysis.underConstruction.toLocaleString()
-											: "-"}
+										{formatLocale(supplyAnalysis.underConstruction) ?? "-"}
 									</span>
 								</div>
 								<div className="text-sm">
@@ -293,9 +264,7 @@ export default function OMDashboardPage() {
 										Pipeline:
 									</span>
 									<span className="font-medium ml-1">
-										{typeof supplyAnalysis.planned24Months === "number"
-											? supplyAnalysis.planned24Months.toLocaleString()
-											: "-"}
+										{formatLocale(supplyAnalysis.planned24Months) ?? "-"}
 									</span>
 								</div>
 							</div>
@@ -321,13 +290,7 @@ export default function OMDashboardPage() {
 						/>
 						<MetricCard
 							label="Equity Multiple"
-							value={
-								data.equityMultiple
-									? `${data.equityMultiple.toFixed
-											? data.equityMultiple.toFixed(2)
-											: data.equityMultiple}x`
-									: null
-							}
+							value={formatFixed(data.equityMultiple, 2) ? `${formatFixed(data.equityMultiple, 2)}x` : null}
 						/>
 					</div>
 					<div className="mt-3">

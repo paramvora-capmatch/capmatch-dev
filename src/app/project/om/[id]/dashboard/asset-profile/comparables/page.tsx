@@ -5,28 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Building2, DollarSign, BarChart3 } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { parseNumeric, calculateAverage, formatFixed } from '@/lib/om-utils';
 
 export default function ComparablesPage() {
   const { content } = useOmContent();
   const assetProfileDetails = content?.assetProfileDetails ?? null;
   const comparableDetails = assetProfileDetails?.comparableDetails ?? [];
 
-  const parseNumeric = (value?: string | null) => {
-    if (!value) return null;
-    const parsed = parseFloat(value.replace(/[^\d.]/g, ''));
-    return Number.isNaN(parsed) ? null : parsed;
-  };
-
-  const average = (items: typeof comparableDetails, accessor: (item: typeof comparableDetails[number]) => number | null) => {
-    if (!items.length) return null;
-    const values = items.map(accessor).filter((value: number | null): value is number => value != null);
-    if (!values.length) return null;
-    return values.reduce((sum: number, value: number) => sum + value, 0) / values.length;
-  };
-
-  const avgRentPSF = average(comparableDetails, (comp) => parseNumeric(comp.avgRent));
-  const avgCapRate = average(comparableDetails, (comp) => parseNumeric(comp.lastSale?.capRate));
-  const avgDistance = average(comparableDetails, (comp) => parseNumeric(comp.distance));
+  const avgRentPSF = calculateAverage(comparableDetails, (comp) => parseNumeric(comp.avgRent));
+  const avgCapRate = calculateAverage(comparableDetails, (comp) => parseNumeric(comp.lastSale?.capRate));
+  const avgDistance = calculateAverage(comparableDetails, (comp) => parseNumeric(comp.distance));
   const comparablesCount = comparableDetails.length;
 
   const getDistanceColor = (distance: string | undefined) => {
@@ -89,7 +77,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {avgRentPSF != null ? `$${avgRentPSF.toFixed(2)}` : null}
+              {formatFixed(avgRentPSF, 2) != null ? `$${formatFixed(avgRentPSF, 2)}` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Market average</p>
           </CardContent>
@@ -104,7 +92,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {avgCapRate != null ? `${avgCapRate.toFixed(1)}%` : null}
+              {formatFixed(avgCapRate, 1) != null ? `${formatFixed(avgCapRate, 1)}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Market average</p>
           </CardContent>
@@ -116,7 +104,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {avgDistance != null ? `${avgDistance.toFixed(1)} mi` : null}
+              {formatFixed(avgDistance, 1) != null ? `${formatFixed(avgDistance, 1)} mi` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
           </CardContent>
@@ -221,7 +209,7 @@ export default function ComparablesPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Market Average</span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {avgRentPSF != null ? `$${avgRentPSF.toFixed(2)}` : null}
+                    {formatFixed(avgRentPSF, 2) != null ? `$${formatFixed(avgRentPSF, 2)}` : null}
                   </Badge>
                 </div>
               </div>
@@ -263,7 +251,7 @@ export default function ComparablesPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Market Average</span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {avgCapRate != null ? `${avgCapRate.toFixed(1)}%` : null}
+                    {formatFixed(avgCapRate, 1) != null ? `${formatFixed(avgCapRate, 1)}%` : null}
                   </Badge>
                 </div>
               </div>

@@ -11,6 +11,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { formatFixed } from '@/lib/om-utils';
 
 export default function CapitalStackPage() {
   const params = useParams();
@@ -27,7 +28,7 @@ export default function CapitalStackPage() {
   const formatPercent = (value: number | null | undefined) =>
     value != null ? `${value}%` : null;
   const formatMillions = (value: number | null | undefined) =>
-    value != null ? `$${(value / 1_000_000).toFixed(1)}M` : null;
+    value != null ? `$${formatFixed(value / 1_000_000, 1) ?? "0.0"}M` : null;
 
   useOMPageHeader({
     subtitle: project

@@ -16,6 +16,7 @@ import {
 import PlaceholderImage from "@/components/ui/PlaceholderImage";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
+import { formatLocale } from "@/lib/om-utils";
 
 export default function SponsorProfilePage() {
   const { content } = useOmContent();
@@ -97,7 +98,7 @@ export default function SponsorProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {sponsorProfile?.totalUnits?.toLocaleString() ?? null}
+              {formatLocale(sponsorProfile?.totalUnits) ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Units delivered</p>
           </CardContent>
@@ -158,7 +159,7 @@ export default function SponsorProfilePage() {
                 <div>
                   <p className="text-sm text-gray-500">Total Units Delivered</p>
                   <p className="font-medium text-gray-800">
-                    {sponsorProfile?.totalUnits?.toLocaleString() ?? null}
+                    {formatLocale(sponsorProfile?.totalUnits) ?? null}
                   </p>
                 </div>
                 <div>
@@ -461,7 +462,7 @@ export default function SponsorProfilePage() {
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  {sponsorProfile?.totalUnits?.toLocaleString() ?? null}{" "}
+                  {formatLocale(sponsorProfile?.totalUnits) ?? null}{" "}
                   units delivered
                 </li>
                 <li className="flex items-center">

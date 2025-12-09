@@ -6,6 +6,7 @@ import { Building2, BarChart3, Clock } from "lucide-react";
 import SupplyDemandMap from "@/components/om/SupplyDemandMap";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
+import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
 
 export default function SupplyDemandPage() {
   const { content } = useOmContent();
@@ -39,12 +40,7 @@ export default function SupplyDemandPage() {
           ...deliveryByQuarter.map((q: { units?: number | null }) => q.units ?? 0)
         )
       : 0;
-  const parseOccupancyPercent = (value?: string | null) => {
-    if (!value) return null;
-    const parsed = parseFloat(value.replace(/[^\d.]/g, ''));
-    return Number.isNaN(parsed) ? null : parsed;
-  };
-  const occupancyPercentValue = parseOccupancyPercent(averageOccupancy);
+  const occupancyPercentValue = parseNumeric(averageOccupancy);
 
   useOMPageHeader({
     subtitle: "Pipeline deliveries, occupancy, and the market’s supply-demand balance.",
@@ -66,7 +62,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {currentInventory.toLocaleString()}
+              {formatLocale(currentInventory) ?? 0}
             </p>
             <p className="text-sm text-gray-500 mt-1">Available units</p>
           </CardContent>
@@ -83,7 +79,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {underConstruction.toLocaleString()}
+              {formatLocale(underConstruction) ?? 0}
             </p>
             <p className="text-sm text-gray-500 mt-1">Units in progress</p>
           </CardContent>
@@ -100,7 +96,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {planned24Months.toLocaleString()}
+              {formatLocale(planned24Months) ?? 0}
             </p>
             <p className="text-sm text-gray-500 mt-1">Future units</p>
           </CardContent>
@@ -134,7 +130,7 @@ export default function SupplyDemandPage() {
               </span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">
-                  {currentInventory.toLocaleString()}{" "}
+                  {formatLocale(currentInventory) ?? 0}{" "}
                   units
                 </span>
                 <Badge className="bg-blue-100 text-blue-800">Available</Badge>
@@ -158,7 +154,7 @@ export default function SupplyDemandPage() {
               </span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">
-                  {underConstruction.toLocaleString()}{" "}
+                  {formatLocale(underConstruction) ?? 0}{" "}
                   units
                 </span>
                 <Badge className="bg-red-100 text-red-800">
@@ -184,7 +180,7 @@ export default function SupplyDemandPage() {
               </span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">
-                  {planned24Months.toLocaleString()}{" "}
+                  {formatLocale(planned24Months) ?? 0}{" "}
                   units
                 </span>
                 <Badge className="bg-blue-100 text-blue-800">Planned</Badge>
@@ -208,7 +204,7 @@ export default function SupplyDemandPage() {
                   Total Supply
                 </span>
                 <Badge className="bg-gray-100 text-gray-800">
-                  {totalSupply.toLocaleString()} units
+                  {formatLocale(totalSupply) ?? 0} units
                 </Badge>
               </div>
             </div>
@@ -237,7 +233,7 @@ export default function SupplyDemandPage() {
                     >
                       {/* Value Label above Bar */}
                       <div className="text-sm font-medium text-gray-700 mb-2">
-                        {(quarter.units ?? 0).toLocaleString()}
+                        {formatLocale(quarter.units ?? 0) ?? 0}
                       </div>
 
                       {/* Bar */}
@@ -272,9 +268,7 @@ export default function SupplyDemandPage() {
                     Total:{" "}
                   </span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {deliveryByQuarter
-                      .reduce((sum: number, q: { units?: number | null }) => sum + (q.units ?? 0), 0)
-                      .toLocaleString()}{" "}
+                    {formatLocale(deliveryByQuarter.reduce((sum: number, q: { units?: number | null }) => sum + (q.units ?? 0), 0)) ?? 0}{" "}
                     units
                   </Badge>
                 </div>
@@ -297,7 +291,7 @@ export default function SupplyDemandPage() {
               <div className="text-center">
                 <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl font-bold text-blue-600">
-                    {supplyUtilization.toFixed(1)}%
+                    {formatFixed(supplyUtilization, 1) ?? "0"}%
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">
@@ -309,19 +303,19 @@ export default function SupplyDemandPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Available Units</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {currentInventory.toLocaleString()}
+                    {formatLocale(currentInventory) ?? 0}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Pipeline Units</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {(underConstruction + planned24Months).toLocaleString()}
+                    {formatLocale(underConstruction + planned24Months) ?? 0}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Total Market</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {totalSupply.toLocaleString()}
+                    {formatLocale(totalSupply) ?? 0}
                   </Badge>
                 </div>
               </div>

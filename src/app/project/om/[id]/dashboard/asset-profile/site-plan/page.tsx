@@ -6,6 +6,7 @@ import { MapPin, Building2, TreePine, Car } from 'lucide-react';
 import InteractiveSiteMap from '@/components/om/InteractiveSiteMap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
+import { formatFixed } from '@/lib/om-utils';
 
 export default function SitePlanPage() {
   const { content } = useOmContent();
@@ -204,13 +205,13 @@ export default function SitePlanPage() {
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">FAR Remaining</span>
                 <Badge variant="outline" className="border-gray-200">
-                  {farRemaining != null ? farRemaining.toFixed(1) : null}
+                  {formatFixed(farRemaining, 1) ?? null}
                 </Badge>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Height Remaining</span>
                 <Badge variant="outline" className="border-gray-200">
-                  {heightRemaining != null ? `${heightRemaining.toFixed(1)} feet` : null}
+                  {formatFixed(heightRemaining, 1) != null ? `${formatFixed(heightRemaining, 1)} feet` : null}
                 </Badge>
               </div>
               <div className="flex justify-between items-center">
