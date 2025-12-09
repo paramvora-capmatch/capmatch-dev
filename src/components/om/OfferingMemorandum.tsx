@@ -96,10 +96,6 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
           />
           <KeyValueDisplay label="Asset Type" value={project.assetType} />
           <KeyValueDisplay
-            label="Primary Asset Class"
-            value={project.primaryAssetClass || "N/A"}
-          />
-          <KeyValueDisplay
             label="Construction Type"
             value={project.constructionType || "N/A"}
           />
@@ -110,10 +106,6 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
           <KeyValueDisplay
             label="Zoning Designation"
             value={project.zoningDesignation || "N/A"}
-          />
-          <KeyValueDisplay
-            label="Current Zoning"
-            value={project.currentZoning || "N/A"}
           />
           <KeyValueDisplay
             label="Total Residential Units"
@@ -231,8 +223,8 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
             value={formatDate(project.targetCloseDate)}
           />
           <KeyValueDisplay
-            label="Requested Loan Term"
-            value={project.requestedLoanTerm || "N/A"}
+            label="Requested Term"
+            value={project.requestedTerm || "N/A"}
           />
           <KeyValueDisplay
             label="Interest Rate"

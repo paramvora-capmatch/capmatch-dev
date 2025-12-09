@@ -3,225 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// Import section grouping utilities (inline for Deno compatibility)
-// We'll implement a simplified version here since we can't import TS files directly
-function isGroupedFormat(data: Record<string, unknown>): boolean {
-  const keys = Object.keys(data);
-  // Check for new format with actual section IDs
-  // Note: In a Deno function, we can't import schema-utils, so we use a hardcoded list
-  // This should match the section IDs from enhanced-project-form.schema.json
-  const knownSectionIds = [
-    'basic-info', 'property-specs', 'dev-budget', 'loan-info', 'financials',
-    'market-context', 'special-considerations', 'timeline', 'site-context', 'sponsor-info'
-  ];
-  return keys.some(key => knownSectionIds.includes(key));
-}
-
-// Hardcoded field-to-subsection mapping (matching enhanced-project-form.schema.json)
-// This is used as a fallback when formSchema is not available
-const FIELD_TO_SUBSECTION: Record<string, string> = {
-  // basic-info section subsections
-  "projectName": "project-identity",
-  "propertyAddressStreet": "project-identity",
-  "propertyAddressCity": "project-identity",
-  "propertyAddressState": "project-identity",
-  "propertyAddressZip": "project-identity",
-  "propertyAddressCounty": "project-identity",
-  "dealStatus": "project-identity",
-  "assetType": "classification",
-  "constructionType": "classification",
-  "projectPhase": "classification",
-  "projectDescription": "classification",
-  "parcelNumber": "classification",
-  "zoningDesignation": "classification",
-  // Add more mappings as needed for other sections
-};
-
-// Helper to get subsection for a field (simplified - in production, load from schema)
-function getSubsectionForField(fieldId: string, sectionId: string, formSchema: any): string | null {
-  // First try to use formSchema if available
-  if (formSchema) {
-    const steps = formSchema?.steps || [];
-    
-    for (const step of steps) {
-      if (step.id !== sectionId) continue;
-      
-      const subsections = step.subsections || [];
-      for (const subsection of subsections) {
-        const fields = subsection.fields || [];
-        if (fields.includes(fieldId)) {
-          return subsection.id;
-        }
-      }
-      
-      // If section has no subsections, return null
-      if (subsections.length === 0) {
-        return null;
-      }
-    }
-  }
-  
-  // Fallback to hardcoded mapping
-  return FIELD_TO_SUBSECTION[fieldId] || null;
-}
-
-function groupBySections(flatData: Record<string, unknown>, formSchema?: any): Record<string, any> {
-  // Simplified field-to-section mapping (matching Backend/services/field_section_mapping.py)
-  const FIELD_TO_SECTION: Record<string, string> = {
-    "projectName": "basic-info", "propertyAddressStreet": "basic-info", "propertyAddressCity": "basic-info",
-    "propertyAddressState": "basic-info", "propertyAddressZip": "basic-info", "propertyAddressCounty": "basic-info",
-    "parcelNumber": "basic-info", "zoningDesignation": "basic-info",
-    "primaryAssetClass": "basic-info", "constructionType": "basic-info", "groundbreakingDate": "basic-info",
-    "completionDate": "basic-info", "totalDevelopmentCost": "basic-info", "loanAmountRequested": "basic-info",
-    "loanType": "basic-info", "requestedLoanTerm": "basic-info", "masterPlanName": "basic-info",
-    "phaseNumber": "basic-info", "projectDescription": "basic-info", "projectPhase": "basic-info", "assetType": "basic-info",
-    "totalResidentialUnits": "property-specs", "totalResidentialNRSF": "property-specs", "averageUnitSize": "property-specs",
-    "totalCommercialGRSF": "property-specs", "grossBuildingArea": "property-specs", "numberOfStories": "property-specs",
-    "buildingType": "property-specs", "parkingSpaces": "property-specs", "parkingRatio": "property-specs",
-    "parkingType": "property-specs", "amenityList": "property-specs", "amenitySF": "property-specs",
-    "landAcquisition": "dev-budget", "baseConstruction": "dev-budget", "contingency": "dev-budget",
-    "ffe": "dev-budget", "softCostsTotal": "dev-budget", "constructionFees": "dev-budget",
-    "aeFees": "dev-budget", "thirdPartyReports": "dev-budget", "legalOrg": "dev-budget",
-    "titleRecording": "dev-budget", "taxesDuringConst": "dev-budget", "workingCapital": "dev-budget",
-    "developerFee": "dev-budget", "pfcStructuringFee": "dev-budget", "financingCosts": "dev-budget",
-    "interestReserve": "dev-budget", "seniorLoanAmount": "financials", "sponsorEquity": "financials",
-    "interestRate": "loan-info", "underwritingRate": "loan-info", "amortization": "loan-info",
-    "prepaymentTerms": "loan-info", "recourse": "loan-info", "permTakeoutPlanned": "loan-info",
-    "realEstateTaxes": "financials", "insurance": "financials", "utilities": "financials",
-    "repairsMaint": "financials", "managementFee": "financials", "generalAdmin": "financials",
-    "payroll": "financials", "reserves": "financials", "noiYear1": "financials",
-    "yieldOnCost": "financials", "capRate": "financials", "stabilizedValue": "financials",
-    "ltv": "financials", "debtYield": "financials", "dscr": "financials",
-    "purchasePrice": "financials", "totalProjectCost": "financials", "capexBudget": "financials",
-    "equityCommittedPercent": "financials", "propertyNoiT12": "financials", "stabilizedNoiProjected": "financials",
-    "exitStrategy": "financials", "businessPlanSummary": "financials", "marketOverviewSummary": "financials",
-    "targetLtvPercent": "loan-info", "targetLtcPercent": "loan-info", "amortizationYears": "loan-info",
-    "interestOnlyPeriodMonths": "loan-info", "interestRateType": "loan-info", "targetCloseDate": "loan-info",
-    "recoursePreference": "loan-info", "useOfProceeds": "loan-info",
-    "submarketName": "market-context", "distanceToCBD": "market-context", "distanceToEmployment": "market-context",
-    "distanceToTransit": "market-context", "walkabilityScore": "market-context", "population3Mi": "market-context",
-    "popGrowth201020": "market-context", "projGrowth202429": "market-context", "medianHHIncome": "market-context",
-    "renterOccupiedPercent": "market-context", "bachelorsDegreePercent": "market-context", "rentComps": "market-context",
-    "opportunityZone": "special-considerations", "affordableHousing": "special-considerations",
-    "affordableUnitsNumber": "special-considerations", "amiTargetPercent": "special-considerations",
-    "taxExemption": "special-considerations", "tifDistrict": "special-considerations", "taxAbatement": "special-considerations",
-    "paceFinancing": "special-considerations", "historicTaxCredits": "special-considerations", "newMarketsCredits": "special-considerations",
-    "landAcqClose": "timeline", "entitlements": "timeline", "finalPlans": "timeline",
-    "permitsIssued": "timeline", "groundbreaking": "timeline", "verticalStart": "timeline",
-    "firstOccupancy": "timeline", "stabilization": "timeline", "preLeasedSF": "timeline",
-    "totalSiteAcreage": "site-context", "currentSiteStatus": "site-context", "topography": "site-context",
-    "environmental": "site-context", "siteAccess": "site-context", "proximityShopping": "site-context",
-    "proximityRestaurants": "site-context", "proximityParks": "site-context", "proximitySchools": "site-context",
-    "proximityHospitals": "site-context",
-    "sponsorEntityName": "sponsor-info", "sponsorStructure": "sponsor-info", "equityPartner": "sponsor-info", "contactInfo": "sponsor-info",
-  };
-  
-  const grouped: Record<string, any> = {};
-  
-  for (const [fieldId, fieldValue] of Object.entries(flatData)) {
-    if (fieldId.startsWith('_') || fieldId === 'projectSections' || fieldId === 'borrowerSections' || fieldId === 'completenessPercent') continue;
-    
-    const sectionId = FIELD_TO_SECTION[fieldId];
-    if (sectionId) {
-      if (!grouped[sectionId]) {
-        grouped[sectionId] = {};
-      }
-      
-      // Check if this section has subsections
-      const subsectionId = formSchema ? getSubsectionForField(fieldId, sectionId, formSchema) : getSubsectionForField(fieldId, sectionId, null);
-      
-      if (subsectionId) {
-        // Section has subsections - nest field in subsection
-        if (!grouped[sectionId][subsectionId]) {
-          grouped[sectionId][subsectionId] = {};
-        }
-        grouped[sectionId][subsectionId][fieldId] = fieldValue;
-      } else {
-        // Section has no subsections - place field directly in section
-        grouped[sectionId][fieldId] = fieldValue;
-      }
-    } else {
-      if (!grouped["unknown"]) grouped["unknown"] = {};
-      grouped["unknown"][fieldId] = fieldValue;
-    }
-  }
-  
-  return grouped;
-}
-
-function ungroupFromSections(groupedData: Record<string, unknown>, formSchema?: any): Record<string, unknown> {
-  const flat: Record<string, unknown> = {};
-  
-  for (const [sectionKey, sectionData] of Object.entries(groupedData)) {
-    // Preserve special root-level keys
-    if (sectionKey.startsWith('_') || sectionKey === 'completenessPercent' || 
-        sectionKey === 'projectSections' || sectionKey === 'borrowerSections') {
-      flat[sectionKey] = sectionData;
-      continue;
-    }
-    
-    if (!sectionData || typeof sectionData !== 'object' || Array.isArray(sectionData)) {
-      flat[sectionKey] = sectionData;
-      continue;
-    }
-    
-    let hasSubsections = false;
-    if (formSchema) {
-      const steps = formSchema.steps || [];
-      for (const step of steps) {
-        if (step.id === sectionKey) {
-          const subsections = step.subsections || [];
-          if (subsections.length > 0) {
-            const firstKey = Object.keys(sectionData)[0];
-            const subsectionIds = subsections.map((sub: any) => sub.id);
-            hasSubsections = firstKey && subsectionIds.includes(firstKey);
-          }
-          break;
-        }
-      }
-    }
-    // Heuristic: if sectionData values look like containers rather than fields, assume subsections
-    if (!hasSubsections && sectionData && typeof sectionData === 'object') {
-        const values = Object.values(sectionData);
-        if (values.length > 0) {
-            const firstVal = values[0];
-            // If the value is a rich field object, it has keys like 'value', 'source', 'warnings'
-            // If it's a primitive, it's a field
-            // If it's an object without those keys, it's likely a subsection container
-            const isFieldLike = (v: any) => {
-                if (v === null || typeof v !== 'object') return true;
-                if (Array.isArray(v)) return true;
-                if ('value' in v || 'source' in v || 'warnings' in v) return true;
-                return false;
-            };
-            
-            if (!isFieldLike(firstVal)) {
-                hasSubsections = true;
-            }
-        }
-    }
-    
-    if (hasSubsections) {
-      // Flatten subsections
-      for (const [subsectionId, subsectionData] of Object.entries(sectionData as Record<string, unknown>)) {
-        if (subsectionData && typeof subsectionData === 'object' && !Array.isArray(subsectionData)) {
-          for (const [fieldId, fieldValue] of Object.entries(subsectionData as Record<string, unknown>)) {
-            flat[fieldId] = fieldValue;
-          }
-        } else {
-          flat[subsectionId] = subsectionData;
-        }
-      }
-    } else {
-      // Flatten fields directly
-      for (const [fieldId, fieldValue] of Object.entries(sectionData as Record<string, unknown>)) {
-        flat[fieldId] = fieldValue;
-      }
-    }
-  }
-  
-  return flat;
-}
+// Removed section grouping utilities - storage is now always flat format
 
 type CoreUpdates = {
   name?: string;
@@ -309,11 +91,7 @@ serve(async (req) => {
 
       let existingContent = (existing?.content ?? {}) as Record<string, unknown>;
       
-      // Check if existing content is in section-grouped format and ungroup if needed
-      // Note: We don't have access to formSchema in this Deno function, so we use simplified logic
-      if (isGroupedFormat(existingContent)) {
-        existingContent = ungroupFromSections(existingContent) as Record<string, unknown>;
-      }
+      // Content is always flat now, no conversion needed
       
       // Handle rich data format merging
       // If resume_updates contains _metadata, convert it to rich format
@@ -511,11 +289,10 @@ serve(async (req) => {
       const lockedFields = (rootKeys._lockedFields as Record<string, boolean> | undefined) || {};
       const { _lockedFields, ...rootKeysWithoutLockedFields } = rootKeys;
       
-      // Group data by sections before saving
-      // Note: We don't have access to formSchema in this Deno function, so grouping will use simplified logic
+      // Save flat content directly - no grouping needed
       const finalContent = {
         ...rootKeysWithoutLockedFields,
-        ...groupBySections(finalContentFlat),
+        ...finalContentFlat,
       };
 
       // Extract completenessPercent from resume_updates if present (stored in column, not content)

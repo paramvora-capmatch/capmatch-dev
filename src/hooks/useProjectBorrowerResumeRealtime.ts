@@ -6,7 +6,7 @@ import {
 } from "@/lib/project-queries";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "@/hooks/useAuth";
-import { ungroupFromSections, isGroupedFormat } from "@/lib/section-grouping";
+// Removed imports: ungroupFromSections, isGroupedFormat - storage is now always flat format
 import borrowerFormSchema from "@/lib/borrower-resume-form.schema.json";
 
 interface UseProjectBorrowerResumeRealtimeResult {
@@ -45,26 +45,14 @@ const BORROWER_FIELD_IDS: string[] = Object.keys(
 const isCorruptedBooleanSnapshot = (content: any): boolean => {
 	if (!content || typeof content !== "object") return false;
 
-	// Strip metadata/root keys and flatten sections if needed
+	// Strip metadata/root keys - content is always flat now
 	const raw = { ...content };
 	delete raw._lockedFields;
 	delete raw._fieldStates;
 	delete raw._metadata;
 	delete raw.completenessPercent;
 
-	let flat: Record<string, any>;
-	if (isGroupedFormat(raw)) {
-		const {
-			_lockedFields,
-			_fieldStates,
-			_metadata,
-			completenessPercent,
-			...sections
-		} = raw;
-		flat = ungroupFromSections(sections);
-	} else {
-		flat = raw;
-	}
+	const flat = raw; // Content is always flat now
 
 	// If at least one known borrower field has a non-boolean value (or a rich
 	// { value: ... } object with a non-boolean value), we consider the snapshot valid.
@@ -159,10 +147,7 @@ const getProjectBorrowerResumeContent = async (
 	delete working._fieldStates;
 	delete working._metadata;
 
-	// Convert section-wise format to flat format for form/view consumption
-	if (isGroupedFormat(working)) {
-		working = ungroupFromSections(working);
-	}
+	// Content is always flat now, no conversion needed
 
 	// Extract metadata from rich format fields and create _metadata object
 	const flatContent: any = {};

@@ -283,7 +283,7 @@ export interface ProjectProfile {
 	owner_org_id: string; // The org_id that owns the project
 	projectName: string;
 	assetType: string;
-	projectStatus: string;
+	projectStatus: string; // Legacy field, maps to dealStatus for backward compatibility
 	createdAt: string;
 	updatedAt: string;
 	// New resource IDs
@@ -329,24 +329,18 @@ export interface ProjectProfile {
 	// Extended fields from ProjectResumeContent (for type safety)
 	parcelNumber?: string;
 	zoningDesignation?: string;
-	currentZoning?: string;
 	expectedZoningChanges?: string;
-	primaryAssetClass?: string;
 	constructionType?: string;
 	groundbreakingDate?: string;
 	completionDate?: string;
 	totalDevelopmentCost?: number;
-	requestedLoanTerm?: string;
 	requestedTerm?: string;
-	masterPlanName?: string;
-	phaseNumber?: string;
 	dealStatus?: string;
 	syndicationStatus?: string;
 	sponsorExperience?: string;
 	ltvStressMax?: number;
 	dscrStressMin?: number;
 	expectedHoldPeriod?: number;
-	guarantorNames?: string;
 	totalResidentialUnits?: number;
 	totalResidentialNRSF?: number;
 	averageUnitSize?: number;

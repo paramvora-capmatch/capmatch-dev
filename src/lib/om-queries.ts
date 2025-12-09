@@ -440,7 +440,7 @@ function normalizeOMContent(rawContent: Record<string, any>): Record<string, any
           content.underwritingRate != null
             ? `${content.underwritingRate}% UW`
             : null,
-        term: content.requestedTerm ?? content.requestedLoanTerm ?? null,
+        term: content.requestedTerm ?? null,
         extension: "2 x 6-month extensions",
         recourse: content.recoursePreference ?? null,
         origination: "1.00% origination fee",
