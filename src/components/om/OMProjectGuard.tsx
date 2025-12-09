@@ -11,11 +11,12 @@ import { useProjects } from "@/hooks/useProjects";
 import { useOMData } from "@/hooks/useOMData";
 import { OMErrorState } from "./OMErrorState";
 import { OMLoadingState } from "./OMLoadingState";
+import type { ProjectProfile } from "@/types/enhanced-types";
 
 interface OMProjectGuardProps {
 	children: (props: {
 		projectId: string;
-		project: NonNullable<ReturnType<typeof useProjects>["getProject"]>;
+		project: ProjectProfile;
 		omData: NonNullable<ReturnType<typeof useOMData>["omData"]>;
 	}) => React.ReactNode;
 	showLoading?: boolean;
@@ -29,7 +30,8 @@ export function OMProjectGuard({
 }: OMProjectGuardProps) {
 	const params = useParams();
 	const projectId = params?.id as string;
-	const { getProject } = useProjects();
+	const projectsHook = useProjects();
+	const getProject = projectsHook.getProject;
 	const project = projectId ? getProject(projectId) : null;
 	const { omData, isLoading, error } = useOMData(projectId || "");
 

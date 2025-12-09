@@ -837,7 +837,7 @@ export const getProjectsWithResumes = async (
 			const { flatContent, metadata } = processResumeContent(rawContent);
 
 			// Process borrower resume content
-			let borrowerResumeContent: BorrowerResumeContent =
+			const borrowerResumeContent: BorrowerResumeContent =
 				borrowerResume?.content || {};
 			let borrowerLockedFields: Record<string, boolean> =
 				(borrowerResume?.locked_fields as
@@ -1118,14 +1118,14 @@ const BOOLEAN_BORROWER_FIELDS: Record<string, true> = {
 };
 
 // Field ids from the borrower form schema – used to validate content
-const BORROWER_FIELD_IDS: string[] = (() => {
-	try {
-		const borrowerFormSchema = require("@/lib/borrower-resume-form.schema.json");
-		return Object.keys((borrowerFormSchema as any).fields || {});
-	} catch {
-		return [];
-	}
-})();
+let BORROWER_FIELD_IDS: string[] = [];
+try {
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const borrowerFormSchema = require("@/lib/borrower-resume-form.schema.json");
+	BORROWER_FIELD_IDS = Object.keys((borrowerFormSchema as any).fields || {});
+} catch {
+	BORROWER_FIELD_IDS = [];
+}
 
 /**
  * Heuristic to detect a "corrupted" borrower resume row where the core
@@ -1239,7 +1239,7 @@ export const getProjectBorrowerResume = async (
 	let lockedFields: Record<string, boolean> =
 		(chosenRow.locked_fields as Record<string, boolean> | undefined) || {};
 
-	let content = { ...contentRaw };
+	const content = { ...contentRaw };
 
 	// Content is always flat now - use column value if available, otherwise fall back to content
 	if (!lockedFields || Object.keys(lockedFields).length === 0) {

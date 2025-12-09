@@ -29,7 +29,8 @@ export async function DELETE(request: Request) {
 
   try {
     const body: DeleteRoomRequest = await request.json();
-    let { roomName, meetingId } = body;
+    const { roomName: roomNameParam, meetingId } = body;
+    let roomName = roomNameParam;
 
     if (!roomName && !meetingId) {
       return NextResponse.json(

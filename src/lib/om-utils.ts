@@ -29,7 +29,7 @@ export function getNumericValue(
 	defaultValue: number = 0
 ): number {
 	// Access field directly from flat content object
-	let value = getOMValue(content, fieldId);
+	const value = getOMValue(content, fieldId);
 	
 	// Convert to number if it's a string
 	if (typeof value === "string") {

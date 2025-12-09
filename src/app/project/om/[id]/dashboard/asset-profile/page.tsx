@@ -53,7 +53,7 @@ export default function AssetProfilePage() {
   const parkingRatio = parseNumeric(content?.parkingRatio) ?? null;
   const parkingSpaces = parseNumeric(content?.parkingSpaces) ?? null;
 
-  const avgCompRentPSF = calculateAverage(marketComps, (comp) => comp.rentPSF ?? null);
+  const avgCompRentPSF = calculateAverage(marketComps, (comp: typeof marketComps[0]) => comp.rentPSF ?? null);
 
   useOMPageHeader({
     subtitle: project

@@ -45,13 +45,13 @@ export default function EmploymentPage() {
     0
   );
 
-  const avgGrowth = calculateAverage(majorEmployers, (employer) => {
+  const avgGrowth = calculateAverage(majorEmployers, (employer: typeof majorEmployers[0]) => {
     const growthValue = employer.growth ?? '0';
     const parsed = parseInt(growthValue.replace(/[^\d-]/g, ''));
     return isNaN(parsed) ? null : parsed;
   });
 
-  const avgDistance = calculateAverage(majorEmployers, (employer) => parseNumeric(employer.distance));
+  const avgDistance = calculateAverage(majorEmployers, (employer: typeof majorEmployers[0]) => parseNumeric(employer.distance));
 
   useOMPageHeader({
     subtitle: "Job base composition, employer proximity, and growth trends.",

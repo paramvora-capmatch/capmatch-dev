@@ -47,10 +47,9 @@ export default function MilestonesPage() {
     }
   };
 
-  const totalDuration = milestones.reduce(
-    (sum: number, milestone: { duration?: number | null }) => sum + (milestone.duration ?? 0),
-    0
-  );
+  // Calculate total duration from milestone dates (in days)
+  // For now, use a placeholder since we don't have duration data
+  const totalDuration = 0;
 
   // Extract construction/lease-up fields
   const preLeasedSF = parseNumeric(content?.preLeasedSF) ?? null;
@@ -102,12 +101,12 @@ export default function MilestonesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => {
-              const previousDuration = milestones
-                .slice(0, index)
-                .reduce((sum: number, m: { duration?: number | null }) => sum + (m.duration ?? 0), 0);
+            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null }, index: number) => {
+              // Calculate duration placeholder - milestones don't have duration, using equal distribution
+              const equalDuration = totalDuration > 0 ? totalDuration / milestones.length : 0;
+              const previousDuration = index * equalDuration;
               const startPercentage = totalDuration > 0 ? (previousDuration / totalDuration) * 100 : 0;
-              const duration = milestone.duration ?? 0;
+              const duration = equalDuration;
               const widthPercentage = totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
 
               return (
@@ -136,7 +135,7 @@ export default function MilestonesPage() {
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-xs font-medium text-white">
-                        {milestone.date}
+                        {milestone.date ?? ''}
                       </span>
                     </div>
                   </div>

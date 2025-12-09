@@ -355,12 +355,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
     window.addEventListener(
       "autofill-completed",
-      handleAutofillCompleted as EventListener
+      handleAutofillCompleted as unknown as EventListener
     );
     return () => {
       window.removeEventListener(
         "autofill-completed",
-        handleAutofillCompleted as EventListener
+        handleAutofillCompleted as unknown as EventListener
       );
     };
   }, [projectId, reloadBorrowerResume, loadUserProjects]);

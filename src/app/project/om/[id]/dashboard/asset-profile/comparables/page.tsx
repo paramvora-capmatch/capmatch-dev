@@ -29,9 +29,9 @@ export default function ComparablesPage() {
     },
   }));
 
-  const avgRentPSF = calculateAverage(comparableDetails, (comp) => parseNumeric(comp.avgRent));
-  const avgCapRate = calculateAverage(comparableDetails, (comp) => parseNumeric(comp.lastSale?.capRate));
-  const avgDistance = calculateAverage(comparableDetails, (comp) => parseNumeric(comp.distance));
+  const avgRentPSF = calculateAverage(comparableDetails, (comp: typeof comparableDetails[0]) => parseNumeric(comp.avgRent));
+  const avgCapRate = calculateAverage(comparableDetails, (comp: typeof comparableDetails[0]) => parseNumeric(comp.lastSale?.capRate));
+  const avgDistance = calculateAverage(comparableDetails, (comp: typeof comparableDetails[0]) => parseNumeric(comp.distance));
   const comparablesCount = comparableDetails.length;
 
   const getDistanceColor = (distance: string | undefined) => {
