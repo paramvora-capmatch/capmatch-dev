@@ -268,18 +268,9 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
               return (
                 <div key={message.id} className="flex justify-start">
                   <div className="bg-white border border-gray-200 text-gray-800 rounded-lg px-4 py-3 max-w-[80%] shadow-sm">
-                    <div className="prose prose-sm max-w-none">
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
-                        components={markdownComponents}
-                      >
-                        {answer_markdown || ''}
-                      </ReactMarkdown>
-                    </div>
-
-                    {/* Assumptions card at the bottom, collapsed by default */}
+                    {/* Assumptions card at the top, collapsed by default */}
                     {assumptions?.length ? (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="mb-4 pb-4 border-b border-gray-200">
                         <button
                           type="button"
                           onClick={() => setAssumptionsOpen(o => !o)}
@@ -325,6 +316,15 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
                         </div>
                       </div>
                     ) : null}
+
+                    <div className="prose prose-sm max-w-none">
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={markdownComponents}
+                      >
+                        {answer_markdown || ''}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               );

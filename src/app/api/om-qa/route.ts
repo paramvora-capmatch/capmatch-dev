@@ -30,7 +30,7 @@ const system = [
   "Output must match the provided JSON schema exactly. Return JSON only.",
 ].join(" ");
 
-const MODEL_NAME = "gemini-2.5-pro"; // use a model your key supports
+const MODEL_NAME = "gemini-2.5-flash"; // use a model your key supports
 
 // Function to format OM data from mockOMData service
 function formatOMData() {

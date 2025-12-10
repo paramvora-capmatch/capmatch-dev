@@ -1858,19 +1858,25 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				(meta?.sources &&
 					Array.isArray(meta.sources) &&
 					meta.sources.length > 0);
-			const sourceType = meta?.source?.type || meta?.sources?.[0]?.type;
 			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 
+			// Don't show as blue if locked (should be green)
+			if (locked) {
+				return false;
+			}
+
 			// Don't show as blue if there are warnings (should be red instead)
-			if (hasWarnings && !locked) {
+			if (hasWarnings) {
 				return false;
 			}
 
 			if (!hasValue) {
-				return hasSource && !locked && !hasWarnings;
+				// Blue: has source but no value, not locked, no warnings
+				return hasSource;
 			}
-			// Blue: user_input source, no warnings, not locked
-			return sourceType === "user_input" && !hasWarnings && !locked;
+
+			// Blue: has value, not locked, no warnings (matches visual styling - regardless of source type)
+			return true;
 		},
 		[formData, fieldMetadata, isFieldLocked]
 	);
@@ -2594,7 +2600,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const renderDynamicField = useCallback(
 		(fieldId: string, sectionId: string) => {
 			// Remove duplicate fields from frontend to avoid confusion
-			if (fieldId === "totalProjectCost" || fieldId === "requestedTerm") {
+			// Also filter out table fields that are rendered separately
+			if (
+				fieldId === "totalProjectCost" ||
+				fieldId === "requestedTerm" ||
+				fieldId === "residentialUnitMix" ||
+				fieldId === "commercialSpaceMix" ||
+				fieldId === "drawSchedule" ||
+				fieldId === "rentComps"
+			) {
 				return null;
 			}
 

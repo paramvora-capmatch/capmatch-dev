@@ -522,7 +522,10 @@ function buildProjectProfile(
 	project: any,
 	resumeData: {
 		flatContent: Partial<ProjectResumeContent>;
-		metadata: Record<string, import("@/types/enhanced-types").FieldMetadata>;
+		metadata: Record<
+			string,
+			import("@/types/enhanced-types").FieldMetadata
+		>;
 		completenessPercent: number | undefined;
 		lockedFields: Record<string, boolean>;
 		fieldStates: any;
@@ -534,8 +537,19 @@ function buildProjectProfile(
 		lockedFields: Record<string, boolean>;
 	}
 ): ProjectProfile {
-	const { flatContent, metadata, completenessPercent, lockedFields, fieldStates, resourceId } = resumeData;
-	const { content: borrowerResumeContent, completenessPercent: borrowerCompletenessPercent, lockedFields: borrowerLockedFields } = borrowerData;
+	const {
+		flatContent,
+		metadata,
+		completenessPercent,
+		lockedFields,
+		fieldStates,
+		resourceId,
+	} = resumeData;
+	const {
+		content: borrowerResumeContent,
+		completenessPercent: borrowerCompletenessPercent,
+		lockedFields: borrowerLockedFields,
+	} = borrowerData;
 
 	// Use stored completeness_percent from column instead of calculating
 	// Fall back to calculation only if stored value is missing/invalid
@@ -615,14 +629,18 @@ export const getProjectWithResume = async (
 	const borrowerData = await fetchBorrowerResumeData(projectId);
 
 	// Build and return profile
-	return buildProjectProfile(project, {
-		flatContent,
-		metadata,
-		completenessPercent: resumeData.completenessPercent,
-		lockedFields: resumeData.lockedFields,
-		fieldStates: resumeData.fieldStates,
-		resourceId: resumeData.resourceId,
-	}, borrowerData);
+	return buildProjectProfile(
+		project,
+		{
+			flatContent,
+			metadata,
+			completenessPercent: resumeData.completenessPercent,
+			lockedFields: resumeData.lockedFields,
+			fieldStates: resumeData.fieldStates,
+			resourceId: resumeData.resourceId,
+		},
+		borrowerData
+	);
 };
 
 export const getProjectsWithResumes = async (
@@ -672,9 +690,7 @@ export const getProjectsWithResumes = async (
 	});
 
 	// Collect all current version IDs
-	const projectResumeVersionIds = Array.from(
-		projectResumeResources.values()
-	)
+	const projectResumeVersionIds = Array.from(projectResumeResources.values())
 		.map((r) => r.current_version_id)
 		.filter((id): id is string => id !== null);
 	const borrowerResumeVersionIds = Array.from(
@@ -701,7 +717,9 @@ export const getProjectsWithResumes = async (
 		Promise.resolve(
 			supabase
 				.from("project_resumes")
-				.select("project_id, id, content, completeness_percent, locked_fields, created_at")
+				.select(
+					"project_id, id, content, completeness_percent, locked_fields, created_at"
+				)
 				.in("project_id", projectIds)
 				.order("created_at", { ascending: false })
 		)
@@ -745,7 +763,9 @@ export const getProjectsWithResumes = async (
 		Promise.resolve(
 			supabase
 				.from("borrower_resumes")
-				.select("project_id, id, content, completeness_percent, locked_fields, created_at")
+				.select(
+					"project_id, id, content, completeness_percent, locked_fields, created_at"
+				)
 				.in("project_id", projectIds)
 				.order("created_at", { ascending: false })
 		)
@@ -788,7 +808,9 @@ export const getProjectsWithResumes = async (
 
 			// Fallback: get latest by project_id
 			if (!projectResume) {
-				const fallbackResumes = projectResumesByProjectId.get(project.id);
+				const fallbackResumes = projectResumesByProjectId.get(
+					project.id
+				);
 				if (fallbackResumes && fallbackResumes.length > 0) {
 					projectResume = fallbackResumes[0]; // Already sorted by created_at desc
 				}
@@ -806,7 +828,9 @@ export const getProjectsWithResumes = async (
 
 			// Fallback: get latest by project_id
 			if (!borrowerResume) {
-				const fallbackResumes = borrowerResumesByProjectId.get(project.id);
+				const fallbackResumes = borrowerResumesByProjectId.get(
+					project.id
+				);
 				if (fallbackResumes && fallbackResumes.length > 0) {
 					borrowerResume = fallbackResumes[0]; // Already sorted by created_at desc
 				}
@@ -819,7 +843,10 @@ export const getProjectsWithResumes = async (
 					| Record<string, boolean>
 					| undefined) || {};
 
-			if (!projectLockedFields || Object.keys(projectLockedFields).length === 0) {
+			if (
+				!projectLockedFields ||
+				Object.keys(projectLockedFields).length === 0
+			) {
 				projectLockedFields =
 					(rawContent._lockedFields as
 						| Record<string, boolean>
@@ -978,7 +1005,21 @@ export const saveProjectResume = async (
 			continue;
 		}
 
-		const currentValue = (content as any)[key];
+		let currentValue = (content as any)[key];
+
+		// CRITICAL FIX: Extract value if currentValue is already a rich format object
+		// This prevents double-wrapping and ensures we save the actual scalar value
+		// This can happen when formData contains rich format objects from autofill or previous saves
+		if (
+			currentValue &&
+			typeof currentValue === "object" &&
+			!Array.isArray(currentValue) &&
+			"value" in currentValue
+		) {
+			// Extract the actual value from rich format object
+			currentValue = (currentValue as any).value;
+		}
+
 		const meta = metadata[key];
 
 		if (meta) {
@@ -1244,18 +1285,14 @@ export const getProjectBorrowerResume = async (
 	// Content is always flat now - use column value if available, otherwise fall back to content
 	if (!lockedFields || Object.keys(lockedFields).length === 0) {
 		lockedFields =
-			(content._lockedFields as
-				| Record<string, boolean>
-				| undefined) || {};
+			(content._lockedFields as Record<string, boolean> | undefined) ||
+			{};
 	}
 	content._lockedFields = lockedFields;
 
 	// Add completeness_percent from column to content for UI consumption
 	// This ensures the UI always has access to the stored value
-	if (
-		completenessPercent !== undefined &&
-		completenessPercent !== null
-	) {
+	if (completenessPercent !== undefined && completenessPercent !== null) {
 		(content as any).completenessPercent = completenessPercent;
 	}
 
@@ -1421,7 +1458,10 @@ export const saveProjectBorrowerResume = async (
 	}
 
 	const existingContent = existingResume?.content || {};
-	const existingLockedFields = (existingResume?.locked_fields as Record<string, boolean> | undefined) || {};
+	const existingLockedFields =
+		(existingResume?.locked_fields as
+			| Record<string, boolean>
+			| undefined) || {};
 	const existingCompletenessPercent = existingResume?.completeness_percent;
 	// Content is always flat now, no grouping needed
 
@@ -1438,7 +1478,21 @@ export const saveProjectBorrowerResume = async (
 		)
 			continue;
 
-		const currentValue = (content as any)[key];
+		let currentValue = (content as any)[key];
+
+		// CRITICAL FIX: Extract value if currentValue is already a rich format object
+		// This prevents double-wrapping and ensures we save the actual scalar value
+		// This can happen when formData contains rich format objects from autofill or previous saves
+		if (
+			currentValue &&
+			typeof currentValue === "object" &&
+			!Array.isArray(currentValue) &&
+			"value" in currentValue
+		) {
+			// Extract the actual value from rich format object
+			currentValue = (currentValue as any).value;
+		}
+
 		const meta = metadata[key];
 
 		// ---------------------------------------------------------------------
@@ -1643,13 +1697,20 @@ export const saveProjectBorrowerResume = async (
 			} = {};
 
 			// Preserve locked_fields if they exist
-			if (existingLockedFields && Object.keys(existingLockedFields).length > 0) {
+			if (
+				existingLockedFields &&
+				Object.keys(existingLockedFields).length > 0
+			) {
 				updatePreviousVersion.locked_fields = existingLockedFields;
 			}
 
 			// Preserve completeness_percent if it exists
-			if (existingCompletenessPercent !== undefined && existingCompletenessPercent !== null) {
-				updatePreviousVersion.completeness_percent = existingCompletenessPercent;
+			if (
+				existingCompletenessPercent !== undefined &&
+				existingCompletenessPercent !== null
+			) {
+				updatePreviousVersion.completeness_percent =
+					existingCompletenessPercent;
 			}
 
 			// Only update if we have values to preserve

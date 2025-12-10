@@ -290,12 +290,6 @@ interface BorrowerFieldMeta {
 	[key: string]: any;
 }
 
-const AnimatedField: React.FC<{ children: React.ReactNode }> = React.memo(({ children }) => (
-	<div>
-		{children}
-	</div>
-));
-AnimatedField.displayName = "AnimatedField";
 
 const sectionIconComponents: Record<string, React.ComponentType<{ className?: string }>> = {
 	User,
@@ -355,10 +349,6 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 	const autofillHook = useAutofill(projectId, { context: "borrower" });
 	const { isAutofilling, showSparkles, handleAutofill } = autofillHook;
 
-	// Animation state
-	const [autofillAnimationKey, setAutofillAnimationKey] = useState(0);
-	const [showAutofillSuccess, setShowAutofillSuccess] = useState(false);
-
 	// Memoized callbacks
 	const handleToggleCollapsed = useCallback((e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -377,14 +367,10 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 	const handleAutofillClick = useCallback(async (e: React.MouseEvent) => {
 		e.stopPropagation();
 		await handleAutofill();
-		setAutofillAnimationKey((prev) => prev + 1);
-		setShowAutofillSuccess(true);
-		setTimeout(() => setShowAutofillSuccess(false), 3000);
 		onVersionChange?.();
 	}, [handleAutofill, onVersionChange]);
 
 	const handleRollbackSuccess = useCallback(() => {
-		setAutofillAnimationKey((prev) => prev + 1);
 		onVersionChange?.();
 	}, [onVersionChange]);
 
@@ -535,15 +521,7 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 									if (!hasAnyValue && !hasPrincipals) return null;
 
 									return (
-										<motion.div
-											key={sectionId}
-											initial={{ opacity: 0, y: 10 }}
-											animate={{ opacity: 1, y: 0 }}
-											transition={{
-												duration: 0.3,
-												delay: 0.1 * stepIndex,
-											}}
-										>
+										<div key={sectionId}>
 											<h3 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
 												<IconComponent className="h-4 w-4 mr-2 text-blue-600" />
 												{step.title}
@@ -590,13 +568,12 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 																		if (!hasValue(val)) return null;
 																		const isFull = meta?.dataType === "Textarea" || fid === "bioNarrative";
 																		return (
-																			<AnimatedField key={fid}>
-																				<KeyValueDisplay
-																					label={getFieldLabel(fid, meta)}
-																					value={formatFieldValue(val, meta?.dataType)}
-																					fullWidth={isFull}
-																				/>
-																			</AnimatedField>
+																			<KeyValueDisplay
+																				key={fid}
+																				label={getFieldLabel(fid, meta)}
+																				value={formatFieldValue(val, meta?.dataType)}
+																				fullWidth={isFull}
+																			/>
 																		);
 																	})}
 																</div>
@@ -612,17 +589,16 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 															return hasValue(val);
 														})
 														.map((f: BorrowerFieldMeta) => (
-															<AnimatedField key={f.fieldId}>
-																<KeyValueDisplay
-																	label={getFieldLabel(f.fieldId, f)}
-																	value={formatFieldValue(fieldValuesCache[f.fieldId], f.dataType)}
-																	fullWidth={f.dataType === "Textarea"}
-																/>
-															</AnimatedField>
+															<KeyValueDisplay
+																key={f.fieldId}
+																label={getFieldLabel(f.fieldId, f)}
+																value={formatFieldValue(fieldValuesCache[f.fieldId], f.dataType)}
+																fullWidth={f.dataType === "Textarea"}
+															/>
 														))}
 												</div>
 											)}
-										</motion.div>
+										</div>
 									);
 								})}
 							</div>
