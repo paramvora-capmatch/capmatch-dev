@@ -414,11 +414,17 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
                       <p className="text-xs text-gray-600 mt-1">
                         {formatDate(version.created_at)}
                       </p>
-                      {version.created_by && userInfoMap.has(version.created_by) && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Created by {userInfoMap.get(version.created_by)?.full_name || userInfoMap.get(version.created_by)?.email || 'Unknown User'}
-                        </p>
-                      )}
+                      {version.created_by && userInfoMap.has(version.created_by) && (() => {
+                        const user = userInfoMap.get(version.created_by);
+                        const displayName = user?.full_name && user.full_name !== 'New User' 
+                          ? user.full_name 
+                          : user?.email || 'Unknown User';
+                        return (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Created by {displayName}
+                          </p>
+                        );
+                      })()}
                       {version.metadata?.size && (
                         <p className="text-xs text-gray-500">
                           {formatFileSize(version.metadata.size)}
@@ -525,13 +531,16 @@ export const VersionHistoryDropdown: React.FC<VersionHistoryDropdownProps> = ({
         </AnimatePresence>
       )}
 
-      {compareVersions && (
-        <DocumentDiffViewer
-          resourceId={resourceId}
-          versionId1={compareVersions[0]}
-          versionId2={compareVersions[1]}
-          onClose={() => setCompareVersions(null)}
-        />
+      {compareVersions && mounted && (
+        createPortal(
+          <DocumentDiffViewer
+            resourceId={resourceId}
+            versionId1={compareVersions[0]}
+            versionId2={compareVersions[1]}
+            onClose={() => setCompareVersions(null)}
+          />,
+          document.body
+        )
       )}
     </div>
   );
