@@ -439,7 +439,7 @@ export const DocumentDiffViewer: React.FC<DiffViewerProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      className="fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 z-[100000] flex items-center justify-center p-4"
     >
       <div 
         role="dialog"
