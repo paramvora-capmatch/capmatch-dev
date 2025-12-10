@@ -2594,7 +2594,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const renderDynamicField = useCallback(
 		(fieldId: string, sectionId: string) => {
 			// Remove duplicate fields from frontend to avoid confusion
-			if (fieldId === "totalProjectCost" || fieldId === "requestedTerm") {
+			// Also filter out table fields that are rendered separately
+			if (
+				fieldId === "totalProjectCost" ||
+				fieldId === "requestedTerm" ||
+				fieldId === "residentialUnitMix" ||
+				fieldId === "commercialSpaceMix" ||
+				fieldId === "drawSchedule" ||
+				fieldId === "rentComps"
+			) {
 				return null;
 			}
 

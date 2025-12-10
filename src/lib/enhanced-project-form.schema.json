@@ -25,9 +25,7 @@
             "assetType",
             "constructionType",
             "projectPhase",
-            "projectDescription",
-            "parcelNumber",
-            "zoningDesignation"
+            "projectDescription"
           ]
         }
       ],
@@ -42,9 +40,7 @@
         "assetType",
         "constructionType",
         "projectPhase",
-        "projectDescription",
-        "parcelNumber",
-        "zoningDesignation"
+        "projectDescription"
       ]
     },
     {
@@ -237,7 +233,6 @@
             "ltvStressMax",
             "dscrStressMin",
             "portfolioLTV",
-            "portfolioDSCR",
             "businessPlanSummary"
           ]
         }
@@ -321,7 +316,6 @@
         "ltvStressMax",
         "dscrStressMin",
         "portfolioLTV",
-        "portfolioDSCR",
         "businessPlanSummary"
       ]
     },
@@ -427,8 +421,7 @@
             "taxAbatement",
             "paceFinancing",
             "historicTaxCredits",
-            "newMarketsCredits",
-            "seismicPMLRisk"
+            "newMarketsCredits"
           ]
         }
       ],
@@ -447,8 +440,7 @@
         "taxAbatement",
         "paceFinancing",
         "historicTaxCredits",
-        "newMarketsCredits",
-        "seismicPMLRisk"
+        "newMarketsCredits"
       ]
     },
     {
