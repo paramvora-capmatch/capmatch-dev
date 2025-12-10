@@ -1081,14 +1081,25 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				(meta?.sources &&
 					Array.isArray(meta.sources) &&
 					meta.sources.length > 0);
-			const sourceType = meta?.source?.type || meta?.sources?.[0]?.type;
 			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
 
-			if (!hasValue) {
-				return hasSource && !locked && !hasWarnings;
+			// Don't show as blue if locked (should be green)
+			if (locked) {
+				return false;
 			}
-			// Blue: user_input source, no warnings, not locked
-			return sourceType === "user_input" && !hasWarnings && !locked;
+
+			// Don't show as blue if there are warnings (should be red instead)
+			if (hasWarnings) {
+				return false;
+			}
+
+			if (!hasValue) {
+				// Blue: has source but no value, not locked, no warnings
+				return hasSource;
+			}
+
+			// Blue: has value, not locked, no warnings (matches visual styling - regardless of source type)
+			return true;
 		},
 		[formData, fieldMetadata, isFieldLocked]
 	);
