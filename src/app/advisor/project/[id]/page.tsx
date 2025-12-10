@@ -72,7 +72,7 @@ export default function AdvisorProjectWorkspacePage() {
   // Memoize project name to avoid unnecessary recalculations
   const projectName = useMemo(
     () => resolveProjectName(activeProject, projectId),
-    [activeProject?.id, activeProject?.projectName, projectId]
+    [activeProject, projectId]
   );
 
   // Memoize breadcrumb component to prevent unnecessary re-renders

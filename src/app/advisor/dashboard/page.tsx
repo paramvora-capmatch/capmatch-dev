@@ -214,7 +214,7 @@ export default function AdvisorDashboardPage() {
 
   useEffect(() => {
     const loadAdvisorData = async () => {
-      if (!user || user.role !== "advisor") return;
+      if (!user || user.role !== "advisor" || !user.id) return;
 
       try {
         console.log("[AdvisorDashboard] Loading data for advisor from Supabase.");
