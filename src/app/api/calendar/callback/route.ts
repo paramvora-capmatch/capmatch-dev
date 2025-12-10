@@ -75,9 +75,6 @@ export async function GET(request: NextRequest) {
       case 'google':
         tokenData = await exchangeGoogleCode(code, request.url);
         break;
-      case 'microsoft':
-        tokenData = await exchangeMicrosoftCode(code, request.url);
-        break;
       default:
         throw new Error(`Unsupported provider: ${provider}`);
     }
@@ -239,51 +236,6 @@ async function exchangeGoogleCode(code: string, baseUrl: string) {
 }
 
 /**
- * Exchange Microsoft OAuth code for access token
- */
-async function exchangeMicrosoftCode(code: string, baseUrl: string) {
-  const redirectUri = new URL('/api/calendar/callback', baseUrl).toString();
-
-  const response = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      code,
-      client_id: process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID!,
-      client_secret: process.env.MICROSOFT_CLIENT_SECRET!,
-      redirect_uri: redirectUri,
-      grant_type: 'authorization_code',
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Microsoft token exchange failed: ${error}`);
-  }
-
-  const data = await response.json();
-
-  // Get user info from Microsoft Graph
-  const userInfoResponse = await fetch('https://graph.microsoft.com/v1.0/me', {
-    headers: {
-      Authorization: `Bearer ${data.access_token}`,
-    },
-  });
-
-  const userInfo = await userInfoResponse.json();
-
-  return {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    expires_at: new Date(Date.now() + data.expires_in * 1000).toISOString(),
-    account_id: userInfo.id,
-    email: userInfo.mail || userInfo.userPrincipalName,
-  };
-}
-
-/**
  * Fetch calendar list from provider
  */
 async function fetchCalendarList(provider: CalendarProvider, accessToken: string) {
@@ -307,28 +259,6 @@ async function fetchCalendarList(provider: CalendarProvider, accessToken: string
         primary: item.primary || false,
         color: item.backgroundColor,
         timezone: item.timeZone,
-      }));
-    }
-
-    case 'microsoft': {
-      const response = await fetch('https://graph.microsoft.com/v1.0/me/calendars', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch Microsoft calendars');
-      }
-
-      const data = await response.json();
-      return data.value.map((item: any) => ({
-        id: item.id,
-        name: item.name,
-        description: null,
-        primary: item.isDefaultCalendar || false,
-        color: item.color,
-        timezone: null,
       }));
     }
 

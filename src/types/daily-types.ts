@@ -4,25 +4,6 @@
  * Daily.co API Request/Response Types
  */
 
-// Create Room Request
-export interface CreateRoomRequest {
-  meetingId?: string; // If associating with existing meeting
-  projectId?: string; // For room naming convention
-  roomConfig?: {
-    maxParticipants?: number;
-    enableRecording?: boolean;
-    enableScreenshare?: boolean;
-    enableChat?: boolean;
-  };
-}
-
-// Create Room Response
-export interface CreateRoomResponse {
-  roomName: string;
-  roomUrl: string; // https://capmatch.daily.co/[roomName]
-  meetingId?: string;
-}
-
 // Meeting Token Request
 export interface MeetingTokenRequest {
   roomName: string;

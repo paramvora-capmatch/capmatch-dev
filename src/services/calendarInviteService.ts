@@ -1,6 +1,6 @@
 /**
  * Calendar Invite Service
- * Handles sending meeting invites to Google Calendar and Microsoft Calendar
+ * Handles sending meeting invites to Google Calendar
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -109,92 +109,6 @@ async function createGoogleCalendarEvent(
 }
 
 /**
- * Create a Microsoft Calendar event
- */
-async function createMicrosoftCalendarEvent(
-  connection: CalendarConnection,
-  invite: MeetingInvite
-): Promise<{ eventId: string; eventLink: string }> {
-  // Ensure we have a valid access token
-  const accessToken = await ensureValidToken(connection, supabaseAdmin);
-
-  // Get the primary calendar or first selected calendar
-  const primaryCalendar = connection.calendar_list.find((cal) => cal.primary);
-  const selectedCalendar = connection.calendar_list.find((cal) => cal.selected);
-  const calendarId = primaryCalendar?.id || selectedCalendar?.id;
-
-  if (!calendarId) {
-    throw new Error('No calendar selected for Microsoft connection');
-  }
-
-  // Build description with meeting link prominently included (HTML format for Outlook)
-  let bodyContent = invite.description || '';
-  if (invite.meetingLink) {
-    bodyContent = `<p><strong>📹 Join Video Meeting:</strong> <a href="${invite.meetingLink}">${invite.meetingLink}</a></p><br/>${bodyContent}`;
-  }
-
-  // Build the event object for Microsoft Graph API
-  const event = {
-    subject: invite.title,
-    body: {
-      contentType: 'HTML',
-      content: bodyContent,
-    },
-    start: {
-      dateTime: invite.startTime,
-      timeZone: 'UTC',
-    },
-    end: {
-      dateTime: invite.endTime,
-      timeZone: 'UTC',
-    },
-    location: invite.meetingLink
-      ? {
-          displayName: invite.meetingLink,
-        }
-      : invite.location
-      ? {
-          displayName: invite.location,
-        }
-      : undefined,
-    attendees: invite.attendees.map((attendee) => ({
-      emailAddress: {
-        address: attendee.email,
-        name: attendee.name || attendee.email,
-      },
-      type: 'required',
-    })),
-  };
-
-  // Create the event via Microsoft Graph API
-  const response = await fetch(
-    `https://graph.microsoft.com/v1.0/me/calendars/${calendarId}/events`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(event),
-    }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Microsoft Graph API error: ${response.status} ${errorText}`
-    );
-  }
-
-  const createdEvent = await response.json();
-
-  return {
-    eventId: createdEvent.id,
-    eventLink: createdEvent.webLink,
-  };
-}
-
-/**
  * Send calendar invites by creating an event on the organizer's calendar
  */
 export async function sendCalendarInvites(
@@ -228,10 +142,6 @@ export async function sendCalendarInvites(
 
       if (connection.provider === 'google') {
         const result = await createGoogleCalendarEvent(connection, invite);
-        eventId = result.eventId;
-        eventLink = result.eventLink;
-      } else if (connection.provider === 'microsoft') {
-        const result = await createMicrosoftCalendarEvent(connection, invite);
         eventId = result.eventId;
         eventLink = result.eventLink;
       } else {

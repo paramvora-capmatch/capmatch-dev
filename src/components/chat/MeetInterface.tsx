@@ -334,8 +334,8 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
         <div className="flex items-center space-x-2">
-          <div className="p-2 bg-purple-100 rounded-lg">
-            <Video className="w-5 h-5 text-purple-600" />
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Video className="w-5 h-5 text-blue-600" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">
@@ -347,13 +347,12 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
           </div>
         </div>
         <Button
-          variant="ghost"
           size="sm"
           onClick={() => setIsScheduleModalOpen(true)}
-          className="p-2 hover:bg-purple-50 hover:text-purple-600 transition-colors"
-          title="Schedule new meeting"
+          className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4 mr-2" />
+          New Meeting
         </Button>
       </div>
 
@@ -361,7 +360,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {isMeetingsLoading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
           </div>
         ) : upcomingMeetings.length === 0 && pastMeetings.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -389,11 +388,11 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                   ) : (
                     <ChevronRight className="w-4 h-4 text-gray-500" />
                   )}
-                  <Calendar className="w-4 h-4 text-green-600" />
+                  <Calendar className="w-4 h-4 text-blue-600" />
                   <h4 className="text-sm font-semibold text-gray-900">
                     Upcoming Meetings
                   </h4>
-                  <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
                     {upcomingMeetings.length}
                   </span>
                 </button>
@@ -411,7 +410,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.2, delay: index * 0.05 }}
                       >
-                        <Card className="hover:shadow-md transition-all duration-200 border-l-4 border-l-green-500 border-t border-r border-b border-gray-200 bg-gradient-to-r from-green-50/50 to-white">
+                        <Card className="hover:shadow-md transition-all duration-200 border-l-4 border-l-blue-500 border-t border-r border-b border-gray-200 bg-white">
                           <div className="p-4">
                             {/* Meeting Header */}
                             <div className="flex items-start justify-between mb-3">
@@ -420,7 +419,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                   {meeting.title}
                                 </h4>
                                 <div className="flex items-center space-x-3 text-xs">
-                                  <span className="flex items-center text-green-700 font-medium">
+                                  <span className="flex items-center text-blue-700 font-medium">
                                     <Clock className="w-3 h-3 mr-1" />
                                     {getTimeUntil(startTime)}
                                   </span>
@@ -430,7 +429,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                   </span>
                                 </div>
                               </div>
-                              <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md flex-shrink-0">
+                              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-md flex-shrink-0">
                                 {formatDuration(meeting.duration_minutes)}
                               </span>
                             </div>
@@ -456,7 +455,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                 <Button
                                   size="sm"
                                   onClick={() => handleJoinVideoCall(meeting)}
-                                  className="bg-purple-600 hover:bg-purple-700 text-white flex-1"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
                                 >
                                   <Video className="w-4 h-4 mr-1" />
                                   Join Video Call
@@ -546,7 +545,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => window.open(meeting.recording_url, "_blank")}
-                                className="p-1.5 hover:bg-purple-50 hover:text-purple-600 transition-colors flex-shrink-0"
+                                className="p-1.5 hover:bg-blue-50 hover:text-blue-600 transition-colors flex-shrink-0"
                                 title="Play recording"
                               >
                                 <Play className="w-4 h-4" />
@@ -593,7 +592,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                         setSelectedSummaryMeeting(meeting);
                                         setIsSummaryModalOpen(true);
                                       }}
-                                      className="text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 mt-2 p-0"
+                                      className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 mt-2 p-0"
                                     >
                                       View Full Summary →
                                     </Button>
@@ -692,7 +691,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
               value={meetingTitle}
               onChange={(e) => setMeetingTitle(e.target.value)}
               placeholder="e.g., Project Review Meeting"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
@@ -709,7 +708,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
               max="240"
               step="15"
               placeholder="30"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
@@ -740,7 +739,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                           key={member.userId}
                           className={cn(
                             "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
-                            isSelected ? "bg-purple-50 border border-purple-200" : "hover:bg-gray-50"
+                            isSelected ? "bg-blue-50 border border-blue-200" : "hover:bg-gray-50"
                           )}
                         >
                           <input
@@ -755,7 +754,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                 );
                               }
                             }}
-                            className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
                           <div className="flex items-center space-x-2 flex-1 min-w-0">
                             <div className={cn(
@@ -798,7 +797,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
               ) : isFetchingSlots ? (
                 <div className="flex items-center justify-center py-8 border border-gray-200 rounded-lg h-80">
                   <div className="text-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-purple-600 mx-auto mb-2" />
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
                     <span className="text-sm text-gray-600">Finding available times...</span>
                   </div>
                 </div>
@@ -856,8 +855,8 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                   className={cn(
                                     "px-3 py-2 text-xs font-medium rounded-md transition-colors",
                                     isSelected
-                                      ? "bg-purple-600 text-white"
-                                      : "bg-white border border-gray-300 text-gray-700 hover:bg-purple-50 hover:border-purple-300"
+                                      ? "bg-blue-600 text-white"
+                                      : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300"
                                   )}
                                 >
                                   {timeStr}
@@ -902,7 +901,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
             <Button
               onClick={handleCreateMeeting}
               disabled={!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || isCreatingMeeting}
-              className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isCreatingMeeting ? (
                 <>
@@ -1031,7 +1030,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                     <div key={groupIndex} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
                       {/* Speaker Avatar */}
                       <div className="flex-shrink-0">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold">
                           {group.speaker.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                         </div>
                       </div>
@@ -1094,7 +1093,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                 setIsTranscriptModalOpen(false);
                 setSelectedTranscriptMeeting(null);
               }}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               Close
             </Button>
@@ -1140,7 +1139,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                   {summaryData.executive_summary && (
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                        <MessageSquare className="w-4 h-4 mr-2 text-purple-600" />
+                        <MessageSquare className="w-4 h-4 mr-2 text-blue-600" />
                         Executive Summary
                       </h3>
                       <p className="text-sm text-gray-700 leading-relaxed">
@@ -1243,13 +1242,13 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                   {summaryData.speaker_insights && summaryData.speaker_insights.length > 0 && (
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                        <UsersIcon className="w-4 h-4 mr-2 text-purple-600" />
+                        <UsersIcon className="w-4 h-4 mr-2 text-blue-600" />
                         Speaker Insights
                       </h3>
                       <ul className="space-y-2">
                         {summaryData.speaker_insights.map((insight, index) => (
                           <li key={index} className="flex items-start">
-                            <span className="inline-block w-1.5 h-1.5 bg-purple-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+                            <span className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
                             <span className="text-sm text-gray-700">{insight}</span>
                           </li>
                         ))}
@@ -1287,7 +1286,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                 setIsSummaryModalOpen(false);
                 setSelectedSummaryMeeting(null);
               }}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               Close
             </Button>
