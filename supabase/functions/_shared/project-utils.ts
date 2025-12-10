@@ -198,12 +198,13 @@ async function fetchMostCompleteBorrowerResume(
 	content: Record<string, unknown>;
 	projectId: string | null;
 	completeness_percent: number | null;
+	locked_fields: Record<string, boolean> | null;
 	created_by: string | null;
 }> {
 	const { data, error } = await supabaseAdmin
 		.from("borrower_resumes")
 		.select(
-			`project_id, content, completeness_percent, created_by, updated_at,
+			`project_id, content, completeness_percent, locked_fields, created_by, updated_at,
        projects!inner(id, owner_org_id, updated_at)`
 		)
 		.eq("projects.owner_org_id", ownerOrgId)
@@ -218,6 +219,7 @@ async function fetchMostCompleteBorrowerResume(
 			content: {},
 			projectId: null,
 			completeness_percent: null,
+			locked_fields: null,
 			created_by: null,
 		};
 	}
@@ -237,6 +239,12 @@ async function fetchMostCompleteBorrowerResume(
 						(content as Record<string, unknown>)
 							?.completenessPercent
 					);
+				// Read locked_fields from column
+				const lockedFields =
+					(row?.locked_fields as
+						| Record<string, boolean>
+						| null
+						| undefined) ?? {};
 				const updatedAt =
 					row?.updated_at ?? row?.projects?.updated_at ?? null;
 
@@ -244,6 +252,7 @@ async function fetchMostCompleteBorrowerResume(
 					projectId: row?.project_id as string | undefined,
 					content,
 					completeness,
+					lockedFields,
 					created_by: row?.created_by as string | null | undefined,
 					updatedAt: updatedAt ? new Date(updatedAt).getTime() : 0,
 					hasMeaningfulContent: hasMeaningfulBorrowerContent(content),
@@ -256,6 +265,7 @@ async function fetchMostCompleteBorrowerResume(
 					projectId: string;
 					content: Record<string, unknown>;
 					completeness: number;
+					lockedFields: Record<string, boolean>;
 					created_by: string | null;
 					updatedAt: number;
 					hasMeaningfulContent: boolean;
@@ -267,6 +277,7 @@ async function fetchMostCompleteBorrowerResume(
 			content: {},
 			projectId: null,
 			completeness_percent: null,
+			locked_fields: null,
 			created_by: null,
 		};
 	}
@@ -291,6 +302,7 @@ async function fetchMostCompleteBorrowerResume(
 			content: {},
 			projectId: null,
 			completeness_percent: null,
+			locked_fields: null,
 			created_by: null,
 		};
 	}
@@ -299,6 +311,7 @@ async function fetchMostCompleteBorrowerResume(
 		content: selected.content,
 		projectId: selected.projectId,
 		completeness_percent: selected.completeness,
+		locked_fields: selected.lockedFields,
 		created_by: selected.created_by ?? null,
 	};
 }
@@ -650,28 +663,21 @@ export async function createProjectWithResumeAndStorage(
 		`[project-utils] Creating project: ${name} for org: ${owner_org_id}`
 	);
 
-	// Build initial project resume content with fixed structure
-	// Directly create the correct nested structure - no grouping logic needed
+	// Build initial project resume content with flat structure (no section/subsection nesting)
 	const initialResumeContent: Record<string, any> = {
-		"basic-info": {
-			"project-identity": {
-				projectName: {
-					value: name,
-					source: {
-						type: "user_input",
-					},
-					warnings: [],
-					other_values: [],
-				},
+		projectName: {
+			value: name,
+			source: {
+				type: "user_input",
 			},
+			warnings: [],
+			other_values: [],
 		},
 	};
 
 	// Add address if provided
 	if (address && typeof address === "string" && address.trim().length > 0) {
-		initialResumeContent["basic-info"]["project-identity"][
-			"propertyAddressStreet"
-		] = {
+		initialResumeContent["propertyAddressStreet"] = {
 			value: address.trim(),
 			source: {
 				type: "user_input",
@@ -847,6 +853,7 @@ export async function createProjectWithResumeAndStorage(
 		content: borrowerResumeContent,
 		projectId: sourceResumeProjectId,
 		completeness_percent: sourceCompletenessPercent,
+		locked_fields: sourceLockedFields,
 		created_by: sourceCreatedBy,
 	} = borrowerResumeFetchResult;
 
@@ -873,6 +880,7 @@ export async function createProjectWithResumeAndStorage(
 					project_id: project.id,
 					content: borrowerResumeContent,
 					completeness_percent: sourceCompletenessPercent ?? 0,
+					locked_fields: sourceLockedFields ?? {},
 					created_by: sourceCreatedBy, // Copy created_by from source borrower resume
 				})
 				.then(({ error }) => {
