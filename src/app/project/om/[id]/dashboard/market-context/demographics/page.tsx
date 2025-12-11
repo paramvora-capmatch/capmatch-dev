@@ -1,30 +1,67 @@
 'use client';
 
+import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, TrendingUp, MapPin, BarChart3 } from 'lucide-react';
 import PopulationHeatmap from '@/components/om/PopulationHeatmap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatLocale, formatCurrency, parseNumeric, getOMValue } from '@/lib/om-utils';
+import { formatLocale, formatCurrency, parseNumeric, getOMValue, formatFixed } from '@/lib/om-utils';
+
+// Component to show missing values in red
+const MissingValue = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-red-600 font-medium">{children}</span>
+);
 
 export default function DemographicsPage() {
   const { content } = useOmContent();
-  const marketContextDetails = content?.marketContextDetails ?? null;
-  const demographicProfile = marketContextDetails?.demographicProfile ?? null;
-  const oneMile = demographicProfile?.oneMile ?? null;
-  const threeMile = demographicProfile?.threeMile ?? null;
-  const fiveMile = demographicProfile?.fiveMile ?? null;
-  const growthTrends = demographicProfile?.growthTrends ?? null;
-  const radiusEntries = demographicProfile
-    ? Object.entries(demographicProfile).filter(
-        ([key]) =>
-          !['growthTrends', 'renterShare', 'bachelorsShare'].includes(key)
-      )
-    : [];
 
-  const getGrowthColor = (growth?: string | null) => {
-    const growthNum = parseFloat(growth ?? '0');
+  // Extract flat schema fields
+  const population3Mi = parseNumeric(content?.population3Mi) ?? null;
+  const popGrowth201020 = parseNumeric(content?.popGrowth201020) ?? null;
+  const projGrowth202429 = parseNumeric(content?.projGrowth202429) ?? null;
+  const medianHHIncome = parseNumeric(content?.medianHHIncome) ?? null;
+  const renterOccupiedPercent = parseNumeric(content?.renterOccupiedPercent) ?? null;
+  const walkabilityScore = parseNumeric(content?.walkabilityScore) ?? null;
+  const infrastructureCatalyst = getOMValue(content, "infrastructureCatalyst");
+  const broadbandSpeed = getOMValue(content, "broadbandSpeed");
+  const crimeRiskLevel = getOMValue(content, "crimeRiskLevel");
+  const jobGrowth = parseNumeric(content?.jobGrowth) ?? null;
+
+  // Create radius data structure from flat schema (with hardcoded fallbacks)
+  const oneMile = {
+    population: parseNumeric(content?.population1Mi) ?? null,
+    medianIncome: parseNumeric(content?.medianIncome1Mi) ?? null,
+    medianAge: parseNumeric(content?.medianAge1Mi) ?? null,
+  };
+
+  const threeMile = {
+    population: population3Mi,
+    medianIncome: medianHHIncome,
+    medianAge: parseNumeric(content?.medianAge3Mi) ?? null,
+  };
+
+  const fiveMile = {
+    population: parseNumeric(content?.population5Mi) ?? null,
+    medianIncome: parseNumeric(content?.medianIncome5Mi) ?? null,
+    medianAge: parseNumeric(content?.medianAge5Mi) ?? null,
+  };
+
+  // Growth trends from flat schema (with hardcoded fallbacks)
+  const populationGrowth5yr = projGrowth202429 ?? null;
+  const incomeGrowth5yr = parseNumeric(content?.incomeGrowth5yr) ?? null;
+  const jobGrowth5yr = jobGrowth ?? null;
+
+  // Build radius entries array for rendering
+  const radiusEntries = [
+    { name: 'oneMile', data: oneMile },
+    { name: 'threeMile', data: threeMile },
+    { name: 'fiveMile', data: fiveMile },
+  ];
+
+  const getGrowthColor = (growth?: number | string | null) => {
+    const growthNum = typeof growth === 'string' ? parseFloat(growth) : (growth ?? 0);
     if (growthNum >= 15) return 'bg-green-100 text-green-800';
     if (growthNum >= 10) return 'bg-blue-100 text-blue-800';
     if (growthNum >= 5) return 'bg-green-100 text-green-800';
@@ -38,12 +75,6 @@ export default function DemographicsPage() {
     if (incomeNum >= 40000) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
-
-  // Extract location/connectivity fields
-  const walkabilityScore = parseNumeric(content?.walkabilityScore) ?? null;
-  const infrastructureCatalyst = getOMValue(content, "infrastructureCatalyst");
-  const broadbandSpeed = getOMValue(content, "broadbandSpeed");
-  const crimeRiskLevel = getOMValue(content, "crimeRiskLevel");
 
   useOMPageHeader({
     subtitle: "Population make-up, income bands, and growth across key radii.",
@@ -63,12 +94,12 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {formatLocale(oneMile?.population) ?? null}
+              {oneMile.population != null ? formatLocale(oneMile.population) : <MissingValue>85,000</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
             <div className="mt-2">
-              <Badge className={getIncomeTier(oneMile?.medianIncome)}>
-                {formatCurrency(oneMile?.medianIncome) ?? null}
+              <Badge className={getIncomeTier(oneMile.medianIncome)}>
+                {oneMile.medianIncome != null ? formatCurrency(oneMile.medianIncome) : <MissingValue>$75,000</MissingValue>}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">Median Income</p>
             </div>
@@ -84,12 +115,12 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {formatLocale(threeMile?.population) ?? null}
+              {threeMile.population != null ? formatLocale(threeMile.population) : <MissingValue>174,270</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
             <div className="mt-2">
-              <Badge className={getIncomeTier(threeMile?.medianIncome)}>
-                {formatCurrency(threeMile?.medianIncome) ?? null}
+              <Badge className={getIncomeTier(threeMile.medianIncome)}>
+                {threeMile.medianIncome != null ? formatCurrency(threeMile.medianIncome) : <MissingValue>$85,906</MissingValue>}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">Median Income</p>
             </div>
@@ -105,12 +136,12 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {formatLocale(fiveMile?.population) ?? null}
+              {fiveMile.population != null ? formatLocale(fiveMile.population) : <MissingValue>425,000</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Population</p>
             <div className="mt-2">
-              <Badge className={getIncomeTier(fiveMile?.medianIncome)}>
-                {formatCurrency(fiveMile?.medianIncome) ?? null}
+              <Badge className={getIncomeTier(fiveMile.medianIncome)}>
+                {fiveMile.medianIncome != null ? formatCurrency(fiveMile.medianIncome) : <MissingValue>$82,000</MissingValue>}
               </Badge>
               <p className="text-xs text-gray-500 mt-1">Median Income</p>
             </div>
@@ -130,8 +161,8 @@ export default function DemographicsPage() {
                 <TrendingUp className="h-10 w-10 text-green-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Population Growth</h4>
-              <Badge className={getGrowthColor(growthTrends?.populationGrowth5yr)}>
-                {growthTrends?.populationGrowth5yr ?? null}
+              <Badge className={getGrowthColor(populationGrowth5yr)}>
+                {populationGrowth5yr != null ? `${formatFixed(populationGrowth5yr, 1)}%` : <MissingValue>14.2%</MissingValue>}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -141,8 +172,8 @@ export default function DemographicsPage() {
                 <BarChart3 className="h-10 w-10 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Income Growth</h4>
-              <Badge className={getGrowthColor(growthTrends?.incomeGrowth5yr)}>
-                {growthTrends?.incomeGrowth5yr ?? null}
+              <Badge className={getGrowthColor(incomeGrowth5yr)}>
+                {incomeGrowth5yr != null ? `${formatFixed(incomeGrowth5yr, 1)}%` : <MissingValue>12.5%</MissingValue>}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -152,8 +183,8 @@ export default function DemographicsPage() {
                 <Users className="h-10 w-10 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Job Growth</h4>
-              <Badge className={getGrowthColor(growthTrends?.jobGrowth5yr)}>
-                {growthTrends?.jobGrowth5yr ?? null}
+              <Badge className={getGrowthColor(jobGrowth5yr)}>
+                {jobGrowth5yr != null ? `${formatFixed(jobGrowth5yr, 1)}%` : <MissingValue>8.2%</MissingValue>}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -169,36 +200,37 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {radiusEntries.map(([radius, data], index) => {
+              {radiusEntries.map(({ name, data }, index) => {
                 const colors = [
                   'bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500',
                   'bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500',
                   'bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500'
                 ];
                 const color = colors[index % colors.length];
+                const radiusLabel = name === 'oneMile' ? '1 Mile' : name === 'threeMile' ? '3 Mile' : '5 Mile';
                 
                 return (
-                  <div key={radius} className={`${color} rounded-lg p-4`}>
+                  <div key={name} className={`${color} rounded-lg p-4`}>
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-semibold text-gray-800 capitalize">
-                        {radius.replace(/([A-Z])/g, ' $1').trim()} Radius
+                        {radiusLabel} Radius
                       </h4>
                       <Badge variant="outline" className="border-gray-200 bg-white">
-                      {formatLocale((data as Record<string, number | undefined>).population) ?? null}
+                        {data.population != null ? formatLocale(data.population) : <MissingValue>N/A</MissingValue>}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Income</p>
-                      <p className="font-semibold text-gray-800">
-                        {formatCurrency((data as Record<string, number | undefined>).medianIncome) ?? null}
-                      </p>
+                        <p className="font-semibold text-gray-800">
+                          {data.medianIncome != null ? formatCurrency(data.medianIncome) : <MissingValue>$75,000</MissingValue>}
+                        </p>
                       </div>
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Age</p>
-                      <p className="font-semibold text-gray-800">
-                        {(data as Record<string, number | undefined>).medianAge ?? null} years
-                      </p>
+                        <p className="font-semibold text-gray-800">
+                          {data.medianAge != null ? `${data.medianAge} years` : <MissingValue>32.5 years</MissingValue>}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -214,30 +246,32 @@ export default function DemographicsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {radiusEntries.map(([radius, data], index) => {
+              {radiusEntries.map(({ name, data }, index) => {
                 const colors = [
                   'from-blue-400 to-blue-600',
                   'from-green-400 to-green-600',
                   'from-blue-400 to-blue-600'
                 ];
                 const color = colors[index % colors.length];
+                const radiusLabel = name === 'oneMile' ? '1 Mile' : name === 'threeMile' ? '3 Mile' : '5 Mile';
+                const incomeValue = data.medianIncome ?? 75000;
                 
                 return (
-                  <div key={radius} className="space-y-2">
+                  <div key={name} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700 capitalize">
-                        {radius.replace(/([A-Z])/g, ' $1').trim()}
+                        {radiusLabel}
                       </span>
-                    <span className="text-sm text-gray-500">
-                      {formatCurrency((data as Record<string, number | undefined>).medianIncome)}
-                    </span>
+                      <span className="text-sm text-gray-500">
+                        {data.medianIncome != null ? formatCurrency(data.medianIncome) : <MissingValue>$75,000</MissingValue>}
+                      </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                       <div 
                         className={`h-3 rounded-full bg-gradient-to-r ${color} shadow-sm`}
-                      style={{
-                        width: `${((data as Record<string, number | undefined>).medianIncome ?? 0) / 100000 * 100}%`,
-                      }}
+                        style={{
+                          width: `${Math.min((incomeValue / 100000) * 100, 100)}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -269,15 +303,15 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Strong population growth ({growthTrends?.populationGrowth5yr ?? null} 5-year)
+                  Strong population growth ({populationGrowth5yr != null ? `${formatFixed(populationGrowth5yr, 1)}%` : <MissingValue>14.2%</MissingValue>} 5-year)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  High median income ({formatCurrency(oneMile?.medianIncome) ?? null} within 1-mile)
+                  High median income ({oneMile.medianIncome != null ? formatCurrency(oneMile.medianIncome) : <MissingValue>$75,000</MissingValue>} within 1-mile)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Young professional demographic</span>
+                  <MissingValue>Young professional demographic</MissingValue>
                 </li>
               </ul>
             </div>
@@ -287,15 +321,15 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)</span>
+                  <MissingValue>Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)</MissingValue>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Walkability to Farmers Market and Deep Ellum entertainment district</span>
+                  <MissingValue>Walkability to Farmers Market and Deep Ellum entertainment district</MissingValue>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Limited new supply in Deep Ellum/Farmers Market corridor</span>
+                  <MissingValue>Limited new supply in Deep Ellum/Farmers Market corridor</MissingValue>
                 </li>
               </ul>
             </div>
@@ -305,15 +339,15 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Downtown Dallas professionals (25-35)</span>
+                  <MissingValue>Downtown Dallas professionals (25-35)</MissingValue>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Workforce housing eligible households (≤80% AMI)</span>
+                  <MissingValue>Workforce housing eligible households (≤80% AMI)</MissingValue>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Healthcare, finance, and tech workers</span>
+                  <MissingValue>Healthcare, finance, and tech workers</MissingValue>
                 </li>
               </ul>
             </div>
@@ -322,42 +356,40 @@ export default function DemographicsPage() {
       </Card>
 
       {/* Location & Connectivity */}
-      {(walkabilityScore != null || infrastructureCatalyst || broadbandSpeed || crimeRiskLevel) && (
-        <Card className="hover:shadow-lg transition-shadow mb-8">
-          <CardHeader>
-            <h4 className="text-xl font-semibold text-gray-800">Location & Connectivity</h4>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {walkabilityScore != null && (
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Walkability Score</p>
-                  <p className="text-2xl font-bold text-blue-900">{walkabilityScore}</p>
-                  <p className="text-xs text-gray-600 mt-1">Out of 100</p>
-                </div>
-              )}
-              {infrastructureCatalyst && (
-                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Infrastructure Catalyst</p>
-                  <p className="text-sm font-semibold text-gray-800">{infrastructureCatalyst}</p>
-                </div>
-              )}
-              {broadbandSpeed && (
-                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Broadband Speed</p>
-                  <p className="text-sm font-semibold text-gray-800">{broadbandSpeed}</p>
-                </div>
-              )}
-              {crimeRiskLevel && (
-                <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Crime Risk Level</p>
-                  <p className="text-sm font-semibold text-gray-800">{crimeRiskLevel}</p>
-                </div>
-              )}
+      <Card className="hover:shadow-lg transition-shadow mb-8">
+        <CardHeader>
+          <h4 className="text-xl font-semibold text-gray-800">Location & Connectivity</h4>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Walkability Score</p>
+                <p className="text-2xl font-bold text-blue-900">
+                  {walkabilityScore != null ? walkabilityScore : <MissingValue>92</MissingValue>}
+                </p>
+                <p className="text-xs text-gray-600 mt-1">Out of 100</p>
+              </div>
+              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Infrastructure Catalyst</p>
+                <p className="text-sm font-semibold text-gray-800">
+                  {infrastructureCatalyst ? infrastructureCatalyst : <MissingValue>DART expansion and I-30/I-45 interchange improvements</MissingValue>}
+                </p>
+              </div>
+              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Broadband Speed</p>
+                <p className="text-sm font-semibold text-gray-800">
+                  {broadbandSpeed ? broadbandSpeed : <MissingValue>Fiber 1 Gbps available</MissingValue>}
+                </p>
+              </div>
+              <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Crime Risk Level</p>
+                <p className="text-sm font-semibold text-gray-800">
+                  {crimeRiskLevel ? crimeRiskLevel : <MissingValue>Moderate</MissingValue>}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
       {/* Interactive Population Heatmap */}
       <Card className="hover:shadow-lg transition-shadow">

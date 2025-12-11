@@ -1204,7 +1204,7 @@ async function cleanupDemoData() {
 
     // Step 4: Delete member users and additional owner
     console.log('\n📋 Step 4: Deleting member users and additional owner...');
-    const memberEmails = ['aryan.jain@capmatch.com', 'sarthak.karandikar@capmatch.com', 'kabeer.merchant@capmatch.com'];
+    const memberEmails = ['aryan.jain@capmatch.com', 'sarthak.karandikar@capmatch.com', 'kabeer.merchant@capmatch.com', 'vatsal.hariramani@capmatch.com'];
     
     for (const email of memberEmails) {
       try {
@@ -1594,10 +1594,21 @@ async function seedDemoData() {
       return;
     }
 
+    const member3Email = 'vatsal.hariramani@capmatch.com';
+    const member3Password = 'password';
+    const member3Name = 'Vatsal Hariramani';
+    const member3Id = await createMemberUser(member3Email, member3Password, member3Name, borrowerOrgId);
+
+    if (!member3Id) {
+      console.error('[seed] ❌ Failed to create member 3');
+      return;
+    }
+
     // Step 10: Grant project access to members
     console.log('\n📋 Step 10: Granting project access to members...');
     await grantMemberProjectAccess(completeProjectId, member1Id, borrowerUserId);
     await grantMemberProjectAccess(partialProjectId, member2Id, borrowerUserId);
+    await grantMemberProjectAccess(completeProjectId, member3Id, borrowerUserId);
 
     // Step 11: Create chat messages
     console.log('\n📋 Step 11: Creating chat messages...');
@@ -1838,6 +1849,7 @@ async function seedDemoData() {
     console.log(`   Owner 2: ${owner2Email} (password: ${owner2Password})`);
     console.log(`   Member 1: ${member1Email} (password: ${member1Password}) - ${completeProjectResume.projectName}`);
     console.log(`   Member 2: ${member2Email} (password: ${member2Password}) - ${partialProjectResume.projectName}`);
+    console.log(`   Member 3: ${member3Email} (password: ${member3Password}) - ${completeProjectResume.projectName}`);
     console.log(`   Projects:`);
     console.log(`     - ${completeProjectResume.projectName} (Complete)`);
     console.log(`     - ${partialProjectResume.projectName} (Partial)`);

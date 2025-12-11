@@ -11,7 +11,6 @@ import { join } from 'path';
 import { ProjectResumeContent } from '../src/lib/project-queries';
 import projectFormSchema from '../src/lib/enhanced-project-form.schema.json';
 import borrowerFormSchema from '../src/lib/borrower-resume-form.schema.json';
-import { computeBorrowerCompletion } from '../src/utils/resumeCompletion';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -97,9 +96,34 @@ const HOQUE_PROJECT_NAME = 'SoGood Apartments';
 
 /**
  * Get all field IDs from a schema
+ * Handles both schema.fields object and schema.steps array structure
  */
 function getSchemaFieldIds(schema: any): string[] {
-  return Object.keys(schema.fields || {});
+  const fieldIds = new Set<string>();
+  
+  // First, try to get from schema.fields (field metadata object)
+  if (schema.fields && typeof schema.fields === 'object') {
+    Object.keys(schema.fields).forEach(fieldId => fieldIds.add(fieldId));
+  }
+  
+  // Also extract from schema.steps (steps array with fields)
+  if (schema.steps && Array.isArray(schema.steps)) {
+    for (const step of schema.steps) {
+      if (step.fields && Array.isArray(step.fields)) {
+        step.fields.forEach((fieldId: string) => fieldIds.add(fieldId));
+      }
+      // Also check subsections
+      if (step.subsections && Array.isArray(step.subsections)) {
+        for (const subsection of step.subsections) {
+          if (subsection.fields && Array.isArray(subsection.fields)) {
+            subsection.fields.forEach((fieldId: string) => fieldIds.add(fieldId));
+          }
+        }
+      }
+    }
+  }
+  
+  return Array.from(fieldIds);
 }
 
 /**
@@ -122,6 +146,109 @@ function getDefaultValueForProjectField(fieldId: string): any {
   const numericFields = ['totalResidentialUnits', 'totalResidentialNRSF', 'averageUnitSize', 'totalCommercialGRSF', 'grossBuildingArea', 'numberOfStories', 'parkingSpaces', 'parkingRatio', 'buildingEfficiency', 'studioCount', 'oneBedCount', 'twoBedCount', 'threeBedCount', 'lossToLease', 'adaCompliantPercent', 'solarCapacity', 'evChargingStations', 'totalDevelopmentCost', 'totalProjectCost', 'capexBudget', 'purchasePrice', 'landAcquisition', 'baseConstruction', 'contingency', 'constructionFees', 'aeFees', 'thirdPartyReports', 'legalAndOrg', 'titleAndRecording', 'taxesDuringConstruction', 'developerFee', 'loanFees', 'interestReserve', 'ffe', 'workingCapital', 'opDeficitEscrow', 'leaseUpEscrow', 'relocationCosts', 'syndicationCosts', 'enviroRemediation', 'pfcStructuringFee', 'sponsorEquity', 'taxCreditEquity', 'gapFinancing', 'equityCommittedPercent', 'loanAmountRequested', 'amortizationYears', 'interestRate', 'underwritingRate', 'interestOnlyPeriodMonths', 'targetLtvPercent', 'targetLtcPercent', 'allInRate', 'realEstateTaxes', 'insurance', 'utilitiesCosts', 'repairsAndMaintenance', 'managementFee', 'generalAndAdmin', 'payroll', 'reserves', 'marketingLeasing', 'serviceCoordination', 'noiYear1', 'propertyNoiT12', 'stabilizedNoiProjected', 'yieldOnCost', 'capRate', 'stabilizedValue', 'ltv', 'debtYield', 'dscr', 'trendedNOIYear1', 'untrendedNOIYear1', 'trendedYield', 'untrendedYield', 'inflationAssumption', 'dscrStressTest', 'ltvStressMax', 'dscrStressMin', 'portfolioLTV', 'portfolioDSCR', 'expectedHoldPeriod', 'population3Mi', 'projGrowth202429', 'popGrowth201020', 'medianHHIncome', 'renterOccupiedPercent', 'unemploymentRate', 'employerConcentration', 'walkabilityScore', 'submarketAbsorption', 'supplyPipeline', 'monthsOfSupply', 'captureRate', 'affordableUnitsNumber', 'amiTargetPercent', 'exemptionTerm', 'preLeasedSF', 'absorptionProjection', 'totalSiteAcreage', 'buildableAcreage', 'allowableFAR', 'farUtilizedPercent', 'sponsorExpScore', 'priorDevelopments', 'netWorth', 'guarantorLiquidity'];
   if (numericFields.includes(fieldId)) {
     return 0;
+  }
+  
+  // Default to empty string for text fields
+  return '';
+}
+
+/**
+ * Get realistic value for a project field based on Hoque/SoGood project details
+ * This provides believable values for fields that aren't in the base resume
+ * Falls back to defaults if no realistic value is available
+ */
+function getRealisticValueForProjectField(fieldId: string): any {
+  // Realistic values based on Hoque/SoGood Apartments project
+  const realisticValues: Record<string, any> = {
+    // Financial metrics
+    amenitySF: 35264, // Total amenity space
+    irr: 18.5, // Internal Rate of Return (based on 7.6% yield, 7-year hold, PFC benefits)
+    equityMultiple: 2.1, // Equity multiple (based on $11.8M equity and projected returns)
+    ltc: 60.4, // Loan-to-Cost: $18M / $29.8M
+    exitCapRate: 5.5, // Exit cap rate (conservative, same as going-in)
+    rentGrowthAssumption: 3.0, // Annual rent growth assumption
+    
+    // Location/distance metrics (Downtown Dallas location)
+    distanceToCBD: 0.8, // Miles to Downtown Dallas CBD
+    distanceToEmployment: 0.6, // Miles to major employment centers
+    distanceToTransit: 0.3, // Miles to DART rail station
+    
+    // Market metrics
+    jobGrowth: 2.5, // Annual job growth percentage for Dallas market
+    
+    // Loan terms details
+    loanIndex: 'SOFR', // Floating rate index
+    loanSpread: 2.75, // Spread over index (8.0% - 5.25% SOFR ≈ 2.75%)
+    rateFloor: 4.5, // Minimum interest rate floor
+    extensionTerms: 'Two 6-month extensions available', // Extension options
+    
+    // Lender requirements
+    minDSCR: 1.25, // Minimum debt service coverage ratio
+    maxLTV: 50.0, // Maximum loan-to-value ratio
+    minLiquidity: 2000000, // Minimum liquidity requirement ($2M)
+    
+    // Deal timeline
+    loiDate: '2024-11-15', // Letter of Intent date
+    ddExpirationDate: '2025-05-15', // Due diligence expiration
+    closingDate: '2025-08-15', // Target closing date
+    
+    // Site details
+    siteAcreage: 2.5, // Total site acreage
+    farAllowed: 3.5, // Floor Area Ratio allowed
+    farUsed: 2.98, // FAR utilized (127,406 SF / 2.3 acres / 43,560 SF per acre)
+    frontSetback: 25, // Front setback in feet
+    sideSetback: 15, // Side setback in feet
+    rearSetback: 20, // Rear setback in feet
+    
+    // Amenity breakdown (total 35,264 SF)
+    poolSF: 3200, // Swimming pool area
+    gymSF: 2500, // Fitness center area
+    coworkingSF: 5000, // Shared working space
+    loungeSF: 1800, // Lounge area
+    terraceSF: 2200, // Outdoor terrace
+    otherAmenitySF: 20564, // Other amenity spaces
+    
+    // Unit mix details
+    minRent: 1550, // Minimum monthly rent (studio S1)
+    maxRent: 2800, // Maximum monthly rent (2BR B1)
+    avgRent: 1850, // Average monthly rent
+    securityDeposit: 500, // Typical security deposit amount
+    
+    // Sponsor details
+    principalEducation: 'MBA, University of Texas at Dallas', // Mike Hoque education
+    pastDealIRR: 22.5, // Average IRR on past developments
+    lenderReferenceYears: 8, // Years of relationship with key lenders
+  };
+  
+  // Return realistic value if available
+  if (realisticValues.hasOwnProperty(fieldId)) {
+    return realisticValues[fieldId];
+  }
+  
+  // Fallback to defaults for fields not in realistic values
+  return getDefaultValueForProjectField(fieldId);
+}
+
+/**
+ * Default value helper for borrower fields
+ */
+function getDefaultValueForBorrowerField(fieldId: string): any {
+  // Check if it's a known boolean field
+  const booleanFields = ['bankruptcyHistory', 'foreclosureHistory', 'litigationHistory'];
+  if (booleanFields.includes(fieldId)) {
+    return false;
+  }
+  
+  // Check if it's a known numeric field
+  const numericFields = ['ownershipPercentage'];
+  if (numericFields.includes(fieldId)) {
+    return 0;
+  }
+  
+  // Check if it's a known array field
+  const arrayFields = ['assetClassesExperience', 'geographicMarketsExperience'];
+  if (arrayFields.includes(fieldId)) {
+    return [];
   }
   
   // Default to empty string for text fields
@@ -463,6 +590,19 @@ const hoqueProjectResumeBase: Record<string, any> = {
   priorDevelopments: 1000,
   netWorth: 50000000,
   guarantorLiquidity: 7500000,
+  
+  // Additional fields that may be in schema but not in base resume
+  // These are realistic values based on the Hoque/SoGood project
+  amenitySF: 35264, // Total amenity space (mentioned in project details)
+  irr: 18.5, // Internal Rate of Return - calculated based on 7.6% yield, 7-year hold, PFC benefits
+  equityMultiple: 2.1, // Equity multiple based on $11.8M equity and projected returns
+  ltc: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
+  exitCapRate: 5.5, // Exit cap rate (same as going-in cap rate for conservative projection)
+  distanceToCBD: 0.8, // Miles to Downtown Dallas CBD (site is between Farmers Market and Deep Ellum)
+  distanceToEmployment: 0.6, // Miles to major employment centers
+  distanceToTransit: 0.3, // Miles to DART rail station
+  jobGrowth: 2.5, // Annual job growth percentage for Dallas market
+  rentGrowthAssumption: 3.0, // Annual rent growth assumption (used in trended NOI calculations)
 };
 
 /**
@@ -497,20 +637,28 @@ const hoqueProjectResume: Record<string, any> = (() => {
   }
 
   // Lock all form fields so they show as green/locked in the UI.
+  // Lock fields that have non-empty values (including 0 for numeric fields, false for booleans, empty arrays)
   const lockedFields: Record<string, boolean> = {};
   for (const fieldId of SCHEMA_FIELD_IDS) {
-    if (result[fieldId] !== undefined && result[fieldId] !== null) {
-      // Lock fields that have values (including 0 for numeric fields, as 0 is a valid value)
-      if (typeof result[fieldId] === 'string' && result[fieldId].trim() !== '') {
-        lockedFields[fieldId] = true;
-      } else if (typeof result[fieldId] === 'number') {
+    const value = result[fieldId];
+    if (value !== undefined && value !== null) {
+      // Lock fields that have values
+      if (typeof value === 'string') {
+        // Only lock non-empty strings
+        if (value.trim() !== '') {
+          lockedFields[fieldId] = true;
+        }
+      } else if (typeof value === 'number') {
         // Lock all numeric fields, including 0 (0 is a valid value that should be locked)
         lockedFields[fieldId] = true;
-      } else if (typeof result[fieldId] === 'boolean') {
+      } else if (typeof value === 'boolean') {
+        // Lock all boolean fields, including false
         lockedFields[fieldId] = true;
-      } else if (Array.isArray(result[fieldId]) && result[fieldId].length > 0) {
+      } else if (Array.isArray(value)) {
+        // Lock arrays (even if empty, as empty array is a valid value)
         lockedFields[fieldId] = true;
-      } else if (typeof result[fieldId] === 'object' && Object.keys(result[fieldId]).length > 0) {
+      } else if (typeof value === 'object' && Object.keys(value).length > 0) {
+        // Lock non-empty objects
         lockedFields[fieldId] = true;
       }
     }
@@ -566,21 +714,12 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 
   // Ensure every schema field has a value
   for (const fieldId of BORROWER_SCHEMA_FIELD_IDS) {
-    if (result[fieldId] === undefined || result[fieldId] === null) {
-      // Set default values for missing fields based on field type
-      if (fieldId.includes('History') || fieldId === 'bankruptcyHistory' || fieldId === 'foreclosureHistory' || fieldId === 'litigationHistory') {
-        result[fieldId] = false;
-      } else if (fieldId === 'ownershipPercentage') {
-        // Numeric field - leave as undefined/null (don't set to 0 as that's a valid value)
-        // But we need a value, so set to 0 if truly missing
-        result[fieldId] = 0;
-      } else if (fieldId.includes('Experience') && fieldId !== 'yearsCREExperienceRange') {
-        // Array fields
-        result[fieldId] = [];
-      } else {
-        // String fields - set to empty string
-        result[fieldId] = '';
-      }
+    const current = result[fieldId];
+    const isEmptyString = typeof current === 'string' && current.trim().length === 0;
+    const isUnset = current === undefined || current === null;
+
+    if (isUnset || isEmptyString) {
+      result[fieldId] = getDefaultValueForBorrowerField(fieldId);
     }
   }
 
@@ -593,20 +732,28 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
   }
 
   // Lock all fields that have values (matching project resume logic)
+  // Lock fields that have non-empty values (including 0 for numeric fields, false for booleans, empty arrays)
   const lockedFields: Record<string, boolean> = {};
   for (const fieldId of BORROWER_SCHEMA_FIELD_IDS) {
-    if (result[fieldId] !== undefined && result[fieldId] !== null) {
-      // Lock fields that have values (including 0 for numeric fields, as 0 is a valid value)
-      if (typeof result[fieldId] === 'string' && result[fieldId].trim() !== '') {
-        lockedFields[fieldId] = true;
-      } else if (typeof result[fieldId] === 'number') {
+    const value = result[fieldId];
+    if (value !== undefined && value !== null) {
+      // Lock fields that have values
+      if (typeof value === 'string') {
+        // Only lock non-empty strings
+        if (value.trim() !== '') {
+          lockedFields[fieldId] = true;
+        }
+      } else if (typeof value === 'number') {
         // Lock all numeric fields, including 0 (0 is a valid value that should be locked)
         lockedFields[fieldId] = true;
-      } else if (typeof result[fieldId] === 'boolean') {
+      } else if (typeof value === 'boolean') {
+        // Lock all boolean fields, including false
         lockedFields[fieldId] = true;
-      } else if (Array.isArray(result[fieldId]) && result[fieldId].length > 0) {
+      } else if (Array.isArray(value)) {
+        // Lock arrays (even if empty, as empty array is a valid value)
         lockedFields[fieldId] = true;
-      } else if (typeof result[fieldId] === 'object' && Object.keys(result[fieldId]).length > 0) {
+      } else if (typeof value === 'object' && Object.keys(value).length > 0) {
+        // Lock non-empty objects
         lockedFields[fieldId] = true;
       }
     }
@@ -2022,6 +2169,7 @@ async function seedTeamMembers(projectId: string, orgId: string, ownerId: string
     { email: 'aryan.jain@capmatch.com', name: 'Aryan Jain', role: 'Team Member' },
     { email: 'sarthak.karandikar@capmatch.com', name: 'Sarthak Karandikar', role: 'Team Member' },
     { email: 'kabeer.merchant@capmatch.com', name: 'Kabeer Merchant', role: 'Team Member' },
+    { email: 'vatsal.hariramani@capmatch.com', name: 'Vatsal Hariramani', role: 'Team Member' },
   ];
 
   const memberIds: string[] = [];
@@ -2120,23 +2268,61 @@ async function seedHoqueProject(): Promise<void> {
     // Step 4.5: Seed OM data (single row per project, no versioning)
     // OM uses same content as project resume but without _lockedFields
     // Also merges borrower resume data (flat format)
+    // CRITICAL: Ensure ALL fields from both schemas are included
     console.log('\n📋 Step 4.5: Seeding OM data...');
+    
+    // Start with project resume content (already has all project schema fields)
     const omContent: Record<string, any> = { ...hoqueProjectResume };
-    // Remove _lockedFields and _fieldStates from OM content (OM doesn't track locks)
+    // Remove metadata fields from OM content (OM doesn't track locks)
     delete omContent._lockedFields;
     delete omContent._fieldStates;
+    delete omContent._metadata;
     delete omContent.completenessPercent;
     
     // Merge borrower resume data into OM (flat format, same as backend sync)
     const borrowerContent: Record<string, any> = { ...hoqueBorrowerResume };
     delete borrowerContent._lockedFields;
     delete borrowerContent._fieldStates;
+    delete borrowerContent._metadata;
     delete borrowerContent.completenessPercent;
     
     // Merge borrower fields into OM content (filter out metadata fields)
     for (const key in borrowerContent) {
       if (!key.startsWith('_') && key !== 'completenessPercent' && key !== 'projectSections' && key !== 'borrowerSections') {
         omContent[key] = borrowerContent[key];
+      }
+    }
+    
+    // CRITICAL: Ensure ALL fields from both schemas are present in OM
+    // This ensures completeness even if a field was missing from base objects
+    const allProjectFieldIds = getSchemaFieldIds(projectFormSchema);
+    const allBorrowerFieldIds = getSchemaFieldIds(borrowerFormSchema);
+    const allOmFieldIds = new Set([...allProjectFieldIds, ...allBorrowerFieldIds]);
+    
+    // Add any missing fields with realistic values based on Hoque project
+    for (const fieldId of allOmFieldIds) {
+      if (omContent[fieldId] === undefined || omContent[fieldId] === null) {
+        // Determine if it's a project or borrower field
+        if (allProjectFieldIds.includes(fieldId)) {
+          const isEmptyString = typeof omContent[fieldId] === 'string' && omContent[fieldId].trim().length === 0;
+          if (isEmptyString || omContent[fieldId] === undefined || omContent[fieldId] === null) {
+            // Use realistic values instead of defaults
+            omContent[fieldId] = getRealisticValueForProjectField(fieldId);
+          }
+        } else {
+          const isEmptyString = typeof omContent[fieldId] === 'string' && omContent[fieldId].trim().length === 0;
+          if (isEmptyString || omContent[fieldId] === undefined || omContent[fieldId] === null) {
+            // For borrower fields, use defaults (borrower data is already comprehensive)
+            omContent[fieldId] = getDefaultValueForBorrowerField(fieldId);
+          }
+        }
+      }
+    }
+    
+    // Remove any fields not in either schema (cleanup)
+    for (const key in omContent) {
+      if (!key.startsWith('_') && !allOmFieldIds.has(key)) {
+        delete omContent[key];
       }
     }
     
@@ -2153,7 +2339,8 @@ async function seedHoqueProject(): Promise<void> {
     if (omError) {
       console.warn(`[seed] ⚠️  Failed to seed OM data:`, omError.message);
     } else {
-      console.log(`[seed] ✅ Seeded OM data (includes project + borrower resume fields)`);
+      const totalFields = Object.keys(omContent).filter(k => !k.startsWith('_')).length;
+      console.log(`[seed] ✅ Seeded OM data with ${totalFields} fields (includes ALL project + borrower resume fields)`);
     }
 
     // Step 5: Seed documents
@@ -2209,6 +2396,7 @@ async function cleanupHoqueAccounts(): Promise<void> {
       'aryan.jain@capmatch.com',
       'sarthak.karandikar@capmatch.com',
       'kabeer.merchant@capmatch.com',
+      'vatsal.hariramani@capmatch.com',
     ];
 
     // Step 1: Find and delete SoGood Apartments project

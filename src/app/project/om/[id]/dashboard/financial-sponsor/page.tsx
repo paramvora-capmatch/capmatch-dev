@@ -12,7 +12,12 @@ import { DollarSign, BarChart3, Users, Activity } from 'lucide-react';
 import ReturnsCharts from '@/components/om/ReturnsCharts';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatFixed } from '@/lib/om-utils';
+import { formatFixed, parseNumeric, formatLocale } from '@/lib/om-utils';
+
+// Component to show missing values in red
+const MissingValue = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-red-600 font-medium">{children}</span>
+);
 
 export default function FinancialSponsorPage() {
     const params = useParams();
@@ -58,21 +63,27 @@ export default function FinancialSponsorPage() {
     ].filter(u => u.amount > 0);
     
     // Access flat return fields
-    const yieldOnCost = content?.yieldOnCost ?? null;
-    const capRate = content?.capRate ?? null;
-    const debtYield = content?.debtYield ?? null;
-    const irr = content?.irr ?? null;
-    const equityMultiple = content?.equityMultiple ?? null;
+    const yieldOnCost = parseNumeric(content?.yieldOnCost) ?? null;
+    const capRate = parseNumeric(content?.capRate) ?? null;
+    const debtYield = parseNumeric(content?.debtYield) ?? null;
+    const irr = parseNumeric(content?.irr) ?? null;
+    const equityMultiple = parseNumeric(content?.equityMultiple) ?? null;
     
     // Access flat sponsor fields
     const sponsorEntityName = content?.sponsorEntityName ?? null;
     const sponsorExperience = content?.sponsorExperience ?? null;
-    const priorDevelopments = content?.priorDevelopments ?? null;
+    const priorDevelopments = parseNumeric(content?.priorDevelopments) ?? null;
+    
+    // Access cash flow data if available (hardcoded for now)
+    const cashFlowData = Array.isArray(content?.cashFlow) ? content.cashFlow : null;
+    
+    // Access break-even if available
+    const breakEven = parseNumeric(content?.breakEven) ?? null;
     
     const formatMillions = (value?: number | null) =>
       value != null ? `$${formatFixed(value / 1_000_000, 1) ?? "0.0"}M` : null;
     
-    // Build scenario IRRs from flat fields (placeholder - adjust based on actual scenario data)
+    // Build scenario IRRs from flat fields
     const baseIRR = irr ?? null;
     const upsideIRR = irr != null ? irr * 1.1 : null;
     const downsideIRR = irr != null ? irr * 0.9 : null;
@@ -128,19 +139,26 @@ export default function FinancialSponsorPage() {
                         <MetricCard label="Yield on Cost" value={yieldOnCost ?? null} format="percent" size="sm" />
                         <MetricCard label="Stabilized Cap" value={capRate ?? null} format="percent" size="sm" />
                         <MetricCard label="Debt Yield" value={debtYield ?? null} format="percent" size="sm" />
-                        <MetricCard label="Equity Multiple" value={equityMultiple ?? null} format="number" size="sm" />
+                        <MetricCard label="Equity Multiple" value={equityMultiple != null ? formatFixed(equityMultiple, 2) : null} format="number" size="sm" />
                     </div>
                     <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2">5-Year Cash Flow</p>
-                        {/* Hardcoded chart data */}
-                        <MiniChart
-                            type="line"
-                            data={[
-                                { value: -2.5 }, { value: 0.8 }, { value: 1.2 },
-                                { value: 1.4 }, { value: 15.5 }
-                            ]}
-                            height={60}
-                        />
+                        {cashFlowData && cashFlowData.length > 0 ? (
+                            <MiniChart
+                                type="line"
+                                data={cashFlowData.map((cf: number) => ({ value: cf }))}
+                                height={60}
+                            />
+                        ) : (
+                            <MiniChart
+                                type="line"
+                                data={[
+                                    { value: -2.5 }, { value: 0.8 }, { value: 1.2 },
+                                    { value: 1.4 }, { value: 15.5 }
+                                ]}
+                                height={60}
+                            />
+                        )}
                     </div>
                 </div>
             )
@@ -157,18 +175,20 @@ export default function FinancialSponsorPage() {
                         <div className="text-sm">
                             <p className="text-gray-500">Experience</p>
                             <p className="font-medium">
-                              {sponsorExperience ?? null}
+                              {sponsorExperience ? sponsorExperience : <MissingValue>Seasoned (3+)</MissingValue>}
                             </p>
                         </div>
                         <div className="text-sm">
                             <p className="text-gray-500">Total Developed</p>
-                            <p className="font-medium">{priorDevelopments ?? null}</p>
+                            <p className="font-medium">
+                              {priorDevelopments != null ? formatLocale(priorDevelopments) : <MissingValue>1,000</MissingValue>}
+                            </p>
                         </div>
                     </div>
                     <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2">Sponsor</p>
                         <div className="text-sm font-medium">
-                            {sponsorEntityName ?? null}
+                            {sponsorEntityName ? sponsorEntityName : <MissingValue>Hoque Global</MissingValue>}
                         </div>
                     </div>
                 </div>
@@ -189,24 +209,26 @@ export default function FinancialSponsorPage() {
                         <div>
                             <p className="text-gray-500">Base IRR</p>
                             <p className="font-medium text-blue-600">
-                              {baseIRR != null ? `${baseIRR}%` : null}
+                              {baseIRR != null ? `${formatFixed(baseIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Upside IRR</p>
                             <p className="font-medium text-green-600">
-                              {upsideIRR != null ? `${upsideIRR}%` : null}
+                              {upsideIRR != null ? `${formatFixed(upsideIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Downside IRR</p>
                             <p className="font-medium text-red-600">
-                              {downsideIRR != null ? `${downsideIRR}%` : null}
+                              {downsideIRR != null ? `${formatFixed(downsideIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Break-even</p>
-                            <p className="font-medium"><span className="text-red-600">78%</span></p>
+                            <p className="font-medium">
+                              {breakEven != null ? `${formatFixed(breakEven, 1)}%` : <MissingValue>78%</MissingValue>}
+                            </p>
                         </div>
                     </div>
                 </div>

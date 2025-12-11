@@ -29,19 +29,30 @@ export default function AssetProfilePage() {
   
   // Build unit mix data from flat residentialUnitMix array
   const unitMixData = residentialUnitMix.map((unit: any) => ({
-    type: unit.unitType || unit.type || "",
-    units: unit.unitCount || unit.units || 0,
-    avgSF: unit.avgSF || 0,
-    avgRent: unit.monthlyRent || 0,
+    type: unit.unitType || unit.type || null,
+    units: parseNumeric(unit.unitCount || unit.units) ?? null,
+    avgSF: parseNumeric(unit.avgSF) ?? null,
+    avgRent: parseNumeric(unit.monthlyRent) ?? null,
   }));
+
+  // Calculate average rent PSF from unit mix (monthly rent / avgSF)
+  const avgUnitRentPSF = unitMixData.length > 0 && unitMixData.some(u => u.avgRent != null && u.avgSF != null && u.avgSF > 0)
+    ? unitMixData
+        .filter(u => u.avgRent != null && u.avgSF != null && u.avgSF > 0)
+        .reduce((sum, unit) => {
+          const rentPSF = (unit.avgRent ?? 0) / (unit.avgSF ?? 1);
+          return sum + rentPSF;
+        }, 0) / unitMixData.filter(u => u.avgRent != null && u.avgSF != null && u.avgSF > 0).length
+    : null;
 
   // Build market comps from flat rentComps array
   const marketComps = rentComps.map((comp: any) => ({
-    name: comp.name || "",
-    units: comp.units || 0,
-    yearBuilt: comp.yearBuilt || "",
-    rentPSF: comp.rentPSF || 0,
-    capRate: comp.capRate || "",
+    name: comp.propertyName || comp.name || null,
+    units: parseNumeric(comp.totalUnits || comp.units) ?? null,
+    yearBuilt: comp.yearBuilt || comp.year || null,
+    rentPSF: parseNumeric(comp.rentPSF || comp.rentPerSF) ?? null,
+    // Note: capRate is not in rentComps array in seed script
+    capRate: null,
   }));
 
   // Extract flat field values
@@ -157,28 +168,43 @@ export default function AssetProfilePage() {
       href: `/project/om/${projectId}/dashboard/asset-profile/unit-mix`,
       metrics: (
         <div className="space-y-3">
-          <MiniChart
-            type="bar"
-            data={unitMixData.map((u: { avgRent?: number | null }) => ({ value: u.avgRent }))}
-            height={80}
-          />
-          <div className="space-y-2">
-            {unitMixData.slice(0, 3).map((unit: { type?: string | null; units?: number | null; avgRent?: number | null }) => (
-              <div key={unit.type} className="flex justify-between text-sm">
-                <span className="text-gray-600">{unit.type}</span>
-                <span className="text-gray-600">{unit.units} units</span>
-                <span className="font-medium">${unit.avgRent}</span>
+          {unitMixData.length > 0 ? (
+            <div>
+              <div>
+                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Monthly Rent by Unit Type</p>
+                <MiniChart
+                  type="bar"
+                  data={unitMixData
+                    .filter((u: { avgRent?: number | null }) => u.avgRent != null)
+                    .map((u: { avgRent?: number | null }) => ({ value: u.avgRent ?? 0 }))}
+                  height={80}
+                />
               </div>
-            ))}
-          </div>
-          <div className="pt-2 border-t">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Avg Rent PSF</span>
-              <span className="font-medium">
-                {formatFixed(avgCompRentPSF, 2) != null ? `$${formatFixed(avgCompRentPSF, 2)}` : null}
-              </span>
+              <div className="space-y-2">
+                {unitMixData.slice(0, 3).map((unit: { type?: string | null; units?: number | null; avgRent?: number | null }) => (
+                  <div key={unit.type || 'unknown'} className="flex justify-between text-sm">
+                    <span className="text-gray-600">{unit.type || 'N/A'}</span>
+                    <span className="text-gray-600">
+                      {unit.units != null ? `${formatLocale(unit.units)} units` : 'N/A'}
+                    </span>
+                    <span className="font-medium">
+                      {unit.avgRent != null ? `$${formatLocale(unit.avgRent)}` : 'N/A'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-2 border-t">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Avg Rent PSF</span>
+                  <span className="font-medium">
+                    {avgUnitRentPSF != null ? `$${formatFixed(avgUnitRentPSF, 2)}` : 'N/A'}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-4">No unit mix data available</p>
+          )}
         </div>
       )
     },
@@ -190,24 +216,34 @@ export default function AssetProfilePage() {
       href: `/project/om/${projectId}/dashboard/asset-profile/comparables`,
       metrics: (
         <div className="space-y-3">
-          <div className="space-y-2">
-            {marketComps.slice(0, 3).map((comp: { name?: string | null; units?: number | null; yearBuilt?: string | null; rentPSF?: number | null; capRate?: string | null }, index: number) => (
-              <div key={`comp-${index}`} className="p-2 bg-gray-50 rounded">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-sm font-medium">{comp.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {comp.units} units • {comp.yearBuilt}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">${comp.rentPSF} PSF</p>
-                    <p className="text-xs text-gray-500">{comp.capRate}% cap</p>
+          {marketComps.length > 0 ? (
+            <div className="space-y-2">
+              {marketComps.slice(0, 3).map((comp: { name?: string | null; units?: number | null; yearBuilt?: string | null; rentPSF?: number | null; capRate?: number | null }, index: number) => (
+                <div key={`comp-${index}`} className="p-2 bg-gray-50 rounded">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {comp.name || `Property ${index + 1}`}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {comp.units != null ? `${formatLocale(comp.units)} units` : 'Units N/A'} • {comp.yearBuilt || 'Year N/A'}
+                      </p>
+                    </div>
+                    <div className="text-right ml-2">
+                      <p className="text-sm font-medium">
+                        {comp.rentPSF != null ? `$${formatFixed(comp.rentPSF, 2)} PSF` : 'Rent N/A'}
+                      </p>
+                      {comp.capRate != null ? (
+                        <p className="text-xs text-gray-500">{formatFixed(comp.capRate, 2)}% cap</p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-4">No comparable properties data available</p>
+          )}
         </div>
       )
     }

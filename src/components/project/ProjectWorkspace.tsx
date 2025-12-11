@@ -30,7 +30,6 @@ import { BorrowerResumeContent, getProjectWithResume } from "@/lib/project-queri
 import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
-import { useAutofill } from "@/hooks/useAutofill";
 import { useChatStore } from "@/stores/useChatStore";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -166,11 +165,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     setLocalContent: setBorrowerResumeLocalContent,
   } = useProjectBorrowerResume(projectId);
 
-  // Autofill hook for View OM functionality
-  const projectAddress = activeProject?.propertyAddressStreet && activeProject?.propertyAddressCity && activeProject?.propertyAddressState
-    ? `${activeProject.propertyAddressStreet} | ${activeProject.propertyAddressCity} ${activeProject.propertyAddressState}, ${activeProject.propertyAddressZip || ''}`.trim()
-    : undefined;
-  const { isAutofilling, handleAutofill } = useAutofill(projectId, { projectAddress });
 
   // Calculate if we're still in initial loading phase
   // We only show full loader if we don't have the project data yet
@@ -987,34 +981,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
                     </div>
                     <Button
                       variant="outline"
-                      onClick={async () => {
-                        try {
-                          // Trigger autofill pipeline (this is async and will process in background)
-                          await handleAutofill();
-                          // Navigate to OM dashboard immediately
-                          // The autofill will complete in the background and update the database
-                          // The OM dashboard will fetch the latest data when it loads
-                          router.push(`/project/om/${projectId}/dashboard`);
-                        } catch (error) {
-                          console.error("Failed to trigger autofill:", error);
-                          // Still navigate even if autofill fails
-                          router.push(`/project/om/${projectId}/dashboard`);
-                        }
+                      onClick={() => {
+                        router.push(`/project/om/${projectId}/dashboard`);
                       }}
-                      disabled={isAutofilling}
-                      className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10 whitespace-nowrap flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="border-emerald-300 text-emerald-700 hover:bg-gradient-to-r hover:from-emerald-100 hover:to-green-100 hover:border-emerald-400 px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 relative z-10 whitespace-nowrap flex-shrink-0"
                     >
-                      {isAutofilling ? (
-                        <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <FileSpreadsheet className="mr-2 h-5 w-5" />
-                          View OM
-                        </>
-                      )}
+                      <FileSpreadsheet className="mr-2 h-5 w-5" />
+                      View OM
                     </Button>
                   </motion.div>
                 )}
