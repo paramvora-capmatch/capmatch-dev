@@ -71,7 +71,6 @@ export async function POST(request: NextRequest) {
 
       try {
         await syncEventAttendeeResponses(connection);
-        console.log('Successfully synced attendee responses');
       } catch (syncError) {
         console.error('Error syncing attendee responses:', syncError);
         // Don't fail the webhook - just log the error

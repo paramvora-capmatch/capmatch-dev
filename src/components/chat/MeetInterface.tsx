@@ -71,6 +71,10 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const [selectedTranscriptMeeting, setSelectedTranscriptMeeting] = useState<any>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [selectedSummaryMeeting, setSelectedSummaryMeeting] = useState<any>(null);
+  // isEditModalOpen removed in favor of reusing isScheduleModalOpen
+  const [editingMeeting, setEditingMeeting] = useState<any>(null);
+  const [isUpdatingMeeting, setIsUpdatingMeeting] = useState(false);
+  const [updateMeetingError, setUpdateMeetingError] = useState<string | null>(null);
 
   // Helper functions for response status styling
   const getResponseStatusBorder = (responseStatus?: string) => {
@@ -323,6 +327,83 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     }
   };
 
+  // Handle opening edit modal
+  const handleEditMeeting = (meeting: any) => {
+    setEditingMeeting(meeting);
+    setMeetingTitle(meeting.title);
+    setMeetingDuration(meeting.duration_minutes.toString());
+    
+    // Set participants (excluding organizer)
+    const participantIds = meeting.participants
+      .map((p: any) => p.user_id)
+      .filter((id: string) => id !== meeting.organizer_id);
+    setSelectedParticipants(participantIds);
+
+    // Set time slot
+    const start = new Date(meeting.start_time);
+    const end = new Date(meeting.end_time);
+    setSelectedSlot({
+      start: start.toISOString(),
+      end: end.toISOString()
+    });
+
+    setIsScheduleModalOpen(true);
+  };
+
+  // Handle updating meeting
+  const handleUpdateMeeting = async () => {
+    if (!editingMeeting || !meetingTitle || !selectedSlot || selectedParticipants.length === 0) {
+      return;
+    }
+
+    setIsUpdatingMeeting(true);
+    setUpdateMeetingError(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`/api/meetings/${editingMeeting.id}/update`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: meetingTitle,
+          startTime: selectedSlot.start,
+          endTime: selectedSlot.end,
+          participantIds: [...selectedParticipants, user?.id], // Include organizer
+          description: editingMeeting.description,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update meeting');
+      }
+
+      // Refresh meetings list
+      await refreshMeetings();
+      
+      // Close modal and reset state
+      setIsScheduleModalOpen(false);
+      setEditingMeeting(null);
+      setMeetingTitle("");
+      setSelectedParticipants([]);
+      setSelectedSlot(null);
+    } catch (error) {
+      console.error('Error updating meeting:', error);
+      setUpdateMeetingError(error instanceof Error ? error.message : 'Failed to update meeting');
+    } finally {
+      setIsUpdatingMeeting(false);
+    }
+  };
+
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
@@ -378,7 +459,16 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
           </div>
           <Button
             size="sm"
-            onClick={() => setIsScheduleModalOpen(true)}
+            onClick={() => {
+              setEditingMeeting(null);
+              setMeetingTitle("");
+              setMeetingDuration("30");
+              setSelectedParticipants([]);
+              setSelectedSlot(null);
+              setAvailableSlots([]);
+              setSlotsError(null);
+              setIsScheduleModalOpen(true);
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -510,6 +600,9 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                               const myParticipant = participants.find(p => p.user_id === user?.id);
                               if (!myParticipant) return null;
                               
+                              // Don't show RSVP options for the organizer
+                              if (meeting.organizer_id === user?.id) return null;
+
                               const isUpdating = false; // We could track this state if needed
 
                               return (
@@ -568,19 +661,29 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                               )}
                               
                               {meeting.organizer_id === user?.id && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCancelMeeting(meeting.id)}
-                                  disabled={cancellingMeetingId === meeting.id}
-                                  className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
-                                >
-                                  {cancellingMeetingId === meeting.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="w-4 h-4" />
-                                  )}
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEditMeeting(meeting)}
+                                    className="text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300"
+                                  >
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCancelMeeting(meeting.id)}
+                                    disabled={cancellingMeetingId === meeting.id}
+                                    className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
+                                  >
+                                    {cancellingMeetingId === meeting.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </div>
@@ -774,19 +877,22 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
         </div>
       </div>
 
-      {/* Schedule Meeting Modal */}
+      {/* Schedule/Edit Meeting Modal */}
       <Modal
         isOpen={isScheduleModalOpen}
         onClose={() => {
           setIsScheduleModalOpen(false);
+          setEditingMeeting(null);
           setMeetingTitle("");
           setMeetingDuration("30");
           setSelectedParticipants([]);
           setSelectedSlot(null);
           setAvailableSlots([]);
           setSlotsError(null);
+          setCreateMeetingError(null);
+          setUpdateMeetingError(null);
         }}
-        title="Schedule New Meeting"
+        title={editingMeeting ? "Edit Meeting" : "Schedule New Meeting"}
         size="4xl"
       >
         <div className="space-y-4">
@@ -983,9 +1089,9 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
           </div>
 
           {/* Error Message */}
-          {createMeetingError && (
+          {(createMeetingError || updateMeetingError) && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{createMeetingError}</p>
+              <p className="text-sm text-red-600">{createMeetingError || updateMeetingError}</p>
             </div>
           )}
 
@@ -995,6 +1101,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
               variant="outline"
               onClick={() => {
                 setIsScheduleModalOpen(false);
+                setEditingMeeting(null);
                 setMeetingTitle("");
                 setMeetingDuration("30");
                 setSelectedParticipants([]);
@@ -1002,23 +1109,24 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                 setAvailableSlots([]);
                 setSlotsError(null);
                 setCreateMeetingError(null);
+                setUpdateMeetingError(null);
               }}
-              disabled={isCreatingMeeting}
+              disabled={isCreatingMeeting || isUpdatingMeeting}
             >
               Cancel
             </Button>
             <Button
-              onClick={handleCreateMeeting}
-              disabled={!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || isCreatingMeeting}
+              onClick={editingMeeting ? handleUpdateMeeting : handleCreateMeeting}
+              disabled={!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || isCreatingMeeting || isUpdatingMeeting}
               className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isCreatingMeeting ? (
+              {isCreatingMeeting || isUpdatingMeeting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
+                  {editingMeeting ? 'Updating...' : 'Creating...'}
                 </>
               ) : (
-                'Schedule Meeting'
+                editingMeeting ? 'Update Meeting' : 'Schedule Meeting'
               )}
             </Button>
           </div>
@@ -1402,6 +1510,8 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
           </div>
         </div>
       </Modal>
+
+
     </div>
   );
 };

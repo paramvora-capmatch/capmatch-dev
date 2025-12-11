@@ -109,6 +109,72 @@ async function createGoogleCalendarEvent(
 }
 
 /**
+ * Update a Google Calendar event
+ */
+async function updateGoogleCalendarEvent(
+  connection: CalendarConnection,
+  eventId: string,
+  invite: MeetingInvite
+): Promise<void> {
+  const accessToken = await ensureValidToken(connection, supabaseAdmin);
+  
+  const primaryCalendar = connection.calendar_list.find((cal) => cal.primary);
+  const selectedCalendar = connection.calendar_list.find((cal) => cal.selected);
+  const calendarId = primaryCalendar?.id || selectedCalendar?.id || 'primary';
+
+  let description = invite.description || '';
+  if (invite.meetingLink) {
+    description = `📹 Join Video Meeting: ${invite.meetingLink}\n\n${description}`;
+  }
+
+  // Filter out the organizer from attendees to prevent their status from being reset
+  // The organizer owns the event and should not be in the attendees list
+  const organizerEmail = connection.provider_email?.toLowerCase();
+  const filteredAttendees = invite.attendees.filter(
+    (attendee) => attendee.email.toLowerCase() !== organizerEmail
+  );
+
+  const event = {
+    summary: invite.title,
+    description,
+    location: invite.meetingLink || invite.location || '',
+    start: {
+      dateTime: invite.startTime,
+      timeZone: 'UTC',
+    },
+    end: {
+      dateTime: invite.endTime,
+      timeZone: 'UTC',
+    },
+    attendees: filteredAttendees.map((attendee) => ({
+      email: attendee.email,
+      displayName: attendee.name,
+    })),
+  };
+
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+      calendarId
+    )}/events/${eventId}?sendUpdates=all`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Google Calendar API error: ${response.status} ${errorText}`
+    );
+  }
+}
+
+/**
  * Send calendar invites by creating an event on the organizer's calendar
  */
 export async function sendCalendarInvites(
@@ -219,6 +285,52 @@ async function ensureCalendarWatchIsActive(
       console.error('Error setting up calendar watch:', error);
     }
     // Don't fail the invite send if watch setup fails
+  }
+}
+
+/**
+ * Update existing calendar invites
+ */
+export async function updateCalendarInvites(
+  organizerId: string,
+  invite: MeetingInvite,
+  calendarEventIds: Array<{
+    userId: string;
+    provider: string;
+    eventId: string;
+  }>
+): Promise<void> {
+  // Fetch calendar connection for the organizer
+  const { data: connections, error: fetchError } = await supabaseAdmin
+    .from('calendar_connections')
+    .select('*')
+    .eq('user_id', organizerId)
+    .eq('sync_enabled', true);
+
+  if (fetchError || !connections || connections.length === 0) {
+    console.warn('No calendar connections found for organizer to update');
+    return;
+  }
+
+  for (const connection of connections) {
+    // Find the event ID for this connection
+    const eventInfo = calendarEventIds.find(
+      (e) => e.provider === connection.provider && e.userId === connection.user_id
+    );
+
+    if (!eventInfo) continue;
+
+    try {
+      if (connection.provider === 'google') {
+        await updateGoogleCalendarEvent(connection, eventInfo.eventId, invite);
+        console.log(`Updated Google Calendar event ${eventInfo.eventId}`);
+      }
+    } catch (error) {
+      console.error(
+        `Error updating calendar event for user ${connection.user_id}:`,
+        error
+      );
+    }
   }
 }
 
