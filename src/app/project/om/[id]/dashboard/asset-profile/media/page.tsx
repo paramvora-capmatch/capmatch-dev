@@ -89,7 +89,7 @@ export default function MediaGalleryPage() {
     
     allImageUrls.forEach(url => {
       // Use native Image preloading for better browser cache utilization
-      const img = new Image();
+      const img = new window.Image();
       img.src = url;
     });
   }, [siteImages, architecturalDiagrams]);

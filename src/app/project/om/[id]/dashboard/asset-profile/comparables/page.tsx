@@ -24,8 +24,25 @@ export default function ComparablesPage() {
   const projGrowth202429 = parseNumeric(content?.projGrowth202429) ?? null;
   const substantialComp = content?.substantialComp || null;
   
+  // Type for comparable details
+  type ComparableDetail = {
+    name: string | null;
+    address: string | null;
+    distance: number | null;
+    yearBuilt: string | null;
+    units: number | null;
+    occupancyPercent: number | null;
+    rentPSF: number | null;
+    avgRentMonth: number | null;
+    lastSale: {
+      date: string | null;
+      price: number | null;
+      capRate: number | null;
+    };
+  };
+
   // Transform flat rentComps to comparableDetails structure for UI
-  const comparableDetails = rentComps.map((comp: any) => ({
+  const comparableDetails: ComparableDetail[] = rentComps.map((comp: any) => ({
     name: comp.propertyName || comp.name || null,
     address: comp.address || comp.location || null,
     distance: parseNumeric(comp.distance) ?? null,
@@ -44,19 +61,19 @@ export default function ComparablesPage() {
 
   // Calculate averages from actual numeric values
   const avgRentPSF = comparableDetails.length > 0
-    ? comparableDetails.reduce((sum, comp) => sum + (comp.rentPSF ?? 0), 0) / comparableDetails.length
+    ? comparableDetails.reduce((sum: number, comp: ComparableDetail) => sum + (comp.rentPSF ?? 0), 0) / comparableDetails.length
     : null;
   
-  const avgCapRate = comparableDetails.length > 0 && comparableDetails.some(c => c.lastSale.capRate != null)
+  const avgCapRate = comparableDetails.length > 0 && comparableDetails.some((c: ComparableDetail) => c.lastSale.capRate != null)
     ? comparableDetails
-        .filter(c => c.lastSale.capRate != null)
-        .reduce((sum, comp) => sum + (comp.lastSale.capRate ?? 0), 0) / comparableDetails.filter(c => c.lastSale.capRate != null).length
+        .filter((c: ComparableDetail) => c.lastSale.capRate != null)
+        .reduce((sum: number, comp: ComparableDetail) => sum + (comp.lastSale.capRate ?? 0), 0) / comparableDetails.filter((c: ComparableDetail) => c.lastSale.capRate != null).length
     : null;
   
-  const avgDistance = comparableDetails.length > 0 && comparableDetails.some(c => c.distance != null)
+  const avgDistance = comparableDetails.length > 0 && comparableDetails.some((c: ComparableDetail) => c.distance != null)
     ? comparableDetails
-        .filter(c => c.distance != null)
-        .reduce((sum, comp) => sum + (comp.distance ?? 0), 0) / comparableDetails.filter(c => c.distance != null).length
+        .filter((c: ComparableDetail) => c.distance != null)
+        .reduce((sum: number, comp: ComparableDetail) => sum + (comp.distance ?? 0), 0) / comparableDetails.filter((c: ComparableDetail) => c.distance != null).length
     : null;
   
   const comparablesCount = comparableDetails.length;

@@ -55,7 +55,7 @@ export default function MilestonesPage() {
 
   // Build milestones from flat date fields - memoized to prevent re-renders
   const milestones = useMemo(() => {
-    const entitlementsValue = content?.entitlements;
+    const entitlementsValue = entitlements;
     const isEntitlementsApproved = entitlementsValue === 'Approved';
     
     const allMilestones: Milestone[] = [

@@ -165,7 +165,7 @@ export default function CapitalStackPage() {
     addUse("Developer Fee", developerFee, "During Construction");
     addUse("PFC Structuring Fee", pfcStructuringFee, "Pre-Construction");
     addUse("Loan Fees", loanFees, "At Closing");
-    addUse("Interest Reserve", interestReserve, "At Closing");
+    addUse("Interest Reserve", interestReserve ?? 0, "At Closing");
     addUse("Op Deficit Escrow", opDeficitEscrow, "At Closing");
     addUse("Lease-Up Escrow", leaseUpEscrow, "At Closing");
     addUse("Relocation Costs", relocationCosts, "Pre-Construction");
@@ -196,24 +196,6 @@ export default function CapitalStackPage() {
     <span className="text-red-600">{children}</span>
   );
 
-  useOMPageHeader({
-    subtitle: project
-      ? "Breakdown of senior debt, equity, and how total capitalization is deployed."
-      : undefined,
-  });
-
-  if (!project) return <div>Project not found</div>;
-
-  const sourcesChartData = sources.map((source) => ({
-    name: source.type ?? "Unknown",
-    value: source.percentage ?? 0,
-  }));
-
-  const usesChartData = uses.map((use) => ({
-    name: use.type ?? "Unknown",
-    value: use.percentage ?? 0,
-  }));
-  
   // Calculate LTC from loan amount and total cost
   const ltcPercent = useMemo(() => {
     if (loanAmountRequested != null && totalProjectCost > 0) {
@@ -235,6 +217,24 @@ export default function CapitalStackPage() {
     }
     return null;
   }, [ltcPercent, sponsorEquity, totalCapitalization]);
+
+  useOMPageHeader({
+    subtitle: project
+      ? "Breakdown of senior debt, equity, and how total capitalization is deployed."
+      : undefined,
+  });
+
+  if (!project) return <div>Project not found</div>;
+
+  const sourcesChartData = sources.map((source) => ({
+    name: source.type ?? "Unknown",
+    value: source.percentage ?? 0,
+  }));
+
+  const usesChartData = uses.map((use) => ({
+    name: use.type ?? "Unknown",
+    value: use.percentage ?? 0,
+  }));
 
   return (
     <div className="space-y-8">

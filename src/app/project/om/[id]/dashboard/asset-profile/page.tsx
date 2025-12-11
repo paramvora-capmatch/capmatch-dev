@@ -27,8 +27,16 @@ export default function AssetProfilePage() {
   const residentialUnitMix = Array.isArray(content?.residentialUnitMix) ? content.residentialUnitMix : [];
   const rentComps = Array.isArray(content?.rentComps) ? content.rentComps : [];
   
+  // Type for unit mix data
+  type UnitMixData = {
+    type: string | null;
+    units: number | null;
+    avgSF: number | null;
+    avgRent: number | null;
+  };
+
   // Build unit mix data from flat residentialUnitMix array
-  const unitMixData = residentialUnitMix.map((unit: any) => ({
+  const unitMixData: UnitMixData[] = residentialUnitMix.map((unit: any) => ({
     type: unit.unitType || unit.type || null,
     units: parseNumeric(unit.unitCount || unit.units) ?? null,
     avgSF: parseNumeric(unit.avgSF) ?? null,
@@ -36,13 +44,13 @@ export default function AssetProfilePage() {
   }));
 
   // Calculate average rent PSF from unit mix (monthly rent / avgSF)
-  const avgUnitRentPSF = unitMixData.length > 0 && unitMixData.some(u => u.avgRent != null && u.avgSF != null && u.avgSF > 0)
+  const avgUnitRentPSF = unitMixData.length > 0 && unitMixData.some((u: UnitMixData) => u.avgRent != null && u.avgSF != null && u.avgSF > 0)
     ? unitMixData
-        .filter(u => u.avgRent != null && u.avgSF != null && u.avgSF > 0)
-        .reduce((sum, unit) => {
+        .filter((u: UnitMixData) => u.avgRent != null && u.avgSF != null && u.avgSF > 0)
+        .reduce((sum: number, unit: UnitMixData) => {
           const rentPSF = (unit.avgRent ?? 0) / (unit.avgSF ?? 1);
           return sum + rentPSF;
-        }, 0) / unitMixData.filter(u => u.avgRent != null && u.avgSF != null && u.avgSF > 0).length
+        }, 0) / unitMixData.filter((u: UnitMixData) => u.avgRent != null && u.avgSF != null && u.avgSF > 0).length
     : null;
 
   // Build market comps from flat rentComps array

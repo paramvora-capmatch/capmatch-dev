@@ -48,8 +48,15 @@ export default function AmenitiesPage() {
     'Terrace': terraceSF,
   };
   
+  // Type for amenity details
+  type AmenityDetail = {
+    name: string;
+    size: string | null;
+    description: string | null;
+  };
+
   // Transform flat amenityList to amenityDetails structure with SF values
-  const amenityDetails = amenityList.map((amenity: string | { name?: string; size?: string; description?: string }, index: number) => {
+  const amenityDetails: AmenityDetail[] = amenityList.map((amenity: string | { name?: string; size?: string; description?: string }, index: number) => {
     let name: string;
     let size: string | null = null;
     
@@ -328,19 +335,19 @@ export default function AmenitiesPage() {
               <div>
                 <h4 className="font-semibold text-gray-800 mb-3">Wellness & Fitness</h4>
                 <ul className="space-y-2 text-sm text-gray-600">
-                  {amenityDetails.filter(a => 
+                  {amenityDetails.filter((a: AmenityDetail) => 
                     a.name?.toLowerCase().includes('pool') || 
                     a.name?.toLowerCase().includes('fitness') || 
                     a.name?.toLowerCase().includes('gym') ||
                     a.name?.toLowerCase().includes('spa')
-                  ).map((amenity, idx) => (
+                  ).map((amenity: AmenityDetail, idx: number) => (
                     <li key={`wellness-${idx}`} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>
                       <span>{amenity.name}</span>
                       {amenity.size && <span className="text-gray-400 ml-2">({amenity.size})</span>}
                     </li>
                   ))}
-                  {amenityDetails.filter(a => 
+                  {amenityDetails.filter((a: AmenityDetail) => 
                     a.name?.toLowerCase().includes('pool') || 
                     a.name?.toLowerCase().includes('fitness') || 
                     a.name?.toLowerCase().includes('gym') ||
@@ -355,20 +362,20 @@ export default function AmenitiesPage() {
               <div>
                 <h4 className="font-semibold text-gray-800 mb-3">Work & Social</h4>
                 <ul className="space-y-2 text-sm text-gray-600">
-                  {amenityDetails.filter(a => 
+                  {amenityDetails.filter((a: AmenityDetail) => 
                     a.name?.toLowerCase().includes('work') || 
                     a.name?.toLowerCase().includes('lounge') || 
                     a.name?.toLowerCase().includes('terrace') ||
                     a.name?.toLowerCase().includes('concierge') ||
                     a.name?.toLowerCase().includes('shared')
-                  ).map((amenity, idx) => (
+                  ).map((amenity: AmenityDetail, idx: number) => (
                     <li key={`social-${idx}`} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
                       <span>{amenity.name}</span>
                       {amenity.size && <span className="text-gray-400 ml-2">({amenity.size})</span>}
                     </li>
                   ))}
-                  {amenityDetails.filter(a => 
+                  {amenityDetails.filter((a: AmenityDetail) => 
                     a.name?.toLowerCase().includes('work') || 
                     a.name?.toLowerCase().includes('lounge') || 
                     a.name?.toLowerCase().includes('terrace') ||
@@ -387,46 +394,46 @@ export default function AmenitiesPage() {
       )}
 
       {/* Amenity Features - Show if we have pool or fitness amenities */}
-      {(poolSF != null || gymSF != null || amenityDetails.some(a => a.name?.toLowerCase().includes('pool') || a.name?.toLowerCase().includes('fitness'))) && (
+      {(poolSF != null || gymSF != null || amenityDetails.some((a: AmenityDetail) => a.name?.toLowerCase().includes('pool') || a.name?.toLowerCase().includes('fitness'))) && (
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader>
             <h3 className="text-xl font-semibold text-gray-800">Premium Features</h3>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {poolSF != null || amenityDetails.some(a => a.name?.toLowerCase().includes('pool')) ? (
+              {poolSF != null || amenityDetails.some((a: AmenityDetail) => a.name?.toLowerCase().includes('pool')) ? (
                 <div className="text-center">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Waves className="h-8 w-8 text-blue-600" />
                   </div>
                   <h4 className="font-semibold text-gray-800 mb-2">
-                    {amenityDetails.find(a => a.name?.toLowerCase().includes('pool'))?.name || 'Swimming Pool'}
+                    {amenityDetails.find((a: AmenityDetail) => a.name?.toLowerCase().includes('pool'))?.name || 'Swimming Pool'}
                   </h4>
                   <p className="text-sm text-gray-600">
                     {poolSF != null ? `${formatLocale(poolSF)} SF` : <MissingValue>Size not available</MissingValue>}
                   </p>
                 </div>
               ) : null}
-              {gymSF != null || amenityDetails.some(a => a.name?.toLowerCase().includes('fitness') || a.name?.toLowerCase().includes('gym')) ? (
+              {gymSF != null || amenityDetails.some((a: AmenityDetail) => a.name?.toLowerCase().includes('fitness') || a.name?.toLowerCase().includes('gym')) ? (
                 <div className="text-center">
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Heart className="h-8 w-8 text-green-600" />
                   </div>
                   <h4 className="font-semibold text-gray-800 mb-2">
-                    {amenityDetails.find(a => a.name?.toLowerCase().includes('fitness') || a.name?.toLowerCase().includes('gym'))?.name || 'Fitness Center'}
+                    {amenityDetails.find((a: AmenityDetail) => a.name?.toLowerCase().includes('fitness') || a.name?.toLowerCase().includes('gym'))?.name || 'Fitness Center'}
                   </h4>
                   <p className="text-sm text-gray-600">
                     {gymSF != null ? `${formatLocale(gymSF)} SF` : <MissingValue>Size not available</MissingValue>}
                   </p>
                 </div>
               ) : null}
-              {coworkingSF != null || amenityDetails.some(a => a.name?.toLowerCase().includes('work') || a.name?.toLowerCase().includes('shared')) ? (
+              {coworkingSF != null || amenityDetails.some((a: AmenityDetail) => a.name?.toLowerCase().includes('work') || a.name?.toLowerCase().includes('shared')) ? (
                 <div className="text-center">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Building2 className="h-8 w-8 text-blue-600" />
                   </div>
                   <h4 className="font-semibold text-gray-800 mb-2">
-                    {amenityDetails.find(a => a.name?.toLowerCase().includes('work') || a.name?.toLowerCase().includes('shared'))?.name || 'Co-Working Space'}
+                    {amenityDetails.find((a: AmenityDetail) => a.name?.toLowerCase().includes('work') || a.name?.toLowerCase().includes('shared'))?.name || 'Co-Working Space'}
                   </h4>
                   <p className="text-sm text-gray-600">
                     {coworkingSF != null ? `${formatLocale(coworkingSF)} SF` : <MissingValue>Size not available</MissingValue>}
