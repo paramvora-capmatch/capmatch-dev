@@ -109,6 +109,72 @@ async function createGoogleCalendarEvent(
 }
 
 /**
+ * Update a Google Calendar event
+ */
+async function updateGoogleCalendarEvent(
+  connection: CalendarConnection,
+  eventId: string,
+  invite: MeetingInvite
+): Promise<void> {
+  const accessToken = await ensureValidToken(connection, supabaseAdmin);
+  
+  const primaryCalendar = connection.calendar_list.find((cal) => cal.primary);
+  const selectedCalendar = connection.calendar_list.find((cal) => cal.selected);
+  const calendarId = primaryCalendar?.id || selectedCalendar?.id || 'primary';
+
+  let description = invite.description || '';
+  if (invite.meetingLink) {
+    description = `📹 Join Video Meeting: ${invite.meetingLink}\n\n${description}`;
+  }
+
+  // Filter out the organizer from attendees to prevent their status from being reset
+  // The organizer owns the event and should not be in the attendees list
+  const organizerEmail = connection.provider_email?.toLowerCase();
+  const filteredAttendees = invite.attendees.filter(
+    (attendee) => attendee.email.toLowerCase() !== organizerEmail
+  );
+
+  const event = {
+    summary: invite.title,
+    description,
+    location: invite.meetingLink || invite.location || '',
+    start: {
+      dateTime: invite.startTime,
+      timeZone: 'UTC',
+    },
+    end: {
+      dateTime: invite.endTime,
+      timeZone: 'UTC',
+    },
+    attendees: filteredAttendees.map((attendee) => ({
+      email: attendee.email,
+      displayName: attendee.name,
+    })),
+  };
+
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+      calendarId
+    )}/events/${eventId}?sendUpdates=all`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Google Calendar API error: ${response.status} ${errorText}`
+    );
+  }
+}
+
+/**
  * Send calendar invites by creating an event on the organizer's calendar
  */
 export async function sendCalendarInvites(
@@ -144,6 +210,9 @@ export async function sendCalendarInvites(
         const result = await createGoogleCalendarEvent(connection, invite);
         eventId = result.eventId;
         eventLink = result.eventLink;
+
+        // Set up push notifications for this calendar if not already done
+        await ensureCalendarWatchIsActive(connection);
       } else {
         throw new Error(`Unsupported calendar provider: ${connection.provider}`);
       }
@@ -175,6 +244,110 @@ export async function sendCalendarInvites(
   }
 
   return results;
+}
+
+/**
+ * Ensure a calendar connection has an active watch channel
+ */
+async function ensureCalendarWatchIsActive(
+  connection: CalendarConnection
+): Promise<void> {
+  // Check if watch exists and is not expired
+  if (connection.watch_channel_id && connection.watch_expiration) {
+    const expiration = new Date(connection.watch_expiration);
+    const now = new Date();
+
+    // If watch is still valid for more than 24 hours, don't renew
+    if (expiration.getTime() - now.getTime() > 24 * 60 * 60 * 1000) {
+      console.log('Calendar watch is still active for connection:', connection.id);
+      return;
+    }
+  }
+
+  // Set up a new watch or renew the existing one
+  try {
+    const { setupCalendarWatch } = await import('@/services/calendarSyncService');
+    await setupCalendarWatch(connection, supabaseAdmin);
+    console.log('Calendar watch set up for connection:', connection.id);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    // Check if it's the HTTPS requirement error (common in local dev)
+    if (errorMessage.includes('webhookUrlNotHttps') || errorMessage.includes('WebHook callback must be HTTPS')) {
+      console.warn('⚠️  Calendar watch setup skipped: Google Calendar requires HTTPS for webhooks');
+      console.warn('   This is expected in local development (http://localhost)');
+      console.warn('   To enable real-time response sync locally, use ngrok:');
+      console.warn('   1. Run: ngrok http 3000');
+      console.warn('   2. Set NEXT_PUBLIC_SITE_URL to the ngrok HTTPS URL');
+      console.warn('   3. Restart your dev server');
+      console.warn('   → Calendar invites will still be sent, but responses won\'t auto-sync');
+    } else {
+      console.error('Error setting up calendar watch:', error);
+    }
+    // Don't fail the invite send if watch setup fails
+  }
+}
+
+/**
+ * Update existing calendar invites
+ */
+export async function updateCalendarInvites(
+  organizerId: string,
+  invite: MeetingInvite,
+  calendarEventIds: Array<{
+    userId: string;
+    provider: string;
+    eventId: string;
+  }>
+): Promise<void> {
+  // Fetch calendar connection for the organizer
+  const { data: connections, error: fetchError } = await supabaseAdmin
+    .from('calendar_connections')
+    .select('*')
+    .eq('user_id', organizerId)
+    .eq('sync_enabled', true);
+
+  if (fetchError || !connections || connections.length === 0) {
+    console.warn('No calendar connections found for organizer to update');
+    return;
+  }
+
+  for (const connection of connections) {
+    // Find the event ID for this connection
+    const eventInfo = calendarEventIds.find(
+      (e) => e.provider === connection.provider && e.userId === connection.user_id
+    );
+
+    if (!eventInfo) continue;
+
+    try {
+      if (connection.provider === 'google') {
+        await updateGoogleCalendarEvent(connection, eventInfo.eventId, invite);
+        console.log(`Updated Google Calendar event ${eventInfo.eventId}`);
+      }
+    } catch (error) {
+      console.error(
+        `Error updating calendar event for user ${connection.user_id}:`,
+        error
+      );
+    }
+  }
+}
+
+/**
+ * Disconnect a calendar and stop its watch channel
+ */
+export async function disconnectCalendar(
+  connection: CalendarConnection
+): Promise<void> {
+  try {
+    const { stopCalendarWatch } = await import('@/services/calendarSyncService');
+    await stopCalendarWatch(connection, supabaseAdmin);
+    console.log('Stopped calendar watch for disconnected calendar');
+  } catch (error) {
+    console.error('Error stopping calendar watch during disconnect:', error);
+    // Don't fail the disconnect if watch stop fails
+  }
 }
 
 /**

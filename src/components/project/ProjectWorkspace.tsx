@@ -238,6 +238,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
       setTimeout(() => setShouldExpandChat(false), 100);
     }
 
+    if (tab === "meetings") {
+      // Switch to meetings tab and expand chat
+      setChatTab("meet");
+      setShouldExpandChat(true);
+      // Reset expand flag after a short delay
+      setTimeout(() => setShouldExpandChat(false), 100);
+    }
+
     if (threadId) {
       // Ensure threads are loaded for the project, then set active thread
       void loadThreadsForProject(projectId).then(() => {
@@ -265,7 +273,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     params.delete("resourceId");
     const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
     router.replace(nextPath);
-  }, [searchParams, pathname, router, setActiveThread, loadThreadsForProject, activeProject, projectId]);
+  }, [searchParams?.get("tab"), searchParams?.get("thread"), searchParams?.get("resourceId"), pathname, router, setActiveThread, loadThreadsForProject, activeProject, projectId]);
 
   // Load org data when we have a project
   // Note: Advisors may not have access to borrower orgs, so we handle errors gracefully
