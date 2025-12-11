@@ -144,6 +144,9 @@ export async function sendCalendarInvites(
         const result = await createGoogleCalendarEvent(connection, invite);
         eventId = result.eventId;
         eventLink = result.eventLink;
+
+        // Set up push notifications for this calendar if not already done
+        await ensureCalendarWatchIsActive(connection);
       } else {
         throw new Error(`Unsupported calendar provider: ${connection.provider}`);
       }
@@ -175,6 +178,64 @@ export async function sendCalendarInvites(
   }
 
   return results;
+}
+
+/**
+ * Ensure a calendar connection has an active watch channel
+ */
+async function ensureCalendarWatchIsActive(
+  connection: CalendarConnection
+): Promise<void> {
+  // Check if watch exists and is not expired
+  if (connection.watch_channel_id && connection.watch_expiration) {
+    const expiration = new Date(connection.watch_expiration);
+    const now = new Date();
+
+    // If watch is still valid for more than 24 hours, don't renew
+    if (expiration.getTime() - now.getTime() > 24 * 60 * 60 * 1000) {
+      console.log('Calendar watch is still active for connection:', connection.id);
+      return;
+    }
+  }
+
+  // Set up a new watch or renew the existing one
+  try {
+    const { setupCalendarWatch } = await import('@/services/calendarSyncService');
+    await setupCalendarWatch(connection, supabaseAdmin);
+    console.log('Calendar watch set up for connection:', connection.id);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    // Check if it's the HTTPS requirement error (common in local dev)
+    if (errorMessage.includes('webhookUrlNotHttps') || errorMessage.includes('WebHook callback must be HTTPS')) {
+      console.warn('⚠️  Calendar watch setup skipped: Google Calendar requires HTTPS for webhooks');
+      console.warn('   This is expected in local development (http://localhost)');
+      console.warn('   To enable real-time response sync locally, use ngrok:');
+      console.warn('   1. Run: ngrok http 3000');
+      console.warn('   2. Set NEXT_PUBLIC_SITE_URL to the ngrok HTTPS URL');
+      console.warn('   3. Restart your dev server');
+      console.warn('   → Calendar invites will still be sent, but responses won\'t auto-sync');
+    } else {
+      console.error('Error setting up calendar watch:', error);
+    }
+    // Don't fail the invite send if watch setup fails
+  }
+}
+
+/**
+ * Disconnect a calendar and stop its watch channel
+ */
+export async function disconnectCalendar(
+  connection: CalendarConnection
+): Promise<void> {
+  try {
+    const { stopCalendarWatch } = await import('@/services/calendarSyncService');
+    await stopCalendarWatch(connection, supabaseAdmin);
+    console.log('Stopped calendar watch for disconnected calendar');
+  } catch (error) {
+    console.error('Error stopping calendar watch during disconnect:', error);
+    // Don't fail the disconnect if watch stop fails
+  }
 }
 
 /**

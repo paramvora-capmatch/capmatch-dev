@@ -87,6 +87,28 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
         throw new Error('User not authenticated');
       }
 
+      // Find the connection to stop its watch channel
+      const connection = connections.find((conn) => conn.id === connectionId);
+      if (connection) {
+        // Stop the calendar watch via API
+        try {
+          const response = await fetch('/api/calendar/disconnect', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ connectionId }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to stop calendar watch');
+          }
+        } catch (watchError) {
+          console.error('Error stopping calendar watch:', watchError);
+          // Don't fail the disconnect if watch stop fails
+        }
+      }
+
       const { error: deleteError } = await supabase
         .from('calendar_connections')
         .delete()
@@ -116,7 +138,7 @@ export function useCalendarConnections(): UseCalendarConnectionsReturn {
         return newSet;
       });
     }
-  }, []);
+  }, [connections]);
 
   /**
    * Update sync settings for a connection
