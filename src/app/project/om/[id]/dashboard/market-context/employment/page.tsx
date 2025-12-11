@@ -11,8 +11,9 @@ import { getOMValue as getOMValueFromQueries } from '@/lib/om-queries';
 
 export default function EmploymentPage() {
   const { content, insights } = useOmContent();
-  const marketContextDetails = content?.marketContextDetails ?? null;
-  const majorEmployers = marketContextDetails?.majorEmployers ?? [];
+  
+  // Read from flat fields
+  const majorEmployers = Array.isArray(content?.majorEmployers) ? content.majorEmployers : [];
 
   const getGrowthColor = (growth?: string | null) => {
     const value = (growth ?? '0').replace(/[^\d-]/g, '');

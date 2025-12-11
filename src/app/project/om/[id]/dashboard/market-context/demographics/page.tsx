@@ -10,18 +10,46 @@ import { formatLocale, formatCurrency, parseNumeric, getOMValue } from '@/lib/om
 
 export default function DemographicsPage() {
   const { content, insights } = useOmContent();
-  const marketContextDetails = content?.marketContextDetails ?? null;
-  const demographicProfile = marketContextDetails?.demographicProfile ?? null;
-  const oneMile = demographicProfile?.oneMile ?? null;
-  const threeMile = demographicProfile?.threeMile ?? null;
-  const fiveMile = demographicProfile?.fiveMile ?? null;
-  const growthTrends = demographicProfile?.growthTrends ?? null;
-  const radiusEntries = demographicProfile
-    ? Object.entries(demographicProfile).filter(
-        ([key]) =>
-          !['growthTrends', 'renterShare', 'bachelorsShare'].includes(key)
-      )
-    : [];
+  
+  // Read from flat fields
+  const population1Mi = parseNumeric(content?.population1Mi) ?? null;
+  const population3Mi = parseNumeric(content?.population3Mi) ?? null;
+  const population5Mi = parseNumeric(content?.population5Mi) ?? null;
+  const medianIncome1Mi = parseNumeric(content?.medianIncome1Mi) ?? null;
+  const medianHHIncome = parseNumeric(content?.medianHHIncome) ?? null;
+  const medianIncome5Mi = parseNumeric(content?.medianIncome5Mi) ?? null;
+  const medianAge1Mi = parseNumeric(content?.medianAge1Mi) ?? null;
+  const medianAge3Mi = parseNumeric(content?.medianAge3Mi) ?? null;
+  const medianAge5Mi = parseNumeric(content?.medianAge5Mi) ?? null;
+  const incomeGrowth5yr = content?.incomeGrowth5yr ?? null;
+  const jobGrowth5yr = content?.jobGrowth5yr ?? null;
+  const populationGrowth5yr = content?.projGrowth202429 ?? null; // Use projGrowth202429 as fallback
+  const renterShare = content?.renterShare ?? null;
+  const bachelorsShare = content?.bachelorsShare ?? null;
+  
+  // Build radius data objects for compatibility with existing UI code
+  const oneMile = {
+    population: population1Mi,
+    medianIncome: medianIncome1Mi,
+    medianAge: medianAge1Mi
+  };
+  const threeMile = {
+    population: population3Mi,
+    medianIncome: medianHHIncome,
+    medianAge: medianAge3Mi
+  };
+  const fiveMile = {
+    population: population5Mi,
+    medianIncome: medianIncome5Mi,
+    medianAge: medianAge5Mi
+  };
+  
+  // Build radius entries for Population Analysis section
+  const radiusEntries = [
+    ['oneMile', oneMile],
+    ['threeMile', threeMile],
+    ['fiveMile', fiveMile]
+  ].filter(([_, data]) => data.population != null || data.medianIncome != null || data.medianAge != null);
 
   const getGrowthColor = (growth?: string | null) => {
     const growthNum = parseFloat(growth ?? '0');
@@ -130,8 +158,8 @@ export default function DemographicsPage() {
                 <TrendingUp className="h-10 w-10 text-green-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Population Growth</h4>
-              <Badge className={getGrowthColor(growthTrends?.populationGrowth5yr)}>
-                {growthTrends?.populationGrowth5yr ?? null}
+              <Badge className={getGrowthColor(populationGrowth5yr ? `${populationGrowth5yr}%` : null)}>
+                {populationGrowth5yr != null ? `${populationGrowth5yr}%` : null}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -141,8 +169,8 @@ export default function DemographicsPage() {
                 <BarChart3 className="h-10 w-10 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Income Growth</h4>
-              <Badge className={getGrowthColor(growthTrends?.incomeGrowth5yr)}>
-                {growthTrends?.incomeGrowth5yr ?? null}
+              <Badge className={getGrowthColor(incomeGrowth5yr ? `${incomeGrowth5yr}%` : null)}>
+                {incomeGrowth5yr != null ? `${incomeGrowth5yr}%` : null}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -152,8 +180,8 @@ export default function DemographicsPage() {
                 <Users className="h-10 w-10 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Job Growth</h4>
-              <Badge className={getGrowthColor(growthTrends?.jobGrowth5yr)}>
-                {growthTrends?.jobGrowth5yr ?? null}
+              <Badge className={getGrowthColor(jobGrowth5yr ? `${jobGrowth5yr}%` : null)}>
+                {jobGrowth5yr != null ? `${jobGrowth5yr}%` : null}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -269,11 +297,11 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Strong population growth ({growthTrends?.populationGrowth5yr ?? null} 5-year)
+                  Strong population growth ({populationGrowth5yr != null ? `${populationGrowth5yr}%` : null} 5-year)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  High median income ({formatCurrency(oneMile?.medianIncome) ?? null} within 1-mile)
+                  High median income ({formatCurrency(medianIncome1Mi) ?? null} within 1-mile)
                 </li>
                 {getOMValue(content, 'demographicStrength1', insights) && (
                   <li className="flex items-center">

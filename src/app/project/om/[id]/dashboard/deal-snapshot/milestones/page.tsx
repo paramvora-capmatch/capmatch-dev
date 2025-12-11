@@ -10,16 +10,47 @@ import { getOMValue, parseNumeric, formatLocale } from '@/lib/om-utils';
 export default function MilestonesPage() {
   const { content } = useOmContent();
   
+  // Helper function to calculate days between dates
+  const daysBetween = (date1: string | null | undefined, date2: string | null | undefined): number | null => {
+    if (!date1 || !date2) return null;
+    try {
+      const d1 = new Date(date1);
+      const d2 = new Date(date2);
+      const diffTime = Math.abs(d2.getTime() - d1.getTime());
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    } catch {
+      return null;
+    }
+  };
+  
   // Build milestones from flat date fields
   const milestones = [
     { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: "completed" as const },
-    { phase: "Entitlements", date: content?.entitlements ?? null, status: "completed" as const },
+    { phase: "Entitlements", date: content?.entitlementsDate ?? null, status: "completed" as const },
     { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: "current" as const },
     { phase: "Vertical Start", date: content?.verticalStart ?? null, status: "current" as const },
     { phase: "First Occupancy", date: content?.firstOccupancy ?? null, status: "upcoming" as const },
     { phase: "Completion", date: content?.completionDate ?? null, status: "upcoming" as const },
     { phase: "Stabilization", date: content?.stabilization ?? null, status: "upcoming" as const },
   ].filter(item => item.date);
+
+  // Calculate durations for each milestone
+  const milestonesWithDuration = milestones.map((milestone, index) => {
+    let duration: number | null = null;
+    
+    // First milestone (Land Acquisition) has no duration
+    if (index === 0) {
+      return { ...milestone, duration: null };
+    }
+    
+    // Calculate duration from previous milestone date
+    const prevMilestone = milestones[index - 1];
+    if (prevMilestone?.date && milestone.date) {
+      duration = daysBetween(prevMilestone.date, milestone.date);
+    }
+    
+    return { ...milestone, duration };
+  });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -48,8 +79,12 @@ export default function MilestonesPage() {
   };
 
   // Calculate total duration from milestone dates (in days)
-  // For now, use a placeholder since we don't have duration data
-  const totalDuration = 0;
+  // Use pre-calculated value if available, otherwise calculate from first to last milestone
+  const totalDuration = content?.totalProjectDurationDays 
+    ? parseNumeric(content.totalProjectDurationDays) 
+    : milestones.length > 0 && milestones[0].date && milestones[milestones.length - 1].date
+    ? daysBetween(milestones[0].date, milestones[milestones.length - 1].date)
+    : 0;
 
   // Extract construction/lease-up fields
   const preLeasedSF = parseNumeric(content?.preLeasedSF) ?? null;
@@ -69,7 +104,7 @@ export default function MilestonesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => (
+            {milestonesWithDuration.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => (
               <div key={index} className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
                   {getStatusIcon(milestone.status ?? 'upcoming')}
@@ -101,13 +136,17 @@ export default function MilestonesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {milestones.map((milestone: { status?: string | null; phase?: string | null; date?: string | null }, index: number) => {
-              // Calculate duration placeholder - milestones don't have duration, using equal distribution
-              const equalDuration = totalDuration > 0 ? totalDuration / milestones.length : 0;
-              const previousDuration = index * equalDuration;
-              const startPercentage = totalDuration > 0 ? (previousDuration / totalDuration) * 100 : 0;
-              const duration = equalDuration;
-              const widthPercentage = totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
+            {milestonesWithDuration.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => {
+              // Calculate cumulative duration for positioning
+              let cumulativeDuration = 0;
+              for (let i = 0; i < index; i++) {
+                const prevDuration = milestonesWithDuration[i]?.duration ?? 0;
+                cumulativeDuration += prevDuration ?? 0;
+              }
+              
+              const duration = milestone.duration ?? 0;
+              const startPercentage = totalDuration && totalDuration > 0 ? (cumulativeDuration / totalDuration) * 100 : 0;
+              const widthPercentage = totalDuration && totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
 
               return (
                 <div key={index} className="relative">
@@ -116,7 +155,7 @@ export default function MilestonesPage() {
                       {milestone.phase ?? null}
                     </span>
                     <span className="text-sm text-gray-500 ml-2">
-                      {duration} days
+                      {duration ? `${duration} days` : 'N/A'}
                     </span>
                   </div>
                   <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
@@ -153,7 +192,7 @@ export default function MilestonesPage() {
             <h2 className="text-lg">Total Duration</h2>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{totalDuration} days</p>
+            <p className="text-3xl font-bold text-blue-600">{totalDuration ? `${totalDuration} days` : 'N/A'}</p>
             <p className="text-sm text-gray-500 mt-1">From start to finish</p>
           </CardContent>
         </Card>
@@ -164,7 +203,7 @@ export default function MilestonesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {milestones.filter((m: { status?: string | null }) => m.status === 'completed').length}
+              {milestonesWithDuration.filter((m: { status?: string | null }) => m.status === 'completed').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones completed</p>
           </CardContent>
@@ -176,7 +215,7 @@ export default function MilestonesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {milestones.filter((m: { status?: string | null }) => m.status === 'upcoming').length}
+              {milestonesWithDuration.filter((m: { status?: string | null }) => m.status === 'upcoming').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones pending</p>
           </CardContent>

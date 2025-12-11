@@ -16,7 +16,7 @@ import { useOmContent } from '@/hooks/useOmContent';
 import { formatLocale, parseNumeric, getOMValue } from '@/lib/om-utils';
 
 export default function AmenitiesPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   
   // Access flat amenityList array directly
   const amenityList = Array.isArray(content?.amenityList) ? content.amenityList : [];
@@ -192,7 +192,11 @@ export default function AmenitiesPage() {
       <Card className="hover:shadow-lg transition-shadow mb-8">
         <CardHeader dataSourceFields={['total commercial grsf', 'space type']}>
           <h3 className="text-xl font-semibold text-gray-800">Commercial & Innovation Program</h3>
-          <p className="text-sm text-gray-600"><span className="text-red-600">30,000 SF Innovation Center plus flexible office/retail bays</span></p>
+          {insights?.commercialInnovationProgram ? (
+            <p className="text-sm text-gray-600">{insights.commercialInnovationProgram}</p>
+          ) : (
+            <p className="text-sm text-gray-600"><span className="text-red-600">30,000 SF Innovation Center plus flexible office/retail bays</span></p>
+          )}
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -215,81 +219,32 @@ export default function AmenitiesPage() {
       </Card>
 
       {/* Amenity Categories */}
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader>
-          <h3 className="text-xl font-semibold text-gray-800">Amenity Categories</h3>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h4 className="font-semibold text-gray-800 mb-3">Wellness & Fitness</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Resort-Style Pool with cabanas</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Fitness Center with Peloton bikes</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Pet Spa and grooming station</span>
-                </li>
-              </ul>
+      {insights?.amenityCategories && (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Amenity Categories</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-gray-600 whitespace-pre-line">
+              {insights.amenityCategories}
             </div>
-            <div>
-              <h4 className="font-semibold text-gray-800 mb-3">Work & Social</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Co-Working Space with offices</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Sky Lounge rooftop terrace</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Package Concierge with lockers</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Amenity Features */}
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader>
-          <h3 className="text-xl font-semibold text-gray-800">Premium Features</h3>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Waves className="h-8 w-8 text-blue-600" />
-              </div>
-              <h4 className="font-semibold text-gray-800 mb-2"><span className="text-red-600">Heated Pool</span></h4>
-              <p className="text-sm text-gray-600"><span className="text-red-600">Saltwater pool with temperature control</span></p>
+      {/* Premium Features */}
+      {insights?.premiumFeatures && (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Premium Features</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-gray-600 whitespace-pre-line">
+              {insights.premiumFeatures}
             </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Heart className="h-8 w-8 text-green-600" />
-              </div>
-              <h4 className="font-semibold text-gray-800 mb-2"><span className="text-red-600">24/7 Access</span></h4>
-              <p className="text-sm text-gray-600"><span className="text-red-600">Round-the-clock fitness center access</span></p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Sun className="h-8 w-8 text-blue-600" />
-              </div>
-              <h4 className="font-semibold text-gray-800 mb-2"><span className="text-red-600">City Views</span></h4>
-              <p className="text-sm text-gray-600"><span className="text-red-600">Panoramic views from sky lounge</span></p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Systems & ESG Compliance */}
       {(adaCompliantPercent != null || hvacSystem || roofTypeAge || solarCapacity != null || evChargingStations != null || leedGreenRating) && (

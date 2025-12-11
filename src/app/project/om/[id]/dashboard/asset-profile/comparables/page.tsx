@@ -8,7 +8,7 @@ import { useOmContent } from '@/hooks/useOmContent';
 import { parseNumeric, calculateAverage, formatFixed } from '@/lib/om-utils';
 
 export default function ComparablesPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   
   // Access flat rentComps array directly
   const rentComps = Array.isArray(content?.rentComps) ? content.rentComps : [];
@@ -304,20 +304,26 @@ export default function ComparablesPage() {
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Differentiators</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Workforce housing with PFC tax exemption</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Pre-leased Innovation Center (30,000 SF)</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Adjacent to Farmers Market and Deep Ellum</span>
-                </li>
-              </ul>
+              {insights?.differentiators ? (
+                <div className="text-sm text-gray-600 whitespace-pre-line">
+                  {insights.differentiators}
+                </div>
+              ) : (
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">•</span>
+                    <span className="text-red-600">Workforce housing with PFC tax exemption</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">•</span>
+                    <span className="text-red-600">Pre-leased Innovation Center (30,000 SF)</span>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">•</span>
+                    <span className="text-red-600">Adjacent to Farmers Market and Deep Ellum</span>
+                  </li>
+                </ul>
+              )}
             </div>
             
             <div>

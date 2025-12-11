@@ -11,7 +11,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatFixed } from '@/lib/om-utils';
+import { formatFixed, parseNumeric, formatCurrency } from '@/lib/om-utils';
 import { getOMValue } from '@/lib/om-queries';
 
 export default function CapitalStackPage() {
@@ -21,10 +21,120 @@ export default function CapitalStackPage() {
   const project = projectId ? getProject(projectId) : null;
   const { scenario } = useOMDashboard();
   const { content, insights } = useOmContent();
-  const capitalStackData = content?.capitalStackData ?? null;
-  const data = capitalStackData?.[scenario] ?? null;
-  const sources = data?.sources ?? [];
-  const uses = data?.uses ?? [];
+  
+  // Build capitalStackData from flat fields
+  const totalCapitalization = parseNumeric(content?.totalCapitalization) ?? parseNumeric(content?.totalDevelopmentCost) ?? 0;
+  const loanAmountRequested = parseNumeric(content?.loanAmountRequested) ?? 0;
+  const sponsorEquity = parseNumeric(content?.sponsorEquity) ?? 0;
+  const taxCreditEquity = parseNumeric(content?.taxCreditEquity) ?? 0;
+  const gapFinancing = parseNumeric(content?.gapFinancing) ?? 0;
+  
+  // Build sources
+  const sources = [
+    { type: content?.loanType ?? "Senior Loan", amount: loanAmountRequested, percentage: 0 },
+    { type: "Sponsor Equity", amount: sponsorEquity, percentage: 0 },
+    ...(taxCreditEquity > 0 ? [{ type: "Tax Credit Equity", amount: taxCreditEquity, percentage: 0 }] : []),
+    ...(gapFinancing > 0 ? [{ type: "Gap Financing", amount: gapFinancing, percentage: 0 }] : [])
+  ].filter(s => s.amount > 0);
+  
+  // Calculate percentages
+  const totalSources = sources.reduce((sum, s) => sum + s.amount, 0);
+  sources.forEach(source => {
+    source.percentage = totalSources > 0 ? (source.amount / totalSources) * 100 : 0;
+  });
+  
+  // Build uses
+  const landAcquisition = parseNumeric(content?.landAcquisition) ?? parseNumeric(content?.purchasePrice) ?? 0;
+  const baseConstruction = parseNumeric(content?.baseConstruction) ?? 0;
+  const contingency = parseNumeric(content?.contingency) ?? 0;
+  const constructionFees = parseNumeric(content?.constructionFees) ?? 0;
+  const aeFees = parseNumeric(content?.aeFees) ?? 0;
+  const developerFee = parseNumeric(content?.developerFee) ?? 0;
+  const interestReserve = parseNumeric(content?.interestReserve) ?? 0;
+  const workingCapital = parseNumeric(content?.workingCapital) ?? 0;
+  const opDeficitEscrow = parseNumeric(content?.opDeficitEscrow) ?? 0;
+  const leaseUpEscrow = parseNumeric(content?.leaseUpEscrow) ?? 0;
+  const ffe = parseNumeric(content?.ffe) ?? 0;
+  const thirdPartyReports = parseNumeric(content?.thirdPartyReports) ?? 0;
+  const legalAndOrg = parseNumeric(content?.legalAndOrg) ?? 0;
+  const titleAndRecording = parseNumeric(content?.titleAndRecording) ?? 0;
+  const taxesDuringConstruction = parseNumeric(content?.taxesDuringConstruction) ?? 0;
+  const loanFees = parseNumeric(content?.loanFees) ?? 0;
+  const relocationCosts = parseNumeric(content?.relocationCosts) ?? 0;
+  const syndicationCosts = parseNumeric(content?.syndicationCosts) ?? 0;
+  const enviroRemediation = parseNumeric(content?.enviroRemediation) ?? 0;
+  const pfcStructuringFee = parseNumeric(content?.pfcStructuringFee) ?? 0;
+  
+  const uses = [
+    { type: "Land Acquisition", amount: landAcquisition, percentage: 0, timing: "Month 0" },
+    { type: "Base Construction", amount: baseConstruction, percentage: 0, timing: "Months 1-24" },
+    { type: "Contingency", amount: contingency, percentage: 0, timing: "Months 1-24" },
+    { type: "Construction Fees", amount: constructionFees, percentage: 0, timing: "Months 1-24" },
+    { type: "A&E Fees", amount: aeFees, percentage: 0, timing: "Months 1-24" },
+    { type: "Developer Fee", amount: developerFee, percentage: 0, timing: "Months 1-24" },
+    { type: "Interest Reserve", amount: interestReserve, percentage: 0, timing: "Month 0" },
+    { type: "Working Capital", amount: workingCapital, percentage: 0, timing: "Month 0" },
+    { type: "Op. Deficit Escrow", amount: opDeficitEscrow, percentage: 0, timing: "Month 0" },
+    { type: "Lease-Up Escrow", amount: leaseUpEscrow, percentage: 0, timing: "Month 0" },
+    { type: "FF&E", amount: ffe, percentage: 0, timing: "Months 1-24" },
+    { type: "Third Party Reports", amount: thirdPartyReports, percentage: 0, timing: "Months 1-24" },
+    { type: "Legal & Org", amount: legalAndOrg, percentage: 0, timing: "Months 1-24" },
+    { type: "Title & Recording", amount: titleAndRecording, percentage: 0, timing: "Months 1-24" },
+    { type: "Taxes During Construction", amount: taxesDuringConstruction, percentage: 0, timing: "Months 1-24" },
+    { type: "Loan Fees", amount: loanFees, percentage: 0, timing: "Month 0" },
+    { type: "Relocation Costs", amount: relocationCosts, percentage: 0, timing: "Months 1-24" },
+    { type: "Syndication Costs", amount: syndicationCosts, percentage: 0, timing: "Months 1-24" },
+    { type: "Enviro. Remediation", amount: enviroRemediation, percentage: 0, timing: "Months 1-24" },
+    { type: "PFC Structuring Fee", amount: pfcStructuringFee, percentage: 0, timing: "Month 0" }
+  ].filter(u => u.amount > 0);
+  
+  // Calculate use percentages
+  const totalUses = uses.reduce((sum, u) => sum + u.amount, 0);
+  uses.forEach(use => {
+    use.percentage = totalUses > 0 ? (use.amount / totalUses) * 100 : 0;
+  });
+  
+  // Build debt terms
+  const interestRate = content?.interestRate ?? null;
+  const allInRate = content?.allInRate ?? null;
+  const rateDisplay = allInRate != null ? `${allInRate}% all-in` : interestRate != null ? `${interestRate}%` : null;
+  const floorRate = content?.floorRate != null ? `${content.floorRate}%` : null;
+  const requestedTerm = content?.requestedTerm ?? null;
+  const extensions = content?.extensions ?? null;
+  const recourse = content?.recoursePreference ?? content?.recourse ?? null;
+  const originationFee = content?.originationFee ?? (content?.loanFees ? (typeof content.loanFees === 'number' ? `${content.loanFees}%` : content.loanFees) : null);
+  const exitFee = content?.exitFee ?? null;
+  const taxInsuranceReserve = content?.taxInsuranceReserve ?? null;
+  const capExReserve = content?.capExReserve ?? null;
+  const interestReserveDisplay = interestReserve > 0 ? formatCurrency(interestReserve) : null;
+  const taxInsuranceReserveDisplay = taxInsuranceReserve != null ? formatCurrency(taxInsuranceReserve) : null;
+  const capExReserveDisplay = capExReserve != null ? formatCurrency(capExReserve) : null;
+  
+  const debtTerms = {
+    loanType: content?.loanType ?? null,
+    lender: content?.lender ?? null,
+    rate: rateDisplay,
+    floor: floorRate,
+    term: requestedTerm != null ? `${requestedTerm} months` : null,
+    extension: extensions,
+    recourse: recourse,
+    origination: originationFee,
+    exitFee: exitFee,
+    reserves: {
+      interest: interestReserveDisplay,
+      taxInsurance: taxInsuranceReserveDisplay,
+      capEx: capExReserveDisplay
+    }
+  };
+  
+  // Build scenario data (base/upside/downside all use same data for now)
+  const data = {
+    totalCapitalization: totalCapitalization || totalSources,
+    sources: sources,
+    uses: uses,
+    debtTerms: debtTerms
+  };
+  
   const primaryDebt = sources[0] ?? null;
   const formatPercent = (value: number | null | undefined) =>
     value != null ? `${value}%` : null;
@@ -69,14 +179,14 @@ export default function CapitalStackPage() {
         />
         <MetricCard
           label="Loan to Cost"
-          value={primaryDebt?.percentage ?? null}
+          value={parseNumeric(content?.loanToCost) ?? (primaryDebt?.percentage ?? null)}
           format="percent"
           size="lg"
           dataSourceFields={['loan to cost', 'ltv']}
         />
         <MetricCard
           label="Equity Contribution"
-          value={primaryDebt?.percentage != null ? 100 - primaryDebt.percentage : null}
+          value={parseNumeric(content?.equityContribution) ?? (primaryDebt?.percentage != null ? 100 - primaryDebt.percentage : null)}
           format="percent"
           size="lg"
           dataSourceFields={['equity contribution', 'sponsor equity']}
@@ -107,19 +217,19 @@ export default function CapitalStackPage() {
           </div>
 
           <div className="space-y-3">
-            {sources.map((source: { type?: string | null; rate?: string | null; contribution?: string | null; amount?: number | null; percentage?: number | null }, idx: number) => (
+            {sources.map((source: { type?: string | null; amount?: number | null; percentage?: number | null }, idx: number) => (
               <div
                 key={idx}
                 className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
               >
                 <div>
                   <p className="font-medium text-gray-800">{source.type}</p>
-                  {source.rate && (
-                    <p className="text-sm text-gray-600">Rate: {source.rate}</p>
+                  {source.type?.includes('Loan') && rateDisplay && (
+                    <p className="text-sm text-gray-600">Rate: {rateDisplay}</p>
                   )}
-                  {source.contribution && (
+                  {source.type?.includes('Equity') && (
                     <p className="text-sm text-gray-600">
-                      Contribution: {source.contribution}
+                      Contribution: Cash & ground lease
                     </p>
                   )}
                 </div>

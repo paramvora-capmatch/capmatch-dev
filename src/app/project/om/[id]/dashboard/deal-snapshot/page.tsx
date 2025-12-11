@@ -240,10 +240,9 @@ export default function DealSnapshotPage() {
                 <div className="space-y-3">
                     <div className="space-y-2">
                         {(() => {
-                          const riskMatrix = content?.dealSnapshotDetails?.riskMatrix;
-                          const riskCount = riskMatrix 
-                            ? (riskMatrix.high?.length ?? 0) + (riskMatrix.medium?.length ?? 0)
-                            : 0;
+                          const riskHigh = Array.isArray(content?.riskHigh) ? content.riskHigh : [];
+                          const riskMedium = Array.isArray(content?.riskMedium) ? content.riskMedium : [];
+                          const riskCount = riskHigh.length + riskMedium.length;
                           const riskText = riskCount > 0 ? `${riskCount} risk flags identified` : 'No risk flags identified';
                           return (
                             <div className="p-2 bg-gray-50 rounded text-sm text-gray-500 text-center">

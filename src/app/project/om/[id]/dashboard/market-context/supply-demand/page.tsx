@@ -12,13 +12,13 @@ import { OMEmptyState } from "@/components/om/OMEmptyState";
 
 export default function SupplyDemandPage() {
   const { content, insights } = useOmContent();
-  const marketContextDetails = content?.marketContextDetails ?? null;
-  const supplyAnalysis = marketContextDetails?.supplyAnalysis ?? null;
-  const currentInventory = supplyAnalysis?.currentInventory ?? 0;
-  const underConstruction = supplyAnalysis?.underConstruction ?? 0;
-  const planned24Months = supplyAnalysis?.planned24Months ?? 0;
-  const averageOccupancy = supplyAnalysis?.averageOccupancy ?? null;
-  const deliveryByQuarter = supplyAnalysis?.deliveryByQuarter ?? [];
+  
+  // Read from flat fields
+  const currentInventory = parseNumeric(content?.currentInventory) ?? 0;
+  const underConstruction = parseNumeric(content?.underConstruction) ?? 0;
+  const planned24Months = parseNumeric(content?.planned24Months) ?? 0;
+  const averageOccupancy = content?.averageOccupancy ?? null;
+  const deliveryByQuarter = Array.isArray(content?.deliveryByQuarter) ? content.deliveryByQuarter : [];
 
   const getOccupancyColor = (occupancy?: string | null) => {
     const occ = parseFloat(occupancy ?? "");

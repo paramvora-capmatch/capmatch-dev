@@ -9,15 +9,22 @@ import { getOMValue } from "@/lib/om-queries";
 
 export default function RiskAnalysisPage() {
   const { content, insights } = useOmContent();
-  const dealSnapshotDetails = content?.dealSnapshotDetails ?? null;
-  const riskMatrix = dealSnapshotDetails?.riskMatrix ?? {
-    high: [],
-    medium: [],
-    low: [],
+  
+  // Read from flat fields
+  const riskHigh = Array.isArray(content?.riskHigh) ? content.riskHigh : [];
+  const riskMedium = Array.isArray(content?.riskMedium) ? content.riskMedium : [];
+  const riskLow = Array.isArray(content?.riskLow) ? content.riskLow : [];
+  
+  // Build riskMatrix object for compatibility with existing UI code
+  const riskMatrix = {
+    high: riskHigh,
+    medium: riskMedium,
+    low: riskLow
   };
-  const highRisks = riskMatrix.high ?? [];
-  const mediumRisks = riskMatrix.medium ?? [];
-  const lowRisks = riskMatrix.low ?? [];
+  
+  const highRisks = riskHigh;
+  const mediumRisks = riskMedium;
+  const lowRisks = riskLow;
 
   const getRiskColor = (severity: string) => {
     switch (severity) {
