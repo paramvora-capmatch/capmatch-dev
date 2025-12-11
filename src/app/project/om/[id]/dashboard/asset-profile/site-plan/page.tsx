@@ -6,30 +6,56 @@ import { MapPin, Building2, TreePine, Car } from 'lucide-react';
 import InteractiveSiteMap from '@/components/om/InteractiveSiteMap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatFixed, getOMValue } from '@/lib/om-utils';
+import { formatFixed, getOMValue, formatLocale } from '@/lib/om-utils';
 
 export default function SitePlanPage() {
   const { content } = useOmContent();
   
   // Access flat fields directly
   const totalSiteAcreage = content?.totalSiteAcreage ?? null;
-  const lotSize = totalSiteAcreage ? `${totalSiteAcreage} Acres` : null;
-  const buildingFootprint = content?.grossBuildingArea ? `${content.grossBuildingArea} SF` : null;
+  const lotSize = totalSiteAcreage ? `${formatFixed(totalSiteAcreage, 2)} Acres` : null;
+  const buildingFootprint = content?.grossBuildingArea ? `${formatLocale(content.grossBuildingArea)} SF` : null;
   const parkingSpaces = content?.parkingSpaces ?? null;
-  const greenSpace = null; // Not directly available in flat fields
+  
+  // Setbacks from flat fields
+  const frontSetback = content?.frontSetback ?? null;
+  const sideSetback = content?.sideSetback ?? null;
+  const rearSetback = content?.rearSetback ?? null;
+  
+  const setbacks = {
+    front: frontSetback != null ? `${frontSetback} ft` : null,
+    side: sideSetback != null ? `${sideSetback} ft` : null,
+    rear: rearSetback != null ? `${rearSetback} ft` : null,
+  };
+  
+  // Calculate green space: total site area - building footprint
+  // grossBuildingArea is total building area (all floors), so we need to calculate footprint
+  const numberOfStories = content?.numberOfStories ?? 1;
+  const grossBuildingArea = content?.grossBuildingArea ?? 0;
+  // Building footprint = gross building area / number of stories (approximate)
+  const buildingFootprintSF = numberOfStories > 0 && grossBuildingArea > 0 
+    ? Math.round(grossBuildingArea / numberOfStories) 
+    : grossBuildingArea;
+  
+  const totalSiteSF = totalSiteAcreage ? totalSiteAcreage * 43560 : 0; // Convert acres to SF
+  const greenSpaceSF = totalSiteSF > 0 && buildingFootprintSF > 0 
+    ? totalSiteSF - buildingFootprintSF 
+    : null;
+  const greenSpacePercent = totalSiteSF > 0 && buildingFootprintSF > 0
+    ? Math.round(((totalSiteSF - buildingFootprintSF) / totalSiteSF) * 100)
+    : null;
+  const greenSpace = greenSpaceSF != null && greenSpacePercent != null && greenSpaceSF >= 0
+    ? `${formatLocale(Math.round(greenSpaceSF))} SF (${greenSpacePercent}%)`
+    : null;
+  
+  // For building coverage calculation, use footprint, not total gross area
+  const buildingCoverageValue = buildingFootprintSF;
   
   // Zoning details from flat fields
   const allowedFAR = parseFloat(String(content?.allowableFAR ?? '0'));
   const usedFAR = parseFloat(String(content?.farUtilizedPercent ?? '0'));
   const heightLimit = parseFloat(String(content?.numberOfStories ?? '0')) * 10; // Approximate: 10ft per story
   const actualHeight = parseFloat(String(content?.numberOfStories ?? '0')) * 10;
-  
-  // Setbacks not directly available - using placeholders
-  const setbacks = {
-    front: null,
-    side: null,
-    rear: null,
-  };
   
   const zoningDetails = {
     current: content?.zoningDesignation ?? null,
@@ -51,8 +77,7 @@ export default function SitePlanPage() {
       ? allowedFAR - usedFAR
       : null;
   
-  const buildingCoverageValue = content?.grossBuildingArea ?? 0;
-  const totalSiteSF = totalSiteAcreage ? totalSiteAcreage * 43560 : 1; // Convert acres to SF
+  // Calculate building coverage percentage (reusing variables defined above)
   const buildingCoveragePercent =
     buildingCoverageValue > 0 && totalSiteSF > 0
       ? Math.round((buildingCoverageValue / totalSiteSF) * 100)
@@ -137,8 +162,10 @@ export default function SitePlanPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-green-600">{greenSpace ?? null}</p>
-            <p className="text-sm text-gray-500 mt-1">Site coverage</p>
+            <p className="text-2xl font-bold text-green-600">
+              {greenSpace ? greenSpace : <span className="text-red-600">Not available</span>}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">Green space / Open area</p>
           </CardContent>
         </Card>
       </div>
@@ -186,9 +213,15 @@ export default function SitePlanPage() {
               <div>
                 <p className="text-sm text-gray-500">Setbacks</p>
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-600">Front: {setbacks?.front ?? null}</p>
-                  <p className="text-xs text-gray-600">Side: {setbacks?.side ?? null}</p>
-                  <p className="text-xs text-gray-600">Rear: {setbacks?.rear ?? null}</p>
+                  <p className="text-xs text-gray-600">
+                    Front: {setbacks?.front ? setbacks.front : <span className="text-red-600">Not specified</span>}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Side: {setbacks?.side ? setbacks.side : <span className="text-red-600">Not specified</span>}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Rear: {setbacks?.rear ? setbacks.rear : <span className="text-red-600">Not specified</span>}
+                  </p>
                 </div>
               </div>
             </div>
@@ -229,7 +262,9 @@ export default function SitePlanPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Green Space Ratio</span>
-                <Badge variant="secondary">{greenSpace ?? null}</Badge>
+                <Badge variant="secondary">
+                  {greenSpacePercent != null ? `${greenSpacePercent}%` : <span className="text-red-600">N/A</span>}
+                </Badge>
               </div>
             </div>
           </CardContent>

@@ -12,40 +12,155 @@ import {
   GraduationCap,
   Star,
   Calendar,
+  User,
+  MapPin,
+  Briefcase,
+  Award,
+  AlertTriangle,
 } from "lucide-react";
 import PlaceholderImage from "@/components/ui/PlaceholderImage";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { formatLocale, parseNumeric, getOMValue } from "@/lib/om-utils";
+import { formatLocale, parseNumeric, getOMValue, formatFixed } from "@/lib/om-utils";
+
+// Component to show missing values in red
+const MissingValue = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-red-600 font-medium">{children}</span>
+);
 
 export default function SponsorProfilePage() {
   const { content } = useOmContent();
   
-  // Extract sponsor experience score
+  // Extract sponsor fields from flat OM content
   const sponsorExpScore = parseNumeric(content?.sponsorExpScore) ?? null;
-
+  const sponsorEntityName = getOMValue(content, "sponsorEntityName");
+  const priorDevelopments = parseNumeric(content?.priorDevelopments) ?? null;
+  const totalResidentialUnits = parseNumeric(content?.totalResidentialUnits) ?? null;
+  const sponsorExperience = getOMValue(content, "sponsorExperience");
+  
+  // Extract borrower fields from flat OM content (from borrower resume)
+  const fullLegalName = getOMValue(content, "fullLegalName");
+  const primaryEntityName = getOMValue(content, "primaryEntityName");
+  const primaryEntityStructure = getOMValue(content, "primaryEntityStructure");
+  const contactEmail = getOMValue(content, "contactEmail");
+  const contactPhone = getOMValue(content, "contactPhone");
+  const contactAddress = getOMValue(content, "contactAddress");
+  const yearsCREExperienceRange = getOMValue(content, "yearsCREExperienceRange");
+  const assetClassesExperience = Array.isArray(content?.assetClassesExperience) 
+    ? content.assetClassesExperience 
+    : (typeof content?.assetClassesExperience === 'string' ? [content.assetClassesExperience] : null);
+  const geographicMarketsExperience = Array.isArray(content?.geographicMarketsExperience)
+    ? content.geographicMarketsExperience
+    : (typeof content?.geographicMarketsExperience === 'string' ? [content.geographicMarketsExperience] : null);
+  const totalDealValueClosedRange = getOMValue(content, "totalDealValueClosedRange");
+  const existingLenderRelationships = getOMValue(content, "existingLenderRelationships");
+  const bioNarrative = getOMValue(content, "bioNarrative");
+  const creditScoreRange = getOMValue(content, "creditScoreRange");
+  const netWorthRange = getOMValue(content, "netWorthRange");
+  const liquidityRange = getOMValue(content, "liquidityRange");
+  const bankruptcyHistory = content?.bankruptcyHistory;
+  const foreclosureHistory = content?.foreclosureHistory;
+  const litigationHistory = getOMValue(content, "litigationHistory");
+  const linkedinUrl = getOMValue(content, "linkedinUrl");
+  const websiteUrl = getOMValue(content, "websiteUrl");
+  
   // Build sponsor profile from flat fields
   const sponsorProfile = {
-    firmName: content?.sponsorEntityName ?? null,
-    yearFounded: null, // Not directly available - placeholder
-    totalDeveloped: content?.priorDevelopments ?? null,
-    totalUnits: content?.totalResidentialUnits ?? null, // Using project units as placeholder
+    firmName: sponsorEntityName,
+    yearFounded: null, // Not directly available
+    totalDeveloped: priorDevelopments,
+    totalUnits: totalResidentialUnits,
     activeProjects: null, // Not directly available
-    sponsorEntityName: content?.sponsorEntityName ?? null,
-    sponsoringEntity: content?.sponsoringEntity ?? null,
-    sponsorExperience: content?.sponsorExperience ?? null,
-    netWorth: content?.netWorth ?? null,
-    guarantorLiquidity: content?.guarantorLiquidity ?? null,
-    portfolioDSCR: content?.portfolioDSCR ?? null,
-    portfolioLTV: content?.portfolioLTV ?? null,
+    sponsorEntityName,
+    sponsorExperience,
     sponsorExpScore,
   };
   
-  // Principals, references, and track record not directly available in flat fields
-  // These would typically come from borrower resume or separate data source
-  const principals: any[] = [];
-  const references: any[] = [];
-  const trackRecord: any[] = [];
+  // Principals, references, and track record - hardcoded demo data
+  const principals: any[] = [
+    {
+      name: "Mike Hoque",
+      role: "Founder & CEO",
+      experience: "20+ years",
+      bio: "Mike Hoque is the founder and CEO of Hoque Global, a Dallas-based master developer specializing in catalytic mixed-use districts and workforce housing. With over 20 years of experience in real estate development, Mike has led the company in delivering over $500M in development value across Texas.",
+      education: "MBA, Southern Methodist University",
+      specialties: ["Mixed-Use Development", "Public-Private Partnerships", "Workforce Housing"],
+      achievements: [
+        "Led development of $200M+ in mixed-use projects",
+        "Established strategic partnerships with City of Dallas",
+        "Delivered 1,000+ residential units"
+      ]
+    },
+    {
+      name: "Sarah Johnson",
+      role: "Chief Operating Officer",
+      experience: "15+ years",
+      bio: "Sarah Johnson brings extensive operational expertise to Hoque Global, overseeing project execution and ensuring timely delivery of developments. She has managed complex construction projects totaling over $300M in value.",
+      education: "BS Civil Engineering, University of Texas",
+      specialties: ["Project Management", "Construction Operations", "Cost Control"],
+      achievements: [
+        "Managed 15+ successful project completions",
+        "Achieved 98% on-time delivery rate",
+        "Reduced construction costs by 12% through optimization"
+      ]
+    }
+  ];
+  
+  const references: any[] = [
+    {
+      firm: "Frost Bank",
+      relationship: "Construction Lender",
+      years: "8 years",
+      contact: "John Smith, VP Commercial Lending"
+    },
+    {
+      firm: "Citi Community Capital",
+      relationship: "Affordable Housing Lender",
+      years: "5 years",
+      contact: "Jane Doe, Director of Community Development"
+    },
+    {
+      firm: "Dallas Housing Finance Corp",
+      relationship: "Public Finance Partner",
+      years: "10 years",
+      contact: "Robert Williams, Executive Director"
+    }
+  ];
+  
+  const trackRecord: any[] = [
+    {
+      project: "Downtown Dallas Mixed-Use",
+      year: 2022,
+      units: 180,
+      irr: 22.5,
+      market: "Dallas-Fort Worth",
+      type: "Mixed-Use"
+    },
+    {
+      project: "East Dallas Apartments",
+      year: 2020,
+      units: 120,
+      irr: 19.8,
+      market: "Dallas-Fort Worth",
+      type: "Multifamily"
+    },
+    {
+      project: "Fort Worth Workforce Housing",
+      year: 2019,
+      units: 95,
+      irr: 18.2,
+      market: "Dallas-Fort Worth",
+      type: "Affordable Housing"
+    },
+    {
+      project: "Plano Office Complex",
+      year: 2018,
+      units: 0,
+      irr: 16.5,
+      market: "Dallas-Fort Worth",
+      type: "Office"
+    }
+  ];
 
   const getIRRColor = (irr?: string | number | null) => {
     const irrNum =
@@ -68,11 +183,83 @@ export default function SponsorProfilePage() {
   };
 
   useOMPageHeader({
-    subtitle: "Sponsor team overview, track record, and lender references.",
+    subtitle: "Sponsor and borrower entity information, experience, track record, and financial profile.",
   });
 
   return (
     <div className="space-y-6">
+      {/* Entity Information */}
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <Building2 className="h-6 w-6 text-blue-600" />
+            <h3 className="text-xl font-semibold text-gray-800">Entity Information</h3>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Full Legal Name</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {fullLegalName ? fullLegalName : <MissingValue>Hoque Global</MissingValue>}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Primary Entity Name</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {primaryEntityName ? primaryEntityName : <MissingValue>Hoque Global / ACARA PFC JV</MissingValue>}
+              </p>
+            </div>
+            {primaryEntityStructure && (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Entity Structure</p>
+                <Badge className="bg-blue-100 text-blue-800">{primaryEntityStructure}</Badge>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Contact Information */}
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <User className="h-6 w-6 text-green-600" />
+            <h3 className="text-xl font-semibold text-gray-800">Contact Information</h3>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <Mail className="h-4 w-4 text-gray-400" />
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Email</p>
+                <p className="text-sm font-medium text-gray-800">
+                  {contactEmail ? contactEmail : <MissingValue>info@hoqueglobal.com</MissingValue>}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Phone className="h-4 w-4 text-gray-400" />
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider">Phone</p>
+                <p className="text-sm font-medium text-gray-800">
+                  {contactPhone ? contactPhone : <MissingValue>972.455.1943</MissingValue>}
+                </p>
+              </div>
+            </div>
+            {contactAddress && (
+              <div className="flex items-center space-x-3">
+                <MapPin className="h-4 w-4 text-gray-400" />
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider">Mailing Address</p>
+                  <p className="text-sm font-medium text-gray-800">{contactAddress}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Company Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -85,7 +272,7 @@ export default function SponsorProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {sponsorProfile?.yearFounded ?? null}
+              {sponsorProfile?.yearFounded != null ? sponsorProfile.yearFounded : <MissingValue>2008</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Years in business</p>
           </CardContent>
@@ -102,7 +289,7 @@ export default function SponsorProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {sponsorProfile?.totalDeveloped ?? null}
+              {sponsorProfile?.totalDeveloped != null ? formatLocale(sponsorProfile.totalDeveloped) : <MissingValue>1,000</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Cumulative value</p>
           </CardContent>
@@ -119,7 +306,7 @@ export default function SponsorProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {formatLocale(sponsorProfile?.totalUnits) ?? null}
+              {sponsorProfile?.totalUnits != null ? formatLocale(sponsorProfile.totalUnits) : <MissingValue>250</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Units delivered</p>
           </CardContent>
@@ -136,7 +323,7 @@ export default function SponsorProfilePage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {sponsorProfile?.activeProjects ?? null}
+              {sponsorProfile?.activeProjects != null ? sponsorProfile.activeProjects : <MissingValue>3</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Current developments</p>
           </CardContent>
@@ -160,13 +347,13 @@ export default function SponsorProfilePage() {
                 <div>
                   <p className="text-sm text-gray-500">Company Name</p>
                   <p className="font-medium text-gray-800">
-                    {sponsorProfile?.firmName ?? null}
+                    {sponsorProfile?.firmName ? sponsorProfile.firmName : <MissingValue>Hoque Global</MissingValue>}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Year Founded</p>
                   <p className="font-medium text-gray-800">
-                    {sponsorProfile?.yearFounded ?? null}
+                    {sponsorProfile?.yearFounded != null ? sponsorProfile.yearFounded : <MissingValue>2008</MissingValue>}
                   </p>
                 </div>
                 <div>
@@ -174,19 +361,19 @@ export default function SponsorProfilePage() {
                     Total Development Value
                   </p>
                   <p className="font-medium text-gray-800">
-                    {sponsorProfile?.totalDeveloped ?? null}
+                    {sponsorProfile?.totalDeveloped != null ? formatLocale(sponsorProfile.totalDeveloped) : <MissingValue>1,000</MissingValue>}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total Units Delivered</p>
                   <p className="font-medium text-gray-800">
-                    {formatLocale(sponsorProfile?.totalUnits) ?? null}
+                    {sponsorProfile?.totalUnits != null ? formatLocale(sponsorProfile.totalUnits) : <MissingValue>250</MissingValue>}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Active Projects</p>
                   <p className="font-medium text-gray-800">
-                    {sponsorProfile?.activeProjects ?? null}
+                    {sponsorProfile?.activeProjects != null ? sponsorProfile.activeProjects : <MissingValue>3</MissingValue>}
                   </p>
                 </div>
                 {sponsorExpScore != null && (
@@ -200,27 +387,45 @@ export default function SponsorProfilePage() {
 
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">
-                Contact Information
+                Experience & Track Record
               </h4>
               <div className="space-y-3">
-                <div className="flex items-center">
-                  <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600">
-                    <span className="text-red-600">Available upon request</span>
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm text-gray-600">
-                    <span className="text-red-600">Available upon request</span>
-                  </span>
-                </div>
-                <div className="pt-4">
-                  <p className="text-sm text-gray-500">
-                    For detailed contact information and references, please
-                    contact the deal team.
-                  </p>
-                </div>
+                {yearsCREExperienceRange && (
+                  <div>
+                    <p className="text-sm text-gray-500">Years of CRE Experience</p>
+                    <p className="font-medium text-gray-800">{yearsCREExperienceRange}</p>
+                  </div>
+                )}
+                {assetClassesExperience && assetClassesExperience.length > 0 && (
+                  <div>
+                    <p className="text-sm text-gray-500">Asset Classes Experience</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {assetClassesExperience.map((asset: string, idx: number) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {asset}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {geographicMarketsExperience && geographicMarketsExperience.length > 0 && (
+                  <div>
+                    <p className="text-sm text-gray-500">Geographic Markets Experience</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {geographicMarketsExperience.map((market: string, idx: number) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {market}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {totalDealValueClosedRange && (
+                  <div>
+                    <p className="text-sm text-gray-500">Total Deal Value Closed</p>
+                    <p className="font-medium text-gray-800">{totalDealValueClosedRange}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -255,15 +460,15 @@ export default function SponsorProfilePage() {
                     </div>
                     <div className="flex-1">
                       <h4 className="text-xl font-bold text-gray-800 mb-1">
-                        {principal.name}
+                        <MissingValue>{principal.name}</MissingValue>
                       </h4>
                       <p className="text-lg font-semibold text-blue-600 mb-2">
-                        {principal.role}
+                        <MissingValue>{principal.role}</MissingValue>
                       </p>
                       <div className="flex items-center mb-3">
                         <Calendar className="h-4 w-4 text-gray-400 mr-2" />
                         <Badge className="bg-blue-100 text-blue-800 border-0">
-                          {principal.experience} Experience
+                          <MissingValue>{principal.experience} Experience</MissingValue>
                         </Badge>
                       </div>
                     </div>
@@ -272,14 +477,14 @@ export default function SponsorProfilePage() {
                   <div className="space-y-4">
                     <div>
                       <p className="text-gray-700 leading-relaxed">
-                        {principal.bio}
+                        <MissingValue>{principal.bio}</MissingValue>
                       </p>
                     </div>
 
                     <div className="flex items-center">
                       <GraduationCap className="h-4 w-4 text-gray-400 mr-2" />
                       <span className="text-sm text-gray-600">
-                        {principal.education}
+                        <MissingValue>{principal.education}</MissingValue>
                       </span>
                     </div>
 
@@ -294,7 +499,7 @@ export default function SponsorProfilePage() {
                             variant="outline"
                             className="text-xs"
                           >
-                            {specialty}
+                            <MissingValue>{specialty}</MissingValue>
                           </Badge>
                         ))}
                       </div>
@@ -309,7 +514,7 @@ export default function SponsorProfilePage() {
                           <div key={idx} className="flex items-center">
                             <Star className="h-3 w-3 text-green-500 mr-2" />
                             <span className="text-sm text-gray-600">
-                              {achievement}
+                              <MissingValue>{achievement}</MissingValue>
                             </span>
                           </div>
                         ))}
@@ -369,28 +574,30 @@ export default function SponsorProfilePage() {
                     >
                       <td className="py-4 px-4">
                         <p className="font-medium text-gray-800">
-                          {project.project}
+                          <MissingValue>{project.project}</MissingValue>
                         </p>
                       </td>
                       <td className="py-4 px-4 text-gray-600">
-                        {project.year ?? null}
+                        <MissingValue>{project.year}</MissingValue>
                       </td>
                       <td className="py-4 px-4 text-gray-600">
-                        {project.units ?? null}
+                        {project.units != null ? project.units : <MissingValue>0</MissingValue>}
                       </td>
                       <td className="py-4 px-4">
                         <Badge className={getIRRColor(irrValue)}>
-                          {irrValue != null ? `${irrValue}%` : null}
+                          {irrValue != null ? (
+                            <MissingValue>{formatFixed(irrValue, 2)}%</MissingValue>
+                          ) : null}
                         </Badge>
                       </td>
                       <td className="py-4 px-4">
                         <Badge variant="outline" className="text-xs">
-                          {project.market}
+                          <MissingValue>{project.market}</MissingValue>
                         </Badge>
                       </td>
                       <td className="py-4 px-4">
                         <Badge variant="outline" className="text-xs">
-                          {project.type}
+                          <MissingValue>{project.type}</MissingValue>
                         </Badge>
                       </td>
                       <td className="py-4 px-4">
@@ -398,15 +605,15 @@ export default function SponsorProfilePage() {
                           {irrValue != null ? (
                             irrValue >= 25 ? (
                               <Badge className="bg-green-100 text-green-800">
-                                Exceptional
+                                <MissingValue>Exceptional</MissingValue>
                               </Badge>
                             ) : irrValue >= 20 ? (
                               <Badge className="bg-blue-100 text-blue-800">
-                                Strong
+                                <MissingValue>Strong</MissingValue>
                               </Badge>
                             ) : (
                               <Badge className="bg-green-100 text-green-800">
-                                Good
+                                <MissingValue>Good</MissingValue>
                               </Badge>
                             )
                           ) : null}
@@ -442,10 +649,10 @@ export default function SponsorProfilePage() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-800">
-                        {reference.firm ?? null}
+                        <MissingValue>{reference.firm}</MissingValue>
                       </h4>
                       <p className="text-sm text-blue-600 font-medium">
-                        {reference.relationship ?? null}
+                        <MissingValue>{reference.relationship}</MissingValue>
                       </p>
                     </div>
                   </div>
@@ -453,12 +660,12 @@ export default function SponsorProfilePage() {
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 text-gray-400 mr-2" />
                       <span className="text-sm text-gray-600">
-                        {reference.years ?? null}
+                        <MissingValue>{reference.years}</MissingValue>
                       </span>
                     </div>
                     <div className="pt-2">
                       <p className="text-sm text-gray-600">
-                        {reference.contact ?? null}
+                        <MissingValue>{reference.contact}</MissingValue>
                       </p>
                     </div>
                   </div>
@@ -468,6 +675,274 @@ export default function SponsorProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Experience & Track Record */}
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <Briefcase className="h-6 w-6 text-purple-600" />
+            <h3 className="text-xl font-semibold text-gray-800">Experience & Track Record</h3>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {yearsCREExperienceRange ? (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Years of CRE Experience</p>
+                <p className="text-sm font-semibold text-gray-800">{yearsCREExperienceRange}</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Years of CRE Experience</p>
+                <p className="text-sm font-semibold text-gray-800"><MissingValue>16+</MissingValue></p>
+              </div>
+            )}
+            {assetClassesExperience && assetClassesExperience.length > 0 ? (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Asset Classes Experience</p>
+                <div className="flex flex-wrap gap-2">
+                  {assetClassesExperience.map((asset: string, idx: number) => (
+                    <Badge key={idx} variant="outline" className="text-xs">
+                      {asset}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Asset Classes Experience</p>
+                <div className="flex flex-wrap gap-2">
+                  {['Mixed-Use', 'Multifamily', 'Office', 'Master-Planned Districts'].map((asset: string, idx: number) => (
+                    <Badge key={idx} variant="outline" className="text-xs">
+                      <MissingValue>{asset}</MissingValue>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {geographicMarketsExperience && geographicMarketsExperience.length > 0 ? (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Geographic Markets Experience</p>
+                <div className="flex flex-wrap gap-2">
+                  {geographicMarketsExperience.map((market: string, idx: number) => (
+                    <Badge key={idx} variant="outline" className="text-xs">
+                      {market}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Geographic Markets Experience</p>
+                <div className="flex flex-wrap gap-2">
+                  {['Dallas-Fort Worth', 'Texas Triangle', 'Southeast US'].map((market: string, idx: number) => (
+                    <Badge key={idx} variant="outline" className="text-xs">
+                      <MissingValue>{market}</MissingValue>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {totalDealValueClosedRange ? (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Deal Value Closed</p>
+                <p className="text-sm font-semibold text-gray-800">{totalDealValueClosedRange}</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Deal Value Closed</p>
+                <p className="text-sm font-semibold text-gray-800"><MissingValue>$500M+</MissingValue></p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Financial Profile */}
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <Award className="h-6 w-6 text-green-600" />
+            <h3 className="text-xl font-semibold text-gray-800">Financial Profile</h3>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {creditScoreRange ? (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Credit Score Range</p>
+                <p className="text-lg font-semibold text-gray-800">{creditScoreRange}</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Credit Score Range</p>
+                <p className="text-lg font-semibold text-gray-800"><MissingValue>700-749</MissingValue></p>
+              </div>
+            )}
+            {netWorthRange ? (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Net Worth Range</p>
+                <p className="text-lg font-semibold text-gray-800">{netWorthRange}</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Net Worth Range</p>
+                <p className="text-lg font-semibold text-gray-800"><MissingValue>$50M-$100M</MissingValue></p>
+              </div>
+            )}
+            {liquidityRange ? (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Liquidity Range</p>
+                <p className="text-lg font-semibold text-gray-800">{liquidityRange}</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Liquidity Range</p>
+                <p className="text-lg font-semibold text-gray-800"><MissingValue>$5M-$10M</MissingValue></p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lender Relationships */}
+      {existingLenderRelationships ? (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Existing Lender Relationships</h3>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-700">{existingLenderRelationships}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Existing Lender Relationships</h3>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-700"><MissingValue>Frost Bank; Citi Community Capital; Dallas Housing Finance Corp</MissingValue></p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Bio */}
+      {bioNarrative ? (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Bio</h3>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-700 leading-relaxed">{bioNarrative}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Bio</h3>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              <MissingValue>Hoque Global is a Dallas-based master developer delivering catalytic mixed-use districts and workforce housing through public-private partnerships, including PFC structures with the City of Dallas. ACARA serves as capital partner, structuring Opportunity Zone-aligned investments with a $950M+ track record across Texas.</MissingValue>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Risk Factors */}
+      <Card className="hover:shadow-lg transition-shadow">
+        <CardHeader>
+          <div className="flex items-center space-x-2">
+            <AlertTriangle className="h-6 w-6 text-red-600" />
+            <h3 className="text-xl font-semibold text-gray-800">Risk Factors</h3>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Bankruptcy History (7yr)</p>
+              {bankruptcyHistory !== undefined ? (
+                <Badge className={bankruptcyHistory === true || bankruptcyHistory === 'Yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}>
+                  {bankruptcyHistory === true || bankruptcyHistory === 'Yes' ? 'Yes' : 'No'}
+                </Badge>
+              ) : (
+                <Badge className="bg-green-100 text-green-800">
+                  <MissingValue>No</MissingValue>
+                </Badge>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Foreclosure History (7yr)</p>
+              {foreclosureHistory !== undefined ? (
+                <Badge className={foreclosureHistory === true || foreclosureHistory === 'Yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}>
+                  {foreclosureHistory === true || foreclosureHistory === 'Yes' ? 'Yes' : 'No'}
+                </Badge>
+              ) : (
+                <Badge className="bg-green-100 text-green-800">
+                  <MissingValue>No</MissingValue>
+                </Badge>
+              )}
+            </div>
+            {litigationHistory && (
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Litigation History</p>
+                <p className="text-sm text-gray-700">{litigationHistory}</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Online Presence */}
+      {(linkedinUrl || websiteUrl) ? (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Online Presence</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {linkedinUrl && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">LinkedIn</p>
+                  <a href={linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                    {linkedinUrl}
+                  </a>
+                </div>
+              )}
+              {websiteUrl && (
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Company Website</p>
+                  <a href={websiteUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                    {websiteUrl}
+                  </a>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <h3 className="text-xl font-semibold text-gray-800">Online Presence</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">LinkedIn</p>
+                <a href="https://www.linkedin.com/company/hoque-global" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                  <MissingValue>https://www.linkedin.com/company/hoque-global</MissingValue>
+                </a>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Company Website</p>
+                <a href="https://www.hoqueglobal.com" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                  <MissingValue>https://www.hoqueglobal.com</MissingValue>
+                </a>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Company Strengths */}
       <Card className="hover:shadow-lg transition-shadow">
@@ -489,17 +964,17 @@ export default function SponsorProfilePage() {
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  {formatLocale(sponsorProfile?.totalUnits) ?? null}{" "}
+                  {sponsorProfile?.totalUnits != null ? formatLocale(sponsorProfile.totalUnits) : <MissingValue>250</MissingValue>}{" "}
                   units delivered
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  {sponsorProfile?.yearFounded ?? null} years of
+                  {sponsorProfile?.yearFounded != null ? sponsorProfile.yearFounded : <MissingValue>16</MissingValue>} years of
                   experience
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Proven track record across multiple projects</span>
+                  <MissingValue>Proven track record across multiple projects</MissingValue>
                 </li>
               </ul>
             </div>
@@ -512,16 +987,16 @@ export default function SponsorProfilePage() {
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Strong IRR performance (18-26%)</span>
+                  <MissingValue>Strong IRR performance (18-26%)</MissingValue>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  {sponsorProfile?.totalDeveloped ?? null} total
+                  {sponsorProfile?.totalDeveloped != null ? formatLocale(sponsorProfile.totalDeveloped) : <MissingValue>1,000</MissingValue>} total
                   development value
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Consistent project delivery</span>
+                  <MissingValue>Consistent project delivery</MissingValue>
                 </li>
               </ul>
             </div>
@@ -534,15 +1009,15 @@ export default function SponsorProfilePage() {
               <ul className="space-y-3 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Established lender relationships</span>
+                  <MissingValue>Established lender relationships</MissingValue>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Strong local market knowledge</span>
+                  <MissingValue>Strong local market knowledge</MissingValue>
                 </li>
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Reputation for quality execution</span>
+                  <MissingValue>Reputation for quality execution</MissingValue>
                 </li>
               </ul>
             </div>

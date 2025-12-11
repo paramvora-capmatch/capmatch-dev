@@ -383,7 +383,7 @@ export default function OMDashboardPage() {
 														: "text-green-600"
 												} group-hover:scale-110 transition-transform duration-200`}
 											>
-												{(key === "upside" || key === "downside") ? <span className="text-red-600">{irr}%</span> : <span>{irr}%</span>}
+												{(key === "upside" || key === "downside") ? <span className="text-red-600">{formatFixed(irr, 2)}%</span> : <span>{formatFixed(irr, 2)}%</span>}
 											</div>
 										</div>
 									)

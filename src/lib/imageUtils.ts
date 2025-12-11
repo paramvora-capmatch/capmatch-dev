@@ -13,6 +13,145 @@ export interface ImageData {
   documentName?: string; // Document name if from artifacts
 }
 
+// Signed URL caching configuration
+const SIGNED_URL_EXPIRY_SECONDS = 86400; // 24 hours (increased from 1 hour)
+const CACHE_REFRESH_BUFFER_SECONDS = 3600; // Refresh 1 hour before expiry
+const CACHE_KEY_PREFIX = 'supabase_signed_urls_';
+
+interface CachedUrl {
+  url: string;
+  expiresAt: number; // Timestamp in milliseconds
+}
+
+/**
+ * Gets a cache key for a storage path and org ID
+ */
+function getCacheKey(orgId: string, storagePath: string): string {
+  return `${CACHE_KEY_PREFIX}${orgId}_${storagePath}`;
+}
+
+/**
+ * Retrieves a cached signed URL if it exists and is still valid
+ */
+function getCachedSignedUrl(orgId: string, storagePath: string): string | null {
+  if (typeof window === 'undefined') return null; // Server-side rendering
+  
+  try {
+    const cacheKey = getCacheKey(orgId, storagePath);
+    const cached = localStorage.getItem(cacheKey);
+    
+    if (!cached) return null;
+    
+    const entry: CachedUrl = JSON.parse(cached);
+    const now = Date.now();
+    
+    // Check if expired (with buffer for refresh)
+    if (now >= entry.expiresAt - (CACHE_REFRESH_BUFFER_SECONDS * 1000)) {
+      // Expired or about to expire, remove from cache
+      localStorage.removeItem(cacheKey);
+      return null;
+    }
+    
+    return entry.url;
+  } catch (error) {
+    console.warn('Error reading cached signed URL:', error);
+    return null;
+  }
+}
+
+/**
+ * Caches a signed URL with expiration timestamp
+ */
+function setCachedSignedUrl(orgId: string, storagePath: string, url: string): void {
+  if (typeof window === 'undefined') return; // Server-side rendering
+  
+  try {
+    const cacheKey = getCacheKey(orgId, storagePath);
+    const entry: CachedUrl = {
+      url,
+      expiresAt: Date.now() + (SIGNED_URL_EXPIRY_SECONDS * 1000),
+    };
+    
+    localStorage.setItem(cacheKey, JSON.stringify(entry));
+  } catch (error) {
+    // Handle quota exceeded or other storage errors gracefully
+    console.warn('Error caching signed URL:', error);
+    // Try to clean up old entries if storage is full
+    try {
+      cleanupExpiredCacheEntries();
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
+  }
+}
+
+/**
+ * Cleans up expired cache entries to free up localStorage space
+ */
+function cleanupExpiredCacheEntries(): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const now = Date.now();
+    const keysToRemove: string[] = [];
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(CACHE_KEY_PREFIX)) {
+        try {
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            const entry: CachedUrl = JSON.parse(cached);
+            if (now >= entry.expiresAt) {
+              keysToRemove.push(key);
+            }
+          }
+        } catch {
+          // Invalid entry, remove it
+          keysToRemove.push(key);
+        }
+      }
+    }
+    
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  } catch (error) {
+    // Ignore cleanup errors
+  }
+}
+
+/**
+ * Creates a signed URL with caching support
+ * Returns cached URL if available and valid, otherwise creates a new one
+ */
+export async function getSignedUrl(
+  orgId: string,
+  storagePath: string
+): Promise<string | null> {
+  // Try cache first
+  const cachedUrl = getCachedSignedUrl(orgId, storagePath);
+  if (cachedUrl) {
+    return cachedUrl;
+  }
+  
+  // Create new signed URL
+  const { data: urlData, error: urlError } = await supabase.storage
+    .from(orgId)
+    .createSignedUrl(storagePath, SIGNED_URL_EXPIRY_SECONDS);
+  
+  if (urlError) {
+    console.error(`Error creating signed URL for ${storagePath}:`, urlError);
+    return null;
+  }
+  
+  if (urlData?.signedUrl) {
+    // Cache the new URL
+    setCachedSignedUrl(orgId, storagePath, urlData.signedUrl);
+    return urlData.signedUrl;
+  }
+  
+  return null;
+}
+
 /**
  * Extracts a human-readable title from the filename.
  * New format: "3rd Floor Unit Key Plan.jpg" (Title Case with spaces, no extension)
@@ -88,17 +227,15 @@ export async function loadProjectImages(
             .filter((f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
             .map(async (f) => {
               const filePath = `${folder.path}/${f.name}`;
-              const { data: urlData, error: urlError } = await supabase.storage
-                .from(orgId)
-                .createSignedUrl(filePath, 3600);
+              const signedUrl = await getSignedUrl(orgId, filePath);
 
-              if (urlError) {
-                console.error(`Error creating signed URL for ${f.name}:`, urlError);
+              if (!signedUrl) {
+                console.error(`Error getting signed URL for ${f.name}`);
                 return null;
               }
 
               return {
-                url: urlData.signedUrl,
+                url: signedUrl,
                 name: f.name,
                 title: extractTitleFromFilename(f.name),
                 category: folder.category,
@@ -165,17 +302,15 @@ export async function loadProjectImages(
                   .filter((f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
                   .map(async (f) => {
                     const filePath = `${basePath}/${category}/${f.name}`;
-                    const { data: urlData, error: urlError } = await supabase.storage
-                      .from(orgId)
-                      .createSignedUrl(filePath, 3600);
+                    const signedUrl = await getSignedUrl(orgId, filePath);
 
-                    if (urlError) {
-                      console.error(`Error creating signed URL for ${f.name}:`, urlError);
+                    if (!signedUrl) {
+                      console.error(`Error getting signed URL for ${f.name}`);
                       return null;
                     }
 
                     return {
-                      url: urlData.signedUrl,
+                      url: signedUrl,
                       name: f.name,
                       title: extractTitleFromFilename(f.name),
                       category,

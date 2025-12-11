@@ -5,7 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, Building2, DollarSign, BarChart3 } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { parseNumeric, calculateAverage, formatFixed } from '@/lib/om-utils';
+import { parseNumeric, calculateAverage, formatFixed, formatLocale } from '@/lib/om-utils';
+
+// Component to show missing values in red
+const MissingValue = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-red-600 font-medium">{children}</span>
+);
 
 export default function ComparablesPage() {
   const { content } = useOmContent();
@@ -13,51 +18,87 @@ export default function ComparablesPage() {
   // Access flat rentComps array directly
   const rentComps = Array.isArray(content?.rentComps) ? content.rentComps : [];
   
+  // Extract market context fields from flat schema
+  const submarketName = content?.submarketName || null;
+  const supplyPipeline = parseNumeric(content?.supplyPipeline) ?? null;
+  const projGrowth202429 = parseNumeric(content?.projGrowth202429) ?? null;
+  const substantialComp = content?.substantialComp || null;
+  
+  // Type for comparable details
+  type ComparableDetail = {
+    name: string | null;
+    address: string | null;
+    distance: number | null;
+    yearBuilt: string | null;
+    units: number | null;
+    occupancyPercent: number | null;
+    rentPSF: number | null;
+    avgRentMonth: number | null;
+    lastSale: {
+      date: string | null;
+      price: number | null;
+      capRate: number | null;
+    };
+  };
+
   // Transform flat rentComps to comparableDetails structure for UI
-  const comparableDetails = rentComps.map((comp: any) => ({
-    name: comp.propertyName || comp.name || 'Unknown Property',
+  const comparableDetails: ComparableDetail[] = rentComps.map((comp: any) => ({
+    name: comp.propertyName || comp.name || null,
     address: comp.address || comp.location || null,
-    distance: comp.distance ? `${comp.distance} mi` : null,
+    distance: parseNumeric(comp.distance) ?? null,
     yearBuilt: comp.yearBuilt || comp.year || null,
-    units: comp.totalUnits || comp.units || 0,
-    occupancy: comp.occupancy ? `${comp.occupancy}%` : null,
-    avgRent: comp.rentPerSF ? `$${comp.rentPerSF}/SF` : comp.rentPSF || null,
+    units: parseNumeric(comp.totalUnits || comp.units) ?? null,
+    occupancyPercent: parseNumeric(comp.occupancyPercent || comp.occupancy) ?? null,
+    rentPSF: parseNumeric(comp.rentPSF || comp.rentPerSF) ?? null,
+    avgRentMonth: parseNumeric(comp.avgRentMonth) ?? null,
+    // Note: saleDate, salePrice, and capRate are not in the seed script's rentComps
     lastSale: {
       date: comp.saleDate || comp.lastSaleDate || null,
-      price: comp.salePrice ? `$${comp.salePrice.toLocaleString()}` : null,
-      capRate: comp.capRate ? `${comp.capRate}%` : null,
+      price: comp.salePrice ? parseNumeric(comp.salePrice) : null,
+      capRate: parseNumeric(comp.capRate) ?? null,
     },
   }));
 
-  const avgRentPSF = calculateAverage(comparableDetails, (comp: typeof comparableDetails[0]) => parseNumeric(comp.avgRent));
-  const avgCapRate = calculateAverage(comparableDetails, (comp: typeof comparableDetails[0]) => parseNumeric(comp.lastSale?.capRate));
-  const avgDistance = calculateAverage(comparableDetails, (comp: typeof comparableDetails[0]) => parseNumeric(comp.distance));
+  // Calculate averages from actual numeric values
+  const avgRentPSF = comparableDetails.length > 0
+    ? comparableDetails.reduce((sum: number, comp: ComparableDetail) => sum + (comp.rentPSF ?? 0), 0) / comparableDetails.length
+    : null;
+  
+  const avgCapRate = comparableDetails.length > 0 && comparableDetails.some((c: ComparableDetail) => c.lastSale.capRate != null)
+    ? comparableDetails
+        .filter((c: ComparableDetail) => c.lastSale.capRate != null)
+        .reduce((sum: number, comp: ComparableDetail) => sum + (comp.lastSale.capRate ?? 0), 0) / comparableDetails.filter((c: ComparableDetail) => c.lastSale.capRate != null).length
+    : null;
+  
+  const avgDistance = comparableDetails.length > 0 && comparableDetails.some((c: ComparableDetail) => c.distance != null)
+    ? comparableDetails
+        .filter((c: ComparableDetail) => c.distance != null)
+        .reduce((sum: number, comp: ComparableDetail) => sum + (comp.distance ?? 0), 0) / comparableDetails.filter((c: ComparableDetail) => c.distance != null).length
+    : null;
+  
   const comparablesCount = comparableDetails.length;
 
-  const getDistanceColor = (distance: string | undefined) => {
-    const dist = parseFloat(distance ?? '');
-    if (Number.isNaN(dist)) return 'bg-gray-100 text-gray-800';
-    if (dist <= 0.5) return 'bg-green-100 text-green-800';
-    if (dist <= 1.0) return 'bg-blue-100 text-blue-800';
-    if (dist <= 2.0) return 'bg-green-100 text-green-800';
+  const getDistanceColor = (distance: number | null) => {
+    if (distance == null) return 'bg-gray-100 text-gray-800';
+    if (distance <= 0.5) return 'bg-green-100 text-green-800';
+    if (distance <= 1.0) return 'bg-blue-100 text-blue-800';
+    if (distance <= 2.0) return 'bg-yellow-100 text-yellow-800';
     return 'bg-gray-100 text-gray-800';
   };
 
-  const getOccupancyColor = (occupancy: string | undefined) => {
-    const occ = parseFloat(occupancy ?? '');
-    if (Number.isNaN(occ)) return 'bg-gray-100 text-gray-800';
-    if (occ >= 95) return 'bg-green-100 text-green-800';
-    if (occ >= 90) return 'bg-blue-100 text-blue-800';
-    if (occ >= 85) return 'bg-green-100 text-green-800';
+  const getOccupancyColor = (occupancy: number | null) => {
+    if (occupancy == null) return 'bg-gray-100 text-gray-800';
+    if (occupancy >= 95) return 'bg-green-100 text-green-800';
+    if (occupancy >= 90) return 'bg-blue-100 text-blue-800';
+    if (occupancy >= 85) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
   };
 
-  const getCapRateColor = (capRate: string | undefined) => {
-    const cap = parseFloat(capRate ?? '');
-    if (Number.isNaN(cap)) return 'bg-gray-100 text-gray-800';
-    if (cap <= 4.5) return 'bg-green-100 text-green-800';
-    if (cap <= 5.5) return 'bg-blue-100 text-blue-800';
-    if (cap <= 6.5) return 'bg-green-100 text-green-800';
+  const getCapRateColor = (capRate: number | null) => {
+    if (capRate == null) return 'bg-gray-100 text-gray-800';
+    if (capRate <= 4.5) return 'bg-green-100 text-green-800';
+    if (capRate <= 5.5) return 'bg-blue-100 text-blue-800';
+    if (capRate <= 6.5) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
   };
 
@@ -79,7 +120,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {comparablesCount > 0 ? comparablesCount : null}
+              {comparablesCount > 0 ? comparablesCount : <MissingValue>0</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Properties analyzed</p>
           </CardContent>
@@ -94,7 +135,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {formatFixed(avgRentPSF, 2) != null ? `$${formatFixed(avgRentPSF, 2)}` : null}
+              {avgRentPSF != null ? `$${formatFixed(avgRentPSF, 2)}` : <MissingValue>Not available</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Market average</p>
           </CardContent>
@@ -109,7 +150,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {formatFixed(avgCapRate, 1) != null ? `${formatFixed(avgCapRate, 1)}%` : null}
+              {avgCapRate != null ? `${formatFixed(avgCapRate, 1)}%` : <MissingValue>Not available</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">Market average</p>
           </CardContent>
@@ -121,7 +162,7 @@ export default function ComparablesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {formatFixed(avgDistance, 1) != null ? `${formatFixed(avgDistance, 1)} mi` : null}
+              {avgDistance != null ? `${formatFixed(avgDistance, 1)} mi` : <MissingValue>Not available</MissingValue>}
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
           </CardContent>
@@ -134,59 +175,103 @@ export default function ComparablesPage() {
           <h3 className="text-xl font-semibold text-gray-800">Comparable Properties Analysis</h3>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-800">Property</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-800">Distance</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-800">Year Built</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-800">Units</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-800">Occupancy</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-800">Rent PSF</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-800">Last Sale</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-800">Cap Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparableDetails.map((comp: typeof comparableDetails[number], index: number) => (
-                  <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-4 px-4">
-                      <div>
-                        <p className="font-medium text-gray-800">{comp.name}</p>
-                        <p className="text-sm text-gray-500">{comp.address}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge className={getDistanceColor(comp.distance)}>
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {comp.distance}
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-4 text-gray-800">{comp.yearBuilt}</td>
-                    <td className="py-4 px-4 text-gray-800">{comp.units}</td>
-                    <td className="py-4 px-4">
-                      <Badge className={getOccupancyColor(comp.occupancy)}>
-                        {comp.occupancy}
-                      </Badge>
-                    </td>
-                    <td className="py-4 px-4 text-gray-800">{comp.avgRent}</td>
-                    <td className="py-4 px-4">
-                      <div>
-                        <p className="text-sm text-gray-800">{comp.lastSale.date}</p>
-                        <p className="text-xs text-gray-500">{comp.lastSale.price}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge className={getCapRateColor(comp.lastSale.capRate)}>
-                        {comp.lastSale.capRate}
-                      </Badge>
-                    </td>
+          {comparableDetails.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-left py-3 px-4 font-semibold text-gray-800">Property</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-800">Distance</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-800">Year Built</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-800">Units</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-800">Occupancy</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-800">Rent PSF</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-800">Last Sale</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-800">Cap Rate</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {comparableDetails.map((comp: typeof comparableDetails[number], index: number) => (
+                    <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-4 px-4">
+                        <div>
+                          <p className="font-medium text-gray-800">
+                            {comp.name ? comp.name : <MissingValue>Unknown Property</MissingValue>}
+                          </p>
+                          {comp.address ? (
+                            <p className="text-sm text-gray-500">{comp.address}</p>
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">
+                              <MissingValue>Address not available</MissingValue>
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        {comp.distance != null ? (
+                          <Badge className={getDistanceColor(comp.distance)}>
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {formatFixed(comp.distance, 1)} mi
+                          </Badge>
+                        ) : (
+                          <MissingValue>N/A</MissingValue>
+                        )}
+                      </td>
+                      <td className="py-4 px-4 text-gray-800">
+                        {comp.yearBuilt ? comp.yearBuilt : <MissingValue>N/A</MissingValue>}
+                      </td>
+                      <td className="py-4 px-4 text-gray-800">
+                        {comp.units != null ? formatLocale(comp.units) : <MissingValue>N/A</MissingValue>}
+                      </td>
+                      <td className="py-4 px-4">
+                        {comp.occupancyPercent != null ? (
+                          <Badge className={getOccupancyColor(comp.occupancyPercent)}>
+                            {formatFixed(comp.occupancyPercent, 1)}%
+                          </Badge>
+                        ) : (
+                          <MissingValue>N/A</MissingValue>
+                        )}
+                      </td>
+                      <td className="py-4 px-4 text-gray-800">
+                        {comp.rentPSF != null ? `$${formatFixed(comp.rentPSF, 2)}/SF` : <MissingValue>N/A</MissingValue>}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div>
+                          {comp.lastSale.date ? (
+                            <p className="text-sm text-gray-800">{comp.lastSale.date}</p>
+                          ) : (
+                            <p className="text-sm text-gray-500 italic">
+                              <MissingValue>Date N/A</MissingValue>
+                            </p>
+                          )}
+                          {comp.lastSale.price != null ? (
+                            <p className="text-xs text-gray-500">${formatLocale(comp.lastSale.price)}</p>
+                          ) : (
+                            <p className="text-xs text-gray-500 italic">
+                              <MissingValue>Price N/A</MissingValue>
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        {comp.lastSale.capRate != null ? (
+                          <Badge className={getCapRateColor(comp.lastSale.capRate)}>
+                            {formatFixed(comp.lastSale.capRate, 2)}%
+                          </Badge>
+                        ) : (
+                          <MissingValue>N/A</MissingValue>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 py-8">
+              <MissingValue>No comparable properties data available</MissingValue>
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -200,33 +285,50 @@ export default function ComparablesPage() {
             <div className="space-y-4">
               <div>
                 <h4 className="font-semibold text-gray-800 mb-3">Rent per Square Foot Comparison</h4>
-                <div className="space-y-3">
-                  {comparableDetails.map((comp: typeof comparableDetails[number], index: number) => {
-                    const rentPSF = parseNumeric(comp.avgRent);
-                    const isAboveAvg =
-                      avgRentPSF != null && rentPSF != null
-                        ? rentPSF > avgRentPSF
-                        : false;
-                    return (
-                      <div key={index} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{comp.name ?? null}</span>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-800">{comp.avgRent ?? null}</span>
-                          <Badge variant={isAboveAvg ? "default" : "secondary"}>
-                            {isAboveAvg ? "Above" : "Below"} Avg
-                          </Badge>
+                {comparableDetails.length > 0 ? (
+                  <div className="space-y-3">
+                    {comparableDetails.map((comp: typeof comparableDetails[number], index: number) => {
+                      const isAboveAvg =
+                        avgRentPSF != null && comp.rentPSF != null
+                          ? comp.rentPSF > avgRentPSF
+                          : false;
+                      return (
+                        <div key={index} className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">
+                            {comp.name ? comp.name : <MissingValue>Unknown Property</MissingValue>}
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            {comp.rentPSF != null ? (
+                              <>
+                                <span className="text-sm font-medium text-gray-800">
+                                  ${formatFixed(comp.rentPSF, 2)}/SF
+                                </span>
+                                {avgRentPSF != null && (
+                                  <Badge variant={isAboveAvg ? "default" : "secondary"}>
+                                    {isAboveAvg ? "Above" : "Below"} Avg
+                                  </Badge>
+                                )}
+                              </>
+                            ) : (
+                              <MissingValue>N/A</MissingValue>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">
+                    <MissingValue>No comparable data available</MissingValue>
+                  </p>
+                )}
               </div>
               
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Market Average</span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {formatFixed(avgRentPSF, 2) != null ? `$${formatFixed(avgRentPSF, 2)}` : null}
+                    {avgRentPSF != null ? `$${formatFixed(avgRentPSF, 2)}` : <MissingValue>N/A</MissingValue>}
                   </Badge>
                 </div>
               </div>
@@ -242,33 +344,50 @@ export default function ComparablesPage() {
             <div className="space-y-4">
               <div>
                 <h4 className="font-semibold text-gray-800 mb-3">Cap Rate Analysis</h4>
-                <div className="space-y-3">
-                  {comparableDetails.map((comp: typeof comparableDetails[number], index: number) => {
-                    const capRate = parseNumeric(comp.lastSale?.capRate);
-                    const isBelowAvg =
-                      avgCapRate != null && capRate != null
-                        ? capRate < avgCapRate
-                        : false;
-                    return (
-                      <div key={index} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">{comp.name ?? null}</span>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-800">{comp.lastSale?.capRate ?? null}</span>
-                          <Badge variant={isBelowAvg ? "default" : "secondary"}>
-                            {isBelowAvg ? "Lower" : "Higher"} Risk
-                          </Badge>
+                {comparableDetails.length > 0 ? (
+                  <div className="space-y-3">
+                    {comparableDetails.map((comp: typeof comparableDetails[number], index: number) => {
+                      const isBelowAvg =
+                        avgCapRate != null && comp.lastSale.capRate != null
+                          ? comp.lastSale.capRate < avgCapRate
+                          : false;
+                      return (
+                        <div key={index} className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">
+                            {comp.name ? comp.name : <MissingValue>Unknown Property</MissingValue>}
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            {comp.lastSale.capRate != null ? (
+                              <>
+                                <span className="text-sm font-medium text-gray-800">
+                                  {formatFixed(comp.lastSale.capRate, 2)}%
+                                </span>
+                                {avgCapRate != null && (
+                                  <Badge variant={isBelowAvg ? "default" : "secondary"}>
+                                    {isBelowAvg ? "Lower" : "Higher"} Risk
+                                  </Badge>
+                                )}
+                              </>
+                            ) : (
+                              <MissingValue>N/A</MissingValue>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 italic">
+                    <MissingValue>No comparable data available</MissingValue>
+                  </p>
+                )}
               </div>
               
               <div className="pt-4 border-t border-gray-100">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-800">Market Average</span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {formatFixed(avgCapRate, 1) != null ? `${formatFixed(avgCapRate, 1)}%` : null}
+                    {avgCapRate != null ? `${formatFixed(avgCapRate, 1)}%` : <MissingValue>N/A</MissingValue>}
                   </Badge>
                 </div>
               </div>
@@ -289,51 +408,67 @@ export default function ComparablesPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Rent Premium</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">+15%</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    <MissingValue>Not specified</MissingValue>
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Quality Tier</span>
-                  <Badge variant="outline" className="border-gray-200"><span className="text-red-600">Luxury</span></Badge>
+                  <Badge variant="outline" className="border-gray-200">
+                    <MissingValue>Not specified</MissingValue>
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Competition Level</span>
-                  <Badge className="bg-blue-100 text-blue-800"><span className="text-red-600">Moderate</span></Badge>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    <MissingValue>Not specified</MissingValue>
+                  </Badge>
                 </div>
               </div>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Differentiators</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Workforce housing with PFC tax exemption</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Pre-leased Innovation Center (30,000 SF)</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Adjacent to Farmers Market and Deep Ellum</span>
-                </li>
-              </ul>
+              {substantialComp ? (
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">•</span>
+                    <span>{substantialComp}</span>
+                  </li>
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 italic">
+                  <MissingValue>No differentiators specified</MissingValue>
+                </p>
+              )}
             </div>
             
             <div>
-              <h4 className="font-semibold text-gray-800 mb-3">Downtown Dallas Market Trends</h4>
+              <h4 className="font-semibold text-gray-800 mb-3">
+                {submarketName ? `${submarketName} Market Trends` : 'Market Trends'}
+              </h4>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Demand Trend</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">↑ Growing</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    <MissingValue>Not specified</MissingValue>
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pipeline</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">{'<'}6K units (24mo)</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    {supplyPipeline != null 
+                      ? `<${formatLocale(Math.round(supplyPipeline / 1000))}K units (24mo)`
+                      : <MissingValue>Not specified</MissingValue>}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Rent Growth</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">+6.9% (5yr)</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    {projGrowth202429 != null 
+                      ? `+${formatFixed(projGrowth202429, 1)}% (5yr)`
+                      : <MissingValue>Not specified</MissingValue>}
+                  </Badge>
                 </div>
               </div>
             </div>
