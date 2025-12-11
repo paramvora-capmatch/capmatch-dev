@@ -72,6 +72,35 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [selectedSummaryMeeting, setSelectedSummaryMeeting] = useState<any>(null);
 
+  // Helper functions for response status styling
+  const getResponseStatusBorder = (responseStatus?: string) => {
+    switch (responseStatus) {
+      case 'accepted':
+        return 'border-2 border-green-500';
+      case 'declined':
+        return 'border-2 border-red-500';
+      case 'tentative':
+        return 'border-2 border-yellow-500';
+      case 'pending':
+      default:
+        return 'border border-gray-300';
+    }
+  };
+
+  const getResponseStatusIcon = (responseStatus?: string) => {
+    switch (responseStatus) {
+      case 'accepted':
+        return '✓';
+      case 'declined':
+        return '✗';
+      case 'tentative':
+        return '?';
+      case 'pending':
+      default:
+        return '⋯';
+    }
+  };
+
   // Get project members
   const { members } = useOrgStore();
   const { projects } = useProjects();
@@ -332,28 +361,51 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
       !embedded && "rounded-lg border border-gray-200 shadow-sm"
     )}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="flex items-center space-x-2">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Video className="w-5 h-5 text-blue-600" />
+      <div className="p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Video className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Meetings
+              </h3>
+              <p className="text-xs text-gray-500">
+                {upcomingMeetings.length} upcoming · {pastMeetings.length} past
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Meetings
-            </h3>
-            <p className="text-xs text-gray-500">
-              {upcomingMeetings.length} upcoming · {pastMeetings.length} past
-            </p>
+          <Button
+            size="sm"
+            onClick={() => setIsScheduleModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Meeting
+          </Button>
+        </div>
+
+        {/* Response Status Legend */}
+        <div className="flex items-center gap-3 text-xs text-gray-600 pt-2 border-t border-gray-100">
+          <span className="font-medium text-gray-700">Response Status:</span>
+          <div className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 border-2 border-green-500 rounded-sm"></span>
+            <span>Accepted</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 border-2 border-yellow-500 rounded-sm"></span>
+            <span>Tentative</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 border-2 border-red-500 rounded-sm"></span>
+            <span>Declined</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 border border-gray-300 rounded-sm"></span>
+            <span>Pending</span>
           </div>
         </div>
-        <Button
-          size="sm"
-          onClick={() => setIsScheduleModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New Meeting
-        </Button>
       </div>
 
       {/* Meetings List */}
@@ -441,8 +493,12 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                 {participants.map((participant, i) => (
                                   <span
                                     key={i}
-                                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
+                                    className={cn(
+                                      "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-white text-gray-700",
+                                      getResponseStatusBorder(participant.response_status)
+                                    )}
                                   >
+                                    <span className="mr-1.5">{getResponseStatusIcon(participant.response_status)}</span>
                                     {participant.user?.full_name || participant.user?.email || 'Unknown'}
                                   </span>
                                 ))}
@@ -560,8 +616,12 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                               {participants.map((participant, i) => (
                                 <span
                                   key={i}
-                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
+                                  className={cn(
+                                    "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-white text-gray-700",
+                                    getResponseStatusBorder(participant.response_status)
+                                  )}
                                 >
+                                  <span className="mr-1.5">{getResponseStatusIcon(participant.response_status)}</span>
                                   {participant.user?.full_name || participant.user?.email || 'Unknown'}
                                 </span>
                               ))}
