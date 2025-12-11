@@ -12,6 +12,7 @@ import { DollarSign, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { formatFixed } from '@/lib/om-utils';
+import { getOMValue } from '@/lib/om-queries';
 
 export default function CapitalStackPage() {
   const params = useParams();
@@ -19,7 +20,7 @@ export default function CapitalStackPage() {
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
   const { scenario } = useOMDashboard();
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   const capitalStackData = content?.capitalStackData ?? null;
   const data = capitalStackData?.[scenario] ?? null;
   const sources = data?.sources ?? [];
@@ -292,10 +293,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Construction Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> {getOMValue(content, 'capitalRisk1') ?? 'Cost overruns and delays could strain cash flow'}
+                <strong>Risk:</strong> {getOMValue(content, 'capitalRisk1', insights) ?? 'Cost overruns and delays could strain cash flow'}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> {getOMValue(content, 'capitalMitigant1') ?? 'Fixed-price GMP contract with experienced contractor'}
+                <strong>Mitigant:</strong> {getOMValue(content, 'capitalMitigant1', insights) ?? 'Fixed-price GMP contract with experienced contractor'}
               </p>
             </div>
           </div>
@@ -304,10 +305,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Interest Rate Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> {getOMValue(content, 'capitalRisk2') ?? 'Rising SOFR could increase debt service costs'}
+                <strong>Risk:</strong> {getOMValue(content, 'capitalRisk2', insights) ?? 'Rising SOFR could increase debt service costs'}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> {getOMValue(content, 'capitalMitigant2') ?? '12-month interest reserve and rate floor protection'}
+                <strong>Mitigant:</strong> {getOMValue(content, 'capitalMitigant2', insights) ?? '12-month interest reserve and rate floor protection'}
               </p>
             </div>
           </div>
@@ -316,10 +317,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Pre-Leasing Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> {getOMValue(content, 'capitalRisk3') ?? 'Insufficient pre-leasing could delay permanent financing'}
+                <strong>Risk:</strong> {getOMValue(content, 'capitalRisk3', insights) ?? 'Insufficient pre-leasing could delay permanent financing'}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> {getOMValue(content, 'capitalMitigant3') ?? 'Strong market fundamentals and marketing plan'}
+                <strong>Mitigant:</strong> {getOMValue(content, 'capitalMitigant3', insights) ?? 'Strong market fundamentals and marketing plan'}
               </p>
             </div>
           </div>

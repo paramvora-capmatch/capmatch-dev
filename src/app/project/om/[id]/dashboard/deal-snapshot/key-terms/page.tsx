@@ -9,7 +9,7 @@ import { getOMValue, parseNumeric } from "@/lib/om-utils";
 import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
 
 export default function KeyTermsPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   
   // Extract additional loan term fields
   const interestRateType = getOMValue(content, "interestRateType");
@@ -289,7 +289,7 @@ export default function KeyTermsPage() {
             <h3 className="text-xl font-semibold text-gray-800">Special Programs & Incentives</h3>
           </div>
           <p className="text-sm text-gray-600 mt-2">
-            {getOMValueFromQueries(content, 'specialProgramsDescription') ?? 'Opportunity Zone benefits, Dallas PFC lease, and workforce housing covenant tied to the Hoque structure.'}
+            {getOMValueFromQueries(content, 'specialProgramsDescription', insights) ?? 'Opportunity Zone benefits, Dallas PFC lease, and workforce housing covenant tied to the Hoque structure.'}
           </p>
         </CardHeader>
         <CardContent className="pt-0">

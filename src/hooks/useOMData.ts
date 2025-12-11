@@ -43,10 +43,16 @@ export function useOMData(projectId: string) {
 		};
 	}, [projectId]);
 
+	// Create a wrapper function that includes insights from omData
+	const getOMValueWithInsights = (fieldId: string) => {
+		if (!omData) return null;
+		return getOMValue(omData.content, fieldId, omData.insights);
+	};
+
 	return {
 		omData,
 		isLoading,
 		error,
-		getOMValue,
+		getOMValue: getOMValueWithInsights,
 	};
 }

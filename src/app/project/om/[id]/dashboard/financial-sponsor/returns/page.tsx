@@ -10,7 +10,7 @@ import { getOMValue, parseNumeric, formatLocale, formatFixed } from "@/lib/om-ut
 import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
 
 export default function ReturnsPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   
   // Build return projections from flat fields
   const baseIRR = parseNumeric(content?.irr) ?? null;
@@ -471,7 +471,7 @@ export default function ReturnsPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['returnDriver1', 'returnDriver2', 'returnDriver3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field) ?? 
+                  const insight = getOMValueFromQueries(content, field, insights) ?? 
                     (idx === 0 ? 'Strong market fundamentals' :
                      idx === 1 ? 'Premium location & amenities' :
                      'Experienced development team');
@@ -489,7 +489,7 @@ export default function ReturnsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['returnRisk1', 'returnRisk2', 'returnRisk3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field) ?? 
+                  const insight = getOMValueFromQueries(content, field, insights) ?? 
                     (idx === 0 ? 'Construction cost overruns' :
                      idx === 1 ? 'Market timing risks' :
                      'Interest rate volatility');

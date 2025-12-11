@@ -11,7 +11,7 @@ import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
 import { OMEmptyState } from "@/components/om/OMEmptyState";
 
 export default function SupplyDemandPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   const marketContextDetails = content?.marketContextDetails ?? null;
   const supplyAnalysis = marketContextDetails?.supplyAnalysis ?? null;
   const currentInventory = supplyAnalysis?.currentInventory ?? 0;
@@ -386,7 +386,7 @@ export default function SupplyDemandPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['supplyStrength1', 'supplyStrength2', 'supplyStrength3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field) ?? 
+                  const insight = getOMValueFromQueries(content, field, insights) ?? 
                     (idx === 0 ? 'Limited new supply in Deep Ellum/Farmers Market corridor' :
                      idx === 1 ? 'Downtown Dallas occupancy above 94%' :
                      '<6,000 units delivering over next 24 months');
@@ -406,7 +406,7 @@ export default function SupplyDemandPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['marketOpportunity1', 'marketOpportunity2', 'marketOpportunity3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field) ?? 
+                  const insight = getOMValueFromQueries(content, field, insights) ?? 
                     (idx === 0 ? 'Strong job growth in Downtown Dallas (12.1% 5-year)' :
                      idx === 1 ? 'Workforce housing demand with PFC tax exemption' :
                      'Proximity to DART rail and I-30/I-45 interchange');

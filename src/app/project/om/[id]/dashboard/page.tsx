@@ -9,8 +9,8 @@ import { MetricCard } from "@/components/om/widgets/MetricCard";
 import { AIInsightsBar } from "@/components/om/AIInsightsBar";
 import { ImageSlideshow } from "@/components/om/ImageSlideshow";
 import { useOMDashboard } from "@/contexts/OMDashboardContext";
+import { useOMDataContext } from "@/contexts/OMDataContext";
 import { cn } from "@/utils/cn";
-import { useOMData } from "@/hooks/useOMData";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import {
 	getNumericValue,
@@ -38,7 +38,8 @@ export default function OMDashboardPage() {
 	const { getProject } = useProjects();
 	const project = projectId ? getProject(projectId) : null;
 	const { scenario, setScenario } = useOMDashboard();
-	const { omData, isLoading, error } = useOMData(projectId || "");
+	// Consume OM data from context (fetched once at layout level)
+	const { omData, isLoading, error } = useOMDataContext();
 
 	useOMPageHeader({
 		subtitle: project

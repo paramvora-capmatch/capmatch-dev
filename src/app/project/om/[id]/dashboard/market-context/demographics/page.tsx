@@ -9,7 +9,7 @@ import { useOmContent } from '@/hooks/useOmContent';
 import { formatLocale, formatCurrency, parseNumeric, getOMValue } from '@/lib/om-utils';
 
 export default function DemographicsPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   const marketContextDetails = content?.marketContextDetails ?? null;
   const demographicProfile = marketContextDetails?.demographicProfile ?? null;
   const oneMile = demographicProfile?.oneMile ?? null;
@@ -275,10 +275,10 @@ export default function DemographicsPage() {
                   <span className="text-green-500 mr-2">•</span>
                   High median income ({formatCurrency(oneMile?.medianIncome) ?? null} within 1-mile)
                 </li>
-                {getOMValue(content, 'demographicStrength1') && (
+                {getOMValue(content, 'demographicStrength1', insights) && (
                   <li className="flex items-center">
                     <span className="text-green-500 mr-2">•</span>
-                    {getOMValue(content, 'demographicStrength1') ?? 'Young professional demographic'}
+                    {getOMValue(content, 'demographicStrength1', insights) ?? 'Young professional demographic'}
                   </li>
                 )}
               </ul>
@@ -288,7 +288,7 @@ export default function DemographicsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['demographicOpportunity1', 'demographicOpportunity2', 'demographicOpportunity3'].map((field, idx) => {
-                  const insight = getOMValue(content, field) ?? 
+                  const insight = getOMValue(content, field, insights) ?? 
                     (idx === 0 ? 'Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)' :
                      idx === 1 ? 'Walkability to Farmers Market and Deep Ellum entertainment district' :
                      'Limited new supply in Deep Ellum/Farmers Market corridor');
@@ -306,7 +306,7 @@ export default function DemographicsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Target Demographics</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['targetDemographic1', 'targetDemographic2', 'targetDemographic3'].map((field, idx) => {
-                  const insight = getOMValue(content, field) ?? 
+                  const insight = getOMValue(content, field, insights) ?? 
                     (idx === 0 ? 'Downtown Dallas professionals (25-35)' :
                      idx === 1 ? 'Workforce housing eligible households (≤80% AMI)' :
                      'Healthcare, finance, and tech workers');

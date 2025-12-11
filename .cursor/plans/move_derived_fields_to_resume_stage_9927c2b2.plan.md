@@ -548,45 +548,25 @@ Resume Update/Autofill
 calculation_service.py calculates deI have a task of reconciling the OM with the project resume. There are some fields in the OM which are hardcoded right now. So we need to handle them by doing three things
 ```
 
-
-
 1. If the field is already present in the resume, we just need to link it
 
 2. If the field is not present in the resume, but can be added to it, we need to add it in the right section and subsection
 
 3. If the field is not present in the resume and its not something that can be added, we need to generate it with AI like insights, summary, that kind of stuff
 
-
-
 Your current task is to check if all this has been implemented
-
-
 
 Current list:
 
-
-
-
-
 ## Hardcoded red text values in OM pages
-
-
 
 ### 1. Dashboard (`/dashboard/page.tsx`)
 
-
-
 - Line 386: IRR percentage values for upside/downside scenarios (calculated, but displayed in red)
-
-
 
 ### 2. Market Context Overview (`/market-context/page.tsx`)
 
-
-
 Demographics quadrant:
-
-
 
 - Line 41: `425,000` (Population)
 
@@ -596,11 +576,7 @@ Demographics quadrant:
 
 - Line 53: `45%` (College Grad%)
 
-
-
 Employment quadrant:
-
-
 
 - Line 71: `3.2%` (Unemployment)
 
@@ -610,11 +586,7 @@ Employment quadrant:
 
 - Line 83: `+8.2%` (Avg Growth)
 
-
-
 Supply Pipeline quadrant:
-
-
 
 - Line 101: `2,450` (Units U/C)
 
@@ -624,11 +596,7 @@ Supply Pipeline quadrant:
 
 - Line 113: `93.5%` (Occupancy)
 
-
-
 Regulatory/Incentives quadrant:
-
-
 
 - Line 131: `Qualified` (Opportunity Zone)
 
@@ -638,15 +606,9 @@ Regulatory/Incentives quadrant:
 
 - Line 147: `$2.4M` (Total Incentive Value)
 
-
-
 ### 3. Supply & Demand (`/market-context/supply-demand/page.tsx`)
 
-
-
 Market status labels:
-
-
 
 - Lines 353-356: `Tight`, `Balanced`, `Soft` (Market Status)
 
@@ -654,11 +616,7 @@ Market status labels:
 
 - Line 369: `Moderate` (Supply Pressure)
 
-
-
 Market insights:
-
-
 
 - Line 394: `Limited new supply in Deep Ellum/Farmers Market corridor`
 
@@ -678,15 +636,9 @@ Market insights:
 
 - Line 440: `Interest rate impact`
 
-
-
 ### 4. Demographics (`/market-context/demographics/page.tsx`)
 
-
-
 Market insights:
-
-
 
 - Line 280: `Young professional demographic`
 
@@ -702,15 +654,9 @@ Market insights:
 
 - Line 316: `Healthcare, finance, and tech workers`
 
-
-
 ### 5. Employment (`/market-context/employment/page.tsx`)
 
-
-
 Market impact analysis:
-
-
 
 - Line 261: `Strong tech sector presence`
 
@@ -730,23 +676,13 @@ Market impact analysis:
 
 - Line 305: `Government employees (Dallas County)`
 
-
-
 ### 6. Financial & Sponsor (`/financial-sponsor/page.tsx`)
-
-
 
 - Line 209: `78%` (Break-even)
 
-
-
 ### 7. Returns (`/financial-sponsor/returns/page.tsx`)
 
-
-
 Risk level labels:
-
-
 
 - Line 204: `Low` (Upside Risk Level)
 
@@ -760,11 +696,7 @@ Risk level labels:
 
 - Line 435: `High Risk` (Sensitivity table)
 
-
-
 Return drivers:
-
-
 
 - Line 460: `Strong market fundamentals`
 
@@ -784,11 +716,7 @@ Return drivers:
 
 - Line 506: `Interest rate hedging`
 
-
-
 ### 8. Sponsor Profile (`/financial-sponsor/sponsor-profile/page.tsx`)
-
-
 
 - Lines 209, 215: `Available upon request` (Contact Information)
 
@@ -804,11 +732,7 @@ Return drivers:
 
 - Line 545: `Reputation for quality execution`
 
-
-
 ### 9. Key Terms (`/deal-snapshot/key-terms/page.tsx`)
-
-
 
 - Line 190: `1.00%` (Origination Fee - hardcoded as placeholder)
 
@@ -816,15 +740,9 @@ Return drivers:
 
 - Line 327: `Qualified` / `In Structuring` (Special Programs badges)
 
-
-
 ### 10. Risk Analysis (`/deal-snapshot/risk-analysis/page.tsx`)
 
-
-
 Risk mitigation:
-
-
 
 - Line 229: `Fixed-price GMP contract with contingency`
 
@@ -838,15 +756,9 @@ Risk mitigation:
 
 - Line 256: `Regular entitlement compliance checks`
 
-
-
 ### 11. Capital Stack (`/deal-snapshot/capital-stack/page.tsx`)
 
-
-
 Risk & mitigants:
-
-
 
 - Line 295: `Cost overruns and delays could strain cash flow` (Construction Risk)
 
@@ -864,23 +776,13 @@ Risk & mitigants:
 
 - Line 341: `Multiple exit strategies (sale, refinance, hold)` (Exit Strategy Mitigant)
 
-
-
 ### 12. Deal Snapshot (`/deal-snapshot/page.tsx`)
-
-
 
 - Line 244: `No risk flags identified` (Placeholder text)
 
-
-
 ### 13. Unit Mix (`/asset-profile/unit-mix/page.tsx`)
 
-
-
 Market positioning:
-
-
 
 - Line 311: `Premium` (Luxury Tier badge)
 
@@ -888,31 +790,17 @@ Market positioning:
 
 - Line 319: `Top 20%` (Competitive Position badge)
 
-
-
 ### 14. Site Plan (`/asset-profile/site-plan/page.tsx`)
-
-
 
 - Line 258: `Compliant` (Zoning Compliance badge)
 
-
-
 ---
 
-
-
 ---
-
-
 
 ## Values likely from project resume (not AI-generated)
 
-
-
 These should come from the project resume rather than AI:
-
-
 
 1. Deal-specific terms:
 
@@ -941,17 +829,29 @@ These should come from the project resume rather than AI:
 - `$2.4M` (Total Incentive Value) — should be calculated from incentives
 
 - `10 Years` (Tax Abatement term) — should be from incentive documentsrived fields (only if empty)
-    ↓
+
+↓
+
 Derived fields stored in resume content (editable)
-    ↓
+
+↓
+
 Resume Form displays fields (editable, lockable)
-    ↓
+
+↓
+
 User can edit derived fields (optional)
-    ↓
+
+↓
+
 om_sync_service.py copies fields 1:1 to OM
-    ↓
+
+↓
+
 OM content contains all derived fields
-    ↓
+
+↓
+
 OM pages read values directly (no calculation)
 
 ## Benefits
