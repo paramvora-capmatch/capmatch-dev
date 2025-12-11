@@ -7,6 +7,7 @@ import ReturnsCharts from "@/components/om/ReturnsCharts";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { getOMValue, parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
+import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
 
 export default function ReturnsPage() {
   const { content } = useOmContent();
@@ -55,9 +56,23 @@ export default function ReturnsPage() {
     },
   };
   
-  const upsideScenario = returnProjections.upside;
+  // Read risk levels from content (calculated in resume)
+  const upsideRisk = content?.riskLevelUpside ?? 'Medium';
+  const baseRisk = content?.riskLevelBase ?? 'Medium';
+  const downsideRisk = content?.riskLevelDownside ?? 'Medium';
+  
+  // Use calculated values from content if available, otherwise use calculated projections
+  const upsideScenario = {
+    irr: content?.upsideIRR ?? returnProjections.upside.irr,
+    multiple: content?.upsideEquityMultiple ?? returnProjections.upside.multiple,
+    profitMargin: content?.upsideProfitMargin ?? returnProjections.upside.profitMargin,
+  };
   const baseScenario = returnProjections.base;
-  const downsideScenario = returnProjections.downside;
+  const downsideScenario = {
+    irr: content?.downsideIRR ?? returnProjections.downside.irr,
+    multiple: content?.downsideEquityMultiple ?? returnProjections.downside.multiple,
+    profitMargin: content?.downsideProfitMargin ?? returnProjections.downside.profitMargin,
+  };
 
   const getIRRColor = (irr?: number | null) => {
     if (irr == null || Number.isNaN(irr)) return "bg-red-100 text-red-800";
@@ -201,7 +216,7 @@ export default function ReturnsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Risk Level</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">Low</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">{upsideRisk}</Badge>
                 </div>
               </div>
             </div>
@@ -248,7 +263,7 @@ export default function ReturnsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Risk Level</span>
-                  <Badge className="bg-blue-100 text-blue-800"><span className="text-red-600">Medium</span></Badge>
+                  <Badge className="bg-blue-100 text-blue-800">{baseRisk}</Badge>
                 </div>
               </div>
             </div>
@@ -295,7 +310,7 @@ export default function ReturnsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Risk Level</span>
-                  <Badge className="bg-red-100 text-red-800"><span className="text-red-600">High</span></Badge>
+                  <Badge className="bg-red-100 text-red-800">{downsideRisk}</Badge>
                 </div>
               </div>
             </div>
@@ -363,7 +378,7 @@ export default function ReturnsPage() {
                   </td>
                   <td className="py-4 px-4">
                     <Badge className="bg-green-100 text-green-800">
-                      <span className="text-red-600">Low Risk</span>
+                      {upsideRisk} Risk
                     </Badge>
                   </td>
                 </tr>
@@ -397,7 +412,7 @@ export default function ReturnsPage() {
                   </td>
                   <td className="py-4 px-4">
                     <Badge className="bg-blue-100 text-blue-800">
-                      <span className="text-red-600">Medium Risk</span>
+                      {baseRisk} Risk
                     </Badge>
                   </td>
                 </tr>
@@ -432,7 +447,7 @@ export default function ReturnsPage() {
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge className="bg-red-100 text-red-800"><span className="text-red-600">High Risk</span></Badge>
+                    <Badge className="bg-red-100 text-red-800">{downsideRisk} Risk</Badge>
                   </td>
                 </tr>
               </tbody>
@@ -455,36 +470,36 @@ export default function ReturnsPage() {
                 Key Success Factors
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Strong market fundamentals</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Premium location & amenities</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Experienced development team</span>
-                </li>
+                {['returnDriver1', 'returnDriver2', 'returnDriver3'].map((field, idx) => {
+                  const insight = getOMValueFromQueries(content, field) ?? 
+                    (idx === 0 ? 'Strong market fundamentals' :
+                     idx === 1 ? 'Premium location & amenities' :
+                     'Experienced development team');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Construction cost overruns</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Market timing risks</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Interest rate volatility</span>
-                </li>
+                {['returnRisk1', 'returnRisk2', 'returnRisk3'].map((field, idx) => {
+                  const insight = getOMValueFromQueries(content, field) ?? 
+                    (idx === 0 ? 'Construction cost overruns' :
+                     idx === 1 ? 'Market timing risks' :
+                     'Interest rate volatility');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
 

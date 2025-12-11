@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Shield, Info } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
+import { getOMValue } from "@/lib/om-queries";
 
 export default function RiskAnalysisPage() {
   const { content } = useOmContent();
@@ -224,18 +225,18 @@ export default function RiskAnalysisPage() {
                 Key Mitigation Strategies
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Fixed-price GMP contract with contingency</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Strong pre-leasing commitments</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Full entitlement and permits secured</span>
-                </li>
+                {['riskMitigation1', 'riskMitigation2', 'riskMitigation3'].map((field, idx) => {
+                  const insight = getOMValue(content, field) ?? 
+                    (idx === 0 ? 'Fixed-price GMP contract with contingency' :
+                     idx === 1 ? 'Strong pre-leasing commitments' :
+                     'Full entitlement and permits secured');
+                  return insight ? (
+                    <li key={field} className="flex items-start">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
             <div>
@@ -243,18 +244,18 @@ export default function RiskAnalysisPage() {
                 Risk Monitoring
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Monthly construction cost reviews</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Quarterly market demand analysis</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Regular entitlement compliance checks</span>
-                </li>
+                {['riskMonitoring1', 'riskMonitoring2', 'riskMonitoring3'].map((field, idx) => {
+                  const insight = getOMValue(content, field) ?? 
+                    (idx === 0 ? 'Monthly construction cost reviews' :
+                     idx === 1 ? 'Quarterly market demand analysis' :
+                     'Regular entitlement compliance checks');
+                  return insight ? (
+                    <li key={field} className="flex items-start">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

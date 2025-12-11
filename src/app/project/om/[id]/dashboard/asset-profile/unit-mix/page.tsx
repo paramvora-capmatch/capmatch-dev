@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Home, DollarSign, Users } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatLocale, formatFixed } from '@/lib/om-utils';
+import { formatLocale, formatFixed, parseNumeric } from '@/lib/om-utils';
+import { OMEmptyState } from '@/components/om/OMEmptyState';
 
 type UnitMixUnit = {
   count?: number | null;
@@ -308,15 +309,21 @@ export default function UnitMixPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Luxury Tier</span>
-                  <Badge className="bg-blue-100 text-blue-800"><span className="text-red-600">Premium</span></Badge>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {content?.luxuryTier || <OMEmptyState />}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Target Market</span>
-                  <Badge variant="outline" className="border-gray-200"><span className="text-red-600">Young Professionals</span></Badge>
+                  <Badge variant="outline" className="border-gray-200">
+                    {content?.targetMarket || <OMEmptyState />}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Competitive Position</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">Top 20%</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    {content?.competitivePosition || <OMEmptyState />}
+                  </Badge>
                 </div>
               </div>
             </div>

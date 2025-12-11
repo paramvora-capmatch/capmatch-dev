@@ -6,6 +6,7 @@ import { DollarSign, Percent, Clock, Shield, FileText, Sparkles } from "lucide-r
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { getOMValue, parseNumeric } from "@/lib/om-utils";
+import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
 
 export default function KeyTermsPage() {
   const { content } = useOmContent();
@@ -187,7 +188,14 @@ export default function KeyTermsPage() {
               <div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
                 <span className="text-sm text-gray-700 font-medium">Origination Fee</span>
                   <Badge className="bg-red-100 text-red-800 border-2 border-red-300 font-semibold text-sm px-3 py-1">
-                    {keyTerms?.origination ? <span className="text-red-600">{keyTerms.origination}</span> : null}
+                    {(() => {
+                      const originationFee = content?.loanFees 
+                        ? typeof content.loanFees === 'number' 
+                          ? `${content.loanFees}%` 
+                          : content.loanFees
+                        : '1.00%';
+                      return originationFee;
+                    })()}
                   </Badge>
               </div>
               <div className="flex justify-between items-center p-4 bg-white rounded-lg border-2 border-red-200 hover:border-red-400 transition-colors">
@@ -281,7 +289,7 @@ export default function KeyTermsPage() {
             <h3 className="text-xl font-semibold text-gray-800">Special Programs & Incentives</h3>
           </div>
           <p className="text-sm text-gray-600 mt-2">
-            <span className="text-red-600">Opportunity Zone benefits, Dallas PFC lease, and workforce housing covenant tied to the Hoque structure.</span>
+            {getOMValueFromQueries(content, 'specialProgramsDescription') ?? 'Opportunity Zone benefits, Dallas PFC lease, and workforce housing covenant tied to the Hoque structure.'}
           </p>
         </CardHeader>
         <CardContent className="pt-0">
@@ -324,7 +332,9 @@ export default function KeyTermsPage() {
                     ? 'bg-blue-100 text-blue-800 border-blue-300'
                     : 'bg-red-100 text-red-800 border-red-300'
                 }`}>
-                  {index === 0 ? <span className="text-red-600">Qualified</span> : <span className="text-red-600">In Structuring</span>}
+                  {index === 0 
+                    ? (content?.opportunityZone ? 'Qualified' : 'In Structuring')
+                    : 'In Structuring'}
                 </Badge>
               </div>
             ))}

@@ -256,54 +256,54 @@ export default function EmploymentPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Employment Strengths</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Strong tech sector presence</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Healthcare employment stability</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Financial services growth</span>
-                </li>
+                {['employmentStrength1', 'employmentStrength2', 'employmentStrength3'].map((field, idx) => {
+                  const insight = getOMValueFromQueries(content, field) ?? 
+                    (idx === 0 ? 'Strong tech sector presence' :
+                     idx === 1 ? 'Healthcare employment stability' :
+                     'Financial services growth');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">High-income tech workers</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Growing employment base</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government</span>
-                </li>
+                {['employmentOpportunity1', 'employmentOpportunity2', 'employmentOpportunity3'].map((field, idx) => {
+                  const insight = getOMValueFromQueries(content, field) ?? 
+                    (idx === 0 ? 'High-income tech workers' :
+                     idx === 1 ? 'Growing employment base' :
+                     'Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Target Market</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Downtown Dallas professionals (AT&T, JP Morgan Chase)</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Healthcare workers (Baylor Medical Center)</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Government employees (Dallas County)</span>
-                </li>
+                {['targetMarket1', 'targetMarket2', 'targetMarket3'].map((field, idx) => {
+                  const insight = getOMValueFromQueries(content, field) ?? 
+                    (idx === 0 ? 'Downtown Dallas professionals (AT&T, JP Morgan Chase)' :
+                     idx === 1 ? 'Healthcare workers (Baylor Medical Center)' :
+                     'Government employees (Dallas County)');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

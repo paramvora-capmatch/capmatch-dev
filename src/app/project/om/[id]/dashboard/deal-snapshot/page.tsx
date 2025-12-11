@@ -239,10 +239,18 @@ export default function DealSnapshotPage() {
             metrics: (
                 <div className="space-y-3">
                     <div className="space-y-2">
-                        {/* Risk matrix - empty for now, can be populated from flat fields in the future */}
-                        <div className="p-2 bg-gray-50 rounded text-sm text-gray-500 text-center">
-                            <span className="text-red-600">No risk flags identified</span>
-                        </div>
+                        {(() => {
+                          const riskMatrix = content?.dealSnapshotDetails?.riskMatrix;
+                          const riskCount = riskMatrix 
+                            ? (riskMatrix.high?.length ?? 0) + (riskMatrix.medium?.length ?? 0)
+                            : 0;
+                          const riskText = riskCount > 0 ? `${riskCount} risk flags identified` : 'No risk flags identified';
+                          return (
+                            <div className="p-2 bg-gray-50 rounded text-sm text-gray-500 text-center">
+                              <span>{riskText}</span>
+                            </div>
+                          );
+                        })()}
                     </div>
                 </div>
             )

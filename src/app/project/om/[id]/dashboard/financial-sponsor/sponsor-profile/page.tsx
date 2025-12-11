@@ -206,13 +206,13 @@ export default function SponsorProfilePage() {
                 <div className="flex items-center">
                   <Phone className="h-4 w-4 text-gray-400 mr-2" />
                   <span className="text-sm text-gray-600">
-                    <span className="text-red-600">Available upon request</span>
+                    {content?.contactInfo || 'Available upon request'}
                   </span>
                 </div>
                 <div className="flex items-center">
                   <Mail className="h-4 w-4 text-gray-400 mr-2" />
                   <span className="text-sm text-gray-600">
-                    <span className="text-red-600">Available upon request</span>
+                    {content?.contactInfo || 'Available upon request'}
                   </span>
                 </div>
                 <div className="pt-4">
@@ -497,10 +497,12 @@ export default function SponsorProfilePage() {
                   {sponsorProfile?.yearFounded ?? null} years of
                   experience
                 </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Proven track record across multiple projects</span>
-                </li>
+                {getOMValueFromQueries(content, 'sponsorStrength1') && (
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">•</span>
+                    {getOMValueFromQueries(content, 'sponsorStrength1') ?? 'Proven track record across multiple projects'}
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -510,19 +512,23 @@ export default function SponsorProfilePage() {
                 Financial Performance
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Strong IRR performance (18-26%)</span>
-                </li>
+                {getOMValueFromQueries(content, 'sponsorStrength2') && (
+                  <li className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    {getOMValueFromQueries(content, 'sponsorStrength2') ?? 'Strong IRR performance (18-26%)'}
+                  </li>
+                )}
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
                   {sponsorProfile?.totalDeveloped ?? null} total
                   development value
                 </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Consistent project delivery</span>
-                </li>
+                {getOMValueFromQueries(content, 'sponsorStrength3') && (
+                  <li className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    {getOMValueFromQueries(content, 'sponsorStrength3') ?? 'Consistent project delivery'}
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -532,18 +538,18 @@ export default function SponsorProfilePage() {
                 Market Position
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Established lender relationships</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Strong local market knowledge</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Reputation for quality execution</span>
-                </li>
+                {['sponsorStrength4', 'sponsorStrength5', 'sponsorStrength6'].map((field, idx) => {
+                  const insight = getOMValueFromQueries(content, field) ?? 
+                    (idx === 0 ? 'Established lender relationships' :
+                     idx === 1 ? 'Strong local market knowledge' :
+                     'Reputation for quality execution');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

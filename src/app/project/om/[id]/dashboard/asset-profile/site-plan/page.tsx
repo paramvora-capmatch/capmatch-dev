@@ -6,7 +6,8 @@ import { MapPin, Building2, TreePine, Car } from 'lucide-react';
 import InteractiveSiteMap from '@/components/om/InteractiveSiteMap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatFixed, getOMValue } from '@/lib/om-utils';
+import { formatFixed, getOMValue, parseNumeric } from '@/lib/om-utils';
+import { OMEmptyState } from '@/components/om/OMEmptyState';
 
 export default function SitePlanPage() {
   const { content } = useOmContent();
@@ -255,7 +256,9 @@ export default function SitePlanPage() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Zoning Compliance</span>
-                <Badge className="bg-green-100 text-green-800"><span className="text-red-600">Compliant</span></Badge>
+                <Badge className="bg-green-100 text-green-800">
+                  {content?.zoningCompliant || <OMEmptyState />}
+                </Badge>
               </div>
             </div>
           </CardContent>

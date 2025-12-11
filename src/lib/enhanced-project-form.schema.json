@@ -104,6 +104,10 @@
         "numberOfStories",
         "residentialUnitMix",
         "commercialSpaceMix",
+        "targetMarket",
+        "luxuryTier",
+        "competitivePosition",
+        "avgRentPSF",
         "parkingSpaces",
         "parkingRatio",
         "amenityList",
@@ -233,7 +237,17 @@
             "ltvStressMax",
             "dscrStressMin",
             "portfolioLTV",
-            "businessPlanSummary"
+            "businessPlanSummary",
+            "breakEven",
+            "riskLevelBase",
+            "riskLevelUpside",
+            "riskLevelDownside",
+            "upsideIRR",
+            "downsideIRR",
+            "upsideEquityMultiple",
+            "downsideEquityMultiple",
+            "upsideProfitMargin",
+            "downsideProfitMargin"
           ]
         }
       ],
@@ -307,6 +321,16 @@
         "dscr",
         "irr",
         "equityMultiple",
+        "breakEven",
+        "riskLevelBase",
+        "riskLevelUpside",
+        "riskLevelDownside",
+        "upsideIRR",
+        "downsideIRR",
+        "upsideEquityMultiple",
+        "downsideEquityMultiple",
+        "upsideProfitMargin",
+        "downsideProfitMargin",
         "trendedNOIYear1",
         "untrendedNOIYear1",
         "trendedYield",
@@ -334,6 +358,7 @@
             "popGrowth201020",
             "medianHHIncome",
             "renterOccupiedPercent",
+            "bachelorsDegreePercent",
             "unemploymentRate",
             "largestEmployer",
             "employerConcentration",
@@ -362,7 +387,12 @@
             "northStarComp",
             "substantialComp",
             "rentComps",
-            "marketOverviewSummary"
+            "marketOverviewSummary",
+            "marketStatus",
+            "demandTrend",
+            "supplyPressure",
+            "totalJobs",
+            "avgGrowth"
           ]
         }
       ],
@@ -373,6 +403,7 @@
         "popGrowth201020",
         "medianHHIncome",
         "renterOccupiedPercent",
+        "bachelorsDegreePercent",
         "unemploymentRate",
         "largestEmployer",
         "employerConcentration",
@@ -389,7 +420,12 @@
         "northStarComp",
         "substantialComp",
         "rentComps",
-        "marketOverviewSummary"
+        "marketOverviewSummary",
+        "marketStatus",
+        "demandTrend",
+        "supplyPressure",
+        "totalJobs",
+        "avgGrowth"
       ]
     },
     {
@@ -440,7 +476,9 @@
         "taxAbatement",
         "paceFinancing",
         "historicTaxCredits",
-        "newMarketsCredits"
+        "newMarketsCredits",
+        "impactFees",
+        "totalIncentiveValue"
       ]
     },
     {
@@ -510,7 +548,9 @@
             "buildableAcreage",
             "allowableFAR",
             "farUtilizedPercent",
-            "densityBonus"
+            "densityBonus",
+            "heightLimit",
+            "zoningCompliant"
           ]
         },
         {
@@ -562,6 +602,8 @@
         "allowableFAR",
         "farUtilizedPercent",
         "densityBonus",
+        "heightLimit",
+        "zoningCompliant",
         "currentSiteStatus",
         "topography",
         "soilConditions",
@@ -1111,6 +1153,10 @@
       "label": "Renter Occupied %",
       "required": true
     },
+    "bachelorsDegreePercent": {
+      "label": "College Grad %",
+      "required": false
+    },
     "popGrowth201020": {
       "label": "Pop Growth 2010-2020",
       "required": false
@@ -1429,6 +1475,98 @@
     },
     "equityMultiple": {
       "label": "Equity Multiple",
+      "required": false
+    },
+    "breakEven": {
+      "label": "Break-even %",
+      "required": false
+    },
+    "riskLevelBase": {
+      "label": "Risk Level (Base)",
+      "required": false
+    },
+    "riskLevelUpside": {
+      "label": "Risk Level (Upside)",
+      "required": false
+    },
+    "riskLevelDownside": {
+      "label": "Risk Level (Downside)",
+      "required": false
+    },
+    "upsideIRR": {
+      "label": "Upside IRR",
+      "required": false
+    },
+    "downsideIRR": {
+      "label": "Downside IRR",
+      "required": false
+    },
+    "upsideEquityMultiple": {
+      "label": "Upside Equity Multiple",
+      "required": false
+    },
+    "downsideEquityMultiple": {
+      "label": "Downside Equity Multiple",
+      "required": false
+    },
+    "upsideProfitMargin": {
+      "label": "Upside Profit Margin",
+      "required": false
+    },
+    "downsideProfitMargin": {
+      "label": "Downside Profit Margin",
+      "required": false
+    },
+    "marketStatus": {
+      "label": "Market Status",
+      "required": false
+    },
+    "demandTrend": {
+      "label": "Demand Trend",
+      "required": false
+    },
+    "supplyPressure": {
+      "label": "Supply Pressure",
+      "required": false
+    },
+    "totalJobs": {
+      "label": "Total Jobs",
+      "required": false
+    },
+    "avgGrowth": {
+      "label": "Average Growth %",
+      "required": false
+    },
+    "totalIncentiveValue": {
+      "label": "Total Incentive Value",
+      "required": false
+    },
+    "impactFees": {
+      "label": "Impact Fees",
+      "required": false
+    },
+    "targetMarket": {
+      "label": "Target Market",
+      "required": false
+    },
+    "luxuryTier": {
+      "label": "Luxury Tier",
+      "required": false
+    },
+    "competitivePosition": {
+      "label": "Competitive Position",
+      "required": false
+    },
+    "avgRentPSF": {
+      "label": "Average Rent PSF",
+      "required": false
+    },
+    "heightLimit": {
+      "label": "Height Limit (ft)",
+      "required": false
+    },
+    "zoningCompliant": {
+      "label": "Zoning Compliance",
       "required": false
     },
     "ltc": {

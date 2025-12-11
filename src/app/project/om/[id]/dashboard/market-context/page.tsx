@@ -10,12 +10,16 @@ import PopulationHeatmap from "@/components/om/PopulationHeatmap";
 import EmploymentMap from "@/components/om/EmploymentMap";
 import SupplyDemandMap from "@/components/om/SupplyDemandMap";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
+import { useOmContent } from "@/hooks/useOmContent";
+import { parseNumeric, formatLocale } from "@/lib/om-utils";
+import { OMEmptyState } from "@/components/om/OMEmptyState";
 
 export default function MarketContextPage() {
   const params = useParams();
   const projectId = params?.id as string;
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
+  const { content } = useOmContent();
 
   useOMPageHeader({
     subtitle: project
@@ -24,6 +28,31 @@ export default function MarketContextPage() {
   });
 
   if (!project) return <div>Project not found</div>;
+
+  // Extract values from content (prioritize flat fields, fallback to nested structure for legacy data)
+  const population = content?.population3Mi ?? content?.marketContextDetails?.demographicProfile?.oneMile?.population ?? null;
+  const popGrowth = content?.popGrowth201020 ?? null;
+  const medianAge = content?.medianAge ?? content?.marketContextDetails?.demographicProfile?.oneMile?.medianAge ?? content?.marketContextDetails?.demographicProfile?.threeMile?.medianAge ?? null;
+  const collegeGrad = content?.bachelorsDegreePercent ?? null;
+
+  const unemployment = content?.unemploymentRate ?? null;
+  const jobGrowth = content?.projGrowth202429 ?? null;
+  const totalJobs = content?.totalJobs ?? null;
+  const avgGrowth = content?.avgGrowth ?? null;
+
+  // Supply metrics - check for flat fields first, then nested structure (legacy)
+  const unitsUC = content?.underConstruction ?? content?.marketContextDetails?.supplyAnalysis?.underConstruction ?? null;
+  const pipeline24mo = content?.planned24Months ?? content?.marketContextDetails?.supplyAnalysis?.planned24Months ?? null;
+  const currentSupply = content?.currentInventory ?? content?.marketContextDetails?.supplyAnalysis?.currentInventory ?? null;
+  const occupancy = content?.averageOccupancy ?? content?.marketContextDetails?.supplyAnalysis?.averageOccupancy ?? null;
+
+  const oppZone = content?.opportunityZone ? 'Qualified' : null;
+  const taxAbatement = content?.exemptionTerm ? `${content.exemptionTerm} Years` : null;
+  const impactFees = content?.impactFees ?? null;
+  const totalIncentiveValue = parseNumeric(content?.totalIncentiveValue);
+  const totalIncentive = totalIncentiveValue 
+    ? `$${formatLocale(totalIncentiveValue)}`
+    : null;
 
   const quadrants = [
     {
@@ -38,19 +67,27 @@ export default function MarketContextPage() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-xs text-gray-500">Population</p>
-              <p className="text-sm font-medium"><span className="text-red-600">425,000</span></p>
+              <p className="text-sm font-medium">
+                {population != null ? (formatLocale(parseNumeric(population)) ?? population) : <OMEmptyState />}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">5yr Growth</p>
-              <p className="text-sm font-medium text-green-600"><span className="text-red-600">+14.2%</span></p>
+              <p className="text-sm font-medium text-green-600">
+                {popGrowth != null ? `+${popGrowth}%` : <OMEmptyState />}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Median Age</p>
-              <p className="text-sm font-medium"><span className="text-red-600">32.5</span></p>
+              <p className="text-sm font-medium">
+                {medianAge != null ? medianAge : <OMEmptyState />}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">College Grad%</p>
-              <p className="text-sm font-medium"><span className="text-red-600">45%</span></p>
+              <p className="text-sm font-medium">
+                {collegeGrad != null ? `${collegeGrad}%` : <OMEmptyState />}
+              </p>
             </div>
           </div>
         </div>
@@ -68,19 +105,27 @@ export default function MarketContextPage() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-xs text-gray-500">Unemployment</p>
-              <p className="text-sm font-medium text-green-600"><span className="text-red-600">3.2%</span></p>
+              <p className="text-sm font-medium text-green-600">
+                {unemployment != null ? `${unemployment}%` : <OMEmptyState />}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Job Growth</p>
-              <p className="text-sm font-medium text-green-600"><span className="text-red-600">+3.5%</span></p>
+              <p className="text-sm font-medium text-green-600">
+                {jobGrowth != null ? `+${jobGrowth}%` : <OMEmptyState />}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Total Jobs</p>
-              <p className="text-sm font-medium"><span className="text-red-600">42,000</span></p>
+              <p className="text-sm font-medium">
+                {totalJobs != null ? formatLocale(totalJobs) : <OMEmptyState />}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Avg Growth</p>
-              <p className="text-sm font-medium text-green-600"><span className="text-red-600">+8.2%</span></p>
+              <p className="text-sm font-medium text-green-600">
+                {avgGrowth != null ? `+${avgGrowth.toFixed(1)}%` : <OMEmptyState />}
+              </p>
             </div>
           </div>
         </div>
@@ -98,19 +143,27 @@ export default function MarketContextPage() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <p className="text-xs text-gray-500">Units U/C</p>
-              <p className="text-sm font-medium"><span className="text-red-600">2,450</span></p>
+              <p className="text-sm font-medium">
+                {unitsUC != null ? formatLocale(unitsUC) : <OMEmptyState />}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">24mo Pipeline</p>
-              <p className="text-sm font-medium"><span className="text-red-600">4,200</span></p>
+              <p className="text-sm font-medium">
+                {pipeline24mo != null ? formatLocale(pipeline24mo) : <OMEmptyState />}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Current Supply</p>
-              <p className="text-sm font-medium"><span className="text-red-600">12,500</span></p>
+              <p className="text-sm font-medium">
+                {currentSupply != null ? formatLocale(currentSupply) : <OMEmptyState />}
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Occupancy</p>
-              <p className="text-sm font-medium text-green-600"><span className="text-red-600">93.5%</span></p>
+              <p className="text-sm font-medium text-green-600">
+                {occupancy != null ? occupancy : <OMEmptyState />}
+              </p>
             </div>
           </div>
         </div>
@@ -125,27 +178,35 @@ export default function MarketContextPage() {
       metrics: (
         <div className="space-y-3">
           <div className="space-y-2">
-            <div className="flex items-center justify-between p-2 bg-green-50 rounded">
-              <span className="text-sm">Opportunity Zone</span>
-              <span className="text-xs text-green-700 font-medium">
-                <span className="text-red-600">Qualified</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
-              <span className="text-sm">Tax Abatement</span>
-              <span className="text-xs text-blue-700 font-medium">
-                <span className="text-red-600">10 Years</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-              <span className="text-sm">Impact Fees</span>
-              <span className="text-xs text-gray-700 font-medium"><span className="text-red-600">$12/SF</span></span>
-            </div>
+            {oppZone && (
+              <div className="flex items-center justify-between p-2 bg-green-50 rounded">
+                <span className="text-sm">Opportunity Zone</span>
+                <span className="text-xs text-green-700 font-medium">
+                  {oppZone}
+                </span>
+              </div>
+            )}
+            {taxAbatement && (
+              <div className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                <span className="text-sm">Tax Abatement</span>
+                <span className="text-xs text-blue-700 font-medium">
+                  {taxAbatement}
+                </span>
+              </div>
+            )}
+            {impactFees && (
+              <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                <span className="text-sm">Impact Fees</span>
+                <span className="text-xs text-gray-700 font-medium">{impactFees}</span>
+              </div>
+            )}
           </div>
-          <div className="pt-2 border-t">
-            <p className="text-xs text-gray-500 mb-1">Total Incentive Value</p>
-            <p className="text-xl font-semibold text-green-600"><span className="text-red-600">$2.4M</span></p>
-          </div>
+          {totalIncentive && (
+            <div className="pt-2 border-t">
+              <p className="text-xs text-gray-500 mb-1">Total Incentive Value</p>
+              <p className="text-xl font-semibold text-green-600">{totalIncentive}</p>
+            </div>
+          )}
         </div>
       ),
     },

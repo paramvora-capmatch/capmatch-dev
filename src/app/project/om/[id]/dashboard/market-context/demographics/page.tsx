@@ -275,46 +275,48 @@ export default function DemographicsPage() {
                   <span className="text-green-500 mr-2">•</span>
                   High median income ({formatCurrency(oneMile?.medianIncome) ?? null} within 1-mile)
                 </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Young professional demographic</span>
-                </li>
+                {getOMValue(content, 'demographicStrength1') && (
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">•</span>
+                    {getOMValue(content, 'demographicStrength1') ?? 'Young professional demographic'}
+                  </li>
+                )}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Walkability to Farmers Market and Deep Ellum entertainment district</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Limited new supply in Deep Ellum/Farmers Market corridor</span>
-                </li>
+                {['demographicOpportunity1', 'demographicOpportunity2', 'demographicOpportunity3'].map((field, idx) => {
+                  const insight = getOMValue(content, field) ?? 
+                    (idx === 0 ? 'Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)' :
+                     idx === 1 ? 'Walkability to Farmers Market and Deep Ellum entertainment district' :
+                     'Limited new supply in Deep Ellum/Farmers Market corridor');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Target Demographics</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Downtown Dallas professionals (25-35)</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Workforce housing eligible households (≤80% AMI)</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Healthcare, finance, and tech workers</span>
-                </li>
+                {['targetDemographic1', 'targetDemographic2', 'targetDemographic3'].map((field, idx) => {
+                  const insight = getOMValue(content, field) ?? 
+                    (idx === 0 ? 'Downtown Dallas professionals (25-35)' :
+                     idx === 1 ? 'Workforce housing eligible households (≤80% AMI)' :
+                     'Healthcare, finance, and tech workers');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

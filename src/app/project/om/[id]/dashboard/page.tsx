@@ -74,6 +74,12 @@ export default function OMDashboardPage() {
 	const irr = getNumericValue(content, "irr", 0);
 	const equityMultiple = getNumericValue(content, "equityMultiple", 0);
 	const totalDevCost = getNumericValue(content, "totalDevelopmentCost", 0);
+	
+	// Extract scenario-specific values (stored derived fields)
+	const upsideIRR = getNumericValue(content, "upsideIRR", null);
+	const downsideIRR = getNumericValue(content, "downsideIRR", null);
+	const upsideEquityMultiple = getNumericValue(content, "upsideEquityMultiple", null);
+	const downsideEquityMultiple = getNumericValue(content, "downsideEquityMultiple", null);
 
 	// Extract project info fields
 	const dealStatus = getOMValue(content, "dealStatus");
@@ -83,7 +89,7 @@ export default function OMDashboardPage() {
 	const projectDescription = getOMValue(content, "projectDescription");
 
 	// Build scenario data from flat fields (for UI display only)
-	// Note: In the future, scenario-specific fields may be stored separately
+	// Use stored derived field values if available, otherwise calculate as fallback
 	const scenarioDataAll = {
 		base: {
 			loanAmount,
@@ -97,16 +103,16 @@ export default function OMDashboardPage() {
 			loanAmount,
 			ltv,
 			ltc,
-			irr: irr * 1.1, // Placeholder - adjust based on actual scenario data
-			equityMultiple: equityMultiple * 1.1,
+			irr: upsideIRR ?? irr * 1.1, // Use stored value or calculate as fallback
+			equityMultiple: upsideEquityMultiple ?? equityMultiple * 1.1,
 			constructionCost: totalDevCost,
 		},
 		downside: {
 			loanAmount,
 			ltv,
 			ltc,
-			irr: irr * 0.9, // Placeholder - adjust based on actual scenario data
-			equityMultiple: equityMultiple * 0.9,
+			irr: downsideIRR ?? irr * 0.9, // Use stored value or calculate as fallback
+			equityMultiple: downsideEquityMultiple ?? equityMultiple * 0.9,
 			constructionCost: totalDevCost,
 		},
 	};
@@ -383,7 +389,7 @@ export default function OMDashboardPage() {
 														: "text-green-600"
 												} group-hover:scale-110 transition-transform duration-200`}
 											>
-												{(key === "upside" || key === "downside") ? <span className="text-red-600">{irr}%</span> : <span>{irr}%</span>}
+												<span>{irr}%</span>
 											</div>
 										</div>
 									)

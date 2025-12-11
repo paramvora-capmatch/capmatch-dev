@@ -6,7 +6,9 @@ import { Building2, BarChart3, Clock } from "lucide-react";
 import SupplyDemandMap from "@/components/om/SupplyDemandMap";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
+import { parseNumeric, formatLocale, formatFixed, getOMValue } from "@/lib/om-utils";
+import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
+import { OMEmptyState } from "@/components/om/OMEmptyState";
 
 export default function SupplyDemandPage() {
   const { content } = useOmContent();
@@ -348,25 +350,19 @@ export default function SupplyDemandPage() {
                   <Badge
                     className={getOccupancyColor(averageOccupancy)}
                     >
-                      {occupancyPercentValue != null
-                        ? occupancyPercentValue >= 95
-                          ? <span className="text-red-600">Tight</span>
-                          : occupancyPercentValue >= 90
-                          ? <span className="text-red-600">Balanced</span>
-                          : <span className="text-red-600">Soft</span>
-                        : null}
+                      {content?.marketStatus || <OMEmptyState />}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Demand Trend</span>
                   <Badge className="bg-green-100 text-green-800">
-                    <span className="text-red-600">↑ Growing</span>
+                    {content?.demandTrend || <OMEmptyState />}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pressure</span>
                   <Badge className="bg-red-100 text-red-800">
-                    <span className="text-red-600">Moderate</span>
+                    {content?.supplyPressure || <OMEmptyState />}
                   </Badge>
                 </div>
               </div>
@@ -389,18 +385,18 @@ export default function SupplyDemandPage() {
                 Supply Strengths
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Limited new supply in Deep Ellum/Farmers Market corridor</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Downtown Dallas occupancy above 94%</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">&lt;6,000 units delivering over next 24 months</span>
-                </li>
+                {['supplyStrength1', 'supplyStrength2', 'supplyStrength3'].map((field, idx) => {
+                  const insight = getOMValueFromQueries(content, field) ?? 
+                    (idx === 0 ? 'Limited new supply in Deep Ellum/Farmers Market corridor' :
+                     idx === 1 ? 'Downtown Dallas occupancy above 94%' :
+                     '<6,000 units delivering over next 24 months');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
 
@@ -409,18 +405,18 @@ export default function SupplyDemandPage() {
                 Market Opportunities
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Strong job growth in Downtown Dallas (12.1% 5-year)</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Workforce housing demand with PFC tax exemption</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Proximity to DART rail and I-30/I-45 interchange</span>
-                </li>
+                {['marketOpportunity1', 'marketOpportunity2', 'marketOpportunity3'].map((field, idx) => {
+                  const insight = getOMValueFromQueries(content, field) ?? 
+                    (idx === 0 ? 'Strong job growth in Downtown Dallas (12.1% 5-year)' :
+                     idx === 1 ? 'Workforce housing demand with PFC tax exemption' :
+                     'Proximity to DART rail and I-30/I-45 interchange');
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
 

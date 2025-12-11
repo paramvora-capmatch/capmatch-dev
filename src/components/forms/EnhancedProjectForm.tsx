@@ -240,6 +240,13 @@ const environmentalOptions = ["Clean", "Remediation"];
 const utilitiesOptions = ["Available", "None"];
 const seismicRiskOptions = ["Low", "Moderate", "High"];
 const phaseIESAFindingOptions = ["Clean", "REC", "HREC"];
+const riskLevelOptions = ["Low", "Medium", "High"];
+const marketStatusOptions = ["Tight", "Balanced", "Soft"];
+const demandTrendOptions = ["↑ Growing", "→ Stable", "↓ Declining"];
+const supplyPressureOptions = ["Low", "Moderate", "High"];
+const luxuryTierOptions = ["Luxury", "Premium", "Value", "Economy"];
+const competitivePositionOptions = ["Top 20%", "Middle 60%", "Bottom 20%"];
+const zoningCompliantOptions = ["Compliant", "Non-Compliant"];
 
 const isProjectValueProvided = (value: unknown): boolean => {
 	if (value === null || value === undefined) return false;
@@ -2517,6 +2524,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			utilities: "button-select",
 			seismicRisk: "button-select",
 			phaseIESAFinding: "button-select",
+			// Derived dropdown fields - use button-select like assetType
+			riskLevelBase: "button-select",
+			riskLevelUpside: "button-select",
+			riskLevelDownside: "button-select",
+			marketStatus: "button-select",
+			demandTrend: "button-select",
+			supplyPressure: "button-select",
+			luxuryTier: "button-select",
+			competitivePosition: "button-select",
+			zoningCompliant: "button-select",
 		}),
 		[]
 	);
@@ -2549,6 +2566,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			utilities: utilitiesOptions,
 			seismicRisk: seismicRiskOptions,
 			phaseIESAFinding: phaseIESAFindingOptions,
+			// Derived dropdown fields
+			riskLevelBase: riskLevelOptions,
+			riskLevelUpside: riskLevelOptions,
+			riskLevelDownside: riskLevelOptions,
+			marketStatus: marketStatusOptions,
+			demandTrend: demandTrendOptions,
+			supplyPressure: supplyPressureOptions,
+			luxuryTier: luxuryTierOptions,
+			competitivePosition: competitivePositionOptions,
+			zoningCompliant: zoningCompliantOptions,
 		}),
 		[]
 	);

@@ -206,7 +206,7 @@ export default function FinancialSponsorPage() {
                         </div>
                         <div>
                             <p className="text-gray-500">Break-even</p>
-                            <p className="font-medium"><span className="text-red-600">78%</span></p>
+                            <p className="font-medium">{content?.breakEven ?? 78}%</p>
                         </div>
                     </div>
                 </div>

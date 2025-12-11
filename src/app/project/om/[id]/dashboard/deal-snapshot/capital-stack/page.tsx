@@ -292,12 +292,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Construction Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> <span className="text-red-600">Cost overruns and delays could strain
-                cash flow</span>
+                <strong>Risk:</strong> {getOMValue(content, 'capitalRisk1') ?? 'Cost overruns and delays could strain cash flow'}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> <span className="text-red-600">Fixed-price GMP contract with
-                experienced contractor</span>
+                <strong>Mitigant:</strong> {getOMValue(content, 'capitalMitigant1') ?? 'Fixed-price GMP contract with experienced contractor'}
               </p>
             </div>
           </div>
@@ -306,12 +304,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Interest Rate Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> <span className="text-red-600">Rising SOFR could increase debt service
-                costs</span>
+                <strong>Risk:</strong> {getOMValue(content, 'capitalRisk2') ?? 'Rising SOFR could increase debt service costs'}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> <span className="text-red-600">12-month interest reserve and rate
-                floor protection</span>
+                <strong>Mitigant:</strong> {getOMValue(content, 'capitalMitigant2') ?? '12-month interest reserve and rate floor protection'}
               </p>
             </div>
           </div>
@@ -320,12 +316,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Pre-Leasing Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> <span className="text-red-600">Insufficient pre-leasing could delay
-                permanent financing</span>
+                <strong>Risk:</strong> {getOMValue(content, 'capitalRisk3') ?? 'Insufficient pre-leasing could delay permanent financing'}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> <span className="text-red-600">Strong market fundamentals and
-                marketing plan</span>
+                <strong>Mitigant:</strong> {getOMValue(content, 'capitalMitigant3') ?? 'Strong market fundamentals and marketing plan'}
               </p>
             </div>
           </div>
