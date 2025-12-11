@@ -107,7 +107,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const { user } = useAuth();
 
   // Get meetings from database with realtime subscriptions
-  const { upcomingMeetings, pastMeetings, isLoading: isMeetingsLoading, refreshMeetings } = useMeetings(projectId);
+  const { upcomingMeetings, pastMeetings, isLoading: isMeetingsLoading, refreshMeetings, updateParticipantResponse } = useMeetings(projectId);
 
   const activeProject = useMemo(
     () => projects?.find((p) => p.id === projectId),
@@ -504,6 +504,55 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                 ))}
                               </div>
                             </div>
+
+                            {/* RSVP Actions */}
+                            {(() => {
+                              const myParticipant = participants.find(p => p.user_id === user?.id);
+                              if (!myParticipant) return null;
+                              
+                              const isUpdating = false; // We could track this state if needed
+
+                              return (
+                                <div className="flex items-center justify-between py-2 border-t border-gray-100">
+                                  <span className="text-xs font-medium text-gray-700">Going?</span>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => updateParticipantResponse(meeting.id, 'accepted')}
+                                      className={cn(
+                                        "px-3 py-1 text-xs font-medium rounded-full transition-colors border",
+                                        myParticipant.response_status === 'accepted'
+                                          ? "bg-blue-600 text-white border-blue-600"
+                                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                                      )}
+                                    >
+                                      Yes
+                                    </button>
+                                    <button
+                                      onClick={() => updateParticipantResponse(meeting.id, 'declined')}
+                                      className={cn(
+                                        "px-3 py-1 text-xs font-medium rounded-full transition-colors border",
+                                        myParticipant.response_status === 'declined'
+                                          ? "bg-blue-600 text-white border-blue-600"
+                                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                                      )}
+                                    >
+                                      No
+                                    </button>
+                                    <button
+                                      onClick={() => updateParticipantResponse(meeting.id, 'tentative')}
+                                      className={cn(
+                                        "px-3 py-1 text-xs font-medium rounded-full transition-colors border",
+                                        myParticipant.response_status === 'tentative'
+                                          ? "bg-blue-600 text-white border-blue-600"
+                                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                                      )}
+                                    >
+                                      Maybe
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })()}
 
                             {/* Video Call Actions */}
                             <div className="flex items-center gap-2 pt-3 border-t border-gray-100">

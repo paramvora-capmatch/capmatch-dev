@@ -142,21 +142,21 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
       if (!user) return;
 
       try {
-        const { error: updateError } = await supabase
-          .from('meeting_participants')
-          .update({
-            response_status: status,
-            responded_at: new Date().toISOString(),
-          })
-          .eq('meeting_id', meetingId)
-          .eq('user_id', user.id);
+        // Call Edge Function to update DB and sync with Google Calendar
+        const { error: invokeError } = await supabase.functions.invoke('update-calendar-response', {
+          body: {
+            meeting_id: meetingId,
+            user_id: user.id,
+            status: status,
+          },
+        });
 
-        if (updateError) {
-          throw updateError;
+        if (invokeError) {
+          throw invokeError;
         }
 
-        // Refresh meetings to get updated data
-        await refreshMeetings();
+        // We don't need to manually refresh here because the Realtime subscription
+        // will detect the change in 'meeting_participants' and trigger a refresh automatically.
       } catch (err) {
         console.error('Error updating participant response:', err);
         setError('Failed to update response');
