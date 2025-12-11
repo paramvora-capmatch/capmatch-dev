@@ -249,7 +249,7 @@ export default function AdvisorDashboardPage() {
         // Fetch borrower data and unread indicators in parallel
         const [borrowerDataResult, unreadMap] = await Promise.all([
           fetchBorrowerData(projectIds, assignedProjects),
-          computeUnreadIndicators(projectIds, user.id),
+          computeUnreadIndicators(projectIds, user.id!),
         ]);
 
         setBorrowerData(borrowerDataResult);
