@@ -165,6 +165,7 @@ export async function syncEventAttendeeResponses(
 
 /**
  * Update meeting_participants table with attendee responses from a single event
+ * Uses batch processing to minimize realtime subscription triggers
  */
 async function syncAttendeesForMeeting(
   supabase: SupabaseClient,
@@ -173,48 +174,80 @@ async function syncAttendeesForMeeting(
 ): Promise<void> {
   console.log(`Syncing ${attendees.length} attendees for meeting ${meetingId}`);
 
-  for (const attendee of attendees) {
-    try {
-      // Find the user by email
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', attendee.email)
-        .single();
+  // First, fetch all profiles in a single query
+  const attendeeEmails = attendees.map(a => a.email);
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, email')
+    .in('email', attendeeEmails);
 
-      if (profileError || !profile) {
-        console.log(`No profile found for email ${attendee.email}`);
-        continue;
-      }
-
-      // Map the response status
-      const responseStatus = mapGoogleResponseStatus(attendee.responseStatus);
-
-      // Update the participant record
-      const { error: updateError } = await supabase
-        .from('meeting_participants')
-        .update({
-          response_status: responseStatus,
-          responded_at: new Date().toISOString(),
-        })
-        .eq('meeting_id', meetingId)
-        .eq('user_id', profile.id);
-
-      if (updateError) {
-        console.error(
-          `Error updating participant ${profile.id}:`,
-          updateError
-        );
-      } else {
-        console.log(
-          `Updated participant ${profile.id} status to ${responseStatus}`
-        );
-      }
-    } catch (attendeeError) {
-      console.error(`Error syncing attendee ${attendee.email}:`, attendeeError);
-      // Continue with next attendee
-    }
+  if (profilesError) {
+    console.error('Error fetching profiles:', profilesError);
+    return;
   }
+
+  if (!profiles || profiles.length === 0) {
+    console.log('No profiles found for attendees');
+    return;
+  }
+
+  // Create a map of email to profile ID
+  const emailToProfileId = new Map(
+    profiles.map(p => [p.email, p.id])
+  );
+
+  // Prepare batch updates
+  const updates = attendees
+    .map(attendee => {
+      const profileId = emailToProfileId.get(attendee.email);
+      if (!profileId) {
+        console.log(`No profile found for email ${attendee.email}`);
+        return null;
+      }
+
+      return {
+        meeting_id: meetingId,
+        user_id: profileId,
+        response_status: mapGoogleResponseStatus(attendee.responseStatus),
+        responded_at: new Date().toISOString(),
+      };
+    })
+    .filter((update): update is NonNullable<typeof update> => update !== null);
+
+  if (updates.length === 0) {
+    console.log('No updates to process');
+    return;
+  }
+
+  // Perform updates individually but in quick succession
+  // Note: Supabase doesn't support batch upserts with conditions, so we still need individual updates
+  // However, the debouncing in useMeetings will batch the realtime events
+  const updatePromises = updates.map(update =>
+    supabase
+      .from('meeting_participants')
+      .update({
+        response_status: update.response_status,
+        responded_at: update.responded_at,
+      })
+      .eq('meeting_id', update.meeting_id)
+      .eq('user_id', update.user_id)
+  );
+
+  const results = await Promise.allSettled(updatePromises);
+  
+  // Log results
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled' && !result.value.error) {
+      console.log(
+        `Updated participant ${updates[index].user_id} status to ${updates[index].response_status}`
+      );
+    } else {
+      console.error(
+        `Error updating participant ${updates[index].user_id}:`,
+        result.status === 'fulfilled' ? result.value.error : result.reason
+      );
+    }
+  });
 }
 
 /**
