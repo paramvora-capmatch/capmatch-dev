@@ -81,6 +81,8 @@ serve(async (req) => {
       return await handleMeetingInvitation(supabaseAdmin, event);
     } else if (event.event_type === "meeting_updated") {
       return await handleMeetingUpdate(supabaseAdmin, event);
+    } else if (event.event_type === "meeting_reminder") {
+      return await handleMeetingReminder(supabaseAdmin, event);
     } else {
       return jsonResponse({ skipped: true, reason: "unsupported_event_type" });
     }
@@ -485,10 +487,10 @@ async function handleMeetingUpdate(
   
   // Add change details
   if (changes.timeChanged) {
-    body += `\n📅 Time has been changed`;
+    body += `\n Time has been changed`;
   }
   if (changes.participantsChanged) {
-    body += `\n👥 Participants updated`;
+    body += `\n Participants updated`;
   }
 
   // Generate link URL - always point to meetings tab in workspace/dashboard
@@ -549,6 +551,118 @@ async function handleMeetingUpdate(
   }
 
   return jsonResponse({ inserted: insertedCount });
+}
+
+// =============================================================================
+// Handler: Meeting Reminder
+// =============================================================================
+
+async function handleMeetingReminder(
+  supabaseAdmin: SupabaseClient,
+  event: DomainEventRow
+) {
+  console.log("[notify-fan-out] Processing meeting reminder event:", {
+    eventId: event.id,
+    meetingId: event.meeting_id,
+    payload: event.payload
+  });
+
+  if (!event.meeting_id) {
+    console.error("[notify-fan-out] Missing meeting_id");
+    return jsonResponse({ inserted: 0, reason: "missing_meeting_id" });
+  }
+
+  const userId = event.payload?.user_id as string | undefined;
+  
+  if (!userId) {
+    console.error("[notify-fan-out] Missing user_id in payload");
+    return jsonResponse({ inserted: 0, reason: "missing_user_id" });
+  }
+
+  // Check if already notified for this event
+  const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+  if (alreadyNotified.has(userId)) {
+    return jsonResponse({ inserted: 0, reason: "already_notified" });
+  }
+
+  // Check user preferences
+  const isMuted = await checkUserPreference(supabaseAdmin, userId, {
+    scopeType: event.project_id ? 'project' : 'global',
+    scopeId: event.project_id || '',
+    eventType: 'meeting_reminder',
+    channel: 'in_app',
+    projectId: event.project_id || '',
+  });
+
+  if (isMuted) {
+    return jsonResponse({ inserted: 0, reason: "user_muted" });
+  }
+
+  // Extract meeting details from payload
+  const meetingTitle = (event.payload?.meeting_title as string) || "a meeting";
+  const startTime = event.payload?.start_time as string;
+  const meetingLink = event.payload?.meeting_link as string | undefined;
+  const reminderMinutes = event.payload?.reminder_minutes as number || 30;
+  
+  // Format the start time for display
+  let timeDisplay = "";
+  if (startTime) {
+    const date = new Date(startTime);
+    timeDisplay = date.toLocaleString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+  }
+
+  // Fetch project name if applicable
+  const projectName = event.project_id 
+    ? await getProjectName(supabaseAdmin, event.project_id)
+    : null;
+
+  // Build notification title and body
+  const title = `Reminder: Meeting in ${reminderMinutes} minutes`;
+  
+  let body = `**${meetingTitle}**`;
+  if (timeDisplay) {
+    body += `\nStarts at ${timeDisplay}`;
+  }
+  if (projectName) {
+    body += `\n${projectName}`;
+  }
+
+  // Generate link URL - always point to meetings tab
+  const linkUrl = event.project_id 
+    ? `/project/workspace/${event.project_id}?tab=meetings`
+    : `/dashboard?tab=meetings`;
+
+  // Insert notification
+  const { error: insertError } = await supabaseAdmin
+    .from("notifications")
+    .insert({
+      user_id: userId,
+      event_id: event.id,
+      title,
+      body,
+      link_url: linkUrl,
+      payload: {
+        type: "meeting_reminder",
+        meeting_id: event.meeting_id,
+        meeting_title: meetingTitle,
+        start_time: startTime,
+        meeting_link: meetingLink,
+        project_id: event.project_id,
+        project_name: projectName,
+        reminder_minutes: reminderMinutes,
+      },
+    });
+
+  if (insertError) {
+    console.error("[notify-fan-out] Failed to insert meeting reminder notification:", insertError);
+    return jsonResponse({ error: "notification_insert_failed" }, 500);
+  }
+
+  return jsonResponse({ inserted: 1 });
 }
 
 // =============================================================================
