@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from "react";
 
 // Type matching the return type from useOMData
 export interface OMData {
@@ -47,8 +47,9 @@ export const OMDataProvider: React.FC<OMDataProviderProps> = ({
 export const useOMDataContext = (): OMDataContextType => {
 	const context = useContext(OMDataContext);
 	if (context === undefined) {
-		throw new Error('useOMDataContext must be used within an OMDataProvider');
+		throw new Error(
+			"useOMDataContext must be used within an OMDataProvider"
+		);
 	}
 	return context;
 };
-
