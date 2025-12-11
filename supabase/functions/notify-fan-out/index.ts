@@ -352,20 +352,6 @@ async function handleMeetingInvitation(
   const meetingTitle = (event.payload?.meeting_title as string) || "a meeting";
   const startTime = event.payload?.start_time as string;
   const meetingLink = event.payload?.meeting_link as string | undefined;
-  
-  // Format the start time for display
-  let timeDisplay = "";
-  if (startTime) {
-    const date = new Date(startTime);
-    timeDisplay = date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZoneName: 'short'
-    });
-  }
 
   // Fetch project name if applicable
   const projectName = event.project_id 
@@ -378,8 +364,8 @@ async function handleMeetingInvitation(
     : `${organizerName} invited you to a meeting`;
   
   let body = `**${meetingTitle}**`;
-  if (timeDisplay) {
-    body += `\n${timeDisplay}`;
+  if (startTime) {
+    body += `\n{{meeting_time}}`;
   }
 
   // Generate link URL - always point to meetings tab in workspace/dashboard
@@ -455,20 +441,6 @@ async function handleMeetingUpdate(
   const startTime = event.payload?.start_time as string;
   const changes = event.payload?.changes as Record<string, unknown> || {};
   const meetingLink = event.payload?.meeting_link as string | undefined;
-  
-  // Format the start time for display
-  let timeDisplay = "";
-  if (startTime) {
-    const date = new Date(startTime);
-    timeDisplay = date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZoneName: 'short'
-    });
-  }
 
   // Fetch project name if applicable
   const projectName = event.project_id 
@@ -481,8 +453,8 @@ async function handleMeetingUpdate(
     : `${organizerName} updated a meeting`;
   
   let body = `**${meetingTitle}**`;
-  if (timeDisplay) {
-    body += `\nNew time: ${timeDisplay}`;
+  if (startTime) {
+    body += `\nNew time: {{meeting_time}}`;
   }
   
   // Add change details
@@ -604,14 +576,13 @@ async function handleMeetingReminder(
   const meetingLink = event.payload?.meeting_link as string | undefined;
   const reminderMinutes = event.payload?.reminder_minutes as number || 30;
   
-  // Format the start time for display
+  // Format the start time for display (UTC, users will interpret in their timezone)
   let timeDisplay = "";
   if (startTime) {
     const date = new Date(startTime);
     timeDisplay = date.toLocaleString('en-US', {
       hour: 'numeric',
-      minute: '2-digit',
-      timeZoneName: 'short'
+      minute: '2-digit'
     });
   }
 
