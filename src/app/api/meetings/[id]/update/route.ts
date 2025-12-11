@@ -140,6 +140,70 @@ export async function PUT(
         .neq('user_id', user.id);
     }
 
+    // Trigger notifications for meeting updates
+    if (timeChanged || toAdd.length > 0 || toRemove.length > 0) {
+      try {
+        // Create domain event for meeting update
+        const { data: eventData, error: eventError } = await supabaseAdmin
+          .rpc('insert_meeting_updated_event', {
+            p_actor_id: user.id,
+            p_project_id: meeting.project_id,
+            p_meeting_id: meetingId,
+            p_changes: {
+              timeChanged,
+              participantsChanged: toAdd.length > 0 || toRemove.length > 0,
+              participantsAdded: toAdd.length,
+              participantsRemoved: toRemove.length,
+            },
+          });
+
+        if (eventError) {
+          console.error('Error creating meeting update event:', eventError);
+        } else {
+          // Invoke notify-fan-out to process notifications
+          const { error: invokeError } = await supabaseAdmin.functions.invoke('notify-fan-out', {
+            body: { eventId: eventData },
+            headers: {
+              Authorization: `Bearer ${supabaseServiceKey}`,
+            },
+          });
+
+          if (invokeError) {
+            console.error('Error invoking notify-fan-out for meeting update:', invokeError);
+          } else {
+            console.log('Successfully triggered meeting update notifications');
+          }
+        }
+
+        // For newly added participants, also send invitation notifications
+        if (toAdd.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          const { data: newInviteEvents, error: inviteEventsError } = await supabaseAdmin
+            .from('domain_events')
+            .select('id')
+            .eq('event_type', 'meeting_invited')
+            .eq('meeting_id', meetingId)
+            .in('payload->>invited_user_id', toAdd);
+
+          if (!inviteEventsError && newInviteEvents && newInviteEvents.length > 0) {
+            for (const domainEvent of newInviteEvents) {
+              await supabaseAdmin.functions.invoke('notify-fan-out', {
+                body: { eventId: domainEvent.id },
+                headers: {
+                  Authorization: `Bearer ${supabaseServiceKey}`,
+                },
+              });
+            }
+            console.log(`Triggered ${newInviteEvents.length} new invitation notifications`);
+          }
+        }
+      } catch (notificationError) {
+        console.error('Error triggering meeting update notifications:', notificationError);
+        // Don't fail the whole operation
+      }
+    }
+
     // 4. Sync with Google Calendar
     // We need to fetch the full list of participants (including new ones) to send to Google
     // We also need their emails.

@@ -79,6 +79,8 @@ serve(async (req) => {
       return await handleChatMessage(supabaseAdmin, event);
     } else if (event.event_type === "meeting_invited") {
       return await handleMeetingInvitation(supabaseAdmin, event);
+    } else if (event.event_type === "meeting_updated") {
+      return await handleMeetingUpdate(supabaseAdmin, event);
     } else {
       return jsonResponse({ skipped: true, reason: "unsupported_event_type" });
     }
@@ -378,10 +380,10 @@ async function handleMeetingInvitation(
     body += `\n${timeDisplay}`;
   }
 
-  // Generate link URL
-  const linkUrl = meetingLink || (event.project_id 
+  // Generate link URL - always point to meetings tab in workspace/dashboard
+  const linkUrl = event.project_id 
     ? `/project/workspace/${event.project_id}?tab=meetings`
-    : `/dashboard?tab=meetings`);
+    : `/dashboard?tab=meetings`;
 
   // Insert notification
   const { error: insertError } = await supabaseAdmin
@@ -410,6 +412,143 @@ async function handleMeetingInvitation(
   }
 
   return jsonResponse({ inserted: 1 });
+}
+
+// =============================================================================
+// Handler: Meeting Update
+// =============================================================================
+
+async function handleMeetingUpdate(
+  supabaseAdmin: SupabaseClient,
+  event: DomainEventRow
+) {
+  console.log("[notify-fan-out] Processing meeting update event:", {
+    eventId: event.id,
+    meetingId: event.meeting_id,
+    payload: event.payload
+  });
+
+  if (!event.meeting_id) {
+    console.error("[notify-fan-out] Missing meeting_id");
+    return jsonResponse({ inserted: 0, reason: "missing_meeting_id" });
+  }
+
+  // Fetch all participants except the organizer
+  const { data: participants, error: partError } = await supabaseAdmin
+    .from('meeting_participants')
+    .select('user_id')
+    .eq('meeting_id', event.meeting_id)
+    .neq('user_id', event.actor_id);
+
+  if (partError || !participants || participants.length === 0) {
+    console.log("[notify-fan-out] No participants to notify");
+    return jsonResponse({ inserted: 0, reason: "no_participants" });
+  }
+
+  // Fetch organizer name
+  const organizerName = await getProfileName(supabaseAdmin, event.actor_id);
+  
+  // Extract meeting details from payload
+  const meetingTitle = (event.payload?.meeting_title as string) || "a meeting";
+  const startTime = event.payload?.start_time as string;
+  const changes = event.payload?.changes as Record<string, unknown> || {};
+  const meetingLink = event.payload?.meeting_link as string | undefined;
+  
+  // Format the start time for display
+  let timeDisplay = "";
+  if (startTime) {
+    const date = new Date(startTime);
+    timeDisplay = date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+  }
+
+  // Fetch project name if applicable
+  const projectName = event.project_id 
+    ? await getProjectName(supabaseAdmin, event.project_id)
+    : null;
+
+  // Build notification title and body
+  const title = projectName
+    ? `${organizerName} updated a meeting - ${projectName}`
+    : `${organizerName} updated a meeting`;
+  
+  let body = `**${meetingTitle}**`;
+  if (timeDisplay) {
+    body += `\nNew time: ${timeDisplay}`;
+  }
+  
+  // Add change details
+  if (changes.timeChanged) {
+    body += `\n📅 Time has been changed`;
+  }
+  if (changes.participantsChanged) {
+    body += `\n👥 Participants updated`;
+  }
+
+  // Generate link URL - always point to meetings tab in workspace/dashboard
+  const linkUrl = event.project_id 
+    ? `/project/workspace/${event.project_id}?tab=meetings`
+    : `/dashboard?tab=meetings`;
+
+  let insertedCount = 0;
+
+  // Create notifications for all participants
+  for (const participant of participants) {
+    // Check if already notified for this event
+    const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+    if (alreadyNotified.has(participant.user_id)) {
+      continue;
+    }
+
+    // Check user preferences
+    const isMuted = await checkUserPreference(supabaseAdmin, participant.user_id, {
+      scopeType: event.project_id ? 'project' : 'global',
+      scopeId: event.project_id || '',
+      eventType: 'meeting_updated',
+      channel: 'in_app',
+      projectId: event.project_id || '',
+    });
+
+    if (isMuted) {
+      continue;
+    }
+
+    // Insert notification
+    const { error: insertError } = await supabaseAdmin
+      .from("notifications")
+      .insert({
+        user_id: participant.user_id,
+        event_id: event.id,
+        title,
+        body,
+        link_url: linkUrl,
+        payload: {
+          type: "meeting_update",
+          meeting_id: event.meeting_id,
+          meeting_title: meetingTitle,
+          start_time: startTime,
+          organizer_id: event.actor_id,
+          organizer_name: organizerName,
+          project_id: event.project_id,
+          project_name: projectName,
+          changes,
+        },
+      });
+
+    if (!insertError) {
+      insertedCount++;
+    } else {
+      console.error("[notify-fan-out] Failed to insert notification:", insertError);
+    }
+  }
+
+  return jsonResponse({ inserted: insertedCount });
 }
 
 // =============================================================================
