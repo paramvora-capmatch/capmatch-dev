@@ -6,8 +6,7 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import ReturnsCharts from "@/components/om/ReturnsCharts";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { getOMValue, parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
-import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
+import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
 
 export default function ReturnsPage() {
   const { content, insights } = useOmContent();
@@ -26,9 +25,9 @@ export default function ReturnsPage() {
   const untrendedYield = parseNumeric(content?.untrendedYield) ?? null;
   const inflationAssumption = parseNumeric(content?.inflationAssumption) ?? null;
   const dscrStressTest = parseNumeric(content?.dscrStressTest) ?? null;
-  const exitStrategy = getOMValue(content, "exitStrategy");
+  const exitStrategy = content?.exitStrategy ?? null;
   const expectedHoldPeriod = parseNumeric(content?.expectedHoldPeriod) ?? null;
-  const businessPlanSummary = getOMValue(content, "businessPlanSummary");
+  const businessPlanSummary = content?.businessPlanSummary ?? null;
   
   const baseProfitMargin = (stabilizedValue && totalDevCost) 
     ? ((stabilizedValue - totalDevCost) / totalDevCost) * 100 
@@ -471,10 +470,10 @@ export default function ReturnsPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['returnDriver1', 'returnDriver2', 'returnDriver3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field, insights) ?? 
-                    (idx === 0 ? 'Strong market fundamentals' :
-                     idx === 1 ? 'Premium location & amenities' :
-                     'Experienced development team');
+                  const fallback = idx === 0 ? 'Strong market fundamentals' :
+                                   idx === 1 ? 'Premium location & amenities' :
+                                   'Experienced development team';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>
@@ -489,10 +488,10 @@ export default function ReturnsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['returnRisk1', 'returnRisk2', 'returnRisk3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field, insights) ?? 
-                    (idx === 0 ? 'Construction cost overruns' :
-                     idx === 1 ? 'Market timing risks' :
-                     'Interest rate volatility');
+                  const fallback = idx === 0 ? 'Construction cost overruns' :
+                                   idx === 1 ? 'Market timing risks' :
+                                   'Interest rate volatility';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>

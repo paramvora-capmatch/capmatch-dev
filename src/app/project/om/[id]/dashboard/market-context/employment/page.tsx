@@ -7,7 +7,6 @@ import EmploymentMap from '@/components/om/EmploymentMap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { parseNumeric, calculateAverage, formatLocale, formatFixed } from '@/lib/om-utils';
-import { getOMValue as getOMValueFromQueries } from '@/lib/om-queries';
 
 export default function EmploymentPage() {
   const { content, insights } = useOmContent();
@@ -259,10 +258,10 @@ export default function EmploymentPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Employment Strengths</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['employmentStrength1', 'employmentStrength2', 'employmentStrength3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field, insights) ?? 
-                    (idx === 0 ? 'Strong tech sector presence' :
-                     idx === 1 ? 'Healthcare employment stability' :
-                     'Financial services growth');
+                  const fallback = idx === 0 ? 'Strong tech sector presence' :
+                                   idx === 1 ? 'Healthcare employment stability' :
+                                   'Financial services growth';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>
@@ -277,10 +276,10 @@ export default function EmploymentPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['employmentOpportunity1', 'employmentOpportunity2', 'employmentOpportunity3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field, insights) ?? 
-                    (idx === 0 ? 'High-income tech workers' :
-                     idx === 1 ? 'Growing employment base' :
-                     'Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government');
+                  const fallback = idx === 0 ? 'High-income tech workers' :
+                                   idx === 1 ? 'Growing employment base' :
+                                   'Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
@@ -295,10 +294,10 @@ export default function EmploymentPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Target Market</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['targetMarket1', 'targetMarket2', 'targetMarket3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field, insights) ?? 
-                    (idx === 0 ? 'Downtown Dallas professionals (AT&T, JP Morgan Chase)' :
-                     idx === 1 ? 'Healthcare workers (Baylor Medical Center)' :
-                     'Government employees (Dallas County)');
+                  const fallback = idx === 0 ? 'Downtown Dallas professionals (AT&T, JP Morgan Chase)' :
+                                   idx === 1 ? 'Healthcare workers (Baylor Medical Center)' :
+                                   'Government employees (Dallas County)';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>

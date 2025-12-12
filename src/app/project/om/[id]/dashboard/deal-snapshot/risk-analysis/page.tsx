@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Shield, Info } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { getOMValue } from "@/lib/om-queries";
 
 export default function RiskAnalysisPage() {
   const { content, insights } = useOmContent();
@@ -233,10 +232,10 @@ export default function RiskAnalysisPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['riskMitigation1', 'riskMitigation2', 'riskMitigation3'].map((field, idx) => {
-                  const insight = getOMValue(content, field, insights) ?? 
-                    (idx === 0 ? 'Fixed-price GMP contract with contingency' :
-                     idx === 1 ? 'Strong pre-leasing commitments' :
-                     'Full entitlement and permits secured');
+                  const fallback = idx === 0 ? 'Fixed-price GMP contract with contingency' :
+                                   idx === 1 ? 'Strong pre-leasing commitments' :
+                                   'Full entitlement and permits secured';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-start">
                       <span className="text-green-500 mr-2">•</span>
@@ -252,10 +251,10 @@ export default function RiskAnalysisPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['riskMonitoring1', 'riskMonitoring2', 'riskMonitoring3'].map((field, idx) => {
-                  const insight = getOMValue(content, field, insights) ?? 
-                    (idx === 0 ? 'Monthly construction cost reviews' :
-                     idx === 1 ? 'Quarterly market demand analysis' :
-                     'Regular entitlement compliance checks');
+                  const fallback = idx === 0 ? 'Monthly construction cost reviews' :
+                                   idx === 1 ? 'Quarterly market demand analysis' :
+                                   'Regular entitlement compliance checks';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-start">
                       <span className="text-blue-500 mr-2">•</span>

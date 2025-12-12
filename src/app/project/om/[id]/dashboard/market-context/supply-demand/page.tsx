@@ -6,8 +6,7 @@ import { Building2, BarChart3, Clock } from "lucide-react";
 import SupplyDemandMap from "@/components/om/SupplyDemandMap";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { parseNumeric, formatLocale, formatFixed, getOMValue } from "@/lib/om-utils";
-import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
+import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
 import { OMEmptyState } from "@/components/om/OMEmptyState";
 
 export default function SupplyDemandPage() {
@@ -386,10 +385,10 @@ export default function SupplyDemandPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['supplyStrength1', 'supplyStrength2', 'supplyStrength3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field, insights) ?? 
-                    (idx === 0 ? 'Limited new supply in Deep Ellum/Farmers Market corridor' :
-                     idx === 1 ? 'Downtown Dallas occupancy above 94%' :
-                     '<6,000 units delivering over next 24 months');
+                  const fallback = idx === 0 ? 'Limited new supply in Deep Ellum/Farmers Market corridor' :
+                                   idx === 1 ? 'Downtown Dallas occupancy above 94%' :
+                                   '<6,000 units delivering over next 24 months';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>
@@ -406,10 +405,10 @@ export default function SupplyDemandPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['marketOpportunity1', 'marketOpportunity2', 'marketOpportunity3'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field, insights) ?? 
-                    (idx === 0 ? 'Strong job growth in Downtown Dallas (12.1% 5-year)' :
-                     idx === 1 ? 'Workforce housing demand with PFC tax exemption' :
-                     'Proximity to DART rail and I-30/I-45 interchange');
+                  const fallback = idx === 0 ? 'Strong job growth in Downtown Dallas (12.1% 5-year)' :
+                                   idx === 1 ? 'Workforce housing demand with PFC tax exemption' :
+                                   'Proximity to DART rail and I-30/I-45 interchange';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>

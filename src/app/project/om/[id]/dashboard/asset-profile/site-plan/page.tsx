@@ -6,7 +6,7 @@ import { MapPin, Building2, TreePine, Car } from 'lucide-react';
 import InteractiveSiteMap from '@/components/om/InteractiveSiteMap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatFixed, getOMValue, parseNumeric } from '@/lib/om-utils';
+import { formatFixed, parseNumeric } from '@/lib/om-utils';
 import { OMEmptyState } from '@/components/om/OMEmptyState';
 
 export default function SitePlanPage() {
@@ -66,21 +66,21 @@ export default function SitePlanPage() {
       : parkingRatioValue;
 
   // Extract site context fields
-  const currentSiteStatus = getOMValue(content, "currentSiteStatus");
-  const siteAccess = getOMValue(content, "siteAccess");
-  const proximityShopping = getOMValue(content, "proximityShopping");
-  const soilConditions = getOMValue(content, "soilConditions");
-  const wetlandsPresent = getOMValue(content, "wetlandsPresent");
-  const seismicRisk = getOMValue(content, "seismicRisk");
-  const phaseIESAFinding = getOMValue(content, "phaseIESAFinding");
-  const utilityAvailability = getOMValue(content, "utilityAvailability");
-  const easements = getOMValue(content, "easements");
-  const accessPoints = getOMValue(content, "accessPoints");
-  const adjacentLandUse = getOMValue(content, "adjacentLandUse");
-  const noiseFactors = getOMValue(content, "noiseFactors");
-  const viewCorridors = getOMValue(content, "viewCorridors");
-  const topography = getOMValue(content, "topography");
-  const floodZone = getOMValue(content, "floodZone");
+  const currentSiteStatus = content?.currentSiteStatus ?? null;
+  const siteAccess = content?.siteAccess ?? null;
+  const proximityShopping = content?.proximityShopping ?? null;
+  const soilConditions = content?.soilConditions ?? null;
+  const wetlandsPresent = content?.wetlandsPresent ?? null;
+  const seismicRisk = content?.seismicRisk ?? null;
+  const phaseIESAFinding = content?.phaseIESAFinding ?? null;
+  const utilityAvailability = content?.utilityAvailability ?? null;
+  const easements = content?.easements ?? null;
+  const accessPoints = content?.accessPoints ?? null;
+  const adjacentLandUse = content?.adjacentLandUse ?? null;
+  const noiseFactors = content?.noiseFactors ?? null;
+  const viewCorridors = content?.viewCorridors ?? null;
+  const topography = content?.topography ?? null;
+  const floodZone = content?.floodZone ?? null;
 
   useOMPageHeader({
     subtitle: "Layout of buildings, circulation, zoning, and site efficiencies.",

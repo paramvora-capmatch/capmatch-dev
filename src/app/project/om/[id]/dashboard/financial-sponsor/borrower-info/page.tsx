@@ -5,32 +5,31 @@ import { Badge } from '@/components/ui/badge';
 import { User, Building2, Phone, Mail, MapPin, Briefcase, Award, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { getOMValue } from '@/lib/om-utils';
 
 export default function BorrowerInfoPage() {
   const { content } = useOmContent();
 
   // Extract borrower fields from flat OM content
-  const fullLegalName = getOMValue(content, "fullLegalName");
-  const primaryEntityName = getOMValue(content, "primaryEntityName");
-  const primaryEntityStructure = getOMValue(content, "primaryEntityStructure");
-  const contactEmail = getOMValue(content, "contactEmail");
-  const contactPhone = getOMValue(content, "contactPhone");
-  const contactAddress = getOMValue(content, "contactAddress");
-  const yearsCREExperienceRange = getOMValue(content, "yearsCREExperienceRange");
-  const assetClassesExperience = getOMValue(content, "assetClassesExperience");
-  const geographicMarketsExperience = getOMValue(content, "geographicMarketsExperience");
-  const totalDealValueClosedRange = getOMValue(content, "totalDealValueClosedRange");
-  const existingLenderRelationships = getOMValue(content, "existingLenderRelationships");
-  const bioNarrative = getOMValue(content, "bioNarrative");
-  const creditScoreRange = getOMValue(content, "creditScoreRange");
-  const netWorthRange = getOMValue(content, "netWorthRange");
-  const liquidityRange = getOMValue(content, "liquidityRange");
-  const bankruptcyHistory = getOMValue(content, "bankruptcyHistory");
-  const foreclosureHistory = getOMValue(content, "foreclosureHistory");
-  const litigationHistory = getOMValue(content, "litigationHistory");
-  const linkedinUrl = getOMValue(content, "linkedinUrl");
-  const websiteUrl = getOMValue(content, "websiteUrl");
+  const fullLegalName = content?.fullLegalName ?? null;
+  const primaryEntityName = content?.primaryEntityName ?? null;
+  const primaryEntityStructure = content?.primaryEntityStructure ?? null;
+  const contactEmail = content?.contactEmail ?? null;
+  const contactPhone = content?.contactPhone ?? null;
+  const contactAddress = content?.contactAddress ?? null;
+  const yearsCREExperienceRange = content?.yearsCREExperienceRange ?? null;
+  const assetClassesExperience = content?.assetClassesExperience ?? null;
+  const geographicMarketsExperience = content?.geographicMarketsExperience ?? null;
+  const totalDealValueClosedRange = content?.totalDealValueClosedRange ?? null;
+  const existingLenderRelationships = content?.existingLenderRelationships ?? null;
+  const bioNarrative = content?.bioNarrative ?? null;
+  const creditScoreRange = content?.creditScoreRange ?? null;
+  const netWorthRange = content?.netWorthRange ?? null;
+  const liquidityRange = content?.liquidityRange ?? null;
+  const bankruptcyHistory = content?.bankruptcyHistory ?? null;
+  const foreclosureHistory = content?.foreclosureHistory ?? null;
+  const litigationHistory = content?.litigationHistory ?? null;
+  const linkedinUrl = content?.linkedinUrl ?? null;
+  const websiteUrl = content?.websiteUrl ?? null;
 
   useOMPageHeader({
     subtitle: "Borrower entity information, experience, and financial profile.",

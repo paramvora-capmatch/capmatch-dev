@@ -16,8 +16,7 @@ import {
 import PlaceholderImage from "@/components/ui/PlaceholderImage";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { formatLocale, parseNumeric, getOMValue } from "@/lib/om-utils";
-import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
+import { formatLocale, parseNumeric } from "@/lib/om-utils";
 
 export default function SponsorProfilePage() {
   const { content, insights } = useOmContent();
@@ -498,10 +497,10 @@ export default function SponsorProfilePage() {
                   {sponsorProfile?.yearFounded ?? null} years of
                   experience
                 </li>
-                {getOMValueFromQueries(content, 'sponsorStrength1', insights) && (
+                {(insights?.sponsorStrength1 ?? content?.sponsorStrength1) && (
                   <li className="flex items-center">
                     <span className="text-green-500 mr-2">•</span>
-                    {getOMValueFromQueries(content, 'sponsorStrength1', insights) ?? 'Proven track record across multiple projects'}
+                    {insights?.sponsorStrength1 ?? content?.sponsorStrength1 ?? 'Proven track record across multiple projects'}
                   </li>
                 )}
               </ul>
@@ -513,10 +512,10 @@ export default function SponsorProfilePage() {
                 Financial Performance
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                {getOMValueFromQueries(content, 'sponsorStrength2', insights) && (
+                {(insights?.sponsorStrength2 ?? content?.sponsorStrength2) && (
                   <li className="flex items-center">
                     <span className="text-blue-500 mr-2">•</span>
-                    {getOMValueFromQueries(content, 'sponsorStrength2', insights) ?? 'Strong IRR performance (18-26%)'}
+                    {insights?.sponsorStrength2 ?? content?.sponsorStrength2 ?? 'Strong IRR performance (18-26%)'}
                   </li>
                 )}
                 <li className="flex items-center">
@@ -524,10 +523,10 @@ export default function SponsorProfilePage() {
                   {sponsorProfile?.totalDeveloped ?? null} total
                   development value
                 </li>
-                {getOMValueFromQueries(content, 'sponsorStrength3', insights) && (
+                {(insights?.sponsorStrength3 ?? content?.sponsorStrength3) && (
                   <li className="flex items-center">
                     <span className="text-blue-500 mr-2">•</span>
-                    {getOMValueFromQueries(content, 'sponsorStrength3', insights) ?? 'Consistent project delivery'}
+                    {insights?.sponsorStrength3 ?? content?.sponsorStrength3 ?? 'Consistent project delivery'}
                   </li>
                 )}
               </ul>
@@ -540,10 +539,10 @@ export default function SponsorProfilePage() {
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
                 {['sponsorStrength4', 'sponsorStrength5', 'sponsorStrength6'].map((field, idx) => {
-                  const insight = getOMValueFromQueries(content, field, insights) ?? 
-                    (idx === 0 ? 'Established lender relationships' :
-                     idx === 1 ? 'Strong local market knowledge' :
-                     'Reputation for quality execution');
+                  const fallback = idx === 0 ? 'Established lender relationships' :
+                                   idx === 1 ? 'Strong local market knowledge' :
+                                   'Reputation for quality execution';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>

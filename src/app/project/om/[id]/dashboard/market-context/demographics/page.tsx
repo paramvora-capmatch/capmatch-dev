@@ -6,7 +6,7 @@ import { Users, TrendingUp, MapPin, BarChart3 } from 'lucide-react';
 import PopulationHeatmap from '@/components/om/PopulationHeatmap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatLocale, formatCurrency, parseNumeric, getOMValue } from '@/lib/om-utils';
+import { formatLocale, formatCurrency, parseNumeric } from '@/lib/om-utils';
 
 export default function DemographicsPage() {
   const { content, insights } = useOmContent();
@@ -69,9 +69,9 @@ export default function DemographicsPage() {
 
   // Extract location/connectivity fields
   const walkabilityScore = parseNumeric(content?.walkabilityScore) ?? null;
-  const infrastructureCatalyst = getOMValue(content, "infrastructureCatalyst");
-  const broadbandSpeed = getOMValue(content, "broadbandSpeed");
-  const crimeRiskLevel = getOMValue(content, "crimeRiskLevel");
+  const infrastructureCatalyst = content?.infrastructureCatalyst ?? null;
+  const broadbandSpeed = content?.broadbandSpeed ?? null;
+  const crimeRiskLevel = content?.crimeRiskLevel ?? null;
 
   useOMPageHeader({
     subtitle: "Population make-up, income bands, and growth across key radii.",
@@ -303,10 +303,10 @@ export default function DemographicsPage() {
                   <span className="text-green-500 mr-2">•</span>
                   High median income ({formatCurrency(medianIncome1Mi) ?? null} within 1-mile)
                 </li>
-                {getOMValue(content, 'demographicStrength1', insights) && (
+                {(insights?.demographicStrength1 ?? content?.demographicStrength1) && (
                   <li className="flex items-center">
                     <span className="text-green-500 mr-2">•</span>
-                    {getOMValue(content, 'demographicStrength1', insights) ?? 'Young professional demographic'}
+                    {insights?.demographicStrength1 ?? content?.demographicStrength1 ?? 'Young professional demographic'}
                   </li>
                 )}
               </ul>
@@ -316,10 +316,10 @@ export default function DemographicsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['demographicOpportunity1', 'demographicOpportunity2', 'demographicOpportunity3'].map((field, idx) => {
-                  const insight = getOMValue(content, field, insights) ?? 
-                    (idx === 0 ? 'Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)' :
-                     idx === 1 ? 'Walkability to Farmers Market and Deep Ellum entertainment district' :
-                     'Limited new supply in Deep Ellum/Farmers Market corridor');
+                  const fallback = idx === 0 ? 'Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)' :
+                                   idx === 1 ? 'Walkability to Farmers Market and Deep Ellum entertainment district' :
+                                   'Limited new supply in Deep Ellum/Farmers Market corridor';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
@@ -334,10 +334,10 @@ export default function DemographicsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Target Demographics</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['targetDemographic1', 'targetDemographic2', 'targetDemographic3'].map((field, idx) => {
-                  const insight = getOMValue(content, field, insights) ?? 
-                    (idx === 0 ? 'Downtown Dallas professionals (25-35)' :
-                     idx === 1 ? 'Workforce housing eligible households (≤80% AMI)' :
-                     'Healthcare, finance, and tech workers');
+                  const fallback = idx === 0 ? 'Downtown Dallas professionals (25-35)' :
+                                   idx === 1 ? 'Workforce housing eligible households (≤80% AMI)' :
+                                   'Healthcare, finance, and tech workers';
+                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>

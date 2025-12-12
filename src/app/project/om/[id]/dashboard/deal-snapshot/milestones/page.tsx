@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { getOMValue, parseNumeric, formatLocale } from '@/lib/om-utils';
+import { parseNumeric, formatLocale } from '@/lib/om-utils';
 
 export default function MilestonesPage() {
   const { content } = useOmContent();
@@ -89,7 +89,7 @@ export default function MilestonesPage() {
   // Extract construction/lease-up fields
   const preLeasedSF = parseNumeric(content?.preLeasedSF) ?? null;
   const drawSchedule = content?.drawSchedule;
-  const absorptionProjection = getOMValue(content, "absorptionProjection");
+  const absorptionProjection = content?.absorptionProjection ?? null;
 
   useOMPageHeader({
     subtitle: "Timeline of critical phases, durations, and current status.",

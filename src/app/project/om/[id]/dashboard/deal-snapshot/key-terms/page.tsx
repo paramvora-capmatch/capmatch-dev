@@ -5,19 +5,18 @@ import { Badge } from "@/components/ui/badge";
 import { DollarSign, Percent, Clock, Shield, FileText, Sparkles } from "lucide-react";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { getOMValue, parseNumeric } from "@/lib/om-utils";
-import { getOMValue as getOMValueFromQueries } from "@/lib/om-queries";
+import { parseNumeric } from "@/lib/om-utils";
 
 export default function KeyTermsPage() {
   const { content, insights } = useOmContent();
   
   // Extract additional loan term fields
-  const interestRateType = getOMValue(content, "interestRateType");
+  const interestRateType = content?.interestRateType ?? null;
   const interestOnlyPeriodMonths = parseNumeric(content?.interestOnlyPeriodMonths) ?? null;
   const targetLtvPercent = parseNumeric(content?.targetLtvPercent) ?? null;
   const targetLtcPercent = parseNumeric(content?.targetLtcPercent) ?? null;
-  const useOfProceeds = getOMValue(content, "useOfProceeds");
-  const permTakeoutPlanned = getOMValue(content, "permTakeoutPlanned");
+  const useOfProceeds = content?.useOfProceeds ?? null;
+  const permTakeoutPlanned = content?.permTakeoutPlanned ?? null;
 
   // Build key terms from flat fields
   const keyTerms = {
@@ -289,7 +288,7 @@ export default function KeyTermsPage() {
             <h3 className="text-xl font-semibold text-gray-800">Special Programs & Incentives</h3>
           </div>
           <p className="text-sm text-gray-600 mt-2">
-            {getOMValueFromQueries(content, 'specialProgramsDescription', insights) ?? 'Opportunity Zone benefits, Dallas PFC lease, and workforce housing covenant tied to the Hoque structure.'}
+            {insights?.specialProgramsDescription ?? content?.specialProgramsDescription ?? 'Opportunity Zone benefits, Dallas PFC lease, and workforce housing covenant tied to the Hoque structure.'}
           </p>
         </CardHeader>
         <CardContent className="pt-0">

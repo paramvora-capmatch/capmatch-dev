@@ -13,7 +13,7 @@ import {
 import { LucideIcon } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatLocale, parseNumeric, getOMValue } from '@/lib/om-utils';
+import { formatLocale, parseNumeric } from '@/lib/om-utils';
 
 export default function AmenitiesPage() {
   const { content, insights } = useOmContent();
@@ -88,11 +88,11 @@ export default function AmenitiesPage() {
 
   // Extract systems/ESG fields
   const adaCompliantPercent = parseNumeric(content?.adaCompliantPercent) ?? null;
-  const hvacSystem = getOMValue(content, "hvacSystem");
-  const roofTypeAge = getOMValue(content, "roofTypeAge");
+  const hvacSystem = content?.hvacSystem ?? null;
+  const roofTypeAge = content?.roofTypeAge ?? null;
   const solarCapacity = parseNumeric(content?.solarCapacity) ?? null;
   const evChargingStations = parseNumeric(content?.evChargingStations) ?? null;
-  const leedGreenRating = getOMValue(content, "leedGreenRating");
+  const leedGreenRating = content?.leedGreenRating ?? null;
   const amenitySF = parseNumeric(content?.amenitySF) ?? null;
 
   useOMPageHeader({

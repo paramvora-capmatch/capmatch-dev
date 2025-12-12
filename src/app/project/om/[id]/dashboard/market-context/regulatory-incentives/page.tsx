@@ -5,27 +5,27 @@ import { Badge } from '@/components/ui/badge';
 import { Zap, Building2, DollarSign, Shield } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { getOMValue, parseNumeric, formatLocale } from '@/lib/om-utils';
+import { parseNumeric, formatLocale } from '@/lib/om-utils';
 
 export default function RegulatoryIncentivesPage() {
   const { content } = useOmContent();
 
   // Extract special considerations fields
-  const affordableHousing = getOMValue(content, "affordableHousing");
+  const affordableHousing = content?.affordableHousing ?? null;
   const amiTargetPercent = parseNumeric(content?.amiTargetPercent) ?? null;
-  const relocationPlan = getOMValue(content, "relocationPlan");
-  const taxExemption = getOMValue(content, "taxExemption");
-  const exemptionStructure = getOMValue(content, "exemptionStructure");
-  const sponsoringEntity = getOMValue(content, "sponsoringEntity");
-  const exemptionTerm = getOMValue(content, "exemptionTerm");
-  const seismicPMLRisk = getOMValue(content, "seismicPMLRisk");
-  const opportunityZone = getOMValue(content, "opportunityZone");
-  const incentiveStacking = getOMValue(content, "incentiveStacking");
-  const tifDistrict = getOMValue(content, "tifDistrict");
-  const taxAbatement = getOMValue(content, "taxAbatement");
-  const paceFinancing = getOMValue(content, "paceFinancing");
-  const historicTaxCredits = getOMValue(content, "historicTaxCredits");
-  const newMarketsCredits = getOMValue(content, "newMarketsCredits");
+  const relocationPlan = content?.relocationPlan ?? null;
+  const taxExemption = content?.taxExemption ?? null;
+  const exemptionStructure = content?.exemptionStructure ?? null;
+  const sponsoringEntity = content?.sponsoringEntity ?? null;
+  const exemptionTerm = content?.exemptionTerm ?? null;
+  const seismicPMLRisk = content?.seismicPMLRisk ?? null;
+  const opportunityZone = content?.opportunityZone ?? null;
+  const incentiveStacking = content?.incentiveStacking ?? null;
+  const tifDistrict = content?.tifDistrict ?? null;
+  const taxAbatement = content?.taxAbatement ?? null;
+  const paceFinancing = content?.paceFinancing ?? null;
+  const historicTaxCredits = content?.historicTaxCredits ?? null;
+  const newMarketsCredits = content?.newMarketsCredits ?? null;
 
   useOMPageHeader({
     subtitle: "Regulatory considerations, tax incentives, and special programs.",

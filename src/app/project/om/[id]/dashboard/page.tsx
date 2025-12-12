@@ -10,6 +10,7 @@ import { AIInsightsBar } from "@/components/om/AIInsightsBar";
 import { ImageSlideshow } from "@/components/om/ImageSlideshow";
 import { useOMDashboard } from "@/contexts/OMDashboardContext";
 import { useOMDataContext } from "@/contexts/OMDataContext";
+import { useOmContent } from "@/hooks/useOmContent";
 import { cn } from "@/utils/cn";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import {
@@ -18,7 +19,6 @@ import {
 	formatFixed,
 	formatLocale,
 } from "@/lib/om-utils";
-import { getOMValue } from "@/lib/om-queries";
 import { OMErrorState } from "@/components/om/OMErrorState";
 import { OMLoadingState } from "@/components/om/OMLoadingState";
 import {
@@ -40,6 +40,8 @@ export default function OMDashboardPage() {
 	const { scenario, setScenario } = useOMDashboard();
 	// Consume OM data from context (fetched once at layout level)
 	const { omData, isLoading, error } = useOMDataContext();
+	// Get tracked content (Proxy-wrapped for automatic logging)
+	const { content } = useOmContent();
 
 	useOMPageHeader({
 		subtitle: project
@@ -59,8 +61,7 @@ export default function OMDashboardPage() {
 		return <OMErrorState error={error} />;
 	}
 
-	// Extract values from OM data (flat structure)
-	const content = omData.content || {};
+	// Content is already extracted from useOmContent above (tracked version)
 
 	// Extract numeric values using shared utility (access flat fields directly)
 	const loanAmount = getNumericValue(content, "loanAmountRequested", 0);
@@ -83,11 +84,11 @@ export default function OMDashboardPage() {
 	const downsideEquityMultiple = getNumericValue(content, "downsideEquityMultiple", null);
 
 	// Extract project info fields
-	const dealStatus = getOMValue(content, "dealStatus");
-	const assetType = getOMValue(content, "assetType");
-	const constructionType = getOMValue(content, "constructionType");
-	const projectPhase = getOMValue(content, "projectPhase");
-	const projectDescription = getOMValue(content, "projectDescription");
+	const dealStatus = content?.dealStatus ?? null;
+	const assetType = content?.assetType ?? null;
+	const constructionType = content?.constructionType ?? null;
+	const projectPhase = content?.projectPhase ?? null;
+	const projectDescription = content?.projectDescription ?? null;
 
 	// Build scenario data from flat fields (for UI display only)
 	// Use stored derived field values if available, otherwise calculate as fallback
@@ -136,13 +137,13 @@ export default function OMDashboardPage() {
 		ltv: data.ltv,
 	});
 
-	// Build timeline from flat date fields (extract values from rich format if needed)
+	// Build timeline from flat date fields
 	const timelineData = [
-		{ phase: "Land Acquisition", date: getOMValue(content, "landAcqClose"), status: "completed" },
-		{ phase: "Entitlements", date: getOMValue(content, "entitlements"), status: "completed" },
-		{ phase: "Groundbreaking", date: getOMValue(content, "groundbreakingDate"), status: "current" },
-		{ phase: "Completion", date: getOMValue(content, "completionDate"), status: "pending" },
-		{ phase: "Stabilization", date: getOMValue(content, "stabilization"), status: "pending" },
+		{ phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: "completed" },
+		{ phase: "Entitlements", date: content?.entitlements ?? null, status: "completed" },
+		{ phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: "current" },
+		{ phase: "Completion", date: content?.completionDate ?? null, status: "pending" },
+		{ phase: "Stabilization", date: content?.stabilization ?? null, status: "pending" },
 	].filter(item => item.date); // Only show items with dates
 	const quadrants = [
 		{
@@ -293,7 +294,7 @@ export default function OMDashboardPage() {
 									<span className="text-gray-500">Supply Pipeline:</span>
 									<span className="font-medium ml-1">
 										{(() => {
-											const supplyPipeline = getOMValue(content, "supplyPipeline");
+											const supplyPipeline = content?.supplyPipeline;
 											return supplyPipeline ? formatLocale(Array.isArray(supplyPipeline) ? supplyPipeline.length : supplyPipeline) : "-";
 										})()}
 									</span>
@@ -303,7 +304,7 @@ export default function OMDashboardPage() {
 										Months of Supply:
 									</span>
 									<span className="font-medium ml-1">
-										{getOMValue(content, "monthsOfSupply") ?? "-"}
+										{content?.monthsOfSupply ?? "-"}
 									</span>
 								</div>
 							</div>
