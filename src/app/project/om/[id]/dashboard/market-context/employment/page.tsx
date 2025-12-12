@@ -257,11 +257,8 @@ export default function EmploymentPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Employment Strengths</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['employmentStrength1', 'employmentStrength2', 'employmentStrength3'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'Strong tech sector presence' :
-                                   idx === 1 ? 'Healthcare employment stability' :
-                                   'Financial services growth';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['employmentStrength1', 'employmentStrength2', 'employmentStrength3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>
@@ -275,11 +272,8 @@ export default function EmploymentPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['employmentOpportunity1', 'employmentOpportunity2', 'employmentOpportunity3'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'High-income tech workers' :
-                                   idx === 1 ? 'Growing employment base' :
-                                   'Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['employmentOpportunity1', 'employmentOpportunity2', 'employmentOpportunity3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
@@ -293,11 +287,8 @@ export default function EmploymentPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Target Market</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['targetMarket1', 'targetMarket2', 'targetMarket3'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'Downtown Dallas professionals (AT&T, JP Morgan Chase)' :
-                                   idx === 1 ? 'Healthcare workers (Baylor Medical Center)' :
-                                   'Government employees (Dallas County)';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['targetMarket1', 'targetMarket2', 'targetMarket3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>

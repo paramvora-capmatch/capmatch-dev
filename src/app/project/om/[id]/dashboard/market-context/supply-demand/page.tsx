@@ -349,19 +349,19 @@ export default function SupplyDemandPage() {
                   <Badge
                     className={getOccupancyColor(averageOccupancy)}
                     >
-                      {content?.marketStatus || <OMEmptyState />}
+                      {insights?.marketStatus ?? content?.marketStatus ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Demand Trend</span>
                   <Badge className="bg-green-100 text-green-800">
-                    {content?.demandTrend || <OMEmptyState />}
+                    {insights?.demandTrend ?? content?.demandTrend ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pressure</span>
                   <Badge className="bg-red-100 text-red-800">
-                    {content?.supplyPressure || <OMEmptyState />}
+                    {insights?.supplyPressure ?? content?.supplyPressure ?? null}
                   </Badge>
                 </div>
               </div>
@@ -384,11 +384,8 @@ export default function SupplyDemandPage() {
                 Supply Strengths
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['supplyStrength1', 'supplyStrength2', 'supplyStrength3'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'Limited new supply in Deep Ellum/Farmers Market corridor' :
-                                   idx === 1 ? 'Downtown Dallas occupancy above 94%' :
-                                   '<6,000 units delivering over next 24 months';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['supplyStrength1', 'supplyStrength2', 'supplyStrength3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>
@@ -404,11 +401,8 @@ export default function SupplyDemandPage() {
                 Market Opportunities
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['marketOpportunity1', 'marketOpportunity2', 'marketOpportunity3'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'Strong job growth in Downtown Dallas (12.1% 5-year)' :
-                                   idx === 1 ? 'Workforce housing demand with PFC tax exemption' :
-                                   'Proximity to DART rail and I-30/I-45 interchange';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['marketOpportunity1', 'marketOpportunity2', 'marketOpportunity3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
@@ -422,18 +416,15 @@ export default function SupplyDemandPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-red-500 mr-2">•</span>
-                  <span className="text-red-600">Pipeline delivery timing</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-red-500 mr-2">•</span>
-                  <span className="text-red-600">Economic sensitivity</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-red-500 mr-2">•</span>
-                  <span className="text-red-600">Interest rate impact</span>
-                </li>
+                {['riskFactor1', 'riskFactor2', 'riskFactor3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field];
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-red-500 mr-2">•</span>
+                      <span className="text-red-600">{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

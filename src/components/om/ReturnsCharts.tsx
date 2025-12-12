@@ -26,6 +26,7 @@ import {
   BarChart3,
   PieChart as PieChartIcon,
 } from "lucide-react";
+import { useOmContent } from "@/hooks/useOmContent";
 
 interface ReturnsChartsProps {
   className?: string;
@@ -36,49 +37,83 @@ export default function ReturnsCharts({
   className = "",
   compact = false,
 }: ReturnsChartsProps) {
+  const { content } = useOmContent();
   const [activeScenario, setActiveScenario] = useState<
     "base" | "upside" | "downside"
   >("base");
 
-  // Mock data for charts
+  // Build IRR data from content
+  const baseIRR = content?.irr ?? null;
+  const upsideIRR = content?.upsideIRR ?? null;
+  const downsideIRR = content?.downsideIRR ?? null;
+  const baseMultiple = content?.equityMultiple ?? null;
+  const upsideMultiple = content?.upsideEquityMultiple ?? null;
+  const downsideMultiple = content?.downsideEquityMultiple ?? null;
+
   const irrData = [
-    { scenario: "Base Case", irr: 18.5, multiple: 2.1, color: "#3b82f6" },
-    { scenario: "Upside", irr: 24.5, multiple: 2.8, color: "#10b981" },
-    { scenario: "Downside", irr: 12.5, multiple: 1.6, color: "#ef4444" },
-  ];
+    { scenario: "Base Case", irr: baseIRR ?? 0, multiple: baseMultiple ?? 0, color: "#3b82f6" },
+    { scenario: "Upside", irr: upsideIRR ?? 0, multiple: upsideMultiple ?? 0, color: "#10b981" },
+    { scenario: "Downside", irr: downsideIRR ?? 0, multiple: downsideMultiple ?? 0, color: "#ef4444" },
+  ].filter(item => item.irr > 0 || item.multiple > 0);
 
-  const cashFlowData = [
-    { year: "2025", base: -4500000, upside: -4200000, downside: -4800000 },
-    { year: "2026", base: -8000000, upside: -7500000, downside: -8500000 },
-    { year: "2027", base: -4000000, upside: -3500000, downside: -4500000 },
-    { year: "2028", base: 2000000, upside: 2500000, downside: 1500000 },
-    { year: "2029", base: 8000000, upside: 9500000, downside: 6500000 },
-    { year: "2030", base: 12000000, upside: 15000000, downside: 9500000 },
-  ];
+  // Build cash flow data from fiveYearCashFlow
+  const fiveYearCashFlow = content?.fiveYearCashFlow;
+  const cashFlowData = fiveYearCashFlow && Array.isArray(fiveYearCashFlow) 
+    ? fiveYearCashFlow.map((value: number, index: number) => ({
+        year: `202${5 + index}`,
+        base: value,
+        upside: upsideIRR && baseIRR ? value * (upsideIRR / baseIRR) : value,
+        downside: downsideIRR && baseIRR ? value * (downsideIRR / baseIRR) : value,
+      }))
+    : [];
 
-  const returnsBreakdown = [
-    { name: "Cash Flow", value: 45, color: "#3b82f6" },
-    { name: "Asset Appreciation", value: 35, color: "#10b981" },
-    { name: "Tax Benefits", value: 12, color: "#f59e0b" },
-    { name: "Leverage", value: 8, color: "#8b5cf6" },
-  ];
+  // Build returns breakdown from content
+  const returnsBreakdownData = content?.returnsBreakdown;
+  const returnsBreakdown = returnsBreakdownData && typeof returnsBreakdownData === 'object'
+    ? [
+        { name: "Cash Flow", value: returnsBreakdownData.cashFlow ?? 0, color: "#3b82f6" },
+        { name: "Asset Appreciation", value: returnsBreakdownData.assetAppreciation ?? 0, color: "#10b981" },
+        { name: "Tax Benefits", value: returnsBreakdownData.taxBenefits ?? 0, color: "#f59e0b" },
+        { name: "Leverage", value: returnsBreakdownData.leverage ?? 0, color: "#8b5cf6" },
+      ].filter(item => item.value > 0)
+    : [];
 
-  const quarterlyDelivery = [
-    { quarter: "Q3 2025", units: 800, color: "#3b82f6" },
-    { quarter: "Q4 2025", units: 1200, color: "#10b981" },
-    { quarter: "Q1 2026", units: 950, color: "#f59e0b" },
-    { quarter: "Q2 2026", units: 600, color: "#8b5cf6" },
-    { quarter: "Q3 2026", units: 650, color: "#ef4444" },
-  ];
+  // Build quarterly delivery from content
+  const quarterlySchedule = content?.quarterlyDeliverySchedule;
+  const quarterlyDelivery = quarterlySchedule && Array.isArray(quarterlySchedule)
+    ? quarterlySchedule.map((item: any, index: number) => ({
+        quarter: item.quarter ?? `Q${(index % 4) + 1} 202${5 + Math.floor(index / 4)}`,
+        units: item.units ?? 0,
+        color: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"][index % 5],
+      }))
+    : [];
 
   const getScenarioData = () => {
     switch (activeScenario) {
       case "upside":
-        return { irr: 24.5, multiple: 2.8, profitMargin: 35, color: "#10b981" };
+        return { 
+          irr: upsideIRR ?? null, 
+          multiple: upsideMultiple ?? null, 
+          profitMargin: content?.upsideProfitMargin ?? null, 
+          color: "#10b981" 
+        };
       case "downside":
-        return { irr: 12.5, multiple: 1.6, profitMargin: 18, color: "#ef4444" };
+        return { 
+          irr: downsideIRR ?? null, 
+          multiple: downsideMultiple ?? null, 
+          profitMargin: content?.downsideProfitMargin ?? null, 
+          color: "#ef4444" 
+        };
       default:
-        return { irr: 18.5, multiple: 2.1, profitMargin: 28, color: "#3b82f6" };
+        const baseProfitMargin = content?.stabilizedValue && content?.totalDevelopmentCost
+          ? ((content.stabilizedValue - content.totalDevelopmentCost) / content.totalDevelopmentCost) * 100
+          : null;
+        return { 
+          irr: baseIRR ?? null, 
+          multiple: baseMultiple ?? null, 
+          profitMargin: baseProfitMargin, 
+          color: "#3b82f6" 
+        };
     }
   };
 
@@ -125,12 +160,12 @@ export default function ReturnsCharts({
               {
                 key: "downside",
                 label: "Downside",
-                irr: 12.5,
+                irr: downsideIRR,
                 color: "#ef4444",
               },
-              { key: "base", label: "Base", irr: 18.5, color: "#3b82f6" },
-              { key: "upside", label: "Upside", irr: 24.5, color: "#10b981" },
-            ].map(({ key, label, irr, color }) => (
+              { key: "base", label: "Base", irr: baseIRR, color: "#3b82f6" },
+              { key: "upside", label: "Upside", irr: upsideIRR, color: "#10b981" },
+            ].filter(item => item.irr != null).map(({ key, label, irr, color }) => (
               <div key={key} className="text-center">
                 <div className="text-xs text-gray-500 mb-1">{label}</div>
                 <div className="text-lg font-bold" style={{ color }}>
@@ -146,17 +181,22 @@ export default function ReturnsCharts({
           <h4 className="text-sm font-semibold text-gray-800 text-center">
             Cash Flow Trend
           </h4>
-          <div className="h-16 bg-gray-50 rounded-lg flex items-end justify-center p-2">
-            <div className="flex items-end space-x-1">
-              {[-2.5, 0.8, 1.2, 1.4, 15.5].map((value, index) => (
-                <div
-                  key={index}
-                  className="w-3 bg-blue-500 rounded-t"
-                  style={{ height: `${Math.max(4, Math.abs(value) * 2)}px` }}
-                />
-              ))}
+          {fiveYearCashFlow && fiveYearCashFlow.length > 0 ? (
+            <div className="h-16 bg-gray-50 rounded-lg flex items-end justify-center p-2">
+              <div className="flex items-end space-x-1">
+                {fiveYearCashFlow.slice(0, 5).map((value: number, index: number) => {
+                  const normalizedValue = value / 1000000; // Convert to millions for display
+                  return (
+                    <div
+                      key={index}
+                      className="w-3 bg-blue-500 rounded-t"
+                      style={{ height: `${Math.max(4, Math.abs(normalizedValue) * 2)}px` }}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
           <div className="text-xs text-gray-500 text-center">
             5-Year Projection
           </div>
@@ -225,7 +265,7 @@ export default function ReturnsCharts({
               className="text-3xl font-bold"
               style={{ color: currentScenario.color }}
             >
-              {currentScenario.irr}%
+              {currentScenario.irr != null ? `${currentScenario.irr}%` : 'N/A'}
             </p>
             <p className="text-sm text-gray-500 mt-1">
               Internal Rate of Return
@@ -250,7 +290,7 @@ export default function ReturnsCharts({
               className="text-3xl font-bold"
               style={{ color: currentScenario.color }}
             >
-              {currentScenario.multiple}x
+              {currentScenario.multiple != null ? `${currentScenario.multiple}x` : 'N/A'}
             </p>
             <p className="text-sm text-gray-500 mt-1">Total Return Multiple</p>
           </CardContent>
@@ -273,7 +313,7 @@ export default function ReturnsCharts({
               className="text-3xl font-bold"
               style={{ color: currentScenario.color }}
             >
-              {currentScenario.profitMargin}%
+              {currentScenario.profitMargin != null ? `${currentScenario.profitMargin}%` : 'N/A'}
             </p>
             <p className="text-sm text-gray-500 mt-1">Net Profit Margin</p>
           </CardContent>
@@ -288,15 +328,21 @@ export default function ReturnsCharts({
           </h3>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={irrData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="scenario" />
-              <YAxis />
-              <Tooltip formatter={(value: number) => [`${value}%`, "IRR"]} />
-              <Bar dataKey="irr" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
+          {irrData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={irrData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="scenario" />
+                <YAxis />
+                <Tooltip formatter={(value: number) => [`${value}%`, "IRR"]} />
+                <Bar dataKey="irr" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              No IRR data available
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -308,42 +354,48 @@ export default function ReturnsCharts({
           </h3>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={cashFlowData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="year" />
-              <YAxis />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <Area
-                type="monotone"
-                dataKey="base"
-                stackId="1"
-                stroke="#3b82f6"
-                fill="#3b82f6"
-                fillOpacity={0.6}
-                name="Base Case"
-              />
-              <Area
-                type="monotone"
-                dataKey="upside"
-                stackId="1"
-                stroke="#10b981"
-                fill="#10b981"
-                fillOpacity={0.6}
-                name="Upside"
-              />
-              <Area
-                type="monotone"
-                dataKey="downside"
-                stackId="1"
-                stroke="#ef4444"
-                fill="#ef4444"
-                fillOpacity={0.6}
-                name="Downside"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {cashFlowData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={cashFlowData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year" />
+                <YAxis />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="base"
+                  stackId="1"
+                  stroke="#3b82f6"
+                  fill="#3b82f6"
+                  fillOpacity={0.6}
+                  name="Base Case"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="upside"
+                  stackId="1"
+                  stroke="#10b981"
+                  fill="#10b981"
+                  fillOpacity={0.6}
+                  name="Upside"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="downside"
+                  stackId="1"
+                  stroke="#ef4444"
+                  fill="#ef4444"
+                  fillOpacity={0.6}
+                  name="Downside"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              No cash flow data available
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -356,33 +408,39 @@ export default function ReturnsCharts({
             </h3>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={returnsBreakdown}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({
-                    name,
-                    percent,
-                  }: {
-                    name: string;
-                    percent: number;
-                  }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {returnsBreakdown.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) => [`${value}%`, "Contribution"]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {returnsBreakdown.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={returnsBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({
+                      name,
+                      percent,
+                    }: {
+                      name: string;
+                      percent: number;
+                    }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {returnsBreakdown.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) => [`${value}%`, "Contribution"]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-gray-500">
+                No returns breakdown data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -393,15 +451,21 @@ export default function ReturnsCharts({
             </h3>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={quarterlyDelivery}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="quarter" />
-                <YAxis />
-                <Tooltip formatter={(value: number) => [value, "Units"]} />
-                <Bar dataKey="units" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
+            {quarterlyDelivery.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={quarterlyDelivery}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="quarter" />
+                  <YAxis />
+                  <Tooltip formatter={(value: number) => [value, "Units"]} />
+                  <Bar dataKey="units" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-gray-500">
+                No quarterly delivery data available
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -419,60 +483,66 @@ export default function ReturnsCharts({
               <h4 className="font-semibold text-gray-800 mb-3">
                 Rent Growth Impact
               </h4>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart
-                  data={[
-                    { growth: "0%", irr: 12.5 },
-                    { growth: "2%", irr: 15.8 },
-                    { growth: "4%", irr: 18.5 },
-                    { growth: "6%", irr: 21.2 },
-                    { growth: "8%", irr: 24.5 },
-                  ]}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="growth" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number) => [`${value}%`, "IRR"]}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="irr"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {content?.sensitivityAnalysis?.rentGrowthImpact && Array.isArray(content.sensitivityAnalysis.rentGrowthImpact) && content.sensitivityAnalysis.rentGrowthImpact.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart
+                    data={content.sensitivityAnalysis.rentGrowthImpact.map((item: any) => ({
+                      growth: item.growth ?? '0%',
+                      irr: item.irr ?? 0,
+                    }))}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="growth" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value: number) => [`${value}%`, "IRR"]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="irr"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center text-gray-500">
+                  No rent growth impact data available
+                </div>
+              )}
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">
                 Construction Cost Impact
               </h4>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart
-                  data={[
-                    { cost: "-20%", irr: 28.5 },
-                    { cost: "-10%", irr: 24.5 },
-                    { cost: "Base", irr: 18.5 },
-                    { cost: "+10%", irr: 14.2 },
-                    { cost: "+20%", irr: 10.8 },
-                  ]}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="cost" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value: number) => [`${value}%`, "IRR"]}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="irr"
-                    stroke="#ef4444"
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {content?.sensitivityAnalysis?.constructionCostImpact && Array.isArray(content.sensitivityAnalysis.constructionCostImpact) && content.sensitivityAnalysis.constructionCostImpact.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart
+                    data={content.sensitivityAnalysis.constructionCostImpact.map((item: any) => ({
+                      cost: item.cost ?? 'Base',
+                      irr: item.irr ?? 0,
+                    }))}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="cost" />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value: number) => [`${value}%`, "IRR"]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="irr"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center text-gray-500">
+                  No construction cost impact data available
+                </div>
+              )}
             </div>
           </div>
         </CardContent>

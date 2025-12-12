@@ -289,41 +289,34 @@ export default function ComparablesPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Rent Premium</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">+15%</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    {insights?.rentPremium ?? content?.rentPremium != null 
+                      ? `${content?.rentPremium > 0 ? '+' : ''}${formatFixed(insights?.rentPremium ?? content?.rentPremium, 1)}%`
+                      : null}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Quality Tier</span>
-                  <Badge variant="outline" className="border-gray-200"><span className="text-red-600">Luxury</span></Badge>
+                  <Badge variant="outline" className="border-gray-200">
+                    {insights?.qualityTier ?? content?.qualityTier ?? null}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Competition Level</span>
-                  <Badge className="bg-blue-100 text-blue-800"><span className="text-red-600">Moderate</span></Badge>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {insights?.competitionLevel ?? content?.competitionLevel ?? null}
+                  </Badge>
                 </div>
               </div>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Differentiators</h4>
-              {insights?.differentiators ? (
+              {insights?.differentiators ?? content?.differentiators ? (
                 <div className="text-sm text-gray-600 whitespace-pre-line">
-                  {insights.differentiators}
+                  {insights?.differentiators ?? content?.differentiators}
                 </div>
-              ) : (
-                <ul className="space-y-2 text-sm text-gray-600">
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">•</span>
-                    <span className="text-red-600">Workforce housing with PFC tax exemption</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">•</span>
-                    <span className="text-red-600">Pre-leased Innovation Center (30,000 SF)</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">•</span>
-                    <span className="text-red-600">Adjacent to Farmers Market and Deep Ellum</span>
-                  </li>
-                </ul>
-              )}
+              ) : null}
             </div>
             
             <div>
@@ -331,15 +324,21 @@ export default function ComparablesPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Demand Trend</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">↑ Growing</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    {insights?.demandTrend ?? content?.demandTrend ?? null}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pipeline</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">{'<'}6K units (24mo)</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    {insights?.supplyPipeline ?? content?.supplyPipeline ?? null}
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Rent Growth</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">+6.9% (5yr)</span></Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    {insights?.rentGrowth ?? content?.rentGrowth ?? null}
+                  </Badge>
                 </div>
               </div>
             </div>

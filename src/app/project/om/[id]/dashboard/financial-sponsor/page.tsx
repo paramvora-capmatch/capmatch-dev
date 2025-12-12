@@ -72,10 +72,10 @@ export default function FinancialSponsorPage() {
     const formatMillions = (value?: number | null) =>
       value != null ? `$${formatFixed(value / 1_000_000, 1) ?? "0.0"}M` : null;
     
-    // Build scenario IRRs from flat fields (placeholder - adjust based on actual scenario data)
+    // Build scenario IRRs from flat fields
     const baseIRR = irr ?? null;
-    const upsideIRR = irr != null ? irr * 1.1 : null;
-    const downsideIRR = irr != null ? irr * 0.9 : null;
+    const upsideIRR = content?.upsideIRR ?? null;
+    const downsideIRR = content?.downsideIRR ?? null;
 
     if (!project) return <div>Project not found</div>;
     
@@ -132,15 +132,13 @@ export default function FinancialSponsorPage() {
                     </div>
                     <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2">5-Year Cash Flow</p>
-                        {/* Hardcoded chart data */}
-                        <MiniChart
-                            type="line"
-                            data={[
-                                { value: -2.5 }, { value: 0.8 }, { value: 1.2 },
-                                { value: 1.4 }, { value: 15.5 }
-                            ]}
-                            height={60}
-                        />
+                        {content?.fiveYearCashFlow && Array.isArray(content.fiveYearCashFlow) ? (
+                            <MiniChart
+                                type="line"
+                                data={content.fiveYearCashFlow.map((value: number) => ({ value: value / 1_000_000 }))}
+                                height={60}
+                            />
+                        ) : null}
                     </div>
                 </div>
             )
@@ -206,7 +204,7 @@ export default function FinancialSponsorPage() {
                         </div>
                         <div>
                             <p className="text-gray-500">Break-even</p>
-                            <p className="font-medium">{content?.breakEven ?? 78}%</p>
+                            <p className="font-medium">{content?.breakEven ?? null}</p>
                         </div>
                     </div>
                 </div>

@@ -6,7 +6,6 @@ import { Home, DollarSign, Users } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { formatLocale, formatFixed, parseNumeric } from '@/lib/om-utils';
-import { OMEmptyState } from '@/components/om/OMEmptyState';
 
 type UnitMixUnit = {
   count?: number | null;
@@ -310,19 +309,19 @@ export default function UnitMixPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Luxury Tier</span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {content?.luxuryTier || <OMEmptyState />}
+                    {insights?.luxuryTier ?? content?.luxuryTier ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Target Market</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {content?.targetMarket || <OMEmptyState />}
+                    {insights?.targetMarket ?? content?.targetMarket ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Competitive Position</span>
                   <Badge className="bg-green-100 text-green-800">
-                    {content?.competitivePosition || <OMEmptyState />}
+                    {insights?.competitivePosition ?? content?.competitivePosition ?? null}
                   </Badge>
                 </div>
               </div>
@@ -335,7 +334,9 @@ export default function UnitMixPage() {
       <Card className="hover:shadow-lg transition-shadow mt-8">
         <CardHeader>
           <h3 className="text-xl font-semibold text-gray-800">Detailed Unit Plans</h3>
-          <p className="text-sm text-gray-600">Breakdown of S, A, and B series layouts from the Hoque OM</p>
+          {insights?.unitPlanDescription ?? content?.unitPlanDescription ? (
+            <p className="text-sm text-gray-600">{insights?.unitPlanDescription ?? content?.unitPlanDescription}</p>
+          ) : null}
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

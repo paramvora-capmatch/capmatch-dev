@@ -306,7 +306,7 @@ export default function DemographicsPage() {
                 {(insights?.demographicStrength1 ?? content?.demographicStrength1) && (
                   <li className="flex items-center">
                     <span className="text-green-500 mr-2">•</span>
-                    {insights?.demographicStrength1 ?? content?.demographicStrength1 ?? 'Young professional demographic'}
+                    {insights?.demographicStrength1 ?? content?.demographicStrength1}
                   </li>
                 )}
               </ul>
@@ -315,11 +315,8 @@ export default function DemographicsPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['demographicOpportunity1', 'demographicOpportunity2', 'demographicOpportunity3'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)' :
-                                   idx === 1 ? 'Walkability to Farmers Market and Deep Ellum entertainment district' :
-                                   'Limited new supply in Deep Ellum/Farmers Market corridor';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['demographicOpportunity1', 'demographicOpportunity2', 'demographicOpportunity3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
@@ -333,11 +330,8 @@ export default function DemographicsPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Target Demographics</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['targetDemographic1', 'targetDemographic2', 'targetDemographic3'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'Downtown Dallas professionals (25-35)' :
-                                   idx === 1 ? 'Workforce housing eligible households (≤80% AMI)' :
-                                   'Healthcare, finance, and tech workers';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['targetDemographic1', 'targetDemographic2', 'targetDemographic3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>

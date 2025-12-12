@@ -469,25 +469,16 @@ export default function SourcesUsesPage() {
               content?.repairsAndMaintenance != null || content?.managementFee != null || content?.generalAndAdmin != null ||
               content?.payroll != null || content?.reserves != null || content?.marketingLeasing != null || 
               content?.serviceCoordination != null) && (
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-900">Total Operating Expenses</span>
-                  <Badge className="bg-gray-100 text-gray-800">
-                    ${formatLocale(
-                      (parseNumeric(content?.realEstateTaxes) ?? 0) +
-                      (parseNumeric(content?.insurance) ?? 0) +
-                      (parseNumeric(content?.utilitiesCosts) ?? 0) +
-                      (parseNumeric(content?.repairsAndMaintenance) ?? 0) +
-                      (parseNumeric(content?.managementFee) ?? 0) +
-                      (parseNumeric(content?.generalAndAdmin) ?? 0) +
-                      (parseNumeric(content?.payroll) ?? 0) +
-                      (parseNumeric(content?.reserves) ?? 0) +
-                      (parseNumeric(content?.marketingLeasing) ?? 0) +
-                      (parseNumeric(content?.serviceCoordination) ?? 0)
-                    )}
-                  </Badge>
+              {content?.totalOperatingExpenses != null && (
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-900">Total Operating Expenses</span>
+                    <Badge className="bg-gray-100 text-gray-800">
+                      ${formatLocale(parseNumeric(content.totalOperatingExpenses))}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
+              )}
             )}
           </CardContent>
         </Card>

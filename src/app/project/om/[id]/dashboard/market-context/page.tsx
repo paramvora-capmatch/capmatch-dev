@@ -54,7 +54,7 @@ export default function MarketContextPage() {
 		? `${content.exemptionTerm} Years`
 		: null;
 	const impactFees = content?.impactFees ?? null;
-	const totalIncentiveValue = parseNumeric(content?.totalIncentiveValue);
+	const totalIncentiveValue = parseNumeric(content?.totalIncentiveValue) ?? null;
 	const totalIncentive = totalIncentiveValue
 		? `$${formatLocale(totalIncentiveValue)}`
 		: null;

@@ -175,11 +175,15 @@ export default function AmenitiesPage() {
                 <div className="mt-4 pt-3 border-t border-gray-100">
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>Space Type</span>
-                    <span className="font-medium text-gray-700"><span className="text-red-600">Shared</span></span>
+                    <span className="font-medium text-gray-700">
+                      {content?.amenitySpaceType ?? null}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
                     <span>Access</span>
-                    <span className="font-medium text-gray-700"><span className="text-red-600">24/7</span></span>
+                    <span className="font-medium text-gray-700">
+                      {content?.amenityAccess ?? null}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -192,11 +196,9 @@ export default function AmenitiesPage() {
       <Card className="hover:shadow-lg transition-shadow mb-8">
         <CardHeader dataSourceFields={['total commercial grsf', 'space type']}>
           <h3 className="text-xl font-semibold text-gray-800">Commercial & Innovation Program</h3>
-          {insights?.commercialInnovationProgram ? (
-            <p className="text-sm text-gray-600">{insights.commercialInnovationProgram}</p>
-          ) : (
-            <p className="text-sm text-gray-600"><span className="text-red-600">30,000 SF Innovation Center plus flexible office/retail bays</span></p>
-          )}
+          {insights?.commercialInnovationProgram ?? content?.commercialInnovationProgram ? (
+            <p className="text-sm text-gray-600">{insights?.commercialInnovationProgram ?? content?.commercialInnovationProgram}</p>
+          ) : null}
         </CardHeader>
         <CardContent>
           <div className="space-y-3">

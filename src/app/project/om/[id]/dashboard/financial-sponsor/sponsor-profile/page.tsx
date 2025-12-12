@@ -206,13 +206,13 @@ export default function SponsorProfilePage() {
                 <div className="flex items-center">
                   <Phone className="h-4 w-4 text-gray-400 mr-2" />
                   <span className="text-sm text-gray-600">
-                    {content?.contactInfo || 'Available upon request'}
+                    {content?.contactInfo ?? content?.contactEmail ?? content?.contactPhone ?? null}
                   </span>
                 </div>
                 <div className="flex items-center">
                   <Mail className="h-4 w-4 text-gray-400 mr-2" />
                   <span className="text-sm text-gray-600">
-                    {content?.contactInfo || 'Available upon request'}
+                    {content?.contactInfo ?? content?.contactEmail ?? content?.contactPhone ?? null}
                   </span>
                 </div>
                 <div className="pt-4">
@@ -500,7 +500,7 @@ export default function SponsorProfilePage() {
                 {(insights?.sponsorStrength1 ?? content?.sponsorStrength1) && (
                   <li className="flex items-center">
                     <span className="text-green-500 mr-2">•</span>
-                    {insights?.sponsorStrength1 ?? content?.sponsorStrength1 ?? 'Proven track record across multiple projects'}
+                    {insights?.sponsorStrength1 ?? content?.sponsorStrength1}
                   </li>
                 )}
               </ul>
@@ -515,7 +515,7 @@ export default function SponsorProfilePage() {
                 {(insights?.sponsorStrength2 ?? content?.sponsorStrength2) && (
                   <li className="flex items-center">
                     <span className="text-blue-500 mr-2">•</span>
-                    {insights?.sponsorStrength2 ?? content?.sponsorStrength2 ?? 'Strong IRR performance (18-26%)'}
+                    {insights?.sponsorStrength2 ?? content?.sponsorStrength2}
                   </li>
                 )}
                 <li className="flex items-center">
@@ -526,7 +526,7 @@ export default function SponsorProfilePage() {
                 {(insights?.sponsorStrength3 ?? content?.sponsorStrength3) && (
                   <li className="flex items-center">
                     <span className="text-blue-500 mr-2">•</span>
-                    {insights?.sponsorStrength3 ?? content?.sponsorStrength3 ?? 'Consistent project delivery'}
+                    {insights?.sponsorStrength3 ?? content?.sponsorStrength3}
                   </li>
                 )}
               </ul>
@@ -538,11 +538,8 @@ export default function SponsorProfilePage() {
                 Market Position
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                {['sponsorStrength4', 'sponsorStrength5', 'sponsorStrength6'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'Established lender relationships' :
-                                   idx === 1 ? 'Strong local market knowledge' :
-                                   'Reputation for quality execution';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['sponsorStrength4', 'sponsorStrength5', 'sponsorStrength6'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field] ?? null;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
