@@ -155,6 +155,9 @@ export interface Principal {
 	liquidityRange: LiquidityRange;
 	bankruptcyHistory: boolean;
 	foreclosureHistory: boolean;
+	specialties?: string[];
+	achievements?: string[];
+	education?: string;
 	pfsDocumentId: string | null;
 	createdAt: string;
 	updatedAt: string;

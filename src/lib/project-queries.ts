@@ -290,6 +290,8 @@ export interface BorrowerResumeContent {
 	geographicMarketsExperience?: string[];
 	totalDealValueClosedRange?: string;
 	existingLenderRelationships?: string;
+	trackRecord?: TrackRecordItem[];
+	references?: ReferenceItem[];
 
 	// Financial fields
 	creditScoreRange?: string;
@@ -316,6 +318,28 @@ export interface BorrowerResumeContent {
 	_metadata?: Record<string, import("@/types/enhanced-types").FieldMetadata>;
 	_lockedFields?: Record<string, boolean>;
 	_fieldStates?: Record<string, any>;
+}
+
+/**
+ * Track record item for borrower resume
+ */
+export interface TrackRecordItem {
+	project?: string;
+	year?: number;
+	units?: number;
+	irr?: number | string;
+	market?: string;
+	type?: string;
+}
+
+/**
+ * Reference item for borrower resume
+ */
+export interface ReferenceItem {
+	firm?: string;
+	relationship?: string;
+	years?: string;
+	contact?: string;
 }
 
 /**

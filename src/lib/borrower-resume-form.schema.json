@@ -51,6 +51,13 @@
 						"existingLenderRelationships",
 						"bioNarrative"
 					]
+				},
+				{
+					"id": "track-record",
+					"title": "2.3 Track Record",
+					"fields": [
+						"trackRecord"
+					]
 				}
 			],
 			"fields": [
@@ -59,7 +66,8 @@
 				"geographicMarketsExperience",
 				"totalDealValueClosedRange",
 				"existingLenderRelationships",
-				"bioNarrative"
+				"bioNarrative",
+				"trackRecord"
 			]
 		},
 		{
@@ -121,7 +129,10 @@
 						"principalRoleDefault",
 						"principalEmail",
 						"ownershipPercentage",
-						"principalBio"
+						"principalBio",
+						"principalSpecialties",
+						"principalAchievements",
+						"principalEducation"
 					]
 				}
 			],
@@ -130,7 +141,27 @@
 				"principalRoleDefault",
 				"principalEmail",
 				"ownershipPercentage",
-				"principalBio"
+				"principalBio",
+				"principalSpecialties",
+				"principalAchievements",
+				"principalEducation"
+			]
+		},
+		{
+			"id": "references",
+			"title": "Lender References",
+			"icon": "Building",
+			"subsections": [
+				{
+					"id": "lender-references",
+					"title": "6.1 Lender References",
+					"fields": [
+						"references"
+					]
+				}
+			],
+			"fields": [
+				"references"
 			]
 		}
 	],
@@ -233,6 +264,26 @@
 		},
 		"principalBio": {
 			"label": "Principal Bio",
+			"required": false
+		},
+		"principalSpecialties": {
+			"label": "Specialties",
+			"required": false
+		},
+		"principalAchievements": {
+			"label": "Key Achievements",
+			"required": false
+		},
+		"principalEducation": {
+			"label": "Education",
+			"required": false
+		},
+		"trackRecord": {
+			"label": "Track Record",
+			"required": false
+		},
+		"references": {
+			"label": "Lender References",
 			"required": false
 		}
 	}
