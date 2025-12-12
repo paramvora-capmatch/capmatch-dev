@@ -67,6 +67,7 @@ interface EnhancedProjectFormProps {
 	onFormDataChange?: (formData: ProjectProfile) => void;
 	initialFocusFieldId?: string;
 	onVersionChange?: () => void;
+	initialStepId?: string | null;
 }
 
 const assetTypeOptions = [
@@ -123,6 +124,8 @@ const exitStrategyOptions: ExitStrategy[] = [
 	"Refinance",
 	"Long-Term Hold",
 ];
+
+const buildWorkspaceStepId = (stepId: string) => `project:${stepId}`;
 
 // State mapping: abbreviation -> full name
 const STATE_MAP: Record<string, string> = {
@@ -1001,8 +1004,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	onFormDataChange,
 	initialFocusFieldId,
 	onVersionChange,
+	initialStepId,
 }) => {
-	const { activeOrg } = useAuthStore();
+	const { activeOrg, user } = useAuthStore();
 	// 1. Initialize state with sanitized data
 	const sanitizedExistingProject = useMemo(
 		() => sanitizeProjectProfile(existingProject),
@@ -1027,6 +1031,23 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
 	const [formSaved, setFormSaved] = useState(false);
+
+	const touchWorkspace = useCallback(
+		async (stepId?: string) => {
+			if (!user?.id || !existingProject?.id) return;
+			const nowIso = new Date().toISOString();
+			const payload: Record<string, any> = {
+				project_id: existingProject.id,
+				user_id: user.id,
+				last_visited_at: nowIso,
+			};
+			if (stepId) payload.last_step_id = buildWorkspaceStepId(stepId);
+			await supabase
+				.from("project_workspace_activity")
+				.upsert(payload, { onConflict: "project_id,user_id" });
+		},
+		[user?.id, existingProject?.id]
+	);
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
@@ -4866,6 +4887,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		fieldMetadata,
 	]);
 
+	const initialStepIndex = useMemo(() => {
+		if (!initialStepId) return 0;
+		const idx = steps.findIndex((s) => s.id === initialStepId);
+		return idx >= 0 ? idx : 0;
+	}, [initialStepId, steps]);
+
 	// Helper function to check if all fields are locked
 	const areAllFieldsLocked = useCallback((): boolean => {
 		// Get all field IDs from schema (both required and optional)
@@ -5043,6 +5070,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					allowSkip
 					variant="tabs"
 					showBottomNav
+					initialStep={initialStepIndex}
+					onStepChange={(stepId) => {
+						void touchWorkspace(stepId);
+					}}
 				/>
 			</div>
 		</div>

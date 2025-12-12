@@ -19,6 +19,7 @@ import { FieldWarningsTooltip } from "../ui/FieldWarningsTooltip";
 import { HelpCircle } from "lucide-react";
 import { useAutofill } from "@/hooks/useAutofill";
 import { cn } from "@/utils/cn";
+import { supabase } from "@/lib/supabaseClient";
 import {
 	FileText,
 	DollarSign,
@@ -66,6 +67,7 @@ interface BorrowerResumeFormProps {
 	onFormDataChange?: (formData: Partial<BorrowerResumeContent>) => void;
 	initialFocusFieldId?: string;
 	onVersionChange?: () => void;
+	initialStepId?: string | null;
 	// Borrower specific props
 	onCopyBorrowerResume?: () => void;
 	copyDisabled?: boolean;
@@ -74,6 +76,8 @@ interface BorrowerResumeFormProps {
 	onProgressChange?: (percent: number) => void;
 	canEdit?: boolean; // Whether the user has edit permission
 }
+
+const buildWorkspaceStepId = (stepId: string) => `borrower:${stepId}`;
 
 // Options Arrays
 const entityStructureOptions = [
@@ -257,6 +261,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	onFormDataChange,
 	initialFocusFieldId,
 	onVersionChange,
+	initialStepId,
 	onCopyBorrowerResume,
 	copyDisabled,
 	copyLoading,
@@ -298,6 +303,26 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 	const [refreshKey, setRefreshKey] = useState(0);
+
+	const touchWorkspace = useCallback(
+		async (stepId?: string) => {
+			const {
+				data: { user },
+			} = await supabase.auth.getUser();
+			if (!user?.id || !projectId) return;
+			const nowIso = new Date().toISOString();
+			const payload: Record<string, any> = {
+				project_id: projectId,
+				user_id: user.id,
+				last_visited_at: nowIso,
+			};
+			if (stepId) payload.last_step_id = buildWorkspaceStepId(stepId);
+			await supabase
+				.from("project_workspace_activity")
+				.upsert(payload, { onConflict: "project_id,user_id" });
+		},
+		[projectId]
+	);
 
 	// Map to store refs for field wrappers (for tooltip triggers)
 	const fieldWrapperRefs = useRef<
@@ -2352,6 +2377,12 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		isFieldWhite,
 	]);
 
+	const initialStepIndex = useMemo(() => {
+		if (!initialStepId) return 0;
+		const idx = steps.findIndex((s: any) => s.id === initialStepId);
+		return idx >= 0 ? idx : 0;
+	}, [initialStepId, steps]);
+
 	if (!isEditing) {
 		return (
 			<BorrowerResumeView
@@ -2468,6 +2499,10 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 					allowSkip
 					variant="tabs"
 					showBottomNav
+					initialStep={initialStepIndex}
+					onStepChange={(stepId) => {
+						void touchWorkspace(stepId);
+					}}
 				/>
 			</div>
 		</div>
