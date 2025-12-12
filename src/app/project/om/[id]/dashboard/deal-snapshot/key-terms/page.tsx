@@ -428,9 +428,7 @@ export default function KeyTermsPage() {
 						</h3>
 					</div>
 					<p className="text-sm text-gray-600 mt-2">
-						{insights?.specialProgramsDescription ??
-							content?.specialProgramsDescription ??
-							null}
+						{insights?.specialProgramsDescription ?? null}
 					</p>
 				</CardHeader>
 				<CardContent className="pt-0">

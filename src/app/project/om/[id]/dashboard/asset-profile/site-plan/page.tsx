@@ -369,9 +369,7 @@ export default function SitePlanPage() {
 									Zoning Compliance
 								</span>
 								<Badge className="bg-green-100 text-green-800">
-									{insights?.zoningCompliant ??
-										content?.zoningCompliant ??
-										null}
+									{content?.zoningCompliant ?? null}
 								</Badge>
 							</div>
 						</div>

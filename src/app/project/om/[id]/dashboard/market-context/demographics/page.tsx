@@ -303,10 +303,10 @@ export default function DemographicsPage() {
                   <span className="text-green-500 mr-2">•</span>
                   High median income ({formatCurrency(medianIncome1Mi) ?? null} within 1-mile)
                 </li>
-                {(insights?.demographicStrength1 ?? content?.demographicStrength1) && (
+                {insights?.demographicStrength1 && (
                   <li className="flex items-center">
                     <span className="text-green-500 mr-2">•</span>
-                    {insights?.demographicStrength1 ?? content?.demographicStrength1}
+                    {insights.demographicStrength1}
                   </li>
                 )}
               </ul>
@@ -316,7 +316,7 @@ export default function DemographicsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['demographicOpportunity1', 'demographicOpportunity2', 'demographicOpportunity3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field];
+                  const insight = insights?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
@@ -331,7 +331,7 @@ export default function DemographicsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Target Demographics</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['targetDemographic1', 'targetDemographic2', 'targetDemographic3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field];
+                  const insight = insights?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>

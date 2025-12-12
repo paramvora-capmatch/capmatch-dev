@@ -448,7 +448,7 @@ export default function ReturnsPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['returnDriver1', 'returnDriver2', 'returnDriver3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field] ?? null;
+                  const insight = insights?.[field] ?? null;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>
@@ -463,7 +463,7 @@ export default function ReturnsPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['returnRisk1', 'returnRisk2', 'returnRisk3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field] ?? null;
+                  const insight = insights?.[field] ?? null;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>

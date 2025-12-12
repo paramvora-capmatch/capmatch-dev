@@ -385,7 +385,7 @@ export default function SupplyDemandPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['supplyStrength1', 'supplyStrength2', 'supplyStrength3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field];
+                  const insight = insights?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-green-500 mr-2">•</span>
@@ -402,7 +402,7 @@ export default function SupplyDemandPage() {
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['marketOpportunity1', 'marketOpportunity2', 'marketOpportunity3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field];
+                  const insight = insights?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
@@ -417,7 +417,7 @@ export default function SupplyDemandPage() {
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 {['riskFactor1', 'riskFactor2', 'riskFactor3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field];
+                  const insight = insights?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-gray-800 mr-2">•</span>

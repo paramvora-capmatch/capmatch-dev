@@ -497,10 +497,10 @@ export default function SponsorProfilePage() {
                   {sponsorProfile?.yearFounded ?? null} years of
                   experience
                 </li>
-                {(insights?.sponsorStrength1 ?? content?.sponsorStrength1) && (
+                {insights?.sponsorStrength1 && (
                   <li className="flex items-center">
                     <span className="text-green-500 mr-2">•</span>
-                    {insights?.sponsorStrength1 ?? content?.sponsorStrength1}
+                    {insights.sponsorStrength1}
                   </li>
                 )}
               </ul>
@@ -512,10 +512,10 @@ export default function SponsorProfilePage() {
                 Financial Performance
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                {(insights?.sponsorStrength2 ?? content?.sponsorStrength2) && (
+                {insights?.sponsorStrength2 && (
                   <li className="flex items-center">
                     <span className="text-blue-500 mr-2">•</span>
-                    {insights?.sponsorStrength2 ?? content?.sponsorStrength2}
+                    {insights.sponsorStrength2}
                   </li>
                 )}
                 <li className="flex items-center">
@@ -523,10 +523,10 @@ export default function SponsorProfilePage() {
                   {sponsorProfile?.totalDeveloped ?? null} total
                   development value
                 </li>
-                {(insights?.sponsorStrength3 ?? content?.sponsorStrength3) && (
+                {insights?.sponsorStrength3 && (
                   <li className="flex items-center">
                     <span className="text-blue-500 mr-2">•</span>
-                    {insights?.sponsorStrength3 ?? content?.sponsorStrength3}
+                    {insights.sponsorStrength3}
                   </li>
                 )}
               </ul>
@@ -539,7 +539,7 @@ export default function SponsorProfilePage() {
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
                 {['sponsorStrength4', 'sponsorStrength5', 'sponsorStrength6'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field] ?? null;
+                  const insight = insights?.[field] ?? null;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>
