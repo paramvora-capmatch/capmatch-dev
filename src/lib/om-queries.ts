@@ -109,6 +109,8 @@ const INSIGHT_FIELD_KEYS = [
 	"capitalMitigant1",
 	"capitalMitigant2",
 	"capitalMitigant3",
+	"exitStrategyRisk",
+	"exitStrategyMitigant",
 ];
 
 /**
@@ -197,4 +199,3 @@ export function getOMValue(
 	}
 	return field;
 }
-

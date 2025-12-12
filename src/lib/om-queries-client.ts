@@ -59,6 +59,8 @@ const INSIGHT_FIELD_KEYS = [
 	"capitalMitigant1",
 	"capitalMitigant2",
 	"capitalMitigant3",
+	"exitStrategyRisk",
+	"exitStrategyMitigant",
 ];
 
 /**
@@ -167,7 +169,7 @@ export function createTrackedContent(
 			// This keeps the logging focused on missing/fallback fields only
 
 			// Return the original value (preserve rich format if present)
-			return rawValue;
+			return actualValue;
 		},
 	});
 }
