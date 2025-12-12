@@ -153,6 +153,28 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Table",
 		section: "experience",
 	} as any,
+	yearFounded: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "yearFounded",
+		description: "Year the sponsor entity was founded.",
+		backupSource: "Document (Company Profile / Website)",
+		expectedValue: "Integer, e.g., 2008",
+		dataType: "Integer",
+		section: "experience",
+	} as any,
+	activeProjects: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "activeProjects",
+		description: "Number of currently active development projects.",
+		backupSource: "Document (Project Pipeline / Track Record)",
+		expectedValue: "Integer, e.g., 5",
+		dataType: "Integer",
+		section: "experience",
+	} as any,
 
 	// Section 3: Financial Info
 	creditScoreRange: {

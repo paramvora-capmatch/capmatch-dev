@@ -27,10 +27,10 @@ export default function SponsorProfilePage() {
   // Build sponsor profile from flat fields
   const sponsorProfile = {
     firmName: content?.sponsorEntityName ?? null,
-    yearFounded: null, // Not directly available - placeholder
+    yearFounded: content?.yearFounded ?? null,
     totalDeveloped: content?.priorDevelopments ?? null,
     totalUnits: content?.totalResidentialUnits ?? null, // Using project units as placeholder
-    activeProjects: null, // Not directly available
+    activeProjects: content?.activeProjects ?? null,
     sponsorEntityName: content?.sponsorEntityName ?? null,
     sponsoringEntity: content?.sponsoringEntity ?? null,
     sponsorExperience: content?.sponsorExperience ?? null,
@@ -88,8 +88,41 @@ export default function SponsorProfilePage() {
     }).filter((p: any) => p.name); // Only include principals with a name
   })();
   
-  const references: any[] = [];
-  const trackRecord: any[] = [];
+  // Extract references from content, handling rich format structure
+  const references: any[] = (() => {
+    const rawReferences = content?.references;
+    
+    // Handle both rich format (with value/source) and direct array format
+    if (Array.isArray(rawReferences)) {
+      // Direct array format
+      return rawReferences;
+    } else if (rawReferences && typeof rawReferences === 'object' && 'value' in rawReferences) {
+      // Rich format with value/source structure
+      if (Array.isArray(rawReferences.value)) {
+        return rawReferences.value;
+      }
+    }
+    
+    return [];
+  })();
+
+  // Extract trackRecord from content, handling rich format structure
+  const trackRecord: any[] = (() => {
+    const rawTrackRecord = content?.trackRecord;
+    
+    // Handle both rich format (with value/source) and direct array format
+    if (Array.isArray(rawTrackRecord)) {
+      // Direct array format
+      return rawTrackRecord;
+    } else if (rawTrackRecord && typeof rawTrackRecord === 'object' && 'value' in rawTrackRecord) {
+      // Rich format with value/source structure
+      if (Array.isArray(rawTrackRecord.value)) {
+        return rawTrackRecord.value;
+      }
+    }
+    
+    return [];
+  })();
 
   const getIRRColor = (irr?: string | number | null) => {
     const irrNum =

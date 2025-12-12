@@ -286,6 +286,8 @@ export interface BorrowerResumeContent {
 
 	// Experience fields
 	yearsCREExperienceRange?: string;
+	yearFounded?: number;
+	activeProjects?: number;
 	assetClassesExperience?: string[];
 	geographicMarketsExperience?: string[];
 	totalDealValueClosedRange?: string;

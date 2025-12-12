@@ -39,6 +39,8 @@
 					"title": "2.1 Experience Summary",
 					"fields": [
 						"yearsCREExperienceRange",
+						"yearFounded",
+						"activeProjects",
 						"totalDealValueClosedRange"
 					]
 				},
@@ -62,6 +64,8 @@
 			],
 			"fields": [
 				"yearsCREExperienceRange",
+				"yearFounded",
+				"activeProjects",
 				"assetClassesExperience",
 				"geographicMarketsExperience",
 				"totalDealValueClosedRange",
@@ -193,6 +197,14 @@
 		"yearsCREExperienceRange": {
 			"label": "Years of CRE Experience",
 			"required": true
+		},
+		"yearFounded": {
+			"label": "Year Founded",
+			"required": false
+		},
+		"activeProjects": {
+			"label": "Active Projects",
+			"required": false
 		},
 		"assetClassesExperience": {
 			"label": "Asset Classes Experience",
