@@ -22,6 +22,7 @@ interface FormWizardProps {
   initialStep?: number;
   variant?: 'wizard' | 'tabs';
   showBottomNav?: boolean; // When true, show navigation buttons even in tabs variant
+  onStepChange?: (stepId: string, stepIndex: number) => void;
 }
 
 export const FormWizard: React.FC<FormWizardProps> = ({
@@ -34,6 +35,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   initialStep = 0,
   variant = 'wizard',
   showBottomNav = false,
+  onStepChange,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(initialStep);
   // Internal completion tracking for visual state
@@ -60,6 +62,12 @@ export const FormWizard: React.FC<FormWizardProps> = ({
     setInternallyCompletedSteps(initialCompleted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialStep, numSteps]); // Rerun only if initialStep or number of steps changes
+
+  // If initialStep changes (e.g., deep-linking into a step), move the wizard.
+  useEffect(() => {
+    if (initialStep < 0 || initialStep >= steps.length) return;
+    setCurrentStepIndex((prev) => (prev === initialStep ? prev : initialStep));
+  }, [initialStep, steps.length]);
 
   // Track scroll position for tabs variant to show/hide gradients
   const updateScrollGradients = React.useCallback(() => {
@@ -130,6 +138,13 @@ export const FormWizard: React.FC<FormWizardProps> = ({
        setCurrentStepIndex(index);
     }
   };
+
+  // Notify parent when the current step changes (for tracking last_step_id)
+  useEffect(() => {
+    const step = steps[currentStepIndex];
+    if (!step) return;
+    onStepChange?.(step.id, currentStepIndex);
+  }, [currentStepIndex, onStepChange, steps]);
 
   // Calculate progress based on *internal* completion tracking for visuals
   const progressPercent = Math.round(

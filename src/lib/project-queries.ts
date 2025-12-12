@@ -1145,6 +1145,20 @@ export const saveProjectResume = async (
 			.eq("project_id", projectId)
 			.eq("resource_type", "PROJECT_RESUME");
 	}
+
+	// Stamp workspace activity for abandonment detection (meaningful edit)
+	if (user?.id) {
+		await supabase
+			.from("project_workspace_activity")
+			.upsert(
+				{
+					project_id: projectId,
+					user_id: user.id,
+					last_resume_edit_at: new Date().toISOString(),
+				},
+				{ onConflict: "project_id,user_id" }
+			);
+	}
 };
 
 // =============================================================================
@@ -1749,6 +1763,20 @@ export const saveProjectBorrowerResume = async (
 				.eq("project_id", projectId)
 				.eq("resource_type", "BORROWER_RESUME");
 		}
+	}
+
+	// Stamp workspace activity for abandonment detection (meaningful edit)
+	if (user?.id) {
+		await supabase
+			.from("project_workspace_activity")
+			.upsert(
+				{
+					project_id: projectId,
+					user_id: user.id,
+					last_resume_edit_at: new Date().toISOString(),
+				},
+				{ onConflict: "project_id,user_id" }
+			);
 	}
 };
 
