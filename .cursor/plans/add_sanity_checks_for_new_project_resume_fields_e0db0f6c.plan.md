@@ -2,36 +2,37 @@
 name: Add Sanity Checks for New Project Resume Fields
 overview: Add comprehensive sanity checks for all new project resume fields based on the provided metadata. This includes source divergence thresholds, logic checks, and derived value checks for fields across all sections (Project Identification, Property Specifications, Financial Details, Market Context, Special Considerations, Timeline, Site & Context, and Sponsor Information).
 todos:
-  - id: add-section1-checks
-    content: "Add sanity checks for Section 1 (Project Identification): masterPlanName, parcelNumber, verify projectDescription"
-    status: pending
-  - id: add-section2-checks
-    content: "Add sanity checks for Section 2 (Property Specifications): Update grossBuildingArea, numberOfStories; Add commercialSpaceMix, parkingType, amenity fields, luxuryTier, targetMarket, competitivePosition, unitPlanDescription"
-    status: pending
-  - id: add-section3-checks
-    content: "Add sanity checks for Section 3 (Financial Details): Uses of Funds fields, Sources of Funds fields, Loan Terms fields, Operating Expenses fields, Investment Metrics fields, Risk Analysis fields"
-    status: pending
-  - id: add-section4-checks
-    content: "Add sanity checks for Section 4 (Market Context): Demographics fields, Location fields, Supply & Demand fields"
-    status: pending
-  - id: add-section5-checks
-    content: "Add sanity checks for Section 5 (Special Considerations): Affordable Housing fields, Incentives & Tax Credits fields"
-    status: pending
-  - id: add-section6-checks
-    content: "Add sanity checks for Section 6 (Timeline & Milestones): Key Dates fields, Entitlements fields, Construction & Lease-Up fields"
-    status: pending
-  - id: add-section7-checks
-    content: "Add sanity checks for Section 7 (Site & Context): Land & Zoning fields, Physical Characteristics fields, Environmental fields, Infrastructure fields"
-    status: pending
-  - id: add-section8-checks
-    content: "Add sanity checks for Section 8 (Sponsor Information): Entity Structure fields, Track Record fields, Financial Strength fields"
-    status: pending
-  - id: add-helper-functions
-    content: "Add helper functions: _check_commercial_space_mix_sum, _check_capital_use_timing_sum, _check_total_op_expenses_sum, _check_parcel_number_format, _check_derived_debt_service, _check_derived_trended_yield, _check_derived_untrended_yield"
-    status: pending
-  - id: verify-field-names
-    content: Verify all field names match camelCase format used in codebase by checking against project-resume-field-metadata.ts
-    status: pending
+
+- id: add-section1-checks
+content: "Add sanity checks for Section 1 (Project Identification): masterPlanName, parcelNumber, verify projectDescription"
+status: pending
+- id: add-section2-checks
+content: "Add sanity checks for Section 2 (Property Specifications): Update grossBuildingArea, numberOfStories; Add commercialSpaceMix, parkingType, amenity fields, luxuryTier, targetMarket, competitivePosition, unitPlanDescription"
+status: pending
+- id: add-section3-checks
+content: "Add sanity checks for Section 3 (Financial Details): Uses of Funds fields, Sources of Funds fields, Loan Terms fields, Operating Expenses fields, Investment Metrics fields, Risk Analysis fields"
+status: pending
+- id: add-section4-checks
+content: "Add sanity checks for Section 4 (Market Context): Demographics fields, Location fields, Supply & Demand fields"
+status: pending
+- id: add-section5-checks
+content: "Add sanity checks for Section 5 (Special Considerations): Affordable Housing fields, Incentives & Tax Credits fields"
+status: pending
+- id: add-section6-checks
+content: "Add sanity checks for Section 6 (Timeline & Milestones): Key Dates fields, Entitlements fields, Construction & Lease-Up fields"
+status: pending
+- id: add-section7-checks
+content: "Add sanity checks for Section 7 (Site & Context): Land & Zoning fields, Physical Characteristics fields, Environmental fields, Infrastructure fields"
+status: pending
+- id: add-section8-checks
+content: "Add sanity checks for Section 8 (Sponsor Information): Entity Structure fields, Track Record fields, Financial Strength fields"
+status: pending
+- id: add-helper-functions
+content: "Add helper functions: _check_commercial_space_mix_sum, _check_capital_use_timing_sum, _check_total_op_expenses_sum, _check_parcel_number_format, _check_derived_debt_service, _check_derived_trended_yield, _check_derived_untrended_yield"
+status: pending
+- id: verify-field-names
+content: Verify all field names match camelCase format used in codebase by checking against project-resume-field-metadata.ts
+status: pending
 ---
 
 # Add Sanity Checks for New Project Resume Fields
