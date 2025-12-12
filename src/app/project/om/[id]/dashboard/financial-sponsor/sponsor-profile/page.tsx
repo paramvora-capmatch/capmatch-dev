@@ -41,9 +41,53 @@ export default function SponsorProfilePage() {
     sponsorExpScore,
   };
   
-  // Principals, references, and track record not directly available in flat fields
-  // These would typically come from borrower resume or separate data source
-  const principals: any[] = [];
+  // Transform principals from borrower resume format to display format
+  // Principals come from borrower resume and are included in OM content
+  const principals: any[] = (() => {
+    const rawPrincipals = content?.principals;
+    
+    // Handle both rich format (with value/source) and direct array format
+    let principalsArray: any[] = [];
+    
+    if (Array.isArray(rawPrincipals)) {
+      // Direct array format
+      principalsArray = rawPrincipals;
+    } else if (rawPrincipals && typeof rawPrincipals === 'object' && 'value' in rawPrincipals) {
+      // Rich format with value/source structure
+      if (Array.isArray(rawPrincipals.value)) {
+        principalsArray = rawPrincipals.value;
+      }
+    }
+    
+    // Transform borrower resume principal format to display format
+    return principalsArray.map((p: any) => {
+      // Extract value if in rich format
+      const principalData = (p && typeof p === 'object' && 'value' in p) ? p.value : p;
+      
+      return {
+        name: principalData?.principalLegalName ?? null,
+        role: principalData?.principalRoleDefault ?? null,
+        bio: principalData?.principalBio ?? null,
+        experience: principalData?.yearsCREExperienceRange 
+          ? `${principalData.yearsCREExperienceRange} years` 
+          : null,
+        education: null, // Not available in borrower resume format
+        specialties: principalData?.assetClassesExperience 
+          ? (Array.isArray(principalData.assetClassesExperience) 
+            ? principalData.assetClassesExperience 
+            : [principalData.assetClassesExperience])
+          : [],
+        achievements: [], // Not available in borrower resume format
+        // Include additional fields that might be useful
+        email: principalData?.principalEmail ?? null,
+        ownershipPercentage: principalData?.ownershipPercentage ?? null,
+        netWorthRange: principalData?.netWorthRange ?? null,
+        liquidityRange: principalData?.liquidityRange ?? null,
+        creditScoreRange: principalData?.creditScoreRange ?? null,
+      };
+    }).filter((p: any) => p.name); // Only include principals with a name
+  })();
+  
   const references: any[] = [];
   const trackRecord: any[] = [];
 
