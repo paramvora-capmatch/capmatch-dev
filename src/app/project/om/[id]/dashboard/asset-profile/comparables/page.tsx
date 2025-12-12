@@ -50,7 +50,7 @@ export default function ComparablesPage() {
 	);
 	const comparablesCount = comparableDetails.length;
 
-	const getDistanceColor = (distance: string | undefined) => {
+	const getDistanceColor = (distance: string | null | undefined) => {
 		const dist = parseFloat(distance ?? "");
 		if (Number.isNaN(dist)) return "bg-gray-100 text-gray-800";
 		if (dist <= 0.5) return "bg-green-100 text-green-800";
@@ -59,7 +59,7 @@ export default function ComparablesPage() {
 		return "bg-gray-100 text-gray-800";
 	};
 
-	const getOccupancyColor = (occupancy: string | undefined) => {
+	const getOccupancyColor = (occupancy: string | null | undefined) => {
 		const occ = parseFloat(occupancy ?? "");
 		if (Number.isNaN(occ)) return "bg-gray-100 text-gray-800";
 		if (occ >= 95) return "bg-green-100 text-green-800";
@@ -68,7 +68,7 @@ export default function ComparablesPage() {
 		return "bg-red-100 text-red-800";
 	};
 
-	const getCapRateColor = (capRate: string | undefined) => {
+	const getCapRateColor = (capRate: string | null | undefined) => {
 		const cap = parseFloat(capRate ?? "");
 		if (Number.isNaN(cap)) return "bg-gray-100 text-gray-800";
 		if (cap <= 4.5) return "bg-green-100 text-green-800";

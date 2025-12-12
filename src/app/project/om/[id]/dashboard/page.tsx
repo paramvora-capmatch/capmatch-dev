@@ -18,6 +18,7 @@ import {
 	normalizeScenarioData,
 	formatFixed,
 	formatLocale,
+	parseNumeric,
 } from "@/lib/om-utils";
 import { OMErrorState } from "@/components/om/OMErrorState";
 import { OMLoadingState } from "@/components/om/OMLoadingState";
@@ -78,10 +79,10 @@ export default function OMDashboardPage() {
 	const totalDevCost = getNumericValue(content, "totalDevelopmentCost", 0);
 	
 	// Extract scenario-specific values (stored derived fields)
-	const upsideIRR = getNumericValue(content, "upsideIRR", null);
-	const downsideIRR = getNumericValue(content, "downsideIRR", null);
-	const upsideEquityMultiple = getNumericValue(content, "upsideEquityMultiple", null);
-	const downsideEquityMultiple = getNumericValue(content, "downsideEquityMultiple", null);
+	const upsideIRR = parseNumeric(content?.upsideIRR);
+	const downsideIRR = parseNumeric(content?.downsideIRR);
+	const upsideEquityMultiple = parseNumeric(content?.upsideEquityMultiple);
+	const downsideEquityMultiple = parseNumeric(content?.downsideEquityMultiple);
 
 	// Extract project info fields
 	const dealStatus = content?.dealStatus ?? null;
