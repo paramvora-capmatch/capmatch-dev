@@ -115,6 +115,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	const [isEditing, setIsEditing] = useState(false);
+	const [initialProjectStepId, setInitialProjectStepId] = useState<string | null>(null);
+	const [initialBorrowerStepId, setInitialBorrowerStepId] = useState<string | null>(null);
 	const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
 	const [chatTab, setChatTab] = useState<"team" | "ai" | "meet">("team");
 	const [shouldExpandChat, setShouldExpandChat] = useState(false);
@@ -233,7 +235,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		const step = searchParams?.get("step");
 		if (!step) return;
 
-		if (step === "borrower") {
+		// Deep-link format:
+		// - borrower / project / documents (legacy)
+		// - borrower:<sectionId> or project:<sectionId> (new)
+		if (step.startsWith("borrower:")) {
+			const sectionId = step.slice("borrower:".length).trim();
+			setInitialBorrowerStepId(sectionId || null);
+			setBorrowerEditing(true);
+			setIsEditing(false);
+		} else if (step.startsWith("project:")) {
+			const sectionId = step.slice("project:".length).trim();
+			setInitialProjectStepId(sectionId || null);
+			setIsEditing(true);
+			setBorrowerEditing(false);
+		} else if (step === "borrower") {
 			setBorrowerEditing(true);
 			setIsEditing(false);
 		} else if (step === "project") {
@@ -258,6 +273,52 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		const nextPath = params.toString() ? `${pathname}?${params}` : pathname;
 		router.replace(nextPath);
 	}, [pathname, router, searchParams, setBorrowerEditing]);
+
+	// Workspace heartbeat for accurate abandonment detection (visit-based)
+	useEffect(() => {
+		let intervalId: number | null = null;
+		let cancelled = false;
+
+		const upsertHeartbeat = async (lastStepId?: string | null) => {
+			if (!user?.id || !projectId) return;
+			const nowIso = new Date().toISOString();
+			const payload: Record<string, any> = {
+				project_id: projectId,
+				user_id: user.id,
+				last_visited_at: nowIso,
+			};
+			if (lastStepId) payload.last_step_id = lastStepId;
+
+			await supabase
+				.from("project_workspace_activity")
+				.upsert(payload, { onConflict: "project_id,user_id" });
+		};
+
+		const touch = (stepId?: string | null) => {
+			if (cancelled) return;
+			void upsertHeartbeat(stepId ?? null);
+		};
+
+		// Initial touch
+		touch(null);
+
+		// Heartbeat every 60s while mounted/active
+		intervalId = window.setInterval(() => touch(null), 60_000);
+
+		// Best-effort flush on tab hide
+		const onVisibility = () => {
+			if (document.visibilityState === "hidden") {
+				touch(null);
+			}
+		};
+		document.addEventListener("visibilitychange", onVisibility);
+
+		return () => {
+			cancelled = true;
+			if (intervalId) window.clearInterval(intervalId);
+			document.removeEventListener("visibilitychange", onVisibility);
+		};
+	}, [projectId, user?.id]);
 
 	// Handle tab=chat, thread, and resourceId query parameters (for notification links)
 	useEffect(() => {
@@ -1005,6 +1066,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 				progressPercent={borrowerProgress}
 				onProgressChange={(percent) => setBorrowerProgress(percent)}
 				onFormDataChange={(data) => setBorrowerResumeSnapshot(data)}
+				initialStepId={initialBorrowerStepId}
 				onComplete={(profile) => {
 					setBorrowerResumeSnapshot(profile || null);
 					void reloadBorrowerResume();
@@ -1393,6 +1455,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 														existingProject={
 															activeProject
 														}
+														initialStepId={initialProjectStepId}
 														onComplete={() =>
 															setIsEditing(false)
 														}
