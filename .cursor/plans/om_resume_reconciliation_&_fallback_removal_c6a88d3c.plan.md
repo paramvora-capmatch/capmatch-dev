@@ -4,64 +4,64 @@ overview: Reconcile hardcoded OM fields with project resume by linking existing 
 todos:
   - id: add-backend-milestone-status
     content: Add milestoneStatus calculation to Backend/services/calculation_service.py for each milestone date field
-    status: in_progress
+    status: completed
   - id: add-backend-capital-timing
     content: Add capitalUseTiming calculation to Backend/services/calculation_service.py based on drawSchedule and milestone dates
-    status: pending
+    status: completed
   - id: add-backend-capital-labels
     content: Add capital source and use type label calculations to Backend/services/calculation_service.py
-    status: pending
+    status: completed
   - id: add-equity-description-field
     content: Add equityContributionDescription field to resume schema (Section 3.2 Sources of Funds)
-    status: pending
+    status: completed
   - id: add-category3-fields-schema
     content: Add Category 3 AI-generated fields to resume schema (exitStrategyRisk, exitStrategyMitigant, specialProgramsDescription, etc.)
-    status: pending
+    status: completed
   - id: update-milestones-status
     content: Update milestones page to use milestoneStatus from resume (calculated by backend) instead of hardcoded values
-    status: pending
+    status: completed
     dependencies:
       - add-backend-milestone-status
   - id: update-capital-timing
     content: Update capital-stack page to use capitalUseTiming from resume (calculated by backend) instead of hardcoded strings
-    status: pending
+    status: completed
     dependencies:
       - add-backend-capital-timing
   - id: update-capital-labels
     content: Update capital-stack page to use capital source/use labels from resume (calculated by backend) instead of hardcoded strings
-    status: pending
+    status: completed
     dependencies:
       - add-backend-capital-labels
   - id: link-origination-fee
     content: Link origination fee in page.tsx and key-terms/page.tsx to resume field (remove hardcoded 1.00%)
-    status: pending
+    status: completed
   - id: update-equity-description
     content: Update capital-stack page to use equityContributionDescription field instead of hardcoded text
-    status: pending
+    status: completed
     dependencies:
       - add-equity-description-field
   - id: update-category3-insights
     content: Update all pages to use insights from useOmContent() hook for Category 3 AI-generated fields
-    status: pending
+    status: completed
     dependencies:
       - add-category3-fields-schema
   - id: remove-capital-stack-fallbacks
     content: Remove all fallback text values from capital-stack/page.tsx (risk/mitigant fallbacks)
-    status: pending
+    status: completed
   - id: remove-risk-analysis-fallbacks
     content: Remove all fallback text values from risk-analysis/page.tsx (mitigation and monitoring fallbacks)
-    status: pending
+    status: completed
   - id: remove-key-terms-fallbacks
     content: Remove fallback text values from key-terms/page.tsx (origination fee and special programs description)
-    status: pending
+    status: completed
   - id: remove-milestones-fallbacks
     content: Remove fallback status values from milestones/page.tsx after implementing backend-calculated status
-    status: pending
+    status: completed
     dependencies:
       - update-milestones-status
   - id: remove-loan-type-fallback
     content: Remove Senior Loan fallback from capital-stack page and handle null gracefully
-    status: pending
+    status: completed
 ---
 
 # OM Resume Reconciliation & Fallback Text Removal Plan

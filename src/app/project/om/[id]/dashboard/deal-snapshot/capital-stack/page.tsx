@@ -28,13 +28,13 @@ export default function CapitalStackPage() {
   const taxCreditEquity = parseNumeric(content?.taxCreditEquity) ?? 0;
   const gapFinancing = parseNumeric(content?.gapFinancing) ?? 0;
   
-  // Build sources
+  // Build sources using labels from resume (calculated by backend)
   const sources = [
-    { type: content?.loanType ?? "Senior Loan", amount: loanAmountRequested, percentage: 0 },
-    { type: "Sponsor Equity", amount: sponsorEquity, percentage: 0 },
-    ...(taxCreditEquity > 0 ? [{ type: "Tax Credit Equity", amount: taxCreditEquity, percentage: 0 }] : []),
-    ...(gapFinancing > 0 ? [{ type: "Gap Financing", amount: gapFinancing, percentage: 0 }] : [])
-  ].filter(s => s.amount > 0);
+    { type: content?.loanTypeLabel ?? content?.loanType ?? null, amount: loanAmountRequested, percentage: 0 },
+    { type: content?.sponsorEquityLabel ?? "Sponsor Equity", amount: sponsorEquity, percentage: 0 },
+    ...(taxCreditEquity > 0 ? [{ type: content?.taxCreditEquityLabel ?? "Tax Credit Equity", amount: taxCreditEquity, percentage: 0 }] : []),
+    ...(gapFinancing > 0 ? [{ type: content?.gapFinancingLabel ?? "Gap Financing", amount: gapFinancing, percentage: 0 }] : [])
+  ].filter(s => s.amount > 0 && s.type);
   
   // Calculate percentages
   const totalSources = sources.reduce((sum, s) => sum + s.amount, 0);
@@ -64,27 +64,129 @@ export default function CapitalStackPage() {
   const enviroRemediation = parseNumeric(content?.enviroRemediation) ?? 0;
   const pfcStructuringFee = parseNumeric(content?.pfcStructuringFee) ?? 0;
   
+  // Build uses with labels and timing from resume (calculated by backend)
+  const capitalUseTiming = content?.capitalUseTiming ?? {};
   const uses = [
-    { type: "Land Acquisition", amount: landAcquisition, percentage: 0, timing: "Month 0" },
-    { type: "Base Construction", amount: baseConstruction, percentage: 0, timing: "Months 1-24" },
-    { type: "Contingency", amount: contingency, percentage: 0, timing: "Months 1-24" },
-    { type: "Construction Fees", amount: constructionFees, percentage: 0, timing: "Months 1-24" },
-    { type: "A&E Fees", amount: aeFees, percentage: 0, timing: "Months 1-24" },
-    { type: "Developer Fee", amount: developerFee, percentage: 0, timing: "Months 1-24" },
-    { type: "Interest Reserve", amount: interestReserve, percentage: 0, timing: "Month 0" },
-    { type: "Working Capital", amount: workingCapital, percentage: 0, timing: "Month 0" },
-    { type: "Op. Deficit Escrow", amount: opDeficitEscrow, percentage: 0, timing: "Month 0" },
-    { type: "Lease-Up Escrow", amount: leaseUpEscrow, percentage: 0, timing: "Month 0" },
-    { type: "FF&E", amount: ffe, percentage: 0, timing: "Months 1-24" },
-    { type: "Third Party Reports", amount: thirdPartyReports, percentage: 0, timing: "Months 1-24" },
-    { type: "Legal & Org", amount: legalAndOrg, percentage: 0, timing: "Months 1-24" },
-    { type: "Title & Recording", amount: titleAndRecording, percentage: 0, timing: "Months 1-24" },
-    { type: "Taxes During Construction", amount: taxesDuringConstruction, percentage: 0, timing: "Months 1-24" },
-    { type: "Loan Fees", amount: loanFees, percentage: 0, timing: "Month 0" },
-    { type: "Relocation Costs", amount: relocationCosts, percentage: 0, timing: "Months 1-24" },
-    { type: "Syndication Costs", amount: syndicationCosts, percentage: 0, timing: "Months 1-24" },
-    { type: "Enviro. Remediation", amount: enviroRemediation, percentage: 0, timing: "Months 1-24" },
-    { type: "PFC Structuring Fee", amount: pfcStructuringFee, percentage: 0, timing: "Month 0" }
+    { 
+      type: content?.landAcquisitionLabel ?? "Land Acquisition", 
+      amount: landAcquisition, 
+      percentage: 0, 
+      timing: capitalUseTiming?.landAcquisition ?? "Month 0" 
+    },
+    { 
+      type: content?.baseConstructionLabel ?? "Base Construction", 
+      amount: baseConstruction, 
+      percentage: 0, 
+      timing: capitalUseTiming?.baseConstruction ?? "Months 1-24" 
+    },
+    { 
+      type: content?.contingencyLabel ?? "Contingency", 
+      amount: contingency, 
+      percentage: 0, 
+      timing: capitalUseTiming?.contingency ?? "Months 1-24" 
+    },
+    { 
+      type: content?.constructionFeesLabel ?? "Construction Fees", 
+      amount: constructionFees, 
+      percentage: 0, 
+      timing: capitalUseTiming?.constructionFees ?? "Months 1-24" 
+    },
+    { 
+      type: content?.aeFeesLabel ?? "A&E Fees", 
+      amount: aeFees, 
+      percentage: 0, 
+      timing: capitalUseTiming?.aeFees ?? "Months 1-24" 
+    },
+    { 
+      type: content?.developerFeeLabel ?? "Developer Fee", 
+      amount: developerFee, 
+      percentage: 0, 
+      timing: capitalUseTiming?.developerFee ?? "Months 1-24" 
+    },
+    { 
+      type: content?.interestReserveLabel ?? "Interest Reserve", 
+      amount: interestReserve, 
+      percentage: 0, 
+      timing: capitalUseTiming?.interestReserve ?? "Month 0" 
+    },
+    { 
+      type: content?.workingCapitalLabel ?? "Working Capital", 
+      amount: workingCapital, 
+      percentage: 0, 
+      timing: capitalUseTiming?.workingCapital ?? "Month 0" 
+    },
+    { 
+      type: content?.opDeficitEscrowLabel ?? "Op. Deficit Escrow", 
+      amount: opDeficitEscrow, 
+      percentage: 0, 
+      timing: capitalUseTiming?.opDeficitEscrow ?? "Month 0" 
+    },
+    { 
+      type: content?.leaseUpEscrowLabel ?? "Lease-Up Escrow", 
+      amount: leaseUpEscrow, 
+      percentage: 0, 
+      timing: capitalUseTiming?.leaseUpEscrow ?? "Month 0" 
+    },
+    { 
+      type: content?.ffeLabel ?? "FF&E", 
+      amount: ffe, 
+      percentage: 0, 
+      timing: capitalUseTiming?.ffe ?? "Months 1-24" 
+    },
+    { 
+      type: content?.thirdPartyReportsLabel ?? "Third Party Reports", 
+      amount: thirdPartyReports, 
+      percentage: 0, 
+      timing: capitalUseTiming?.thirdPartyReports ?? "Months 1-24" 
+    },
+    { 
+      type: content?.legalAndOrgLabel ?? "Legal & Org", 
+      amount: legalAndOrg, 
+      percentage: 0, 
+      timing: capitalUseTiming?.legalAndOrg ?? "Months 1-24" 
+    },
+    { 
+      type: content?.titleAndRecordingLabel ?? "Title & Recording", 
+      amount: titleAndRecording, 
+      percentage: 0, 
+      timing: capitalUseTiming?.titleAndRecording ?? "Months 1-24" 
+    },
+    { 
+      type: content?.taxesDuringConstructionLabel ?? "Taxes During Construction", 
+      amount: taxesDuringConstruction, 
+      percentage: 0, 
+      timing: capitalUseTiming?.taxesDuringConstruction ?? "Months 1-24" 
+    },
+    { 
+      type: content?.loanFeesLabel ?? "Loan Fees", 
+      amount: loanFees, 
+      percentage: 0, 
+      timing: capitalUseTiming?.loanFees ?? "Month 0" 
+    },
+    { 
+      type: content?.relocationCostsLabel ?? "Relocation Costs", 
+      amount: relocationCosts, 
+      percentage: 0, 
+      timing: capitalUseTiming?.relocationCosts ?? "Months 1-24" 
+    },
+    { 
+      type: content?.syndicationCostsLabel ?? "Syndication Costs", 
+      amount: syndicationCosts, 
+      percentage: 0, 
+      timing: capitalUseTiming?.syndicationCosts ?? "Months 1-24" 
+    },
+    { 
+      type: content?.enviroRemediationLabel ?? "Enviro. Remediation", 
+      amount: enviroRemediation, 
+      percentage: 0, 
+      timing: capitalUseTiming?.enviroRemediation ?? "Months 1-24" 
+    },
+    { 
+      type: content?.pfcStructuringFeeLabel ?? "PFC Structuring Fee", 
+      amount: pfcStructuringFee, 
+      percentage: 0, 
+      timing: capitalUseTiming?.pfcStructuringFee ?? "Month 0" 
+    }
   ].filter(u => u.amount > 0);
   
   // Calculate use percentages
@@ -226,9 +328,9 @@ export default function CapitalStackPage() {
                   {source.type?.includes('Loan') && rateDisplay && (
                     <p className="text-sm text-gray-600">Rate: {rateDisplay}</p>
                   )}
-                  {source.type?.includes('Equity') && (
+                  {source.type?.includes('Equity') && content?.equityContributionDescription && (
                     <p className="text-sm text-gray-600">
-                      Contribution: Cash & ground lease
+                      {content.equityContributionDescription}
                     </p>
                   )}
                 </div>
@@ -402,10 +504,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Construction Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> {insights?.capitalRisk1 ?? content?.capitalRisk1 ?? 'Cost overruns and delays could strain cash flow'}
+                <strong>Risk:</strong> {insights?.capitalRisk1 ?? content?.capitalRisk1 ?? null}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> {insights?.capitalMitigant1 ?? content?.capitalMitigant1 ?? 'Fixed-price GMP contract with experienced contractor'}
+                <strong>Mitigant:</strong> {insights?.capitalMitigant1 ?? content?.capitalMitigant1 ?? null}
               </p>
             </div>
           </div>
@@ -414,10 +516,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Interest Rate Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> {insights?.capitalRisk2 ?? content?.capitalRisk2 ?? 'Rising SOFR could increase debt service costs'}
+                <strong>Risk:</strong> {insights?.capitalRisk2 ?? content?.capitalRisk2 ?? null}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> {insights?.capitalMitigant2 ?? content?.capitalMitigant2 ?? '12-month interest reserve and rate floor protection'}
+                <strong>Mitigant:</strong> {insights?.capitalMitigant2 ?? content?.capitalMitigant2 ?? null}
               </p>
             </div>
           </div>
@@ -426,10 +528,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Pre-Leasing Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> {insights?.capitalRisk3 ?? content?.capitalRisk3 ?? 'Insufficient pre-leasing could delay permanent financing'}
+                <strong>Risk:</strong> {insights?.capitalRisk3 ?? content?.capitalRisk3 ?? null}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> {insights?.capitalMitigant3 ?? content?.capitalMitigant3 ?? 'Strong market fundamentals and marketing plan'}
+                <strong>Mitigant:</strong> {insights?.capitalMitigant3 ?? content?.capitalMitigant3 ?? null}
               </p>
             </div>
           </div>
@@ -438,12 +540,10 @@ export default function CapitalStackPage() {
             <h4 className="font-medium text-gray-800">Exit Strategy Risk</h4>
             <div className="p-3 bg-red-50 rounded-lg">
               <p className="text-sm text-red-700">
-                <strong>Risk:</strong> <span className="text-red-600">Market conditions may not support target
-                exit cap rate</span>
+                <strong>Risk:</strong> {insights?.exitStrategyRisk ?? content?.exitStrategyRisk ?? null}
               </p>
               <p className="text-sm text-green-700 mt-1">
-                <strong>Mitigant:</strong> <span className="text-red-600">Multiple exit strategies (sale,
-                refinance, hold)</span>
+                <strong>Mitigant:</strong> {insights?.exitStrategyMitigant ?? content?.exitStrategyMitigant ?? null}
               </p>
             </div>
           </div>

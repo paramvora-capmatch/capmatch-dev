@@ -26,7 +26,7 @@ export default function KeyTermsPage() {
     term: content?.requestedTerm ?? null,
     extension: null, // Not directly available
     recourse: content?.recoursePreference ?? null,
-    origination: "1.00%", // Placeholder
+    origination: content?.originationFee ?? null,
     exitFee: content?.prepaymentPremium ?? null,
     interestRateType,
     interestOnlyPeriodMonths,
@@ -188,11 +188,16 @@ export default function KeyTermsPage() {
                 <span className="text-sm text-gray-700 font-medium">Origination Fee</span>
                   <Badge className="bg-red-100 text-red-800 border-2 border-red-300 font-semibold text-sm px-3 py-1">
                     {(() => {
+                      if (content?.originationFee) {
+                        return typeof content.originationFee === 'number' 
+                          ? `${content.originationFee}%` 
+                          : content.originationFee;
+                      }
                       const originationFee = content?.loanFees 
                         ? typeof content.loanFees === 'number' 
                           ? `${content.loanFees}%` 
                           : content.loanFees
-                        : '1.00%';
+                        : null;
                       return originationFee;
                     })()}
                   </Badge>
@@ -288,7 +293,7 @@ export default function KeyTermsPage() {
             <h3 className="text-xl font-semibold text-gray-800">Special Programs & Incentives</h3>
           </div>
           <p className="text-sm text-gray-600 mt-2">
-            {insights?.specialProgramsDescription ?? content?.specialProgramsDescription ?? 'Opportunity Zone benefits, Dallas PFC lease, and workforce housing covenant tied to the Hoque structure.'}
+            {insights?.specialProgramsDescription ?? content?.specialProgramsDescription ?? null}
           </p>
         </CardHeader>
         <CardContent className="pt-0">

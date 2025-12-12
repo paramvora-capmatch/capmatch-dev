@@ -23,15 +23,15 @@ export default function MilestonesPage() {
     }
   };
   
-  // Build milestones from flat date fields
+  // Build milestones from flat date fields with status from resume (calculated by backend)
   const milestones = [
-    { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: "completed" as const },
-    { phase: "Entitlements", date: content?.entitlementsDate ?? null, status: "completed" as const },
-    { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: "current" as const },
-    { phase: "Vertical Start", date: content?.verticalStart ?? null, status: "current" as const },
-    { phase: "First Occupancy", date: content?.firstOccupancy ?? null, status: "upcoming" as const },
-    { phase: "Completion", date: content?.completionDate ?? null, status: "upcoming" as const },
-    { phase: "Stabilization", date: content?.stabilization ?? null, status: "upcoming" as const },
+    { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: content?.landAcqStatus ?? null },
+    { phase: "Entitlements", date: content?.entitlementsDate ?? null, status: content?.entitlementsStatus ?? null },
+    { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: content?.groundbreakingStatus ?? null },
+    { phase: "Vertical Start", date: content?.verticalStart ?? null, status: content?.verticalStartStatus ?? null },
+    { phase: "First Occupancy", date: content?.firstOccupancy ?? null, status: content?.firstOccupancyStatus ?? null },
+    { phase: "Completion", date: content?.completionDate ?? null, status: content?.completionStatus ?? null },
+    { phase: "Stabilization", date: content?.stabilization ?? null, status: content?.stabilizationStatus ?? null },
   ].filter(item => item.date);
 
   // Calculate durations for each milestone
@@ -107,16 +107,18 @@ export default function MilestonesPage() {
             {milestonesWithDuration.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => (
               <div key={index} className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  {getStatusIcon(milestone.status ?? 'upcoming')}
+                  {milestone.status ? getStatusIcon(milestone.status) : <Clock className="h-5 w-5 text-gray-400" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {milestone.phase ?? null}
                     </p>
-                      <Badge className={getStatusColor(milestone.status ?? 'upcoming')}>
-                      {milestone.status ?? null}
-                    </Badge>
+                      {milestone.status && (
+                        <Badge className={getStatusColor(milestone.status)}>
+                          {milestone.status}
+                        </Badge>
+                      )}
                   </div>
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-sm text-gray-500">{milestone.date ?? null}</p>
@@ -165,7 +167,9 @@ export default function MilestonesPage() {
                           ? 'bg-green-500'
                           : milestone.status === 'current'
                           ? 'bg-blue-500'
-                          : 'bg-gray-400'
+                          : milestone.status === 'upcoming'
+                          ? 'bg-gray-400'
+                          : 'bg-gray-300'
                       }`}
                       style={{
                         left: `${startPercentage}%`,

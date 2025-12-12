@@ -50,7 +50,7 @@ export default function DealSnapshotPage() {
       rate: allInRate != null ? `${allInRate}% all-in` : interestRate != null ? `${interestRate}%` : null,
       term: requestedTerm ?? null,
       recourse: recoursePreference ?? null,
-      origination: "1.00%",
+      origination: content?.originationFee ?? null,
       covenants: {
         minDSCR: dscrStressMin != null ? `${dscrStressMin.toFixed(2)}x` : null,
         maxLTV: ltvStressMax != null ? `${ltvStressMax}%` : null,
@@ -58,13 +58,13 @@ export default function DealSnapshotPage() {
       },
     };
     
-    // Build milestones from flat date fields
+    // Build milestones from flat date fields with status from resume (calculated by backend)
     const milestones = [
-      { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: "completed" as const },
-      { phase: "Entitlements", date: content?.entitlements ?? null, status: "completed" as const },
-      { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: "current" as const },
-      { phase: "Completion", date: content?.completionDate ?? null, status: "upcoming" as const },
-      { phase: "Stabilization", date: content?.stabilization ?? null, status: "upcoming" as const },
+      { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: content?.landAcqStatus ?? null },
+      { phase: "Entitlements", date: content?.entitlements ?? null, status: content?.entitlementsStatus ?? null },
+      { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: content?.groundbreakingStatus ?? null },
+      { phase: "Completion", date: content?.completionDate ?? null, status: content?.completionStatus ?? null },
+      { phase: "Stabilization", date: content?.stabilization ?? null, status: content?.stabilizationStatus ?? null },
     ].filter(item => item.date);
     
     // Build scenario data from flat fields
@@ -216,13 +216,17 @@ export default function DealSnapshotPage() {
                                 <span className="text-sm">{milestone.phase ?? null}</span>
                                 <div className="flex items-center space-x-2">
                                     <span className="text-xs text-gray-500">{milestone.date ?? null}</span>
-                                    <div className={`w-2 h-2 rounded-full ${
-                                        milestone.status === 'completed'
-                                            ? 'bg-green-500'
-                                            : milestone.status === 'current'
-                                            ? 'bg-blue-500'
-                                            : 'bg-red-400'
-                                    }`} />
+                                    {milestone.status && (
+                                      <div className={`w-2 h-2 rounded-full ${
+                                          milestone.status === 'completed'
+                                              ? 'bg-green-500'
+                                              : milestone.status === 'current'
+                                              ? 'bg-blue-500'
+                                              : milestone.status === 'upcoming'
+                                              ? 'bg-red-400'
+                                              : 'bg-gray-400'
+                                      }`} />
+                                    )}
                                 </div>
                             </div>
                         ))}

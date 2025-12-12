@@ -231,11 +231,8 @@ export default function RiskAnalysisPage() {
                 Key Mitigation Strategies
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['riskMitigation1', 'riskMitigation2', 'riskMitigation3'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'Fixed-price GMP contract with contingency' :
-                                   idx === 1 ? 'Strong pre-leasing commitments' :
-                                   'Full entitlement and permits secured';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['riskMitigation1', 'riskMitigation2', 'riskMitigation3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field] ?? null;
                   return insight ? (
                     <li key={field} className="flex items-start">
                       <span className="text-green-500 mr-2">•</span>
@@ -250,11 +247,8 @@ export default function RiskAnalysisPage() {
                 Risk Monitoring
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['riskMonitoring1', 'riskMonitoring2', 'riskMonitoring3'].map((field, idx) => {
-                  const fallback = idx === 0 ? 'Monthly construction cost reviews' :
-                                   idx === 1 ? 'Quarterly market demand analysis' :
-                                   'Regular entitlement compliance checks';
-                  const insight = insights?.[field] ?? content?.[field] ?? fallback;
+                {['riskMonitoring1', 'riskMonitoring2', 'riskMonitoring3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field] ?? null;
                   return insight ? (
                     <li key={field} className="flex items-start">
                       <span className="text-blue-500 mr-2">•</span>
