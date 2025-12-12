@@ -11,6 +11,12 @@ import { formatLocale, formatCurrency, parseNumeric } from '@/lib/om-utils';
 export default function DemographicsPage() {
   const { content, insights } = useOmContent();
   
+  type RadiusData = {
+    population: number | null;
+    medianIncome: number | null;
+    medianAge: number | null;
+  };
+
   // Read from flat fields
   const population1Mi = parseNumeric(content?.population1Mi) ?? null;
   const population3Mi = parseNumeric(content?.population3Mi) ?? null;
@@ -28,28 +34,35 @@ export default function DemographicsPage() {
   const bachelorsShare = content?.bachelorsShare ?? null;
   
   // Build radius data objects for compatibility with existing UI code
-  const oneMile = {
+  const oneMile: RadiusData = {
     population: population1Mi,
     medianIncome: medianIncome1Mi,
     medianAge: medianAge1Mi
   };
-  const threeMile = {
+  const threeMile: RadiusData = {
     population: population3Mi,
     medianIncome: medianHHIncome,
     medianAge: medianAge3Mi
   };
-  const fiveMile = {
+  const fiveMile: RadiusData = {
     population: population5Mi,
     medianIncome: medianIncome5Mi,
     medianAge: medianAge5Mi
   };
   
   // Build radius entries for Population Analysis section
-  const radiusEntries = [
-    ['oneMile', oneMile],
-    ['threeMile', threeMile],
-    ['fiveMile', fiveMile]
-  ].filter(([_, data]) => data.population != null || data.medianIncome != null || data.medianAge != null);
+  const radiusEntries = (
+    [
+      ['oneMile', oneMile],
+      ['threeMile', threeMile],
+      ['fiveMile', fiveMile],
+    ] as const satisfies ReadonlyArray<readonly [string, RadiusData]>
+  ).filter(
+    ([_, data]) =>
+      data.population != null ||
+      data.medianIncome != null ||
+      data.medianAge != null
+  );
 
   const getGrowthColor = (growth?: string | null) => {
     const growthNum = parseFloat(growth ?? '0');
@@ -212,20 +225,20 @@ export default function DemographicsPage() {
                         {radius.replace(/([A-Z])/g, ' $1').trim()} Radius
                       </h4>
                       <Badge variant="outline" className="border-gray-200 bg-white">
-                      {formatLocale((data as Record<string, number | undefined>).population) ?? null}
+                      {formatLocale(data.population) ?? null}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Income</p>
                       <p className="font-semibold text-gray-800">
-                        {formatCurrency((data as Record<string, number | undefined>).medianIncome) ?? null}
+                        {formatCurrency(data.medianIncome) ?? null}
                       </p>
                       </div>
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Age</p>
                       <p className="font-semibold text-gray-800">
-                        {(data as Record<string, number | undefined>).medianAge ?? null} years
+                        {data.medianAge ?? null} years
                       </p>
                       </div>
                     </div>
@@ -257,14 +270,14 @@ export default function DemographicsPage() {
                         {radius.replace(/([A-Z])/g, ' $1').trim()}
                       </span>
                     <span className="text-sm text-gray-500">
-                      {formatCurrency((data as Record<string, number | undefined>).medianIncome)}
+                      {formatCurrency(data.medianIncome)}
                     </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                       <div 
                         className={`h-3 rounded-full bg-gradient-to-r ${color} shadow-sm`}
                       style={{
-                        width: `${((data as Record<string, number | undefined>).medianIncome ?? 0) / 100000 * 100}%`,
+                        width: `${(data.medianIncome ?? 0) / 100000 * 100}%`,
                       }}
                       />
                     </div>
