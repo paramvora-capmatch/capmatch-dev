@@ -15,7 +15,7 @@ type UnitMixUnit = {
 };
 
 export default function UnitMixPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   
   // Access flat residentialUnitMix array directly
   const residentialUnitMix = Array.isArray(content?.residentialUnitMix) ? content.residentialUnitMix : [];
@@ -309,19 +309,19 @@ export default function UnitMixPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Luxury Tier</span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {insights?.luxuryTier ?? content?.luxuryTier ?? null}
+                    {content?.luxuryTier ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Target Market</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {insights?.targetMarket ?? content?.targetMarket ?? null}
+                    {content?.targetMarket ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Competitive Position</span>
                   <Badge className="bg-green-100 text-green-800">
-                    {insights?.competitivePosition ?? content?.competitivePosition ?? null}
+                    {content?.competitivePosition ?? null}
                   </Badge>
                 </div>
               </div>
@@ -334,8 +334,8 @@ export default function UnitMixPage() {
       <Card className="hover:shadow-lg transition-shadow mt-8">
         <CardHeader>
           <h3 className="text-xl font-semibold text-gray-800">Detailed Unit Plans</h3>
-          {insights?.unitPlanDescription ?? content?.unitPlanDescription ? (
-            <p className="text-sm text-gray-600">{insights?.unitPlanDescription ?? content?.unitPlanDescription}</p>
+          {content?.unitPlanDescription ? (
+            <p className="text-sm text-gray-600">{content.unitPlanDescription}</p>
           ) : null}
         </CardHeader>
         <CardContent>

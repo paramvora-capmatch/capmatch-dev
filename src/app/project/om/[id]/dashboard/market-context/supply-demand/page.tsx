@@ -349,19 +349,19 @@ export default function SupplyDemandPage() {
                   <Badge
                     className={getOccupancyColor(averageOccupancy)}
                     >
-                      {insights?.marketStatus ?? content?.marketStatus ?? null}
+                      {content?.marketStatus ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Demand Trend</span>
                   <Badge className="bg-green-100 text-green-800">
-                    {insights?.demandTrend ?? content?.demandTrend ?? null}
+                    {content?.demandTrend ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pressure</span>
                   <Badge className="bg-red-100 text-red-800">
-                    {insights?.supplyPressure ?? content?.supplyPressure ?? null}
+                    {content?.supplyPressure ?? null}
                   </Badge>
                 </div>
               </div>
@@ -420,8 +420,8 @@ export default function SupplyDemandPage() {
                   const insight = insights?.[field] ?? content?.[field];
                   return insight ? (
                     <li key={field} className="flex items-center">
-                      <span className="text-red-500 mr-2">•</span>
-                      <span className="text-red-600">{insight}</span>
+                      <span className="text-gray-800 mr-2">•</span>
+                      <span className="text-gray-800">{insight}</span>
                     </li>
                   ) : null;
                 })}

@@ -479,8 +479,8 @@ export default function ReturnsPage() {
                 Mitigation Strategies
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                {['mitigationStrategy1', 'mitigationStrategy2', 'mitigationStrategy3'].map((field) => {
-                  const insight = insights?.[field] ?? content?.[field] ?? null;
+                {['returnMitigation1', 'returnMitigation2', 'returnMitigation3'].map((field) => {
+                  const insight = insights?.[field] ?? null;
                   return insight ? (
                     <li key={field} className="flex items-center">
                       <span className="text-blue-500 mr-2">•</span>

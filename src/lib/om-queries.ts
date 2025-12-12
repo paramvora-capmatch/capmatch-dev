@@ -111,6 +111,10 @@ const INSIGHT_FIELD_KEYS = [
 	"capitalMitigant3",
 	"exitStrategyRisk",
 	"exitStrategyMitigant",
+	"commercialInnovationProgram",
+	"amenityCategories",
+	"premiumFeatures",
+	"differentiators",
 ];
 
 /**

@@ -61,6 +61,10 @@ const INSIGHT_FIELD_KEYS = [
 	"capitalMitigant3",
 	"exitStrategyRisk",
 	"exitStrategyMitigant",
+	"commercialInnovationProgram",
+	"amenityCategories",
+	"premiumFeatures",
+	"differentiators",
 ];
 
 /**
@@ -131,7 +135,7 @@ export function createTrackedContent(
 		get(target, prop: string | symbol) {
 			// Skip non-string properties (Symbols, internal properties)
 			if (typeof prop !== "string") {
-				return target[prop as keyof typeof target];
+				return target[prop as unknown as keyof typeof target];
 			}
 
 			// Skip internal/private properties
