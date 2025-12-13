@@ -492,7 +492,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		} finally {
 			setLoading(false);
 		}
-	}, [orgId, projectId]);
+	}, [orgId, projectId, isFieldLocked, setFormData]);
 
 	useEffect(() => {
 		if (!orgId || !projectId) return;
@@ -5134,6 +5134,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		activeOrg?.id,
 		isFieldRequiredFromSchema,
 		fieldMetadata,
+		toggleFieldLock,
 	]);
 
 	const initialStepIndex = useMemo(() => {
