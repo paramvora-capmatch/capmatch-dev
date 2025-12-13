@@ -31,24 +31,6 @@ const GLOBAL_CONTROLS = [
     description: "Notifications for new chat messages and mentions.",
     target: { scopeType: "global" as const, scopeId: null, eventType: "chat_message", channel: "in_app" as const },
   },
-  {
-    id: "meeting_invited",
-    title: "Meeting invitations",
-    description: "Alerts when you're invited to a meeting.",
-    target: { scopeType: "global" as const, scopeId: null, eventType: "meeting_invited", channel: "in_app" as const },
-  },
-  {
-    id: "meeting_updated",
-    title: "Meeting updates",
-    description: "Notifications when meeting details change.",
-    target: { scopeType: "global" as const, scopeId: null, eventType: "meeting_updated", channel: "in_app" as const },
-  },
-  {
-    id: "meeting_reminder",
-    title: "Meeting reminders",
-    description: "Reminders 30 minutes before meetings start.",
-    target: { scopeType: "global" as const, scopeId: null, eventType: "meeting_reminder", channel: "in_app" as const },
-  },
 ];
 
 const buildPreferenceKey = (scopeType: string, scopeId: string | null, eventType: string) =>

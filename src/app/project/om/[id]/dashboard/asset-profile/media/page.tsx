@@ -78,22 +78,6 @@ export default function MediaGalleryPage() {
     loadMedia();
   }, [projectId, project, loadMedia]);
 
-  // Preload images into browser cache for faster subsequent loads
-  useEffect(() => {
-    if (siteImages.length === 0 && architecturalDiagrams.length === 0) return;
-    
-    // Preload all images using native Image API for better browser cache utilization
-    const allImageUrls = [...siteImages, ...architecturalDiagrams]
-      .map(img => img.url)
-      .filter(Boolean);
-    
-    allImageUrls.forEach(url => {
-      // Use native Image preloading for better browser cache utilization
-      const img = new window.Image();
-      img.src = url;
-    });
-  }, [siteImages, architecturalDiagrams]);
-
   if (!project) {
     return <div className="text-center py-8">Project not found</div>;
   }
@@ -139,7 +123,7 @@ export default function MediaGalleryPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {siteImages.map((image, index) => (
+              {siteImages.map((image) => (
                 <div key={image.name} className="space-y-3">
                   <div 
                     className="relative w-full h-56 rounded-xl overflow-hidden border border-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
@@ -151,9 +135,6 @@ export default function MediaGalleryPage() {
                       fill
                       sizes="(max-width: 768px) 100vw, 50vw"
                       className="object-cover"
-                      unoptimized
-                      priority={index < 4}
-                      loading={index < 4 ? "eager" : "lazy"}
                     />
                   </div>
                   <div>
@@ -181,7 +162,7 @@ export default function MediaGalleryPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {architecturalDiagrams.map((diagram, index) => (
+              {architecturalDiagrams.map((diagram) => (
                 <div key={diagram.name} className="space-y-3">
                   <div 
                     className="relative w-full h-48 rounded-xl overflow-hidden border border-gray-100 bg-white cursor-pointer hover:opacity-90 transition-opacity"
@@ -198,9 +179,6 @@ export default function MediaGalleryPage() {
                         fill
                         sizes="(max-width: 768px) 100vw, 33vw"
                         className="object-contain p-4 bg-white"
-                        unoptimized
-                        priority={index < 6}
-                        loading={index < 6 ? "eager" : "lazy"}
                       />
                     )}
                   </div>

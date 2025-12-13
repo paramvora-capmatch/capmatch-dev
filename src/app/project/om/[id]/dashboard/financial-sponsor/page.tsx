@@ -12,12 +12,7 @@ import { DollarSign, BarChart3, Users, Activity } from 'lucide-react';
 import ReturnsCharts from '@/components/om/ReturnsCharts';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatFixed, parseNumeric, formatLocale } from '@/lib/om-utils';
-
-// Component to show missing values in red
-const MissingValue = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-red-600 font-medium">{children}</span>
-);
+import { formatFixed } from '@/lib/om-utils';
 
 export default function FinancialSponsorPage() {
     const params = useParams();
@@ -63,22 +58,16 @@ export default function FinancialSponsorPage() {
     ].filter(u => u.amount > 0);
     
     // Access flat return fields
-    const yieldOnCost = parseNumeric(content?.yieldOnCost) ?? null;
-    const capRate = parseNumeric(content?.capRate) ?? null;
-    const debtYield = parseNumeric(content?.debtYield) ?? null;
-    const irr = parseNumeric(content?.irr) ?? null;
-    const equityMultiple = parseNumeric(content?.equityMultiple) ?? null;
+    const yieldOnCost = content?.yieldOnCost ?? null;
+    const capRate = content?.capRate ?? null;
+    const debtYield = content?.debtYield ?? null;
+    const irr = content?.irr ?? null;
+    const equityMultiple = content?.equityMultiple ?? null;
     
     // Access flat sponsor fields
     const sponsorEntityName = content?.sponsorEntityName ?? null;
     const sponsorExperience = content?.sponsorExperience ?? null;
-    const priorDevelopments = parseNumeric(content?.priorDevelopments) ?? null;
-    
-    // Access cash flow data if available (hardcoded for now)
-    const cashFlowData = Array.isArray(content?.cashFlow) ? content.cashFlow : null;
-    
-    // Access break-even if available
-    const breakEven = parseNumeric(content?.breakEven) ?? null;
+    const priorDevelopments = content?.priorDevelopments ?? null;
     
     const formatMillions = (value?: number | null) =>
       value != null ? `$${formatFixed(value / 1_000_000, 1) ?? "0.0"}M` : null;
@@ -139,7 +128,7 @@ export default function FinancialSponsorPage() {
                         <MetricCard label="Yield on Cost" value={yieldOnCost ?? null} format="percent" size="sm" />
                         <MetricCard label="Stabilized Cap" value={capRate ?? null} format="percent" size="sm" />
                         <MetricCard label="Debt Yield" value={debtYield ?? null} format="percent" size="sm" />
-                        <MetricCard label="Equity Multiple" value={equityMultiple != null ? formatFixed(equityMultiple, 2) : null} format="number" size="sm" />
+                        <MetricCard label="Equity Multiple" value={equityMultiple ?? null} format="number" size="sm" />
                     </div>
                     <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2">5-Year Cash Flow</p>
@@ -166,20 +155,18 @@ export default function FinancialSponsorPage() {
                         <div className="text-sm">
                             <p className="text-gray-500">Experience</p>
                             <p className="font-medium">
-                              {sponsorExperience ? sponsorExperience : <MissingValue>Seasoned (3+)</MissingValue>}
+                              {sponsorExperience ?? null}
                             </p>
                         </div>
                         <div className="text-sm">
                             <p className="text-gray-500">Total Developed</p>
-                            <p className="font-medium">
-                              {priorDevelopments != null ? formatLocale(priorDevelopments) : <MissingValue>1,000</MissingValue>}
-                            </p>
+                            <p className="font-medium">{priorDevelopments ?? null}</p>
                         </div>
                     </div>
                     <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2">Sponsor</p>
                         <div className="text-sm font-medium">
-                            {sponsorEntityName ? sponsorEntityName : <MissingValue>Hoque Global</MissingValue>}
+                            {sponsorEntityName ?? null}
                         </div>
                     </div>
                 </div>
@@ -200,19 +187,19 @@ export default function FinancialSponsorPage() {
                         <div>
                             <p className="text-gray-500">Base IRR</p>
                             <p className="font-medium text-blue-600">
-                              {baseIRR != null ? `${formatFixed(baseIRR, 2)}%` : null}
+                              {baseIRR != null ? `${baseIRR}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Upside IRR</p>
                             <p className="font-medium text-green-600">
-                              {upsideIRR != null ? `${formatFixed(upsideIRR, 2)}%` : null}
+                              {upsideIRR != null ? `${upsideIRR}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Downside IRR</p>
                             <p className="font-medium text-red-600">
-                              {downsideIRR != null ? `${formatFixed(downsideIRR, 2)}%` : null}
+                              {downsideIRR != null ? `${downsideIRR}%` : null}
                             </p>
                         </div>
                         <div>

@@ -39,11 +39,11 @@ import {
 import { computeBorrowerCompletion } from "@/utils/resumeCompletion";
 
 import { DocumentPreviewModal } from "../documents/DocumentPreviewModal";
+import { useAutofill } from "@/hooks/useAutofill";
 import { useChatStore } from "@/stores/useChatStore";
 import { usePermissionStore } from "@/stores/usePermissionStore";
 import { usePermissions } from "@/hooks/usePermissions";
 import { generateOMInsights } from "@/lib/om-insights";
-import { useAutofill } from "@/hooks/useAutofill";
 
 const unwrapValue = (val: any) => {
 	if (val && typeof val === "object" && "value" in val) {

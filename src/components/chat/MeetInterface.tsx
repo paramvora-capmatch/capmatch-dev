@@ -71,39 +71,6 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const [selectedTranscriptMeeting, setSelectedTranscriptMeeting] = useState<any>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [selectedSummaryMeeting, setSelectedSummaryMeeting] = useState<any>(null);
-  // isEditModalOpen removed in favor of reusing isScheduleModalOpen
-  const [editingMeeting, setEditingMeeting] = useState<any>(null);
-  const [isUpdatingMeeting, setIsUpdatingMeeting] = useState(false);
-  const [updateMeetingError, setUpdateMeetingError] = useState<string | null>(null);
-
-  // Helper functions for response status styling
-  const getResponseStatusBorder = (responseStatus?: string) => {
-    switch (responseStatus) {
-      case 'accepted':
-        return 'border-2 border-green-500';
-      case 'declined':
-        return 'border-2 border-red-500';
-      case 'tentative':
-        return 'border-2 border-yellow-500';
-      case 'pending':
-      default:
-        return 'border border-gray-300';
-    }
-  };
-
-  const getResponseStatusIcon = (responseStatus?: string) => {
-    switch (responseStatus) {
-      case 'accepted':
-        return '✓';
-      case 'declined':
-        return '✗';
-      case 'tentative':
-        return '?';
-      case 'pending':
-      default:
-        return '⋯';
-    }
-  };
 
   // Get project members
   const { members } = useOrgStore();
@@ -111,7 +78,7 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
   const { user } = useAuth();
 
   // Get meetings from database with realtime subscriptions
-  const { upcomingMeetings, pastMeetings, isLoading: isMeetingsLoading, refreshMeetings, updateParticipantResponse } = useMeetings(projectId);
+  const { upcomingMeetings, pastMeetings, isLoading: isMeetingsLoading, refreshMeetings } = useMeetings(projectId);
 
   const activeProject = useMemo(
     () => projects?.find((p) => p.id === projectId),
@@ -327,83 +294,6 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
     }
   };
 
-  // Handle opening edit modal
-  const handleEditMeeting = (meeting: any) => {
-    setEditingMeeting(meeting);
-    setMeetingTitle(meeting.title);
-    setMeetingDuration(meeting.duration_minutes.toString());
-    
-    // Set participants (excluding organizer)
-    const participantIds = meeting.participants
-      .map((p: any) => p.user_id)
-      .filter((id: string) => id !== meeting.organizer_id);
-    setSelectedParticipants(participantIds);
-
-    // Set time slot
-    const start = new Date(meeting.start_time);
-    const end = new Date(meeting.end_time);
-    setSelectedSlot({
-      start: start.toISOString(),
-      end: end.toISOString()
-    });
-
-    setIsScheduleModalOpen(true);
-  };
-
-  // Handle updating meeting
-  const handleUpdateMeeting = async () => {
-    if (!editingMeeting || !meetingTitle || !selectedSlot || selectedParticipants.length === 0) {
-      return;
-    }
-
-    setIsUpdatingMeeting(true);
-    setUpdateMeetingError(null);
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
-
-      const response = await fetch(`/api/meetings/${editingMeeting.id}/update`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: meetingTitle,
-          startTime: selectedSlot.start,
-          endTime: selectedSlot.end,
-          participantIds: [...selectedParticipants, user?.id], // Include organizer
-          description: editingMeeting.description,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update meeting');
-      }
-
-      // Refresh meetings list
-      await refreshMeetings();
-      
-      // Close modal and reset state
-      setIsScheduleModalOpen(false);
-      setEditingMeeting(null);
-      setMeetingTitle("");
-      setSelectedParticipants([]);
-      setSelectedSlot(null);
-    } catch (error) {
-      console.error('Error updating meeting:', error);
-      setUpdateMeetingError(error instanceof Error ? error.message : 'Failed to update meeting');
-    } finally {
-      setIsUpdatingMeeting(false);
-    }
-  };
-
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
@@ -442,60 +332,28 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
       !embedded && "rounded-lg border border-gray-200 shadow-sm"
     )}>
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Video className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Meetings
-              </h3>
-              <p className="text-xs text-gray-500">
-                {upcomingMeetings.length} upcoming · {pastMeetings.length} past
-              </p>
-            </div>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+        <div className="flex items-center space-x-2">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Video className="w-5 h-5 text-blue-600" />
           </div>
-          <Button
-            size="sm"
-            onClick={() => {
-              setEditingMeeting(null);
-              setMeetingTitle("");
-              setMeetingDuration("30");
-              setSelectedParticipants([]);
-              setSelectedSlot(null);
-              setAvailableSlots([]);
-              setSlotsError(null);
-              setIsScheduleModalOpen(true);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Meeting
-          </Button>
-        </div>
-
-        {/* Response Status Legend */}
-        <div className="flex items-center gap-3 text-xs text-gray-600 pt-2 border-t border-gray-100">
-          <span className="font-medium text-gray-700">Response Status:</span>
-          <div className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 border-2 border-green-500 rounded-sm"></span>
-            <span>Accepted</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 border-2 border-yellow-500 rounded-sm"></span>
-            <span>Tentative</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 border-2 border-red-500 rounded-sm"></span>
-            <span>Declined</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="inline-block w-3 h-3 border border-gray-300 rounded-sm"></span>
-            <span>Pending</span>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Meetings
+            </h3>
+            <p className="text-xs text-gray-500">
+              {upcomingMeetings.length} upcoming · {pastMeetings.length} past
+            </p>
           </div>
         </div>
+        <Button
+          size="sm"
+          onClick={() => setIsScheduleModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          New Meeting
+        </Button>
       </div>
 
       {/* Meetings List */}
@@ -583,69 +441,13 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                                 {participants.map((participant, i) => (
                                   <span
                                     key={i}
-                                    className={cn(
-                                      "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-white text-gray-700",
-                                      getResponseStatusBorder(participant.response_status)
-                                    )}
+                                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
                                   >
-                                    <span className="mr-1.5">{getResponseStatusIcon(participant.response_status)}</span>
                                     {participant.user?.full_name || participant.user?.email || 'Unknown'}
                                   </span>
                                 ))}
                               </div>
                             </div>
-
-                            {/* RSVP Actions */}
-                            {(() => {
-                              const myParticipant = participants.find(p => p.user_id === user?.id);
-                              if (!myParticipant) return null;
-                              
-                              // Don't show RSVP options for the organizer
-                              if (meeting.organizer_id === user?.id) return null;
-
-                              const isUpdating = false; // We could track this state if needed
-
-                              return (
-                                <div className="flex items-center justify-between py-2 border-t border-gray-100">
-                                  <span className="text-xs font-medium text-gray-700">Going?</span>
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      onClick={() => updateParticipantResponse(meeting.id, 'accepted')}
-                                      className={cn(
-                                        "px-3 py-1 text-xs font-medium rounded-full transition-colors border",
-                                        myParticipant.response_status === 'accepted'
-                                          ? "bg-blue-600 text-white border-blue-600"
-                                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                                      )}
-                                    >
-                                      Yes
-                                    </button>
-                                    <button
-                                      onClick={() => updateParticipantResponse(meeting.id, 'declined')}
-                                      className={cn(
-                                        "px-3 py-1 text-xs font-medium rounded-full transition-colors border",
-                                        myParticipant.response_status === 'declined'
-                                          ? "bg-blue-600 text-white border-blue-600"
-                                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                                      )}
-                                    >
-                                      No
-                                    </button>
-                                    <button
-                                      onClick={() => updateParticipantResponse(meeting.id, 'tentative')}
-                                      className={cn(
-                                        "px-3 py-1 text-xs font-medium rounded-full transition-colors border",
-                                        myParticipant.response_status === 'tentative'
-                                          ? "bg-blue-600 text-white border-blue-600"
-                                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                                      )}
-                                    >
-                                      Maybe
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })()}
 
                             {/* Video Call Actions */}
                             <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
@@ -661,29 +463,19 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                               )}
                               
                               {meeting.organizer_id === user?.id && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleEditMeeting(meeting)}
-                                    className="text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300"
-                                  >
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleCancelMeeting(meeting.id)}
-                                    disabled={cancellingMeetingId === meeting.id}
-                                    className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
-                                  >
-                                    {cancellingMeetingId === meeting.id ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                </>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelMeeting(meeting.id)}
+                                  disabled={cancellingMeetingId === meeting.id}
+                                  className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
+                                >
+                                  {cancellingMeetingId === meeting.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
                               )}
                             </div>
                           </div>
@@ -768,12 +560,8 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                               {participants.map((participant, i) => (
                                 <span
                                   key={i}
-                                  className={cn(
-                                    "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-white text-gray-700",
-                                    getResponseStatusBorder(participant.response_status)
-                                  )}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
                                 >
-                                  <span className="mr-1.5">{getResponseStatusIcon(participant.response_status)}</span>
                                   {participant.user?.full_name || participant.user?.email || 'Unknown'}
                                 </span>
                               ))}
@@ -877,22 +665,19 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
         </div>
       </div>
 
-      {/* Schedule/Edit Meeting Modal */}
+      {/* Schedule Meeting Modal */}
       <Modal
         isOpen={isScheduleModalOpen}
         onClose={() => {
           setIsScheduleModalOpen(false);
-          setEditingMeeting(null);
           setMeetingTitle("");
           setMeetingDuration("30");
           setSelectedParticipants([]);
           setSelectedSlot(null);
           setAvailableSlots([]);
           setSlotsError(null);
-          setCreateMeetingError(null);
-          setUpdateMeetingError(null);
         }}
-        title={editingMeeting ? "Edit Meeting" : "Schedule New Meeting"}
+        title="Schedule New Meeting"
         size="4xl"
       >
         <div className="space-y-4">
@@ -1089,9 +874,9 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
           </div>
 
           {/* Error Message */}
-          {(createMeetingError || updateMeetingError) && (
+          {createMeetingError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{createMeetingError || updateMeetingError}</p>
+              <p className="text-sm text-red-600">{createMeetingError}</p>
             </div>
           )}
 
@@ -1101,7 +886,6 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
               variant="outline"
               onClick={() => {
                 setIsScheduleModalOpen(false);
-                setEditingMeeting(null);
                 setMeetingTitle("");
                 setMeetingDuration("30");
                 setSelectedParticipants([]);
@@ -1109,24 +893,23 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
                 setAvailableSlots([]);
                 setSlotsError(null);
                 setCreateMeetingError(null);
-                setUpdateMeetingError(null);
               }}
-              disabled={isCreatingMeeting || isUpdatingMeeting}
+              disabled={isCreatingMeeting}
             >
               Cancel
             </Button>
             <Button
-              onClick={editingMeeting ? handleUpdateMeeting : handleCreateMeeting}
-              disabled={!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || isCreatingMeeting || isUpdatingMeeting}
+              onClick={handleCreateMeeting}
+              disabled={!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || isCreatingMeeting}
               className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isCreatingMeeting || isUpdatingMeeting ? (
+              {isCreatingMeeting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {editingMeeting ? 'Updating...' : 'Creating...'}
+                  Creating...
                 </>
               ) : (
-                editingMeeting ? 'Update Meeting' : 'Schedule Meeting'
+                'Schedule Meeting'
               )}
             </Button>
           </div>
@@ -1510,8 +1293,6 @@ export const MeetInterface: React.FC<MeetInterfaceProps> = ({
           </div>
         </div>
       </Modal>
-
-
     </div>
   );
 };

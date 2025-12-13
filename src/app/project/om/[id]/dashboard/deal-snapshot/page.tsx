@@ -42,18 +42,18 @@ export default function DealSnapshotPage() {
     const formatPercent = (value: number | null | undefined) => {
       if (value == null) return null;
       const numValue = typeof value === 'number' ? value : parseFloat(String(value));
-      return !Number.isNaN(numValue) ? `${numValue.toFixed(2)}%` : null;
+      return !Number.isNaN(numValue) ? `${numValue.toFixed(1)}%` : null;
     };
     
     // Build key terms from flat fields
     const keyTerms = {
-      rate: allInRate != null ? `${typeof allInRate === 'number' ? allInRate.toFixed(2) : allInRate}% all-in` : interestRate != null ? `${typeof interestRate === 'number' ? interestRate.toFixed(2) : interestRate}%` : null,
+      rate: allInRate != null ? `${allInRate}% all-in` : interestRate != null ? `${interestRate}%` : null,
       term: requestedTerm ?? null,
       recourse: recoursePreference ?? null,
       origination: content?.originationFee ?? null,
       covenants: {
         minDSCR: dscrStressMin != null ? `${dscrStressMin.toFixed(2)}x` : null,
-        maxLTV: ltvStressMax != null ? `${typeof ltvStressMax === 'number' ? ltvStressMax.toFixed(2) : ltvStressMax}%` : null,
+        maxLTV: ltvStressMax != null ? `${ltvStressMax}%` : null,
         minLiquidity: guarantorLiquidity != null ? `$${Number(guarantorLiquidity).toLocaleString()}` : null,
       },
     };

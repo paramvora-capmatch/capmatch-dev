@@ -218,9 +218,6 @@ export function ImagePreviewModal({
                 fill
                 sizes="100vw"
                 className="object-contain transition-transform duration-200"
-                unoptimized
-                priority
-                loading="eager"
                 style={{
                   transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
                   transformOrigin: 'center center',

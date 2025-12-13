@@ -1,43 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { parseNumeric, formatLocale } from '@/lib/om-utils';
-
-type MilestoneStatus = 'completed' | 'current' | 'upcoming';
-
-interface Milestone {
-  phase: string;
-  date: string | null;
-  status: MilestoneStatus;
-  duration?: number;
-}
-
-// Helper functions - moved outside component to prevent re-creation on every render
-const getStatus = (date: string | null): MilestoneStatus => {
-  if (!date) return 'upcoming';
-  const milestoneDate = new Date(date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  milestoneDate.setHours(0, 0, 0, 0);
-  
-  if (milestoneDate < today) return 'completed';
-  if (milestoneDate.getTime() === today.getTime()) return 'current';
-  return 'upcoming';
-};
-
-// Calculate duration in days between two dates
-const calculateDuration = (startDate: string | null, endDate: string | null): number => {
-  if (!startDate || !endDate) return 0;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-};
 
 export default function MilestonesPage() {
   const { content } = useOmContent();
@@ -97,7 +65,7 @@ export default function MilestonesPage() {
     }
   };
 
-  const getStatusColor = (status: MilestoneStatus | string | null) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-800';
@@ -123,11 +91,8 @@ export default function MilestonesPage() {
   const drawSchedule = content?.drawSchedule;
   const absorptionProjection = content?.absorptionProjection ?? null;
 
-  // Memoize subtitle to prevent re-renders
-  const subtitle = useMemo(() => "Timeline of critical phases, durations, and current status.", []);
-  
   useOMPageHeader({
-    subtitle,
+    subtitle: "Timeline of critical phases, durations, and current status.",
   });
 
   return (
@@ -142,7 +107,7 @@ export default function MilestonesPage() {
             {milestonesWithDuration.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => (
               <div key={index} className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                      {milestone.status ? getStatusIcon(milestone.status as string) : <Clock className="h-5 w-5 text-gray-400" />}
+                  {milestone.status ? getStatusIcon(milestone.status) : <Clock className="h-5 w-5 text-gray-400" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
@@ -150,7 +115,7 @@ export default function MilestonesPage() {
                       {milestone.phase ?? null}
                     </p>
                       {milestone.status && (
-                        <Badge className={getStatusColor(milestone.status as MilestoneStatus)}>
+                        <Badge className={getStatusColor(milestone.status)}>
                           {milestone.status}
                         </Badge>
                       )}
@@ -196,35 +161,31 @@ export default function MilestonesPage() {
                     </span>
                   </div>
                   <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
-                    {widthPercentage > 0 && (
-                      <div
-                        className={`absolute top-0 h-full rounded-full transition-all duration-300 ${
-                          milestone.status === 'completed'
-                            ? 'bg-green-500'
-                            : milestone.status === 'current'
-                            ? 'bg-blue-500'
-                            : milestone.status === 'upcoming'
-                            ? 'bg-gray-400'
-                            : 'bg-gray-300'
-                        }`}
-                        style={{
-                          left: `${startPercentage}%`,
-                          width: `${widthPercentage}%`,
-                        }}
-                      />
-                    )}
+                    <div
+                      className={`absolute top-0 left-0 h-full rounded-full transition-all duration-300 ${
+                        milestone.status === 'completed'
+                          ? 'bg-green-500'
+                          : milestone.status === 'current'
+                          ? 'bg-blue-500'
+                          : milestone.status === 'upcoming'
+                          ? 'bg-gray-400'
+                          : 'bg-gray-300'
+                      }`}
+                      style={{
+                        left: `${startPercentage}%`,
+                        width: `${widthPercentage}%`,
+                      }}
+                    />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className={`text-xs font-medium ${widthPercentage > 0 ? 'text-white' : 'text-gray-600'}`}>
-                        {milestone.phase === "Entitlements" && content?.entitlementsStatus === 'Approved' 
-                          ? 'Approved' 
-                          : milestone.date ?? 'N/A'}
+                      <span className="text-xs font-medium text-white">
+                        {milestone.date ?? ''}
                       </span>
                     </div>
                   </div>
                 </div>
-                );
+              );
             })}
-            </div>
+          </div>
         </CardContent>
       </Card>
 

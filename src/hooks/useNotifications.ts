@@ -14,13 +14,6 @@ export interface NotificationRecord {
   link_url: string | null;
   read_at: string | null;
   created_at: string;
-  payload?: {
-    type?: string;
-    start_time?: string;
-    meeting_title?: string;
-    meeting_id?: string;
-    [key: string]: any;
-  } | null;
 }
 
 interface UseNotificationsOptions {

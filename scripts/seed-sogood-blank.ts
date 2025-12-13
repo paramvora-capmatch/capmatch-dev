@@ -605,7 +605,6 @@ async function seedTeamMembers(projectId: string, orgId: string, ownerId: string
     { email: 'aryan.jain@capmatch.com', name: 'Aryan Jain', role: 'Team Member' },
     { email: 'sarthak.karandikar@capmatch.com', name: 'Sarthak Karandikar', role: 'Team Member' },
     { email: 'kabeer.merchant@capmatch.com', name: 'Kabeer Merchant', role: 'Team Member' },
-    { email: 'vatsal.hariramani@capmatch.com', name: 'Vatsal Hariramani', role: 'Team Member' },
   ];
 
   const memberIds: string[] = [];

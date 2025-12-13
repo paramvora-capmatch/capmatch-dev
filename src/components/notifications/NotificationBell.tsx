@@ -108,23 +108,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     return segments;
   }, []);
 
-  const renderNotificationContent = useCallback((content?: string, payload?: any) => {
+  const renderNotificationContent = useCallback((content?: string) => {
     if (!content) {
       return null;
-    }
-
-    // Replace {{meeting_time}} placeholder with formatted timestamp from payload
-    let processedContent = content;
-    if (payload?.start_time && content.includes('{{meeting_time}}')) {
-      const date = new Date(payload.start_time);
-      const formattedTime = date.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit'
-      });
-      processedContent = content.replace(/\{\{meeting_time\}\}/g, formattedTime);
     }
 
     const mentionRegex = /@\[([^\]]+)\]\((doc|user):([^)]+)\)/g;
@@ -146,13 +132,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     };
 
     // Use matchAll to find all mentions at once, avoiding regex state issues
-    const matches = Array.from(processedContent.matchAll(mentionRegex));
+    const matches = Array.from(content.matchAll(mentionRegex));
 
     matches.forEach((match, matchIndex) => {
       const matchIndexPos = match.index ?? 0;
       
       if (matchIndexPos > lastIndex) {
-        parts.push(renderTextSegment(processedContent.substring(lastIndex, matchIndexPos), `text-${lastIndex}`));
+        parts.push(renderTextSegment(content.substring(lastIndex, matchIndexPos), `text-${lastIndex}`));
       }
 
       const name = match[1];
@@ -184,12 +170,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       lastIndex = matchIndexPos + match[0].length;
     });
 
-    if (lastIndex < processedContent.length) {
-      parts.push(renderTextSegment(processedContent.substring(lastIndex), `text-${lastIndex}`));
+    if (lastIndex < content.length) {
+      parts.push(renderTextSegment(content.substring(lastIndex), `text-${lastIndex}`));
     }
 
     if (parts.length === 0) {
-      return renderTextSegment(processedContent, "text-full");
+      return renderTextSegment(content, "text-full");
     }
 
     return <span className="inline-flex flex-wrap gap-1">{parts}</span>;
@@ -309,7 +295,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                         </p>
                         {notification.body && (
                           <div className="text-sm text-gray-600 mt-1 line-clamp-2">
-                            {renderNotificationContent(notification.body, notification.payload)}
+                            {renderNotificationContent(notification.body)}
                           </div>
                         )}
                         <p className="text-xs text-gray-400 mt-2">

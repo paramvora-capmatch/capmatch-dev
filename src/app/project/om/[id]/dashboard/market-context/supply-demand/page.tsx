@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building2, BarChart3, Clock } from "lucide-react";
@@ -10,54 +9,18 @@ import { useOmContent } from "@/hooks/useOmContent";
 import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
 import { OMEmptyState } from "@/components/om/OMEmptyState";
 
-// Component to show missing values in red
-const MissingValue = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-red-600 font-medium">{children}</span>
-);
-
 export default function SupplyDemandPage() {
   const { content, insights } = useOmContent();
   
-  // Extract flat schema fields
-  const supplyPipeline = parseNumeric(content?.supplyPipeline) ?? null;
-  const monthsOfSupply = parseNumeric(content?.monthsOfSupply) ?? null;
-  const submarketAbsorption = parseNumeric(content?.submarketAbsorption) ?? null;
-  
-  // Calculate average occupancy from rentComps if available
-  const rentComps = Array.isArray(content?.rentComps) ? content.rentComps : [];
-  const avgOccupancyFromComps = rentComps.length > 0
-    ? rentComps.reduce((sum: number, comp: any) => {
-        const occ = parseNumeric(comp.occupancyPercent) ?? 0;
-        return sum + occ;
-      }, 0) / rentComps.length
-    : null;
+  // Read from flat fields
+  const currentInventory = parseNumeric(content?.currentInventory) ?? 0;
+  const underConstruction = parseNumeric(content?.underConstruction) ?? 0;
+  const planned24Months = parseNumeric(content?.planned24Months) ?? 0;
+  const averageOccupancy = content?.averageOccupancy ?? null;
+  const deliveryByQuarter = Array.isArray(content?.deliveryByQuarter) ? content.deliveryByQuarter : [];
 
-  // Use flat schema values or hardcoded fallbacks
-  const currentInventory = parseNumeric(content?.currentSupply) ?? parseNumeric(content?.currentInventory) ?? null;
-  const underConstruction = parseNumeric(content?.unitsUnderConstruction) ?? parseNumeric(content?.underConstruction) ?? null;
-  const planned24Months = supplyPipeline ?? parseNumeric(content?.planned24Months) ?? null;
-  const averageOccupancy = avgOccupancyFromComps ?? content?.averageOccupancy ?? null;
-
-  // Hardcoded delivery by quarter (will be shown in red)
-  const hardcodedDeliveryByQuarter = [
-    { quarter: 'Q1 2025', units: 450 },
-    { quarter: 'Q2 2025', units: 620 },
-    { quarter: 'Q3 2025', units: 580 },
-    { quarter: 'Q4 2025', units: 720 },
-    { quarter: 'Q1 2026', units: 680 },
-    { quarter: 'Q2 2026', units: 900 },
-  ];
-  const deliveryByQuarter = hardcodedDeliveryByQuarter;
-
-  const getOccupancyColor = (occupancy?: string | number | null) => {
-    let occ: number;
-    if (typeof occupancy === 'number') {
-      occ = occupancy;
-    } else if (typeof occupancy === 'string') {
-      occ = parseFloat(occupancy);
-    } else {
-      occ = NaN;
-    }
+  const getOccupancyColor = (occupancy?: string | null) => {
+    const occ = parseFloat(occupancy ?? "");
     if (Number.isNaN(occ)) return "bg-gray-100 text-gray-800";
     if (occ >= 95) return "bg-green-100 text-green-800";
     if (occ >= 90) return "bg-blue-100 text-blue-800";
@@ -65,15 +28,10 @@ export default function SupplyDemandPage() {
     return "bg-red-100 text-red-800";
   };
 
-  // Use hardcoded values for calculations if real values are missing
-  const displayCurrentInventory = currentInventory ?? 12500;
-  const displayUnderConstruction = underConstruction ?? 2450;
-  const displayPlanned24Months = planned24Months ?? 4000;
-  
-  const totalSupply = displayCurrentInventory + displayUnderConstruction + displayPlanned24Months;
+  const totalSupply = currentInventory + underConstruction + planned24Months;
   const supplyUtilization =
     totalSupply > 0
-      ? ((displayCurrentInventory + displayUnderConstruction) / totalSupply) * 100
+      ? ((currentInventory + underConstruction) / totalSupply) * 100
       : 0;
 
   // Calculate the maximum units for histogram scaling
@@ -105,7 +63,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {currentInventory != null ? formatLocale(currentInventory) : <MissingValue>12,500</MissingValue>}
+              {formatLocale(currentInventory) ?? 0}
             </p>
             <p className="text-sm text-gray-500 mt-1">Available units</p>
           </CardContent>
@@ -122,7 +80,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {underConstruction != null ? formatLocale(underConstruction) : <MissingValue>2,450</MissingValue>}
+              {formatLocale(underConstruction) ?? 0}
             </p>
             <p className="text-sm text-gray-500 mt-1">Units in progress</p>
           </CardContent>
@@ -139,7 +97,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {planned24Months != null ? formatLocale(planned24Months) : <MissingValue>4,200</MissingValue>}
+              {formatLocale(planned24Months) ?? 0}
             </p>
             <p className="text-sm text-gray-500 mt-1">Future units</p>
           </CardContent>
@@ -151,7 +109,7 @@ export default function SupplyDemandPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {averageOccupancy != null ? `${formatFixed(averageOccupancy, 1)}%` : <MissingValue>93.5%</MissingValue>}
+              {averageOccupancy}
             </p>
             <p className="text-sm text-gray-500 mt-1">Current average</p>
           </CardContent>
@@ -173,7 +131,7 @@ export default function SupplyDemandPage() {
               </span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">
-                  {currentInventory != null ? formatLocale(currentInventory) : <MissingValue>12,500</MissingValue>}{" "}
+                  {formatLocale(currentInventory) ?? 0}{" "}
                   units
                 </span>
                 <Badge className="bg-blue-100 text-blue-800">Available</Badge>
@@ -184,7 +142,7 @@ export default function SupplyDemandPage() {
                 className="h-4 rounded-full bg-blue-500"
                 style={{
                   width: `${
-                    (displayCurrentInventory / totalSupply) *
+                    (currentInventory / totalSupply) *
                     100
                   }%`,
                 }}
@@ -197,7 +155,7 @@ export default function SupplyDemandPage() {
               </span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">
-                  {underConstruction != null ? formatLocale(underConstruction) : <MissingValue>2,450</MissingValue>}{" "}
+                  {formatLocale(underConstruction) ?? 0}{" "}
                   units
                 </span>
                 <Badge className="bg-red-100 text-red-800">
@@ -210,7 +168,7 @@ export default function SupplyDemandPage() {
                 className="h-4 rounded-full bg-red-500"
                 style={{
                   width: `${
-                    (displayUnderConstruction / totalSupply) *
+                    (underConstruction / totalSupply) *
                     100
                   }%`,
                 }}
@@ -223,7 +181,7 @@ export default function SupplyDemandPage() {
               </span>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">
-                  {planned24Months != null ? formatLocale(planned24Months) : <MissingValue>4,200</MissingValue>}{" "}
+                  {formatLocale(planned24Months) ?? 0}{" "}
                   units
                 </span>
                 <Badge className="bg-blue-100 text-blue-800">Planned</Badge>
@@ -234,7 +192,7 @@ export default function SupplyDemandPage() {
                 className="h-4 rounded-full bg-blue-500"
                 style={{
                   width: `${
-                    (displayPlanned24Months / totalSupply) *
+                    (planned24Months / totalSupply) *
                     100
                   }%`,
                 }}
@@ -276,7 +234,7 @@ export default function SupplyDemandPage() {
                     >
                       {/* Value Label above Bar */}
                       <div className="text-sm font-medium text-gray-700 mb-2">
-                        {quarter.units != null ? formatLocale(quarter.units) : <MissingValue>0</MissingValue>}
+                        {formatLocale(quarter.units ?? 0) ?? 0}
                       </div>
 
                       {/* Bar */}
@@ -287,7 +245,7 @@ export default function SupplyDemandPage() {
 
                       {/* Quarter Label below Bar */}
                       <div className="mt-2 text-xs font-medium text-gray-600 text-center">
-                        {quarter.quarter ? <MissingValue>{quarter.quarter}</MissingValue> : <MissingValue>Q1 2025</MissingValue>}
+                        {quarter.quarter}
                       </div>
                     </div>
                   );
@@ -311,7 +269,7 @@ export default function SupplyDemandPage() {
                     Total:{" "}
                   </span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    {formatLocale(deliveryByQuarter.reduce((sum: number, q: { units?: number | null }) => sum + (q.units ?? 0), 0))}{" "}
+                    {formatLocale(deliveryByQuarter.reduce((sum: number, q: { units?: number | null }) => sum + (q.units ?? 0), 0)) ?? 0}{" "}
                     units
                   </Badge>
                 </div>
@@ -346,21 +304,19 @@ export default function SupplyDemandPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Available Units</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {currentInventory != null ? formatLocale(currentInventory) : <MissingValue>12,500</MissingValue>}
+                    {formatLocale(currentInventory) ?? 0}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Pipeline Units</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {(underConstruction != null && planned24Months != null) 
-                      ? formatLocale(underConstruction + planned24Months)
-                      : <MissingValue>6,650</MissingValue>}
+                    {formatLocale(underConstruction + planned24Months) ?? 0}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Total Market</span>
                   <Badge variant="outline" className="border-gray-200">
-                    {formatLocale(totalSupply)}
+                    {formatLocale(totalSupply) ?? 0}
                   </Badge>
                 </div>
               </div>
@@ -379,7 +335,7 @@ export default function SupplyDemandPage() {
                 <div className="text-center">
                 <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl font-bold text-green-600">
-                    {averageOccupancy != null ? `${formatFixed(averageOccupancy, 1)}%` : <MissingValue>93.5%</MissingValue>}
+                    {averageOccupancy ?? null}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">

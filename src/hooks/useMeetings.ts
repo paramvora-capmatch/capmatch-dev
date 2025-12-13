@@ -3,7 +3,7 @@
  * Fetches meetings from database with realtime subscriptions
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabaseClient';
 import { Meeting, ParticipantResponseStatus } from '@/types/meeting-types';
@@ -32,7 +32,6 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
   const [realtimeChannel, setRealtimeChannel] = useState<RealtimeChannel | null>(
     null
   );
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Fetch upcoming meetings (start_time >= now)
@@ -143,21 +142,21 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
       if (!user) return;
 
       try {
-        // Call Edge Function to update DB and sync with Google Calendar
-        const { error: invokeError } = await supabase.functions.invoke('update-calendar-response', {
-          body: {
-            meeting_id: meetingId,
-            user_id: user.id,
-            status: status,
-          },
-        });
+        const { error: updateError } = await supabase
+          .from('meeting_participants')
+          .update({
+            response_status: status,
+            responded_at: new Date().toISOString(),
+          })
+          .eq('meeting_id', meetingId)
+          .eq('user_id', user.id);
 
-        if (invokeError) {
-          throw invokeError;
+        if (updateError) {
+          throw updateError;
         }
 
-        // We don't need to manually refresh here because the Realtime subscription
-        // will detect the change in 'meeting_participants' and trigger a refresh automatically.
+        // Refresh meetings to get updated data
+        await refreshMeetings();
       } catch (err) {
         console.error('Error updating participant response:', err);
         setError('Failed to update response');
@@ -165,37 +164,6 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
     },
     [user, refreshMeetings]
   );
-
-  /**
-   * Update participant status in local state without refetching
-   */
-  const updateParticipantStatusLocally = useCallback((
-    meetingId: string,
-    userId: string,
-    responseStatus: ParticipantResponseStatus,
-    respondedAt: string
-  ) => {
-    const updateMeetingInList = (meetings: Meeting[]) => 
-      meetings.map(meeting => {
-        if (meeting.id !== meetingId) return meeting;
-        
-        return {
-          ...meeting,
-          participants: meeting.participants?.map(participant => {
-            if (participant.user_id !== userId) return participant;
-            
-            return {
-              ...participant,
-              response_status: responseStatus,
-              responded_at: respondedAt,
-            };
-          }),
-        };
-      });
-
-    setUpcomingMeetings(prev => updateMeetingInList(prev));
-    setPastMeetings(prev => updateMeetingInList(prev));
-  }, []);
 
   /**
    * Setup realtime subscription for meetings
@@ -219,25 +187,21 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
         },
         (payload) => {
           console.log('Meeting change detected:', payload);
-          // Refresh meetings immediately for meeting table changes
+          // Refresh meetings when changes occur
           refreshMeetings();
         }
       )
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'meeting_participants',
         },
         (payload) => {
           console.log('Meeting participant change detected:', payload);
-          
-          // Update locally without refetching
-          if (payload.new) {
-            const { meeting_id, user_id, response_status, responded_at } = payload.new as any;
-            updateParticipantStatusLocally(meeting_id, user_id, response_status, responded_at);
-          }
+          // Refresh meetings when participant changes occur
+          refreshMeetings();
         }
       )
       .subscribe();
@@ -249,12 +213,8 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
       if (channel) {
         supabase.removeChannel(channel);
       }
-      // Clear any pending refresh timeout
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
-      }
     };
-  }, [user, fetchUpcomingMeetings, fetchPastMeetings, refreshMeetings, updateParticipantStatusLocally]);
+  }, [user, fetchUpcomingMeetings, fetchPastMeetings, refreshMeetings]);
 
   return {
     upcomingMeetings,

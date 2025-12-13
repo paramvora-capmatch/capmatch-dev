@@ -38,7 +38,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                         maximumFractionDigits: 0,
                     }).format(value);
                 case 'percent':
-                    return `${value.toFixed(2)}%`;
+                    return `${value}%`;
                 default:
                     return value.toLocaleString();
             }

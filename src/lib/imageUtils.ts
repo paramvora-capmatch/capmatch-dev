@@ -368,28 +368,3 @@ export function groupImagesByCategory(images: ImageData[]): {
   };
 }
 
-/**
- * Gets a signed URL for an image from Supabase storage.
- * 
- * @param orgId - Organization ID (bucket name)
- * @param storagePath - Full storage path to the image
- * @returns Signed URL string or null if error
- */
-export async function getSignedUrl(orgId: string, storagePath: string): Promise<string | null> {
-  try {
-    const { data: urlData, error } = await supabase.storage
-      .from(orgId)
-      .createSignedUrl(storagePath, 3600);
-
-    if (error) {
-      console.error(`Error creating signed URL for ${storagePath}:`, error);
-      return null;
-    }
-
-    return urlData?.signedUrl || null;
-  } catch (error) {
-    console.error(`Exception creating signed URL for ${storagePath}:`, error);
-    return null;
-  }
-}
-

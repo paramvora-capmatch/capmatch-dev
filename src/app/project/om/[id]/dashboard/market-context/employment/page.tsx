@@ -1,53 +1,22 @@
 'use client';
 
-import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, TrendingUp, MapPin, Users } from 'lucide-react';
 import EmploymentMap from '@/components/om/EmploymentMap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { parseNumeric, calculateAverage, formatLocale, formatFixed, getOMValue } from '@/lib/om-utils';
-
-// Component to show missing values in red
-const MissingValue = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-red-600 font-medium">{children}</span>
-);
+import { parseNumeric, calculateAverage, formatLocale, formatFixed } from '@/lib/om-utils';
 
 export default function EmploymentPage() {
   const { content, insights } = useOmContent();
   
-  // Extract flat schema fields
-  const unemploymentRate = parseNumeric(content?.unemploymentRate) ?? null;
-  const jobGrowth = parseNumeric(content?.jobGrowth) ?? null;
-  const largestEmployer = getOMValue(content, "largestEmployer");
-  const employerConcentration = parseNumeric(content?.employerConcentration) ?? null;
-  const distanceToEmployment = parseNumeric(content?.distanceToEmployment) ?? null;
-  const totalJobs = parseNumeric(content?.totalJobs) ?? null;
+  // Read from flat fields
+  const majorEmployers = Array.isArray(content?.majorEmployers) ? content.majorEmployers : [];
 
-  // Hardcoded major employers array (will be shown in red)
-  const hardcodedEmployers = [
-    { name: 'AT&T Discovery District', employees: 12000, growth: '+3.5%', distance: '0.4 mi' },
-    { name: 'Baylor Medical Center', employees: 8500, growth: '+2.8%', distance: '0.6 mi' },
-    { name: 'Dallas County Government', employees: 6200, growth: '+1.2%', distance: '0.8 mi' },
-    { name: 'JP Morgan Chase', employees: 4500, growth: '+4.2%', distance: '1.2 mi' },
-  ];
-
-  // Use hardcoded employers for now (all will show in red), or use from content if available
-  const majorEmployers = Array.isArray(content?.majorEmployers) && content.majorEmployers.length > 0 
-    ? content.majorEmployers 
-    : hardcodedEmployers;
-
-  const getGrowthColor = (growth?: string | number | null) => {
-    let growthNum: number;
-    if (typeof growth === 'number') {
-      growthNum = growth;
-    } else if (typeof growth === 'string') {
-      const value = growth.replace(/[^\d-]/g, '');
-      growthNum = parseFloat(value);
-    } else {
-      growthNum = 0;
-    }
+  const getGrowthColor = (growth?: string | null) => {
+    const value = (growth ?? '0').replace(/[^\d-]/g, '');
+    const growthNum = parseInt(value);
     if (Number.isNaN(growthNum)) return 'bg-gray-100 text-gray-800';
     if (growthNum >= 10) return 'bg-green-100 text-green-800';
     if (growthNum >= 5) return 'bg-blue-100 text-blue-800';
@@ -55,15 +24,8 @@ export default function EmploymentPage() {
     return 'bg-red-100 text-red-800';
   };
 
-  const getDistanceColor = (distance?: string | number | null) => {
-    let dist: number;
-    if (typeof distance === 'number') {
-      dist = distance;
-    } else if (typeof distance === 'string') {
-      dist = parseFloat(distance.replace(/[^\d.]/g, ''));
-    } else {
-      dist = NaN;
-    }
+  const getDistanceColor = (distance?: string | null) => {
+    const dist = parseFloat(distance ?? '');
     if (Number.isNaN(dist)) return 'bg-gray-100 text-gray-800';
     if (dist <= 1.5) return 'bg-green-100 text-green-800';
     if (dist <= 3.0) return 'bg-blue-100 text-blue-800';
@@ -86,17 +48,11 @@ export default function EmploymentPage() {
 
   const avgGrowth = calculateAverage(majorEmployers, (employer: typeof majorEmployers[0]) => {
     const growthValue = employer.growth ?? '0';
-    const parsed = parseFloat(growthValue.replace(/[^\d-]/g, ''));
+    const parsed = parseInt(growthValue.replace(/[^\d-]/g, ''));
     return isNaN(parsed) ? null : parsed;
   });
 
-  const avgDistance = calculateAverage(majorEmployers, (employer: typeof majorEmployers[0]) => {
-    if (typeof employer.distance === 'number') return employer.distance;
-    if (typeof employer.distance === 'string') {
-      return parseNumeric(employer.distance.replace(/[^\d.]/g, ''));
-    }
-    return null;
-  });
+  const avgDistance = calculateAverage(majorEmployers, (employer: typeof majorEmployers[0]) => parseNumeric(employer.distance));
 
   useOMPageHeader({
     subtitle: "Job base composition, employer proximity, and growth trends.",
@@ -115,9 +71,7 @@ export default function EmploymentPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">
-              {majorEmployers.length > 0 ? majorEmployers.length : <MissingValue>4</MissingValue>}
-            </p>
+            <p className="text-3xl font-bold text-blue-600">{majorEmployers.length}</p>
             <p className="text-sm text-gray-500 mt-1">Companies analyzed</p>
           </CardContent>
         </Card>
@@ -130,9 +84,7 @@ export default function EmploymentPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-600">
-              {totalJobs != null ? formatLocale(totalJobs) : totalEmployees > 0 ? formatLocale(totalEmployees) : <MissingValue>42,000</MissingValue>}
-            </p>
+            <p className="text-3xl font-bold text-green-600">{formatLocale(totalEmployees) ?? 0}</p>
             <p className="text-sm text-gray-500 mt-1">Direct employment</p>
           </CardContent>
         </Card>
@@ -146,7 +98,7 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {avgGrowth != null ? `+${formatFixed(avgGrowth, 1)}%` : jobGrowth != null ? `+${formatFixed(jobGrowth, 1)}%` : <MissingValue>+3.5%</MissingValue>}
+              {formatFixed(avgGrowth, 1) != null ? `+${formatFixed(avgGrowth, 1)}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Annual average</p>
           </CardContent>
@@ -158,7 +110,7 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {avgDistance != null ? `${formatFixed(avgDistance, 1)} mi` : distanceToEmployment != null ? `${formatFixed(distanceToEmployment, 1)} mi` : <MissingValue>0.8 mi</MissingValue>}
+              {formatFixed(avgDistance, 1) != null ? `${formatFixed(avgDistance, 1)} mi` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
           </CardContent>
@@ -189,29 +141,27 @@ export default function EmploymentPage() {
                     <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-4 px-4">
                       <div>
-                        <p className="font-medium text-gray-800">
-                          {employer.name ? <MissingValue>{employer.name}</MissingValue> : <MissingValue>Unknown Employer</MissingValue>}
-                        </p>
+                        <p className="font-medium text-gray-800">{employer.name ?? null}</p>
                         <p className="text-sm text-gray-500">
-                          {formatLocale(employees)} employees
+                          {formatLocale(employees) ?? 0} employees
                         </p>
                       </div>
                     </td>
                     <td className="py-4 px-4">
                       <Badge className={getEmployeeSizeColor(employees)}>
-                        {formatLocale(employees)}
+                        {formatLocale(employees) ?? 0}
                       </Badge>
                     </td>
                     <td className="py-4 px-4">
                       <Badge className={getGrowthColor(employer.growth)}>
                         <TrendingUp className="h-3 w-3 mr-1" />
-                        {employer.growth ? <MissingValue>{employer.growth}</MissingValue> : <MissingValue>+2.5%</MissingValue>}
+                        {employer.growth ?? null}
                       </Badge>
                     </td>
                     <td className="py-4 px-4">
                       <Badge className={getDistanceColor(employer.distance)}>
                         <MapPin className="h-3 w-3 mr-1" />
-                        {employer.distance ? <MissingValue>{employer.distance}</MissingValue> : <MissingValue>1.0 mi</MissingValue>}
+                        {employer.distance ?? null}
                       </Badge>
                     </td>
                     <td className="py-4 px-4">
@@ -249,10 +199,8 @@ export default function EmploymentPage() {
                 return (
                   <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">
-                      {employer.name ? <MissingValue>{employer.name}</MissingValue> : <MissingValue>Unknown Employer</MissingValue>}
-                    </span>
-                    <span className="text-sm text-gray-500">{formatLocale(employees)}</span>
+                    <span className="text-sm font-medium text-gray-700">{employer.name}</span>
+                    <span className="text-sm text-gray-500">{formatLocale(employer.employees ?? 0) ?? 0}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
@@ -283,14 +231,12 @@ export default function EmploymentPage() {
               {majorEmployers.map((employer: { name?: string | null; employees?: number | null; growth?: string | null }, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium text-gray-800">
-                      {employer.name ? <MissingValue>{employer.name}</MissingValue> : <MissingValue>Unknown Employer</MissingValue>}
-                    </p>
-                    <p className="text-sm text-gray-500">{formatLocale(employer.employees ?? 0)} employees</p>
+                    <p className="font-medium text-gray-800">{employer.name}</p>
+                    <p className="text-sm text-gray-500">{formatLocale(employer.employees ?? 0) ?? 0} employees</p>
                   </div>
                   <div className="text-right">
                     <Badge className={getGrowthColor(employer.growth)}>
-                      {employer.growth ? <MissingValue>{employer.growth}</MissingValue> : <MissingValue>+2.5%</MissingValue>}
+                      {employer.growth}
                     </Badge>
                     <p className="text-xs text-gray-500 mt-1">Annual growth</p>
                   </div>

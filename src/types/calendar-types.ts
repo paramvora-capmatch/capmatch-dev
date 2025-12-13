@@ -18,12 +18,6 @@ export interface CalendarConnection {
   calendar_list: CalendarInfo[];
   sync_enabled: boolean;
   last_synced_at?: string;
-
-  // Push notification watch channel fields
-  watch_channel_id?: string;
-  watch_resource_id?: string;
-  watch_expiration?: string;
-
   created_at: string;
   updated_at: string;
 }

@@ -8,11 +8,6 @@ import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 import { formatLocale, parseNumeric } from "@/lib/om-utils";
 
-// Component to show missing values in red
-const MissingValue = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-red-600 font-medium">{children}</span>
-);
-
 export default function AmenitiesPage() {
 	const { content, insights } = useOmContent();
 

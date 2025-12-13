@@ -58,7 +58,6 @@ import {
 } from "@/lib/project-resume-field-metadata";
 import { saveProjectResume } from "@/lib/project-queries";
 import { supabase } from "@/lib/supabaseClient";
-import { getSignedUrl } from "@/lib/imageUtils";
 
 interface EnhancedProjectFormProps {
 	existingProject: ProjectProfile;
@@ -480,9 +479,11 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 
 			const urlMap: Record<string, string> = {};
 			for (const img of allImages) {
-				const signedUrl = await getSignedUrl(orgId, img.storagePath);
-				if (signedUrl) {
-					urlMap[img.storagePath] = signedUrl;
+				const { data: urlData } = await supabase.storage
+					.from(orgId)
+					.createSignedUrl(img.storagePath, 3600);
+				if (urlData) {
+					urlMap[img.storagePath] = urlData.signedUrl;
 				}
 			}
 			setImageUrls(urlMap);
@@ -527,7 +528,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 				const { error } = await supabase.storage
 					.from(orgId)
 					.upload(filePath, file, {
-						cacheControl: "86400", // 24 hours
+						cacheControl: "3600",
 						upsert: true,
 					});
 
@@ -567,11 +568,13 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 						});
 					}
 
-					const signedUrl = await getSignedUrl(orgId, uploadedPath);
-					if (signedUrl) {
+					const { data: urlData } = await supabase.storage
+						.from(orgId)
+						.createSignedUrl(uploadedPath, 3600);
+					if (urlData) {
 						setImageUrls((prev) => ({
 							...prev,
-							[uploadedPath]: signedUrl,
+							[uploadedPath]: urlData.signedUrl,
 						}));
 					}
 
@@ -957,8 +960,6 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 													fill
 													sizes="(max-width: 768px) 50vw, 25vw"
 													className="object-cover"
-													unoptimized
-													loading="lazy"
 												/>
 											</div>
 										) : (
@@ -1197,8 +1198,6 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 													fill
 													sizes="(max-width: 768px) 50vw, 25vw"
 													className="object-cover"
-													unoptimized
-													loading="lazy"
 												/>
 											</div>
 										) : (

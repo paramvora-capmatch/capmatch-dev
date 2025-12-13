@@ -7,25 +7,15 @@ import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { formatLocale, formatFixed, parseNumeric } from '@/lib/om-utils';
 
-// Component to show missing values in red
-const MissingValue = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-red-600 font-medium">{children}</span>
-);
-
 type UnitMixUnit = {
   count?: number | null;
   avgSF?: number | null;
-  monthlyRent?: number | null;
+  rentRange?: string | null;
   deposit?: string | null;
 };
 
 export default function UnitMixPage() {
   const { content, insights } = useOmContent();
-  
-  // Extract flat schema fields
-  const totalResidentialUnits = parseNumeric(content?.totalResidentialUnits) ?? null;
-  const totalResidentialNRSF = parseNumeric(content?.totalResidentialNRSF) ?? null;
-  const averageUnitSize = parseNumeric(content?.averageUnitSize) ?? null;
   
   // Access flat residentialUnitMix array directly
   const residentialUnitMix = Array.isArray(content?.residentialUnitMix) ? content.residentialUnitMix : [];
@@ -35,69 +25,55 @@ export default function UnitMixPage() {
   residentialUnitMix.forEach((unit: any) => {
     const unitType = unit.unitType || unit.type || 'unknown';
     unitMixDetails[unitType] = {
-      count: unit.unitCount || unit.units || null,
-      avgSF: unit.avgSF || unit.averageUnitSize || null,
-      monthlyRent: unit.monthlyRent ? parseNumeric(unit.monthlyRent) : null,
-      deposit: null, // Not in seed script
+      count: unit.unitCount || unit.units || 0,
+      avgSF: unit.avgSF || unit.averageUnitSize || 0,
+      rentRange: unit.monthlyRent ? `$${unit.monthlyRent}` : null,
+      deposit: unit.deposit || null,
     };
   });
   
   const unitEntries = Object.entries(unitMixDetails) as [string, UnitMixUnit][];
-  const calculatedTotalUnits = unitEntries.reduce(
+  const totalUnits = unitEntries.reduce(
     (sum: number, [, unit]: [string, UnitMixUnit]) => sum + (unit.count ?? 0),
     0
   );
-  const totalUnits = totalResidentialUnits ?? (calculatedTotalUnits > 0 ? calculatedTotalUnits : null);
 
-  const calculatedTotalRentableSF = unitEntries.reduce(
+  const totalRentableSF = unitEntries.reduce(
     (sum: number, [, unit]: [string, UnitMixUnit]) => sum + ((unit.count ?? 0) * (unit.avgSF ?? 0)),
     0
   );
-  const totalRentableSF = totalResidentialNRSF ?? (calculatedTotalRentableSF > 0 ? calculatedTotalRentableSF : null);
 
-  // Calculate blended average rent from monthlyRent values
   const blendedAverageRent =
-    totalUnits != null && totalUnits > 0
+    totalUnits > 0
       ? unitEntries.reduce((sum: number, [, unit]: [string, UnitMixUnit]) => {
-          const rent = unit.monthlyRent ?? 0;
-          return sum + rent * (unit.count ?? 0);
+          const rentRange = unit.rentRange ?? "0";
+          const [low, high] = rentRange
+            .split("-")
+            .map((r: string) => parseFloat(r.replace(/[^\d.]/g, "")) || 0);
+          const avg = (low + high) / 2;
+          return sum + avg * (unit.count ?? 0);
         }, 0) / totalUnits
-      : null;
+      : 0;
   const blendedAverageRentDisplay =
-    blendedAverageRent != null ? Math.round(blendedAverageRent) : null;
-  
-  const avgSF = averageUnitSize ?? (totalUnits != null && totalUnits > 0 && totalRentableSF != null
-    ? Math.round(totalRentableSF / totalUnits)
-    : null);
+    totalUnits > 0 ? Math.round(blendedAverageRent) : null;
+  const avgSF = totalUnits > 0 ? Math.round(totalRentableSF / totalUnits) : null;
 
   const getUnitTypeColor = (type: string) => {
-    // Color based on unit type code (S = Studio, A = 1 Bed, B = 2 Bed)
-    if (type.startsWith('S')) return '#3b82f6'; // blue-500
-    if (type.startsWith('A')) return '#10b981'; // green-500
-    if (type.startsWith('B')) return '#a855f7'; // purple-500
-    return '#6b7280'; // gray-500
-  };
-
-  const getUnitTypeColorClass = (type: string) => {
-    // Tailwind class for badges and other non-SVG elements
-    if (type.startsWith('S')) return 'bg-blue-500';
-    if (type.startsWith('A')) return 'bg-green-500';
-    if (type.startsWith('B')) return 'bg-purple-500';
-    return 'bg-gray-500';
+    const colors: { [key: string]: string } = {
+      studios: 'bg-blue-500',
+      oneBed: 'bg-green-500',
+      twoBed: 'bg-blue-500',
+    };
+    return colors[type] || 'bg-gray-500';
   };
 
   const getUnitTypeLabel = (type: string) => {
-    // Map unit type codes to labels
-    if (type.startsWith('S')) {
-      return type === 'S1' || type === 'S2' || type === 'S3' ? `Studio ${type.slice(1)}` : 'Studio';
-    }
-    if (type.startsWith('A')) {
-      return type === 'A1' || type === 'A2' || type === 'A3' ? `1 Bed ${type.slice(1)}` : '1 Bedroom';
-    }
-    if (type.startsWith('B')) {
-      return type === 'B1' || type === 'B2' ? `2 Bed ${type.slice(1)}` : '2 Bedroom';
-    }
-    return type;
+    const labels: { [key: string]: string } = {
+      studios: 'Studio',
+      oneBed: '1 Bedroom',
+      twoBed: '2 Bedroom',
+    };
+    return labels[type] || type;
   };
 
   const calculatePieChartSegment = (count: number, total: number, startAngle: number) => {
@@ -129,7 +105,7 @@ export default function UnitMixPage() {
     avgSF: unit.avgSF || unit.averageUnitSize || 0,
   }));
   const pieSegments =
-    totalUnits != null && totalUnits > 0
+    totalUnits > 0
       ? unitEntries.map(([type, unit]: [string, UnitMixUnit]) => {
           const segment = calculatePieChartSegment(unit.count ?? 0, totalUnits, currentAngle);
           currentAngle += ((unit.count ?? 0) / totalUnits) * 360;
@@ -155,7 +131,7 @@ export default function UnitMixPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {totalUnits != null ? totalUnits : <MissingValue>Not available</MissingValue>}
+              {content?.totalResidentialUnits ?? totalUnits}
             </p>
             <p className="text-sm text-gray-500 mt-1">Residential units</p>
           </CardContent>
@@ -170,9 +146,7 @@ export default function UnitMixPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {totalRentableSF != null 
-                ? formatLocale(totalRentableSF) 
-                : <MissingValue>Not available</MissingValue>}
+              {formatLocale(content?.totalResidentialNRSF ?? totalRentableSF) ?? 0}
             </p>
             <p className="text-sm text-gray-500 mt-1">Rentable square feet</p>
           </CardContent>
@@ -188,8 +162,8 @@ export default function UnitMixPage() {
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
               {blendedAverageRentDisplay != null
-                ? `$${formatLocale(blendedAverageRentDisplay)}`
-                : <MissingValue>Not available</MissingValue>}
+                ? `$${formatLocale(blendedAverageRentDisplay) ?? 0}`
+                : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per unit average</p>
           </CardContent>
@@ -201,7 +175,7 @@ export default function UnitMixPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {avgSF != null ? `${formatLocale(avgSF)} SF` : <MissingValue>Not available</MissingValue>}
+              {avgSF ?? null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Per unit average</p>
           </CardContent>
@@ -216,52 +190,40 @@ export default function UnitMixPage() {
             <h3 className="text-xl font-semibold text-gray-800">Unit Breakdown</h3>
           </CardHeader>
           <CardContent>
-            {unitEntries.length > 0 ? (
-              <div className="space-y-4">
-                {unitEntries.map(([type, unit]: [string, UnitMixUnit]) => (
-                  <div key={type} className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-gray-800">{getUnitTypeLabel(type)}</h4>
-                      <Badge className={getUnitTypeColorClass(type)}>
-                        {unit.count != null ? `${unit.count} units` : <MissingValue>Count N/A</MissingValue>}
-                      </Badge>
+            <div className="space-y-4">
+            {unitEntries.map(([type, unit]: [string, UnitMixUnit]) => (
+                <div key={type} className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-gray-800">{getUnitTypeLabel(type)}</h4>
+                    <Badge className={getUnitTypeColor(type).replace('bg-', 'bg-')}>
+                      {unit.count} units
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500">Average SF</p>
+                      <p className="font-medium text-gray-800">{formatLocale(unit.avgSF ?? 0) ?? 0} SF</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">Average SF</p>
-                        <p className="font-medium text-gray-800">
-                          {unit.avgSF != null ? `${formatLocale(unit.avgSF)} SF` : <MissingValue>Not available</MissingValue>}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Monthly Rent</p>
-                        <p className="font-medium text-gray-800">
-                          {unit.monthlyRent != null ? `$${formatLocale(unit.monthlyRent)}` : <MissingValue>Not available</MissingValue>}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Deposit</p>
-                        <p className="font-medium text-gray-800">
-                          {unit.deposit ? unit.deposit : <MissingValue>Not specified</MissingValue>}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Percentage</p>
-                        <p className="font-medium text-gray-800">
-                          {totalUnits != null && totalUnits > 0 && unit.count != null
-                            ? `${formatFixed(((unit.count / totalUnits) * 100), 2)}%`
-                            : <MissingValue>N/A</MissingValue>}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-gray-500">Rent Range</p>
+                      <p className="font-medium text-gray-800">{unit.rentRange}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Deposit</p>
+                      <p className="font-medium text-gray-800">{unit.deposit}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Percentage</p>
+                      <p className="font-medium text-gray-800">
+                        {totalUnits > 0
+                          ? `${Math.round(((unit.count ?? 0) / totalUnits) * 100)}%`
+                          : null}
+                      </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">
-                <MissingValue>No unit mix data available</MissingValue>
-              </p>
-            )}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
@@ -271,47 +233,37 @@ export default function UnitMixPage() {
             <h3 className="text-xl font-semibold text-gray-800">Unit Distribution</h3>
           </CardHeader>
           <CardContent>
-            {pieSegments.length > 0 ? (
-              <>
-                <div className="flex justify-center mb-6">
-                  <svg width="200" height="200" viewBox="0 0 100 100" className="transform -rotate-90">
-                    {pieSegments.map((segment, index) => (
-                      <path
-                        key={index}
-                        d={segment.path}
-                        fill={getUnitTypeColor(segment.type)}
-                        stroke="white"
-                        strokeWidth="2"
-                      />
-                    ))}
-                    <circle cx="50" cy="50" r="15" fill="white" />
-                  </svg>
+            <div className="flex justify-center mb-6">
+              <svg width="200" height="200" viewBox="0 0 100 100" className="transform -rotate-90">
+                {pieSegments.map((segment, index) => (
+                  <path
+                    key={index}
+                    d={segment.path}
+                    fill={getUnitTypeColor(segment.type)}
+                    stroke="white"
+                    strokeWidth="2"
+                  />
+                ))}
+                <circle cx="50" cy="50" r="15" fill="white" />
+              </svg>
+            </div>
+            
+            <div className="space-y-3">
+              {pieSegments.map((segment, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div 
+                      className={`w-3 h-3 rounded-full mr-2 ${getUnitTypeColor(segment.type)}`}
+                    />
+                    <span className="text-sm font-medium text-gray-800">{getUnitTypeLabel(segment.type)}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold text-gray-800">{segment.percentage.toFixed(2)}%</span>
+                    <span className="text-xs text-gray-500 ml-1">({(segment.unit as UnitMixUnit).count} units)</span>
+                  </div>
                 </div>
-                
-                <div className="space-y-3">
-                  {pieSegments.map((segment, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div 
-                          className={`w-3 h-3 rounded-full mr-2 ${getUnitTypeColorClass(segment.type)}`}
-                        />
-                        <span className="text-sm font-medium text-gray-800">{getUnitTypeLabel(segment.type)}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-semibold text-gray-800">{formatFixed(segment.percentage, 2)}%</span>
-                        <span className="text-xs text-gray-500 ml-1">
-                          ({(segment.unit as UnitMixUnit).count != null ? `${(segment.unit as UnitMixUnit).count} units` : <MissingValue>N/A</MissingValue>})
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="text-gray-500 text-center py-8">
-                <MissingValue>No unit distribution data available</MissingValue>
-              </p>
-            )}
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -325,47 +277,30 @@ export default function UnitMixPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Rent per Square Foot</h4>
-              {unitEntries.length > 0 ? (
-                <div className="space-y-2">
-                  {unitEntries.map(([type, unit]: [string, UnitMixUnit]) => {
-                    const rentPSF = unit.monthlyRent != null && unit.avgSF != null && unit.avgSF > 0
-                      ? unit.monthlyRent / unit.avgSF
-                      : null;
-                    return (
-                      <div key={type} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{getUnitTypeLabel(type)}</span>
-                        <Badge variant="outline" className="border-gray-200">
-                          {rentPSF != null ? `$${formatFixed(rentPSF, 2)}/SF` : <MissingValue>N/A</MissingValue>}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 italic">
-                  <MissingValue>No unit data available</MissingValue>
-                </p>
-              )}
+              <div className="space-y-2">
+                {unitEntries.map(([type, unit]: [string, UnitMixUnit]) => {
+                  const avgRent = (unit.rentRange ?? '0').split('-').map((r: string) => parseFloat(r.replace(/[^\d]/g, ''))).reduce((a: number, b: number) => a + b, 0) / 2;
+                  const rentPSF = avgRent / (unit.avgSF ?? 1);
+                  return (
+                    <div key={type} className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">{getUnitTypeLabel(type)}</span>
+                      <Badge variant="outline" className="border-gray-200">${formatFixed(rentPSF, 2) ?? "0.00"}/SF</Badge>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Deposit Requirements</h4>
-              {unitEntries.length > 0 ? (
-                <div className="space-y-2">
-                  {unitEntries.map(([type, unit]: [string, UnitMixUnit]) => (
-                    <div key={type} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">{getUnitTypeLabel(type)}</span>
-                      <Badge variant="outline" className="border-gray-200">
-                        {unit.deposit ? unit.deposit : <MissingValue>Not specified</MissingValue>}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 italic">
-                  <MissingValue>No unit data available</MissingValue>
-                </p>
-              )}
+              <div className="space-y-2">
+                {unitEntries.map(([type, unit]: [string, UnitMixUnit]) => (
+                  <div key={type} className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">{getUnitTypeLabel(type)}</span>
+                    <Badge variant="outline" className="border-gray-200">{unit.deposit}</Badge>
+                  </div>
+                ))}
+              </div>
             </div>
             
             <div>
@@ -415,27 +350,19 @@ export default function UnitMixPage() {
                 </tr>
               </thead>
               <tbody>
-                {detailedUnitMix.map((plan: { code?: string | null; type?: string | null; units?: number | null; avgSF?: number | null }, index: number) => (
-                  <tr key={plan.code || `plan-${index}`} className="border-b border-gray-50">
-                    <td className="py-3 px-2 font-medium text-gray-800">
-                      {plan.code ? plan.code : <MissingValue>N/A</MissingValue>}
-                    </td>
-                    <td className="py-3 px-2 text-gray-600">
-                      {plan.type ? plan.type : <MissingValue>N/A</MissingValue>}
-                    </td>
-                    <td className="py-3 px-2 text-gray-600">
-                      {plan.units != null ? plan.units : <MissingValue>N/A</MissingValue>}
-                    </td>
-                    <td className="py-3 px-2 text-gray-600">
-                      {plan.avgSF != null ? `${formatLocale(plan.avgSF)} SF` : <MissingValue>N/A</MissingValue>}
-                    </td>
+                {detailedUnitMix.map((plan: { code?: string | null; type?: string | null; units?: number | null; avgSF?: number | null }) => (
+                  <tr key={plan.code} className="border-b border-gray-50">
+                    <td className="py-3 px-2 font-medium text-gray-800">{plan.code}</td>
+                    <td className="py-3 px-2 text-gray-600">{plan.type}</td>
+                    <td className="py-3 px-2 text-gray-600">{plan.units}</td>
+                    <td className="py-3 px-2 text-gray-600">{formatLocale(plan.avgSF ?? 0) ?? 0} SF</td>
                   </tr>
                 ))}
               </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 } 
