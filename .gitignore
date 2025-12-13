@@ -50,4 +50,4 @@ CLAUDE.md
 video-conferencing-app
 
 # logs
-logs/
+logs/*
