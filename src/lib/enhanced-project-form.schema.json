@@ -755,7 +755,7 @@
 				{
 					"id": "project-media",
 					"title": "7.5 Project Media (Site Images & Plans)",
-					"fields": []
+					"fields": ["siteImages", "architecturalDiagrams"]
 				}
 			],
 			"fields": [

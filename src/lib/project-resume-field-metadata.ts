@@ -2639,6 +2639,24 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Currency",
 		section: "timeline",
 	},
+
+	// Project Media - Site Images & Plans
+	siteImages: {
+		fieldId: "siteImages",
+		description:
+			"Photos of the building, exterior, interior, street view, aerial photos. Images can be uploaded manually or extracted from project documents.",
+		expectedValue: "Array of image metadata objects",
+		dataType: "Array",
+		section: "site-context",
+	},
+	architecturalDiagrams: {
+		fieldId: "architecturalDiagrams",
+		description:
+			"Floor plans, site plans, blueprints, maps, zoning maps, elevations. Images can be uploaded manually or extracted from project documents.",
+		expectedValue: "Array of image metadata objects",
+		dataType: "Array",
+		section: "site-context",
+	},
 };
 
 /**
