@@ -1501,24 +1501,24 @@ async function seedImages(
 ): Promise<void> {
   console.log(`[seed] Seeding images for SoGood Apartments...`);
 
-  // Possible base paths for hoque-images directory
+  // Possible base paths for images directory
   const possibleImagePaths = [
-    resolve(process.cwd(), '../../hoque-images'),
-    resolve(process.cwd(), '../hoque-images'),
-    resolve(process.cwd(), './hoque-images'),
+    resolve(process.cwd(), 'data/so-good-apartments/project/images'),
+    resolve(process.cwd(), './data/so-good-apartments/project/images'),
+    resolve(process.cwd(), '../data/so-good-apartments/project/images'),
   ];
 
-  let hoqueImagesPath: string | null = null;
+  let imagesPath: string | null = null;
   for (const path of possibleImagePaths) {
     if (existsSync(path)) {
-      hoqueImagesPath = path;
-      console.log(`[seed] Found hoque-images directory: ${path}`);
+      imagesPath = path;
+      console.log(`[seed] Found images directory: ${path}`);
       break;
     }
   }
 
-  if (!hoqueImagesPath) {
-    console.log(`[seed] ⚠️  No hoque-images directory found. Skipping image upload.`);
+  if (!imagesPath) {
+    console.log(`[seed] ⚠️  No images directory found. Skipping image upload.`);
     console.log(`[seed]    To upload images, place them in one of:`);
     possibleImagePaths.forEach(p => console.log(`[seed]    - ${p}`));
     return;
@@ -1528,7 +1528,7 @@ async function seedImages(
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
   
   // Upload architectural diagrams
-  const archDiagramsPath = join(hoqueImagesPath, 'architectural-diagrams');
+  const archDiagramsPath = join(imagesPath, 'architectural-diagrams');
   if (existsSync(archDiagramsPath)) {
     console.log(`[seed] Uploading architectural diagrams...`);
     const archFiles = readdirSync(archDiagramsPath).filter(file => {
@@ -1574,11 +1574,11 @@ async function seedImages(
       }
     }
   } else {
-    console.log(`[seed] ⚠️  architectural-diagrams folder not found in hoque-images directory`);
+    console.log(`[seed] ⚠️  architectural-diagrams folder not found in images directory`);
   }
 
   // Upload site images
-  const siteImagesPath = join(hoqueImagesPath, 'site-images');
+  const siteImagesPath = join(imagesPath, 'site-images');
   if (existsSync(siteImagesPath)) {
     console.log(`[seed] Uploading site images...`);
     const siteFiles = readdirSync(siteImagesPath).filter(file => {
@@ -1624,7 +1624,7 @@ async function seedImages(
       }
     }
   } else {
-    console.log(`[seed] ⚠️  site-images folder not found in hoque-images directory`);
+    console.log(`[seed] ⚠️  site-images folder not found in images directory`);
   }
 
   console.log(`[seed] ✅ Completed image upload`);

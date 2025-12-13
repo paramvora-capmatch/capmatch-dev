@@ -7,7 +7,7 @@ export async function POST(
   const { id: projectId } = await params;
   
   try {
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
     const response = await fetch(
       `${backendUrl}/api/v1/projects/${projectId}/om/generate-insights`,
       {
