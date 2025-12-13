@@ -662,14 +662,17 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	// Operating Expenses & Investment Metrics
 	realEstateTaxes: 34200,
 	insurance: 92800,
+	taxInsuranceReserve: 127000, // Tax and insurance reserve
 	utilitiesCosts: 23200,
 	repairsAndMaintenance: 46400,
 	managementFee: 85000,
 	generalAndAdmin: 40600,
 	payroll: 174000,
 	reserves: 23200,
+	capExReserve: 116000, // CapEx reserve for future capital improvements
 	marketingLeasing: 68040,
 	serviceCoordination: 10000,
+	totalOperatingExpenses: 625040, // Sum of all operating expenses
 	noiYear1: 2268000,
 	propertyNoiT12: 0, // Ground-up development - no existing NOI
 	stabilizedNoiProjected: 2268000,
