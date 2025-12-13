@@ -474,6 +474,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		"Ground-up development of Building B within the SoGood master plan, delivering 116 units over activated ground-floor innovation space between the Dallas Farmers Market and Deep Ellum.",
 	projectPhase: "Construction",
 	expectedZoningChanges: "None",
+	masterPlanName: "SoGood Master Plan", // Building B within the SoGood master plan
 
 	// Property Specifications
 	totalResidentialUnits: 116,
@@ -486,6 +487,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	buildingType: "Mid-rise",
 	parkingSpaces: 180,
 	parkingRatio: 1.55,
+	parkingType: "Structured parking garage with surface spaces",
 	amenityList: [
 		"Fitness center",
 		"Shared working space",
@@ -493,6 +495,11 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		"Outdoor terrace",
 		"Swimming pool",
 	],
+	amenitySF: 35264, // Total amenity space
+	totalAmenities: 5, // Number of distinct amenity spaces
+	amenityAvgSize: 7053, // Average amenity size (35,264 SF / 5 amenities)
+	amenitySpaceType: "Indoor and outdoor mixed-use spaces",
+	amenityAccess: "Resident-only access with key fob system",
 	// Explicit unit counts by type (in addition to detailed mix)
 	studioCount: 84,
 	oneBedCount: 24,
@@ -501,6 +508,11 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	furnishedUnits: false,
 	lossToLease: 5.0,
 	adaCompliantPercent: 5.0,
+	luxuryTier: "Class A",
+	targetMarket: "Young professionals, creative class, and workforce housing residents (50% at ≤80% AMI)",
+	competitivePosition: "Premium workforce housing with strong amenity package and prime location between Farmers Market and Deep Ellum",
+	unitPlanDescription:
+		"Modern studio, one-bedroom, and two-bedroom units with high-end finishes, in-unit washers/dryers, and energy-efficient appliances. Units feature open floor plans, large windows, and private balconies where applicable.",
 	hvacSystem: "Central",
 	roofTypeAge: "TPO, new construction",
 	solarCapacity: 100,
@@ -614,22 +626,33 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	purchasePrice: 6000000,
 
 	// Sources of Funds & Loan Terms
+	totalCapitalization: 29800000, // Total project capitalization
 	sponsorEquity: 11800000,
 	taxCreditEquity: 0, // Not utilizing tax credits for this project
 	gapFinancing: 0, // No gap financing required - fully capitalized
 	equityCommittedPercent: 39.6,
+	equityContribution: 39.6, // Same as equityCommittedPercent
+	equityContributionDescription:
+		"$11.8M sponsor equity contribution representing 39.6% of total project cost. Equity fully committed and available at closing.",
 	loanAmountRequested: 18000000,
 	loanType: "Senior Construction Loan",
+	lender: "TBD - Lender selection in progress",
 	interestRate: 8.0,
 	underwritingRate: 8.0,
+	floorRate: 4.5, // Minimum interest rate floor
 	interestRateType: "Floating",
 	amortizationYears: 30,
 	interestOnlyPeriodMonths: 24,
+	extensions: "Two 6-month extensions available with lender approval",
 	targetLtvPercent: 44,
 	targetLtcPercent: 60,
+	loanToCost: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
 	prepaymentTerms: "Minimum interest",
 	prepaymentPremium: "None - prepayment allowed after interest-only period",
+	originationFee: "1.5% of loan amount",
+	exitFee: "None",
 	recoursePreference: "Partial Recourse",
+	completionGuaranty: "Yes - completion guaranty required",
 	permTakeoutPlanned: true,
 	allInRate: 8.25,
 	targetCloseDate: "2025-08-15",
@@ -900,6 +923,8 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 		"Hoque Global is a Dallas-based master developer delivering catalytic mixed-use districts and workforce housing through public-private partnerships, including PFC structures with the City of Dallas. ACARA serves as capital partner, structuring Opportunity Zone-aligned investments with a $950M+ track record across Texas.",
 	// Must be one of: "0-2", "3-5", "6-10", "11-15", "16+"
 	yearsCREExperienceRange: "16+",
+	yearFounded: 2010, // Hoque Global founded in 2010
+	activeProjects: 3, // SoGood Phase A, SoGood Phase B (this project), and other active developments
 	assetClassesExperience: [
 		"Mixed-Use",
 		"Multifamily",
@@ -915,6 +940,8 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 	totalDealValueClosedRange: "$500M+",
 	existingLenderRelationships:
 		"Frost Bank; Citi Community Capital; Dallas Housing Finance Corp",
+	trackRecord:
+		"Delivered 1M+ SF of adaptive reuse and mixed-use development across Dallas. Key projects include SoGood Phase A (completed 2022), multiple PFC-backed workforce housing developments, and master-planned district projects. Track record includes on-time delivery, strong lender relationships, and successful public-private partnerships.",
 	// Must be one of: "N/A", "<600", "600-649", "650-699", "700-749", "750-799", "800+"
 	creditScoreRange: "700-749",
 	// Must be one of: "<$1M", "$1M-$5M", "$5M-$10M", "$10M-$25M", "$25M-$50M", "$50M-$100M", "$100M+"
@@ -932,6 +959,50 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 	ownershipPercentage: 50,
 	principalBio:
 		"Founder leading Hoque Global's master plan strategy and public-private initiatives across Dallas. Delivered 1M+ SF of adaptive reuse and serves as Dallas Regional Chamber Urban Taskforce Chair.",
+	principalSpecialties: [
+		"Master-planned district development",
+		"PFC and tax-exempt financing structures",
+		"Workforce housing development",
+		"Public-private partnerships",
+		"Opportunity Zone investments",
+	],
+	principalAchievements: [
+		"Delivered 1M+ SF of adaptive reuse and mixed-use development",
+		"Successfully structured multiple PFC-backed workforce housing projects",
+		"Chair of Dallas Regional Chamber Urban Taskforce",
+		"Led SoGood master plan development (multi-phase, $200M+ project)",
+		"Established strong relationships with key lenders (Frost Bank, Citi Community Capital)",
+	],
+	principalEducation: "MBA, University of Texas at Dallas",
+	references: [
+		{
+			lenderName: "Frost Bank",
+			contactName: "Commercial Real Estate Team",
+			contactEmail: "cre@frostbank.com",
+			relationshipYears: 8,
+			dealCount: 3,
+			lastDealDate: "2022-06-15",
+			notes: "Primary construction lender for SoGood Phase A and other mixed-use projects",
+		},
+		{
+			lenderName: "Citi Community Capital",
+			contactName: "Affordable Housing Finance Team",
+			contactEmail: "communitycapital@citi.com",
+			relationshipYears: 5,
+			dealCount: 2,
+			lastDealDate: "2021-11-20",
+			notes: "Workforce housing and PFC-backed project financing",
+		},
+		{
+			lenderName: "Dallas Housing Finance Corporation",
+			contactName: "PFC Program Director",
+			contactEmail: "pfc@dhfc.org",
+			relationshipYears: 6,
+			dealCount: 4,
+			lastDealDate: "2024-07-12",
+			notes: "PFC structuring and tax-exempt financing for workforce housing projects",
+		},
+	],
 };
 
 /**
