@@ -1,0 +1,18 @@
+[
+  {
+    "timestamp": "2025-12-13T06:32:02.185Z",
+    "projectId": "f5787f90-4e14-4c4b-9f3c-92a9a5f2a539",
+    "page": "dashboard",
+    "fields": [
+      {
+        "fieldId": "ltc",
+        "status": "missing",
+        "page": "dashboard",
+        "subpage": "main",
+        "isInsight": false,
+        "timestamp": "2025-12-13T06:32:00.868Z",
+        "projectId": "f5787f90-4e14-4c4b-9f3c-92a9a5f2a539"
+      }
+    ]
+  }
+]
