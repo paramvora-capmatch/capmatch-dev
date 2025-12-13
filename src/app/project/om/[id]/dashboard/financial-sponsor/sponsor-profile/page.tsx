@@ -21,15 +21,10 @@ import {
 import PlaceholderImage from "@/components/ui/PlaceholderImage";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { formatLocale, parseNumeric, getOMValue, formatFixed } from "@/lib/om-utils";
-
-// Component to show missing values in red
-const MissingValue = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-red-600 font-medium">{children}</span>
-);
+import { formatLocale, parseNumeric } from "@/lib/om-utils";
 
 export default function SponsorProfilePage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   
   // Extract sponsor fields from flat OM content
   const sponsorExpScore = parseNumeric(content?.sponsorExpScore) ?? null;
@@ -66,101 +61,103 @@ export default function SponsorProfilePage() {
   
   // Build sponsor profile from flat fields
   const sponsorProfile = {
-    firmName: sponsorEntityName,
-    yearFounded: null, // Not directly available
-    totalDeveloped: priorDevelopments,
-    totalUnits: totalResidentialUnits,
-    activeProjects: null, // Not directly available
-    sponsorEntityName,
-    sponsorExperience,
+    firmName: content?.sponsorEntityName ?? null,
+    yearFounded: content?.yearFounded ?? null,
+    totalDeveloped: content?.priorDevelopments ?? null,
+    totalUnits: content?.totalResidentialUnits ?? null, // Using project units as placeholder
+    activeProjects: content?.activeProjects ?? null,
+    sponsorEntityName: content?.sponsorEntityName ?? null,
+    sponsoringEntity: content?.sponsoringEntity ?? null,
+    sponsorExperience: content?.sponsorExperience ?? null,
+    netWorth: content?.netWorth ?? null,
+    guarantorLiquidity: content?.guarantorLiquidity ?? null,
+    portfolioDSCR: content?.portfolioDSCR ?? null,
+    portfolioLTV: content?.portfolioLTV ?? null,
     sponsorExpScore,
   };
   
-  // Principals, references, and track record - hardcoded demo data
-  const principals: any[] = [
-    {
-      name: "Mike Hoque",
-      role: "Founder & CEO",
-      experience: "20+ years",
-      bio: "Mike Hoque is the founder and CEO of Hoque Global, a Dallas-based master developer specializing in catalytic mixed-use districts and workforce housing. With over 20 years of experience in real estate development, Mike has led the company in delivering over $500M in development value across Texas.",
-      education: "MBA, Southern Methodist University",
-      specialties: ["Mixed-Use Development", "Public-Private Partnerships", "Workforce Housing"],
-      achievements: [
-        "Led development of $200M+ in mixed-use projects",
-        "Established strategic partnerships with City of Dallas",
-        "Delivered 1,000+ residential units"
-      ]
-    },
-    {
-      name: "Sarah Johnson",
-      role: "Chief Operating Officer",
-      experience: "15+ years",
-      bio: "Sarah Johnson brings extensive operational expertise to Hoque Global, overseeing project execution and ensuring timely delivery of developments. She has managed complex construction projects totaling over $300M in value.",
-      education: "BS Civil Engineering, University of Texas",
-      specialties: ["Project Management", "Construction Operations", "Cost Control"],
-      achievements: [
-        "Managed 15+ successful project completions",
-        "Achieved 98% on-time delivery rate",
-        "Reduced construction costs by 12% through optimization"
-      ]
+  // Transform principals from borrower resume format to display format
+  // Principals come from borrower resume and are included in OM content
+  const principals: any[] = (() => {
+    const rawPrincipals = content?.principals;
+    
+    // Handle both rich format (with value/source) and direct array format
+    let principalsArray: any[] = [];
+    
+    if (Array.isArray(rawPrincipals)) {
+      // Direct array format
+      principalsArray = rawPrincipals;
+    } else if (rawPrincipals && typeof rawPrincipals === 'object' && 'value' in rawPrincipals) {
+      // Rich format with value/source structure
+      if (Array.isArray(rawPrincipals.value)) {
+        principalsArray = rawPrincipals.value;
+      }
     }
-  ];
+    
+    // Transform borrower resume principal format to display format
+    return principalsArray.map((p: any) => {
+      // Extract value if in rich format
+      const principalData = (p && typeof p === 'object' && 'value' in p) ? p.value : p;
+      
+      return {
+        name: principalData?.principalLegalName ?? null,
+        role: principalData?.principalRoleDefault ?? null,
+        bio: principalData?.principalBio ?? null,
+        experience: principalData?.yearsCREExperienceRange 
+          ? `${principalData.yearsCREExperienceRange} years` 
+          : null,
+        education: null, // Not available in borrower resume format
+        specialties: principalData?.assetClassesExperience 
+          ? (Array.isArray(principalData.assetClassesExperience) 
+            ? principalData.assetClassesExperience 
+            : [principalData.assetClassesExperience])
+          : [],
+        achievements: [], // Not available in borrower resume format
+        // Include additional fields that might be useful
+        email: principalData?.principalEmail ?? null,
+        ownershipPercentage: principalData?.ownershipPercentage ?? null,
+        netWorthRange: principalData?.netWorthRange ?? null,
+        liquidityRange: principalData?.liquidityRange ?? null,
+        creditScoreRange: principalData?.creditScoreRange ?? null,
+      };
+    }).filter((p: any) => p.name); // Only include principals with a name
+  })();
   
-  const references: any[] = [
-    {
-      firm: "Frost Bank",
-      relationship: "Construction Lender",
-      years: "8 years",
-      contact: "John Smith, VP Commercial Lending"
-    },
-    {
-      firm: "Citi Community Capital",
-      relationship: "Affordable Housing Lender",
-      years: "5 years",
-      contact: "Jane Doe, Director of Community Development"
-    },
-    {
-      firm: "Dallas Housing Finance Corp",
-      relationship: "Public Finance Partner",
-      years: "10 years",
-      contact: "Robert Williams, Executive Director"
+  // Extract references from content, handling rich format structure
+  const references: any[] = (() => {
+    const rawReferences = content?.references;
+    
+    // Handle both rich format (with value/source) and direct array format
+    if (Array.isArray(rawReferences)) {
+      // Direct array format
+      return rawReferences;
+    } else if (rawReferences && typeof rawReferences === 'object' && 'value' in rawReferences) {
+      // Rich format with value/source structure
+      if (Array.isArray(rawReferences.value)) {
+        return rawReferences.value;
+      }
     }
-  ];
-  
-  const trackRecord: any[] = [
-    {
-      project: "Downtown Dallas Mixed-Use",
-      year: 2022,
-      units: 180,
-      irr: 22.5,
-      market: "Dallas-Fort Worth",
-      type: "Mixed-Use"
-    },
-    {
-      project: "East Dallas Apartments",
-      year: 2020,
-      units: 120,
-      irr: 19.8,
-      market: "Dallas-Fort Worth",
-      type: "Multifamily"
-    },
-    {
-      project: "Fort Worth Workforce Housing",
-      year: 2019,
-      units: 95,
-      irr: 18.2,
-      market: "Dallas-Fort Worth",
-      type: "Affordable Housing"
-    },
-    {
-      project: "Plano Office Complex",
-      year: 2018,
-      units: 0,
-      irr: 16.5,
-      market: "Dallas-Fort Worth",
-      type: "Office"
+    
+    return [];
+  })();
+
+  // Extract trackRecord from content, handling rich format structure
+  const trackRecord: any[] = (() => {
+    const rawTrackRecord = content?.trackRecord;
+    
+    // Handle both rich format (with value/source) and direct array format
+    if (Array.isArray(rawTrackRecord)) {
+      // Direct array format
+      return rawTrackRecord;
+    } else if (rawTrackRecord && typeof rawTrackRecord === 'object' && 'value' in rawTrackRecord) {
+      // Rich format with value/source structure
+      if (Array.isArray(rawTrackRecord.value)) {
+        return rawTrackRecord.value;
+      }
     }
-  ];
+    
+    return [];
+  })();
 
   const getIRRColor = (irr?: string | number | null) => {
     const irrNum =
@@ -390,42 +387,24 @@ export default function SponsorProfilePage() {
                 Experience & Track Record
               </h4>
               <div className="space-y-3">
-                {yearsCREExperienceRange && (
-                  <div>
-                    <p className="text-sm text-gray-500">Years of CRE Experience</p>
-                    <p className="font-medium text-gray-800">{yearsCREExperienceRange}</p>
-                  </div>
-                )}
-                {assetClassesExperience && assetClassesExperience.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-500">Asset Classes Experience</p>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {assetClassesExperience.map((asset: string, idx: number) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {asset}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {geographicMarketsExperience && geographicMarketsExperience.length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-500">Geographic Markets Experience</p>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {geographicMarketsExperience.map((market: string, idx: number) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {market}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {totalDealValueClosedRange && (
-                  <div>
-                    <p className="text-sm text-gray-500">Total Deal Value Closed</p>
-                    <p className="font-medium text-gray-800">{totalDealValueClosedRange}</p>
-                  </div>
-                )}
+                <div className="flex items-center">
+                  <Phone className="h-4 w-4 text-gray-400 mr-2" />
+                  <span className="text-sm text-gray-600">
+                    {content?.contactInfo ?? content?.contactEmail ?? content?.contactPhone ?? null}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                  <span className="text-sm text-gray-600">
+                    {content?.contactInfo ?? content?.contactEmail ?? content?.contactPhone ?? null}
+                  </span>
+                </div>
+                <div className="pt-4">
+                  <p className="text-sm text-gray-500">
+                    For detailed contact information and references, please
+                    contact the deal team.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -972,10 +951,12 @@ export default function SponsorProfilePage() {
                   {sponsorProfile?.yearFounded != null ? sponsorProfile.yearFounded : <MissingValue>16</MissingValue>} years of
                   experience
                 </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <MissingValue>Proven track record across multiple projects</MissingValue>
-                </li>
+                {insights?.sponsorStrength1 && (
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">•</span>
+                    {insights.sponsorStrength1}
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -985,19 +966,23 @@ export default function SponsorProfilePage() {
                 Financial Performance
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Strong IRR performance (18-26%)</MissingValue>
-                </li>
+                {insights?.sponsorStrength2 && (
+                  <li className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    {insights.sponsorStrength2}
+                  </li>
+                )}
                 <li className="flex items-center">
                   <span className="text-blue-500 mr-2">•</span>
                   {sponsorProfile?.totalDeveloped != null ? formatLocale(sponsorProfile.totalDeveloped) : <MissingValue>1,000</MissingValue>} total
                   development value
                 </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Consistent project delivery</MissingValue>
-                </li>
+                {insights?.sponsorStrength3 && (
+                  <li className="flex items-center">
+                    <span className="text-blue-500 mr-2">•</span>
+                    {insights.sponsorStrength3}
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -1007,18 +992,15 @@ export default function SponsorProfilePage() {
                 Market Position
               </h4>
               <ul className="space-y-3 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Established lender relationships</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Strong local market knowledge</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Reputation for quality execution</MissingValue>
-                </li>
+                {['sponsorStrength4', 'sponsorStrength5', 'sponsorStrength6'].map((field) => {
+                  const insight = insights?.[field] ?? null;
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

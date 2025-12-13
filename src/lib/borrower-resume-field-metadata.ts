@@ -142,6 +142,39 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Textarea",
 		section: "experience",
 	} as any,
+	trackRecord: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "trackRecord",
+		description: "Historical record of completed projects including project name, year, units, IRR, market, and asset type.",
+		backupSource: "Document (Track Record Spreadsheet)",
+		expectedValue: "Array of project objects",
+		dataType: "Table",
+		section: "experience",
+	} as any,
+	yearFounded: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "yearFounded",
+		description: "Year the sponsor entity was founded.",
+		backupSource: "Document (Company Profile / Website)",
+		expectedValue: "Integer, e.g., 2008",
+		dataType: "Integer",
+		section: "experience",
+	} as any,
+	activeProjects: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "activeProjects",
+		description: "Number of currently active development projects.",
+		backupSource: "Document (Project Pipeline / Track Record)",
+		expectedValue: "Integer, e.g., 5",
+		dataType: "Integer",
+		section: "experience",
+	} as any,
 
 	// Section 3: Financial Info
 	creditScoreRange: {
@@ -291,6 +324,39 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Textarea",
 		section: "principals",
 	} as any,
+	principalSpecialties: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "principalSpecialties",
+		description: "Areas of expertise and specialization for the principal.",
+		backupSource: "User Input",
+		expectedValue: "Array of strings",
+		dataType: "Multi-select",
+		section: "principals",
+	} as any,
+	principalAchievements: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "principalAchievements",
+		description: "Key accomplishments and notable achievements of the principal.",
+		backupSource: "User Input",
+		expectedValue: "Array of strings",
+		dataType: "Multi-select",
+		section: "principals",
+	} as any,
+	principalEducation: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "principalEducation",
+		description: "Educational background of the principal (degrees, institutions).",
+		backupSource: "User Input",
+		expectedValue: "Text",
+		dataType: "Text",
+		section: "principals",
+	} as any,
 
 	// Container field for the principals array itself
 	principals: {
@@ -303,6 +369,19 @@ export const borrowerResumeFieldMetadata: Record<string, FieldMetadata> = {
 		expectedValue: "Array of Principal objects",
 		dataType: "Table",
 		section: "principals",
+	} as any,
+
+	// Section 6: References
+	references: {
+		value: null,
+		source: null,
+		warnings: [],
+		fieldId: "references",
+		description: "List of lender references including firm name, relationship type, years of relationship, and contact information.",
+		backupSource: "Document (Reference List)",
+		expectedValue: "Array of reference objects",
+		dataType: "Table",
+		section: "references",
 	} as any,
 };
 

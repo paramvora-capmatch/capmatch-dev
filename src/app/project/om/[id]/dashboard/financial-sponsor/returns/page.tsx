@@ -6,10 +6,10 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import ReturnsCharts from "@/components/om/ReturnsCharts";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { getOMValue, parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
+import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
 
 export default function ReturnsPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   
   // Build return projections from flat fields
   const baseIRR = parseNumeric(content?.irr) ?? null;
@@ -25,39 +25,35 @@ export default function ReturnsPage() {
   const untrendedYield = parseNumeric(content?.untrendedYield) ?? null;
   const inflationAssumption = parseNumeric(content?.inflationAssumption) ?? null;
   const dscrStressTest = parseNumeric(content?.dscrStressTest) ?? null;
-  const exitStrategy = getOMValue(content, "exitStrategy");
+  const exitStrategy = content?.exitStrategy ?? null;
   const expectedHoldPeriod = parseNumeric(content?.expectedHoldPeriod) ?? null;
-  const businessPlanSummary = getOMValue(content, "businessPlanSummary");
+  const businessPlanSummary = content?.businessPlanSummary ?? null;
   
   const baseProfitMargin = (stabilizedValue && totalDevCost) 
     ? ((stabilizedValue - totalDevCost) / totalDevCost) * 100 
     : null;
   
-  const returnProjections = {
-    base: {
-      irr: baseIRR,
-      multiple: baseEquityMultiple,
-      profitMargin: baseProfitMargin,
-    },
-    upside: {
-      irr: baseIRR != null ? baseIRR * 1.1 : null,
-      multiple: baseEquityMultiple != null ? baseEquityMultiple * 1.1 : null,
-      profitMargin: (stabilizedValue && totalDevCost) 
-        ? (((stabilizedValue * 1.02) - totalDevCost) / totalDevCost) * 100 
-        : null,
-    },
-    downside: {
-      irr: baseIRR != null ? baseIRR * 0.9 : null,
-      multiple: baseEquityMultiple != null ? baseEquityMultiple * 0.9 : null,
-      profitMargin: (stabilizedValue && totalDevCost) 
-        ? (((stabilizedValue * 0.97) - totalDevCost) / totalDevCost) * 100 
-        : null,
-    },
-  };
+  // Read risk levels from content (calculated in resume)
+  const upsideRisk = content?.riskLevelUpside ?? null;
+  const baseRisk = content?.riskLevelBase ?? null;
+  const downsideRisk = content?.riskLevelDownside ?? null;
   
-  const upsideScenario = returnProjections.upside;
-  const baseScenario = returnProjections.base;
-  const downsideScenario = returnProjections.downside;
+  // Use calculated values from content
+  const upsideScenario = {
+    irr: content?.upsideIRR ?? null,
+    multiple: content?.upsideEquityMultiple ?? null,
+    profitMargin: content?.upsideProfitMargin ?? null,
+  };
+  const baseScenario = {
+    irr: baseIRR,
+    multiple: baseEquityMultiple,
+    profitMargin: baseProfitMargin,
+  };
+  const downsideScenario = {
+    irr: content?.downsideIRR ?? null,
+    multiple: content?.downsideEquityMultiple ?? null,
+    profitMargin: content?.downsideProfitMargin ?? null,
+  };
 
   const getIRRColor = (irr?: number | null) => {
     if (irr == null || Number.isNaN(irr)) return "bg-red-100 text-red-800";
@@ -201,7 +197,7 @@ export default function ReturnsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Risk Level</span>
-                  <Badge className="bg-green-100 text-green-800"><span className="text-red-600">Low</span></Badge>
+                  {upsideRisk ? <Badge className="bg-green-100 text-green-800">{upsideRisk}</Badge> : null}
                 </div>
               </div>
             </div>
@@ -248,7 +244,7 @@ export default function ReturnsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Risk Level</span>
-                  <Badge className="bg-blue-100 text-blue-800"><span className="text-red-600">Medium</span></Badge>
+                  {baseRisk ? <Badge className="bg-blue-100 text-blue-800">{baseRisk}</Badge> : null}
                 </div>
               </div>
             </div>
@@ -295,7 +291,7 @@ export default function ReturnsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Risk Level</span>
-                  <Badge className="bg-red-100 text-red-800"><span className="text-red-600">High</span></Badge>
+                  {downsideRisk ? <Badge className="bg-red-100 text-red-800">{downsideRisk}</Badge> : null}
                 </div>
               </div>
             </div>
@@ -362,9 +358,7 @@ export default function ReturnsPage() {
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge className="bg-green-100 text-green-800">
-                      <span className="text-red-600">Low Risk</span>
-                    </Badge>
+                    {upsideRisk ? <Badge className="bg-green-100 text-green-800">{upsideRisk} Risk</Badge> : null}
                   </td>
                 </tr>
                 <tr className="border-b border-gray-50 hover:bg-gray-50">
@@ -396,9 +390,7 @@ export default function ReturnsPage() {
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge className="bg-blue-100 text-blue-800">
-                      <span className="text-red-600">Medium Risk</span>
-                    </Badge>
+                    {baseRisk ? <Badge className="bg-blue-100 text-blue-800">{baseRisk} Risk</Badge> : null}
                   </td>
                 </tr>
                 <tr className="border-b border-gray-50 hover:bg-gray-50">
@@ -432,7 +424,7 @@ export default function ReturnsPage() {
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
-                    <Badge className="bg-red-100 text-red-800"><span className="text-red-600">High Risk</span></Badge>
+                    {downsideRisk ? <Badge className="bg-red-100 text-red-800">{downsideRisk} Risk</Badge> : null}
                   </td>
                 </tr>
               </tbody>
@@ -455,36 +447,30 @@ export default function ReturnsPage() {
                 Key Success Factors
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Strong market fundamentals</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Premium location & amenities</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Experienced development team</span>
-                </li>
+                {['returnDriver1', 'returnDriver2', 'returnDriver3'].map((field) => {
+                  const insight = insights?.[field] ?? null;
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Construction cost overruns</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Market timing risks</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Interest rate volatility</span>
-                </li>
+                {['returnRisk1', 'returnRisk2', 'returnRisk3'].map((field) => {
+                  const insight = insights?.[field] ?? null;
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
 
@@ -493,18 +479,15 @@ export default function ReturnsPage() {
                 Mitigation Strategies
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Fixed-price contracts</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Pre-leasing commitments</span>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Interest rate hedging</span>
-                </li>
+                {['returnMitigation1', 'returnMitigation2', 'returnMitigation3'].map((field) => {
+                  const insight = insights?.[field] ?? null;
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

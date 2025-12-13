@@ -9,16 +9,17 @@ import { MetricCard } from "@/components/om/widgets/MetricCard";
 import { AIInsightsBar } from "@/components/om/AIInsightsBar";
 import { ImageSlideshow } from "@/components/om/ImageSlideshow";
 import { useOMDashboard } from "@/contexts/OMDashboardContext";
+import { useOMDataContext } from "@/contexts/OMDataContext";
+import { useOmContent } from "@/hooks/useOmContent";
 import { cn } from "@/utils/cn";
-import { useOMData } from "@/hooks/useOMData";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import {
 	getNumericValue,
 	normalizeScenarioData,
 	formatFixed,
 	formatLocale,
+	parseNumeric,
 } from "@/lib/om-utils";
-import { getOMValue } from "@/lib/om-queries";
 import { OMErrorState } from "@/components/om/OMErrorState";
 import { OMLoadingState } from "@/components/om/OMLoadingState";
 import {
@@ -38,7 +39,10 @@ export default function OMDashboardPage() {
 	const { getProject } = useProjects();
 	const project = projectId ? getProject(projectId) : null;
 	const { scenario, setScenario } = useOMDashboard();
-	const { omData, isLoading, error } = useOMData(projectId || "");
+	// Consume OM data from context (fetched once at layout level)
+	const { omData, isLoading, error } = useOMDataContext();
+	// Get tracked content (Proxy-wrapped for automatic logging)
+	const { content } = useOmContent();
 
 	useOMPageHeader({
 		subtitle: project
@@ -58,8 +62,7 @@ export default function OMDashboardPage() {
 		return <OMErrorState error={error} />;
 	}
 
-	// Extract values from OM data (flat structure)
-	const content = omData.content || {};
+	// Content is already extracted from useOmContent above (tracked version)
 
 	// Extract numeric values using shared utility (access flat fields directly)
 	const loanAmount = getNumericValue(content, "loanAmountRequested", 0);
@@ -74,16 +77,22 @@ export default function OMDashboardPage() {
 	const irr = getNumericValue(content, "irr", 0);
 	const equityMultiple = getNumericValue(content, "equityMultiple", 0);
 	const totalDevCost = getNumericValue(content, "totalDevelopmentCost", 0);
+	
+	// Extract scenario-specific values (stored derived fields)
+	const upsideIRR = parseNumeric(content?.upsideIRR);
+	const downsideIRR = parseNumeric(content?.downsideIRR);
+	const upsideEquityMultiple = parseNumeric(content?.upsideEquityMultiple);
+	const downsideEquityMultiple = parseNumeric(content?.downsideEquityMultiple);
 
 	// Extract project info fields
-	const dealStatus = getOMValue(content, "dealStatus");
-	const assetType = getOMValue(content, "assetType");
-	const constructionType = getOMValue(content, "constructionType");
-	const projectPhase = getOMValue(content, "projectPhase");
-	const projectDescription = getOMValue(content, "projectDescription");
+	const dealStatus = content?.dealStatus ?? null;
+	const assetType = content?.assetType ?? null;
+	const constructionType = content?.constructionType ?? null;
+	const projectPhase = content?.projectPhase ?? null;
+	const projectDescription = content?.projectDescription ?? null;
 
 	// Build scenario data from flat fields (for UI display only)
-	// Note: In the future, scenario-specific fields may be stored separately
+	// Use stored derived field values if available, otherwise calculate as fallback
 	const scenarioDataAll = {
 		base: {
 			loanAmount,
@@ -97,16 +106,16 @@ export default function OMDashboardPage() {
 			loanAmount,
 			ltv,
 			ltc,
-			irr: irr * 1.1, // Placeholder - adjust based on actual scenario data
-			equityMultiple: equityMultiple * 1.1,
+			irr: upsideIRR ?? irr * 1.1, // Use stored value or calculate as fallback
+			equityMultiple: upsideEquityMultiple ?? equityMultiple * 1.1,
 			constructionCost: totalDevCost,
 		},
 		downside: {
 			loanAmount,
 			ltv,
 			ltc,
-			irr: irr * 0.9, // Placeholder - adjust based on actual scenario data
-			equityMultiple: equityMultiple * 0.9,
+			irr: downsideIRR ?? irr * 0.9, // Use stored value or calculate as fallback
+			equityMultiple: downsideEquityMultiple ?? equityMultiple * 0.9,
 			constructionCost: totalDevCost,
 		},
 	};
@@ -129,13 +138,13 @@ export default function OMDashboardPage() {
 		ltv: data.ltv,
 	});
 
-	// Build timeline from flat date fields (extract values from rich format if needed)
+	// Build timeline from flat date fields
 	const timelineData = [
-		{ phase: "Land Acquisition", date: getOMValue(content, "landAcqClose"), status: "completed" },
-		{ phase: "Entitlements", date: getOMValue(content, "entitlements"), status: "completed" },
-		{ phase: "Groundbreaking", date: getOMValue(content, "groundbreakingDate"), status: "current" },
-		{ phase: "Completion", date: getOMValue(content, "completionDate"), status: "pending" },
-		{ phase: "Stabilization", date: getOMValue(content, "stabilization"), status: "pending" },
+		{ phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: "completed" },
+		{ phase: "Entitlements", date: content?.entitlements ?? null, status: "completed" },
+		{ phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: "current" },
+		{ phase: "Completion", date: content?.completionDate ?? null, status: "pending" },
+		{ phase: "Stabilization", date: content?.stabilization ?? null, status: "pending" },
 	].filter(item => item.date); // Only show items with dates
 	const quadrants = [
 		{
@@ -286,7 +295,7 @@ export default function OMDashboardPage() {
 									<span className="text-gray-500">Supply Pipeline:</span>
 									<span className="font-medium ml-1">
 										{(() => {
-											const supplyPipeline = getOMValue(content, "supplyPipeline");
+											const supplyPipeline = content?.supplyPipeline;
 											return supplyPipeline ? formatLocale(Array.isArray(supplyPipeline) ? supplyPipeline.length : supplyPipeline) : "-";
 										})()}
 									</span>
@@ -296,7 +305,7 @@ export default function OMDashboardPage() {
 										Months of Supply:
 									</span>
 									<span className="font-medium ml-1">
-										{getOMValue(content, "monthsOfSupply") ?? "-"}
+										{content?.monthsOfSupply ?? "-"}
 									</span>
 								</div>
 							</div>
@@ -383,7 +392,7 @@ export default function OMDashboardPage() {
 														: "text-green-600"
 												} group-hover:scale-110 transition-transform duration-200`}
 											>
-												{(key === "upside" || key === "downside") ? <span className="text-red-600">{formatFixed(irr, 2)}%</span> : <span>{formatFixed(irr, 2)}%</span>}
+												<span>{irr}%</span>
 											</div>
 										</div>
 									)

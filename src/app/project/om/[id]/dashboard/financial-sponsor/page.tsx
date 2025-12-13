@@ -85,8 +85,8 @@ export default function FinancialSponsorPage() {
     
     // Build scenario IRRs from flat fields
     const baseIRR = irr ?? null;
-    const upsideIRR = irr != null ? irr * 1.1 : null;
-    const downsideIRR = irr != null ? irr * 0.9 : null;
+    const upsideIRR = content?.upsideIRR ?? null;
+    const downsideIRR = content?.downsideIRR ?? null;
 
     if (!project) return <div>Project not found</div>;
     
@@ -143,22 +143,13 @@ export default function FinancialSponsorPage() {
                     </div>
                     <div className="pt-2">
                         <p className="text-xs text-gray-500 mb-2">5-Year Cash Flow</p>
-                        {cashFlowData && cashFlowData.length > 0 ? (
+                        {content?.fiveYearCashFlow && Array.isArray(content.fiveYearCashFlow) ? (
                             <MiniChart
                                 type="line"
-                                data={cashFlowData.map((cf: number) => ({ value: cf }))}
+                                data={content.fiveYearCashFlow.map((value: number) => ({ value: value / 1_000_000 }))}
                                 height={60}
                             />
-                        ) : (
-                            <MiniChart
-                                type="line"
-                                data={[
-                                    { value: -2.5 }, { value: 0.8 }, { value: 1.2 },
-                                    { value: 1.4 }, { value: 15.5 }
-                                ]}
-                                height={60}
-                            />
-                        )}
+                        ) : null}
                     </div>
                 </div>
             )
@@ -226,9 +217,7 @@ export default function FinancialSponsorPage() {
                         </div>
                         <div>
                             <p className="text-gray-500">Break-even</p>
-                            <p className="font-medium">
-                              {breakEven != null ? `${formatFixed(breakEven, 1)}%` : <MissingValue>78%</MissingValue>}
-                            </p>
+                            <p className="font-medium">{content?.breakEven ?? null}</p>
                         </div>
                     </div>
                 </div>

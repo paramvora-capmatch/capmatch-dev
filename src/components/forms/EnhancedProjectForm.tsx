@@ -68,6 +68,7 @@ interface EnhancedProjectFormProps {
 	onFormDataChange?: (formData: ProjectProfile) => void;
 	initialFocusFieldId?: string;
 	onVersionChange?: () => void;
+	initialStepId?: string | null;
 }
 
 const assetTypeOptions = [
@@ -124,6 +125,8 @@ const exitStrategyOptions: ExitStrategy[] = [
 	"Refinance",
 	"Long-Term Hold",
 ];
+
+const buildWorkspaceStepId = (stepId: string) => `project:${stepId}`;
 
 // State mapping: abbreviation -> full name
 const STATE_MAP: Record<string, string> = {
@@ -241,6 +244,13 @@ const environmentalOptions = ["Clean", "Remediation"];
 const utilitiesOptions = ["Available", "None"];
 const seismicRiskOptions = ["Low", "Moderate", "High"];
 const phaseIESAFindingOptions = ["Clean", "REC", "HREC"];
+const riskLevelOptions = ["Low", "Medium", "High"];
+const marketStatusOptions = ["Tight", "Balanced", "Soft"];
+const demandTrendOptions = ["↑ Growing", "→ Stable", "↓ Declining"];
+const supplyPressureOptions = ["Low", "Moderate", "High"];
+const luxuryTierOptions = ["Luxury", "Premium", "Value", "Economy"];
+const competitivePositionOptions = ["Top 20%", "Middle 60%", "Bottom 20%"];
+const zoningCompliantOptions = ["Compliant", "Non-Compliant"];
 
 const isProjectValueProvided = (value: unknown): boolean => {
 	if (value === null || value === undefined) return false;
@@ -342,12 +352,20 @@ interface ProjectMediaUploadProps {
 	projectId: string;
 	orgId: string | null;
 	disabled?: boolean;
+	formData: ProjectProfile;
+	setFormData: React.Dispatch<React.SetStateAction<ProjectProfile>>;
+	isFieldLocked: (fieldId: string, sectionId?: string) => boolean;
+	toggleFieldLock: (fieldId: string) => void;
 }
 
 const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 	projectId,
 	orgId,
 	disabled = false,
+	formData,
+	setFormData,
+	isFieldLocked,
+	toggleFieldLock,
 }) => {
 	const [siteImages, setSiteImages] = useState<
 		Array<{
@@ -406,6 +424,60 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 			setSiteImages(siteImagesList);
 			setArchitecturalDiagrams(diagramsList);
 
+			// Sync image metadata to formData
+			const syncImageMetadataToFormData = () => {
+				const siteImagesMetadata = siteImagesList.map((img) => ({
+					storagePath: img.storagePath,
+					filename: img.fileName,
+					category: "site_images" as const,
+					source: img.source,
+					...(img.documentName && { documentName: img.documentName }),
+				}));
+
+				const diagramsMetadata = diagramsList.map((img) => ({
+					storagePath: img.storagePath,
+					filename: img.fileName,
+					category: "architectural_diagrams" as const,
+					source: img.source,
+					...(img.documentName && { documentName: img.documentName }),
+				}));
+
+				setFormData((prev) => {
+					const updated = { ...prev };
+
+					// Only update if field is not locked and formData doesn't already have the same images
+					if (!isFieldLocked("siteImages", "site-context")) {
+						const existingSiteImages = (prev as any).siteImages;
+						if (
+							!existingSiteImages ||
+							JSON.stringify(existingSiteImages) !==
+								JSON.stringify(siteImagesMetadata)
+						) {
+							(updated as any).siteImages = siteImagesMetadata;
+						}
+					}
+
+					if (
+						!isFieldLocked("architecturalDiagrams", "site-context")
+					) {
+						const existingDiagrams = (prev as any)
+							.architecturalDiagrams;
+						if (
+							!existingDiagrams ||
+							JSON.stringify(existingDiagrams) !==
+								JSON.stringify(diagramsMetadata)
+						) {
+							(updated as any).architecturalDiagrams =
+								diagramsMetadata;
+						}
+					}
+
+					return updated;
+				});
+			};
+
+			syncImageMetadataToFormData();
+
 			const urlMap: Record<string, string> = {};
 			for (const img of allImages) {
 				const signedUrl = await getSignedUrl(orgId, img.storagePath);
@@ -419,7 +491,7 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		} finally {
 			setLoading(false);
 		}
-	}, [orgId, projectId]);
+	}, [orgId, projectId, isFieldLocked, setFormData]);
 
 	useEffect(() => {
 		if (!orgId || !projectId) return;
@@ -464,21 +536,52 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 					alert(`Failed to upload ${file.name}`);
 				} else {
 					const uploadedPath = `${projectId}/${folder}/${file.name}`;
-					setImages((prev) => [
-						...prev,
-						{
-							fileName: file.name,
-							source: "main_folder",
-							storagePath: uploadedPath,
-						},
-					]);
-					const signedUrl = await getSignedUrl(orgId, uploadedPath);
-					if (signedUrl) {
+					const newImage = {
+						fileName: file.name,
+						source: "main_folder" as const,
+						storagePath: uploadedPath,
+					};
+					setImages((prev) => [...prev, newImage]);
+
+					// Update formData with new image metadata
+					const fieldId = isSiteImages
+						? "siteImages"
+						: "architecturalDiagrams";
+					if (!isFieldLocked(fieldId, "site-context")) {
+						setFormData((prev) => {
+							const updated = { ...prev };
+							const existingImages = (prev as any)[fieldId] || [];
+							const imageMetadata = {
+								storagePath: uploadedPath,
+								filename: file.name,
+								category: isSiteImages
+									? "site_images"
+									: "architectural_diagrams",
+								source: "main_folder" as const,
+							};
+							(updated as any)[fieldId] = [
+								...existingImages,
+								imageMetadata,
+							];
+							return updated;
+						});
+					}
+
+					const { data: urlData } = await supabase.storage
+						.from(orgId)
+						.createSignedUrl(uploadedPath, 3600);
+					if (urlData) {
 						setImageUrls((prev) => ({
 							...prev,
 							[uploadedPath]: signedUrl,
 						}));
 					}
+
+					// Invalidate cache after successful upload
+					const { invalidateProjectImageCache } = await import(
+						"@/lib/imageUtils"
+					);
+					invalidateProjectImageCache(projectId, orgId);
 				}
 			}
 		} catch (error) {
@@ -548,6 +651,30 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 				prev.filter((img) => !fileNames.includes(img.fileName))
 			);
 
+			// Update formData to remove deleted images
+			const fieldId = isSiteImages
+				? "siteImages"
+				: "architecturalDiagrams";
+			if (!isFieldLocked(fieldId, "site-context")) {
+				setFormData((prev) => {
+					const updated = { ...prev };
+					const existingImages = (prev as any)[fieldId] || [];
+					const filePathsToDelete = fileNames.map((fileName) => {
+						const image = images.find(
+							(img) => img.fileName === fileName
+						);
+						return image
+							? image.storagePath
+							: `${projectId}/${folder}/${fileName}`;
+					});
+					(updated as any)[fieldId] = existingImages.filter(
+						(img: any) =>
+							!filePathsToDelete.includes(img.storagePath)
+					);
+					return updated;
+				});
+			}
+
 			setSelected((prev) => {
 				const next = new Set(prev);
 				fileNames.forEach((name) => next.delete(name));
@@ -561,6 +688,12 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 				});
 				return next;
 			});
+
+			// Invalidate cache after successful deletion
+			const { invalidateProjectImageCache } = await import(
+				"@/lib/imageUtils"
+			);
+			invalidateProjectImageCache(projectId, orgId);
 
 			setTimeout(async () => {
 				await loadImages();
@@ -654,43 +787,80 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 		<div className="space-y-8">
 			<FormGroup>
 				<div className="flex items-center justify-between mb-2">
-					<label className="block text-sm font-medium text-gray-700">
-						Site Images
-					</label>
-					{siteImages.length > 0 && !disabled && (
-						<div className="flex items-center gap-2">
+					<div className="flex items-center gap-2">
+						<label className="block text-sm font-medium text-gray-700">
+							Site Images
+						</label>
+						{!disabled && (
 							<button
 								type="button"
-								onClick={() => handleSelectAll("site-images")}
-								className="text-xs text-blue-600 hover:text-blue-700"
+								onClick={() => toggleFieldLock("siteImages")}
+								className={cn(
+									"flex items-center justify-center p-1 rounded transition-colors",
+									"cursor-pointer",
+									isFieldLocked("siteImages", "site-context")
+										? "text-emerald-600 hover:text-emerald-700"
+										: "text-gray-400 hover:text-blue-600"
+								)}
+								title={
+									isFieldLocked("siteImages", "site-context")
+										? "Unlock field"
+										: "Lock field"
+								}
 							>
-								{selectedSiteImages.size === siteImages.length
-									? "Deselect All"
-									: "Select All"}
+								{isFieldLocked("siteImages", "site-context") ? (
+									<Lock className="h-4 w-4" />
+								) : (
+									<Unlock className="h-4 w-4" />
+								)}
 							</button>
-							{selectedSiteImages.size > 0 && (
+						)}
+					</div>
+					{siteImages.length > 0 &&
+						!disabled &&
+						!isFieldLocked("siteImages", "site-context") && (
+							<div className="flex items-center gap-2">
 								<button
 									type="button"
 									onClick={() =>
-										handleDeleteMultipleImages(
-											Array.from(selectedSiteImages),
-											"site-images"
-										)
+										handleSelectAll("site-images")
 									}
-									disabled={deleting}
-									className={cn(
-										"text-xs text-red-600 hover:text-red-700 font-medium",
-										deleting &&
-											"opacity-50 cursor-not-allowed"
-									)}
+									className="text-xs text-blue-600 hover:text-blue-700"
 								>
-									{deleting
-										? "Deleting..."
-										: `Delete Selected (${selectedSiteImages.size})`}
+									{selectedSiteImages.size ===
+									siteImages.length
+										? "Deselect All"
+										: "Select All"}
 								</button>
-							)}
-						</div>
-					)}
+								{selectedSiteImages.size > 0 && (
+									<button
+										type="button"
+										onClick={() =>
+											handleDeleteMultipleImages(
+												Array.from(selectedSiteImages),
+												"site-images"
+											)
+										}
+										disabled={
+											deleting ||
+											isFieldLocked(
+												"siteImages",
+												"site-context"
+											)
+										}
+										className={cn(
+											"text-xs text-red-600 hover:text-red-700 font-medium",
+											deleting &&
+												"opacity-50 cursor-not-allowed"
+										)}
+									>
+										{deleting
+											? "Deleting..."
+											: `Delete Selected (${selectedSiteImages.size})`}
+									</button>
+								)}
+							</div>
+						)}
 				</div>
 				<div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
 					<input
@@ -700,7 +870,11 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 						onChange={(e) =>
 							handleFileUpload(e.target.files, "site-images")
 						}
-						disabled={disabled || uploadingSite}
+						disabled={
+							disabled ||
+							uploadingSite ||
+							isFieldLocked("siteImages", "site-context")
+						}
 						className="hidden"
 						id="site-images-upload"
 					/>
@@ -708,7 +882,9 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 						htmlFor="site-images-upload"
 						className={cn(
 							"flex flex-col items-center justify-center cursor-pointer",
-							(disabled || uploadingSite) &&
+							(disabled ||
+								uploadingSite ||
+								isFieldLocked("siteImages", "site-context")) &&
 								"opacity-50 cursor-not-allowed"
 						)}
 					>
@@ -792,21 +968,26 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 												<Loader2 className="h-6 w-6 animate-spin text-gray-400" />
 											</div>
 										)}
-										{!disabled && !deleting && (
-											<button
-												type="button"
-												onClick={(e) => {
-													e.stopPropagation();
-													handleDeleteImage(
-														image.fileName,
-														"site-images"
-													);
-												}}
-												className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-											>
-												<X className="h-4 w-4" />
-											</button>
-										)}
+										{!disabled &&
+											!deleting &&
+											!isFieldLocked(
+												"siteImages",
+												"site-context"
+											) && (
+												<button
+													type="button"
+													onClick={(e) => {
+														e.stopPropagation();
+														handleDeleteImage(
+															image.fileName,
+															"site-images"
+														);
+													}}
+													className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+												>
+													<X className="h-4 w-4" />
+												</button>
+											)}
 									</div>
 								);
 							})}
@@ -817,46 +998,100 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 
 			<FormGroup>
 				<div className="flex items-center justify-between mb-2">
-					<label className="block text-sm font-medium text-gray-700">
-						Architectural Diagrams
-					</label>
-					{architecturalDiagrams.length > 0 && !disabled && (
-						<div className="flex items-center gap-2">
+					<div className="flex items-center gap-2">
+						<label className="block text-sm font-medium text-gray-700">
+							Architectural Diagrams
+						</label>
+						{!disabled && (
 							<button
 								type="button"
 								onClick={() =>
-									handleSelectAll("architectural-diagrams")
+									toggleFieldLock("architecturalDiagrams")
 								}
-								className="text-xs text-blue-600 hover:text-blue-700"
+								className={cn(
+									"flex items-center justify-center p-1 rounded transition-colors",
+									"cursor-pointer",
+									isFieldLocked(
+										"architecturalDiagrams",
+										"site-context"
+									)
+										? "text-emerald-600 hover:text-emerald-700"
+										: "text-gray-400 hover:text-blue-600"
+								)}
+								title={
+									isFieldLocked(
+										"architecturalDiagrams",
+										"site-context"
+									)
+										? "Unlock field"
+										: "Lock field"
+								}
 							>
-								{selectedDiagrams.size ===
-								architecturalDiagrams.length
-									? "Deselect All"
-									: "Select All"}
+								{isFieldLocked(
+									"architecturalDiagrams",
+									"site-context"
+								) ? (
+									<Lock className="h-4 w-4" />
+								) : (
+									<Unlock className="h-4 w-4" />
+								)}
 							</button>
-							{selectedDiagrams.size > 0 && (
+						)}
+					</div>
+					{architecturalDiagrams.length > 0 &&
+						!disabled &&
+						!isFieldLocked(
+							"architecturalDiagrams",
+							"site-context"
+						) && (
+							<div className="flex items-center gap-2">
 								<button
 									type="button"
 									onClick={() =>
-										handleDeleteMultipleImages(
-											Array.from(selectedDiagrams),
+										handleSelectAll(
 											"architectural-diagrams"
 										)
 									}
-									disabled={deleting}
-									className={cn(
-										"text-xs text-red-600 hover:text-red-700 font-medium",
-										deleting &&
-											"opacity-50 cursor-not-allowed"
-									)}
+									className="text-xs text-blue-600 hover:text-blue-700"
 								>
-									{deleting
-										? "Deleting..."
-										: `Delete Selected (${selectedDiagrams.size})`}
+									{selectedDiagrams.size ===
+									architecturalDiagrams.length
+										? "Deselect All"
+										: "Select All"}
 								</button>
-							)}
-						</div>
-					)}
+								{selectedDiagrams.size > 0 && (
+									<button
+										type="button"
+										onClick={() =>
+											handleDeleteMultipleImages(
+												Array.from(selectedDiagrams),
+												"architectural-diagrams"
+											)
+										}
+										disabled={
+											deleting ||
+											isFieldLocked(
+												"architecturalDiagrams",
+												"site-context"
+											)
+										}
+										className={cn(
+											"text-xs text-red-600 hover:text-red-700 font-medium",
+											(deleting ||
+												isFieldLocked(
+													"architecturalDiagrams",
+													"site-context"
+												)) &&
+												"opacity-50 cursor-not-allowed"
+										)}
+									>
+										{deleting
+											? "Deleting..."
+											: `Delete Selected (${selectedDiagrams.size})`}
+									</button>
+								)}
+							</div>
+						)}
 				</div>
 				<div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
 					<input
@@ -869,7 +1104,14 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 								"architectural-diagrams"
 							)
 						}
-						disabled={disabled || uploadingDiagrams}
+						disabled={
+							disabled ||
+							uploadingDiagrams ||
+							isFieldLocked(
+								"architecturalDiagrams",
+								"site-context"
+							)
+						}
 						className="hidden"
 						id="architectural-diagrams-upload"
 					/>
@@ -877,7 +1119,12 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 						htmlFor="architectural-diagrams-upload"
 						className={cn(
 							"flex flex-col items-center justify-center cursor-pointer",
-							(disabled || uploadingDiagrams) &&
+							(disabled ||
+								uploadingDiagrams ||
+								isFieldLocked(
+									"architecturalDiagrams",
+									"site-context"
+								)) &&
 								"opacity-50 cursor-not-allowed"
 						)}
 					>
@@ -961,21 +1208,26 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 												<Loader2 className="h-6 w-6 animate-spin text-gray-400" />
 											</div>
 										)}
-										{!disabled && !deleting && (
-											<button
-												type="button"
-												onClick={(e) => {
-													e.stopPropagation();
-													handleDeleteImage(
-														image.fileName,
-														"architectural-diagrams"
-													);
-												}}
-												className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-											>
-												<X className="h-4 w-4" />
-											</button>
-										)}
+										{!disabled &&
+											!deleting &&
+											!isFieldLocked(
+												"architecturalDiagrams",
+												"site-context"
+											) && (
+												<button
+													type="button"
+													onClick={(e) => {
+														e.stopPropagation();
+														handleDeleteImage(
+															image.fileName,
+															"architectural-diagrams"
+														);
+													}}
+													className="absolute bottom-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+												>
+													<X className="h-4 w-4" />
+												</button>
+											)}
 									</div>
 								);
 							})}
@@ -995,8 +1247,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	onFormDataChange,
 	initialFocusFieldId,
 	onVersionChange,
+	initialStepId,
 }) => {
-	const { activeOrg } = useAuthStore();
+	const { activeOrg, user } = useAuthStore();
 	// 1. Initialize state with sanitized data
 	const sanitizedExistingProject = useMemo(
 		() => sanitizeProjectProfile(existingProject),
@@ -1021,6 +1274,23 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
 	const [formSaved, setFormSaved] = useState(false);
+
+	const touchWorkspace = useCallback(
+		async (stepId?: string) => {
+			if (!user?.id || !existingProject?.id) return;
+			const nowIso = new Date().toISOString();
+			const payload: Record<string, any> = {
+				project_id: existingProject.id,
+				user_id: user.id,
+				last_visited_at: nowIso,
+			};
+			if (stepId) payload.last_step_id = buildWorkspaceStepId(stepId);
+			await supabase
+				.from("project_workspace_activity")
+				.upsert(payload, { onConflict: "project_id,user_id" });
+		},
+		[user?.id, existingProject?.id]
+	);
 	const [isRestoring, setIsRestoring] = useState(false);
 	const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
@@ -2518,6 +2788,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			utilities: "button-select",
 			seismicRisk: "button-select",
 			phaseIESAFinding: "button-select",
+			// Derived dropdown fields - use button-select like assetType
+			riskLevelBase: "button-select",
+			riskLevelUpside: "button-select",
+			riskLevelDownside: "button-select",
+			marketStatus: "button-select",
+			demandTrend: "button-select",
+			supplyPressure: "button-select",
+			luxuryTier: "button-select",
+			competitivePosition: "button-select",
+			zoningCompliant: "button-select",
 		}),
 		[]
 	);
@@ -2550,6 +2830,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			utilities: utilitiesOptions,
 			seismicRisk: seismicRiskOptions,
 			phaseIESAFinding: phaseIESAFindingOptions,
+			// Derived dropdown fields
+			riskLevelBase: riskLevelOptions,
+			riskLevelUpside: riskLevelOptions,
+			riskLevelDownside: riskLevelOptions,
+			marketStatus: marketStatusOptions,
+			demandTrend: demandTrendOptions,
+			supplyPressure: supplyPressureOptions,
+			luxuryTier: luxuryTierOptions,
+			competitivePosition: competitivePositionOptions,
+			zoningCompliant: zoningCompliantOptions,
 		}),
 		[]
 	);
@@ -2602,13 +2892,16 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		(fieldId: string, sectionId: string) => {
 			// Remove duplicate fields from frontend to avoid confusion
 			// Also filter out table fields that are rendered separately
+			// Also filter out image fields that are rendered by ProjectMediaUpload component
 			if (
 				fieldId === "totalProjectCost" ||
 				fieldId === "requestedTerm" ||
 				fieldId === "residentialUnitMix" ||
 				fieldId === "commercialSpaceMix" ||
 				fieldId === "drawSchedule" ||
-				fieldId === "rentComps"
+				fieldId === "rentComps" ||
+				fieldId === "siteImages" ||
+				fieldId === "architecturalDiagrams"
 			) {
 				return null;
 			}
@@ -4782,6 +5075,12 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												projectId={formData.id}
 												orgId={activeOrg?.id || null}
 												disabled={false}
+												formData={formData}
+												setFormData={setFormData}
+												isFieldLocked={isFieldLocked}
+												toggleFieldLock={
+													toggleFieldLock
+												}
 											/>
 										</div>
 									)}
@@ -4838,7 +5137,14 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		activeOrg?.id,
 		isFieldRequiredFromSchema,
 		fieldMetadata,
+		toggleFieldLock,
 	]);
+
+	const initialStepIndex = useMemo(() => {
+		if (!initialStepId) return 0;
+		const idx = steps.findIndex((s) => s.id === initialStepId);
+		return idx >= 0 ? idx : 0;
+	}, [initialStepId, steps]);
 
 	// Helper function to check if all fields are locked
 	const areAllFieldsLocked = useCallback((): boolean => {
@@ -5017,6 +5323,10 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 					allowSkip
 					variant="tabs"
 					showBottomNav
+					initialStep={initialStepIndex}
+					onStepChange={(stepId) => {
+						void touchWorkspace(stepId);
+					}}
 				/>
 			</div>
 		</div>

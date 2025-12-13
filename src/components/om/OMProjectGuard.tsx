@@ -8,7 +8,7 @@
 import React from "react";
 import { useParams } from "next/navigation";
 import { useProjects } from "@/hooks/useProjects";
-import { useOMData } from "@/hooks/useOMData";
+import { useOMDataContext, type OMData } from "@/contexts/OMDataContext";
 import { OMErrorState } from "./OMErrorState";
 import { OMLoadingState } from "./OMLoadingState";
 import type { ProjectProfile } from "@/types/enhanced-types";
@@ -17,7 +17,7 @@ interface OMProjectGuardProps {
 	children: (props: {
 		projectId: string;
 		project: ProjectProfile;
-		omData: NonNullable<ReturnType<typeof useOMData>["omData"]>;
+		omData: NonNullable<OMData>;
 	}) => React.ReactNode;
 	showLoading?: boolean;
 	showError?: boolean;
@@ -33,7 +33,8 @@ export function OMProjectGuard({
 	const projectsHook = useProjects();
 	const getProject = projectsHook.getProject;
 	const project = projectId ? getProject(projectId) : null;
-	const { omData, isLoading, error } = useOMData(projectId || "");
+	// Consume OM data from context (fetched once at layout level)
+	const { omData, isLoading, error } = useOMDataContext();
 
 	if (!project) {
 		return <div>Project not found</div>;

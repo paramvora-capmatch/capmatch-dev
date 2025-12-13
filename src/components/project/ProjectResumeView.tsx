@@ -317,7 +317,6 @@ const formatFieldValue = (value: any, dataType?: string): string => {
 	}
 };
 
-
 // Helper to get a readable label from field metadata
 const getFieldLabel = (field: {
 	fieldId: string;
@@ -600,8 +599,12 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 													scale: 0,
 												}}
 												animate={{
-													x: `${Math.random() * 100}%`,
-													y: `${Math.random() * 100}%`,
+													x: `${
+														Math.random() * 100
+													}%`,
+													y: `${
+														Math.random() * 100
+													}%`,
 													opacity: [1, 1, 0],
 													scale: [0, 1.5, 0],
 												}}
@@ -622,7 +625,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 							<div className="ml-2">
 								<ResumeVersionHistory
 									projectId={project.id}
-									resourceId={project.projectResumeResourceId ?? null}
+									resourceId={
+										project.projectResumeResourceId ?? null
+									}
 									disabled={isAutofilling}
 									onRollbackSuccess={() => {
 										onVersionChange?.();
@@ -913,7 +918,8 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
 																		{visibleFieldMetas.map(
 																			(
-																				field
+																				field,
+																				fieldIndex
 																			) => {
 																				const value =
 																					getFieldValue(
@@ -970,7 +976,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 
 																					return (
 																						<KeyValueDisplay
-																							key={field.fieldId}
+																							key={`${sectionId}-${subsectionId}-${field.fieldId}-${fieldIndex}`}
 																							label="Address"
 																							value={
 																								address
@@ -1014,7 +1020,7 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 
 																				return (
 																					<KeyValueDisplay
-																						key={field.fieldId}
+																						key={`${sectionId}-${subsectionId}-${field.fieldId}-${fieldIndex}`}
 																						label={getDisplayLabel(
 																							field.fieldId,
 																							field
@@ -1325,7 +1331,9 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 
 																				return (
 																					<KeyValueDisplay
-																						key={field.id}
+																						key={
+																							field.id
+																						}
 																						label={
 																							field.label
 																						}
@@ -1581,45 +1589,50 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																value
 															);
 														})
-														.map((field) => {
-															const value =
-																getFieldValue(
-																	project,
-																	field.fieldId
-																);
-															const formattedValue =
-																formatFieldValue(
-																	value,
-																	field.dataType
-																);
-															const isFullWidth =
-																field.dataType ===
-																	"Textarea" ||
-																field.fieldId ===
-																	"projectDescription" ||
-																field.fieldId ===
-																	"businessPlanSummary" ||
-																field.fieldId ===
-																	"marketOverviewSummary" ||
-																field.fieldId ===
-																	"contactInfo";
+														.map(
+															(
+																field,
+																fieldIndex
+															) => {
+																const value =
+																	getFieldValue(
+																		project,
+																		field.fieldId
+																	);
+																const formattedValue =
+																	formatFieldValue(
+																		value,
+																		field.dataType
+																	);
+																const isFullWidth =
+																	field.dataType ===
+																		"Textarea" ||
+																	field.fieldId ===
+																		"projectDescription" ||
+																	field.fieldId ===
+																		"businessPlanSummary" ||
+																	field.fieldId ===
+																		"marketOverviewSummary" ||
+																	field.fieldId ===
+																		"contactInfo";
 
-															return (
-																<KeyValueDisplay
-																	key={field.fieldId}
-																	label={getDisplayLabel(
-																		field.fieldId,
-																		field
-																	)}
-																	value={
-																		formattedValue
-																	}
-																	fullWidth={
-																		isFullWidth
-																	}
-																/>
-															);
-														})}
+																return (
+																	<KeyValueDisplay
+																		key={`${sectionId}-${field.fieldId}-${fieldIndex}`}
+																		label={getDisplayLabel(
+																			field.fieldId,
+																			field
+																		)}
+																		value={
+																			formattedValue
+																		}
+																		fullWidth={
+																			isFullWidth
+																		}
+																	/>
+																);
+															}
+														)}
 												</div>
 											)}
 										</div>

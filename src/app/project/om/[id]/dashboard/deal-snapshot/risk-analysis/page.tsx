@@ -7,16 +7,23 @@ import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
 
 export default function RiskAnalysisPage() {
-  const { content } = useOmContent();
-  const dealSnapshotDetails = content?.dealSnapshotDetails ?? null;
-  const riskMatrix = dealSnapshotDetails?.riskMatrix ?? {
-    high: [],
-    medium: [],
-    low: [],
+  const { content, insights } = useOmContent();
+  
+  // Read from flat fields
+  const riskHigh = Array.isArray(content?.riskHigh) ? content.riskHigh : [];
+  const riskMedium = Array.isArray(content?.riskMedium) ? content.riskMedium : [];
+  const riskLow = Array.isArray(content?.riskLow) ? content.riskLow : [];
+  
+  // Build riskMatrix object for compatibility with existing UI code
+  const riskMatrix = {
+    high: riskHigh,
+    medium: riskMedium,
+    low: riskLow
   };
-  const highRisks = riskMatrix.high ?? [];
-  const mediumRisks = riskMatrix.medium ?? [];
-  const lowRisks = riskMatrix.low ?? [];
+  
+  const highRisks = riskHigh;
+  const mediumRisks = riskMedium;
+  const lowRisks = riskLow;
 
   const getRiskColor = (severity: string) => {
     switch (severity) {
@@ -224,18 +231,15 @@ export default function RiskAnalysisPage() {
                 Key Mitigation Strategies
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Fixed-price GMP contract with contingency</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Strong pre-leasing commitments</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-green-500 mr-2">•</span>
-                  <span className="text-red-600">Full entitlement and permits secured</span>
-                </li>
+                {['riskMitigation1', 'riskMitigation2', 'riskMitigation3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field] ?? null;
+                  return insight ? (
+                    <li key={field} className="flex items-start">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
             <div>
@@ -243,18 +247,15 @@ export default function RiskAnalysisPage() {
                 Risk Monitoring
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Monthly construction cost reviews</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Quarterly market demand analysis</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <span className="text-red-600">Regular entitlement compliance checks</span>
-                </li>
+                {['riskMonitoring1', 'riskMonitoring2', 'riskMonitoring3'].map((field) => {
+                  const insight = insights?.[field] ?? content?.[field] ?? null;
+                  return insight ? (
+                    <li key={field} className="flex items-start">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

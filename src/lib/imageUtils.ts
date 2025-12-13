@@ -13,143 +13,36 @@ export interface ImageData {
   documentName?: string; // Document name if from artifacts
 }
 
-// Signed URL caching configuration
-const SIGNED_URL_EXPIRY_SECONDS = 86400; // 24 hours (increased from 1 hour)
-const CACHE_REFRESH_BUFFER_SECONDS = 3600; // Refresh 1 hour before expiry
-const CACHE_KEY_PREFIX = 'supabase_signed_urls_';
+// Simple in-memory cache with TTL (5 minutes)
+const imageCache = new Map<string, { data: ImageData[]; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-interface CachedUrl {
-  url: string;
-  expiresAt: number; // Timestamp in milliseconds
+function getCacheKey(projectId: string, orgId: string, excludeOther: boolean): string {
+  return `${projectId}:${orgId}:${excludeOther}`;
 }
 
-/**
- * Gets a cache key for a storage path and org ID
- */
-function getCacheKey(orgId: string, storagePath: string): string {
-  return `${CACHE_KEY_PREFIX}${orgId}_${storagePath}`;
-}
-
-/**
- * Retrieves a cached signed URL if it exists and is still valid
- */
-function getCachedSignedUrl(orgId: string, storagePath: string): string | null {
-  if (typeof window === 'undefined') return null; // Server-side rendering
-  
-  try {
-    const cacheKey = getCacheKey(orgId, storagePath);
-    const cached = localStorage.getItem(cacheKey);
-    
-    if (!cached) return null;
-    
-    const entry: CachedUrl = JSON.parse(cached);
-    const now = Date.now();
-    
-    // Check if expired (with buffer for refresh)
-    if (now >= entry.expiresAt - (CACHE_REFRESH_BUFFER_SECONDS * 1000)) {
-      // Expired or about to expire, remove from cache
-      localStorage.removeItem(cacheKey);
-      return null;
-    }
-    
-    return entry.url;
-  } catch (error) {
-    console.warn('Error reading cached signed URL:', error);
-    return null;
+function getCachedImages(projectId: string, orgId: string, excludeOther: boolean): ImageData[] | null {
+  const key = getCacheKey(projectId, orgId, excludeOther);
+  const cached = imageCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
   }
-}
-
-/**
- * Caches a signed URL with expiration timestamp
- */
-function setCachedSignedUrl(orgId: string, storagePath: string, url: string): void {
-  if (typeof window === 'undefined') return; // Server-side rendering
-  
-  try {
-    const cacheKey = getCacheKey(orgId, storagePath);
-    const entry: CachedUrl = {
-      url,
-      expiresAt: Date.now() + (SIGNED_URL_EXPIRY_SECONDS * 1000),
-    };
-    
-    localStorage.setItem(cacheKey, JSON.stringify(entry));
-  } catch (error) {
-    // Handle quota exceeded or other storage errors gracefully
-    console.warn('Error caching signed URL:', error);
-    // Try to clean up old entries if storage is full
-    try {
-      cleanupExpiredCacheEntries();
-    } catch (cleanupError) {
-      // Ignore cleanup errors
-    }
-  }
-}
-
-/**
- * Cleans up expired cache entries to free up localStorage space
- */
-function cleanupExpiredCacheEntries(): void {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    const now = Date.now();
-    const keysToRemove: string[] = [];
-    
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(CACHE_KEY_PREFIX)) {
-        try {
-          const cached = localStorage.getItem(key);
-          if (cached) {
-            const entry: CachedUrl = JSON.parse(cached);
-            if (now >= entry.expiresAt) {
-              keysToRemove.push(key);
-            }
-          }
-        } catch {
-          // Invalid entry, remove it
-          keysToRemove.push(key);
-        }
-      }
-    }
-    
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-  } catch (error) {
-    // Ignore cleanup errors
-  }
-}
-
-/**
- * Creates a signed URL with caching support
- * Returns cached URL if available and valid, otherwise creates a new one
- */
-export async function getSignedUrl(
-  orgId: string,
-  storagePath: string
-): Promise<string | null> {
-  // Try cache first
-  const cachedUrl = getCachedSignedUrl(orgId, storagePath);
-  if (cachedUrl) {
-    return cachedUrl;
-  }
-  
-  // Create new signed URL
-  const { data: urlData, error: urlError } = await supabase.storage
-    .from(orgId)
-    .createSignedUrl(storagePath, SIGNED_URL_EXPIRY_SECONDS);
-  
-  if (urlError) {
-    console.error(`Error creating signed URL for ${storagePath}:`, urlError);
-    return null;
-  }
-  
-  if (urlData?.signedUrl) {
-    // Cache the new URL
-    setCachedSignedUrl(orgId, storagePath, urlData.signedUrl);
-    return urlData.signedUrl;
-  }
-  
   return null;
+}
+
+function setCachedImages(projectId: string, orgId: string, excludeOther: boolean, images: ImageData[]): void {
+  const key = getCacheKey(projectId, orgId, excludeOther);
+  imageCache.set(key, { data: images, timestamp: Date.now() });
+}
+
+/**
+ * Invalidates the cache for a specific project.
+ * Call this after uploading or deleting images to ensure fresh data.
+ */
+export function invalidateProjectImageCache(projectId: string, orgId: string): void {
+  // Remove both excludeOther=true and excludeOther=false entries
+  imageCache.delete(getCacheKey(projectId, orgId, true));
+  imageCache.delete(getCacheKey(projectId, orgId, false));
 }
 
 /**
@@ -191,8 +84,201 @@ function extractTitleFromFilename(filename: string): string {
 }
 
 /**
+ * Loads images from a single main folder (site-images or architectural-diagrams)
+ */
+async function loadMainFolderImages(
+  projectId: string,
+  orgId: string,
+  folderPath: string,
+  category: 'site_images' | 'architectural_diagrams'
+): Promise<ImageData[]> {
+  try {
+    const { data: files, error } = await supabase.storage
+      .from(orgId)
+      .list(folderPath, {
+        limit: 1000,
+        sortBy: { column: 'name', order: 'asc' },
+      });
+
+    if (error) {
+      console.warn(`Error listing ${folderPath}:`, error);
+      return [];
+    }
+
+    if (!files || files.length === 0) {
+      return [];
+    }
+
+    // Filter image files and create signed URLs in parallel
+    const imageFiles = files.filter(
+      (f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+    );
+
+    const imagePromises = imageFiles.map(async (f) => {
+      const filePath = `${folderPath}/${f.name}`;
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from(orgId)
+        .createSignedUrl(filePath, 3600);
+
+      if (urlError) {
+        console.error(`Error creating signed URL for ${f.name}:`, urlError);
+        return null;
+      }
+
+      return {
+        url: urlData.signedUrl,
+        name: f.name,
+        title: extractTitleFromFilename(f.name),
+        category,
+        source: 'main_folder' as const,
+        storagePath: filePath,
+      };
+    });
+
+    const images = (await Promise.all(imagePromises)).filter(
+      (img): img is NonNullable<typeof img> => img !== null
+    );
+
+    return images;
+  } catch (err) {
+    console.error(`Error loading images from ${folderPath}:`, err);
+    return [];
+  }
+}
+
+/**
+ * Discovers which version folders actually exist for a resource's artifacts
+ */
+async function discoverArtifactVersions(
+  projectId: string,
+  orgId: string,
+  resourceId: string
+): Promise<number[]> {
+  try {
+    const artifactsPath = `${projectId}/project-docs/${resourceId}/artifacts`;
+    const { data: folders, error } = await supabase.storage
+      .from(orgId)
+      .list(artifactsPath, {
+        limit: 100,
+        sortBy: { column: 'name', order: 'asc' },
+      });
+
+    if (error || !folders) {
+      return [];
+    }
+
+    // Extract version numbers from folder names like "v1", "v2", etc.
+    const versions: number[] = [];
+    for (const folder of folders) {
+      const match = folder.name.match(/^v(\d+)$/);
+      if (match) {
+        versions.push(parseInt(match[1], 10));
+      }
+    }
+
+    return versions.sort((a, b) => a - b);
+  } catch (err) {
+    console.error(`Error discovering versions for resource ${resourceId}:`, err);
+    return [];
+  }
+}
+
+/**
+ * Loads images from artifacts folders for a single resource
+ */
+async function loadResourceArtifactImages(
+  projectId: string,
+  orgId: string,
+  resourceId: string,
+  documentName: string,
+  excludeOther: boolean
+): Promise<ImageData[]> {
+  try {
+    // Discover which versions actually exist instead of checking 1-10 blindly
+    const versions = await discoverArtifactVersions(projectId, orgId, resourceId);
+    
+    if (versions.length === 0) {
+      return [];
+    }
+
+    const categories: Array<'site_images' | 'architectural_diagrams' | 'other'> = excludeOther
+      ? ['site_images', 'architectural_diagrams']
+      : ['site_images', 'architectural_diagrams', 'other'];
+
+    // Process all version/category combinations in parallel
+    const versionCategoryPromises = versions.flatMap((version) =>
+      categories.map(async (category) => {
+        const basePath = `${projectId}/project-docs/${resourceId}/artifacts/v${version}/images`;
+        
+        try {
+          const { data: files, error } = await supabase.storage
+            .from(orgId)
+            .list(`${basePath}/${category}`, {
+              limit: 100,
+              sortBy: { column: 'name', order: 'asc' },
+            });
+
+          if (error || !files || files.length === 0) {
+            return [];
+          }
+
+          const imageFiles = files.filter(
+            (f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+          );
+
+          // Create signed URLs in parallel
+          const imagePromises = imageFiles.map(async (f) => {
+            const filePath = `${basePath}/${category}/${f.name}`;
+            const { data: urlData, error: urlError } = await supabase.storage
+              .from(orgId)
+              .createSignedUrl(filePath, 3600);
+
+            if (urlError) {
+              console.error(`Error creating signed URL for ${f.name}:`, urlError);
+              return null;
+            }
+
+            return {
+              url: urlData.signedUrl,
+              name: f.name,
+              title: extractTitleFromFilename(f.name),
+              category,
+              resourceId,
+              version: `v${version}`,
+              source: 'artifacts' as const,
+              storagePath: filePath,
+              documentName,
+            };
+          });
+
+          const images = (await Promise.all(imagePromises)).filter(
+            (img): img is NonNullable<typeof img> => img !== null
+          );
+
+          return images;
+        } catch (err) {
+          console.error(`Error loading images from ${basePath}/${category}:`, err);
+          return [];
+        }
+      })
+    );
+
+    const allVersionImages = await Promise.all(versionCategoryPromises);
+    return allVersionImages.flat();
+  } catch (err) {
+    console.error(`Error loading artifact images for resource ${resourceId}:`, err);
+    return [];
+  }
+}
+
+/**
  * Loads images from both main folders (site-images, architectural-diagrams) 
  * and artifacts folders for a project.
+ * 
+ * Optimizations:
+ * - Parallel processing of main folders and resources
+ * - Only checks artifact versions that actually exist (not 1-10 blindly)
+ * - In-memory caching with 5-minute TTL
  */
 export async function loadProjectImages(
   projectId: string,
@@ -200,60 +286,24 @@ export async function loadProjectImages(
   excludeOther: boolean = false // Exclude "other" category from artifacts
 ): Promise<ImageData[]> {
   try {
-    const allImages: ImageData[] = [];
+    // Check cache first
+    const cached = getCachedImages(projectId, orgId, excludeOther);
+    if (cached) {
+      return cached;
+    }
 
-    // 1. Load images from main folders (site-images, architectural-diagrams)
+    // 1. Load images from main folders in parallel
     const mainFolders = [
       { path: `${projectId}/site-images`, category: 'site_images' as const },
       { path: `${projectId}/architectural-diagrams`, category: 'architectural_diagrams' as const }
     ];
 
-    for (const folder of mainFolders) {
-      try {
-        const { data: files, error } = await supabase.storage
-          .from(orgId)
-          .list(folder.path, {
-            limit: 1000,
-            sortBy: { column: 'name', order: 'asc' },
-          });
+    const mainFolderPromises = mainFolders.map((folder) =>
+      loadMainFolderImages(projectId, orgId, folder.path, folder.category)
+    );
 
-        if (error) {
-          console.warn(`Error listing ${folder.path}:`, error);
-          continue;
-        }
-
-        if (files && files.length > 0) {
-          const imagePromises = files
-            .filter((f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
-            .map(async (f) => {
-              const filePath = `${folder.path}/${f.name}`;
-              const signedUrl = await getSignedUrl(orgId, filePath);
-
-              if (!signedUrl) {
-                console.error(`Error getting signed URL for ${f.name}`);
-                return null;
-              }
-
-              return {
-                url: signedUrl,
-                name: f.name,
-                title: extractTitleFromFilename(f.name),
-                category: folder.category,
-                source: 'main_folder' as const,
-                storagePath: filePath,
-              };
-            });
-
-          const images = (await Promise.all(imagePromises)).filter(
-            (img): img is NonNullable<typeof img> => img !== null
-          );
-
-          allImages.push(...(images as ImageData[]));
-        }
-      } catch (err) {
-        console.error(`Error loading images from ${folder.path}:`, err);
-      }
-    }
+    const mainFolderResults = await Promise.all(mainFolderPromises);
+    const mainImages = mainFolderResults.flat();
 
     // 2. Load images from artifacts folders
     // Get all FILE resources that are project documents (not folders)
@@ -263,86 +313,38 @@ export async function loadProjectImages(
       .eq('project_id', projectId)
       .eq('resource_type', 'FILE');
 
+    let artifactImages: ImageData[] = [];
+    
     if (resourcesError) {
       console.error('Error loading resources:', resourcesError);
     } else if (resources && resources.length > 0) {
-      // Create a map of resource ID to name
-      const resourceMap = new Map(resources.map(r => [r.id, r.name]));
+      // Process all resources in parallel
+      const resourcePromises = resources.map((resource) =>
+        loadResourceArtifactImages(
+          projectId,
+          orgId,
+          resource.id,
+          resource.name,
+          excludeOther
+        )
+      );
 
-      // For each resource, check its artifacts folder
-      for (const resource of resources) {
-        const resourceId = resource.id;
-        const documentName = resource.name;
-        
-        // Check for artifacts in different versions (v1, v2, etc.)
-        for (let version = 1; version <= 10; version++) {
-          const basePath = `${projectId}/project-docs/${resourceId}/artifacts/v${version}/images`;
-          
-          // Check each category folder (exclude "other" if requested)
-          const categories: Array<'site_images' | 'architectural_diagrams' | 'other'> = excludeOther
-            ? ['site_images', 'architectural_diagrams']
-            : ['site_images', 'architectural_diagrams', 'other'];
-
-          for (const category of categories) {
-            try {
-              const { data: files, error } = await supabase.storage
-                .from(orgId)
-                .list(`${basePath}/${category}`, {
-                  limit: 100,
-                  sortBy: { column: 'name', order: 'asc' },
-                });
-
-              if (error) {
-                // Folder might not exist, which is fine
-                continue;
-              }
-
-              if (files && files.length > 0) {
-                const imagePromises = files
-                  .filter((f) => f.name !== '.keep' && f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
-                  .map(async (f) => {
-                    const filePath = `${basePath}/${category}/${f.name}`;
-                    const signedUrl = await getSignedUrl(orgId, filePath);
-
-                    if (!signedUrl) {
-                      console.error(`Error getting signed URL for ${f.name}`);
-                      return null;
-                    }
-
-                    return {
-                      url: signedUrl,
-                      name: f.name,
-                      title: extractTitleFromFilename(f.name),
-                      category,
-                      resourceId,
-                      version: `v${version}`,
-                      source: 'artifacts' as const,
-                      storagePath: filePath,
-                      documentName,
-                    };
-                  });
-
-                const images = (await Promise.all(imagePromises)).filter(
-                  (img): img is NonNullable<typeof img> => img !== null
-                );
-
-                allImages.push(...(images as ImageData[]));
-              }
-            } catch (err) {
-              console.error(`Error loading images from ${basePath}/${category}:`, err);
-            }
-          }
-        }
-      }
+      const resourceResults = await Promise.all(resourcePromises);
+      artifactImages = resourceResults.flat();
     }
 
-    // Sort by category, then by name
+    // Combine and sort all images
+    const allImages = [...mainImages, ...artifactImages];
+    
     allImages.sort((a, b) => {
       const categoryOrder = { site_images: 0, architectural_diagrams: 1, other: 2 };
       const categoryDiff = categoryOrder[a.category] - categoryOrder[b.category];
       if (categoryDiff !== 0) return categoryDiff;
       return a.name.localeCompare(b.name);
     });
+
+    // Cache the results
+    setCachedImages(projectId, orgId, excludeOther, allImages);
 
     return allImages;
   } catch (error) {

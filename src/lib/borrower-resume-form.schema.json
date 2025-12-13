@@ -39,6 +39,8 @@
 					"title": "2.1 Experience Summary",
 					"fields": [
 						"yearsCREExperienceRange",
+						"yearFounded",
+						"activeProjects",
 						"totalDealValueClosedRange"
 					]
 				},
@@ -51,15 +53,25 @@
 						"existingLenderRelationships",
 						"bioNarrative"
 					]
+				},
+				{
+					"id": "track-record",
+					"title": "2.3 Track Record",
+					"fields": [
+						"trackRecord"
+					]
 				}
 			],
 			"fields": [
 				"yearsCREExperienceRange",
+				"yearFounded",
+				"activeProjects",
 				"assetClassesExperience",
 				"geographicMarketsExperience",
 				"totalDealValueClosedRange",
 				"existingLenderRelationships",
-				"bioNarrative"
+				"bioNarrative",
+				"trackRecord"
 			]
 		},
 		{
@@ -121,7 +133,10 @@
 						"principalRoleDefault",
 						"principalEmail",
 						"ownershipPercentage",
-						"principalBio"
+						"principalBio",
+						"principalSpecialties",
+						"principalAchievements",
+						"principalEducation"
 					]
 				}
 			],
@@ -130,7 +145,27 @@
 				"principalRoleDefault",
 				"principalEmail",
 				"ownershipPercentage",
-				"principalBio"
+				"principalBio",
+				"principalSpecialties",
+				"principalAchievements",
+				"principalEducation"
+			]
+		},
+		{
+			"id": "references",
+			"title": "Lender References",
+			"icon": "Building",
+			"subsections": [
+				{
+					"id": "lender-references",
+					"title": "6.1 Lender References",
+					"fields": [
+						"references"
+					]
+				}
+			],
+			"fields": [
+				"references"
 			]
 		}
 	],
@@ -162,6 +197,14 @@
 		"yearsCREExperienceRange": {
 			"label": "Years of CRE Experience",
 			"required": true
+		},
+		"yearFounded": {
+			"label": "Year Founded",
+			"required": false
+		},
+		"activeProjects": {
+			"label": "Active Projects",
+			"required": false
 		},
 		"assetClassesExperience": {
 			"label": "Asset Classes Experience",
@@ -233,6 +276,26 @@
 		},
 		"principalBio": {
 			"label": "Principal Bio",
+			"required": false
+		},
+		"principalSpecialties": {
+			"label": "Specialties",
+			"required": false
+		},
+		"principalAchievements": {
+			"label": "Key Achievements",
+			"required": false
+		},
+		"principalEducation": {
+			"label": "Education",
+			"required": false
+		},
+		"trackRecord": {
+			"label": "Track Record",
+			"required": false
+		},
+		"references": {
+			"label": "Lender References",
 			"required": false
 		}
 	}

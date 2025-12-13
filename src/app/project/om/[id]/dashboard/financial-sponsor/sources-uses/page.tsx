@@ -658,9 +658,24 @@ export default function SourcesUsesPage() {
                 })()}
               </Badge>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            {(content?.realEstateTaxes != null || content?.insurance != null || content?.utilitiesCosts != null || 
+              content?.repairsAndMaintenance != null || content?.managementFee != null || content?.generalAndAdmin != null ||
+              content?.payroll != null || content?.reserves != null || content?.marketingLeasing != null || 
+              content?.serviceCoordination != null) && (
+              content?.totalOperatingExpenses != null && (
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-900">Total Operating Expenses</span>
+                    <Badge className="bg-gray-100 text-gray-800">
+                      ${formatLocale(parseNumeric(content.totalOperatingExpenses))}
+                    </Badge>
+                  </div>
+                </div>
+              )
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

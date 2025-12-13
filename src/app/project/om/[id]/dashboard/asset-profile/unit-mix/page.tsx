@@ -7,11 +7,6 @@ import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { formatLocale, formatFixed, parseNumeric } from '@/lib/om-utils';
 
-// Component to show missing values in red
-const MissingValue = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-red-600 font-medium">{children}</span>
-);
-
 type UnitMixUnit = {
   count?: number | null;
   avgSF?: number | null;
@@ -20,7 +15,7 @@ type UnitMixUnit = {
 };
 
 export default function UnitMixPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
   
   // Extract flat schema fields
   const totalResidentialUnits = parseNumeric(content?.totalResidentialUnits) ?? null;
@@ -374,19 +369,19 @@ export default function UnitMixPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Luxury Tier</span>
                   <Badge className="bg-blue-100 text-blue-800">
-                    <MissingValue>Not specified</MissingValue>
+                    {content?.luxuryTier ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Target Market</span>
                   <Badge variant="outline" className="border-gray-200">
-                    <MissingValue>Not specified</MissingValue>
+                    {content?.targetMarket ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Competitive Position</span>
                   <Badge className="bg-green-100 text-green-800">
-                    <MissingValue>Not specified</MissingValue>
+                    {content?.competitivePosition ?? null}
                   </Badge>
                 </div>
               </div>
@@ -396,21 +391,31 @@ export default function UnitMixPage() {
       </Card>
 
       {/* Detailed Unit Plans */}
-      {detailedUnitMix.length > 0 && (
-        <Card className="hover:shadow-lg transition-shadow mt-8">
-          <CardHeader dataSourceFields={['residential unit mix']}>
-            <h3 className="text-xl font-semibold text-gray-800">Detailed Unit Plans</h3>
-            <p className="text-sm text-gray-600">Breakdown of unit types and layouts</p>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 text-left">
-                    <th className="py-3 px-2 font-semibold text-gray-700">Plan</th>
-                    <th className="py-3 px-2 font-semibold text-gray-700">Type</th>
-                    <th className="py-3 px-2 font-semibold text-gray-700">Units</th>
-                    <th className="py-3 px-2 font-semibold text-gray-700">Avg SF</th>
+      <Card className="hover:shadow-lg transition-shadow mt-8">
+        <CardHeader>
+          <h3 className="text-xl font-semibold text-gray-800">Detailed Unit Plans</h3>
+          {content?.unitPlanDescription ? (
+            <p className="text-sm text-gray-600">{content.unitPlanDescription}</p>
+          ) : null}
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left">
+                  <th className="py-3 px-2 font-semibold text-gray-700">Plan</th>
+                  <th className="py-3 px-2 font-semibold text-gray-700">Type</th>
+                  <th className="py-3 px-2 font-semibold text-gray-700">Units</th>
+                  <th className="py-3 px-2 font-semibold text-gray-700">Avg SF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detailedUnitMix.map((plan: { code?: string | null; type?: string | null; units?: number | null; avgSF?: number | null }) => (
+                  <tr key={plan.code} className="border-b border-gray-50">
+                    <td className="py-3 px-2 font-medium text-gray-800">{plan.code}</td>
+                    <td className="py-3 px-2 text-gray-600">{plan.type}</td>
+                    <td className="py-3 px-2 text-gray-600">{plan.units}</td>
+                    <td className="py-3 px-2 text-gray-600">{formatLocale(plan.avgSF ?? 0) ?? 0} SF</td>
                   </tr>
                 </thead>
                 <tbody>

@@ -15,7 +15,10 @@ const MissingValue = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function EmploymentPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
+  
+  // Read from flat fields
+  const majorEmployers = Array.isArray(content?.majorEmployers) ? content.majorEmployers : [];
 
   // Extract flat schema fields
   const unemploymentRate = parseNumeric(content?.unemploymentRate) ?? null;
@@ -309,54 +312,45 @@ export default function EmploymentPage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Employment Strengths</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <MissingValue>Strong tech sector presence</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <MissingValue>Healthcare employment stability</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <MissingValue>Financial services growth</MissingValue>
-                </li>
+                {['employmentStrength1', 'employmentStrength2', 'employmentStrength3'].map((field) => {
+                  const insight = insights?.[field];
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>High-income tech workers</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Growing employment base</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Walking distance to AT&T Discovery District, Baylor Medical, and Dallas County Government</MissingValue>
-                </li>
+                {['employmentOpportunity1', 'employmentOpportunity2', 'employmentOpportunity3'].map((field) => {
+                  const insight = insights?.[field];
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Target Market</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Downtown Dallas professionals (AT&T, JP Morgan Chase)</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Healthcare workers (Baylor Medical Center)</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Government employees (Dallas County)</MissingValue>
-                </li>
+                {['targetMarket1', 'targetMarket2', 'targetMarket3'].map((field) => {
+                  const insight = insights?.[field];
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

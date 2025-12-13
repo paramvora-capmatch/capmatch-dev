@@ -7,15 +7,63 @@ import { Users, TrendingUp, MapPin, BarChart3 } from 'lucide-react';
 import PopulationHeatmap from '@/components/om/PopulationHeatmap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatLocale, formatCurrency, parseNumeric, getOMValue, formatFixed } from '@/lib/om-utils';
-
-// Component to show missing values in red
-const MissingValue = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-red-600 font-medium">{children}</span>
-);
+import { formatLocale, formatCurrency, parseNumeric } from '@/lib/om-utils';
 
 export default function DemographicsPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
+  
+  type RadiusData = {
+    population: number | null;
+    medianIncome: number | null;
+    medianAge: number | null;
+  };
+
+  // Read from flat fields
+  const population1Mi = parseNumeric(content?.population1Mi) ?? null;
+  const population3Mi = parseNumeric(content?.population3Mi) ?? null;
+  const population5Mi = parseNumeric(content?.population5Mi) ?? null;
+  const medianIncome1Mi = parseNumeric(content?.medianIncome1Mi) ?? null;
+  const medianHHIncome = parseNumeric(content?.medianHHIncome) ?? null;
+  const medianIncome5Mi = parseNumeric(content?.medianIncome5Mi) ?? null;
+  const medianAge1Mi = parseNumeric(content?.medianAge1Mi) ?? null;
+  const medianAge3Mi = parseNumeric(content?.medianAge3Mi) ?? null;
+  const medianAge5Mi = parseNumeric(content?.medianAge5Mi) ?? null;
+  const incomeGrowth5yr = content?.incomeGrowth5yr ?? null;
+  const jobGrowth5yr = content?.jobGrowth5yr ?? null;
+  const populationGrowth5yr = content?.projGrowth202429 ?? null; // Use projGrowth202429 as fallback
+  const renterShare = content?.renterShare ?? null;
+  const bachelorsShare = content?.bachelorsShare ?? null;
+  
+  // Build radius data objects for compatibility with existing UI code
+  const oneMile: RadiusData = {
+    population: population1Mi,
+    medianIncome: medianIncome1Mi,
+    medianAge: medianAge1Mi
+  };
+  const threeMile: RadiusData = {
+    population: population3Mi,
+    medianIncome: medianHHIncome,
+    medianAge: medianAge3Mi
+  };
+  const fiveMile: RadiusData = {
+    population: population5Mi,
+    medianIncome: medianIncome5Mi,
+    medianAge: medianAge5Mi
+  };
+  
+  // Build radius entries for Population Analysis section
+  const radiusEntries = (
+    [
+      ['oneMile', oneMile],
+      ['threeMile', threeMile],
+      ['fiveMile', fiveMile],
+    ] as const satisfies ReadonlyArray<readonly [string, RadiusData]>
+  ).filter(
+    ([_, data]) =>
+      data.population != null ||
+      data.medianIncome != null ||
+      data.medianAge != null
+  );
 
   // Extract flat schema fields
   const population3Mi = parseNumeric(content?.population3Mi) ?? null;
@@ -75,6 +123,12 @@ export default function DemographicsPage() {
     if (incomeNum >= 40000) return 'bg-green-100 text-green-800';
     return 'bg-gray-100 text-gray-800';
   };
+
+  // Extract location/connectivity fields
+  const walkabilityScore = parseNumeric(content?.walkabilityScore) ?? null;
+  const infrastructureCatalyst = content?.infrastructureCatalyst ?? null;
+  const broadbandSpeed = content?.broadbandSpeed ?? null;
+  const crimeRiskLevel = content?.crimeRiskLevel ?? null;
 
   useOMPageHeader({
     subtitle: "Population make-up, income bands, and growth across key radii.",
@@ -161,8 +215,8 @@ export default function DemographicsPage() {
                 <TrendingUp className="h-10 w-10 text-green-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Population Growth</h4>
-              <Badge className={getGrowthColor(populationGrowth5yr)}>
-                {populationGrowth5yr != null ? `${formatFixed(populationGrowth5yr, 1)}%` : <MissingValue>14.2%</MissingValue>}
+              <Badge className={getGrowthColor(populationGrowth5yr ? `${populationGrowth5yr}%` : null)}>
+                {populationGrowth5yr != null ? `${populationGrowth5yr}%` : null}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -172,8 +226,8 @@ export default function DemographicsPage() {
                 <BarChart3 className="h-10 w-10 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Income Growth</h4>
-              <Badge className={getGrowthColor(incomeGrowth5yr)}>
-                {incomeGrowth5yr != null ? `${formatFixed(incomeGrowth5yr, 1)}%` : <MissingValue>12.5%</MissingValue>}
+              <Badge className={getGrowthColor(incomeGrowth5yr ? `${incomeGrowth5yr}%` : null)}>
+                {incomeGrowth5yr != null ? `${incomeGrowth5yr}%` : null}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -183,8 +237,8 @@ export default function DemographicsPage() {
                 <Users className="h-10 w-10 text-blue-600" />
               </div>
               <h4 className="font-semibold text-gray-800 mb-2">Job Growth</h4>
-              <Badge className={getGrowthColor(jobGrowth5yr)}>
-                {jobGrowth5yr != null ? `${formatFixed(jobGrowth5yr, 1)}%` : <MissingValue>8.2%</MissingValue>}
+              <Badge className={getGrowthColor(jobGrowth5yr ? `${jobGrowth5yr}%` : null)}>
+                {jobGrowth5yr != null ? `${jobGrowth5yr}%` : null}
               </Badge>
               <p className="text-sm text-gray-600 mt-2">5-year increase</p>
             </div>
@@ -216,21 +270,21 @@ export default function DemographicsPage() {
                         {radiusLabel} Radius
                       </h4>
                       <Badge variant="outline" className="border-gray-200 bg-white">
-                        {data.population != null ? formatLocale(data.population) : <MissingValue>N/A</MissingValue>}
+                      {formatLocale(data.population) ?? null}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Income</p>
-                        <p className="font-semibold text-gray-800">
-                          {data.medianIncome != null ? formatCurrency(data.medianIncome) : <MissingValue>$75,000</MissingValue>}
-                        </p>
+                      <p className="font-semibold text-gray-800">
+                        {formatCurrency(data.medianIncome) ?? null}
+                      </p>
                       </div>
                       <div className="bg-white bg-opacity-60 rounded p-2">
                         <p className="text-gray-500 text-xs uppercase tracking-wide">Median Age</p>
-                        <p className="font-semibold text-gray-800">
-                          {data.medianAge != null ? `${data.medianAge} years` : <MissingValue>32.5 years</MissingValue>}
-                        </p>
+                      <p className="font-semibold text-gray-800">
+                        {data.medianAge ?? null} years
+                      </p>
                       </div>
                     </div>
                   </div>
@@ -265,13 +319,16 @@ export default function DemographicsPage() {
                       <span className="text-sm text-gray-500">
                         {data.medianIncome != null ? formatCurrency(data.medianIncome) : <MissingValue>$75,000</MissingValue>}
                       </span>
+                    <span className="text-sm text-gray-500">
+                      {formatCurrency(data.medianIncome)}
+                    </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                       <div 
                         className={`h-3 rounded-full bg-gradient-to-r ${color} shadow-sm`}
-                        style={{
-                          width: `${Math.min((incomeValue / 100000) * 100, 100)}%`,
-                        }}
+                      style={{
+                        width: `${(data.medianIncome ?? 0) / 100000 * 100}%`,
+                      }}
                       />
                     </div>
                   </div>
@@ -303,52 +360,48 @@ export default function DemographicsPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  Strong population growth ({populationGrowth5yr != null ? `${formatFixed(populationGrowth5yr, 1)}%` : <MissingValue>14.2%</MissingValue>} 5-year)
+                  Strong population growth ({populationGrowth5yr != null ? `${populationGrowth5yr}%` : null} 5-year)
                 </li>
                 <li className="flex items-center">
                   <span className="text-green-500 mr-2">•</span>
-                  High median income ({oneMile.medianIncome != null ? formatCurrency(oneMile.medianIncome) : <MissingValue>$75,000</MissingValue>} within 1-mile)
+                  High median income ({formatCurrency(medianIncome1Mi) ?? null} within 1-mile)
                 </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <MissingValue>Young professional demographic</MissingValue>
-                </li>
+                {insights?.demographicStrength1 && (
+                  <li className="flex items-center">
+                    <span className="text-green-500 mr-2">•</span>
+                    {insights.demographicStrength1}
+                  </li>
+                )}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Market Opportunities</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Proximity to Downtown Dallas employers (AT&T, JP Morgan, Baylor Medical)</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Walkability to Farmers Market and Deep Ellum entertainment district</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Limited new supply in Deep Ellum/Farmers Market corridor</MissingValue>
-                </li>
+                {['demographicOpportunity1', 'demographicOpportunity2', 'demographicOpportunity3'].map((field) => {
+                  const insight = insights?.[field];
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
             
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Target Demographics</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Downtown Dallas professionals (25-35)</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Workforce housing eligible households (≤80% AMI)</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Healthcare, finance, and tech workers</MissingValue>
-                </li>
+                {['targetDemographic1', 'targetDemographic2', 'targetDemographic3'].map((field) => {
+                  const insight = insights?.[field];
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

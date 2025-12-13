@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { getOMValue, parseNumeric, formatLocale } from '@/lib/om-utils';
+import { parseNumeric, formatLocale } from '@/lib/om-utils';
 
 type MilestoneStatus = 'completed' | 'current' | 'upcoming';
 
@@ -41,65 +41,50 @@ const calculateDuration = (startDate: string | null, endDate: string | null): nu
 
 export default function MilestonesPage() {
   const { content } = useOmContent();
+  
+  // Helper function to calculate days between dates
+  const daysBetween = (date1: string | null | undefined, date2: string | null | undefined): number | null => {
+    if (!date1 || !date2) return null;
+    try {
+      const d1 = new Date(date1);
+      const d2 = new Date(date2);
+      const diffTime = Math.abs(d2.getTime() - d1.getTime());
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    } catch {
+      return null;
+    }
+  };
+  
+  // Build milestones from flat date fields with status from resume (calculated by backend)
+  const milestones = [
+    { phase: "Land Acquisition", date: content?.landAcqClose ?? null, status: content?.landAcqStatus ?? null },
+    { phase: "Entitlements", date: content?.entitlementsDate ?? null, status: content?.entitlementsStatus ?? null },
+    { phase: "Groundbreaking", date: content?.groundbreakingDate ?? null, status: content?.groundbreakingStatus ?? null },
+    { phase: "Vertical Start", date: content?.verticalStart ?? null, status: content?.verticalStartStatus ?? null },
+    { phase: "First Occupancy", date: content?.firstOccupancy ?? null, status: content?.firstOccupancyStatus ?? null },
+    { phase: "Completion", date: content?.completionDate ?? null, status: content?.completionStatus ?? null },
+    { phase: "Stabilization", date: content?.stabilization ?? null, status: content?.stabilizationStatus ?? null },
+  ].filter(item => item.date);
 
-  // Memoize content values to prevent unnecessary re-renders
-  const landAcqClose = useMemo(() => content?.landAcqClose, [content?.landAcqClose]);
-  const entitlements = useMemo(() => content?.entitlements, [content?.entitlements]);
-  const groundbreakingDate = useMemo(() => content?.groundbreakingDate, [content?.groundbreakingDate]);
-  const verticalStart = useMemo(() => content?.verticalStart, [content?.verticalStart]);
-  const firstOccupancy = useMemo(() => content?.firstOccupancy, [content?.firstOccupancy]);
-  const completionDate = useMemo(() => content?.completionDate, [content?.completionDate]);
-  const stabilization = useMemo(() => content?.stabilization, [content?.stabilization]);
-  const preLeasedSF = useMemo(() => content?.preLeasedSF, [content?.preLeasedSF]);
-  const drawSchedule = useMemo(() => content?.drawSchedule, [content?.drawSchedule]);
-
-  // Build milestones from flat date fields - memoized to prevent re-renders
-  const milestones = useMemo(() => {
-    const entitlementsValue = entitlements;
-    const isEntitlementsApproved = entitlementsValue === 'Approved';
+  // Calculate durations for each milestone
+  const milestonesWithDuration = milestones.map((milestone, index) => {
+    let duration: number | null = null;
     
-    const allMilestones: Milestone[] = [
-      { phase: "Land Acquisition", date: landAcqClose ?? null, status: getStatus(landAcqClose ?? null) },
-      { 
-        phase: "Entitlements", 
-        date: isEntitlementsApproved ? null : (entitlementsValue ?? null), 
-        status: isEntitlementsApproved ? 'completed' as const : getStatus(entitlementsValue ?? null) 
-      },
-      { phase: "Groundbreaking", date: groundbreakingDate ?? null, status: getStatus(groundbreakingDate ?? null) },
-      { phase: "Vertical Start", date: verticalStart ?? null, status: getStatus(verticalStart ?? null) },
-      { phase: "First Occupancy", date: firstOccupancy ?? null, status: getStatus(firstOccupancy ?? null) },
-      { phase: "Completion", date: completionDate ?? null, status: getStatus(completionDate ?? null) },
-      { phase: "Stabilization", date: stabilization ?? null, status: getStatus(stabilization ?? null) },
-    ];
+    // First milestone (Land Acquisition) has no duration
+    if (index === 0) {
+      return { ...milestone, duration: null };
+    }
+    
+    // Calculate duration from previous milestone date
+    const prevMilestone = milestones[index - 1];
+    if (prevMilestone?.date && milestone.date) {
+      duration = daysBetween(prevMilestone.date, milestone.date);
+    }
+    
+    return { ...milestone, duration };
+  });
 
-    // Calculate durations between consecutive milestones
-    const milestonesWithDuration = allMilestones.map((milestone, index) => {
-      if (index === 0) {
-        return { ...milestone, duration: 0 };
-      }
-      const prevMilestone = allMilestones[index - 1];
-      // Skip duration calculation for Entitlements if it's "Approved" (no date)
-      if (milestone.phase === "Entitlements" && !milestone.date) {
-        return { ...milestone, duration: 0 };
-      }
-      if (prevMilestone.phase === "Entitlements" && !prevMilestone.date) {
-        // If previous milestone is Entitlements without date, use the milestone before that
-        const prevPrevMilestone = index > 1 ? allMilestones[index - 2] : null;
-        if (prevPrevMilestone?.date) {
-          const duration = calculateDuration(prevPrevMilestone.date, milestone.date);
-          return { ...milestone, duration };
-        }
-        return { ...milestone, duration: 0 };
-      }
-      const duration = calculateDuration(prevMilestone.date, milestone.date);
-      return { ...milestone, duration };
-    });
-
-    // Filter out milestones without dates (except Entitlements which can be "Approved")
-    return milestonesWithDuration.filter(item => item.date || (item.phase === "Entitlements" && isEntitlementsApproved));
-  }, [landAcqClose, entitlements, groundbreakingDate, verticalStart, firstOccupancy, completionDate, stabilization]);
-
-  const getStatusIcon = (status: MilestoneStatus) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
@@ -125,21 +110,18 @@ export default function MilestonesPage() {
     }
   };
 
-  // Calculate total duration from first to last milestone (in days)
-  const totalDuration = useMemo(() => {
-    if (milestones.length < 2) return 0;
-    const firstDate = milestones[0]?.date;
-    const lastDate = milestones[milestones.length - 1]?.date;
-    if (!firstDate || !lastDate) return 0;
-    return calculateDuration(firstDate, lastDate);
-  }, [milestones]);
+  // Calculate total duration from milestone dates (in days)
+  // Use pre-calculated value if available, otherwise calculate from first to last milestone
+  const totalDuration = content?.totalProjectDurationDays 
+    ? parseNumeric(content.totalProjectDurationDays) 
+    : milestones.length > 0 && milestones[0].date && milestones[milestones.length - 1].date
+    ? daysBetween(milestones[0].date, milestones[milestones.length - 1].date)
+    : 0;
 
-  // Extract construction/lease-up fields - memoized
-  const preLeasedSFValue = useMemo(() => parseNumeric(preLeasedSF) ?? null, [preLeasedSF]);
-  const absorptionProjection = useMemo(() => {
-    if (!content) return null;
-    return getOMValue(content, "absorptionProjection");
-  }, [content]);
+  // Extract construction/lease-up fields
+  const preLeasedSF = parseNumeric(content?.preLeasedSF) ?? null;
+  const drawSchedule = content?.drawSchedule;
+  const absorptionProjection = content?.absorptionProjection ?? null;
 
   // Memoize subtitle to prevent re-renders
   const subtitle = useMemo(() => "Timeline of critical phases, durations, and current status.", []);
@@ -157,9 +139,27 @@ export default function MilestonesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {milestones.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No milestones found. Please add milestone dates to the project.</p>
+            {milestonesWithDuration.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => (
+              <div key={index} className="flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  {milestone.status ? getStatusIcon(milestone.status) : <Clock className="h-5 w-5 text-gray-400" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {milestone.phase ?? null}
+                    </p>
+                      {milestone.status && (
+                        <Badge className={getStatusColor(milestone.status)}>
+                          {milestone.status}
+                        </Badge>
+                      )}
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-sm text-gray-500">{milestone.date ?? null}</p>
+                    <p className="text-sm text-gray-500">{milestone.duration ?? null} days</p>
+                  </div>
+                </div>
               </div>
             ) : (
               milestones.map((milestone, index) => (
@@ -200,30 +200,48 @@ export default function MilestonesPage() {
           <h2 className="text-xl">Gantt Chart</h2>
         </CardHeader>
         <CardContent>
-          {milestones.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>No milestones found. Please add milestone dates to the project.</p>
-            </div>
-          ) : totalDuration === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <p>Unable to calculate timeline. Please ensure milestone dates are valid.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {milestones.map((milestone, index) => {
-                // Calculate cumulative duration from start
-                const cumulativeDuration = milestones.slice(0, index).reduce((sum, m) => sum + (m.duration || 0), 0);
-                const startPercentage = totalDuration > 0 ? (cumulativeDuration / totalDuration) * 100 : 0;
-                const widthPercentage = totalDuration > 0 ? ((milestone.duration || 0) / totalDuration) * 100 : 0;
+          <div className="space-y-3">
+            {milestonesWithDuration.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => {
+              // Calculate cumulative duration for positioning
+              let cumulativeDuration = 0;
+              for (let i = 0; i < index; i++) {
+                const prevDuration = milestonesWithDuration[i]?.duration ?? 0;
+                cumulativeDuration += prevDuration ?? 0;
+              }
+              
+              const duration = milestone.duration ?? 0;
+              const startPercentage = totalDuration && totalDuration > 0 ? (cumulativeDuration / totalDuration) * 100 : 0;
+              const widthPercentage = totalDuration && totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
 
-                return (
-                  <div key={`gantt-${milestone.phase}-${index}`} className="relative">
-                    <div className="flex items-center mb-2">
-                      <span className="text-sm font-medium text-gray-700 w-48 truncate">
-                        {milestone.phase}
-                      </span>
-                      <span className="text-sm text-gray-500 ml-2">
-                        {milestone.duration ? `${milestone.duration} days` : 'N/A'}
+              return (
+                <div key={index} className="relative">
+                  <div className="flex items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700 w-48 truncate">
+                      {milestone.phase ?? null}
+                    </span>
+                    <span className="text-sm text-gray-500 ml-2">
+                      {duration ? `${duration} days` : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`absolute top-0 left-0 h-full rounded-full transition-all duration-300 ${
+                        milestone.status === 'completed'
+                          ? 'bg-green-500'
+                          : milestone.status === 'current'
+                          ? 'bg-blue-500'
+                          : milestone.status === 'upcoming'
+                          ? 'bg-gray-400'
+                          : 'bg-gray-300'
+                      }`}
+                      style={{
+                        left: `${startPercentage}%`,
+                        width: `${widthPercentage}%`,
+                      }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xs font-medium text-white">
+                        {milestone.date ?? ''}
                       </span>
                     </div>
                     <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
@@ -265,7 +283,7 @@ export default function MilestonesPage() {
             <h2 className="text-lg">Total Duration</h2>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-600">{totalDuration} days</p>
+            <p className="text-3xl font-bold text-blue-600">{totalDuration ? `${totalDuration} days` : 'N/A'}</p>
             <p className="text-sm text-gray-500 mt-1">From start to finish</p>
           </CardContent>
         </Card>
@@ -276,7 +294,7 @@ export default function MilestonesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {milestones.filter(m => m.status === 'completed').length}
+              {milestonesWithDuration.filter((m: { status?: string | null }) => m.status === 'completed').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones completed</p>
           </CardContent>
@@ -288,7 +306,7 @@ export default function MilestonesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {milestones.filter(m => m.status === 'upcoming').length}
+              {milestonesWithDuration.filter((m: { status?: string | null }) => m.status === 'upcoming').length}
             </p>
             <p className="text-sm text-gray-500 mt-1">Milestones pending</p>
           </CardContent>

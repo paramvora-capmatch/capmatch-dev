@@ -7,15 +7,18 @@ import { Building2, BarChart3, Clock } from "lucide-react";
 import SupplyDemandMap from "@/components/om/SupplyDemandMap";
 import { useOMPageHeader } from "@/hooks/useOMPageHeader";
 import { useOmContent } from "@/hooks/useOmContent";
-import { parseNumeric, formatLocale, formatFixed, getOMValue } from "@/lib/om-utils";
-
-// Component to show missing values in red
-const MissingValue = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-red-600 font-medium">{children}</span>
-);
+import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
+import { OMEmptyState } from "@/components/om/OMEmptyState";
 
 export default function SupplyDemandPage() {
-  const { content } = useOmContent();
+  const { content, insights } = useOmContent();
+  
+  // Read from flat fields
+  const currentInventory = parseNumeric(content?.currentInventory) ?? 0;
+  const underConstruction = parseNumeric(content?.underConstruction) ?? 0;
+  const planned24Months = parseNumeric(content?.planned24Months) ?? 0;
+  const averageOccupancy = content?.averageOccupancy ?? null;
+  const deliveryByQuarter = Array.isArray(content?.deliveryByQuarter) ? content.deliveryByQuarter : [];
 
   // Extract flat schema fields
   const supplyPipeline = parseNumeric(content?.supplyPipeline) ?? null;
@@ -392,25 +395,19 @@ export default function SupplyDemandPage() {
                   <Badge
                     className={getOccupancyColor(averageOccupancy)}
                     >
-                      {occupancyPercentValue != null
-                        ? occupancyPercentValue >= 95
-                          ? <span className="text-red-600">Tight</span>
-                          : occupancyPercentValue >= 90
-                          ? <span className="text-red-600">Balanced</span>
-                          : <span className="text-red-600">Soft</span>
-                        : null}
+                      {content?.marketStatus ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Demand Trend</span>
                   <Badge className="bg-green-100 text-green-800">
-                    <MissingValue>↑ Growing</MissingValue>
+                    {content?.demandTrend ?? null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Supply Pressure</span>
                   <Badge className="bg-red-100 text-red-800">
-                    <MissingValue>Moderate</MissingValue>
+                    {content?.supplyPressure ?? null}
                   </Badge>
                 </div>
               </div>
@@ -433,18 +430,15 @@ export default function SupplyDemandPage() {
                 Supply Strengths
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <MissingValue>Limited new supply in Deep Ellum/Farmers Market corridor</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <MissingValue>Downtown Dallas occupancy above 94%</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-green-500 mr-2">•</span>
-                  <MissingValue>&lt;6,000 units delivering over next 24 months</MissingValue>
-                </li>
+                {['supplyStrength1', 'supplyStrength2', 'supplyStrength3'].map((field) => {
+                  const insight = insights?.[field];
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-green-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
 
@@ -453,36 +447,30 @@ export default function SupplyDemandPage() {
                 Market Opportunities
               </h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Strong job growth in Downtown Dallas (12.1% 5-year)</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Workforce housing demand with PFC tax exemption</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-blue-500 mr-2">•</span>
-                  <MissingValue>Proximity to DART rail and I-30/I-45 interchange</MissingValue>
-                </li>
+                {['marketOpportunity1', 'marketOpportunity2', 'marketOpportunity3'].map((field) => {
+                  const insight = insights?.[field];
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-blue-500 mr-2">•</span>
+                      <span>{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
 
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Risk Factors</h4>
               <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <span className="text-red-500 mr-2">•</span>
-                  <MissingValue>Pipeline delivery timing</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-red-500 mr-2">•</span>
-                  <MissingValue>Economic sensitivity</MissingValue>
-                </li>
-                <li className="flex items-center">
-                  <span className="text-red-500 mr-2">•</span>
-                  <MissingValue>Interest rate impact</MissingValue>
-                </li>
+                {['riskFactor1', 'riskFactor2', 'riskFactor3'].map((field) => {
+                  const insight = insights?.[field];
+                  return insight ? (
+                    <li key={field} className="flex items-center">
+                      <span className="text-gray-800 mr-2">•</span>
+                      <span className="text-gray-800">{insight}</span>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           </div>

@@ -155,6 +155,9 @@ export interface Principal {
 	liquidityRange: LiquidityRange;
 	bankruptcyHistory: boolean;
 	foreclosureHistory: boolean;
+	specialties?: string[];
+	achievements?: string[];
+	education?: string;
 	pfsDocumentId: string | null;
 	createdAt: string;
 	updatedAt: string;
@@ -270,9 +273,12 @@ export interface MessageAttachment {
 export interface Notification {
 	id: number; // BIGSERIAL
 	user_id: string; // FK to profiles.id
-	content: string;
+	event_id: number; // FK to domain_events.id
+	title: string;
+	body?: string | null;
+	link_url?: string | null;
+	payload?: Record<string, unknown> | null;
 	read_at?: string | null;
-	link_url?: string;
 	created_at: string;
 }
 
