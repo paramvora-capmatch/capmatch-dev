@@ -7,6 +7,11 @@ import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
 import { formatLocale, formatFixed, parseNumeric } from '@/lib/om-utils';
 
+// Component to show missing values in red
+const MissingValue = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-red-600 font-medium">{children}</span>
+);
+
 type UnitMixUnit = {
   count?: number | null;
   avgSF?: number | null;
@@ -410,37 +415,27 @@ export default function UnitMixPage() {
                 </tr>
               </thead>
               <tbody>
-                {detailedUnitMix.map((plan: { code?: string | null; type?: string | null; units?: number | null; avgSF?: number | null }) => (
-                  <tr key={plan.code} className="border-b border-gray-50">
-                    <td className="py-3 px-2 font-medium text-gray-800">{plan.code}</td>
-                    <td className="py-3 px-2 text-gray-600">{plan.type}</td>
-                    <td className="py-3 px-2 text-gray-600">{plan.units}</td>
-                    <td className="py-3 px-2 text-gray-600">{formatLocale(plan.avgSF ?? 0) ?? 0} SF</td>
+                {detailedUnitMix.map((plan: { code?: string | null; type?: string | null; units?: number | null; avgSF?: number | null }, index: number) => (
+                  <tr key={plan.code || `plan-${index}`} className="border-b border-gray-50">
+                    <td className="py-3 px-2 font-medium text-gray-800">
+                      {plan.code ? plan.code : <MissingValue>N/A</MissingValue>}
+                    </td>
+                    <td className="py-3 px-2 text-gray-600">
+                      {plan.type ? plan.type : <MissingValue>N/A</MissingValue>}
+                    </td>
+                    <td className="py-3 px-2 text-gray-600">
+                      {plan.units != null ? plan.units : <MissingValue>N/A</MissingValue>}
+                    </td>
+                    <td className="py-3 px-2 text-gray-600">
+                      {plan.avgSF != null ? `${formatLocale(plan.avgSF)} SF` : <MissingValue>N/A</MissingValue>}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {detailedUnitMix.map((plan: { code?: string | null; type?: string | null; units?: number | null; avgSF?: number | null }, index: number) => (
-                    <tr key={plan.code || `plan-${index}`} className="border-b border-gray-50">
-                      <td className="py-3 px-2 font-medium text-gray-800">
-                        {plan.code ? plan.code : <MissingValue>N/A</MissingValue>}
-                      </td>
-                      <td className="py-3 px-2 text-gray-600">
-                        {plan.type ? plan.type : <MissingValue>N/A</MissingValue>}
-                      </td>
-                      <td className="py-3 px-2 text-gray-600">
-                        {plan.units != null ? plan.units : <MissingValue>N/A</MissingValue>}
-                      </td>
-                      <td className="py-3 px-2 text-gray-600">
-                        {plan.avgSF != null ? `${formatLocale(plan.avgSF)} SF` : <MissingValue>N/A</MissingValue>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+                ))}
+              </tbody>
               </table>
             </div>
           </CardContent>
         </Card>
-      )}
     </div>
   );
 } 

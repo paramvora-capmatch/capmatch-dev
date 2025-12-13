@@ -7,7 +7,12 @@ import { Users, TrendingUp, MapPin, BarChart3 } from 'lucide-react';
 import PopulationHeatmap from '@/components/om/PopulationHeatmap';
 import { useOMPageHeader } from '@/hooks/useOMPageHeader';
 import { useOmContent } from '@/hooks/useOmContent';
-import { formatLocale, formatCurrency, parseNumeric } from '@/lib/om-utils';
+import { formatLocale, formatCurrency, parseNumeric, getOMValue } from '@/lib/om-utils';
+
+// Component to show missing values in red
+const MissingValue = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-red-600 font-medium">{children}</span>
+);
 
 export default function DemographicsPage() {
   const { content, insights } = useOmContent();
@@ -52,61 +57,22 @@ export default function DemographicsPage() {
   };
   
   // Build radius entries for Population Analysis section
-  const radiusEntries = (
-    [
-      ['oneMile', oneMile],
-      ['threeMile', threeMile],
-      ['fiveMile', fiveMile],
-    ] as const satisfies ReadonlyArray<readonly [string, RadiusData]>
-  ).filter(
-    ([_, data]) =>
+  const radiusEntries = [
+    { name: 'oneMile', data: oneMile },
+    { name: 'threeMile', data: threeMile },
+    { name: 'fiveMile', data: fiveMile },
+  ].filter(
+    ({ data }) =>
       data.population != null ||
       data.medianIncome != null ||
       data.medianAge != null
   );
 
-  // Extract flat schema fields
-  const population3Mi = parseNumeric(content?.population3Mi) ?? null;
+  // Extract additional flat schema fields
   const popGrowth201020 = parseNumeric(content?.popGrowth201020) ?? null;
   const projGrowth202429 = parseNumeric(content?.projGrowth202429) ?? null;
-  const medianHHIncome = parseNumeric(content?.medianHHIncome) ?? null;
   const renterOccupiedPercent = parseNumeric(content?.renterOccupiedPercent) ?? null;
-  const walkabilityScore = parseNumeric(content?.walkabilityScore) ?? null;
-  const infrastructureCatalyst = getOMValue(content, "infrastructureCatalyst");
-  const broadbandSpeed = getOMValue(content, "broadbandSpeed");
-  const crimeRiskLevel = getOMValue(content, "crimeRiskLevel");
   const jobGrowth = parseNumeric(content?.jobGrowth) ?? null;
-
-  // Create radius data structure from flat schema (with hardcoded fallbacks)
-  const oneMile = {
-    population: parseNumeric(content?.population1Mi) ?? null,
-    medianIncome: parseNumeric(content?.medianIncome1Mi) ?? null,
-    medianAge: parseNumeric(content?.medianAge1Mi) ?? null,
-  };
-
-  const threeMile = {
-    population: population3Mi,
-    medianIncome: medianHHIncome,
-    medianAge: parseNumeric(content?.medianAge3Mi) ?? null,
-  };
-
-  const fiveMile = {
-    population: parseNumeric(content?.population5Mi) ?? null,
-    medianIncome: parseNumeric(content?.medianIncome5Mi) ?? null,
-    medianAge: parseNumeric(content?.medianAge5Mi) ?? null,
-  };
-
-  // Growth trends from flat schema (with hardcoded fallbacks)
-  const populationGrowth5yr = projGrowth202429 ?? null;
-  const incomeGrowth5yr = parseNumeric(content?.incomeGrowth5yr) ?? null;
-  const jobGrowth5yr = jobGrowth ?? null;
-
-  // Build radius entries array for rendering
-  const radiusEntries = [
-    { name: 'oneMile', data: oneMile },
-    { name: 'threeMile', data: threeMile },
-    { name: 'fiveMile', data: fiveMile },
-  ];
 
   const getGrowthColor = (growth?: number | string | null) => {
     const growthNum = typeof growth === 'string' ? parseFloat(growth) : (growth ?? 0);
@@ -124,11 +90,11 @@ export default function DemographicsPage() {
     return 'bg-gray-100 text-gray-800';
   };
 
-  // Extract location/connectivity fields
+  // Extract location/connectivity fields (using getOMValue for string fields)
   const walkabilityScore = parseNumeric(content?.walkabilityScore) ?? null;
-  const infrastructureCatalyst = content?.infrastructureCatalyst ?? null;
-  const broadbandSpeed = content?.broadbandSpeed ?? null;
-  const crimeRiskLevel = content?.crimeRiskLevel ?? null;
+  const infrastructureCatalyst = getOMValue(content, "infrastructureCatalyst");
+  const broadbandSpeed = getOMValue(content, "broadbandSpeed");
+  const crimeRiskLevel = getOMValue(content, "crimeRiskLevel");
 
   useOMPageHeader({
     subtitle: "Population make-up, income bands, and growth across key radii.",

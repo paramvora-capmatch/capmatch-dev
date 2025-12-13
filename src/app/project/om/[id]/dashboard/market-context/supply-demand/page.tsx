@@ -10,16 +10,14 @@ import { useOmContent } from "@/hooks/useOmContent";
 import { parseNumeric, formatLocale, formatFixed } from "@/lib/om-utils";
 import { OMEmptyState } from "@/components/om/OMEmptyState";
 
+// Component to show missing values in red
+const MissingValue = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-red-600 font-medium">{children}</span>
+);
+
 export default function SupplyDemandPage() {
   const { content, insights } = useOmContent();
   
-  // Read from flat fields
-  const currentInventory = parseNumeric(content?.currentInventory) ?? 0;
-  const underConstruction = parseNumeric(content?.underConstruction) ?? 0;
-  const planned24Months = parseNumeric(content?.planned24Months) ?? 0;
-  const averageOccupancy = content?.averageOccupancy ?? null;
-  const deliveryByQuarter = Array.isArray(content?.deliveryByQuarter) ? content.deliveryByQuarter : [];
-
   // Extract flat schema fields
   const supplyPipeline = parseNumeric(content?.supplyPipeline) ?? null;
   const monthsOfSupply = parseNumeric(content?.monthsOfSupply) ?? null;
@@ -35,10 +33,10 @@ export default function SupplyDemandPage() {
     : null;
 
   // Use flat schema values or hardcoded fallbacks
-  const currentInventory = parseNumeric(content?.currentSupply) ?? null;
-  const underConstruction = parseNumeric(content?.unitsUnderConstruction) ?? null;
-  const planned24Months = supplyPipeline ?? null;
-  const averageOccupancy = avgOccupancyFromComps ?? null;
+  const currentInventory = parseNumeric(content?.currentSupply) ?? parseNumeric(content?.currentInventory) ?? null;
+  const underConstruction = parseNumeric(content?.unitsUnderConstruction) ?? parseNumeric(content?.underConstruction) ?? null;
+  const planned24Months = supplyPipeline ?? parseNumeric(content?.planned24Months) ?? null;
+  const averageOccupancy = avgOccupancyFromComps ?? content?.averageOccupancy ?? null;
 
   // Hardcoded delivery by quarter (will be shown in red)
   const hardcodedDeliveryByQuarter = [

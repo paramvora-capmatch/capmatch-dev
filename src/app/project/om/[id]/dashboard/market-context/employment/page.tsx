@@ -17,9 +17,6 @@ const MissingValue = ({ children }: { children: React.ReactNode }) => (
 export default function EmploymentPage() {
   const { content, insights } = useOmContent();
   
-  // Read from flat fields
-  const majorEmployers = Array.isArray(content?.majorEmployers) ? content.majorEmployers : [];
-
   // Extract flat schema fields
   const unemploymentRate = parseNumeric(content?.unemploymentRate) ?? null;
   const jobGrowth = parseNumeric(content?.jobGrowth) ?? null;
@@ -36,8 +33,10 @@ export default function EmploymentPage() {
     { name: 'JP Morgan Chase', employees: 4500, growth: '+4.2%', distance: '1.2 mi' },
   ];
 
-  // Use hardcoded employers for now (all will show in red)
-  const majorEmployers = hardcodedEmployers;
+  // Use hardcoded employers for now (all will show in red), or use from content if available
+  const majorEmployers = Array.isArray(content?.majorEmployers) && content.majorEmployers.length > 0 
+    ? content.majorEmployers 
+    : hardcodedEmployers;
 
   const getGrowthColor = (growth?: string | number | null) => {
     let growthNum: number;

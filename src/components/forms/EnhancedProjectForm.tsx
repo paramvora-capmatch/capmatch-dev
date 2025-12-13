@@ -567,10 +567,8 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 						});
 					}
 
-					const { data: urlData } = await supabase.storage
-						.from(orgId)
-						.createSignedUrl(uploadedPath, 3600);
-					if (urlData) {
+					const signedUrl = await getSignedUrl(orgId, uploadedPath);
+					if (signedUrl) {
 						setImageUrls((prev) => ({
 							...prev,
 							[uploadedPath]: signedUrl,

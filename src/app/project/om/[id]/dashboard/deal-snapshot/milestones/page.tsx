@@ -97,7 +97,7 @@ export default function MilestonesPage() {
     }
   };
 
-  const getStatusColor = (status: MilestoneStatus) => {
+  const getStatusColor = (status: MilestoneStatus | string | null) => {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-800';
@@ -142,7 +142,7 @@ export default function MilestonesPage() {
             {milestonesWithDuration.map((milestone: { status?: string | null; phase?: string | null; date?: string | null; duration?: number | null }, index: number) => (
               <div key={index} className="flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  {milestone.status ? getStatusIcon(milestone.status) : <Clock className="h-5 w-5 text-gray-400" />}
+                      {milestone.status ? getStatusIcon(milestone.status as string) : <Clock className="h-5 w-5 text-gray-400" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
@@ -150,7 +150,7 @@ export default function MilestonesPage() {
                       {milestone.phase ?? null}
                     </p>
                       {milestone.status && (
-                        <Badge className={getStatusColor(milestone.status)}>
+                        <Badge className={getStatusColor(milestone.status as MilestoneStatus)}>
                           {milestone.status}
                         </Badge>
                       )}
@@ -161,35 +161,7 @@ export default function MilestonesPage() {
                   </div>
                 </div>
               </div>
-            ) : (
-              milestones.map((milestone, index) => (
-                <div key={`${milestone.phase}-${index}`} className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
-                    {getStatusIcon(milestone.status)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {milestone.phase}
-                      </p>
-                      <Badge className={getStatusColor(milestone.status)}>
-                        {milestone.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <p className="text-sm text-gray-500">
-                        {milestone.phase === "Entitlements" && entitlements === 'Approved' 
-                          ? 'Approved' 
-                          : milestone.date ?? 'N/A'}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {milestone.duration ? `${milestone.duration} days` : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -224,55 +196,35 @@ export default function MilestonesPage() {
                     </span>
                   </div>
                   <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`absolute top-0 left-0 h-full rounded-full transition-all duration-300 ${
-                        milestone.status === 'completed'
-                          ? 'bg-green-500'
-                          : milestone.status === 'current'
-                          ? 'bg-blue-500'
-                          : milestone.status === 'upcoming'
-                          ? 'bg-gray-400'
-                          : 'bg-gray-300'
-                      }`}
-                      style={{
-                        left: `${startPercentage}%`,
-                        width: `${widthPercentage}%`,
-                      }}
-                    />
+                    {widthPercentage > 0 && (
+                      <div
+                        className={`absolute top-0 h-full rounded-full transition-all duration-300 ${
+                          milestone.status === 'completed'
+                            ? 'bg-green-500'
+                            : milestone.status === 'current'
+                            ? 'bg-blue-500'
+                            : milestone.status === 'upcoming'
+                            ? 'bg-gray-400'
+                            : 'bg-gray-300'
+                        }`}
+                        style={{
+                          left: `${startPercentage}%`,
+                          width: `${widthPercentage}%`,
+                        }}
+                      />
+                    )}
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs font-medium text-white">
-                        {milestone.date ?? ''}
+                      <span className={`text-xs font-medium ${widthPercentage > 0 ? 'text-white' : 'text-gray-600'}`}>
+                        {milestone.phase === "Entitlements" && content?.entitlementsStatus === 'Approved' 
+                          ? 'Approved' 
+                          : milestone.date ?? 'N/A'}
                       </span>
                     </div>
-                    <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden">
-                      {widthPercentage > 0 && (
-                        <div
-                          className={`absolute top-0 h-full rounded-full transition-all duration-300 ${
-                            milestone.status === 'completed'
-                              ? 'bg-green-500'
-                              : milestone.status === 'current'
-                              ? 'bg-blue-500'
-                              : 'bg-gray-400'
-                          }`}
-                          style={{
-                            left: `${startPercentage}%`,
-                            width: `${widthPercentage}%`,
-                          }}
-                        />
-                      )}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className={`text-xs font-medium ${widthPercentage > 0 ? 'text-white' : 'text-gray-600'}`}>
-                          {milestone.phase === "Entitlements" && entitlements === 'Approved' 
-                            ? 'Approved' 
-                            : milestone.date ?? 'N/A'}
-                        </span>
-                      </div>
-                    </div>
                   </div>
+                </div>
                 );
-              })}
+            })}
             </div>
-          )}
         </CardContent>
       </Card>
 
@@ -314,17 +266,17 @@ export default function MilestonesPage() {
       </div>
 
       {/* Construction & Lease-Up Status */}
-      {(preLeasedSFValue != null || drawSchedule || absorptionProjection) && (
+      {(preLeasedSF != null || drawSchedule || absorptionProjection) && (
         <Card>
           <CardHeader>
             <h2 className="text-xl">Construction & Lease-Up Status</h2>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {preLeasedSFValue != null && (
+              {preLeasedSF != null && (
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-2">Pre-Leased SF</p>
-                  <p className="text-2xl font-bold text-blue-900">{formatLocale(preLeasedSFValue)} SF</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatLocale(preLeasedSF)} SF</p>
                 </div>
               )}
               {absorptionProjection && (
