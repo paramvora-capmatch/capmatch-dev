@@ -10,6 +10,7 @@ import { SplashScreen } from "../../components/ui/SplashScreen";
 import { AnimatePresence } from "framer-motion";
 import { ProjectCard } from "../../components/dashboard/ProjectCard"; // Import Project Card
 import { ProjectCardSkeleton } from "../../components/dashboard/ProjectCardSkeleton";
+import { OnboardingProgressCardSkeleton } from "../../components/dashboard/OnboardingProgressCardSkeleton";
 import { useProjectMembers } from "../../hooks/useProjectMembers";
 import {
   PlusCircle,
@@ -331,12 +332,16 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="relative">
-                      <OnboardingProgressCard
-                        project={primaryProject}
-                        progress={borrowerResumeProgress}
-                        onOpenBorrowerResume={handleOpenBorrowerResume}
-                        onCreateProject={handleCreateNewProject}
-                      />
+                      {projectsLoading ? (
+                        <OnboardingProgressCardSkeleton />
+                      ) : (
+                        <OnboardingProgressCard
+                          project={primaryProject}
+                          progress={borrowerResumeProgress}
+                          onOpenBorrowerResume={handleOpenBorrowerResume}
+                          onCreateProject={handleCreateNewProject}
+                        />
+                      )}
                     </div>
                   </div>
 
