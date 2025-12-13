@@ -747,13 +747,30 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	// Market Context
 	submarketName: "Downtown Dallas",
 	msaName: "Dallas-Fort Worth-Arlington, TX",
+	population1Mi: 45230, // Population within 1 mile
 	population3Mi: 174270,
+	population5Mi: 385420, // Population within 5 miles
 	popGrowth201020: 23.3,
 	projGrowth202429: 6.9,
+	medianIncome1Mi: 92000, // Median income within 1 mile
 	medianHHIncome: 85906,
+	medianIncome5Mi: 81500, // Median income within 5 miles
+	medianAge1Mi: 34, // Median age within 1 mile
+	medianAge3Mi: 35, // Median age within 3 miles
+	medianAge5Mi: 36, // Median age within 5 miles
+	incomeGrowth5yr: 3.2, // 5-year income growth projection
+	jobGrowth5yr: 2.5, // 5-year job growth projection
+	renterShare: 76.7, // Same as renterOccupiedPercent
+	bachelorsShare: 42.5, // Percentage with bachelor's degree or higher
 	renterOccupiedPercent: 76.7,
 	unemploymentRate: 3.5,
 	largestEmployer: "Downtown Dallas CBD employers",
+	majorEmployers: [
+		"Downtown Dallas CBD (5,000+ jobs)",
+		"Dallas Farmers Market (500+ jobs)",
+		"Deep Ellum entertainment district (1,000+ jobs)",
+		"Baylor University Medical Center (3,000+ jobs)",
+	],
 	employerConcentration: 15.0,
 	crimeRiskLevel: "Moderate",
 	walkabilityScore: 92,
@@ -762,8 +779,28 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	broadbandSpeed: "Fiber 1 Gbps available",
 	submarketAbsorption: 500,
 	supplyPipeline: 4000,
+	currentInventory: 8500, // Current inventory in submarket (units)
+	underConstruction: 2500, // Units currently under construction
+	planned24Months: 4000, // Units planned for delivery in next 24 months
+	averageOccupancy: 94.5, // Average occupancy rate in submarket
+	deliveryByQuarter: {
+		q3_2025: 0,
+		q4_2025: 0,
+		q1_2026: 500,
+		q2_2026: 750,
+		q3_2026: 1000,
+		q4_2026: 1250,
+	},
 	monthsOfSupply: 7.5,
 	captureRate: 2.1,
+	avgCapRate: 5.5, // Average cap rate for comparable properties
+	rentPremium: 5.0, // Rent premium vs. market average (%)
+	qualityTier: "Class A",
+	competitionLevel: "Moderate",
+	demandTrend: "Strong",
+	marketStatus: "Healthy",
+	supplyPressure: "Moderate - pipeline manageable",
+	rentGrowth: 3.0, // Annual rent growth projection
 	marketConcessions: "1 month free on select units",
 	northStarComp: "SoGood Phase A and nearby Class A multifamily",
 	substantialComp:
