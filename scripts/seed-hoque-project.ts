@@ -693,7 +693,52 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	dscrStressMin: 1.1,
 	portfolioLTV: 60.0,
 	portfolioDSCR: 1.3,
+	debtService: 1814400, // Annual debt service on $18M loan at 8.0% interest
 	exitStrategy: "Refinance",
+	fiveYearCashFlow: {
+		year1: { noi: 2268000, debtService: 1814400, cashFlow: 453600 },
+		year2: { noi: 2336040, debtService: 1814400, cashFlow: 521640 },
+		year3: { noi: 2406121, debtService: 1814400, cashFlow: 591721 },
+		year4: { noi: 2478305, debtService: 1814400, cashFlow: 663905 },
+		year5: { noi: 2552654, debtService: 1814400, cashFlow: 738254 },
+	},
+	returnsBreakdown: {
+		yieldOnCost: 7.6,
+		irr: 18.5,
+		equityMultiple: 2.1,
+		holdPeriod: 7,
+	},
+	quarterlyDeliverySchedule: {
+		q1_2027: { units: 0, percentComplete: 0 },
+		q2_2027: { units: 0, percentComplete: 0 },
+		q3_2027: { units: 29, percentComplete: 25 },
+		q4_2027: { units: 58, percentComplete: 75 },
+		q1_2028: { units: 29, percentComplete: 100 },
+	},
+	sensitivityAnalysis: {
+		baseCase: { noi: 2268000, irr: 18.5, equityMultiple: 2.1 },
+		downside: { noi: 2041200, irr: 15.2, equityMultiple: 1.8 },
+		upside: { noi: 2494800, irr: 21.8, equityMultiple: 2.4 },
+	},
+	riskHigh: [
+		"Construction cost overruns in current inflationary environment",
+		"Lease-up timeline delays affecting stabilization",
+	],
+	riskMedium: [
+		"Interest rate volatility on floating rate construction loan",
+		"Market rent growth assumptions may not materialize",
+	],
+	riskLow: [
+		"Pre-leased Innovation Center provides stable commercial income",
+		"Strong sponsor track record and lender relationships",
+	],
+	capitalUseTiming: {
+		month1_3: 0.15, // 15% in first 3 months
+		month4_6: 0.25, // 25% in months 4-6
+		month7_12: 0.35, // 35% in months 7-12
+		month13_18: 0.20, // 20% in months 13-18
+		month19_24: 0.05, // 5% in months 19-24
+	},
 	businessPlanSummary:
 		"Execute a Dallas PFC-backed workforce housing program (50% of units ≤80% AMI) inside a 6-story mixed-use podium with 30,000 SF of pre-leased Innovation Center space. The plan funds land acquisition, hard/soft costs, and reserves for a 24-month build schedule plus two 6-month extensions, targeting a refinancing or sale upon stabilization in 2027.",
 	marketOverviewSummary:
