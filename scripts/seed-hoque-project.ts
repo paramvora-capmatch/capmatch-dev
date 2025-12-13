@@ -473,6 +473,8 @@ function getDefaultValueForBorrowerField(fieldId: string): any {
 		"principalSpecialties",
 		"principalAchievements",
 		"references",
+		"principals", // Array of principal objects
+		"trackRecord", // Array of track record items
 	];
 	if (arrayFields.includes(fieldId)) {
 		return [];
@@ -1416,13 +1418,16 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 	}
 
 	// Remove any fields not in the schema
+	// But preserve special array fields that the frontend expects (principals, trackRecord)
 	const schemaFieldSet = new Set(BORROWER_SCHEMA_FIELD_IDS);
+	const preserveFields = new Set(["principals", "trackRecord", "references"]);
 	for (const key of Object.keys(result)) {
 		if (
 			key !== "_lockedFields" &&
 			key !== "_fieldStates" &&
 			key !== "_metadata" &&
-			!schemaFieldSet.has(key)
+			!schemaFieldSet.has(key) &&
+			!preserveFields.has(key)
 		) {
 			delete result[key];
 		}
@@ -1430,8 +1435,15 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 
 	// Lock all fields that have values (matching project resume logic)
 	// Lock fields that have non-empty values (including 0 for numeric fields, false for booleans, empty arrays)
+	// Also lock special array fields (principals, trackRecord, references) that the frontend expects
 	const lockedFields: Record<string, boolean> = {};
-	for (const fieldId of BORROWER_SCHEMA_FIELD_IDS) {
+	const fieldsToCheck = [
+		...BORROWER_SCHEMA_FIELD_IDS,
+		"principals",
+		"trackRecord",
+		"references",
+	];
+	for (const fieldId of fieldsToCheck) {
 		const value = result[fieldId];
 		if (value !== undefined && value !== null) {
 			// Lock fields that have values
@@ -1448,7 +1460,18 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 				lockedFields[fieldId] = true;
 			} else if (Array.isArray(value)) {
 				// Lock arrays (even if empty, as empty array is a valid value)
-				lockedFields[fieldId] = true;
+				// But for principals, trackRecord, and references, only lock if non-empty
+				if (
+					fieldId === "principals" ||
+					fieldId === "trackRecord" ||
+					fieldId === "references"
+				) {
+					if (value.length > 0) {
+						lockedFields[fieldId] = true;
+					}
+				} else {
+					lockedFields[fieldId] = true;
+				}
 			} else if (
 				typeof value === "object" &&
 				Object.keys(value).length > 0
