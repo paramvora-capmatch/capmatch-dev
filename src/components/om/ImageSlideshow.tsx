@@ -1,250 +1,304 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import Image from 'next/image';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/utils/cn';
-import { loadProjectImages, type ImageData } from '@/lib/imageUtils';
+import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/utils/cn";
+import { loadProjectImages, type ImageData } from "@/lib/imageUtils";
 
 interface ImageSlideshowProps {
-  projectId: string;
-  orgId: string;
-  projectName?: string;
-  autoPlayInterval?: number; // milliseconds
-  height?: string; // e.g., "h-64", "h-96"
-  onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+	projectId: string;
+	orgId: string;
+	projectName?: string;
+	autoPlayInterval?: number; // milliseconds
+	height?: string; // e.g., "h-64", "h-96"
+	onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 export function ImageSlideshow({
-  projectId,
-  orgId,
-  projectName,
-  autoPlayInterval = 5000, // 5 seconds default
-  height = 'h-64',
-  onClick,
+	projectId,
+	orgId,
+	projectName,
+	autoPlayInterval = 5000, // 5 seconds default
+	height = "h-64",
+	onClick,
 }: ImageSlideshowProps) {
-  const [images, setImages] = useState<ImageData[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
+	const [images, setImages] = useState<ImageData[]>([]);
+	const [currentIndex, setCurrentIndex] = useState(0);
+	const [isLoading, setIsLoading] = useState(true);
+	const [isImageLoaded, setIsImageLoaded] = useState(false);
+	const [isHovered, setIsHovered] = useState(false);
+	const intervalRef = useRef<NodeJS.Timeout | null>(null);
+	const touchStartX = useRef<number | null>(null);
+	const touchEndX = useRef<number | null>(null);
 
-  // Load images from artifacts folder structure
-  useEffect(() => {
-    const loadImages = async () => {
-      if (!projectId || !orgId) return;
-      
-      setIsLoading(true);
-      try {
-        // Load images from artifacts, excluding "other" category (logos, abstract images, etc.)
-        // Only show site_images and architectural_diagrams
-        const allImages = await loadProjectImages(projectId, orgId, true); // true = exclude "other"
-        
-        // Filter to site_images first, then architectural_diagrams (exclude "other")
-        const siteImages = allImages.filter(img => img.category === 'site_images');
-        const diagrams = allImages.filter(img => img.category === 'architectural_diagrams');
-        
-        // Combine: site images first, then diagrams (no "other" category)
-        const sortedImages = [...siteImages, ...diagrams];
-        
-        setImages(sortedImages);
-      } catch (error) {
-        console.error('Error loading images:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+	// Load images from artifacts folder structure
+	useEffect(() => {
+		const loadImages = async () => {
+			if (!projectId || !orgId) return;
 
-    loadImages();
-  }, [projectId, orgId]);
+			setIsLoading(true);
+			setIsImageLoaded(false);
+			try {
+				// Load images from artifacts, excluding "other" category (logos, abstract images, etc.)
+				// Only show site_images and architectural_diagrams
+				const allImages = await loadProjectImages(
+					projectId,
+					orgId,
+					true
+				); // true = exclude "other"
 
-  // Auto-play functionality
-  useEffect(() => {
-    if (images.length <= 1) {
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      };
-    }
+				// Filter to site_images first, then architectural_diagrams (exclude "other")
+				const siteImages = allImages.filter(
+					(img) => img.category === "site_images"
+				);
+				const diagrams = allImages.filter(
+					(img) => img.category === "architectural_diagrams"
+				);
 
-    if (!isHovered) {
-      intervalRef.current = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % images.length);
-      }, autoPlayInterval);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+				// Combine: site images first, then diagrams (no "other" category)
+				const sortedImages = [...siteImages, ...diagrams];
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isHovered, images.length, autoPlayInterval]);
+				setImages(sortedImages);
+			} catch (error) {
+				console.error("Error loading images:", error);
+			} finally {
+				setIsLoading(false);
+			}
+		};
 
-  const goToNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % images.length);
-  }, [images.length]);
+		loadImages();
+	}, [projectId, orgId]);
 
-  const goToPrevious = useCallback(() => {
-    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
-  }, [images.length]);
+	// Reset image loaded state when current index changes
+	useEffect(() => {
+		setIsImageLoaded(false);
+	}, [currentIndex]);
 
-  const goToSlide = useCallback((index: number) => {
-    setCurrentIndex(index);
-  }, []);
+	// Auto-play functionality
+	useEffect(() => {
+		if (images.length <= 1) {
+			return () => {
+				if (intervalRef.current) {
+					clearInterval(intervalRef.current);
+				}
+			};
+		}
 
-  // Touch/swipe handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
+		if (!isHovered) {
+			intervalRef.current = setInterval(() => {
+				setCurrentIndex((prev) => (prev + 1) % images.length);
+			}, autoPlayInterval);
+		} else if (intervalRef.current) {
+			clearInterval(intervalRef.current);
+			intervalRef.current = null;
+		}
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
-  };
+		return () => {
+			if (intervalRef.current) {
+				clearInterval(intervalRef.current);
+				intervalRef.current = null;
+			}
+		};
+	}, [isHovered, images.length, autoPlayInterval]);
 
-  const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
+	const goToNext = useCallback(() => {
+		setCurrentIndex((prev) => (prev + 1) % images.length);
+	}, [images.length]);
 
-    const distance = touchStartX.current - touchEndX.current;
-    const minSwipeDistance = 50;
+	const goToPrevious = useCallback(() => {
+		setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+	}, [images.length]);
 
-    if (distance > minSwipeDistance) {
-      goToNext();
-    } else if (distance < -minSwipeDistance) {
-      goToPrevious();
-    }
+	const goToSlide = useCallback((index: number) => {
+		setCurrentIndex(index);
+	}, []);
 
-    touchStartX.current = null;
-    touchEndX.current = null;
-  };
+	// Handle image load
+	const handleImageLoad = useCallback(() => {
+		setIsImageLoaded(true);
+	}, []);
 
+	// Touch/swipe handlers
+	const handleTouchStart = (e: React.TouchEvent) => {
+		touchStartX.current = e.touches[0].clientX;
+	};
 
-  // Don't show loading state or empty state - silent failure
-  // Images will just appear when loaded, or component stays hidden if no images
-  if (isLoading || images.length === 0) {
-    return null;
-  }
+	const handleTouchMove = (e: React.TouchEvent) => {
+		touchEndX.current = e.touches[0].clientX;
+	};
 
-  return (
-    <div
-      className={cn(
-        'relative w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg',
-        height,
-        onClick && 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500'
-      )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-    >
-      {/* Images */}
-      <div className="relative w-full h-full">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={currentIndex}
-            initial={{ opacity: 0, x: 300 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -300 }}
-            transition={{ duration: 0.5, ease: 'easeInOut' }}
-            className="absolute inset-0"
-          >
-            <Image
-              src={images[currentIndex].url}
-              alt={images[currentIndex].title}
-              fill
-              sizes="100vw"
-              className="object-cover"
-              priority={currentIndex === 0}
-            />
-          </motion.div>
-        </AnimatePresence>
-      </div>
+	const handleTouchEnd = () => {
+		if (!touchStartX.current || !touchEndX.current) return;
 
-      {/* Image Name Overlay (bottom) */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-4">
-        <h3 className="text-white font-semibold text-sm md:text-base">
-          {images[currentIndex].title}
-        </h3>
-      </div>
+		const distance = touchStartX.current - touchEndX.current;
+		const minSwipeDistance = 50;
 
-      {/* Navigation Arrows */}
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              goToPrevious();
-            }}
-            className={cn(
-              'absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10 backdrop-blur-sm duration-300',
-              isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-            )}
-            aria-label="Previous image"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              goToNext();
-            }}
-            className={cn(
-              'absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10 backdrop-blur-sm duration-300',
-              isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-            )}
-            aria-label="Next image"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-        </>
-      )}
+		if (distance > minSwipeDistance) {
+			goToNext();
+		} else if (distance < -minSwipeDistance) {
+			goToPrevious();
+		}
 
-      {/* Dots Indicator (bottom center) */}
-      {images.length > 1 && (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
-          {images.map((_, index) => (
-            <button
-              key={index}
-              onClick={(event) => {
-                event.stopPropagation();
-                goToSlide(index);
-              }}
-              className={cn(
-                'transition-all duration-300 rounded-full',
-                index === currentIndex
-                  ? 'w-8 h-2 bg-white'
-                  : 'w-2 h-2 bg-white/50 hover:bg-white/75'
-              )}
-              aria-label={`Go to slide ${index + 1}`}
-            />
-          ))}
-        </div>
-      )}
+		touchStartX.current = null;
+		touchEndX.current = null;
+	};
 
-      {/* Project Name + Image Counter */}
-      <div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-black/50 text-white text-xs md:text-sm backdrop-blur-sm z-10 flex items-center gap-3 max-w-[85%]">
-        {projectName && (
-          <span className="font-semibold text-sm md:text-base truncate">
-            {projectName}
-          </span>
-        )}
-        <span className="text-white/60">•</span>
-        <span className="text-xs md:text-sm">
-          {images.length ? currentIndex + 1 : 0} / {images.length || 0}
-        </span>
-      </div>
-    </div>
-  );
+	// Show loading state while fetching image list
+	if (isLoading) {
+		return (
+			<div
+				className={cn(
+					"relative w-full rounded-lg overflow-hidden bg-gray-100 shadow-lg flex items-center justify-center",
+					height
+				)}
+			>
+				<div className="flex flex-col items-center gap-3">
+					<Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+					<p className="text-sm text-gray-500">Loading images...</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Don't render if no images available
+	if (images.length === 0) {
+		return null;
+	}
+
+	return (
+		<div
+			className={cn(
+				"relative w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg",
+				height,
+				onClick &&
+					"cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+			)}
+			onMouseEnter={() => setIsHovered(true)}
+			onMouseLeave={() => setIsHovered(false)}
+			onTouchStart={handleTouchStart}
+			onTouchMove={handleTouchMove}
+			onTouchEnd={handleTouchEnd}
+			onClick={onClick}
+			role={onClick ? "button" : undefined}
+			tabIndex={onClick ? 0 : undefined}
+		>
+			{/* Loading overlay - shows while current image is loading */}
+			{!isImageLoaded && (
+				<div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-20">
+					<div className="flex flex-col items-center gap-3">
+						<Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+						<p className="text-sm text-gray-500">
+							Loading image...
+						</p>
+					</div>
+				</div>
+			)}
+
+			{/* Images */}
+			<div className="relative w-full h-full">
+				<AnimatePresence mode="wait" initial={false}>
+					<motion.div
+						key={currentIndex}
+						initial={{ opacity: 0, x: 300 }}
+						animate={{ opacity: isImageLoaded ? 1 : 0, x: 0 }}
+						exit={{ opacity: 0, x: -300 }}
+						transition={{ duration: 0.5, ease: "easeInOut" }}
+						className="absolute inset-0"
+					>
+						<Image
+							src={images[currentIndex].url}
+							alt={images[currentIndex].title}
+							fill
+							sizes="100vw"
+							className="object-cover"
+							priority={currentIndex === 0}
+							onLoad={handleImageLoad}
+							onError={() => setIsImageLoaded(true)} // Show content even if image fails to load
+						/>
+					</motion.div>
+				</AnimatePresence>
+			</div>
+
+			{/* Image Name Overlay (bottom) */}
+			<div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-4">
+				<h3 className="text-white font-semibold text-sm md:text-base">
+					{images[currentIndex].title}
+				</h3>
+			</div>
+
+			{/* Navigation Arrows */}
+			{images.length > 1 && (
+				<>
+					<button
+						onClick={(event) => {
+							event.stopPropagation();
+							goToPrevious();
+						}}
+						className={cn(
+							"absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10 backdrop-blur-sm duration-300",
+							isHovered
+								? "opacity-100"
+								: "opacity-0 pointer-events-none"
+						)}
+						aria-label="Previous image"
+					>
+						<ChevronLeft className="h-6 w-6" />
+					</button>
+					<button
+						onClick={(event) => {
+							event.stopPropagation();
+							goToNext();
+						}}
+						className={cn(
+							"absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10 backdrop-blur-sm duration-300",
+							isHovered
+								? "opacity-100"
+								: "opacity-0 pointer-events-none"
+						)}
+						aria-label="Next image"
+					>
+						<ChevronRight className="h-6 w-6" />
+					</button>
+				</>
+			)}
+
+			{/* Dots Indicator (bottom center) */}
+			{images.length > 1 && (
+				<div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10">
+					{images.map((_, index) => (
+						<button
+							key={index}
+							onClick={(event) => {
+								event.stopPropagation();
+								goToSlide(index);
+							}}
+							className={cn(
+								"transition-all duration-300 rounded-full",
+								index === currentIndex
+									? "w-8 h-2 bg-white"
+									: "w-2 h-2 bg-white/50 hover:bg-white/75"
+							)}
+							aria-label={`Go to slide ${index + 1}`}
+						/>
+					))}
+				</div>
+			)}
+
+			{/* Project Name + Image Counter */}
+			<div className="absolute top-4 left-4 px-4 py-2 rounded-full bg-black/50 text-white text-xs md:text-sm backdrop-blur-sm z-10 flex items-center gap-3 max-w-[85%]">
+				{projectName && (
+					<span className="font-semibold text-sm md:text-base truncate">
+						{projectName}
+					</span>
+				)}
+				<span className="text-white/60">•</span>
+				<span className="text-xs md:text-sm">
+					{images.length ? currentIndex + 1 : 0} /{" "}
+					{images.length || 0}
+				</span>
+			</div>
+		</div>
+	);
 }
-
