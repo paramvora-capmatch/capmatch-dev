@@ -187,19 +187,19 @@ export default function FinancialSponsorPage() {
                         <div>
                             <p className="text-gray-500">Base IRR</p>
                             <p className="font-medium text-blue-600">
-                              {baseIRR != null ? `${baseIRR}%` : null}
+                              {baseIRR != null ? `${formatFixed(baseIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Upside IRR</p>
                             <p className="font-medium text-green-600">
-                              {upsideIRR != null ? `${upsideIRR}%` : null}
+                              {upsideIRR != null ? `${formatFixed(upsideIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Downside IRR</p>
                             <p className="font-medium text-red-600">
-                              {downsideIRR != null ? `${downsideIRR}%` : null}
+                              {downsideIRR != null ? `${formatFixed(downsideIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>

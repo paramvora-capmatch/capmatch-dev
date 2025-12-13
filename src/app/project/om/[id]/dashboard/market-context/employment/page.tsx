@@ -98,7 +98,7 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {formatFixed(avgGrowth, 1) != null ? `+${formatFixed(avgGrowth, 1)}%` : null}
+              {avgGrowth != null ? `+${formatFixed(avgGrowth, 1)}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Annual average</p>
           </CardContent>
@@ -110,7 +110,7 @@ export default function EmploymentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {formatFixed(avgDistance, 1) != null ? `${formatFixed(avgDistance, 1)} mi` : null}
+              {avgDistance != null ? `${formatFixed(avgDistance, 1)} mi` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">From project site</p>
           </CardContent>

@@ -27,6 +27,7 @@ import {
   PieChart as PieChartIcon,
 } from "lucide-react";
 import { useOmContent } from "@/hooks/useOmContent";
+import { formatFixed } from "@/lib/om-utils";
 
 interface ReturnsChartsProps {
   className?: string;
@@ -169,7 +170,7 @@ export default function ReturnsCharts({
               <div key={key} className="text-center">
                 <div className="text-xs text-gray-500 mb-1">{label}</div>
                 <div className="text-lg font-bold" style={{ color }}>
-                  {irr}%
+                  {irr != null ? `${formatFixed(irr, 2)}%` : 'N/A'}
                 </div>
               </div>
             ))}
@@ -265,7 +266,7 @@ export default function ReturnsCharts({
               className="text-3xl font-bold"
               style={{ color: currentScenario.color }}
             >
-              {currentScenario.irr != null ? `${currentScenario.irr}%` : 'N/A'}
+              {currentScenario.irr != null ? `${formatFixed(currentScenario.irr, 2)}%` : 'N/A'}
             </p>
             <p className="text-sm text-gray-500 mt-1">
               Internal Rate of Return
@@ -290,7 +291,7 @@ export default function ReturnsCharts({
               className="text-3xl font-bold"
               style={{ color: currentScenario.color }}
             >
-              {currentScenario.multiple != null ? `${currentScenario.multiple}x` : 'N/A'}
+              {currentScenario.multiple != null ? `${formatFixed(currentScenario.multiple, 2)}x` : 'N/A'}
             </p>
             <p className="text-sm text-gray-500 mt-1">Total Return Multiple</p>
           </CardContent>
@@ -313,7 +314,7 @@ export default function ReturnsCharts({
               className="text-3xl font-bold"
               style={{ color: currentScenario.color }}
             >
-              {currentScenario.profitMargin != null ? `${currentScenario.profitMargin}%` : 'N/A'}
+              {currentScenario.profitMargin != null ? `${formatFixed(currentScenario.profitMargin, 2)}%` : 'N/A'}
             </p>
             <p className="text-sm text-gray-500 mt-1">Net Profit Margin</p>
           </CardContent>
@@ -334,7 +335,7 @@ export default function ReturnsCharts({
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="scenario" />
                 <YAxis />
-                <Tooltip formatter={(value: number) => [`${value}%`, "IRR"]} />
+                <Tooltip formatter={(value: number) => [`${formatFixed(value, 2)}%`, "IRR"]} />
                 <Bar dataKey="irr" fill="#8884d8" />
               </BarChart>
             </ResponsiveContainer>
@@ -432,7 +433,7 @@ export default function ReturnsCharts({
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number) => [`${value}%`, "Contribution"]}
+                    formatter={(value: number) => [`${formatFixed(value, 2)}%`, "Contribution"]}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -495,7 +496,7 @@ export default function ReturnsCharts({
                     <XAxis dataKey="growth" />
                     <YAxis />
                     <Tooltip
-                      formatter={(value: number) => [`${value}%`, "IRR"]}
+                      formatter={(value: number) => [`${formatFixed(value, 2)}%`, "IRR"]}
                     />
                     <Line
                       type="monotone"
@@ -528,7 +529,7 @@ export default function ReturnsCharts({
                     <XAxis dataKey="cost" />
                     <YAxis />
                     <Tooltip
-                      formatter={(value: number) => [`${value}%`, "IRR"]}
+                      formatter={(value: number) => [`${formatFixed(value, 2)}%`, "IRR"]}
                     />
                     <Line
                       type="monotone"

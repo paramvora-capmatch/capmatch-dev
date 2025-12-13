@@ -175,7 +175,7 @@ export default function AssetProfilePage() {
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Avg Rent PSF</span>
               <span className="font-medium">
-                {formatFixed(avgCompRentPSF, 2) != null ? `$${formatFixed(avgCompRentPSF, 2)}` : null}
+                {avgCompRentPSF != null ? `$${formatFixed(avgCompRentPSF, 2)}` : null}
               </span>
             </div>
           </div>

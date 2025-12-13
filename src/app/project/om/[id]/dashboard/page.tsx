@@ -331,7 +331,7 @@ export default function OMDashboardPage() {
 						/>
 						<MetricCard
 							label="Equity Multiple"
-							value={formatFixed(data.equityMultiple, 2) ? `${formatFixed(data.equityMultiple, 2)}x` : null}
+							value={data.equityMultiple != null ? `${formatFixed(data.equityMultiple, 2)}x` : null}
 						/>
 					</div>
 					<div className="mt-3">
@@ -392,7 +392,7 @@ export default function OMDashboardPage() {
 														: "text-green-600"
 												} group-hover:scale-110 transition-transform duration-200`}
 											>
-												<span>{irr}%</span>
+												<span>{irr != null ? `${formatFixed(irr, 2)}%` : 'N/A'}</span>
 											</div>
 										</div>
 									)

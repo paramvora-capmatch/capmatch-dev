@@ -3,6 +3,7 @@ import React from 'react';
 import { cn } from '@/utils/cn';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { DataSourceTooltip } from '@/components/om/DataSourceTooltip';
+import { formatFixed } from '@/lib/om-utils';
 
 interface MetricCardProps {
     label: string;
@@ -38,7 +39,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
                         maximumFractionDigits: 0,
                     }).format(value);
                 case 'percent':
-                    return `${value}%`;
+                    return `${formatFixed(value, 2)}%`;
                 default:
                     return value.toLocaleString();
             }
