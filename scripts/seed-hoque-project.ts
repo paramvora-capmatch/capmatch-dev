@@ -157,9 +157,28 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"amenityList",
 		"incentiveStacking",
 		"noiseFactors",
+		"riskHigh",
+		"riskMedium",
+		"riskLow",
+		"majorEmployers",
+		"siteImages",
+		"architecturalDiagrams",
 	];
 	if (arrayFields.includes(fieldId)) {
 		return [];
+	}
+
+	// Check if it's a known object field
+	const objectFields = [
+		"fiveYearCashFlow",
+		"returnsBreakdown",
+		"quarterlyDeliverySchedule",
+		"sensitivityAnalysis",
+		"deliveryByQuarter",
+		"capitalUseTiming",
+	];
+	if (objectFields.includes(fieldId)) {
+		return {};
 	}
 
 	// Check if it's a known boolean field
@@ -176,6 +195,7 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"wetlandsPresent",
 		"densityBonus",
 		"permTakeoutPlanned",
+		"zoningCompliant",
 	];
 	if (booleanFields.includes(fieldId)) {
 		return false;
@@ -291,6 +311,55 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"priorDevelopments",
 		"netWorth",
 		"guarantorLiquidity",
+		"amenitySF",
+		"totalAmenities",
+		"amenityAvgSize",
+		"totalCapitalization",
+		"equityContribution",
+		"floorRate",
+		"loanToCost",
+		"exitCapRate",
+		"debtService",
+		"taxInsuranceReserve",
+		"capExReserve",
+		"totalOperatingExpenses",
+		"distanceToCBD",
+		"distanceToEmployment",
+		"distanceToTransit",
+		"jobGrowth",
+		"rentGrowthAssumption",
+		"population1Mi",
+		"population5Mi",
+		"medianIncome1Mi",
+		"medianIncome5Mi",
+		"medianAge1Mi",
+		"medianAge3Mi",
+		"medianAge5Mi",
+		"incomeGrowth5yr",
+		"jobGrowth5yr",
+		"currentInventory",
+		"underConstruction",
+		"planned24Months",
+		"averageOccupancy",
+		"avgCapRate",
+		"rentPremium",
+		"rentGrowth",
+		"totalIncentiveValue",
+		"impactFees",
+		"landAcqToGroundbreakingDays",
+		"groundbreakingToVerticalStartDays",
+		"verticalStartToFirstOccupancyDays",
+		"firstOccupancyToCompletionDays",
+		"completionToStabilizationDays",
+		"totalProjectDurationDays",
+		"greenSpace",
+		"setbackFront",
+		"setbackSide",
+		"setbackRear",
+		"greenSpaceRatio",
+		"storyHeight",
+		"heightLimit",
+		"actualHeight",
 	];
 	if (numericFields.includes(fieldId)) {
 		return 0;
@@ -392,7 +461,7 @@ function getDefaultValueForBorrowerField(fieldId: string): any {
 	}
 
 	// Check if it's a known numeric field
-	const numericFields = ["ownershipPercentage"];
+	const numericFields = ["ownershipPercentage", "yearFounded", "activeProjects"];
 	if (numericFields.includes(fieldId)) {
 		return 0;
 	}
@@ -401,6 +470,9 @@ function getDefaultValueForBorrowerField(fieldId: string): any {
 	const arrayFields = [
 		"assetClassesExperience",
 		"geographicMarketsExperience",
+		"principalSpecialties",
+		"principalAchievements",
+		"references",
 	];
 	if (arrayFields.includes(fieldId)) {
 		return [];
@@ -474,6 +546,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		"Ground-up development of Building B within the SoGood master plan, delivering 116 units over activated ground-floor innovation space between the Dallas Farmers Market and Deep Ellum.",
 	projectPhase: "Construction",
 	expectedZoningChanges: "None",
+	masterPlanName: "SoGood Master Plan", // Building B within the SoGood master plan
 
 	// Property Specifications
 	totalResidentialUnits: 116,
@@ -486,6 +559,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	buildingType: "Mid-rise",
 	parkingSpaces: 180,
 	parkingRatio: 1.55,
+	parkingType: "Structured parking garage with surface spaces",
 	amenityList: [
 		"Fitness center",
 		"Shared working space",
@@ -493,6 +567,11 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		"Outdoor terrace",
 		"Swimming pool",
 	],
+	amenitySF: 35264, // Total amenity space
+	totalAmenities: 5, // Number of distinct amenity spaces
+	amenityAvgSize: 7053, // Average amenity size (35,264 SF / 5 amenities)
+	amenitySpaceType: "Indoor and outdoor mixed-use spaces",
+	amenityAccess: "Resident-only access with key fob system",
 	// Explicit unit counts by type (in addition to detailed mix)
 	studioCount: 84,
 	oneBedCount: 24,
@@ -501,6 +580,11 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	furnishedUnits: false,
 	lossToLease: 5.0,
 	adaCompliantPercent: 5.0,
+	luxuryTier: "Class A",
+	targetMarket: "Young professionals, creative class, and workforce housing residents (50% at ≤80% AMI)",
+	competitivePosition: "Premium workforce housing with strong amenity package and prime location between Farmers Market and Deep Ellum",
+	unitPlanDescription:
+		"Modern studio, one-bedroom, and two-bedroom units with high-end finishes, in-unit washers/dryers, and energy-efficient appliances. Units feature open floor plans, large windows, and private balconies where applicable.",
 	hvacSystem: "Central",
 	roofTypeAge: "TPO, new construction",
 	solarCapacity: 100,
@@ -612,24 +696,60 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	totalProjectCost: 29807800,
 	capexBudget: 16950000,
 	purchasePrice: 6000000,
+	// Label fields for budget items
+	landAcquisitionLabel: "Land Acquisition",
+	baseConstructionLabel: "Base Construction",
+	contingencyLabel: "Contingency (5%)",
+	constructionFeesLabel: "Construction Fees",
+	aeFeesLabel: "A&E Fees",
+	developerFeeLabel: "Developer Fee",
+	interestReserveLabel: "Interest Reserve",
+	workingCapitalLabel: "Working Capital",
+	opDeficitEscrowLabel: "Operating Deficit Escrow",
+	leaseUpEscrowLabel: "Lease-Up Escrow",
+	ffeLabel: "FF&E",
+	thirdPartyReportsLabel: "Third Party Reports",
+	legalAndOrgLabel: "Legal & Organizational",
+	titleAndRecordingLabel: "Title & Recording",
+	taxesDuringConstructionLabel: "Taxes During Construction",
+	loanFeesLabel: "Loan Fees",
+	relocationCostsLabel: "Relocation Costs",
+	syndicationCostsLabel: "Syndication Costs",
+	enviroRemediationLabel: "Environmental Remediation",
+	pfcStructuringFeeLabel: "PFC Structuring Fee",
 
 	// Sources of Funds & Loan Terms
+	totalCapitalization: 29800000, // Total project capitalization
 	sponsorEquity: 11800000,
 	taxCreditEquity: 0, // Not utilizing tax credits for this project
 	gapFinancing: 0, // No gap financing required - fully capitalized
 	equityCommittedPercent: 39.6,
+	equityContribution: 39.6, // Same as equityCommittedPercent
+	equityContributionDescription:
+		"$11.8M sponsor equity contribution representing 39.6% of total project cost. Equity fully committed and available at closing.",
+	loanTypeLabel: "Senior Construction Loan",
+	sponsorEquityLabel: "Sponsor Equity",
+	taxCreditEquityLabel: "Tax Credit Equity",
+	gapFinancingLabel: "Gap Financing",
 	loanAmountRequested: 18000000,
 	loanType: "Senior Construction Loan",
+	lender: "TBD - Lender selection in progress",
 	interestRate: 8.0,
 	underwritingRate: 8.0,
+	floorRate: 4.5, // Minimum interest rate floor
 	interestRateType: "Floating",
 	amortizationYears: 30,
 	interestOnlyPeriodMonths: 24,
+	extensions: "Two 6-month extensions available with lender approval",
 	targetLtvPercent: 44,
 	targetLtcPercent: 60,
+	loanToCost: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
 	prepaymentTerms: "Minimum interest",
 	prepaymentPremium: "None - prepayment allowed after interest-only period",
+	originationFee: "1.5% of loan amount",
+	exitFee: "None",
 	recoursePreference: "Partial Recourse",
+	completionGuaranty: "Yes - completion guaranty required",
 	permTakeoutPlanned: true,
 	allInRate: 8.25,
 	targetCloseDate: "2025-08-15",
@@ -639,14 +759,17 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	// Operating Expenses & Investment Metrics
 	realEstateTaxes: 34200,
 	insurance: 92800,
+	taxInsuranceReserve: 127000, // Tax and insurance reserve
 	utilitiesCosts: 23200,
 	repairsAndMaintenance: 46400,
 	managementFee: 85000,
 	generalAndAdmin: 40600,
 	payroll: 174000,
 	reserves: 23200,
+	capExReserve: 116000, // CapEx reserve for future capital improvements
 	marketingLeasing: 68040,
 	serviceCoordination: 10000,
+	totalOperatingExpenses: 625040, // Sum of all operating expenses
 	noiYear1: 2268000,
 	propertyNoiT12: 0, // Ground-up development - no existing NOI
 	stabilizedNoiProjected: 2268000,
@@ -667,7 +790,52 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	dscrStressMin: 1.1,
 	portfolioLTV: 60.0,
 	portfolioDSCR: 1.3,
+	debtService: 1814400, // Annual debt service on $18M loan at 8.0% interest
 	exitStrategy: "Refinance",
+	fiveYearCashFlow: {
+		year1: { noi: 2268000, debtService: 1814400, cashFlow: 453600 },
+		year2: { noi: 2336040, debtService: 1814400, cashFlow: 521640 },
+		year3: { noi: 2406121, debtService: 1814400, cashFlow: 591721 },
+		year4: { noi: 2478305, debtService: 1814400, cashFlow: 663905 },
+		year5: { noi: 2552654, debtService: 1814400, cashFlow: 738254 },
+	},
+	returnsBreakdown: {
+		yieldOnCost: 7.6,
+		irr: 18.5,
+		equityMultiple: 2.1,
+		holdPeriod: 7,
+	},
+	quarterlyDeliverySchedule: {
+		q1_2027: { units: 0, percentComplete: 0 },
+		q2_2027: { units: 0, percentComplete: 0 },
+		q3_2027: { units: 29, percentComplete: 25 },
+		q4_2027: { units: 58, percentComplete: 75 },
+		q1_2028: { units: 29, percentComplete: 100 },
+	},
+	sensitivityAnalysis: {
+		baseCase: { noi: 2268000, irr: 18.5, equityMultiple: 2.1 },
+		downside: { noi: 2041200, irr: 15.2, equityMultiple: 1.8 },
+		upside: { noi: 2494800, irr: 21.8, equityMultiple: 2.4 },
+	},
+	riskHigh: [
+		"Construction cost overruns in current inflationary environment",
+		"Lease-up timeline delays affecting stabilization",
+	],
+	riskMedium: [
+		"Interest rate volatility on floating rate construction loan",
+		"Market rent growth assumptions may not materialize",
+	],
+	riskLow: [
+		"Pre-leased Innovation Center provides stable commercial income",
+		"Strong sponsor track record and lender relationships",
+	],
+	capitalUseTiming: {
+		month1_3: 0.15, // 15% in first 3 months
+		month4_6: 0.25, // 25% in months 4-6
+		month7_12: 0.35, // 35% in months 7-12
+		month13_18: 0.20, // 20% in months 13-18
+		month19_24: 0.05, // 5% in months 19-24
+	},
 	businessPlanSummary:
 		"Execute a Dallas PFC-backed workforce housing program (50% of units ≤80% AMI) inside a 6-story mixed-use podium with 30,000 SF of pre-leased Innovation Center space. The plan funds land acquisition, hard/soft costs, and reserves for a 24-month build schedule plus two 6-month extensions, targeting a refinancing or sale upon stabilization in 2027.",
 	marketOverviewSummary:
@@ -676,13 +844,30 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	// Market Context
 	submarketName: "Downtown Dallas",
 	msaName: "Dallas-Fort Worth-Arlington, TX",
+	population1Mi: 45230, // Population within 1 mile
 	population3Mi: 174270,
+	population5Mi: 385420, // Population within 5 miles
 	popGrowth201020: 23.3,
 	projGrowth202429: 6.9,
+	medianIncome1Mi: 92000, // Median income within 1 mile
 	medianHHIncome: 85906,
+	medianIncome5Mi: 81500, // Median income within 5 miles
+	medianAge1Mi: 34, // Median age within 1 mile
+	medianAge3Mi: 35, // Median age within 3 miles
+	medianAge5Mi: 36, // Median age within 5 miles
+	incomeGrowth5yr: 3.2, // 5-year income growth projection
+	jobGrowth5yr: 2.5, // 5-year job growth projection
+	renterShare: 76.7, // Same as renterOccupiedPercent
+	bachelorsShare: 42.5, // Percentage with bachelor's degree or higher
 	renterOccupiedPercent: 76.7,
 	unemploymentRate: 3.5,
 	largestEmployer: "Downtown Dallas CBD employers",
+	majorEmployers: [
+		"Downtown Dallas CBD (5,000+ jobs)",
+		"Dallas Farmers Market (500+ jobs)",
+		"Deep Ellum entertainment district (1,000+ jobs)",
+		"Baylor University Medical Center (3,000+ jobs)",
+	],
 	employerConcentration: 15.0,
 	crimeRiskLevel: "Moderate",
 	walkabilityScore: 92,
@@ -691,8 +876,28 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	broadbandSpeed: "Fiber 1 Gbps available",
 	submarketAbsorption: 500,
 	supplyPipeline: 4000,
+	currentInventory: 8500, // Current inventory in submarket (units)
+	underConstruction: 2500, // Units currently under construction
+	planned24Months: 4000, // Units planned for delivery in next 24 months
+	averageOccupancy: 94.5, // Average occupancy rate in submarket
+	deliveryByQuarter: {
+		q3_2025: 0,
+		q4_2025: 0,
+		q1_2026: 500,
+		q2_2026: 750,
+		q3_2026: 1000,
+		q4_2026: 1250,
+	},
 	monthsOfSupply: 7.5,
 	captureRate: 2.1,
+	avgCapRate: 5.5, // Average cap rate for comparable properties
+	rentPremium: 5.0, // Rent premium vs. market average (%)
+	qualityTier: "Class A",
+	competitionLevel: "Moderate",
+	demandTrend: "Strong",
+	marketStatus: "Healthy",
+	supplyPressure: "Moderate - pipeline manageable",
+	rentGrowth: 3.0, // Annual rent growth projection
 	marketConcessions: "1 month free on select units",
 	northStarComp: "SoGood Phase A and nearby Class A multifamily",
 	substantialComp:
@@ -748,6 +953,10 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	newMarketsCredits: false,
 	relocationPlan: "N/A",
 	seismicPMLRisk: "2.5% PML",
+	totalIncentiveValue: 8500000, // Estimated total value of tax exemption over 99-year term
+	specialProgramsDescription:
+		"PFC-backed workforce housing program with 50% of units at ≤80% AMI. Opportunity Zone designation provides tax benefits for equity investors. Property tax exemption through PFC structure significantly improves NOI and project economics.",
+	impactFees: 0, // No impact fees - PFC structure exempts from certain fees
 
 	// Timeline & Milestones
 	landAcqClose: "2024-07-12",
@@ -755,10 +964,24 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	stabilization: "2028-03-31",
 	preLeasedSF: 30000,
 	entitlements: "Approved",
+	entitlementsDate: "2024-05-15", // Date entitlements were approved
 	finalPlans: "Pending",
 	permitsIssued: "Issued",
 	verticalStart: "2025-08-01",
-	absorptionProjection: 12,
+	absorptionProjection: 12, // Months to full stabilization
+	landAcqToGroundbreakingDays: 385, // Days from land acquisition to groundbreaking
+	groundbreakingToVerticalStartDays: 0, // Same date
+	verticalStartToFirstOccupancyDays: 806, // Days from vertical start to first occupancy
+	firstOccupancyToCompletionDays: 46, // Days from first occupancy to completion
+	completionToStabilizationDays: 153, // Days from completion to stabilization
+	totalProjectDurationDays: 1390, // Total project duration in days
+	landAcqStatus: "Complete",
+	entitlementsStatus: "Approved",
+	groundbreakingStatus: "Scheduled",
+	verticalStartStatus: "Scheduled",
+	firstOccupancyStatus: "Planned",
+	completionStatus: "Planned",
+	stabilizationStatus: "Planned",
 
 	// Site & Context
 	totalSiteAcreage: 2.5,
@@ -766,6 +989,15 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	allowableFAR: 3.5,
 	farUtilizedPercent: 85.0,
 	densityBonus: true,
+	greenSpace: 25000, // Green space in square feet
+	setbackFront: 25, // Front setback in feet
+	setbackSide: 15, // Side setback in feet
+	setbackRear: 20, // Rear setback in feet
+	greenSpaceRatio: 25.0, // Green space as percentage of site
+	storyHeight: 12, // Average story height in feet
+	heightLimit: 75, // Maximum height limit in feet
+	actualHeight: 72, // Actual building height in feet (6 stories × 12 ft)
+	zoningCompliant: true, // Project is compliant with zoning requirements
 	currentSiteStatus: "Vacant",
 	siteAccess: "Hickory St, Ferris St",
 	proximityShopping: "Farmers Market, Deep Ellum nearby",
@@ -781,6 +1013,8 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	noiseFactors: ["Highway", "Rail"],
 	utilityAvailability: "Available",
 	easements: "Utility easement along northern property line",
+	siteImages: [], // Will be populated from uploaded images
+	architecturalDiagrams: [], // Will be populated from uploaded diagrams
 	// Seeded draw schedule so the Timeline table renders with rows
 	drawSchedule: [
 		{ drawNumber: 1, percentComplete: 10, amount: 2500000 },
@@ -900,6 +1134,8 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 		"Hoque Global is a Dallas-based master developer delivering catalytic mixed-use districts and workforce housing through public-private partnerships, including PFC structures with the City of Dallas. ACARA serves as capital partner, structuring Opportunity Zone-aligned investments with a $950M+ track record across Texas.",
 	// Must be one of: "0-2", "3-5", "6-10", "11-15", "16+"
 	yearsCREExperienceRange: "16+",
+	yearFounded: 2010, // Hoque Global founded in 2010
+	activeProjects: 3, // SoGood Phase A, SoGood Phase B (this project), and other active developments
 	assetClassesExperience: [
 		"Mixed-Use",
 		"Multifamily",
@@ -915,6 +1151,8 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 	totalDealValueClosedRange: "$500M+",
 	existingLenderRelationships:
 		"Frost Bank; Citi Community Capital; Dallas Housing Finance Corp",
+	trackRecord:
+		"Delivered 1M+ SF of adaptive reuse and mixed-use development across Dallas. Key projects include SoGood Phase A (completed 2022), multiple PFC-backed workforce housing developments, and master-planned district projects. Track record includes on-time delivery, strong lender relationships, and successful public-private partnerships.",
 	// Must be one of: "N/A", "<600", "600-649", "650-699", "700-749", "750-799", "800+"
 	creditScoreRange: "700-749",
 	// Must be one of: "<$1M", "$1M-$5M", "$5M-$10M", "$10M-$25M", "$25M-$50M", "$50M-$100M", "$100M+"
@@ -932,6 +1170,50 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 	ownershipPercentage: 50,
 	principalBio:
 		"Founder leading Hoque Global's master plan strategy and public-private initiatives across Dallas. Delivered 1M+ SF of adaptive reuse and serves as Dallas Regional Chamber Urban Taskforce Chair.",
+	principalSpecialties: [
+		"Master-planned district development",
+		"PFC and tax-exempt financing structures",
+		"Workforce housing development",
+		"Public-private partnerships",
+		"Opportunity Zone investments",
+	],
+	principalAchievements: [
+		"Delivered 1M+ SF of adaptive reuse and mixed-use development",
+		"Successfully structured multiple PFC-backed workforce housing projects",
+		"Chair of Dallas Regional Chamber Urban Taskforce",
+		"Led SoGood master plan development (multi-phase, $200M+ project)",
+		"Established strong relationships with key lenders (Frost Bank, Citi Community Capital)",
+	],
+	principalEducation: "MBA, University of Texas at Dallas",
+	references: [
+		{
+			lenderName: "Frost Bank",
+			contactName: "Commercial Real Estate Team",
+			contactEmail: "cre@frostbank.com",
+			relationshipYears: 8,
+			dealCount: 3,
+			lastDealDate: "2022-06-15",
+			notes: "Primary construction lender for SoGood Phase A and other mixed-use projects",
+		},
+		{
+			lenderName: "Citi Community Capital",
+			contactName: "Affordable Housing Finance Team",
+			contactEmail: "communitycapital@citi.com",
+			relationshipYears: 5,
+			dealCount: 2,
+			lastDealDate: "2021-11-20",
+			notes: "Workforce housing and PFC-backed project financing",
+		},
+		{
+			lenderName: "Dallas Housing Finance Corporation",
+			contactName: "PFC Program Director",
+			contactEmail: "pfc@dhfc.org",
+			relationshipYears: 6,
+			dealCount: 4,
+			lastDealDate: "2024-07-12",
+			notes: "PFC structuring and tax-exempt financing for workforce housing projects",
+		},
+	],
 };
 
 /**
