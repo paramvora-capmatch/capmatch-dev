@@ -157,9 +157,28 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"amenityList",
 		"incentiveStacking",
 		"noiseFactors",
+		"riskHigh",
+		"riskMedium",
+		"riskLow",
+		"majorEmployers",
+		"siteImages",
+		"architecturalDiagrams",
 	];
 	if (arrayFields.includes(fieldId)) {
 		return [];
+	}
+
+	// Check if it's a known object field
+	const objectFields = [
+		"fiveYearCashFlow",
+		"returnsBreakdown",
+		"quarterlyDeliverySchedule",
+		"sensitivityAnalysis",
+		"deliveryByQuarter",
+		"capitalUseTiming",
+	];
+	if (objectFields.includes(fieldId)) {
+		return {};
 	}
 
 	// Check if it's a known boolean field
@@ -176,6 +195,7 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"wetlandsPresent",
 		"densityBonus",
 		"permTakeoutPlanned",
+		"zoningCompliant",
 	];
 	if (booleanFields.includes(fieldId)) {
 		return false;
@@ -291,6 +311,55 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"priorDevelopments",
 		"netWorth",
 		"guarantorLiquidity",
+		"amenitySF",
+		"totalAmenities",
+		"amenityAvgSize",
+		"totalCapitalization",
+		"equityContribution",
+		"floorRate",
+		"loanToCost",
+		"exitCapRate",
+		"debtService",
+		"taxInsuranceReserve",
+		"capExReserve",
+		"totalOperatingExpenses",
+		"distanceToCBD",
+		"distanceToEmployment",
+		"distanceToTransit",
+		"jobGrowth",
+		"rentGrowthAssumption",
+		"population1Mi",
+		"population5Mi",
+		"medianIncome1Mi",
+		"medianIncome5Mi",
+		"medianAge1Mi",
+		"medianAge3Mi",
+		"medianAge5Mi",
+		"incomeGrowth5yr",
+		"jobGrowth5yr",
+		"currentInventory",
+		"underConstruction",
+		"planned24Months",
+		"averageOccupancy",
+		"avgCapRate",
+		"rentPremium",
+		"rentGrowth",
+		"totalIncentiveValue",
+		"impactFees",
+		"landAcqToGroundbreakingDays",
+		"groundbreakingToVerticalStartDays",
+		"verticalStartToFirstOccupancyDays",
+		"firstOccupancyToCompletionDays",
+		"completionToStabilizationDays",
+		"totalProjectDurationDays",
+		"greenSpace",
+		"setbackFront",
+		"setbackSide",
+		"setbackRear",
+		"greenSpaceRatio",
+		"storyHeight",
+		"heightLimit",
+		"actualHeight",
 	];
 	if (numericFields.includes(fieldId)) {
 		return 0;
@@ -392,7 +461,7 @@ function getDefaultValueForBorrowerField(fieldId: string): any {
 	}
 
 	// Check if it's a known numeric field
-	const numericFields = ["ownershipPercentage"];
+	const numericFields = ["ownershipPercentage", "yearFounded", "activeProjects"];
 	if (numericFields.includes(fieldId)) {
 		return 0;
 	}
@@ -401,6 +470,9 @@ function getDefaultValueForBorrowerField(fieldId: string): any {
 	const arrayFields = [
 		"assetClassesExperience",
 		"geographicMarketsExperience",
+		"principalSpecialties",
+		"principalAchievements",
+		"references",
 	];
 	if (arrayFields.includes(fieldId)) {
 		return [];
@@ -624,6 +696,27 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	totalProjectCost: 29807800,
 	capexBudget: 16950000,
 	purchasePrice: 6000000,
+	// Label fields for budget items
+	landAcquisitionLabel: "Land Acquisition",
+	baseConstructionLabel: "Base Construction",
+	contingencyLabel: "Contingency (5%)",
+	constructionFeesLabel: "Construction Fees",
+	aeFeesLabel: "A&E Fees",
+	developerFeeLabel: "Developer Fee",
+	interestReserveLabel: "Interest Reserve",
+	workingCapitalLabel: "Working Capital",
+	opDeficitEscrowLabel: "Operating Deficit Escrow",
+	leaseUpEscrowLabel: "Lease-Up Escrow",
+	ffeLabel: "FF&E",
+	thirdPartyReportsLabel: "Third Party Reports",
+	legalAndOrgLabel: "Legal & Organizational",
+	titleAndRecordingLabel: "Title & Recording",
+	taxesDuringConstructionLabel: "Taxes During Construction",
+	loanFeesLabel: "Loan Fees",
+	relocationCostsLabel: "Relocation Costs",
+	syndicationCostsLabel: "Syndication Costs",
+	enviroRemediationLabel: "Environmental Remediation",
+	pfcStructuringFeeLabel: "PFC Structuring Fee",
 
 	// Sources of Funds & Loan Terms
 	totalCapitalization: 29800000, // Total project capitalization
@@ -634,6 +727,10 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	equityContribution: 39.6, // Same as equityCommittedPercent
 	equityContributionDescription:
 		"$11.8M sponsor equity contribution representing 39.6% of total project cost. Equity fully committed and available at closing.",
+	loanTypeLabel: "Senior Construction Loan",
+	sponsorEquityLabel: "Sponsor Equity",
+	taxCreditEquityLabel: "Tax Credit Equity",
+	gapFinancingLabel: "Gap Financing",
 	loanAmountRequested: 18000000,
 	loanType: "Senior Construction Loan",
 	lender: "TBD - Lender selection in progress",
@@ -856,6 +953,10 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	newMarketsCredits: false,
 	relocationPlan: "N/A",
 	seismicPMLRisk: "2.5% PML",
+	totalIncentiveValue: 8500000, // Estimated total value of tax exemption over 99-year term
+	specialProgramsDescription:
+		"PFC-backed workforce housing program with 50% of units at ≤80% AMI. Opportunity Zone designation provides tax benefits for equity investors. Property tax exemption through PFC structure significantly improves NOI and project economics.",
+	impactFees: 0, // No impact fees - PFC structure exempts from certain fees
 
 	// Timeline & Milestones
 	landAcqClose: "2024-07-12",
@@ -863,10 +964,24 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	stabilization: "2028-03-31",
 	preLeasedSF: 30000,
 	entitlements: "Approved",
+	entitlementsDate: "2024-05-15", // Date entitlements were approved
 	finalPlans: "Pending",
 	permitsIssued: "Issued",
 	verticalStart: "2025-08-01",
-	absorptionProjection: 12,
+	absorptionProjection: 12, // Months to full stabilization
+	landAcqToGroundbreakingDays: 385, // Days from land acquisition to groundbreaking
+	groundbreakingToVerticalStartDays: 0, // Same date
+	verticalStartToFirstOccupancyDays: 806, // Days from vertical start to first occupancy
+	firstOccupancyToCompletionDays: 46, // Days from first occupancy to completion
+	completionToStabilizationDays: 153, // Days from completion to stabilization
+	totalProjectDurationDays: 1390, // Total project duration in days
+	landAcqStatus: "Complete",
+	entitlementsStatus: "Approved",
+	groundbreakingStatus: "Scheduled",
+	verticalStartStatus: "Scheduled",
+	firstOccupancyStatus: "Planned",
+	completionStatus: "Planned",
+	stabilizationStatus: "Planned",
 
 	// Site & Context
 	totalSiteAcreage: 2.5,
@@ -874,6 +989,15 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	allowableFAR: 3.5,
 	farUtilizedPercent: 85.0,
 	densityBonus: true,
+	greenSpace: 25000, // Green space in square feet
+	setbackFront: 25, // Front setback in feet
+	setbackSide: 15, // Side setback in feet
+	setbackRear: 20, // Rear setback in feet
+	greenSpaceRatio: 25.0, // Green space as percentage of site
+	storyHeight: 12, // Average story height in feet
+	heightLimit: 75, // Maximum height limit in feet
+	actualHeight: 72, // Actual building height in feet (6 stories × 12 ft)
+	zoningCompliant: true, // Project is compliant with zoning requirements
 	currentSiteStatus: "Vacant",
 	siteAccess: "Hickory St, Ferris St",
 	proximityShopping: "Farmers Market, Deep Ellum nearby",
@@ -889,6 +1013,8 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	noiseFactors: ["Highway", "Rail"],
 	utilityAvailability: "Available",
 	easements: "Utility easement along northern property line",
+	siteImages: [], // Will be populated from uploaded images
+	architecturalDiagrams: [], // Will be populated from uploaded diagrams
 	// Seeded draw schedule so the Timeline table renders with rows
 	drawSchedule: [
 		{ drawNumber: 1, percentComplete: 10, amount: 2500000 },
