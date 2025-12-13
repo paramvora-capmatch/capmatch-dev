@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { updateCalendarInvites } from '@/services/calendarInviteService';
+import { sendCalendarInvites, cancelCalendarEvent } from '@/services/calendarInviteService';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -231,11 +231,21 @@ export async function PUT(
       };
 
       // Run in background to not block response
-      updateCalendarInvites(
-        user.id,
-        invite,
-        meeting.calendar_event_ids || []
-      ).catch(err => console.error('Background calendar sync failed:', err));
+      // Cancel old calendar events and create new ones
+      (async () => {
+        try {
+          // Cancel old events
+          if (meeting.calendar_event_ids && meeting.calendar_event_ids.length > 0) {
+            for (const eventId of meeting.calendar_event_ids) {
+              await cancelCalendarEvent(user.id, eventId);
+            }
+          }
+          // Create new calendar events with updated details
+          await sendCalendarInvites(user.id, invite);
+        } catch (err: unknown) {
+          console.error('Background calendar sync failed:', err);
+        }
+      })();
     }
 
     return NextResponse.json({ success: true });

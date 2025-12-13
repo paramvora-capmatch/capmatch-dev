@@ -18,6 +18,9 @@ export interface CalendarConnection {
   calendar_list: CalendarInfo[];
   sync_enabled: boolean;
   last_synced_at?: string;
+  watch_channel_id?: string | null;
+  watch_resource_id?: string | null;
+  watch_expiration?: string | null;
   created_at: string;
   updated_at: string;
 }
