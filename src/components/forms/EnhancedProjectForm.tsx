@@ -560,6 +560,10 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 							[uploadedPath]: urlData.signedUrl,
 						}));
 					}
+					
+					// Invalidate cache after successful upload
+					const { invalidateProjectImageCache } = await import("@/lib/imageUtils");
+					invalidateProjectImageCache(projectId, orgId);
 				}
 			}
 		} catch (error) {
@@ -660,6 +664,10 @@ const ProjectMediaUpload: React.FC<ProjectMediaUploadProps> = ({
 				return next;
 			});
 
+			// Invalidate cache after successful deletion
+			const { invalidateProjectImageCache } = await import("@/lib/imageUtils");
+			invalidateProjectImageCache(projectId, orgId);
+			
 			setTimeout(async () => {
 				await loadImages();
 			}, 300);
