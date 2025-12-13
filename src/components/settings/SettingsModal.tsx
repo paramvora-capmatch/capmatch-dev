@@ -55,7 +55,7 @@ export function SettingsModal({
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-[61] w-full max-w-5xl bg-white rounded-2xl shadow-2xl border border-gray-200 flex">
+      <div className="relative z-[61] w-full max-w-5xl h-[70vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex">
         <aside className="w-64 border-r border-gray-100 bg-gray-50 rounded-l-2xl p-4 flex flex-col gap-2">
           <div className="mb-2">
             <p className="text-sm font-semibold text-gray-800">Workspace Settings</p>
@@ -83,7 +83,7 @@ export function SettingsModal({
             </button>
           ))}
         </aside>
-        <section className="flex-1 p-6 max-h-[90vh] overflow-y-auto rounded-r-2xl">
+        <section className="flex-1 p-6 overflow-y-auto rounded-r-2xl">
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{activeTab.label}</h2>
