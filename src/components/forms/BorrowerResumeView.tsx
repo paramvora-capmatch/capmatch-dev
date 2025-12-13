@@ -517,8 +517,12 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 									});
 
 									const hasPrincipals = sectionId === "principals" && Array.isArray(principals) && principals.length > 0;
+									const trackRecord = getFieldValue(resume, "trackRecord");
+									const hasTrackRecord = Array.isArray(trackRecord) && trackRecord.length > 0;
+									const references = getFieldValue(resume, "references");
+									const hasReferences = Array.isArray(references) && references.length > 0;
 
-									if (!hasAnyValue && !hasPrincipals) return null;
+									if (!hasAnyValue && !hasPrincipals && !hasTrackRecord && !hasReferences) return null;
 
 									return (
 										<div key={sectionId}>
@@ -560,6 +564,108 @@ export const BorrowerResumeView: React.FC<BorrowerResumeViewProps> = React.memo(
 																		</div>
 																	))}
 																</div>
+															) : sub.id === "track-record" ? (
+																(() => {
+																	const trackRecord = getFieldValue(resume, "trackRecord") as import("@/lib/project-queries").TrackRecordItem[] | undefined;
+																	if (!Array.isArray(trackRecord) || trackRecord.length === 0) return null;
+																	return (
+																		<div className="overflow-x-auto">
+																			<table className="min-w-full divide-y divide-gray-200 text-sm">
+																				<thead className="bg-gray-50">
+																					<tr>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							Project
+																						</th>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							Year
+																						</th>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							Units
+																						</th>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							IRR
+																						</th>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							Market
+																						</th>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							Type
+																						</th>
+																					</tr>
+																				</thead>
+																				<tbody className="bg-white divide-y divide-gray-100">
+																					{trackRecord.map((item, idx) => (
+																						<tr key={idx} className="hover:bg-gray-50">
+																							<td className="px-3 py-2 text-gray-900">
+																								{item.project || "N/A"}
+																							</td>
+																							<td className="px-3 py-2 text-gray-600">
+																								{item.year || "N/A"}
+																							</td>
+																							<td className="px-3 py-2 text-gray-600">
+																								{item.units || "N/A"}
+																							</td>
+																							<td className="px-3 py-2 text-gray-600">
+																								{item.irr != null ? `${item.irr}%` : "N/A"}
+																							</td>
+																							<td className="px-3 py-2 text-gray-600">
+																								{item.market || "N/A"}
+																							</td>
+																							<td className="px-3 py-2 text-gray-600">
+																								{item.type || "N/A"}
+																							</td>
+																						</tr>
+																					))}
+																				</tbody>
+																			</table>
+																		</div>
+																	);
+																})()
+															) : sub.id === "lender-references" ? (
+																(() => {
+																	const references = getFieldValue(resume, "references") as import("@/lib/project-queries").ReferenceItem[] | undefined;
+																	if (!Array.isArray(references) || references.length === 0) return null;
+																	return (
+																		<div className="overflow-x-auto">
+																			<table className="min-w-full divide-y divide-gray-200 text-sm">
+																				<thead className="bg-gray-50">
+																					<tr>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							Firm
+																						</th>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							Relationship
+																						</th>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							Years
+																						</th>
+																						<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																							Contact
+																						</th>
+																					</tr>
+																				</thead>
+																				<tbody className="bg-white divide-y divide-gray-100">
+																					{references.map((item, idx) => (
+																						<tr key={idx} className="hover:bg-gray-50">
+																							<td className="px-3 py-2 text-gray-900">
+																								{item.firm || "N/A"}
+																							</td>
+																							<td className="px-3 py-2 text-gray-600">
+																								{item.relationship || "N/A"}
+																							</td>
+																							<td className="px-3 py-2 text-gray-600">
+																								{item.years || "N/A"}
+																							</td>
+																							<td className="px-3 py-2 text-gray-600">
+																								{item.contact || "N/A"}
+																							</td>
+																						</tr>
+																					))}
+																				</tbody>
+																			</table>
+																		</div>
+																	);
+																})()
 															) : (
 																<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
 																	{sub.fields.map((fid: string) => {

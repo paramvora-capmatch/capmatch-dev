@@ -71,13 +71,17 @@ export default function SponsorProfilePage() {
         experience: principalData?.yearsCREExperienceRange 
           ? `${principalData.yearsCREExperienceRange} years` 
           : null,
-        education: null, // Not available in borrower resume format
-        specialties: principalData?.assetClassesExperience 
-          ? (Array.isArray(principalData.assetClassesExperience) 
-            ? principalData.assetClassesExperience 
-            : [principalData.assetClassesExperience])
+        education: principalData?.principalEducation ?? principalData?.education ?? null,
+        specialties: principalData?.assetClassesExperience ?? principalData?.principalSpecialties
+          ? (Array.isArray(principalData.assetClassesExperience ?? principalData.principalSpecialties) 
+            ? (principalData.assetClassesExperience ?? principalData.principalSpecialties)
+            : [principalData.assetClassesExperience ?? principalData.principalSpecialties])
           : [],
-        achievements: [], // Not available in borrower resume format
+        achievements: principalData?.principalAchievements ?? principalData?.achievements
+          ? (Array.isArray(principalData.principalAchievements ?? principalData.achievements)
+            ? (principalData.principalAchievements ?? principalData.achievements)
+            : [principalData.principalAchievements ?? principalData.achievements])
+          : [],
         // Include additional fields that might be useful
         email: principalData?.principalEmail ?? null,
         ownershipPercentage: principalData?.ownershipPercentage ?? null,
