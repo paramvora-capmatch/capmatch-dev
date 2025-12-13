@@ -826,6 +826,10 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	downsideEquityMultiple: 1.8,
 	upsideProfitMargin: 38.3, // Calculated: ($41.2M exit - $29.8M cost) / $29.8M = 38.3%
 	downsideProfitMargin: 27.5, // Calculated: ($38.0M exit - $29.8M cost) / $29.8M = 27.5%
+	// Risk levels for returns page
+	riskLevelUpside: "Low",
+	riskLevelBase: "Moderate",
+	riskLevelDownside: "Moderate",
 	riskHigh: [
 		{
 			risk: "Construction cost overruns in current inflationary environment",
@@ -1126,13 +1130,26 @@ const hoqueProjectResume: Record<string, any> = (() => {
 	}
 
 	// Remove any fields not in the schema
+	// But preserve special fields that the OM expects (upside/downside scenario fields)
 	const schemaFieldSet = new Set(SCHEMA_FIELD_IDS);
+	const preserveFields = new Set([
+		"upsideIRR",
+		"downsideIRR",
+		"upsideEquityMultiple",
+		"downsideEquityMultiple",
+		"upsideProfitMargin",
+		"downsideProfitMargin",
+		"riskLevelUpside",
+		"riskLevelBase",
+		"riskLevelDownside",
+	]);
 	for (const key of Object.keys(result)) {
 		if (
 			key !== "_lockedFields" &&
 			key !== "_fieldStates" &&
 			key !== "_metadata" &&
-			!schemaFieldSet.has(key)
+			!schemaFieldSet.has(key) &&
+			!preserveFields.has(key)
 		) {
 			delete result[key];
 		}
@@ -1140,8 +1157,21 @@ const hoqueProjectResume: Record<string, any> = (() => {
 
 	// Lock all form fields so they show as green/locked in the UI.
 	// Lock fields that have non-empty values (including 0 for numeric fields, false for booleans, empty arrays)
+	// Also lock special OM fields (upside/downside scenario fields)
 	const lockedFields: Record<string, boolean> = {};
-	for (const fieldId of SCHEMA_FIELD_IDS) {
+	const fieldsToCheck = [
+		...SCHEMA_FIELD_IDS,
+		"upsideIRR",
+		"downsideIRR",
+		"upsideEquityMultiple",
+		"downsideEquityMultiple",
+		"upsideProfitMargin",
+		"downsideProfitMargin",
+		"riskLevelUpside",
+		"riskLevelBase",
+		"riskLevelDownside",
+	];
+	for (const fieldId of fieldsToCheck) {
 		const value = result[fieldId];
 		if (value !== undefined && value !== null) {
 			// Lock fields that have values
