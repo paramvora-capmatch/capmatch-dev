@@ -1940,6 +1940,23 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
 													{allFieldMetas
 														.filter((field) => {
+															// Exclude special table fields
+															if (
+																field.fieldId === "drawSchedule" ||
+																field.fieldId === "residentialUnitMix" ||
+																field.fieldId === "commercialSpaceMix" ||
+																field.fieldId === "rentComps" ||
+																field.fieldId === "fiveYearCashFlow" ||
+																field.fieldId === "returnsBreakdown" ||
+																field.fieldId === "quarterlyDeliverySchedule" ||
+																field.fieldId === "sensitivityAnalysis" ||
+																field.fieldId === "capitalUseTiming" ||
+																field.fieldId === "riskHigh" ||
+																field.fieldId === "riskMedium" ||
+																field.fieldId === "riskLow"
+															) {
+																return false;
+															}
 															const value =
 																getFieldValue(
 																	project,
