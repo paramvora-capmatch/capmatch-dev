@@ -2898,7 +2898,13 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				fieldId === "drawSchedule" ||
 				fieldId === "rentComps" ||
 				fieldId === "siteImages" ||
-				fieldId === "architecturalDiagrams"
+				fieldId === "architecturalDiagrams" ||
+				// Exclude backend-calculated financial table fields (they're auto-calculated and shown in view)
+				fieldId === "fiveYearCashFlow" ||
+				fieldId === "returnsBreakdown" ||
+				fieldId === "quarterlyDeliverySchedule" ||
+				fieldId === "sensitivityAnalysis" ||
+				fieldId === "capitalUseTiming"
 			) {
 				return null;
 			}
