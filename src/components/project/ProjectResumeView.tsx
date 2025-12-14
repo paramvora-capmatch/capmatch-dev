@@ -1631,16 +1631,23 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																						</tr>
 																					</thead>
 																					<tbody className="bg-white divide-y divide-gray-200">
-																						{Object.entries(timingData).map(([useType, timing]: [string, any]) => (
-																							<tr key={useType}>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{useType.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim()}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{typeof timing === "string" ? timing : String(timing || "N/A")}
-																								</td>
-																							</tr>
-																						))}
+																						{Object.entries(timingData).map(([useType, timing]: [string, any]) => {
+																							// Format use type name: convert camelCase to Title Case
+																							const formattedUseType = useType
+																								.replace(/([A-Z])/g, ' $1')
+																								.replace(/^./, str => str.toUpperCase())
+																								.trim();
+																							return (
+																								<tr key={useType}>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{formattedUseType}
+																									</td>
+																									<td className="px-3 py-2 whitespace-nowrap">
+																										{typeof timing === "string" ? timing : String(timing || "N/A")}
+																									</td>
+																								</tr>
+																							);
+																						})}
 																					</tbody>
 																				</table>
 																			</div>
