@@ -864,18 +864,39 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																			) {
 																				return false;
 																			}
-																			// Special-case: rentComps is rendered as its own table later
-																			if (
-																				field.fieldId ===
-																				"rentComps"
-																			) {
-																				return false;
-																			}
-																			const value =
-																				getFieldValue(
-																					project,
-																					field.fieldId
-																				);
+													// Special-case: rentComps is rendered as its own table later
+													if (
+														field.fieldId ===
+														"rentComps"
+													) {
+														return false;
+													}
+													// Special-case: financial table fields are rendered as tables later
+													if (
+														field.fieldId ===
+															"fiveYearCashFlow" ||
+														field.fieldId ===
+															"returnsBreakdown" ||
+														field.fieldId ===
+															"quarterlyDeliverySchedule" ||
+														field.fieldId ===
+															"sensitivityAnalysis" ||
+														field.fieldId ===
+															"capitalUseTiming" ||
+														field.fieldId ===
+															"riskHigh" ||
+														field.fieldId ===
+															"riskMedium" ||
+														field.fieldId ===
+															"riskLow"
+													) {
+														return false;
+													}
+													const value =
+														getFieldValue(
+															project,
+															field.fieldId
+														);
 																			if (
 																				sectionId ===
 																				"special-considerations"
