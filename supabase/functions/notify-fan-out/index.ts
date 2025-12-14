@@ -83,6 +83,8 @@ serve(async (req) => {
       return await handleMeetingUpdate(supabaseAdmin, event);
     } else if (event.event_type === "meeting_reminder") {
       return await handleMeetingReminder(supabaseAdmin, event);
+    } else if (event.event_type === "resume_incomplete_nudge") {
+      return await handleResumeIncompleteNudge(supabaseAdmin, event);
     } else {
       return jsonResponse({ skipped: true, reason: "unsupported_event_type" });
     }
@@ -634,6 +636,138 @@ async function handleMeetingReminder(
   }
 
   return jsonResponse({ inserted: 1 });
+}
+
+// =============================================================================
+// Handler: Resume Incomplete Nudge
+// =============================================================================
+
+async function handleResumeIncompleteNudge(
+  supabaseAdmin: SupabaseClient,
+  event: DomainEventRow
+) {
+  console.log("[notify-fan-out] Processing resume incomplete nudge event:", {
+    eventId: event.id,
+    projectId: event.project_id,
+    payload: event.payload
+  });
+
+  if (!event.project_id) {
+    console.error("[notify-fan-out] Missing project_id");
+    return jsonResponse({ inserted: 0, reason: "missing_project_id" });
+  }
+
+  const payload = event.payload as any;
+  const resumeType = payload?.resume_type as "project" | "borrower" | undefined;
+  const completionPercent = payload?.completion_percent as number | undefined;
+  const nudgeTier = payload?.nudge_tier as number | undefined;
+  const userId = payload?.user_id as string | undefined;
+
+  if (!resumeType || completionPercent === undefined || !nudgeTier || !userId) {
+    console.error("[notify-fan-out] Missing required payload fields");
+    return jsonResponse({ inserted: 0, reason: "missing_payload_fields" });
+  }
+
+  // Get project name and owner info
+  const { data: project, error: projectError } = await supabaseAdmin
+    .from("projects")
+    .select("owner_org_id")
+    .eq("id", event.project_id)
+    .single();
+
+  if (projectError || !project) {
+    console.error("[notify-fan-out] Error fetching project:", projectError);
+    return jsonResponse({ inserted: 0, reason: "project_not_found" });
+  }
+
+  // Get project name
+  const projectName = await getProjectName(supabaseAdmin, event.project_id);
+
+  // Get all org owners for this project
+  const { data: owners, error: ownersError } = await supabaseAdmin
+    .from("org_members")
+    .select("user_id")
+    .eq("org_id", project.owner_org_id)
+    .eq("role", "owner");
+
+  if (ownersError || !owners || owners.length === 0) {
+    console.error("[notify-fan-out] Error fetching owners:", ownersError);
+    return jsonResponse({ inserted: 0, reason: "no_owners_found" });
+  }
+
+  // Notify all project owners (not just the user who edited)
+  // We'll create notifications for each owner
+
+  // Build notification title and body based on tier
+  const resumeTypeLabel = resumeType === "project" ? "Project" : "Borrower";
+  const title = `Complete your ${resumeTypeLabel} Resume`;
+  
+  let body = `Your ${resumeType.toLowerCase()} resume for **${projectName}** is **${completionPercent}%** complete. Finish it to generate your OM!`;
+
+  // Generate link URL
+  const linkUrl = `/project/workspace/${event.project_id}`;
+
+  let insertedCount = 0;
+
+  // Create notifications for all project owners
+  for (const owner of owners) {
+    const ownerUserId = owner.user_id;
+
+    // Check if notification already exists for this owner/event
+    const { data: existingNotif } = await supabaseAdmin
+      .from("notifications")
+      .select("id")
+      .eq("user_id", ownerUserId)
+      .eq("event_id", event.id)
+      .maybeSingle();
+
+    if (existingNotif) {
+      continue; // Skip if already notified for this event
+    }
+
+    // Also check if a notification with same tier already exists for this owner
+    const { data: existingTierNotif } = await supabaseAdmin
+      .from("notifications")
+      .select("id")
+      .eq("user_id", ownerUserId)
+      .eq("payload->>type", "resume_incomplete_nudge")
+      .eq("payload->>resume_type", resumeType)
+      .eq("payload->>nudge_tier", nudgeTier.toString())
+      .eq("payload->>project_id", event.project_id)
+      .maybeSingle();
+
+    if (existingTierNotif) {
+      continue; // Skip if tier already sent to this owner
+    }
+
+    // Insert notification for this owner
+    const { error: insertError } = await supabaseAdmin
+      .from("notifications")
+      .insert({
+        user_id: ownerUserId,
+        event_id: event.id,
+        title,
+        body,
+        link_url: linkUrl,
+        payload: {
+          type: "resume_incomplete_nudge",
+          resume_type: resumeType,
+          completion_percent: completionPercent,
+          nudge_tier: nudgeTier,
+          project_id: event.project_id,
+          project_name: projectName,
+        },
+      });
+
+    if (insertError) {
+      console.error(`[notify-fan-out] Failed to insert notification for owner ${ownerUserId}:`, insertError);
+    } else {
+      insertedCount++;
+    }
+  }
+
+  console.log(`[notify-fan-out] Created ${insertedCount} resume nudge notification(s) for project owners, tier ${nudgeTier}`);
+  return jsonResponse({ inserted: insertedCount });
 }
 
 // =============================================================================

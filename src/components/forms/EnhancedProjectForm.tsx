@@ -1017,6 +1017,36 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const [unlockedFields, setUnlockedFields] = useState<Set<string>>(
 		new Set()
 	);
+
+	// Debounced field activity tracking
+	const fieldActivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const trackFieldActivity = useCallback(
+		(fieldId: string) => {
+			if (fieldActivityTimeoutRef.current) {
+				clearTimeout(fieldActivityTimeoutRef.current);
+			}
+			fieldActivityTimeoutRef.current = setTimeout(() => {
+				const projectId = existingProject.id;
+				if (!projectId) return;
+				const now = new Date().toISOString();
+				void supabase
+					.rpc("touch_project_workspace_activity", {
+						p_project_id: projectId,
+						p_last_step_id: `project:${fieldId}`,
+						p_last_project_resume_edit_at: now,
+					})
+					.then(({ error }) => {
+						if (error) {
+							console.warn(
+								"[EnhancedProjectForm] Failed to track field activity:",
+								error
+							);
+						}
+					});
+			}, 500);
+		},
+		[existingProject.id]
+	);
 	const [showAutofillNotification, setShowAutofillNotification] =
 		useState(false);
 	const [formSaved, setFormSaved] = useState(false);
@@ -1253,6 +1283,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	// Helper function to update metadata when user inputs data
 	const handleInputChange = useCallback(
 		(fieldId: string, value: any) => {
+			// Track field activity
+			trackFieldActivity(fieldId);
+
 			setFormData((prev) => {
 				const next = { ...prev, [fieldId]: value };
 				return next;
@@ -1303,7 +1336,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				[fieldId]: updatedMeta,
 			}));
 		},
-		[fieldMetadata]
+		[fieldMetadata, trackFieldActivity]
 	);
 
 	// Helper function to perform realtime sanity check on blur
@@ -2235,6 +2268,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				);
 		};
 	}, [hasUnsavedChanges, storageKey]);
+
+	// Cleanup field activity timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (fieldActivityTimeoutRef.current) {
+				clearTimeout(fieldActivityTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	// Warn the user when attempting to close/refresh the tab or navigate away
 	// from the page entirely while there are unsaved changes. Browsers only

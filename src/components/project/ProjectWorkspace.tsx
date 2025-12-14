@@ -225,6 +225,27 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
     router.replace(nextPath);
   }, [pathname, router, searchParams, setBorrowerEditing]);
 
+  // Track workspace activity (last visit + last step from URL query param)
+  useEffect(() => {
+    if (!projectId) return;
+    if (!user?.id) return;
+
+    const step = searchParams?.get("step") ?? null;
+    const now = new Date().toISOString();
+
+    void supabase
+      .rpc("touch_project_workspace_activity", {
+        p_project_id: projectId,
+        p_last_visited_at: now,
+        p_last_step_id: step,
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.warn("[ProjectWorkspace] Failed to touch workspace activity:", error);
+        }
+      });
+  }, [projectId, pathname, user?.id, searchParams?.get("step")]);
+
   // Handle tab=chat, thread, and resourceId query parameters (for notification links)
   useEffect(() => {
     const tab = searchParams?.get("tab");

@@ -57,6 +57,7 @@ import { Principal, PrincipalRole } from "@/types/enhanced-types";
 import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
 import { BorrowerResumeView } from "./BorrowerResumeView";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
+import { supabase } from "@/lib/supabaseClient";
 
 interface BorrowerResumeFormProps {
 	projectId: string;
@@ -322,6 +323,35 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	});
 	const isSavingRef = useRef(false);
 
+	// Debounced field activity tracking
+	const fieldActivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const trackFieldActivity = useCallback(
+		(fieldId: string) => {
+			if (fieldActivityTimeoutRef.current) {
+				clearTimeout(fieldActivityTimeoutRef.current);
+			}
+			fieldActivityTimeoutRef.current = setTimeout(() => {
+				if (!projectId) return;
+				const now = new Date().toISOString();
+				void supabase
+					.rpc("touch_project_workspace_activity", {
+						p_project_id: projectId,
+						p_last_step_id: `borrower:${fieldId}`,
+						p_last_borrower_resume_edit_at: now,
+					})
+					.then(({ error }) => {
+						if (error) {
+							console.warn(
+								"[BorrowerResumeForm] Failed to track field activity:",
+								error
+							);
+						}
+					});
+			}, 500);
+		},
+		[projectId]
+	);
+
 	// Keep fieldMetadata ref in sync for use in effects
 	useEffect(() => {
 		stateRef.current.fieldMetadata = fieldMetadata;
@@ -488,6 +518,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	// Helper function to update metadata when user inputs data
 	const handleInputChange = useCallback(
 		(fieldId: string, value: any) => {
+			// Track field activity
+			trackFieldActivity(fieldId);
+
 			setFormData((prev) => {
 				const next = { ...prev, [fieldId]: value };
 				return next;
@@ -538,7 +571,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				[fieldId]: updatedMeta,
 			}));
 		},
-		[fieldMetadata]
+		[fieldMetadata, trackFieldActivity]
 	);
 
 	// Create debounced sanity checker instance
@@ -887,6 +920,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			projectId,
 		]
 	);
+
+	// Cleanup field activity timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (fieldActivityTimeoutRef.current) {
+				clearTimeout(fieldActivityTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	const handleFormSubmit = useCallback(
 		async (finalData?: Partial<BorrowerResumeContent>) => {
