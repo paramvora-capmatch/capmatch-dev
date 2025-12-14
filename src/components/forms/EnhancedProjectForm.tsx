@@ -3482,6 +3482,15 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												!(
 													sectionId === "timeline" &&
 													fieldId === "drawSchedule"
+												) &&
+												// Filter out financial table fields that are rendered as special tables
+												!(
+													sectionId === "financial-details" &&
+													(fieldId === "fiveYearCashFlow" ||
+														fieldId === "returnsBreakdown" ||
+														fieldId === "quarterlyDeliverySchedule" ||
+														fieldId === "sensitivityAnalysis" ||
+														fieldId === "capitalUseTiming")
 												)
 										)
 										.map((fieldId) =>
