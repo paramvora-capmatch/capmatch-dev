@@ -864,39 +864,39 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																			) {
 																				return false;
 																			}
-													// Special-case: rentComps is rendered as its own table later
-													if (
-														field.fieldId ===
-														"rentComps"
-													) {
-														return false;
-													}
-													// Special-case: financial table fields are rendered as tables later
-													if (
-														field.fieldId ===
-															"fiveYearCashFlow" ||
-														field.fieldId ===
-															"returnsBreakdown" ||
-														field.fieldId ===
-															"quarterlyDeliverySchedule" ||
-														field.fieldId ===
-															"sensitivityAnalysis" ||
-														field.fieldId ===
-															"capitalUseTiming" ||
-														field.fieldId ===
-															"riskHigh" ||
-														field.fieldId ===
-															"riskMedium" ||
-														field.fieldId ===
-															"riskLow"
-													) {
-														return false;
-													}
-													const value =
-														getFieldValue(
-															project,
-															field.fieldId
-														);
+																			// Special-case: rentComps is rendered as its own table later
+																			if (
+																				field.fieldId ===
+																				"rentComps"
+																			) {
+																				return false;
+																			}
+																			// Special-case: financial table fields are rendered as tables later
+																			if (
+																				field.fieldId ===
+																					"fiveYearCashFlow" ||
+																				field.fieldId ===
+																					"returnsBreakdown" ||
+																				field.fieldId ===
+																					"quarterlyDeliverySchedule" ||
+																				field.fieldId ===
+																					"sensitivityAnalysis" ||
+																				field.fieldId ===
+																					"capitalUseTiming" ||
+																				field.fieldId ===
+																					"riskHigh" ||
+																				field.fieldId ===
+																					"riskMedium" ||
+																				field.fieldId ===
+																					"riskLow"
+																			) {
+																				return false;
+																			}
+																			const value =
+																				getFieldValue(
+																					project,
+																					field.fieldId
+																				);
 																			if (
 																				sectionId ===
 																				"special-considerations"
@@ -1378,77 +1378,151 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 														"financial-details" &&
 														(() => {
 															// Five Year Cash Flow Table
-															const fiveYearCashFlow = getFieldValue(project, "fiveYearCashFlow");
-															const cashFlowArray = Array.isArray(fiveYearCashFlow) ? fiveYearCashFlow : null;
-															
+															const fiveYearCashFlow =
+																getFieldValue(
+																	project,
+																	"fiveYearCashFlow"
+																);
+															const cashFlowArray =
+																Array.isArray(
+																	fiveYearCashFlow
+																)
+																	? fiveYearCashFlow
+																	: null;
+
 															// Returns Breakdown Table
-															const returnsBreakdown = getFieldValue(project, "returnsBreakdown");
-															const returnsData = returnsBreakdown && typeof returnsBreakdown === "object" && !Array.isArray(returnsBreakdown)
-																? returnsBreakdown
-																: null;
-															
+															const returnsBreakdown =
+																getFieldValue(
+																	project,
+																	"returnsBreakdown"
+																);
+															const returnsData =
+																returnsBreakdown &&
+																typeof returnsBreakdown ===
+																	"object" &&
+																!Array.isArray(
+																	returnsBreakdown
+																)
+																	? returnsBreakdown
+																	: null;
+
 															// Quarterly Delivery Schedule Table
-															const quarterlySchedule = getFieldValue(project, "quarterlyDeliverySchedule");
-															const quarterlyData = Array.isArray(quarterlySchedule) ? quarterlySchedule : null;
-															
+															const quarterlySchedule =
+																getFieldValue(
+																	project,
+																	"quarterlyDeliverySchedule"
+																);
+															const quarterlyData =
+																Array.isArray(
+																	quarterlySchedule
+																)
+																	? quarterlySchedule
+																	: null;
+
 															// Sensitivity Analysis
-															const sensitivityAnalysis = getFieldValue(project, "sensitivityAnalysis");
-															const sensitivityData = sensitivityAnalysis && typeof sensitivityAnalysis === "object" && !Array.isArray(sensitivityAnalysis)
-																? sensitivityAnalysis
-																: null;
+															const sensitivityAnalysis =
+																getFieldValue(
+																	project,
+																	"sensitivityAnalysis"
+																);
+															const sensitivityData =
+																sensitivityAnalysis &&
+																typeof sensitivityAnalysis ===
+																	"object" &&
+																!Array.isArray(
+																	sensitivityAnalysis
+																)
+																	? sensitivityAnalysis
+																	: null;
 
 															// Capital Use Timing
-															const capitalUseTiming = getFieldValue(project, "capitalUseTiming");
-															const timingData = capitalUseTiming && typeof capitalUseTiming === "object" && !Array.isArray(capitalUseTiming)
-																? capitalUseTiming
-																: null;
+															const capitalUseTiming =
+																getFieldValue(
+																	project,
+																	"capitalUseTiming"
+																);
+															const timingData =
+																capitalUseTiming &&
+																typeof capitalUseTiming ===
+																	"object" &&
+																!Array.isArray(
+																	capitalUseTiming
+																)
+																	? capitalUseTiming
+																	: null;
 
-															if (!cashFlowArray && !returnsData && !quarterlyData && !sensitivityData && !timingData) {
+															if (
+																!cashFlowArray &&
+																!returnsData &&
+																!quarterlyData &&
+																!sensitivityData &&
+																!timingData
+															) {
 																return null;
 															}
 
 															return (
 																<div className="mt-4 space-y-6">
 																	{/* Five Year Cash Flow */}
-																	{cashFlowArray && cashFlowArray.length > 0 && (
-																		<div>
-																			<h4 className="text-sm font-semibold text-gray-600 mb-2">
-																				Five Year Cash Flow
-																			</h4>
-																			<div className="overflow-x-auto">
-																				<table className="min-w-full divide-y divide-gray-200 text-sm">
-																					<thead className="bg-gray-50">
-																						<tr>
-																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																								Year
-																							</th>
-																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																								Cash Flow
-																							</th>
-																						</tr>
-																					</thead>
-																					<tbody className="bg-white divide-y divide-gray-200">
-																						{cashFlowArray.map((value: number, index: number) => (
-																							<tr key={index}>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									Year {index + 1}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatCurrency(value)}
-																								</td>
+																	{cashFlowArray &&
+																		cashFlowArray.length >
+																			0 && (
+																			<div>
+																				<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																					Five
+																					Year
+																					Cash
+																					Flow
+																				</h4>
+																				<div className="overflow-x-auto">
+																					<table className="min-w-full divide-y divide-gray-200 text-sm">
+																						<thead className="bg-gray-50">
+																							<tr>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																									Year
+																								</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																									Cash
+																									Flow
+																								</th>
 																							</tr>
-																						))}
-																					</tbody>
-																				</table>
+																						</thead>
+																						<tbody className="bg-white divide-y divide-gray-200">
+																							{cashFlowArray.map(
+																								(
+																									value: number,
+																									index: number
+																								) => (
+																									<tr
+																										key={
+																											index
+																										}
+																									>
+																										<td className="px-3 py-2 whitespace-nowrap">
+																											Year{" "}
+																											{index +
+																												1}
+																										</td>
+																										<td className="px-3 py-2 whitespace-nowrap">
+																											{formatCurrency(
+																												value
+																											)}
+																										</td>
+																									</tr>
+																								)
+																							)}
+																						</tbody>
+																					</table>
+																				</div>
 																			</div>
-																		</div>
-																	)}
+																		)}
 
 																	{/* Returns Breakdown */}
 																	{returnsData && (
 																		<div>
 																			<h4 className="text-sm font-semibold text-gray-600 mb-2">
-																				Returns Breakdown
+																				Returns
+																				Breakdown
 																			</h4>
 																			<div className="overflow-x-auto">
 																				<table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -1463,35 +1537,62 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																						</tr>
 																					</thead>
 																					<tbody className="bg-white divide-y divide-gray-200">
-																						{returnsData.cashFlow != null && (
+																						{returnsData.cashFlow !=
+																							null && (
 																							<tr>
-																								<td className="px-3 py-2 whitespace-nowrap">Cash Flow</td>
 																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatPercent(returnsData.cashFlow, 1)}
+																									Cash
+																									Flow
+																								</td>
+																								<td className="px-3 py-2 whitespace-nowrap">
+																									{formatPercent(
+																										returnsData.cashFlow,
+																										1
+																									)}
 																								</td>
 																							</tr>
 																						)}
-																						{returnsData.assetAppreciation != null && (
+																						{returnsData.assetAppreciation !=
+																							null && (
 																							<tr>
-																								<td className="px-3 py-2 whitespace-nowrap">Asset Appreciation</td>
 																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatPercent(returnsData.assetAppreciation, 1)}
+																									Asset
+																									Appreciation
+																								</td>
+																								<td className="px-3 py-2 whitespace-nowrap">
+																									{formatPercent(
+																										returnsData.assetAppreciation,
+																										1
+																									)}
 																								</td>
 																							</tr>
 																						)}
-																						{returnsData.taxBenefits != null && (
+																						{returnsData.taxBenefits !=
+																							null && (
 																							<tr>
-																								<td className="px-3 py-2 whitespace-nowrap">Tax Benefits</td>
 																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatPercent(returnsData.taxBenefits, 1)}
+																									Tax
+																									Benefits
+																								</td>
+																								<td className="px-3 py-2 whitespace-nowrap">
+																									{formatPercent(
+																										returnsData.taxBenefits,
+																										1
+																									)}
 																								</td>
 																							</tr>
 																						)}
-																						{returnsData.leverage != null && (
+																						{returnsData.leverage !=
+																							null && (
 																							<tr>
-																								<td className="px-3 py-2 whitespace-nowrap">Leverage</td>
 																								<td className="px-3 py-2 whitespace-nowrap">
-																									{formatPercent(returnsData.leverage, 1)}
+																									Leverage
+																								</td>
+																								<td className="px-3 py-2 whitespace-nowrap">
+																									{formatPercent(
+																										returnsData.leverage,
+																										1
+																									)}
 																								</td>
 																							</tr>
 																						)}
@@ -1502,229 +1603,491 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																	)}
 
 																	{/* Quarterly Delivery Schedule */}
-																	{quarterlyData && quarterlyData.length > 0 && (
-																		<div>
-																			<h4 className="text-sm font-semibold text-gray-600 mb-2">
-																				Quarterly Delivery Schedule
-																			</h4>
-																			<div className="overflow-x-auto">
-																				<table className="min-w-full divide-y divide-gray-200 text-sm">
-																					<thead className="bg-gray-50">
-																						<tr>
-																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																								Quarter
-																							</th>
-																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																								Units
-																							</th>
-																						</tr>
-																					</thead>
-																					<tbody className="bg-white divide-y divide-gray-200">
-																						{quarterlyData.map((item: any, index: number) => (
-																							<tr key={index}>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{item.quarter || `Q${(index % 4) + 1} 202${5 + Math.floor(index / 4)}`}
-																								</td>
-																								<td className="px-3 py-2 whitespace-nowrap">
-																									{typeof item.units === "number" ? item.units.toLocaleString() : item.units || "N/A"}
-																								</td>
+																	{quarterlyData &&
+																		quarterlyData.length >
+																			0 && (
+																			<div>
+																				<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																					Quarterly
+																					Delivery
+																					Schedule
+																				</h4>
+																				<div className="overflow-x-auto">
+																					<table className="min-w-full divide-y divide-gray-200 text-sm">
+																						<thead className="bg-gray-50">
+																							<tr>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																									Quarter
+																								</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																									Units
+																								</th>
 																							</tr>
-																						))}
-																					</tbody>
-																				</table>
+																						</thead>
+																						<tbody className="bg-white divide-y divide-gray-200">
+																							{quarterlyData.map(
+																								(
+																									item: any,
+																									index: number
+																								) => (
+																									<tr
+																										key={
+																											index
+																										}
+																									>
+																										<td className="px-3 py-2 whitespace-nowrap">
+																											{item.quarter ||
+																												`Q${
+																													(index %
+																														4) +
+																													1
+																												} 202${
+																													5 +
+																													Math.floor(
+																														index /
+																															4
+																													)
+																												}`}
+																										</td>
+																										<td className="px-3 py-2 whitespace-nowrap">
+																											{typeof item.units ===
+																											"number"
+																												? item.units.toLocaleString()
+																												: item.units ||
+																												  "N/A"}
+																										</td>
+																									</tr>
+																								)
+																							)}
+																						</tbody>
+																					</table>
+																				</div>
 																			</div>
-																		</div>
-																	)}
+																		)}
 
 																	{/* Sensitivity Analysis */}
 																	{sensitivityData && (
 																		<div>
 																			<h4 className="text-sm font-semibold text-gray-600 mb-2">
-																				Sensitivity Analysis
+																				Sensitivity
+																				Analysis
 																			</h4>
 																			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 																				{/* Rent Growth Impact */}
-																				{sensitivityData.rentGrowthImpact && Array.isArray(sensitivityData.rentGrowthImpact) && sensitivityData.rentGrowthImpact.length > 0 && (
-																					<div>
-																						<h5 className="text-xs font-medium text-gray-700 mb-2">Rent Growth Impact</h5>
-																						<div className="overflow-x-auto">
-																							<table className="min-w-full divide-y divide-gray-200 text-sm">
-																								<thead className="bg-gray-50">
-																									<tr>
-																										<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																											Growth
-																										</th>
-																										<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																											IRR
-																										</th>
-																									</tr>
-																								</thead>
-																								<tbody className="bg-white divide-y divide-gray-200">
-																									{sensitivityData.rentGrowthImpact.map((item: any, index: number) => (
-																										<tr key={index}>
-																											<td className="px-3 py-2 whitespace-nowrap">
-																												{item.growth || "N/A"}
-																											</td>
-																											<td className="px-3 py-2 whitespace-nowrap">
-																												{typeof item.irr === "number" ? formatPercent(item.irr, 1) : item.irr || "N/A"}
-																											</td>
+																				{sensitivityData.rentGrowthImpact &&
+																					Array.isArray(
+																						sensitivityData.rentGrowthImpact
+																					) &&
+																					sensitivityData
+																						.rentGrowthImpact
+																						.length >
+																						0 && (
+																						<div>
+																							<h5 className="text-xs font-medium text-gray-700 mb-2">
+																								Rent
+																								Growth
+																								Impact
+																							</h5>
+																							<div className="overflow-x-auto">
+																								<table className="min-w-full divide-y divide-gray-200 text-sm">
+																									<thead className="bg-gray-50">
+																										<tr>
+																											<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																												Growth
+																											</th>
+																											<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																												IRR
+																											</th>
 																										</tr>
-																									))}
-																								</tbody>
-																							</table>
+																									</thead>
+																									<tbody className="bg-white divide-y divide-gray-200">
+																										{sensitivityData.rentGrowthImpact.map(
+																											(
+																												item: any,
+																												index: number
+																											) => (
+																												<tr
+																													key={
+																														index
+																													}
+																												>
+																													<td className="px-3 py-2 whitespace-nowrap">
+																														{item.growth ||
+																															"N/A"}
+																													</td>
+																													<td className="px-3 py-2 whitespace-nowrap">
+																														{typeof item.irr ===
+																														"number"
+																															? formatPercent(
+																																	item.irr,
+																																	1
+																															  )
+																															: item.irr ||
+																															  "N/A"}
+																													</td>
+																												</tr>
+																											)
+																										)}
+																									</tbody>
+																								</table>
+																							</div>
 																						</div>
-																					</div>
-																				)}
+																					)}
 
 																				{/* Construction Cost Impact */}
-																				{sensitivityData.constructionCostImpact && Array.isArray(sensitivityData.constructionCostImpact) && sensitivityData.constructionCostImpact.length > 0 && (
-																					<div>
-																						<h5 className="text-xs font-medium text-gray-700 mb-2">Construction Cost Impact</h5>
-																						<div className="overflow-x-auto">
-																							<table className="min-w-full divide-y divide-gray-200 text-sm">
-																								<thead className="bg-gray-50">
-																									<tr>
-																										<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																											Cost Change
-																										</th>
-																										<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																											IRR
-																										</th>
-																									</tr>
-																								</thead>
-																								<tbody className="bg-white divide-y divide-gray-200">
-																									{sensitivityData.constructionCostImpact.map((item: any, index: number) => (
-																										<tr key={index}>
-																											<td className="px-3 py-2 whitespace-nowrap">
-																												{item.cost || "N/A"}
-																											</td>
-																											<td className="px-3 py-2 whitespace-nowrap">
-																												{typeof item.irr === "number" ? formatPercent(item.irr, 1) : item.irr || "N/A"}
-																											</td>
+																				{sensitivityData.constructionCostImpact &&
+																					Array.isArray(
+																						sensitivityData.constructionCostImpact
+																					) &&
+																					sensitivityData
+																						.constructionCostImpact
+																						.length >
+																						0 && (
+																						<div>
+																							<h5 className="text-xs font-medium text-gray-700 mb-2">
+																								Construction
+																								Cost
+																								Impact
+																							</h5>
+																							<div className="overflow-x-auto">
+																								<table className="min-w-full divide-y divide-gray-200 text-sm">
+																									<thead className="bg-gray-50">
+																										<tr>
+																											<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																												Cost
+																												Change
+																											</th>
+																											<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																												IRR
+																											</th>
 																										</tr>
-																									))}
-																								</tbody>
-																							</table>
+																									</thead>
+																									<tbody className="bg-white divide-y divide-gray-200">
+																										{sensitivityData.constructionCostImpact.map(
+																											(
+																												item: any,
+																												index: number
+																											) => (
+																												<tr
+																													key={
+																														index
+																													}
+																												>
+																													<td className="px-3 py-2 whitespace-nowrap">
+																														{item.cost ||
+																															"N/A"}
+																													</td>
+																													<td className="px-3 py-2 whitespace-nowrap">
+																														{typeof item.irr ===
+																														"number"
+																															? formatPercent(
+																																	item.irr,
+																																	1
+																															  )
+																															: item.irr ||
+																															  "N/A"}
+																													</td>
+																												</tr>
+																											)
+																										)}
+																									</tbody>
+																								</table>
+																							</div>
 																						</div>
-																					</div>
-																				)}
+																					)}
 																			</div>
 																		</div>
 																	)}
 
 																	{/* Capital Use Timing */}
-																	{timingData && Object.keys(timingData).length > 0 && (
-																		<div>
-																			<h4 className="text-sm font-semibold text-gray-600 mb-2">
-																				Capital Use Timing
-																			</h4>
-																			<div className="overflow-x-auto">
-																				<table className="min-w-full divide-y divide-gray-200 text-sm">
-																					<thead className="bg-gray-50">
-																						<tr>
-																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																								Use Type
-																							</th>
-																							<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-																								Timing
-																							</th>
-																						</tr>
-																					</thead>
-																					<tbody className="bg-white divide-y divide-gray-200">
-																						{Object.entries(timingData).map(([useType, timing]: [string, any]) => {
-																							// Format use type name: convert camelCase to Title Case
-																							const formattedUseType = useType
-																								.replace(/([A-Z])/g, ' $1')
-																								.replace(/^./, str => str.toUpperCase())
-																								.trim();
-																							return (
-																								<tr key={useType}>
-																									<td className="px-3 py-2 whitespace-nowrap">
-																										{formattedUseType}
-																									</td>
-																									<td className="px-3 py-2 whitespace-nowrap">
-																										{typeof timing === "string" ? timing : String(timing || "N/A")}
-																									</td>
-																								</tr>
-																							);
-																						})}
-																					</tbody>
-																				</table>
+																	{timingData &&
+																		Object.keys(
+																			timingData
+																		)
+																			.length >
+																			0 && (
+																			<div>
+																				<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																					Capital
+																					Use
+																					Timing
+																				</h4>
+																				<div className="overflow-x-auto">
+																					<table className="min-w-full divide-y divide-gray-200 text-sm">
+																						<thead className="bg-gray-50">
+																							<tr>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																									Use
+																									Type
+																								</th>
+																								<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																									Timing
+																								</th>
+																							</tr>
+																						</thead>
+																						<tbody className="bg-white divide-y divide-gray-200">
+																							{Object.entries(
+																								timingData
+																							).map(
+																								([
+																									useType,
+																									timing,
+																								]: [
+																									string,
+																									any
+																								]) => {
+																									// Format use type name: convert camelCase to Title Case
+																									const formattedUseType =
+																										useType
+																											.replace(
+																												/([A-Z])/g,
+																												" $1"
+																											)
+																											.replace(
+																												/^./,
+																												(
+																													str
+																												) =>
+																													str.toUpperCase()
+																											)
+																											.trim();
+																									return (
+																										<tr
+																											key={
+																												useType
+																											}
+																										>
+																											<td className="px-3 py-2 whitespace-nowrap">
+																												{
+																													formattedUseType
+																												}
+																											</td>
+																											<td className="px-3 py-2 whitespace-nowrap">
+																												{typeof timing ===
+																												"string"
+																													? timing
+																													: String(
+																															timing ||
+																																"N/A"
+																													  )}
+																											</td>
+																										</tr>
+																									);
+																								}
+																							)}
+																						</tbody>
+																					</table>
+																				</div>
 																			</div>
-																		</div>
-																	)}
+																		)}
 																</div>
 															);
 														})()}
 
 													{/* Risk Analysis Section */}
-													{sectionId === "risk-analysis" &&
+													{sectionId ===
+														"risk-analysis" &&
 														(() => {
-															const riskHigh = getFieldValue(project, "riskHigh");
-															const riskMedium = getFieldValue(project, "riskMedium");
-															const riskLow = getFieldValue(project, "riskLow");
+															const riskHigh =
+																getFieldValue(
+																	project,
+																	"riskHigh"
+																);
+															const riskMedium =
+																getFieldValue(
+																	project,
+																	"riskMedium"
+																);
+															const riskLow =
+																getFieldValue(
+																	project,
+																	"riskLow"
+																);
 
 															// Handle risk items - can be array or text
-															const formatRiskItems = (value: any): string[] => {
-																if (!value) return [];
-																if (Array.isArray(value)) return value.map(item => String(item));
-																if (typeof value === "string") {
-																	// Try to parse as JSON array, or split by comma/newline
-																	try {
-																		const parsed = JSON.parse(value);
-																		if (Array.isArray(parsed)) return parsed.map(item => String(item));
-																	} catch {
-																		// Not JSON, split by comma or newline
-																		return value.split(/[,\n]/).map(item => item.trim()).filter(Boolean);
+															const formatRiskItems =
+																(
+																	value: any
+																): string[] => {
+																	if (!value)
+																		return [];
+																	if (
+																		Array.isArray(
+																			value
+																		)
+																	)
+																		return value.map(
+																			(
+																				item
+																			) =>
+																				String(
+																					item
+																				)
+																		);
+																	if (
+																		typeof value ===
+																		"string"
+																	) {
+																		// Try to parse as JSON array, or split by comma/newline
+																		try {
+																			const parsed =
+																				JSON.parse(
+																					value
+																				);
+																			if (
+																				Array.isArray(
+																					parsed
+																				)
+																			)
+																				return parsed.map(
+																					(
+																						item
+																					) =>
+																						String(
+																							item
+																						)
+																				);
+																		} catch {
+																			// Not JSON, split by comma or newline
+																			return value
+																				.split(
+																					/[,\n]/
+																				)
+																				.map(
+																					(
+																						item
+																					) =>
+																						item.trim()
+																				)
+																				.filter(
+																					Boolean
+																				);
+																		}
 																	}
-																}
-																return [String(value)];
-															};
+																	return [
+																		String(
+																			value
+																		),
+																	];
+																};
 
-															const highRisks = formatRiskItems(riskHigh);
-															const mediumRisks = formatRiskItems(riskMedium);
-															const lowRisks = formatRiskItems(riskLow);
+															const highRisks =
+																formatRiskItems(
+																	riskHigh
+																);
+															const mediumRisks =
+																formatRiskItems(
+																	riskMedium
+																);
+															const lowRisks =
+																formatRiskItems(
+																	riskLow
+																);
 
-															if (highRisks.length === 0 && mediumRisks.length === 0 && lowRisks.length === 0) {
+															if (
+																highRisks.length ===
+																	0 &&
+																mediumRisks.length ===
+																	0 &&
+																lowRisks.length ===
+																	0
+															) {
 																return null;
 															}
 
 															return (
 																<div className="mt-4">
-																	<h4 className="text-sm font-semibold text-gray-600 mb-3">Risk Analysis</h4>
+																	<h4 className="text-sm font-semibold text-gray-600 mb-3">
+																		Risk
+																		Analysis
+																	</h4>
 																	<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 																		{/* High Risk Items */}
-																		{highRisks.length > 0 && (
+																		{highRisks.length >
+																			0 && (
 																			<div>
-																				<h5 className="text-xs font-medium text-red-700 mb-2">High Risk Items</h5>
+																				<h5 className="text-xs font-medium text-red-700 mb-2">
+																					High
+																					Risk
+																					Items
+																				</h5>
 																				<ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-																					{highRisks.map((risk, index) => (
-																						<li key={index}>{risk}</li>
-																					))}
+																					{highRisks.map(
+																						(
+																							risk,
+																							index
+																						) => (
+																							<li
+																								key={
+																									index
+																								}
+																							>
+																								{
+																									risk
+																								}
+																							</li>
+																						)
+																					)}
 																				</ul>
 																			</div>
 																		)}
 
 																		{/* Medium Risk Items */}
-																		{mediumRisks.length > 0 && (
+																		{mediumRisks.length >
+																			0 && (
 																			<div>
-																				<h5 className="text-xs font-medium text-yellow-700 mb-2">Medium Risk Items</h5>
+																				<h5 className="text-xs font-medium text-yellow-700 mb-2">
+																					Medium
+																					Risk
+																					Items
+																				</h5>
 																				<ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-																					{mediumRisks.map((risk, index) => (
-																						<li key={index}>{risk}</li>
-																					))}
+																					{mediumRisks.map(
+																						(
+																							risk,
+																							index
+																						) => (
+																							<li
+																								key={
+																									index
+																								}
+																							>
+																								{
+																									risk
+																								}
+																							</li>
+																						)
+																					)}
 																				</ul>
 																			</div>
 																		)}
 
 																		{/* Low Risk Items */}
-																		{lowRisks.length > 0 && (
+																		{lowRisks.length >
+																			0 && (
 																			<div>
-																				<h5 className="text-xs font-medium text-green-700 mb-2">Low Risk Items</h5>
+																				<h5 className="text-xs font-medium text-green-700 mb-2">
+																					Low
+																					Risk
+																					Items
+																				</h5>
 																				<ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-																					{lowRisks.map((risk, index) => (
-																						<li key={index}>{risk}</li>
-																					))}
+																					{lowRisks.map(
+																						(
+																							risk,
+																							index
+																						) => (
+																							<li
+																								key={
+																									index
+																								}
+																							>
+																								{
+																									risk
+																								}
+																							</li>
+																						)
+																					)}
 																				</ul>
 																			</div>
 																		)}
@@ -1949,18 +2312,30 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 														.filter((field) => {
 															// Exclude special table fields
 															if (
-																field.fieldId === "drawSchedule" ||
-																field.fieldId === "residentialUnitMix" ||
-																field.fieldId === "commercialSpaceMix" ||
-																field.fieldId === "rentComps" ||
-																field.fieldId === "fiveYearCashFlow" ||
-																field.fieldId === "returnsBreakdown" ||
-																field.fieldId === "quarterlyDeliverySchedule" ||
-																field.fieldId === "sensitivityAnalysis" ||
-																field.fieldId === "capitalUseTiming" ||
-																field.fieldId === "riskHigh" ||
-																field.fieldId === "riskMedium" ||
-																field.fieldId === "riskLow"
+																field.fieldId ===
+																	"drawSchedule" ||
+																field.fieldId ===
+																	"residentialUnitMix" ||
+																field.fieldId ===
+																	"commercialSpaceMix" ||
+																field.fieldId ===
+																	"rentComps" ||
+																field.fieldId ===
+																	"fiveYearCashFlow" ||
+																field.fieldId ===
+																	"returnsBreakdown" ||
+																field.fieldId ===
+																	"quarterlyDeliverySchedule" ||
+																field.fieldId ===
+																	"sensitivityAnalysis" ||
+																field.fieldId ===
+																	"capitalUseTiming" ||
+																field.fieldId ===
+																	"riskHigh" ||
+																field.fieldId ===
+																	"riskMedium" ||
+																field.fieldId ===
+																	"riskLow"
 															) {
 																return false;
 															}
