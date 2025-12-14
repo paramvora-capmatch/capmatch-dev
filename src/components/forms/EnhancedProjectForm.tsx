@@ -2899,7 +2899,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				fieldId === "rentComps" ||
 				fieldId === "siteImages" ||
 				fieldId === "architecturalDiagrams"
-				// Note: fiveYearCashFlow, returnsBreakdown, quarterlyDeliverySchedule, 
+				// Note: fiveYearCashFlow, returnsBreakdown, quarterlyDeliverySchedule,
 				// sensitivityAnalysis, capitalUseTiming are now rendered as special tables below
 			) {
 				return null;
@@ -3485,12 +3485,18 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												) &&
 												// Filter out financial table fields that are rendered as special tables
 												!(
-													sectionId === "financial-details" &&
-													(fieldId === "fiveYearCashFlow" ||
-														fieldId === "returnsBreakdown" ||
-														fieldId === "quarterlyDeliverySchedule" ||
-														fieldId === "sensitivityAnalysis" ||
-														fieldId === "capitalUseTiming")
+													sectionId ===
+														"financial-details" &&
+													(fieldId ===
+														"fiveYearCashFlow" ||
+														fieldId ===
+															"returnsBreakdown" ||
+														fieldId ===
+															"quarterlyDeliverySchedule" ||
+														fieldId ===
+															"sensitivityAnalysis" ||
+														fieldId ===
+															"capitalUseTiming")
 												)
 										)
 										.map((fieldId) =>
