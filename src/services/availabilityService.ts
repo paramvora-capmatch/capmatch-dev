@@ -58,6 +58,77 @@ async function fetchGoogleCalendarEvents(
 }
 
 /**
+ * Generate busy slots for non-working hours (Mon-Fri, 9am-5pm)
+ */
+export function getNonWorkingPeriods(start: Date, end: Date, timeZone: string): TimeSlot[] {
+  const busySlots: TimeSlot[] = [];
+  let current = new Date(start);
+  let busyStart: Date | null = null;
+  
+  // Helper to check if time is working hour
+  const isWorkingTime = (date: Date) => {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false,
+        weekday: 'short',
+        timeZone
+      }).formatToParts(date);
+      
+      const hourPart = parts.find(p => p.type === 'hour');
+      const weekdayPart = parts.find(p => p.type === 'weekday');
+      
+      if (!hourPart || !weekdayPart) return true; // Fallback to available
+      
+      const hour = parseInt(hourPart.value);
+      const weekday = weekdayPart.value;
+      
+      // Assume Mon-Fri, 9am-5pm
+      if (weekday === 'Sat' || weekday === 'Sun') return false;
+      return hour >= 9 && hour < 17;
+    } catch (e) {
+      console.warn(`[Availability] Invalid timezone ${timeZone}, falling back to UTC`);
+      // Fallback to UTC
+      const hour = date.getUTCHours();
+      const day = date.getUTCDay();
+      if (day === 0 || day === 6) return false;
+      return hour >= 9 && hour < 17;
+    }
+  };
+
+  // Iterate in 15 minute chunks
+  const step = 15 * 60 * 1000;
+  
+  // Align start to nearest 15 min to avoid tiny slots? 
+  // For now, just start iterating.
+  
+  while (current < end) {
+    if (!isWorkingTime(current)) {
+      if (!busyStart) busyStart = new Date(current);
+    } else {
+      if (busyStart) {
+        busySlots.push({
+          start: busyStart.toISOString(),
+          end: current.toISOString()
+        });
+        busyStart = null;
+      }
+    }
+    current = new Date(current.getTime() + step);
+  }
+  
+  if (busyStart) {
+    busySlots.push({
+      start: busyStart.toISOString(),
+      end: current.toISOString() // Cap at end date
+    });
+  }
+  
+  return busySlots;
+}
+
+/**
  * Fetch all busy periods for a user's calendar connections
  */
 export async function fetchUserBusyPeriods(
@@ -68,6 +139,31 @@ export async function fetchUserBusyPeriods(
   supabase: any
 ): Promise<TimeSlot[]> {
   const busySlots: TimeSlot[] = [];
+  let userTimeZone = 'UTC';
+
+  // Try to find user's timezone from connections
+  for (const connection of connections) {
+    const primary = connection.calendar_list.find(cal => cal.primary);
+    if (primary?.timezone) {
+      userTimeZone = primary.timezone;
+      break;
+    }
+    // Fallback to any timezone
+    const anyTz = connection.calendar_list.find(cal => cal.timezone)?.timezone;
+    if (anyTz && userTimeZone === 'UTC') {
+      userTimeZone = anyTz;
+    }
+  }
+
+  console.log(`[Availability] Using timezone ${userTimeZone} for user ${userId}`);
+
+  // Add non-working hours as busy slots
+  const nonWorkingSlots = getNonWorkingPeriods(
+    new Date(startDate), 
+    new Date(endDate), 
+    userTimeZone
+  );
+  busySlots.push(...nonWorkingSlots);
 
   for (const connection of connections) {
     // Skip if sync is disabled

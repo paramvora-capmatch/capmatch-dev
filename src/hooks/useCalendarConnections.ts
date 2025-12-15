@@ -1,23 +1,27 @@
 // src/hooks/useCalendarConnections.ts
 
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import type {
-  CalendarConnection,
-  CalendarProvider,
-  CalendarSyncStatus
-} from '@/types/calendar-types';
+	CalendarConnection,
+	CalendarProvider,
+	CalendarSyncStatus,
+} from "@/types/calendar-types";
 
 interface UseCalendarConnectionsReturn {
-  connections: CalendarConnection[];
-  isLoading: boolean;
-  error: string | null;
-  syncStatus: Record<string, CalendarSyncStatus>;
-  refresh: () => Promise<void>;
-  disconnectCalendar: (connectionId: string) => Promise<void>;
-  updateSyncSettings: (connectionId: string, syncEnabled: boolean, selectedCalendars?: string[]) => Promise<void>;
-  initiateConnection: (provider: CalendarProvider) => void;
-  isDisconnecting: (connectionId: string) => boolean;
+	connections: CalendarConnection[];
+	isLoading: boolean;
+	error: string | null;
+	syncStatus: Record<string, CalendarSyncStatus>;
+	refresh: () => Promise<void>;
+	disconnectCalendar: (connectionId: string) => Promise<void>;
+	updateSyncSettings: (
+		connectionId: string,
+		syncEnabled: boolean,
+		selectedCalendars?: string[]
+	) => Promise<void>;
+	initiateConnection: (provider: CalendarProvider) => void;
+	isDisconnecting: (connectionId: string) => boolean;
 }
 
 /**
@@ -25,210 +29,279 @@ interface UseCalendarConnectionsReturn {
  * Provides CRUD operations and sync status for calendar integrations
  */
 export function useCalendarConnections(): UseCalendarConnectionsReturn {
-  const [connections, setConnections] = useState<CalendarConnection[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<Record<string, CalendarSyncStatus>>({});
-  const [pendingDisconnects, setPendingDisconnects] = useState<Set<string>>(new Set());
+	const [connections, setConnections] = useState<CalendarConnection[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [syncStatus, setSyncStatus] = useState<
+		Record<string, CalendarSyncStatus>
+	>({});
+	const [pendingDisconnects, setPendingDisconnects] = useState<Set<string>>(
+		new Set()
+	);
 
-  /**
-   * Fetch all calendar connections for the current user
-   */
-  const fetchConnections = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+	/**
+	 * Fetch all calendar connections for the current user
+	 */
+	const fetchConnections = useCallback(async () => {
+		try {
+			setIsLoading(true);
+			setError(null);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+			const {
+				data: { user },
+			} = await supabase.auth.getUser();
+			if (!user) {
+				throw new Error("User not authenticated");
+			}
 
-      const { data, error: fetchError } = await supabase
-        .from('calendar_connections')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+			const { data, error: fetchError } = await supabase
+				.from("calendar_connections")
+				.select("*")
+				.eq("user_id", user.id)
+				.order("created_at", { ascending: false });
 
-      if (fetchError) {
-        throw fetchError;
-      }
+			if (fetchError) {
+				throw fetchError;
+			}
 
-      setConnections(data || []);
+			setConnections(data || []);
 
-      // Initialize sync status for each connection
-      const statusMap: Record<string, CalendarSyncStatus> = {};
-      (data || []).forEach((conn) => {
-        statusMap[conn.id] = {
-          is_syncing: false,
-          last_sync: conn.last_synced_at,
-        };
-      });
-      setSyncStatus(statusMap);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch calendar connections';
-      setError(errorMessage);
-      console.error('Error fetching calendar connections:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+			// Initialize sync status for each connection
+			const statusMap: Record<string, CalendarSyncStatus> = {};
+			(data || []).forEach((conn) => {
+				statusMap[conn.id] = {
+					is_syncing: false,
+					last_sync: conn.last_synced_at,
+				};
+			});
+			setSyncStatus(statusMap);
+		} catch (err) {
+			const errorMessage =
+				err instanceof Error
+					? err.message
+					: "Failed to fetch calendar connections";
+			setError(errorMessage);
+			console.error("Error fetching calendar connections:", err);
+		} finally {
+			setIsLoading(false);
+		}
+	}, []);
 
-  /**
-   * Disconnect a calendar connection
-   */
-  const disconnectCalendar = useCallback(async (connectionId: string) => {
-    try {
-      setPendingDisconnects((prev) => new Set(prev).add(connectionId));
-      setError(null);
+	/**
+	 * Disconnect a calendar connection
+	 */
+	const disconnectCalendar = useCallback(
+		async (connectionId: string) => {
+			try {
+				setPendingDisconnects((prev) =>
+					new Set(prev).add(connectionId)
+				);
+				setError(null);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+				const {
+					data: { user },
+				} = await supabase.auth.getUser();
+				if (!user) {
+					throw new Error("User not authenticated");
+				}
 
-      const { error: deleteError } = await supabase
-        .from('calendar_connections')
-        .delete()
-        .eq('id', connectionId)
-        .eq('user_id', user.id);
+				// Find the connection to stop its watch channel
+				const connection = connections.find(
+					(conn) => conn.id === connectionId
+				);
+				if (connection) {
+					// Stop the calendar watch via API
+					try {
+						const response = await fetch(
+							"/api/calendar/disconnect",
+							{
+								method: "POST",
+								headers: {
+									"Content-Type": "application/json",
+								},
+								body: JSON.stringify({ connectionId }),
+							}
+						);
 
-      if (deleteError) {
-        throw deleteError;
-      }
+						if (!response.ok) {
+							console.error("Failed to stop calendar watch");
+						}
+					} catch (watchError) {
+						console.error(
+							"Error stopping calendar watch:",
+							watchError
+						);
+						// Don't fail the disconnect if watch stop fails
+					}
+				}
 
-      // Remove from local state
-      setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
-      setSyncStatus((prev) => {
-        const newStatus = { ...prev };
-        delete newStatus[connectionId];
-        return newStatus;
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to disconnect calendar';
-      setError(errorMessage);
-      console.error('Error disconnecting calendar:', err);
-      throw err;
-    } finally {
-      setPendingDisconnects((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(connectionId);
-        return newSet;
-      });
-    }
-  }, []);
+				const { error: deleteError } = await supabase
+					.from("calendar_connections")
+					.delete()
+					.eq("id", connectionId)
+					.eq("user_id", user.id);
 
-  /**
-   * Update sync settings for a connection
-   */
-  const updateSyncSettings = useCallback(async (
-    connectionId: string,
-    syncEnabled: boolean,
-    selectedCalendars?: string[]
-  ) => {
-    try {
-      setError(null);
+				if (deleteError) {
+					throw deleteError;
+				}
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+				// Remove from local state
+				setConnections((prev) =>
+					prev.filter((conn) => conn.id !== connectionId)
+				);
+				setSyncStatus((prev) => {
+					const newStatus = { ...prev };
+					delete newStatus[connectionId];
+					return newStatus;
+				});
+			} catch (err) {
+				const errorMessage =
+					err instanceof Error
+						? err.message
+						: "Failed to disconnect calendar";
+				setError(errorMessage);
+				console.error("Error disconnecting calendar:", err);
+				throw err;
+			} finally {
+				setPendingDisconnects((prev) => {
+					const newSet = new Set(prev);
+					newSet.delete(connectionId);
+					return newSet;
+				});
+			}
+		},
+		[connections]
+	);
 
-      const updateData: Partial<CalendarConnection> = {
-        sync_enabled: syncEnabled,
-      };
+	/**
+	 * Update sync settings for a connection
+	 */
+	const updateSyncSettings = useCallback(
+		async (
+			connectionId: string,
+			syncEnabled: boolean,
+			selectedCalendars?: string[]
+		) => {
+			try {
+				setError(null);
 
-      // Update selected calendars in calendar_list if provided
-      if (selectedCalendars !== undefined) {
-        const connection = connections.find((c) => c.id === connectionId);
-        if (connection) {
-          updateData.calendar_list = connection.calendar_list.map((cal) => ({
-            ...cal,
-            selected: selectedCalendars.includes(cal.id),
-          }));
-        }
-      }
+				const {
+					data: { user },
+				} = await supabase.auth.getUser();
+				if (!user) {
+					throw new Error("User not authenticated");
+				}
 
-      const { error: updateError } = await supabase
-        .from('calendar_connections')
-        .update(updateData)
-        .eq('id', connectionId)
-        .eq('user_id', user.id);
+				const updateData: Partial<CalendarConnection> = {
+					sync_enabled: syncEnabled,
+				};
 
-      if (updateError) {
-        throw updateError;
-      }
+				// Update selected calendars in calendar_list if provided
+				if (selectedCalendars !== undefined) {
+					const connection = connections.find(
+						(c) => c.id === connectionId
+					);
+					if (connection) {
+						updateData.calendar_list = connection.calendar_list.map(
+							(cal) => ({
+								...cal,
+								selected: selectedCalendars.includes(cal.id),
+							})
+						);
+					}
+				}
 
-      // Update local state
-      setConnections((prev) =>
-        prev.map((conn) =>
-          conn.id === connectionId
-            ? { ...conn, ...updateData }
-            : conn
-        )
-      );
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update sync settings';
-      setError(errorMessage);
-      console.error('Error updating sync settings:', err);
-      throw err;
-    }
-  }, [connections]);
+				const { error: updateError } = await supabase
+					.from("calendar_connections")
+					.update(updateData)
+					.eq("id", connectionId)
+					.eq("user_id", user.id);
 
-  /**
-   * Initiate OAuth flow for connecting a calendar
-   */
-  const initiateConnection = useCallback((provider: CalendarProvider) => {
-    // Construct OAuth URL based on provider
-    const baseUrl = window.location.origin;
-    const redirectUri = `${baseUrl}/api/calendar/callback`;
+				if (updateError) {
+					throw updateError;
+				}
 
-    let authUrl = '';
+				// Update local state
+				setConnections((prev) =>
+					prev.map((conn) =>
+						conn.id === connectionId
+							? { ...conn, ...updateData }
+							: conn
+					)
+				);
+			} catch (err) {
+				const errorMessage =
+					err instanceof Error
+						? err.message
+						: "Failed to update sync settings";
+				setError(errorMessage);
+				console.error("Error updating sync settings:", err);
+				throw err;
+			}
+		},
+		[connections]
+	);
 
-    switch (provider) {
-      case 'google':
-        authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-          `client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}` +
-          `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-          `&response_type=code` +
-          `&scope=${encodeURIComponent('openid email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events')}` +
-          `&access_type=offline` +
-          `&prompt=consent` +
-          `&state=${provider}`;
-        break;
+	/**
+	 * Initiate OAuth flow for connecting a calendar
+	 */
+	const initiateConnection = useCallback((provider: CalendarProvider) => {
+		// Construct OAuth URL based on provider
+		const baseUrl = window.location.origin;
+		const redirectUri = `${baseUrl}/api/calendar/callback`;
 
-      default:
-        setError(`Unknown calendar provider: ${provider}`);
-        return;
-    }
+		let authUrl = "";
 
-    // Open OAuth flow in popup or redirect
-    window.location.href = authUrl;
-  }, []);
+		switch (provider) {
+			case "google":
+				authUrl =
+					`https://accounts.google.com/o/oauth2/v2/auth?` +
+					`client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}` +
+					`&redirect_uri=${encodeURIComponent(redirectUri)}` +
+					`&response_type=code` +
+					`&scope=${encodeURIComponent(
+						"openid email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events"
+					)}` +
+					`&access_type=offline` +
+					`&prompt=consent` +
+					`&state=${provider}`;
+				break;
 
-  /**
-   * Check if a connection is being disconnected
-   */
-  const isDisconnecting = useCallback((connectionId: string) => {
-    return pendingDisconnects.has(connectionId);
-  }, [pendingDisconnects]);
+			default:
+				setError(`Unknown calendar provider: ${provider}`);
+				return;
+		}
 
-  /**
-   * Initial load
-   */
-  useEffect(() => {
-    fetchConnections();
-  }, [fetchConnections]);
+		// Open OAuth flow in popup or redirect
+		window.location.href = authUrl;
+	}, []);
 
-  return {
-    connections,
-    isLoading,
-    error,
-    syncStatus,
-    refresh: fetchConnections,
-    disconnectCalendar,
-    updateSyncSettings,
-    initiateConnection,
-    isDisconnecting,
-  };
+	/**
+	 * Check if a connection is being disconnected
+	 */
+	const isDisconnecting = useCallback(
+		(connectionId: string) => {
+			return pendingDisconnects.has(connectionId);
+		},
+		[pendingDisconnects]
+	);
+
+	/**
+	 * Initial load
+	 */
+	useEffect(() => {
+		fetchConnections();
+	}, [fetchConnections]);
+
+	return {
+		connections,
+		isLoading,
+		error,
+		syncStatus,
+		refresh: fetchConnections,
+		disconnectCalendar,
+		updateSyncSettings,
+		initiateConnection,
+		isDisconnecting,
+	};
 }

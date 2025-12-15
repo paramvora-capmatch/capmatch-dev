@@ -10,6 +10,7 @@ type DomainEventRow = {
 	project_id: string;
 	resource_id: string | null;
 	thread_id: string | null;
+	meeting_id: string | null;
 	occurred_at: string;
 	payload: Record<string, unknown> | null;
 	projects?: { owner_org_id: string | null } | null;
@@ -61,6 +62,7 @@ serve(async (req) => {
         project_id,
         resource_id,
         thread_id,
+        meeting_id,
         occurred_at,
         payload,
         projects!domain_events_project_id_fkey(owner_org_id),
