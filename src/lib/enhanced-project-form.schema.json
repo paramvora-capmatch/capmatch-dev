@@ -1514,6 +1514,10 @@
 			"label": "Entitlements",
 			"required": true
 		},
+		"entitlementsDate": {
+			"label": "Entitlements Date",
+			"required": false
+		},
 		"permitsIssued": {
 			"label": "Permits Issued",
 			"required": true
