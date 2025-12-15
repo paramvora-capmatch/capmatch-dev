@@ -3377,6 +3377,101 @@ async function seedHoqueProject(): Promise<void> {
 		}
 		const { userId: borrowerId, orgId: borrowerOrgId } = borrowerInfo;
 
+		// Step 2.5: Ensure Jeff Richmond is added as owner (for notifications)
+		console.log(
+			"\n📋 Step 2.5: Ensuring Jeff Richmond is added as owner..."
+		);
+		const jeffEmail = "jeff.richmond@capmatch.com";
+		const jeffPassword = "password";
+		const jeffName = "Jeff Richmond";
+
+		// Check if Jeff already exists
+		const { data: existingJeffProfile } = await supabaseAdmin
+			.from("profiles")
+			.select("id")
+			.eq("email", jeffEmail)
+			.maybeSingle();
+
+		let jeffUserId: string | null = null;
+
+		if (existingJeffProfile) {
+			console.log(
+				`[seed] Jeff Richmond already exists: ${jeffEmail} (${existingJeffProfile.id})`
+			);
+			jeffUserId = existingJeffProfile.id;
+		} else {
+			// Create user via auth
+			const { data: authUser, error: authError } =
+				await supabaseAdmin.auth.admin.createUser({
+					email: jeffEmail,
+					password: jeffPassword,
+					email_confirm: true,
+					user_metadata: { full_name: jeffName },
+				});
+
+			if (authError || !authUser.user) {
+				console.warn(
+					`[seed] Warning: Failed to create Jeff Richmond user:`,
+					authError
+				);
+			} else {
+				jeffUserId = authUser.user.id;
+
+				// Create profile
+				const { error: profileError } = await supabaseAdmin
+					.from("profiles")
+					.insert({
+						id: jeffUserId,
+						email: jeffEmail,
+						full_name: jeffName,
+						app_role: "borrower",
+						active_org_id: borrowerOrgId,
+					});
+
+				if (profileError) {
+					console.warn(
+						`[seed] Warning: Failed to create Jeff Richmond profile:`,
+						profileError
+					);
+					await supabaseAdmin.auth.admin.deleteUser(jeffUserId);
+					jeffUserId = null;
+				} else {
+					console.log(
+						`[seed] ✅ Created Jeff Richmond user: ${jeffEmail} (${jeffUserId})`
+					);
+				}
+			}
+		}
+
+		// Add Jeff to org_members as owner if user was created/found
+		if (jeffUserId) {
+			const { error: memberError } = await supabaseAdmin
+				.from("org_members")
+				.upsert(
+					{
+						org_id: borrowerOrgId,
+						user_id: jeffUserId,
+						role: "owner",
+					},
+					{ onConflict: "org_id,user_id" }
+				);
+
+			if (memberError) {
+				console.warn(
+					`[seed] Warning: Failed to add Jeff Richmond to org:`,
+					memberError
+				);
+			} else {
+				console.log(`[seed] ✅ Added Jeff Richmond as owner to org`);
+			}
+
+			// Ensure active_org_id is set
+			await supabaseAdmin
+				.from("profiles")
+				.update({ active_org_id: borrowerOrgId })
+				.eq("id", jeffUserId);
+		}
+
 		// Step 3: Create SoGood Apartments project
 		console.log("\n📋 Step 3: Creating SoGood Apartments project...");
 		const projectId = await createProject(

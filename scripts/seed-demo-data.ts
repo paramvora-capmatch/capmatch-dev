@@ -1383,6 +1383,18 @@ async function seedDemoData() {
       return;
     }
 
+    // Step 2.6: Create Jeff Richmond as owner
+    console.log('\n📋 Step 2.6: Creating Jeff Richmond as owner...');
+    const jeffEmail = 'jeff.richmond@capmatch.com';
+    const jeffPassword = 'password';
+    const jeffName = 'Jeff Richmond';
+    const jeffId = await createOwnerUser(jeffEmail, jeffPassword, jeffName, borrowerOrgId);
+
+    if (!jeffId) {
+      console.error('[seed] ❌ Failed to create Jeff Richmond as owner');
+      return;
+    }
+
     // Step 3: Delete default project if it exists
     console.log('\n📋 Step 3: Cleaning up default project...');
     await deleteDefaultProject(borrowerOrgId);
