@@ -15,7 +15,8 @@ import { formatFixed, parseNumeric, formatCurrency } from "@/lib/om-utils";
 
 export default function CapitalStackPage() {
 	const params = useParams();
-	const projectId = params?.id as string;
+	// Extract id immediately to avoid read-only property issues in Next.js 15
+	const projectId = typeof params?.id === 'string' ? params.id : '';
 	const { getProject } = useProjects();
 	const project = projectId ? getProject(projectId) : null;
 	const { scenario } = useOMDashboard();
@@ -291,7 +292,7 @@ export default function CapitalStackPage() {
 
 	const primaryDebt = sources[0] ?? null;
 	const formatPercent = (value: number | null | undefined) =>
-		value != null ? `${value}%` : null;
+		value != null ? `${formatFixed(value, 2)}%` : null;
 	const formatMillions = (value: number | null | undefined) =>
 		value != null
 			? `$${formatFixed(value / 1_000_000, 1) ?? "0.0"}M`
@@ -344,7 +345,7 @@ export default function CapitalStackPage() {
 				<MetricCard
 					label="Loan to Cost"
 					value={
-						parseNumeric(content?.loanToCost) ??
+						parseNumeric(content?.ltc) ??
 						primaryDebt?.percentage ??
 						null
 					}

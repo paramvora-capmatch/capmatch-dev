@@ -55,6 +55,7 @@ import {
 	FieldMetadata as BorrowerFieldMeta,
 } from "@/lib/borrower-resume-field-metadata";
 import { Principal, PrincipalRole } from "@/types/enhanced-types";
+import { TrackRecordItem, ReferenceItem } from "@/lib/project-queries";
 import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
 import { BorrowerResumeView } from "./BorrowerResumeView";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
@@ -347,6 +348,35 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	});
 	const isSavingRef = useRef(false);
 
+	// Debounced field activity tracking
+	const fieldActivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const trackFieldActivity = useCallback(
+		(fieldId: string) => {
+			if (fieldActivityTimeoutRef.current) {
+				clearTimeout(fieldActivityTimeoutRef.current);
+			}
+			fieldActivityTimeoutRef.current = setTimeout(() => {
+				if (!projectId) return;
+				const now = new Date().toISOString();
+				void supabase
+					.rpc("touch_project_workspace_activity", {
+						p_project_id: projectId,
+						p_last_step_id: `borrower:${fieldId}`,
+						p_last_borrower_resume_edit_at: now,
+					})
+					.then(({ error }) => {
+						if (error) {
+							console.warn(
+								"[BorrowerResumeForm] Failed to track field activity:",
+								error
+							);
+						}
+					});
+			}, 500);
+		},
+		[projectId]
+	);
+
 	// Keep fieldMetadata ref in sync for use in effects
 	useEffect(() => {
 		stateRef.current.fieldMetadata = fieldMetadata;
@@ -513,6 +543,9 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 	// Helper function to update metadata when user inputs data
 	const handleInputChange = useCallback(
 		(fieldId: string, value: any) => {
+			// Track field activity
+			trackFieldActivity(fieldId);
+
 			setFormData((prev) => {
 				const next = { ...prev, [fieldId]: value };
 				return next;
@@ -563,7 +596,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				[fieldId]: updatedMeta,
 			}));
 		},
-		[fieldMetadata]
+		[fieldMetadata, trackFieldActivity]
 	);
 
 	// Create debounced sanity checker instance
@@ -810,6 +843,32 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		[formData.principals, handleInputChange]
 	);
 
+	// Track Record Management (table-style)
+	const handleRemoveTrackRecord = useCallback(
+		(index: number) => {
+			const currentTrackRecord = Array.isArray(formData.trackRecord)
+				? (formData.trackRecord as import("@/lib/project-queries").TrackRecordItem[])
+				: [];
+			const updatedTrackRecord = [...currentTrackRecord];
+			updatedTrackRecord.splice(index, 1);
+			handleInputChange("trackRecord", updatedTrackRecord);
+		},
+		[formData.trackRecord, handleInputChange]
+	);
+
+	// References Management (table-style)
+	const handleRemoveReference = useCallback(
+		(index: number) => {
+			const currentReferences = Array.isArray(formData.references)
+				? (formData.references as ReferenceItem[])
+				: [];
+			const updatedReferences = [...currentReferences];
+			updatedReferences.splice(index, 1);
+			handleInputChange("references", updatedReferences);
+		},
+		[formData.references, handleInputChange]
+	);
+
 	const hasUnsavedChanges = useCallback((): boolean => {
 		const baseline =
 			lastSavedSnapshotRef.current || initialSnapshotRef.current;
@@ -912,6 +971,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			projectId,
 		]
 	);
+
+	// Cleanup field activity timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (fieldActivityTimeoutRef.current) {
+				clearTimeout(fieldActivityTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	const handleFormSubmit = useCallback(
 		async (finalData?: Partial<BorrowerResumeContent>) => {
@@ -1292,7 +1360,20 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 			const dataType = (meta as any)?.dataType;
 			const isLocked = isFieldLocked(fieldId, sectionId);
 			const disabled = isLocked;
-			const value = (formData as any)[fieldId] ?? "";
+			let value = (formData as any)[fieldId];
+			// For multi-select fields, ensure value is an array
+			if (dataType === "Multi-select") {
+				if (!value) {
+					value = [];
+				} else if (typeof value === "string") {
+					// Convert comma-separated string to array
+					value = value.split(",").map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+				} else if (!Array.isArray(value)) {
+					value = [];
+				}
+			} else {
+				value = value ?? "";
+			}
 			const styling = getFieldStylingClasses(fieldId, sectionId);
 
 			// Check if we have data (value or sources) for coloring button-select
@@ -1303,13 +1384,15 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				metaFromState.sources.length > 0;
 			const hasValue = isValueProvided(value);
 
-			let controlType = fieldControlOverrides[fieldId] || "input";
+			let controlType = fieldControlOverrides[fieldId];
+			// If no override, determine control type from dataType
 			if (!controlType) {
 				if (dataType === "Dropdown") controlType = "select";
-				if (dataType === "Textarea") controlType = "textarea";
-				if (dataType === "Boolean") controlType = "button-select";
-				if (dataType === "Multi-select") controlType = "multi-select";
-				if (dataType === "Percent") controlType = "number";
+				else if (dataType === "Textarea") controlType = "textarea";
+				else if (dataType === "Boolean") controlType = "button-select";
+				else if (dataType === "Multi-select") controlType = "multi-select";
+				else if (dataType === "Percent") controlType = "number";
+				else controlType = "input"; // Default to input if no match
 			}
 
 			const optionsRegistry: Record<string, any[]> = {
@@ -1465,8 +1548,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 									>
 										<MultiSelectPills
 											label=""
-											options={options}
-											selectedValues={value || []}
+											options={Array.isArray(options) ? options : []}
+											selectedValues={Array.isArray(value) ? value : []}
 											onSelect={(v) =>
 												handleInputChange(fieldId, v)
 											}
@@ -1754,10 +1837,14 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 							const subKey = `${sectionId}::${sub.id}`;
 							const isExpanded = expandedSubsections.has(subKey);
 
-							// For principals subsection, we lock based on the principals table field
+							// For principals, track-record, and lender-references subsections, we lock based on the table field
 							const subsectionFields =
 								sub.id === "principal-details"
 									? ["principals"]
+									: sub.id === "track-record"
+									? ["trackRecord"]
+									: sub.id === "lender-references"
+									? ["references"]
 									: (sub.fields as string[]);
 
 							const isLocked =
@@ -1798,6 +1885,92 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 												),
 												isLocked: isFieldLocked(
 													"principals",
+													sectionId
+												),
+												hasWarnings: false,
+											},
+									  ]
+									: sub.id === "track-record"
+									? [
+											{
+												isBlue:
+													Array.isArray(
+														formData.trackRecord
+													) &&
+													(
+														formData.trackRecord as any[]
+													).length > 0 &&
+													!isFieldLocked(
+														"trackRecord",
+														sectionId
+													),
+												isGreen:
+													Array.isArray(
+														formData.trackRecord
+													) &&
+													(
+														formData.trackRecord as any[]
+													).length > 0 &&
+													isFieldLocked(
+														"trackRecord",
+														sectionId
+													),
+												isWhite: isFieldWhite(
+													"trackRecord",
+													sectionId
+												),
+												hasValue:
+													Array.isArray(
+														formData.trackRecord
+													) &&
+													(
+														formData.trackRecord as any[]
+													).length > 0,
+												isLocked: isFieldLocked(
+													"trackRecord",
+													sectionId
+												),
+												hasWarnings: false,
+											},
+									  ]
+									: sub.id === "lender-references"
+									? [
+											{
+												isBlue:
+													Array.isArray(
+														formData.references
+													) &&
+													(
+														formData.references as any[]
+													).length > 0 &&
+													!isFieldLocked(
+														"references",
+														sectionId
+													),
+												isGreen:
+													Array.isArray(
+														formData.references
+													) &&
+													(
+														formData.references as any[]
+													).length > 0 &&
+													isFieldLocked(
+														"references",
+														sectionId
+													),
+												isWhite: isFieldWhite(
+													"references",
+													sectionId
+												),
+												hasValue:
+													Array.isArray(
+														formData.references
+													) &&
+													(
+														formData.references as any[]
+													).length > 0,
+												isLocked: isFieldLocked(
+													"references",
 													sectionId
 												),
 												hasWarnings: false,
@@ -2340,6 +2513,662 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 														</table>
 													</div>
 												</div>
+											) : sub.id === "track-record" ? (
+												<div
+													className={cn(
+														getTableWrapperClasses(
+															"trackRecord"
+														),
+														"p-4"
+													)}
+												>
+													<div className="mb-3 flex items-center justify-between">
+														<div className="flex items-center gap-2">
+															<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+																Track Record
+															</h4>
+															<FieldHelpTooltip
+																fieldId="trackRecord"
+																fieldMetadata={
+																	fieldMetadata[
+																		"trackRecord"
+																	]
+																}
+															/>
+														</div>
+														<div className="flex items-center gap-1">
+															{renderFieldLockButton(
+																"trackRecord",
+																sectionId
+															)}
+														</div>
+													</div>
+													<div className="overflow-x-auto">
+														<table className="min-w-full divide-y divide-gray-200 text-sm">
+															<thead className="bg-gray-50">
+																<tr>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Project
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Year
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Units
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		IRR
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Market
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Type
+																	</th>
+																	<th className="px-3 py-2" />
+																</tr>
+															</thead>
+															<tbody className="bg-white divide-y divide-gray-100">
+																{(() => {
+																	const trackRecord: TrackRecordItem[] =
+																		Array.isArray(
+																			formData.trackRecord
+																		)
+																			? (formData.trackRecord as TrackRecordItem[])
+																			: [];
+																	const isLockedTrackRecord =
+																		isFieldLocked(
+																			"trackRecord",
+																			sectionId
+																		);
+
+																	const handleTrackRecordRowChange =
+																		(
+																			index: number,
+																			key: keyof TrackRecordItem,
+																			raw: any
+																		) => {
+																			const next: TrackRecordItem[] =
+																				[
+																					...trackRecord,
+																				];
+																			const current =
+																				next[
+																					index
+																				] ||
+																				({} as TrackRecordItem);
+																			let value: any =
+																				raw;
+																			if (
+																				(key === "year" ||
+																					key === "units") &&
+																				typeof raw ===
+																					"string"
+																			) {
+																				const num =
+																					raw.trim() ===
+																					""
+																						? undefined
+																						: Number(
+																								raw
+																						  );
+																				value =
+																					Number.isNaN(
+																						num
+																					)
+																						? undefined
+																						: num;
+																			}
+																			if (
+																				key === "irr" &&
+																				typeof raw ===
+																					"string"
+																			) {
+																				const num =
+																					raw.trim() ===
+																					""
+																						? undefined
+																						: Number(
+																								raw
+																						  );
+																				value =
+																					Number.isNaN(
+																						num
+																					)
+																						? undefined
+																						: num;
+																			}
+																			next[
+																				index
+																			] = {
+																				...current,
+																				[key]: value,
+																			};
+																			handleInputChange(
+																				"trackRecord",
+																				next
+																			);
+																		};
+
+																	const handleAddTrackRecordRow =
+																		() => {
+																			const next: TrackRecordItem[] =
+																				[
+																					...trackRecord,
+																				];
+																			next.push(
+																				{
+																					project: "",
+																					year: undefined,
+																					units: undefined,
+																					irr: undefined,
+																					market: "",
+																					type: "",
+																				} as TrackRecordItem
+																			);
+																			handleInputChange(
+																				"trackRecord",
+																				next
+																			);
+																		};
+
+																	const rowsToRender =
+																		trackRecord.length >
+																		0
+																			? trackRecord
+																			: ([] as TrackRecordItem[]);
+
+																	return (
+																		<>
+																			{rowsToRender.map(
+																				(
+																					item,
+																					idx
+																				) => (
+																					<tr
+																						key={
+																							idx
+																						}
+																					>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="text"
+																								className="w-40 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.project ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleTrackRecordRowChange(
+																										idx,
+																										"project",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedTrackRecord
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="number"
+																								className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.year ??
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleTrackRecordRowChange(
+																										idx,
+																										"year",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedTrackRecord
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="number"
+																								className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.units ??
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleTrackRecordRowChange(
+																										idx,
+																										"units",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedTrackRecord
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="number"
+																								step="0.1"
+																								className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.irr ??
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleTrackRecordRowChange(
+																										idx,
+																										"irr",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedTrackRecord
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="text"
+																								className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.market ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleTrackRecordRowChange(
+																										idx,
+																										"market",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedTrackRecord
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="text"
+																								className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.type ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleTrackRecordRowChange(
+																										idx,
+																										"type",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedTrackRecord
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle text-right">
+																							<Button
+																								size="sm"
+																								variant="ghost"
+																								onClick={() =>
+																									handleRemoveTrackRecord(
+																										idx
+																									)
+																								}
+																								disabled={
+																									isLockedTrackRecord
+																								}
+																								className="text-red-500 hover:bg-red-50"
+																							>
+																								<Trash2
+																									size={
+																										16
+																									}
+																								/>
+																							</Button>
+																						</td>
+																					</tr>
+																				)
+																			)}
+																			<tr>
+																				<td
+																					colSpan={
+																						7
+																					}
+																					className="px-3 py-3 text-right"
+																				>
+																					<Button
+																						type="button"
+																						variant="secondary"
+																						size="sm"
+																						onClick={
+																							handleAddTrackRecordRow
+																						}
+																						disabled={
+																							isLockedTrackRecord
+																						}
+																					>
+																						<Plus className="h-4 w-4 mr-1" />
+																						Add
+																						Project
+																					</Button>
+																				</td>
+																			</tr>
+																		</>
+																	);
+																})()}
+															</tbody>
+														</table>
+													</div>
+												</div>
+											) : sub.id === "lender-references" ? (
+												<div
+													className={cn(
+														getTableWrapperClasses(
+															"references"
+														),
+														"p-4"
+													)}
+												>
+													<div className="mb-3 flex items-center justify-between">
+														<div className="flex items-center gap-2">
+															<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+																Lender References
+															</h4>
+															<FieldHelpTooltip
+																fieldId="references"
+																fieldMetadata={
+																	fieldMetadata[
+																		"references"
+																	]
+																}
+															/>
+														</div>
+														<div className="flex items-center gap-1">
+															{renderFieldLockButton(
+																"references",
+																sectionId
+															)}
+														</div>
+													</div>
+													<div className="overflow-x-auto">
+														<table className="min-w-full divide-y divide-gray-200 text-sm">
+															<thead className="bg-gray-50">
+																<tr>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Firm
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Relationship
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Years
+																	</th>
+																	<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																		Contact
+																	</th>
+																	<th className="px-3 py-2" />
+																</tr>
+															</thead>
+															<tbody className="bg-white divide-y divide-gray-100">
+																{(() => {
+																	const references: ReferenceItem[] =
+																		Array.isArray(
+																			formData.references
+																		)
+																			? (formData.references as ReferenceItem[])
+																			: [];
+																	const isLockedReferences =
+																		isFieldLocked(
+																			"references",
+																			sectionId
+																		);
+
+																	const handleReferenceRowChange =
+																		(
+																			index: number,
+																			key: keyof ReferenceItem,
+																			raw: any
+																		) => {
+																			const next: ReferenceItem[] =
+																				[
+																					...references,
+																				];
+																			const current =
+																				next[
+																					index
+																				] ||
+																				({} as ReferenceItem);
+																			next[
+																				index
+																			] = {
+																				...current,
+																				[key]: raw,
+																			};
+																			handleInputChange(
+																				"references",
+																				next
+																			);
+																		};
+
+																	const handleAddReferenceRow =
+																		() => {
+																			const next: ReferenceItem[] =
+																				[
+																					...references,
+																				];
+																			next.push(
+																				{
+																					firm: "",
+																					relationship: "",
+																					years: "",
+																					contact: "",
+																				} as ReferenceItem
+																			);
+																			handleInputChange(
+																				"references",
+																				next
+																			);
+																		};
+
+																	const rowsToRender =
+																		references.length >
+																		0
+																			? references
+																			: ([] as ReferenceItem[]);
+
+																	return (
+																		<>
+																			{rowsToRender.map(
+																				(
+																					item,
+																					idx
+																				) => (
+																					<tr
+																						key={
+																							idx
+																						}
+																					>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="text"
+																								className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.firm ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleReferenceRowChange(
+																										idx,
+																										"firm",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedReferences
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="text"
+																								className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.relationship ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleReferenceRowChange(
+																										idx,
+																										"relationship",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedReferences
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="text"
+																								className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.years ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleReferenceRowChange(
+																										idx,
+																										"years",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedReferences
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle">
+																							<input
+																								type="text"
+																								className="w-64 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									item.contact ||
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleReferenceRowChange(
+																										idx,
+																										"contact",
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLockedReferences
+																								}
+																							/>
+																						</td>
+																						<td className="px-3 py-2 align-middle text-right">
+																							<Button
+																								size="sm"
+																								variant="ghost"
+																								onClick={() =>
+																									handleRemoveReference(
+																										idx
+																									)
+																								}
+																								disabled={
+																									isLockedReferences
+																								}
+																								className="text-red-500 hover:bg-red-50"
+																							>
+																								<Trash2
+																									size={
+																										16
+																									}
+																								/>
+																							</Button>
+																						</td>
+																					</tr>
+																				)
+																			)}
+																			<tr>
+																				<td
+																					colSpan={
+																						5
+																					}
+																					className="px-3 py-3 text-right"
+																				>
+																					<Button
+																						type="button"
+																						variant="secondary"
+																						size="sm"
+																						onClick={
+																							handleAddReferenceRow
+																						}
+																						disabled={
+																							isLockedReferences
+																						}
+																					>
+																						<Plus className="h-4 w-4 mr-1" />
+																						Add
+																						Reference
+																					</Button>
+																				</td>
+																			</tr>
+																		</>
+																	);
+																})()}
+															</tbody>
+														</table>
+													</div>
+												</div>
 											) : (
 												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 													{subsectionFields.map(
@@ -2369,6 +3198,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 		formData,
 		handleInputChange,
 		handleRemovePrincipal,
+		handleRemoveTrackRecord,
+		handleRemoveReference,
 		fieldMetadata,
 		renderFieldLockButton,
 		isFieldLocked,

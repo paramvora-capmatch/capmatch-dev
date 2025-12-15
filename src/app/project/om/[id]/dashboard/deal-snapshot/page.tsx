@@ -13,7 +13,8 @@ import { useOmContent } from '@/hooks/useOmContent';
 
 export default function DealSnapshotPage() {
     const params = useParams();
-    const projectId = params?.id as string;
+    // Extract id immediately to avoid read-only property issues in Next.js 15
+    const projectId = typeof params?.id === 'string' ? params.id : '';
     const { getProject } = useProjects();
     const project = projectId ? getProject(projectId) : null;
     const { scenario } = useOMDashboard();
@@ -42,7 +43,7 @@ export default function DealSnapshotPage() {
     const formatPercent = (value: number | null | undefined) => {
       if (value == null) return null;
       const numValue = typeof value === 'number' ? value : parseFloat(String(value));
-      return !Number.isNaN(numValue) ? `${numValue.toFixed(1)}%` : null;
+      return !Number.isNaN(numValue) ? `${numValue.toFixed(2)}%` : null;
     };
     
     // Build key terms from flat fields

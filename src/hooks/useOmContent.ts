@@ -8,7 +8,8 @@ import { createTrackedContent } from "@/lib/om-queries-client";
 
 export function useOmContent() {
 	const params = useParams();
-	const projectId = params?.id as string;
+	// Extract id immediately to avoid read-only property issues in Next.js 15
+	const projectId = typeof params?.id === 'string' ? params.id : '';
 	// Consume OM data from context instead of fetching independently
 	const { omData, isLoading, error } = useOMDataContext();
 

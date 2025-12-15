@@ -53,13 +53,11 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     }
   }, [isLoading, isAuthenticated, user, roles, router, redirectTo, hasChecked]);
 
-  // While the initial check is pending on first load, show a full-page loader.
+  // While the initial check is pending on first load, render children immediately
+  // (they will show their own skeleton/loading states)
+  // This provides better UX with progressive loading instead of blocking spinners
   if (!hasChecked) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    return <>{children}</>;
   }
 
   // If the user is authorized, render the children.
@@ -69,10 +67,7 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
     return <>{children}</>;
   }
 
-  // If not authorized (and redirection is in progress), render a loader as well.
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-    </div>
-  );
+  // If not authorized (and redirection is in progress), render nothing
+  // The redirect will happen via useEffect
+  return null;
 };

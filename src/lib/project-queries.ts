@@ -169,7 +169,7 @@ export interface ProjectResumeContent {
 	projGrowth202429?: number;
 	medianHHIncome?: number;
 	renterOccupiedPercent?: number;
-	bachelorsDegreePercent?: number;
+	bachelorsShare?: number;
 	absorptionRate?: number;
 	penetrationRate?: number;
 	northStarComp?: string;
@@ -1123,6 +1123,22 @@ export const saveProjectResume = async (
 			throw new Error(
 				`Failed to update project resume: ${error.message}`
 			);
+
+		// Track activity (non-blocking)
+		const now = new Date().toISOString();
+		void supabase
+			.rpc("touch_project_workspace_activity", {
+				p_project_id: projectId,
+				p_last_project_resume_edit_at: now,
+			})
+			.then(({ error: activityError }) => {
+				if (activityError) {
+					console.warn(
+						"[saveProjectResume] Failed to touch workspace activity:",
+						activityError
+					);
+				}
+			});
 	} else {
 		// Create new version - content is always flat now
 		let existingContentFlat: Record<string, any> = {};
@@ -1170,6 +1186,22 @@ export const saveProjectResume = async (
 			.update({ current_version_id: newResume.id })
 			.eq("project_id", projectId)
 			.eq("resource_type", "PROJECT_RESUME");
+
+		// Track activity (non-blocking)
+		const now = new Date().toISOString();
+		void supabase
+			.rpc("touch_project_workspace_activity", {
+				p_project_id: projectId,
+				p_last_project_resume_edit_at: now,
+			})
+			.then(({ error: activityError }) => {
+				if (activityError) {
+					console.warn(
+						"[saveProjectResume] Failed to touch workspace activity:",
+						activityError
+					);
+				}
+			});
 	}
 
 	// Stamp workspace activity for abandonment detection (meaningful edit)
@@ -1789,6 +1821,22 @@ export const saveProjectBorrowerResume = async (
 				.eq("project_id", projectId)
 				.eq("resource_type", "BORROWER_RESUME");
 		}
+
+		// Track activity (non-blocking)
+		const now = new Date().toISOString();
+		void supabase
+			.rpc("touch_project_workspace_activity", {
+				p_project_id: projectId,
+				p_last_borrower_resume_edit_at: now,
+			})
+			.then(({ error: activityError }) => {
+				if (activityError) {
+					console.warn(
+						"[saveProjectBorrowerResume] Failed to touch workspace activity:",
+						activityError
+					);
+				}
+			});
 	}
 
 	// Stamp workspace activity for abandonment detection (meaningful edit)

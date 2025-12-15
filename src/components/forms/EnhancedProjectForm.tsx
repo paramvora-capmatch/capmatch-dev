@@ -2180,7 +2180,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 			const value = (formData as any)[fieldId];
 			const meta = fieldMetadata[fieldId];
 			const hasWarnings = meta?.warnings && meta.warnings.length > 0;
-			const hasValue = isProjectValueProvided(value);
+			// Check if value is provided - handle objects with keys
+			const hasValue = (() => {
+				if (Array.isArray(value)) {
+					return isProjectValueProvided(value);
+				}
+				if (value && typeof value === "object") {
+					// For objects, check if they have any keys
+					return Object.keys(value).length > 0;
+				}
+				return isProjectValueProvided(value);
+			})();
 			// Disable if empty (and not already locked) OR if has warnings
 			// Still allow unlocking even if the value is now empty so users are never stuck with a locked empty field.
 			const isDisabled = (!hasValue && !locked) || hasWarnings;
@@ -2897,8 +2907,20 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				fieldId === "commercialSpaceMix" ||
 				fieldId === "drawSchedule" ||
 				fieldId === "rentComps" ||
+				fieldId === "majorEmployers" ||
+				fieldId === "deliveryByQuarter" ||
 				fieldId === "siteImages" ||
-				fieldId === "architecturalDiagrams"
+				fieldId === "architecturalDiagrams" ||
+				// Financial table fields rendered as special tables below
+				fieldId === "fiveYearCashFlow" ||
+				fieldId === "returnsBreakdown" ||
+				fieldId === "quarterlyDeliverySchedule" ||
+				fieldId === "sensitivityAnalysis" ||
+				fieldId === "capitalUseTiming" ||
+				// Risk fields rendered as editable lists below
+				fieldId === "riskHigh" ||
+				fieldId === "riskMedium" ||
+				fieldId === "riskLow"
 			) {
 				return null;
 			}
@@ -3286,9 +3308,17 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 	const getTableWrapperClasses = useCallback(
 		(fieldId: string, sectionId: string) => {
 			const value = (formData as any)[fieldId];
-			const hasValue = isProjectValueProvided(
-				Array.isArray(value) ? value : value ?? null
-			);
+			// Check if value is provided - handle objects with keys
+			const hasValue = (() => {
+				if (Array.isArray(value)) {
+					return isProjectValueProvided(value);
+				}
+				if (value && typeof value === "object") {
+					// For objects, check if they have any keys
+					return Object.keys(value).length > 0;
+				}
+				return isProjectValueProvided(value ?? null);
+			})();
 			const locked = isFieldLocked(fieldId, sectionId);
 
 			const base =
@@ -3480,14 +3510,59 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 												!(
 													sectionId === "timeline" &&
 													fieldId === "drawSchedule"
+												) &&
+												// Filter out financial table fields that are rendered as special tables
+												!(
+													sectionId ===
+														"financial-details" &&
+													(fieldId ===
+														"fiveYearCashFlow" ||
+														fieldId ===
+															"returnsBreakdown" ||
+														fieldId ===
+															"quarterlyDeliverySchedule" ||
+														fieldId ===
+															"sensitivityAnalysis" ||
+														fieldId ===
+															"capitalUseTiming")
+												) &&
+												// Filter out risk fields that are rendered as editable lists
+												!(
+													sectionId ===
+														"financial-details" &&
+													subsectionId ===
+														"risk-analysis" &&
+													(fieldId === "riskHigh" ||
+														fieldId ===
+															"riskMedium" ||
+														fieldId === "riskLow")
+												) &&
+												// Filter out market context table fields that are rendered as special tables
+												!(
+													sectionId ===
+														"market-context" &&
+													(fieldId ===
+														"majorEmployers" ||
+														fieldId ===
+															"deliveryByQuarter" ||
+														fieldId === "rentComps")
 												)
 										)
-										.map((fieldId) =>
-											renderDynamicField(
-												fieldId,
-												sectionId
-											)
-										)}
+										.map((fieldId, idx) => {
+											const fieldElement =
+												renderDynamicField(
+													fieldId,
+													sectionId
+												);
+											// Wrap in Fragment with unique key to handle fields that appear in multiple subsections
+											return (
+												<React.Fragment
+													key={`${subsectionId}-${fieldId}-${idx}`}
+												>
+													{fieldElement}
+												</React.Fragment>
+											);
+										})}
 								</div>
 
 								{/* Section-specific tables in edit mode */}
@@ -5058,6 +5133,3078 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 														})()}
 													</tbody>
 												</table>
+											</div>
+										</div>
+									)}
+
+								{/* Major Employers Table */}
+								{sectionId === "market-context" &&
+									subsectionId === "demographics-economy" && (
+										<div
+											className={cn(
+												getTableWrapperClasses(
+													"majorEmployers",
+													sectionId
+												),
+												"p-4"
+											)}
+										>
+											<div className="mb-3 flex items-center justify-between">
+												<div className="flex items-center gap-2">
+													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+														Major Employers
+													</h4>
+													{isFieldRequiredFromSchema(
+														"majorEmployers"
+													) && (
+														<span className="text-red-500 ml-1">
+															*
+														</span>
+													)}
+													<FieldHelpTooltip
+														fieldId="majorEmployers"
+														fieldMetadata={
+															fieldMetadata[
+																"majorEmployers"
+															]
+														}
+													/>
+												</div>
+												<div className="flex items-center gap-1">
+													{renderFieldLockButton(
+														"majorEmployers",
+														sectionId
+													)}
+												</div>
+											</div>
+											<div className="overflow-x-auto">
+												<table className="min-w-full divide-y divide-gray-200 text-sm">
+													<thead className="bg-gray-50">
+														<tr>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Name
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Employees
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Growth
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Distance
+															</th>
+														</tr>
+													</thead>
+													<tbody className="bg-white divide-y divide-gray-100">
+														{(() => {
+															const value = (
+																formData as any
+															).majorEmployers;
+															const rows: any[] =
+																Array.isArray(
+																	value
+																)
+																	? value
+																	: [];
+															const isLocked =
+																isFieldLocked(
+																	"majorEmployers",
+																	sectionId
+																);
+
+															const handleRowChange =
+																(
+																	index: number,
+																	key:
+																		| "name"
+																		| "employees"
+																		| "growth"
+																		| "distance",
+																	raw: string
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	const current =
+																		next[
+																			index
+																		] || {};
+																	let v: any =
+																		raw;
+																	if (
+																		key ===
+																		"employees"
+																	) {
+																		v =
+																			raw.trim() ===
+																			""
+																				? undefined
+																				: Number(
+																						raw
+																				  );
+																		if (
+																			Number.isNaN(
+																				v
+																			)
+																		) {
+																			v =
+																				undefined;
+																		}
+																	}
+																	next[
+																		index
+																	] = {
+																		...current,
+																		[key]: v,
+																	};
+																	handleInputChange(
+																		"majorEmployers",
+																		next
+																	);
+																};
+
+															const handleAddRow =
+																() => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.push({
+																		name: "",
+																		employees:
+																			undefined,
+																		growth: "",
+																		distance:
+																			"",
+																	});
+																	handleInputChange(
+																		"majorEmployers",
+																		next
+																	);
+																};
+
+															const handleRemoveRow =
+																(
+																	index: number
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.splice(
+																		index,
+																		1
+																	);
+																	handleInputChange(
+																		"majorEmployers",
+																		next
+																	);
+																};
+
+															const displayRows =
+																rows.length > 0
+																	? rows
+																	: [
+																			{
+																				name: "",
+																				employees:
+																					undefined,
+																				growth: "",
+																				distance:
+																					"",
+																			},
+																	  ];
+
+															return (
+																<>
+																	{displayRows.map(
+																		(
+																			row,
+																			idx
+																		) => (
+																			<tr
+																				key={
+																					idx
+																				}
+																			>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="text"
+																						className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.name ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"name",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="Company Name"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						min={
+																							0
+																						}
+																						className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.employees ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"employees",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="0"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="text"
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.growth ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"growth",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="+6%"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="text"
+																						className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.distance ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"distance",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="0.6 miles"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 text-right align-middle">
+																					<Button
+																						type="button"
+																						variant="ghost"
+																						size="sm"
+																						onClick={() =>
+																							handleRemoveRow(
+																								idx
+																							)
+																						}
+																						disabled={
+																							isLocked ||
+																							rows.length <=
+																								1
+																						}
+																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																					>
+																						Remove
+																					</Button>
+																				</td>
+																			</tr>
+																		)
+																	)}
+																	<tr>
+																		<td
+																			colSpan={
+																				5
+																			}
+																			className="px-3 pt-3"
+																		>
+																			<Button
+																				type="button"
+																				variant="outline"
+																				size="sm"
+																				onClick={
+																					handleAddRow
+																				}
+																				disabled={
+																					isLocked
+																				}
+																				className="text-xs px-3 py-1"
+																			>
+																				Add
+																				Row
+																			</Button>
+																		</td>
+																	</tr>
+																</>
+															);
+														})()}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									)}
+
+								{/* Delivery by Quarter Table */}
+								{sectionId === "market-context" &&
+									subsectionId === "supply-demand" && (
+										<div
+											className={cn(
+												getTableWrapperClasses(
+													"deliveryByQuarter",
+													sectionId
+												),
+												"p-4"
+											)}
+										>
+											<div className="mb-3 flex items-center justify-between">
+												<div className="flex items-center gap-2">
+													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+														Delivery by Quarter
+													</h4>
+													{isFieldRequiredFromSchema(
+														"deliveryByQuarter"
+													) && (
+														<span className="text-red-500 ml-1">
+															*
+														</span>
+													)}
+													<FieldHelpTooltip
+														fieldId="deliveryByQuarter"
+														fieldMetadata={
+															fieldMetadata[
+																"deliveryByQuarter"
+															]
+														}
+													/>
+												</div>
+												<div className="flex items-center gap-1">
+													{renderFieldLockButton(
+														"deliveryByQuarter",
+														sectionId
+													)}
+												</div>
+											</div>
+											<div className="overflow-x-auto">
+												<table className="min-w-full divide-y divide-gray-200 text-sm">
+													<thead className="bg-gray-50">
+														<tr>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Quarter
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Units
+															</th>
+														</tr>
+													</thead>
+													<tbody className="bg-white divide-y divide-gray-100">
+														{(() => {
+															const value = (
+																formData as any
+															).deliveryByQuarter;
+															const rows: any[] =
+																Array.isArray(
+																	value
+																)
+																	? value
+																	: [];
+															const isLocked =
+																isFieldLocked(
+																	"deliveryByQuarter",
+																	sectionId
+																);
+
+															const handleRowChange =
+																(
+																	index: number,
+																	key:
+																		| "quarter"
+																		| "units",
+																	raw: string
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	const current =
+																		next[
+																			index
+																		] || {};
+																	let v: any =
+																		raw;
+																	if (
+																		key ===
+																		"units"
+																	) {
+																		v =
+																			raw.trim() ===
+																			""
+																				? undefined
+																				: Number(
+																						raw
+																				  );
+																		if (
+																			Number.isNaN(
+																				v
+																			)
+																		) {
+																			v =
+																				undefined;
+																		}
+																	}
+																	next[
+																		index
+																	] = {
+																		...current,
+																		[key]: v,
+																	};
+																	handleInputChange(
+																		"deliveryByQuarter",
+																		next
+																	);
+																};
+
+															const handleAddRow =
+																() => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.push({
+																		quarter:
+																			"",
+																		units: undefined,
+																	});
+																	handleInputChange(
+																		"deliveryByQuarter",
+																		next
+																	);
+																};
+
+															const handleRemoveRow =
+																(
+																	index: number
+																) => {
+																	const next =
+																		[
+																			...rows,
+																		];
+																	next.splice(
+																		index,
+																		1
+																	);
+																	handleInputChange(
+																		"deliveryByQuarter",
+																		next
+																	);
+																};
+
+															const displayRows =
+																rows.length > 0
+																	? rows
+																	: [
+																			{
+																				quarter:
+																					"",
+																				units: undefined,
+																			},
+																	  ];
+
+															return (
+																<>
+																	{displayRows.map(
+																		(
+																			row,
+																			idx
+																		) => (
+																			<tr
+																				key={
+																					idx
+																				}
+																			>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="text"
+																						className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.quarter ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"quarter",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="Q4 2024"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 whitespace-nowrap align-middle">
+																					<input
+																						type="number"
+																						min={
+																							0
+																						}
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							row.units ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleRowChange(
+																								idx,
+																								"units",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																						placeholder="0"
+																					/>
+																				</td>
+																				<td className="px-3 py-2 text-right align-middle">
+																					<Button
+																						type="button"
+																						variant="ghost"
+																						size="sm"
+																						onClick={() =>
+																							handleRemoveRow(
+																								idx
+																							)
+																						}
+																						disabled={
+																							isLocked ||
+																							rows.length <=
+																								1
+																						}
+																						className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																					>
+																						Remove
+																					</Button>
+																				</td>
+																			</tr>
+																		)
+																	)}
+																	<tr>
+																		<td
+																			colSpan={
+																				3
+																			}
+																			className="px-3 pt-3"
+																		>
+																			<Button
+																				type="button"
+																				variant="outline"
+																				size="sm"
+																				onClick={
+																					handleAddRow
+																				}
+																				disabled={
+																					isLocked
+																				}
+																				className="text-xs px-3 py-1"
+																			>
+																				Add
+																				Row
+																			</Button>
+																		</td>
+																	</tr>
+																</>
+															);
+														})()}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									)}
+
+								{/* Financial Table Fields - Investment Metrics & Exit */}
+								{sectionId === "financial-details" &&
+									subsectionId ===
+										"investment-metrics-exit" && (
+										<>
+											{/* Five Year Cash Flow */}
+											<div
+												className={cn(
+													getTableWrapperClasses(
+														"fiveYearCashFlow",
+														sectionId
+													),
+													"p-4"
+												)}
+											>
+												<div className="mb-3 flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+															Five Year Cash Flow
+														</h4>
+														{isFieldRequiredFromSchema(
+															"fiveYearCashFlow"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
+														<FieldHelpTooltip
+															fieldId="fiveYearCashFlow"
+															fieldMetadata={
+																fieldMetadata[
+																	"fiveYearCashFlow"
+																]
+															}
+														/>
+													</div>
+													<div className="flex items-center gap-1">
+														{renderFieldLockButton(
+															"fiveYearCashFlow",
+															sectionId
+														)}
+													</div>
+												</div>
+												<div className="overflow-x-auto">
+													<table className="min-w-full divide-y divide-gray-200 text-sm">
+														<thead className="bg-gray-50">
+															<tr>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Year
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Cash Flow
+																</th>
+															</tr>
+														</thead>
+														<tbody className="bg-white divide-y divide-gray-100">
+															{(() => {
+																const value = (
+																	formData as any
+																)
+																	.fiveYearCashFlow;
+																const rows: any[] =
+																	Array.isArray(
+																		value
+																	)
+																		? value
+																		: [];
+																const isLocked =
+																	isFieldLocked(
+																		"fiveYearCashFlow",
+																		sectionId
+																	);
+
+																const handleRowChange =
+																	(
+																		index: number,
+																		raw: string
+																	) => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		const v =
+																			raw.trim() ===
+																			""
+																				? undefined
+																				: Number(
+																						raw
+																				  );
+																		if (
+																			index >=
+																			next.length
+																		) {
+																			next.push(
+																				Number.isNaN(
+																					v
+																				)
+																					? undefined
+																					: v
+																			);
+																		} else {
+																			next[
+																				index
+																			] =
+																				Number.isNaN(
+																					v
+																				)
+																					? undefined
+																					: v;
+																		}
+																		handleInputChange(
+																			"fiveYearCashFlow",
+																			next
+																		);
+																	};
+
+																const handleAddRow =
+																	() => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		next.push(
+																			undefined
+																		);
+																		handleInputChange(
+																			"fiveYearCashFlow",
+																			next
+																		);
+																	};
+
+																const handleRemoveRow =
+																	(
+																		index: number
+																	) => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		next.splice(
+																			index,
+																			1
+																		);
+																		handleInputChange(
+																			"fiveYearCashFlow",
+																			next
+																		);
+																	};
+
+																const displayRows =
+																	rows.length >
+																	0
+																		? rows
+																		: [
+																				undefined,
+																		  ];
+
+																return (
+																	<>
+																		{displayRows.map(
+																			(
+																				row,
+																				idx
+																			) => (
+																				<tr
+																					key={
+																						idx
+																					}
+																				>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						Year{" "}
+																						{idx +
+																							1}
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<div className="flex items-center gap-1">
+																							<span className="text-gray-500">
+																								$
+																							</span>
+																							<input
+																								type="number"
+																								min={
+																									0
+																								}
+																								className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									row ??
+																									""
+																								}
+																								onChange={(
+																									e
+																								) =>
+																									handleRowChange(
+																										idx,
+																										e
+																											.target
+																											.value
+																									)
+																								}
+																								disabled={
+																									isLocked
+																								}
+																							/>
+																						</div>
+																					</td>
+																					<td className="px-3 py-2 text-right align-middle">
+																						<Button
+																							type="button"
+																							variant="ghost"
+																							size="sm"
+																							onClick={() =>
+																								handleRemoveRow(
+																									idx
+																								)
+																							}
+																							disabled={
+																								isLocked ||
+																								rows.length <=
+																									1
+																							}
+																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																						>
+																							Remove
+																						</Button>
+																					</td>
+																				</tr>
+																			)
+																		)}
+																		<tr>
+																			<td
+																				colSpan={
+																					3
+																				}
+																				className="px-3 pt-3"
+																			>
+																				<Button
+																					type="button"
+																					variant="outline"
+																					size="sm"
+																					onClick={
+																						handleAddRow
+																					}
+																					disabled={
+																						isLocked
+																					}
+																					className="text-xs px-3 py-1"
+																				>
+																					Add
+																					Year
+																				</Button>
+																			</td>
+																		</tr>
+																	</>
+																);
+															})()}
+														</tbody>
+													</table>
+												</div>
+											</div>
+
+											{/* Returns Breakdown */}
+											<div
+												className={cn(
+													getTableWrapperClasses(
+														"returnsBreakdown",
+														sectionId
+													),
+													"p-4"
+												)}
+											>
+												<div className="mb-3 flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+															Returns Breakdown
+														</h4>
+														{isFieldRequiredFromSchema(
+															"returnsBreakdown"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
+														<FieldHelpTooltip
+															fieldId="returnsBreakdown"
+															fieldMetadata={
+																fieldMetadata[
+																	"returnsBreakdown"
+																]
+															}
+														/>
+													</div>
+													<div className="flex items-center gap-1">
+														{renderFieldLockButton(
+															"returnsBreakdown",
+															sectionId
+														)}
+													</div>
+												</div>
+												<div className="overflow-x-auto">
+													<table className="min-w-full divide-y divide-gray-200 text-sm">
+														<thead className="bg-gray-50">
+															<tr>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Component
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Percentage
+																</th>
+															</tr>
+														</thead>
+														<tbody className="bg-white divide-y divide-gray-100">
+															{(() => {
+																const value = (
+																	formData as any
+																)
+																	.returnsBreakdown;
+																const data =
+																	value &&
+																	typeof value ===
+																		"object" &&
+																	!Array.isArray(
+																		value
+																	)
+																		? value
+																		: {};
+																const isLocked =
+																	isFieldLocked(
+																		"returnsBreakdown",
+																		sectionId
+																	);
+
+																const handleChange =
+																	(
+																		key: string,
+																		raw: string
+																	) => {
+																		const v =
+																			raw.trim() ===
+																			""
+																				? undefined
+																				: Number(
+																						raw
+																				  );
+																		const updated =
+																			{
+																				...data,
+																				[key]: Number.isNaN(
+																					v
+																				)
+																					? undefined
+																					: v,
+																			};
+																		handleInputChange(
+																			"returnsBreakdown",
+																			updated
+																		);
+																	};
+
+																return (
+																	<>
+																		<tr>
+																			<td className="px-3 py-2 whitespace-nowrap align-middle">
+																				Cash
+																				Flow
+																			</td>
+																			<td className="px-3 py-2 whitespace-nowrap align-middle">
+																				<div className="flex items-center gap-1">
+																					<input
+																						type="number"
+																						min={
+																							0
+																						}
+																						max={
+																							100
+																						}
+																						step="0.1"
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							data.cashFlow ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleChange(
+																								"cashFlow",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																					<span className="text-gray-500">
+																						%
+																					</span>
+																				</div>
+																			</td>
+																		</tr>
+																		<tr>
+																			<td className="px-3 py-2 whitespace-nowrap align-middle">
+																				Asset
+																				Appreciation
+																			</td>
+																			<td className="px-3 py-2 whitespace-nowrap align-middle">
+																				<div className="flex items-center gap-1">
+																					<input
+																						type="number"
+																						min={
+																							0
+																						}
+																						max={
+																							100
+																						}
+																						step="0.1"
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							data.assetAppreciation ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleChange(
+																								"assetAppreciation",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																					<span className="text-gray-500">
+																						%
+																					</span>
+																				</div>
+																			</td>
+																		</tr>
+																		<tr>
+																			<td className="px-3 py-2 whitespace-nowrap align-middle">
+																				Tax
+																				Benefits
+																			</td>
+																			<td className="px-3 py-2 whitespace-nowrap align-middle">
+																				<div className="flex items-center gap-1">
+																					<input
+																						type="number"
+																						min={
+																							0
+																						}
+																						max={
+																							100
+																						}
+																						step="0.1"
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							data.taxBenefits ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleChange(
+																								"taxBenefits",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																					<span className="text-gray-500">
+																						%
+																					</span>
+																				</div>
+																			</td>
+																		</tr>
+																		<tr>
+																			<td className="px-3 py-2 whitespace-nowrap align-middle">
+																				Leverage
+																			</td>
+																			<td className="px-3 py-2 whitespace-nowrap align-middle">
+																				<div className="flex items-center gap-1">
+																					<input
+																						type="number"
+																						min={
+																							0
+																						}
+																						max={
+																							100
+																						}
+																						step="0.1"
+																						className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																						value={
+																							data.leverage ??
+																							""
+																						}
+																						onChange={(
+																							e
+																						) =>
+																							handleChange(
+																								"leverage",
+																								e
+																									.target
+																									.value
+																							)
+																						}
+																						disabled={
+																							isLocked
+																						}
+																					/>
+																					<span className="text-gray-500">
+																						%
+																					</span>
+																				</div>
+																			</td>
+																		</tr>
+																	</>
+																);
+															})()}
+														</tbody>
+													</table>
+												</div>
+											</div>
+
+											{/* Quarterly Delivery Schedule */}
+											<div
+												className={cn(
+													getTableWrapperClasses(
+														"quarterlyDeliverySchedule",
+														sectionId
+													),
+													"p-4"
+												)}
+											>
+												<div className="mb-3 flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+															Quarterly Delivery
+															Schedule
+														</h4>
+														{isFieldRequiredFromSchema(
+															"quarterlyDeliverySchedule"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
+														<FieldHelpTooltip
+															fieldId="quarterlyDeliverySchedule"
+															fieldMetadata={
+																fieldMetadata[
+																	"quarterlyDeliverySchedule"
+																]
+															}
+														/>
+													</div>
+													<div className="flex items-center gap-1">
+														{renderFieldLockButton(
+															"quarterlyDeliverySchedule",
+															sectionId
+														)}
+													</div>
+												</div>
+												<div className="overflow-x-auto">
+													<table className="min-w-full divide-y divide-gray-200 text-sm">
+														<thead className="bg-gray-50">
+															<tr>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Quarter
+																</th>
+																<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																	Units
+																</th>
+															</tr>
+														</thead>
+														<tbody className="bg-white divide-y divide-gray-100">
+															{(() => {
+																const value = (
+																	formData as any
+																)
+																	.quarterlyDeliverySchedule;
+																const rows: any[] =
+																	Array.isArray(
+																		value
+																	)
+																		? value
+																		: [];
+																const isLocked =
+																	isFieldLocked(
+																		"quarterlyDeliverySchedule",
+																		sectionId
+																	);
+
+																const handleRowChange =
+																	(
+																		index: number,
+																		key:
+																			| "quarter"
+																			| "units",
+																		raw: string
+																	) => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		const current =
+																			next[
+																				index
+																			] ||
+																			{};
+																		let v: any =
+																			raw;
+																		if (
+																			key ===
+																			"units"
+																		) {
+																			v =
+																				raw.trim() ===
+																				""
+																					? undefined
+																					: Number(
+																							raw
+																					  );
+																			if (
+																				Number.isNaN(
+																					v
+																				)
+																			) {
+																				v =
+																					undefined;
+																			}
+																		}
+																		next[
+																			index
+																		] = {
+																			...current,
+																			[key]: v,
+																		};
+																		handleInputChange(
+																			"quarterlyDeliverySchedule",
+																			next
+																		);
+																	};
+
+																const handleAddRow =
+																	() => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		next.push(
+																			{
+																				quarter:
+																					"",
+																				units: undefined,
+																			}
+																		);
+																		handleInputChange(
+																			"quarterlyDeliverySchedule",
+																			next
+																		);
+																	};
+
+																const handleRemoveRow =
+																	(
+																		index: number
+																	) => {
+																		const next =
+																			[
+																				...rows,
+																			];
+																		next.splice(
+																			index,
+																			1
+																		);
+																		handleInputChange(
+																			"quarterlyDeliverySchedule",
+																			next
+																		);
+																	};
+
+																const displayRows =
+																	rows.length >
+																	0
+																		? rows
+																		: [
+																				{
+																					quarter:
+																						"",
+																					units: undefined,
+																				},
+																		  ];
+
+																return (
+																	<>
+																		{displayRows.map(
+																			(
+																				row,
+																				idx
+																			) => (
+																				<tr
+																					key={
+																						idx
+																					}
+																				>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="text"
+																							className="w-32 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.quarter ??
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"quarter",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																							placeholder="Q1 2025"
+																						/>
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="number"
+																							min={
+																								0
+																							}
+																							className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.units ??
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleRowChange(
+																									idx,
+																									"units",
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked
+																							}
+																						/>
+																					</td>
+																					<td className="px-3 py-2 text-right align-middle">
+																						<Button
+																							type="button"
+																							variant="ghost"
+																							size="sm"
+																							onClick={() =>
+																								handleRemoveRow(
+																									idx
+																								)
+																							}
+																							disabled={
+																								isLocked ||
+																								rows.length <=
+																									1
+																							}
+																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																						>
+																							Remove
+																						</Button>
+																					</td>
+																				</tr>
+																			)
+																		)}
+																		<tr>
+																			<td
+																				colSpan={
+																					3
+																				}
+																				className="px-3 pt-3"
+																			>
+																				<Button
+																					type="button"
+																					variant="outline"
+																					size="sm"
+																					onClick={
+																						handleAddRow
+																					}
+																					disabled={
+																						isLocked
+																					}
+																					className="text-xs px-3 py-1"
+																				>
+																					Add
+																					Row
+																				</Button>
+																			</td>
+																		</tr>
+																	</>
+																);
+															})()}
+														</tbody>
+													</table>
+												</div>
+											</div>
+
+											{/* Sensitivity Analysis */}
+											<div
+												className={cn(
+													getTableWrapperClasses(
+														"sensitivityAnalysis",
+														sectionId
+													),
+													"p-4"
+												)}
+											>
+												<div className="mb-3 flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+															Sensitivity Analysis
+														</h4>
+														{isFieldRequiredFromSchema(
+															"sensitivityAnalysis"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
+														<FieldHelpTooltip
+															fieldId="sensitivityAnalysis"
+															fieldMetadata={
+																fieldMetadata[
+																	"sensitivityAnalysis"
+																]
+															}
+														/>
+													</div>
+													<div className="flex items-center gap-1">
+														{renderFieldLockButton(
+															"sensitivityAnalysis",
+															sectionId
+														)}
+													</div>
+												</div>
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+													{/* Rent Growth Impact */}
+													<div>
+														<h5 className="text-xs font-medium text-gray-700 mb-2">
+															Rent Growth Impact
+														</h5>
+														<div className="overflow-x-auto">
+															<table className="min-w-full divide-y divide-gray-200 text-sm">
+																<thead className="bg-gray-50">
+																	<tr>
+																		<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																			Growth
+																		</th>
+																		<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																			IRR
+																		</th>
+																	</tr>
+																</thead>
+																<tbody className="bg-white divide-y divide-gray-100">
+																	{(() => {
+																		const value =
+																			(
+																				formData as any
+																			)
+																				.sensitivityAnalysis;
+																		const data =
+																			value &&
+																			typeof value ===
+																				"object" &&
+																			!Array.isArray(
+																				value
+																			)
+																				? value
+																				: {};
+																		const rows: any[] =
+																			Array.isArray(
+																				data.rentGrowthImpact
+																			)
+																				? data.rentGrowthImpact
+																				: [];
+																		const isLocked =
+																			isFieldLocked(
+																				"sensitivityAnalysis",
+																				sectionId
+																			);
+
+																		const handleRowChange =
+																			(
+																				index: number,
+																				key:
+																					| "growth"
+																					| "irr",
+																				raw: string
+																			) => {
+																				const next =
+																					[
+																						...rows,
+																					];
+																				const current =
+																					next[
+																						index
+																					] ||
+																					{};
+																				let v: any =
+																					raw;
+																				if (
+																					key ===
+																					"irr"
+																				) {
+																					v =
+																						raw.trim() ===
+																						""
+																							? undefined
+																							: Number(
+																									raw
+																							  );
+																					if (
+																						Number.isNaN(
+																							v
+																						)
+																					) {
+																						v =
+																							undefined;
+																					}
+																				}
+																				next[
+																					index
+																				] =
+																					{
+																						...current,
+																						[key]: v,
+																					};
+																				handleInputChange(
+																					"sensitivityAnalysis",
+																					{
+																						...data,
+																						rentGrowthImpact:
+																							next,
+																					}
+																				);
+																			};
+
+																		const handleAddRow =
+																			() => {
+																				const next =
+																					[
+																						...rows,
+																					];
+																				next.push(
+																					{
+																						growth: "",
+																						irr: undefined,
+																					}
+																				);
+																				handleInputChange(
+																					"sensitivityAnalysis",
+																					{
+																						...data,
+																						rentGrowthImpact:
+																							next,
+																					}
+																				);
+																			};
+
+																		const handleRemoveRow =
+																			(
+																				index: number
+																			) => {
+																				const next =
+																					[
+																						...rows,
+																					];
+																				next.splice(
+																					index,
+																					1
+																				);
+																				handleInputChange(
+																					"sensitivityAnalysis",
+																					{
+																						...data,
+																						rentGrowthImpact:
+																							next,
+																					}
+																				);
+																			};
+
+																		const displayRows =
+																			rows.length >
+																			0
+																				? rows
+																				: [
+																						{
+																							growth: "",
+																							irr: undefined,
+																						},
+																				  ];
+
+																		return (
+																			<>
+																				{displayRows.map(
+																					(
+																						row,
+																						idx
+																					) => (
+																						<tr
+																							key={
+																								idx
+																							}
+																						>
+																							<td className="px-3 py-2 whitespace-nowrap align-middle">
+																								<input
+																									type="text"
+																									className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																									value={
+																										row.growth ??
+																										""
+																									}
+																									onChange={(
+																										e
+																									) =>
+																										handleRowChange(
+																											idx,
+																											"growth",
+																											e
+																												.target
+																												.value
+																										)
+																									}
+																									disabled={
+																										isLocked
+																									}
+																									placeholder="0%"
+																								/>
+																							</td>
+																							<td className="px-3 py-2 whitespace-nowrap align-middle">
+																								<div className="flex items-center gap-1">
+																									<input
+																										type="number"
+																										step="0.1"
+																										className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																										value={
+																											row.irr ??
+																											""
+																										}
+																										onChange={(
+																											e
+																										) =>
+																											handleRowChange(
+																												idx,
+																												"irr",
+																												e
+																													.target
+																													.value
+																											)
+																										}
+																										disabled={
+																											isLocked
+																										}
+																									/>
+																									<span className="text-gray-500">
+																										%
+																									</span>
+																								</div>
+																							</td>
+																							<td className="px-3 py-2 text-right align-middle">
+																								<Button
+																									type="button"
+																									variant="ghost"
+																									size="sm"
+																									onClick={() =>
+																										handleRemoveRow(
+																											idx
+																										)
+																									}
+																									disabled={
+																										isLocked ||
+																										rows.length <=
+																											1
+																									}
+																									className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																								>
+																									Remove
+																								</Button>
+																							</td>
+																						</tr>
+																					)
+																				)}
+																				<tr>
+																					<td
+																						colSpan={
+																							3
+																						}
+																						className="px-3 pt-3"
+																					>
+																						<Button
+																							type="button"
+																							variant="outline"
+																							size="sm"
+																							onClick={
+																								handleAddRow
+																							}
+																							disabled={
+																								isLocked
+																							}
+																							className="text-xs px-3 py-1"
+																						>
+																							Add
+																							Row
+																						</Button>
+																					</td>
+																				</tr>
+																			</>
+																		);
+																	})()}
+																</tbody>
+															</table>
+														</div>
+													</div>
+
+													{/* Construction Cost Impact */}
+													<div>
+														<h5 className="text-xs font-medium text-gray-700 mb-2">
+															Construction Cost
+															Impact
+														</h5>
+														<div className="overflow-x-auto">
+															<table className="min-w-full divide-y divide-gray-200 text-sm">
+																<thead className="bg-gray-50">
+																	<tr>
+																		<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																			Cost
+																			Change
+																		</th>
+																		<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																			IRR
+																		</th>
+																	</tr>
+																</thead>
+																<tbody className="bg-white divide-y divide-gray-100">
+																	{(() => {
+																		const value =
+																			(
+																				formData as any
+																			)
+																				.sensitivityAnalysis;
+																		const data =
+																			value &&
+																			typeof value ===
+																				"object" &&
+																			!Array.isArray(
+																				value
+																			)
+																				? value
+																				: {};
+																		const rows: any[] =
+																			Array.isArray(
+																				data.constructionCostImpact
+																			)
+																				? data.constructionCostImpact
+																				: [];
+																		const isLocked =
+																			isFieldLocked(
+																				"sensitivityAnalysis",
+																				sectionId
+																			);
+
+																		const handleRowChange =
+																			(
+																				index: number,
+																				key:
+																					| "cost"
+																					| "irr",
+																				raw: string
+																			) => {
+																				const next =
+																					[
+																						...rows,
+																					];
+																				const current =
+																					next[
+																						index
+																					] ||
+																					{};
+																				let v: any =
+																					raw;
+																				if (
+																					key ===
+																					"irr"
+																				) {
+																					v =
+																						raw.trim() ===
+																						""
+																							? undefined
+																							: Number(
+																									raw
+																							  );
+																					if (
+																						Number.isNaN(
+																							v
+																						)
+																					) {
+																						v =
+																							undefined;
+																					}
+																				}
+																				next[
+																					index
+																				] =
+																					{
+																						...current,
+																						[key]: v,
+																					};
+																				handleInputChange(
+																					"sensitivityAnalysis",
+																					{
+																						...data,
+																						constructionCostImpact:
+																							next,
+																					}
+																				);
+																			};
+
+																		const handleAddRow =
+																			() => {
+																				const next =
+																					[
+																						...rows,
+																					];
+																				next.push(
+																					{
+																						cost: "",
+																						irr: undefined,
+																					}
+																				);
+																				handleInputChange(
+																					"sensitivityAnalysis",
+																					{
+																						...data,
+																						constructionCostImpact:
+																							next,
+																					}
+																				);
+																			};
+
+																		const handleRemoveRow =
+																			(
+																				index: number
+																			) => {
+																				const next =
+																					[
+																						...rows,
+																					];
+																				next.splice(
+																					index,
+																					1
+																				);
+																				handleInputChange(
+																					"sensitivityAnalysis",
+																					{
+																						...data,
+																						constructionCostImpact:
+																							next,
+																					}
+																				);
+																			};
+
+																		const displayRows =
+																			rows.length >
+																			0
+																				? rows
+																				: [
+																						{
+																							cost: "",
+																							irr: undefined,
+																						},
+																				  ];
+
+																		return (
+																			<>
+																				{displayRows.map(
+																					(
+																						row,
+																						idx
+																					) => (
+																						<tr
+																							key={
+																								idx
+																							}
+																						>
+																							<td className="px-3 py-2 whitespace-nowrap align-middle">
+																								<input
+																									type="text"
+																									className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																									value={
+																										row.cost ??
+																										""
+																									}
+																									onChange={(
+																										e
+																									) =>
+																										handleRowChange(
+																											idx,
+																											"cost",
+																											e
+																												.target
+																												.value
+																										)
+																									}
+																									disabled={
+																										isLocked
+																									}
+																									placeholder="Base"
+																								/>
+																							</td>
+																							<td className="px-3 py-2 whitespace-nowrap align-middle">
+																								<div className="flex items-center gap-1">
+																									<input
+																										type="number"
+																										step="0.1"
+																										className="w-24 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																										value={
+																											row.irr ??
+																											""
+																										}
+																										onChange={(
+																											e
+																										) =>
+																											handleRowChange(
+																												idx,
+																												"irr",
+																												e
+																													.target
+																													.value
+																											)
+																										}
+																										disabled={
+																											isLocked
+																										}
+																									/>
+																									<span className="text-gray-500">
+																										%
+																									</span>
+																								</div>
+																							</td>
+																							<td className="px-3 py-2 text-right align-middle">
+																								<Button
+																									type="button"
+																									variant="ghost"
+																									size="sm"
+																									onClick={() =>
+																										handleRemoveRow(
+																											idx
+																										)
+																									}
+																									disabled={
+																										isLocked ||
+																										rows.length <=
+																											1
+																									}
+																									className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																								>
+																									Remove
+																								</Button>
+																							</td>
+																						</tr>
+																					)
+																				)}
+																				<tr>
+																					<td
+																						colSpan={
+																							3
+																						}
+																						className="px-3 pt-3"
+																					>
+																						<Button
+																							type="button"
+																							variant="outline"
+																							size="sm"
+																							onClick={
+																								handleAddRow
+																							}
+																							disabled={
+																								isLocked
+																							}
+																							className="text-xs px-3 py-1"
+																						>
+																							Add
+																							Row
+																						</Button>
+																					</td>
+																				</tr>
+																			</>
+																		);
+																	})()}
+																</tbody>
+															</table>
+														</div>
+													</div>
+												</div>
+											</div>
+										</>
+									)}
+
+								{/* Capital Use Timing - Uses of Funds */}
+								{sectionId === "financial-details" &&
+									subsectionId === "uses-of-funds" && (
+										<div
+											className={cn(
+												getTableWrapperClasses(
+													"capitalUseTiming",
+													sectionId
+												),
+												"p-4"
+											)}
+										>
+											<div className="mb-3 flex items-center justify-between">
+												<div className="flex items-center gap-2">
+													<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+														Capital Use Timing
+													</h4>
+													{isFieldRequiredFromSchema(
+														"capitalUseTiming"
+													) && (
+														<span className="text-red-500 ml-1">
+															*
+														</span>
+													)}
+													<FieldHelpTooltip
+														fieldId="capitalUseTiming"
+														fieldMetadata={
+															fieldMetadata[
+																"capitalUseTiming"
+															]
+														}
+													/>
+												</div>
+												<div className="flex items-center gap-1">
+													{renderFieldLockButton(
+														"capitalUseTiming",
+														sectionId
+													)}
+												</div>
+											</div>
+											<div className="overflow-x-auto">
+												<table className="min-w-full divide-y divide-gray-200 text-sm">
+													<thead className="bg-gray-50">
+														<tr>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Use Type
+															</th>
+															<th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+																Timing
+															</th>
+														</tr>
+													</thead>
+													<tbody className="bg-white divide-y divide-gray-100">
+														{(() => {
+															const value = (
+																formData as any
+															).capitalUseTiming;
+															const data =
+																value &&
+																typeof value ===
+																	"object" &&
+																!Array.isArray(
+																	value
+																)
+																	? value
+																	: {};
+															const isLocked =
+																isFieldLocked(
+																	"capitalUseTiming",
+																	sectionId
+																);
+
+															const useTypes =
+																Object.keys(
+																	data
+																);
+															const allUseTypes =
+																[
+																	"landAcquisition",
+																	"baseConstruction",
+																	"contingency",
+																	"constructionFees",
+																	"aeFees",
+																	"developerFee",
+																	"interestReserve",
+																	"workingCapital",
+																	"opDeficitEscrow",
+																	"leaseUpEscrow",
+																	"ffe",
+																	"thirdPartyReports",
+																	"legalAndOrg",
+																	"titleAndRecording",
+																	"taxesDuringConstruction",
+																	"loanFees",
+																	"relocationCosts",
+																	"syndicationCosts",
+																	"enviroRemediation",
+																	"pfcStructuringFee",
+																];
+
+															const handleChange =
+																(
+																	useType: string,
+																	raw: string
+																) => {
+																	const updated =
+																		{
+																			...data,
+																			[useType]:
+																				raw.trim() ||
+																				undefined,
+																		};
+																	handleInputChange(
+																		"capitalUseTiming",
+																		updated
+																	);
+																};
+
+															const handleAddRow =
+																() => {
+																	// Find first unused use type
+																	const unusedType =
+																		allUseTypes.find(
+																			(
+																				type
+																			) =>
+																				!(
+																					type in
+																					data
+																				)
+																		);
+																	if (
+																		unusedType
+																	) {
+																		handleInputChange(
+																			"capitalUseTiming",
+																			{
+																				...data,
+																				[unusedType]:
+																					"",
+																			}
+																		);
+																	}
+																};
+
+															const handleRemoveRow =
+																(
+																	useType: string
+																) => {
+																	const updated =
+																		{
+																			...data,
+																		};
+																	delete updated[
+																		useType
+																	];
+																	handleInputChange(
+																		"capitalUseTiming",
+																		updated
+																	);
+																};
+
+															const displayRows =
+																useTypes.length >
+																0
+																	? useTypes.map(
+																			(
+																				type
+																			) => ({
+																				useType:
+																					type,
+																				timing: data[
+																					type
+																				],
+																			})
+																	  )
+																	: [
+																			{
+																				useType:
+																					"",
+																				timing: "",
+																			},
+																	  ];
+
+															return (
+																<>
+																	{displayRows.map(
+																		(
+																			row,
+																			idx
+																		) => {
+																			const formattedUseType =
+																				row.useType
+																					.replace(
+																						/([A-Z])/g,
+																						" $1"
+																					)
+																					.replace(
+																						/^./,
+																						(
+																							str
+																						) =>
+																							str.toUpperCase()
+																					)
+																					.trim();
+																			return (
+																				<tr
+																					key={
+																						idx
+																					}
+																				>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						{row.useType ? (
+																							<span>
+																								{
+																									formattedUseType
+																								}
+																							</span>
+																						) : (
+																							<select
+																								className="w-48 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																								value={
+																									row.useType
+																								}
+																								onChange={(
+																									e
+																								) => {
+																									const newType =
+																										e
+																											.target
+																											.value;
+																									if (
+																										newType
+																									) {
+																										const updated =
+																											{
+																												...data,
+																											};
+																										if (
+																											row.useType
+																										) {
+																											delete updated[
+																												row
+																													.useType
+																											];
+																										}
+																										updated[
+																											newType
+																										] =
+																											row.timing ||
+																											"";
+																										handleInputChange(
+																											"capitalUseTiming",
+																											updated
+																										);
+																									}
+																								}}
+																								disabled={
+																									isLocked
+																								}
+																							>
+																								<option value="">
+																									Select
+																									Use
+																									Type
+																								</option>
+																								{allUseTypes
+																									.filter(
+																										(
+																											type
+																										) =>
+																											!(
+																												type in
+																												data
+																											) ||
+																											type ===
+																												row.useType
+																									)
+																									.map(
+																										(
+																											type
+																										) => {
+																											const label =
+																												type
+																													.replace(
+																														/([A-Z])/g,
+																														" $1"
+																													)
+																													.replace(
+																														/^./,
+																														(
+																															str
+																														) =>
+																															str.toUpperCase()
+																													)
+																													.trim();
+																											return (
+																												<option
+																													key={
+																														type
+																													}
+																													value={
+																														type
+																													}
+																												>
+																													{
+																														label
+																													}
+																												</option>
+																											);
+																										}
+																									)}
+																							</select>
+																						)}
+																					</td>
+																					<td className="px-3 py-2 whitespace-nowrap align-middle">
+																						<input
+																							type="text"
+																							className="w-40 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																							value={
+																								row.timing ??
+																								""
+																							}
+																							onChange={(
+																								e
+																							) =>
+																								handleChange(
+																									row.useType,
+																									e
+																										.target
+																										.value
+																								)
+																							}
+																							disabled={
+																								isLocked ||
+																								!row.useType
+																							}
+																							placeholder="Months 1-24"
+																						/>
+																					</td>
+																					<td className="px-3 py-2 text-right align-middle">
+																						<Button
+																							type="button"
+																							variant="ghost"
+																							size="sm"
+																							onClick={() =>
+																								handleRemoveRow(
+																									row.useType
+																								)
+																							}
+																							disabled={
+																								isLocked ||
+																								!row.useType ||
+																								useTypes.length <=
+																									1
+																							}
+																							className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																						>
+																							Remove
+																						</Button>
+																					</td>
+																				</tr>
+																			);
+																		}
+																	)}
+																	<tr>
+																		<td
+																			colSpan={
+																				3
+																			}
+																			className="px-3 pt-3"
+																		>
+																			<Button
+																				type="button"
+																				variant="outline"
+																				size="sm"
+																				onClick={
+																					handleAddRow
+																				}
+																				disabled={
+																					isLocked ||
+																					useTypes.length >=
+																						allUseTypes.length
+																				}
+																				className="text-xs px-3 py-1"
+																			>
+																				Add
+																				Use
+																				Type
+																			</Button>
+																		</td>
+																	</tr>
+																</>
+															);
+														})()}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									)}
+
+								{/* Risk Analysis Fields */}
+								{sectionId === "financial-details" &&
+									subsectionId === "risk-analysis" && (
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+											{/* High Risk Items */}
+											<div
+												className={cn(
+													getTableWrapperClasses(
+														"riskHigh",
+														sectionId
+													),
+													"p-4"
+												)}
+											>
+												<div className="mb-3 flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+															High Risk Items
+														</h4>
+														{isFieldRequiredFromSchema(
+															"riskHigh"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
+														<FieldHelpTooltip
+															fieldId="riskHigh"
+															fieldMetadata={
+																fieldMetadata[
+																	"riskHigh"
+																]
+															}
+														/>
+													</div>
+													<div className="flex items-center gap-1">
+														{renderFieldLockButton(
+															"riskHigh",
+															sectionId
+														)}
+													</div>
+												</div>
+												{(() => {
+													const value = (
+														formData as any
+													).riskHigh;
+													const items: string[] =
+														Array.isArray(value)
+															? value.map(
+																	(item) => {
+																		// If item is an object, extract the 'risk' property
+																		if (
+																			item &&
+																			typeof item ===
+																				"object" &&
+																			!Array.isArray(
+																				item
+																			)
+																		) {
+																			return (
+																				item.risk ||
+																				item.text ||
+																				item.value ||
+																				JSON.stringify(
+																					item
+																				)
+																			);
+																		}
+																		return String(
+																			item
+																		);
+																	}
+															  )
+															: value &&
+															  typeof value ===
+																	"string"
+															? value
+																	.split(
+																		/[,\n]/
+																	)
+																	.map(
+																		(
+																			item
+																		) =>
+																			item.trim()
+																	)
+																	.filter(
+																		Boolean
+																	)
+															: [];
+													const isLocked =
+														isFieldLocked(
+															"riskHigh",
+															sectionId
+														);
+
+													const handleItemChange = (
+														index: number,
+														newValue: string
+													) => {
+														const next = [...items];
+														next[index] = newValue;
+														handleInputChange(
+															"riskHigh",
+															next
+														);
+													};
+
+													const handleAddItem =
+														() => {
+															const next = [
+																...items,
+																"",
+															];
+															handleInputChange(
+																"riskHigh",
+																next
+															);
+														};
+
+													const handleRemoveItem = (
+														index: number
+													) => {
+														const next = [...items];
+														next.splice(index, 1);
+														handleInputChange(
+															"riskHigh",
+															next
+														);
+													};
+
+													const displayItems =
+														items.length > 0
+															? items
+															: [""];
+
+													return (
+														<div className="space-y-2">
+															{displayItems.map(
+																(item, idx) => (
+																	<div
+																		key={
+																			idx
+																		}
+																		className="flex items-center gap-2"
+																	>
+																		<input
+																			type="text"
+																			className="flex-1 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																			value={
+																				item
+																			}
+																			onChange={(
+																				e
+																			) =>
+																				handleItemChange(
+																					idx,
+																					e
+																						.target
+																						.value
+																				)
+																			}
+																			disabled={
+																				isLocked
+																			}
+																			placeholder="Enter risk item"
+																		/>
+																		<Button
+																			type="button"
+																			variant="ghost"
+																			size="sm"
+																			onClick={() =>
+																				handleRemoveItem(
+																					idx
+																				)
+																			}
+																			disabled={
+																				isLocked ||
+																				items.length <=
+																					1
+																			}
+																			className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																		>
+																			Remove
+																		</Button>
+																	</div>
+																)
+															)}
+															<Button
+																type="button"
+																variant="outline"
+																size="sm"
+																onClick={
+																	handleAddItem
+																}
+																disabled={
+																	isLocked
+																}
+																className="text-xs px-3 py-1"
+															>
+																Add Item
+															</Button>
+														</div>
+													);
+												})()}
+											</div>
+
+											{/* Medium Risk Items */}
+											<div
+												className={cn(
+													getTableWrapperClasses(
+														"riskMedium",
+														sectionId
+													),
+													"p-4"
+												)}
+											>
+												<div className="mb-3 flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+															Medium Risk Items
+														</h4>
+														{isFieldRequiredFromSchema(
+															"riskMedium"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
+														<FieldHelpTooltip
+															fieldId="riskMedium"
+															fieldMetadata={
+																fieldMetadata[
+																	"riskMedium"
+																]
+															}
+														/>
+													</div>
+													<div className="flex items-center gap-1">
+														{renderFieldLockButton(
+															"riskMedium",
+															sectionId
+														)}
+													</div>
+												</div>
+												{(() => {
+													const value = (
+														formData as any
+													).riskMedium;
+													const items: string[] =
+														Array.isArray(value)
+															? value.map(
+																	(item) => {
+																		// If item is an object, extract the 'risk' property
+																		if (
+																			item &&
+																			typeof item ===
+																				"object" &&
+																			!Array.isArray(
+																				item
+																			)
+																		) {
+																			return (
+																				item.risk ||
+																				item.text ||
+																				item.value ||
+																				JSON.stringify(
+																					item
+																				)
+																			);
+																		}
+																		return String(
+																			item
+																		);
+																	}
+															  )
+															: value &&
+															  typeof value ===
+																	"string"
+															? value
+																	.split(
+																		/[,\n]/
+																	)
+																	.map(
+																		(
+																			item
+																		) =>
+																			item.trim()
+																	)
+																	.filter(
+																		Boolean
+																	)
+															: [];
+													const isLocked =
+														isFieldLocked(
+															"riskMedium",
+															sectionId
+														);
+
+													const handleItemChange = (
+														index: number,
+														newValue: string
+													) => {
+														const next = [...items];
+														next[index] = newValue;
+														handleInputChange(
+															"riskMedium",
+															next
+														);
+													};
+
+													const handleAddItem =
+														() => {
+															const next = [
+																...items,
+																"",
+															];
+															handleInputChange(
+																"riskMedium",
+																next
+															);
+														};
+
+													const handleRemoveItem = (
+														index: number
+													) => {
+														const next = [...items];
+														next.splice(index, 1);
+														handleInputChange(
+															"riskMedium",
+															next
+														);
+													};
+
+													const displayItems =
+														items.length > 0
+															? items
+															: [""];
+
+													return (
+														<div className="space-y-2">
+															{displayItems.map(
+																(item, idx) => (
+																	<div
+																		key={
+																			idx
+																		}
+																		className="flex items-center gap-2"
+																	>
+																		<input
+																			type="text"
+																			className="flex-1 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																			value={
+																				item
+																			}
+																			onChange={(
+																				e
+																			) =>
+																				handleItemChange(
+																					idx,
+																					e
+																						.target
+																						.value
+																				)
+																			}
+																			disabled={
+																				isLocked
+																			}
+																			placeholder="Enter risk item"
+																		/>
+																		<Button
+																			type="button"
+																			variant="ghost"
+																			size="sm"
+																			onClick={() =>
+																				handleRemoveItem(
+																					idx
+																				)
+																			}
+																			disabled={
+																				isLocked ||
+																				items.length <=
+																					1
+																			}
+																			className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																		>
+																			Remove
+																		</Button>
+																	</div>
+																)
+															)}
+															<Button
+																type="button"
+																variant="outline"
+																size="sm"
+																onClick={
+																	handleAddItem
+																}
+																disabled={
+																	isLocked
+																}
+																className="text-xs px-3 py-1"
+															>
+																Add Item
+															</Button>
+														</div>
+													);
+												})()}
+											</div>
+
+											{/* Low Risk Items */}
+											<div
+												className={cn(
+													getTableWrapperClasses(
+														"riskLow",
+														sectionId
+													),
+													"p-4"
+												)}
+											>
+												<div className="mb-3 flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+															Low Risk Items
+														</h4>
+														{isFieldRequiredFromSchema(
+															"riskLow"
+														) && (
+															<span className="text-red-500 ml-1">
+																*
+															</span>
+														)}
+														<FieldHelpTooltip
+															fieldId="riskLow"
+															fieldMetadata={
+																fieldMetadata[
+																	"riskLow"
+																]
+															}
+														/>
+													</div>
+													<div className="flex items-center gap-1">
+														{renderFieldLockButton(
+															"riskLow",
+															sectionId
+														)}
+													</div>
+												</div>
+												{(() => {
+													const value = (
+														formData as any
+													).riskLow;
+													const items: string[] =
+														Array.isArray(value)
+															? value.map(
+																	(item) => {
+																		// If item is an object, extract the 'risk' property
+																		if (
+																			item &&
+																			typeof item ===
+																				"object" &&
+																			!Array.isArray(
+																				item
+																			)
+																		) {
+																			return (
+																				item.risk ||
+																				item.text ||
+																				item.value ||
+																				JSON.stringify(
+																					item
+																				)
+																			);
+																		}
+																		return String(
+																			item
+																		);
+																	}
+															  )
+															: value &&
+															  typeof value ===
+																	"string"
+															? value
+																	.split(
+																		/[,\n]/
+																	)
+																	.map(
+																		(
+																			item
+																		) =>
+																			item.trim()
+																	)
+																	.filter(
+																		Boolean
+																	)
+															: [];
+													const isLocked =
+														isFieldLocked(
+															"riskLow",
+															sectionId
+														);
+
+													const handleItemChange = (
+														index: number,
+														newValue: string
+													) => {
+														const next = [...items];
+														next[index] = newValue;
+														handleInputChange(
+															"riskLow",
+															next
+														);
+													};
+
+													const handleAddItem =
+														() => {
+															const next = [
+																...items,
+																"",
+															];
+															handleInputChange(
+																"riskLow",
+																next
+															);
+														};
+
+													const handleRemoveItem = (
+														index: number
+													) => {
+														const next = [...items];
+														next.splice(index, 1);
+														handleInputChange(
+															"riskLow",
+															next
+														);
+													};
+
+													const displayItems =
+														items.length > 0
+															? items
+															: [""];
+
+													return (
+														<div className="space-y-2">
+															{displayItems.map(
+																(item, idx) => (
+																	<div
+																		key={
+																			idx
+																		}
+																		className="flex items-center gap-2"
+																	>
+																		<input
+																			type="text"
+																			className="flex-1 rounded-md border border-gray-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+																			value={
+																				item
+																			}
+																			onChange={(
+																				e
+																			) =>
+																				handleItemChange(
+																					idx,
+																					e
+																						.target
+																						.value
+																				)
+																			}
+																			disabled={
+																				isLocked
+																			}
+																			placeholder="Enter risk item"
+																		/>
+																		<Button
+																			type="button"
+																			variant="ghost"
+																			size="sm"
+																			onClick={() =>
+																				handleRemoveItem(
+																					idx
+																				)
+																			}
+																			disabled={
+																				isLocked ||
+																				items.length <=
+																					1
+																			}
+																			className="text-xs text-red-600 hover:text-red-700 px-2 py-1"
+																		>
+																			Remove
+																		</Button>
+																	</div>
+																)
+															)}
+															<Button
+																type="button"
+																variant="outline"
+																size="sm"
+																onClick={
+																	handleAddItem
+																}
+																disabled={
+																	isLocked
+																}
+																className="text-xs px-3 py-1"
+															>
+																Add Item
+															</Button>
+														</div>
+													);
+												})()}
 											</div>
 										</div>
 									)}

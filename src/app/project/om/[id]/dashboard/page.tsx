@@ -34,7 +34,8 @@ import PopulationHeatmap from "@/components/om/PopulationHeatmap";
 
 export default function OMDashboardPage() {
 	const params = useParams();
-	const projectId = params?.id as string;
+	// Extract id immediately to avoid read-only property issues in Next.js 15
+	const projectId = typeof params?.id === 'string' ? params.id : '';
 	const router = useRouter();
 	const { getProject } = useProjects();
 	const project = projectId ? getProject(projectId) : null;
@@ -331,7 +332,7 @@ export default function OMDashboardPage() {
 						/>
 						<MetricCard
 							label="Equity Multiple"
-							value={formatFixed(data.equityMultiple, 2) ? `${formatFixed(data.equityMultiple, 2)}x` : null}
+							value={data.equityMultiple != null ? `${formatFixed(data.equityMultiple, 2)}x` : null}
 						/>
 					</div>
 					<div className="mt-3">
@@ -392,7 +393,7 @@ export default function OMDashboardPage() {
 														: "text-green-600"
 												} group-hover:scale-110 transition-transform duration-200`}
 											>
-												<span>{irr}%</span>
+												<span>{irr != null ? `${formatFixed(irr, 2)}%` : 'N/A'}</span>
 											</div>
 										</div>
 									)

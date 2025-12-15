@@ -317,7 +317,7 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"totalCapitalization",
 		"equityContribution",
 		"floorRate",
-		"loanToCost",
+		"ltc",
 		"exitCapRate",
 		"debtService",
 		"taxInsuranceReserve",
@@ -461,7 +461,11 @@ function getDefaultValueForBorrowerField(fieldId: string): any {
 	}
 
 	// Check if it's a known numeric field
-	const numericFields = ["ownershipPercentage", "yearFounded", "activeProjects"];
+	const numericFields = [
+		"ownershipPercentage",
+		"yearFounded",
+		"activeProjects",
+	];
 	if (numericFields.includes(fieldId)) {
 		return 0;
 	}
@@ -473,6 +477,8 @@ function getDefaultValueForBorrowerField(fieldId: string): any {
 		"principalSpecialties",
 		"principalAchievements",
 		"references",
+		"principals", // Array of principal objects
+		"trackRecord", // Array of track record items
 	];
 	if (arrayFields.includes(fieldId)) {
 		return [];
@@ -581,8 +587,10 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	lossToLease: 5.0,
 	adaCompliantPercent: 5.0,
 	luxuryTier: "Class A",
-	targetMarket: "Young professionals, creative class, and workforce housing residents (50% at ≤80% AMI)",
-	competitivePosition: "Premium workforce housing with strong amenity package and prime location between Farmers Market and Deep Ellum",
+	targetMarket:
+		"Young professionals, creative class, and workforce housing residents (50% at ≤80% AMI)",
+	competitivePosition:
+		"Premium workforce housing with strong amenity package and prime location between Farmers Market and Deep Ellum",
 	unitPlanDescription:
 		"Modern studio, one-bedroom, and two-bedroom units with high-end finishes, in-unit washers/dryers, and energy-efficient appliances. Units feature open floor plans, large windows, and private balconies where applicable.",
 	hvacSystem: "Central",
@@ -743,7 +751,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	extensions: "Two 6-month extensions available with lender approval",
 	targetLtvPercent: 44,
 	targetLtcPercent: 60,
-	loanToCost: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
+	ltc: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
 	prepaymentTerms: "Minimum interest",
 	prepaymentPremium: "None - prepayment allowed after interest-only period",
 	originationFee: "1.5% of loan amount",
@@ -792,48 +800,106 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	portfolioDSCR: 1.3,
 	debtService: 1814400, // Annual debt service on $18M loan at 8.0% interest
 	exitStrategy: "Refinance",
-	fiveYearCashFlow: {
-		year1: { noi: 2268000, debtService: 1814400, cashFlow: 453600 },
-		year2: { noi: 2336040, debtService: 1814400, cashFlow: 521640 },
-		year3: { noi: 2406121, debtService: 1814400, cashFlow: 591721 },
-		year4: { noi: 2478305, debtService: 1814400, cashFlow: 663905 },
-		year5: { noi: 2552654, debtService: 1814400, cashFlow: 738254 },
-	},
+	// fiveYearCashFlow: Array of annual cash flow values (used by ReturnsCharts component)
+	fiveYearCashFlow: [
+		453600, // Year 1 cash flow (NOI - Debt Service)
+		521640, // Year 2 cash flow
+		591721, // Year 3 cash flow
+		663905, // Year 4 cash flow
+		738254, // Year 5 cash flow
+	],
+	// returnsBreakdown: Percentage breakdown of return sources (used by ReturnsCharts component)
 	returnsBreakdown: {
-		yieldOnCost: 7.6,
-		irr: 18.5,
-		equityMultiple: 2.1,
-		holdPeriod: 7,
+		cashFlow: 40.0, // Percentage contribution from cash flow
+		assetAppreciation: 35.0, // Percentage contribution from appreciation
+		taxBenefits: 15.0, // Percentage contribution from tax benefits (PFC structure)
+		leverage: 10.0, // Percentage contribution from leverage
 	},
-	quarterlyDeliverySchedule: {
-		q1_2027: { units: 0, percentComplete: 0 },
-		q2_2027: { units: 0, percentComplete: 0 },
-		q3_2027: { units: 29, percentComplete: 25 },
-		q4_2027: { units: 58, percentComplete: 75 },
-		q1_2028: { units: 29, percentComplete: 100 },
-	},
+	// quarterlyDeliverySchedule: Array of quarterly delivery data (used by ReturnsCharts component)
+	quarterlyDeliverySchedule: [
+		{ quarter: "Q1 2027", units: 0 },
+		{ quarter: "Q2 2027", units: 0 },
+		{ quarter: "Q3 2027", units: 29 },
+		{ quarter: "Q4 2027", units: 58 },
+		{ quarter: "Q1 2028", units: 29 },
+	],
+	// sensitivityAnalysis: Sensitivity analysis data (used by ReturnsCharts component)
 	sensitivityAnalysis: {
-		baseCase: { noi: 2268000, irr: 18.5, equityMultiple: 2.1 },
-		downside: { noi: 2041200, irr: 15.2, equityMultiple: 1.8 },
-		upside: { noi: 2494800, irr: 21.8, equityMultiple: 2.4 },
+		// Rent growth impact on IRR
+		rentGrowthImpact: [
+			{ growth: "-2%", irr: 16.2 },
+			{ growth: "-1%", irr: 17.3 },
+			{ growth: "0%", irr: 18.5 },
+			{ growth: "+1%", irr: 19.7 },
+			{ growth: "+2%", irr: 21.0 },
+		],
+		// Construction cost impact on IRR
+		constructionCostImpact: [
+			{ cost: "+10%", irr: 15.8 },
+			{ cost: "+5%", irr: 17.1 },
+			{ cost: "Base", irr: 18.5 },
+			{ cost: "-5%", irr: 19.9 },
+			{ cost: "-10%", irr: 21.3 },
+		],
 	},
+	// Flat fields for returns page
+	upsideIRR: 21.8,
+	downsideIRR: 15.2,
+	upsideEquityMultiple: 2.4,
+	downsideEquityMultiple: 1.8,
+	upsideProfitMargin: 38.3, // Calculated: ($41.2M exit - $29.8M cost) / $29.8M = 38.3%
+	downsideProfitMargin: 27.5, // Calculated: ($38.0M exit - $29.8M cost) / $29.8M = 27.5%
+	// Risk levels for returns page
+	riskLevelUpside: "Low",
+	riskLevelBase: "Moderate",
+	riskLevelDownside: "Moderate",
 	riskHigh: [
-		"Construction cost overruns in current inflationary environment",
-		"Lease-up timeline delays affecting stabilization",
+		{
+			risk: "Construction cost overruns in current inflationary environment",
+			mitigation:
+				"Fixed-price construction contract with established GC, 5% contingency reserve, and regular cost monitoring",
+			probability: "30%",
+		},
+		{
+			risk: "Lease-up timeline delays affecting stabilization",
+			mitigation:
+				"Pre-leased 30,000 SF Innovation Center, strong market fundamentals with 94.5% occupancy, experienced leasing team",
+			probability: "25%",
+		},
 	],
 	riskMedium: [
-		"Interest rate volatility on floating rate construction loan",
-		"Market rent growth assumptions may not materialize",
+		{
+			risk: "Interest rate volatility on floating rate construction loan",
+			mitigation:
+				"Interest reserve funded for 24-month construction period, rate floor at 4.5%, relationship with lender for potential rate cap",
+			probability: "40%",
+		},
+		{
+			risk: "Market rent growth assumptions may not materialize",
+			mitigation:
+				"Conservative 3.0% rent growth assumption, strong market fundamentals with 6.9% population growth, diversified unit mix",
+			probability: "20%",
+		},
 	],
 	riskLow: [
-		"Pre-leased Innovation Center provides stable commercial income",
-		"Strong sponsor track record and lender relationships",
+		{
+			risk: "Pre-leased Innovation Center provides stable commercial income",
+			mitigation:
+				"15-year lease with GSV Holdings executed, credit-worthy tenant, reduces lease-up risk",
+			probability: "10%",
+		},
+		{
+			risk: "Strong sponsor track record and lender relationships",
+			mitigation:
+				"Proven track record with SoGood Phase A, established relationships with Frost Bank and Citi Community Capital",
+			probability: "5%",
+		},
 	],
 	capitalUseTiming: {
 		month1_3: 0.15, // 15% in first 3 months
 		month4_6: 0.25, // 25% in months 4-6
 		month7_12: 0.35, // 35% in months 7-12
-		month13_18: 0.20, // 20% in months 13-18
+		month13_18: 0.2, // 20% in months 13-18
 		month19_24: 0.05, // 5% in months 19-24
 	},
 	businessPlanSummary:
@@ -863,10 +929,30 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	unemploymentRate: 3.5,
 	largestEmployer: "Downtown Dallas CBD employers",
 	majorEmployers: [
-		"Downtown Dallas CBD (5,000+ jobs)",
-		"Dallas Farmers Market (500+ jobs)",
-		"Deep Ellum entertainment district (1,000+ jobs)",
-		"Baylor University Medical Center (3,000+ jobs)",
+		{
+			name: "Downtown Dallas CBD",
+			employees: 5000,
+			growth: "+2.5%",
+			distance: "0.8 mi",
+		},
+		{
+			name: "Dallas Farmers Market",
+			employees: 500,
+			growth: "+3.0%",
+			distance: "0.4 mi",
+		},
+		{
+			name: "Deep Ellum Entertainment District",
+			employees: 1000,
+			growth: "+4.0%",
+			distance: "0.6 mi",
+		},
+		{
+			name: "Baylor University Medical Center",
+			employees: 3000,
+			growth: "+1.5%",
+			distance: "1.2 mi",
+		},
 	],
 	employerConcentration: 15.0,
 	crimeRiskLevel: "Moderate",
@@ -880,14 +966,14 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	underConstruction: 2500, // Units currently under construction
 	planned24Months: 4000, // Units planned for delivery in next 24 months
 	averageOccupancy: 94.5, // Average occupancy rate in submarket
-	deliveryByQuarter: {
-		q3_2025: 0,
-		q4_2025: 0,
-		q1_2026: 500,
-		q2_2026: 750,
-		q3_2026: 1000,
-		q4_2026: 1250,
-	},
+	deliveryByQuarter: [
+		{ quarter: "Q3 2025", units: 0 },
+		{ quarter: "Q4 2025", units: 0 },
+		{ quarter: "Q1 2026", units: 500 },
+		{ quarter: "Q2 2026", units: 750 },
+		{ quarter: "Q3 2026", units: 1000 },
+		{ quarter: "Q4 2026", units: 1250 },
+	],
 	monthsOfSupply: 7.5,
 	captureRate: 2.1,
 	avgCapRate: 5.5, // Average cap rate for comparable properties
@@ -975,13 +1061,13 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	firstOccupancyToCompletionDays: 46, // Days from first occupancy to completion
 	completionToStabilizationDays: 153, // Days from completion to stabilization
 	totalProjectDurationDays: 1390, // Total project duration in days
-	landAcqStatus: "Complete",
-	entitlementsStatus: "Approved",
-	groundbreakingStatus: "Scheduled",
-	verticalStartStatus: "Scheduled",
-	firstOccupancyStatus: "Planned",
-	completionStatus: "Planned",
-	stabilizationStatus: "Planned",
+	landAcqStatus: "completed",
+	entitlementsStatus: "completed",
+	groundbreakingStatus: "upcoming",
+	verticalStartStatus: "upcoming",
+	firstOccupancyStatus: "upcoming",
+	completionStatus: "upcoming",
+	stabilizationStatus: "upcoming",
 
 	// Site & Context
 	totalSiteAcreage: 2.5,
@@ -1037,7 +1123,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 
 	// Additional fields that may be in schema but not in base resume
 	// These are realistic values based on the Hoque/SoGood project
-	amenitySF: 35264, // Total amenity space (mentioned in project details)
+	// Note: amenitySF is already defined above, so not duplicated here
 	irr: 18.5, // Internal Rate of Return - calculated based on 7.6% yield, 7-year hold, PFC benefits
 	equityMultiple: 2.1, // Equity multiple based on $11.8M equity and projected returns
 	ltc: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
@@ -1073,13 +1159,26 @@ const hoqueProjectResume: Record<string, any> = (() => {
 	}
 
 	// Remove any fields not in the schema
+	// But preserve special fields that the OM expects (upside/downside scenario fields)
 	const schemaFieldSet = new Set(SCHEMA_FIELD_IDS);
+	const preserveFields = new Set([
+		"upsideIRR",
+		"downsideIRR",
+		"upsideEquityMultiple",
+		"downsideEquityMultiple",
+		"upsideProfitMargin",
+		"downsideProfitMargin",
+		"riskLevelUpside",
+		"riskLevelBase",
+		"riskLevelDownside",
+	]);
 	for (const key of Object.keys(result)) {
 		if (
 			key !== "_lockedFields" &&
 			key !== "_fieldStates" &&
 			key !== "_metadata" &&
-			!schemaFieldSet.has(key)
+			!schemaFieldSet.has(key) &&
+			!preserveFields.has(key)
 		) {
 			delete result[key];
 		}
@@ -1087,8 +1186,21 @@ const hoqueProjectResume: Record<string, any> = (() => {
 
 	// Lock all form fields so they show as green/locked in the UI.
 	// Lock fields that have non-empty values (including 0 for numeric fields, false for booleans, empty arrays)
+	// Also lock special OM fields (upside/downside scenario fields)
 	const lockedFields: Record<string, boolean> = {};
-	for (const fieldId of SCHEMA_FIELD_IDS) {
+	const fieldsToCheck = [
+		...SCHEMA_FIELD_IDS,
+		"upsideIRR",
+		"downsideIRR",
+		"upsideEquityMultiple",
+		"downsideEquityMultiple",
+		"upsideProfitMargin",
+		"downsideProfitMargin",
+		"riskLevelUpside",
+		"riskLevelBase",
+		"riskLevelDownside",
+	];
+	for (const fieldId of fieldsToCheck) {
 		const value = result[fieldId];
 		if (value !== undefined && value !== null) {
 			// Lock fields that have values
@@ -1143,16 +1255,43 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 		"Master-Planned Districts",
 	],
 	geographicMarketsExperience: [
-		"Dallas-Fort Worth",
-		"Texas Triangle",
-		"Southeast US",
+		"Southwest", // Dallas-Fort Worth and Texas Triangle are in the Southwest region
+		"Southeast", // Southeast US maps to Southeast
 	],
 	// Must be one of: "N/A", "<$10M", "$10M-$50M", "$50M-$100M", "$100M-$250M", "$250M-$500M", "$500M+"
 	totalDealValueClosedRange: "$500M+",
 	existingLenderRelationships:
 		"Frost Bank; Citi Community Capital; Dallas Housing Finance Corp",
-	trackRecord:
+	// Track record description (string format for other uses)
+	trackRecordDescription:
 		"Delivered 1M+ SF of adaptive reuse and mixed-use development across Dallas. Key projects include SoGood Phase A (completed 2022), multiple PFC-backed workforce housing developments, and master-planned district projects. Track record includes on-time delivery, strong lender relationships, and successful public-private partnerships.",
+	// Track record array for OM sponsor profile page - this is what the frontend expects
+	trackRecord: [
+		{
+			project: "SoGood Phase A",
+			year: 2022,
+			units: 180,
+			irr: 22.5,
+			market: "Dallas-Fort Worth",
+			type: "Mixed-Use",
+		},
+		{
+			project: "Deep Ellum Lofts",
+			year: 2020,
+			units: 120,
+			irr: 20.3,
+			market: "Dallas-Fort Worth",
+			type: "Multifamily",
+		},
+		{
+			project: "Farmers Market District",
+			year: 2019,
+			units: 95,
+			irr: 19.8,
+			market: "Dallas-Fort Worth",
+			type: "Mixed-Use",
+		},
+	],
 	// Must be one of: "N/A", "<600", "600-649", "650-699", "700-749", "750-799", "800+"
 	creditScoreRange: "700-749",
 	// Must be one of: "<$1M", "$1M-$5M", "$5M-$10M", "$10M-$25M", "$25M-$50M", "$50M-$100M", "$100M+"
@@ -1164,27 +1303,112 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 	litigationHistory: false,
 	linkedinUrl: "https://www.linkedin.com/company/hoque-global",
 	websiteUrl: "https://www.hoqueglobal.com",
-	principalLegalName: "Mike Hoque",
-	principalRoleDefault: "Chief Executive Officer",
-	principalEmail: "mike@hoqueglobal.com",
-	ownershipPercentage: 50,
-	principalBio:
-		"Founder leading Hoque Global's master plan strategy and public-private initiatives across Dallas. Delivered 1M+ SF of adaptive reuse and serves as Dallas Regional Chamber Urban Taskforce Chair.",
-	principalSpecialties: [
-		"Master-planned district development",
-		"PFC and tax-exempt financing structures",
-		"Workforce housing development",
-		"Public-private partnerships",
-		"Opportunity Zone investments",
+	// Principals array - this is the primary data structure for multiple principals
+	// The flat fields (principalLegalName, etc.) are legacy and should not be used
+	// All principal data should be in this array
+	principals: [
+		{
+			principalLegalName: "Mike Hoque",
+			principalRoleDefault: "Chief Executive Officer",
+			principalEmail: "mike@hoqueglobal.com",
+			ownershipPercentage: 50,
+			principalBio:
+				"Founder leading Hoque Global's master plan strategy and public-private initiatives across Dallas. Delivered 1M+ SF of adaptive reuse and serves as Dallas Regional Chamber Urban Taskforce Chair.",
+			principalSpecialties: [
+				"Master-planned district development",
+				"PFC and tax-exempt financing structures",
+				"Workforce housing development",
+				"Public-private partnerships",
+				"Opportunity Zone investments",
+			],
+			// Also include assetClassesExperience for frontend compatibility
+			assetClassesExperience: [
+				"Master-planned district development",
+				"PFC and tax-exempt financing structures",
+				"Workforce housing development",
+				"Public-private partnerships",
+				"Opportunity Zone investments",
+			],
+			principalAchievements: [
+				"Delivered 1M+ SF of adaptive reuse and mixed-use development",
+				"Successfully structured multiple PFC-backed workforce housing projects",
+				"Chair of Dallas Regional Chamber Urban Taskforce",
+				"Led SoGood master plan development (multi-phase, $200M+ project)",
+				"Established strong relationships with key lenders (Frost Bank, Citi Community Capital)",
+			],
+			principalEducation: "MBA, University of Texas at Dallas",
+			yearsCREExperienceRange: "16+",
+			netWorthRange: "$50M-$100M",
+			liquidityRange: "$5M-$10M",
+			creditScoreRange: "700-749",
+		},
+		{
+			principalLegalName: "Sarah Chen",
+			principalRoleDefault: "Chief Financial Officer",
+			principalEmail: "sarah.chen@hoqueglobal.com",
+			ownershipPercentage: 25,
+			principalBio:
+				"CFO with 12+ years of experience in real estate finance, specializing in tax-exempt bond structures, PFC financing, and Opportunity Zone investments. Previously led finance at a $500M+ multifamily development firm.",
+			principalSpecialties: [
+				"Real estate finance",
+				"Tax-exempt bond structures",
+				"PFC financing",
+				"Opportunity Zone investments",
+				"Capital markets",
+			],
+			assetClassesExperience: [
+				"Real estate finance",
+				"Tax-exempt bond structures",
+				"PFC financing",
+				"Opportunity Zone investments",
+				"Capital markets",
+			],
+			principalAchievements: [
+				"Structured $200M+ in tax-exempt financing across multiple projects",
+				"Led capital raising for 5+ successful multifamily developments",
+				"Established relationships with institutional lenders and capital partners",
+				"Expert in PFC and Opportunity Zone compliance",
+			],
+			principalEducation: "MBA, Finance, Southern Methodist University",
+			yearsCREExperienceRange: "12+",
+			netWorthRange: "$25M-$50M",
+			liquidityRange: "$2M-$5M",
+			creditScoreRange: "750-799",
+		},
+		{
+			principalLegalName: "David Martinez",
+			principalRoleDefault: "Chief Development Officer",
+			principalEmail: "david.martinez@hoqueglobal.com",
+			ownershipPercentage: 25,
+			principalBio:
+				"CDO with 15+ years of experience in mixed-use and multifamily development. Led development of 2M+ SF across Texas, specializing in adaptive reuse and master-planned communities.",
+			principalSpecialties: [
+				"Mixed-use development",
+				"Multifamily development",
+				"Adaptive reuse",
+				"Master-planned communities",
+				"Project management",
+			],
+			assetClassesExperience: [
+				"Mixed-use development",
+				"Multifamily development",
+				"Adaptive reuse",
+				"Master-planned communities",
+				"Project management",
+			],
+			principalAchievements: [
+				"Led development of 2M+ SF across Texas",
+				"Successfully delivered 10+ mixed-use projects on time and on budget",
+				"Expert in adaptive reuse and historic preservation",
+				"Established strong relationships with contractors and vendors",
+			],
+			principalEducation: "BS, Civil Engineering, Texas A&M University",
+			yearsCREExperienceRange: "15+",
+			netWorthRange: "$25M-$50M",
+			liquidityRange: "$2M-$5M",
+			creditScoreRange: "700-749",
+		},
 	],
-	principalAchievements: [
-		"Delivered 1M+ SF of adaptive reuse and mixed-use development",
-		"Successfully structured multiple PFC-backed workforce housing projects",
-		"Chair of Dallas Regional Chamber Urban Taskforce",
-		"Led SoGood master plan development (multi-phase, $200M+ project)",
-		"Established strong relationships with key lenders (Frost Bank, Citi Community Capital)",
-	],
-	principalEducation: "MBA, University of Texas at Dallas",
 	references: [
 		{
 			lenderName: "Frost Bank",
@@ -1194,6 +1418,11 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 			dealCount: 3,
 			lastDealDate: "2022-06-15",
 			notes: "Primary construction lender for SoGood Phase A and other mixed-use projects",
+			// Format for OM sponsor profile page
+			firm: "Frost Bank",
+			relationship: "Primary Construction Lender",
+			years: "8 years",
+			contact: "Commercial Real Estate Team (cre@frostbank.com)",
 		},
 		{
 			lenderName: "Citi Community Capital",
@@ -1203,6 +1432,12 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 			dealCount: 2,
 			lastDealDate: "2021-11-20",
 			notes: "Workforce housing and PFC-backed project financing",
+			// Format for OM sponsor profile page
+			firm: "Citi Community Capital",
+			relationship: "Affordable Housing Finance",
+			years: "5 years",
+			contact:
+				"Affordable Housing Finance Team (communitycapital@citi.com)",
 		},
 		{
 			lenderName: "Dallas Housing Finance Corporation",
@@ -1212,6 +1447,11 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 			dealCount: 4,
 			lastDealDate: "2024-07-12",
 			notes: "PFC structuring and tax-exempt financing for workforce housing projects",
+			// Format for OM sponsor profile page
+			firm: "Dallas Housing Finance Corporation",
+			relationship: "PFC Program Partner",
+			years: "6 years",
+			contact: "PFC Program Director (pfc@dhfc.org)",
 		},
 	],
 };
@@ -1238,13 +1478,16 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 	}
 
 	// Remove any fields not in the schema
+	// But preserve special array fields that the frontend expects (principals, trackRecord)
 	const schemaFieldSet = new Set(BORROWER_SCHEMA_FIELD_IDS);
+	const preserveFields = new Set(["principals", "trackRecord", "references"]);
 	for (const key of Object.keys(result)) {
 		if (
 			key !== "_lockedFields" &&
 			key !== "_fieldStates" &&
 			key !== "_metadata" &&
-			!schemaFieldSet.has(key)
+			!schemaFieldSet.has(key) &&
+			!preserveFields.has(key)
 		) {
 			delete result[key];
 		}
@@ -1252,8 +1495,15 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 
 	// Lock all fields that have values (matching project resume logic)
 	// Lock fields that have non-empty values (including 0 for numeric fields, false for booleans, empty arrays)
+	// Also lock special array fields (principals, trackRecord, references) that the frontend expects
 	const lockedFields: Record<string, boolean> = {};
-	for (const fieldId of BORROWER_SCHEMA_FIELD_IDS) {
+	const fieldsToCheck = [
+		...BORROWER_SCHEMA_FIELD_IDS,
+		"principals",
+		"trackRecord",
+		"references",
+	];
+	for (const fieldId of fieldsToCheck) {
 		const value = result[fieldId];
 		if (value !== undefined && value !== null) {
 			// Lock fields that have values
@@ -1270,7 +1520,18 @@ const hoqueBorrowerResume: Record<string, any> = (() => {
 				lockedFields[fieldId] = true;
 			} else if (Array.isArray(value)) {
 				// Lock arrays (even if empty, as empty array is a valid value)
-				lockedFields[fieldId] = true;
+				// But for principals, trackRecord, and references, only lock if non-empty
+				if (
+					fieldId === "principals" ||
+					fieldId === "trackRecord" ||
+					fieldId === "references"
+				) {
+					if (value.length > 0) {
+						lockedFields[fieldId] = true;
+					}
+				} else {
+					lockedFields[fieldId] = true;
+				}
 			} else if (
 				typeof value === "object" &&
 				Object.keys(value).length > 0
@@ -3115,6 +3376,101 @@ async function seedHoqueProject(): Promise<void> {
 			return;
 		}
 		const { userId: borrowerId, orgId: borrowerOrgId } = borrowerInfo;
+
+		// Step 2.5: Ensure Jeff Richmond is added as owner (for notifications)
+		console.log(
+			"\n📋 Step 2.5: Ensuring Jeff Richmond is added as owner..."
+		);
+		const jeffEmail = "jeff.richmond@capmatch.com";
+		const jeffPassword = "password";
+		const jeffName = "Jeff Richmond";
+
+		// Check if Jeff already exists
+		const { data: existingJeffProfile } = await supabaseAdmin
+			.from("profiles")
+			.select("id")
+			.eq("email", jeffEmail)
+			.maybeSingle();
+
+		let jeffUserId: string | null = null;
+
+		if (existingJeffProfile) {
+			console.log(
+				`[seed] Jeff Richmond already exists: ${jeffEmail} (${existingJeffProfile.id})`
+			);
+			jeffUserId = existingJeffProfile.id;
+		} else {
+			// Create user via auth
+			const { data: authUser, error: authError } =
+				await supabaseAdmin.auth.admin.createUser({
+					email: jeffEmail,
+					password: jeffPassword,
+					email_confirm: true,
+					user_metadata: { full_name: jeffName },
+				});
+
+			if (authError || !authUser.user) {
+				console.warn(
+					`[seed] Warning: Failed to create Jeff Richmond user:`,
+					authError
+				);
+			} else {
+				jeffUserId = authUser.user.id;
+
+				// Create profile
+				const { error: profileError } = await supabaseAdmin
+					.from("profiles")
+					.insert({
+						id: jeffUserId,
+						email: jeffEmail,
+						full_name: jeffName,
+						app_role: "borrower",
+						active_org_id: borrowerOrgId,
+					});
+
+				if (profileError) {
+					console.warn(
+						`[seed] Warning: Failed to create Jeff Richmond profile:`,
+						profileError
+					);
+					await supabaseAdmin.auth.admin.deleteUser(jeffUserId);
+					jeffUserId = null;
+				} else {
+					console.log(
+						`[seed] ✅ Created Jeff Richmond user: ${jeffEmail} (${jeffUserId})`
+					);
+				}
+			}
+		}
+
+		// Add Jeff to org_members as owner if user was created/found
+		if (jeffUserId) {
+			const { error: memberError } = await supabaseAdmin
+				.from("org_members")
+				.upsert(
+					{
+						org_id: borrowerOrgId,
+						user_id: jeffUserId,
+						role: "owner",
+					},
+					{ onConflict: "org_id,user_id" }
+				);
+
+			if (memberError) {
+				console.warn(
+					`[seed] Warning: Failed to add Jeff Richmond to org:`,
+					memberError
+				);
+			} else {
+				console.log(`[seed] ✅ Added Jeff Richmond as owner to org`);
+			}
+
+			// Ensure active_org_id is set
+			await supabaseAdmin
+				.from("profiles")
+				.update({ active_org_id: borrowerOrgId })
+				.eq("id", jeffUserId);
+		}
 
 		// Step 3: Create SoGood Apartments project
 		console.log("\n📋 Step 3: Creating SoGood Apartments project...");

@@ -235,7 +235,7 @@
 						"extensions",
 						"targetLtvPercent",
 						"targetLtcPercent",
-						"loanToCost",
+						"ltc",
 						"prepaymentTerms",
 						"prepaymentPremium",
 						"originationFee",
@@ -378,7 +378,7 @@
 				"extensions",
 				"targetLtvPercent",
 				"targetLtcPercent",
-				"loanToCost",
+				"ltc",
 				"prepaymentTerms",
 				"prepaymentPremium",
 				"originationFee",
@@ -1514,6 +1514,10 @@
 			"label": "Entitlements",
 			"required": true
 		},
+		"entitlementsDate": {
+			"label": "Entitlements Date",
+			"required": false
+		},
 		"permitsIssued": {
 			"label": "Permits Issued",
 			"required": true
@@ -1786,7 +1790,7 @@
 			"label": "Total Capitalization ($)",
 			"required": false
 		},
-		"loanToCost": {
+		"ltc": {
 			"label": "Loan to Cost (%)",
 			"required": false
 		},

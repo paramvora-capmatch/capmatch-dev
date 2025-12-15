@@ -191,6 +191,48 @@ export async function POST(request: NextRequest) {
       // Don't fail the whole operation, just log the error
     }
 
+    // Trigger notifications for invited participants
+    // The database trigger will create domain events, but we need to invoke notify-fan-out
+    try {
+      // Small delay to ensure trigger has completed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Fetch all domain events created for this meeting invitation
+      const { data: meetingEvents, error: eventsError } = await supabaseAdmin
+        .from('domain_events')
+        .select('id')
+        .eq('event_type', 'meeting_invited')
+        .eq('meeting_id', meeting.id);
+
+      if (eventsError) {
+        console.error('Error fetching domain events:', eventsError);
+      } else if (meetingEvents && meetingEvents.length > 0) {
+        console.log(`Found ${meetingEvents.length} meeting_invited events to process`);
+        
+        // Invoke notify-fan-out for each event
+        for (const domainEvent of meetingEvents) {
+          const { data, error: invokeError } = await supabaseAdmin.functions.invoke('notify-fan-out', {
+            body: { eventId: domainEvent.id },
+            headers: {
+              Authorization: `Bearer ${supabaseServiceKey}`,
+            },
+          });
+          
+          if (invokeError) {
+            console.error(`Error invoking notify-fan-out for event ${domainEvent.id}:`, invokeError);
+          } else {
+            console.log(`Successfully invoked notify-fan-out for event ${domainEvent.id}:`, data);
+          }
+        }
+        console.log(`Triggered ${meetingEvents.length} meeting invitation notifications`);
+      } else {
+        console.log('No domain events found for meeting', meeting.id);
+      }
+    } catch (notificationError) {
+      console.error('Error triggering meeting notifications:', notificationError);
+      // Don't fail the whole operation
+    }
+
     // Send calendar invites
     let inviteResults: CreateMeetingResponse['inviteResults'] = [];
 

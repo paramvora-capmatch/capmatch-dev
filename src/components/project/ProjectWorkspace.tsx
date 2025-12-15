@@ -15,6 +15,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ProjectResumeView } from "./ProjectResumeView"; // New component for viewing
 import { ProjectSummaryCard } from "./ProjectSummaryCard"; // Borrower progress
 import { ProjectCompletionCard } from "./ProjectCompletionCard"; // Project progress moved below docs
+import { ProjectSummaryCardSkeleton } from "./ProjectSummaryCardSkeleton";
+import { ProjectCompletionCardSkeleton } from "./ProjectCompletionCardSkeleton";
+import { ProjectResumeViewSkeleton } from "./ProjectResumeViewSkeleton";
+import { DocumentManagerSkeleton } from "../documents/DocumentManagerSkeleton";
 import EnhancedProjectForm from "../forms/EnhancedProjectForm";
 import { Loader2, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -115,8 +119,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	const [isEditing, setIsEditing] = useState(false);
-	const [initialProjectStepId, setInitialProjectStepId] = useState<string | null>(null);
-	const [initialBorrowerStepId, setInitialBorrowerStepId] = useState<string | null>(null);
+	const [initialProjectStepId, setInitialProjectStepId] = useState<
+		string | null
+	>(null);
+	const [initialBorrowerStepId, setInitialBorrowerStepId] = useState<
+		string | null
+	>(null);
 	const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
 	const [chatTab, setChatTab] = useState<"team" | "ai" | "meet">("team");
 	const [shouldExpandChat, setShouldExpandChat] = useState(false);
@@ -947,15 +955,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 		loadPermissionsForProject,
 	]);
 
-	// Loading state render - show loading during initial loading or if project doesn't match
-	if (shouldShowLoader || !activeProject || activeProject.id !== projectId) {
-		return (
-			<div className="flex justify-center items-center h-64">
-				<Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-				<span className="ml-3 text-gray-600">Loading...</span>
-			</div>
-		);
-	}
+	// Instead of showing a full-page loader, we'll show skeleton components
+	// This provides better UX by showing the page structure immediately
+	const isInitialLoad =
+		shouldShowLoader || !activeProject || activeProject.id !== projectId;
 
 	const projectResumeProgress = clampPercentage(
 		activeProject?.completenessPercent ?? 0
@@ -1094,14 +1097,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	return (
-		<div className="relative min-h-screen w-full flex flex-row animate-fadeIn bg-gray-200">
+		<div
+			className="relative w-full flex flex-row animate-fadeIn bg-gray-200"
+			style={{ minHeight: "100vh", height: "auto" }}
+		>
 			<AskAIProvider
 				onFieldAskAI={(fieldId: string) => {
 					setActiveFieldId(fieldId); // This will be passed to the chat widget
 				}}
 			>
 				{/* Global page background (grid + blue tint) behind both columns */}
-				<div className="pointer-events-none absolute inset-0 z-0">
+				<div
+					className="pointer-events-none absolute inset-0 z-0"
+					style={{ minHeight: "100vh" }}
+				>
 					<div className="absolute inset-0 opacity-[0.5]">
 						<svg
 							className="absolute inset-0 h-full w-full text-blue-500"
@@ -1144,19 +1153,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									transition={{ duration: 0.2 }}
 									className="space-y-6"
 								>
-									{/* Borrower Documents - Show loading or content based on permissions */}
-									{isWaitingForBorrowerDocs ||
+									{/* Borrower Documents - Show skeleton or content based on loading state */}
+									{isInitialLoad ||
+									isWaitingForBorrowerDocs ||
 									isLoadingBorrowerDocsPermissions ? (
 										<motion.div
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											transition={{ duration: 0.2 }}
-											className="flex justify-center items-center py-12"
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{
+												duration: 0.3,
+												delay: 0.1,
+											}}
 										>
-											<Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-											<span className="ml-3 text-gray-600">
-												Loading borrower documents...
-											</span>
+											<DocumentManagerSkeleton title="Borrower Documents" />
 										</motion.div>
 									) : canViewBorrowerDocs ? (
 										<motion.div
@@ -1170,19 +1179,33 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 											{renderBorrowerDocumentsSection()}
 										</motion.div>
 									) : null}
-									{/* Borrower Resume - Show loading or content based on permissions */}
-									{isWaitingForBorrowerResume ||
+									{/* Borrower Resume - Show skeleton or content based on loading state */}
+									{isInitialLoad ||
+									isWaitingForBorrowerResume ||
 									isLoadingBorrowerResumePermissions ? (
 										<motion.div
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											transition={{ duration: 0.2 }}
-											className="flex justify-center items-center py-12"
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{
+												duration: 0.3,
+												delay: 0.2,
+											}}
 										>
-											<Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-											<span className="ml-3 text-gray-600">
-												Loading borrower resume...
-											</span>
+											<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-full">
+												<div className="p-6 space-y-4">
+													<div className="h-7 bg-gray-200 rounded w-48 animate-pulse"></div>
+													<div className="space-y-3">
+														{[1, 2, 3, 4].map(
+															(i) => (
+																<div
+																	key={i}
+																	className="h-16 bg-gray-100 rounded-lg animate-pulse"
+																></div>
+															)
+														)}
+													</div>
+												</div>
+											</div>
 										</motion.div>
 									) : canViewBorrowerResume ? (
 										<motion.div
@@ -1213,24 +1236,29 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 										transition={{ duration: 0.3 }}
 										className="text-3xl font-bold text-gray-900 mb-5"
 									>
-										{(unwrapValue(
-											activeProject?.projectName
-										) as string) || "Project"}
+										{isInitialLoad ? (
+											<div className="h-9 bg-gray-200 rounded w-64 animate-pulse"></div>
+										) : (
+											(unwrapValue(
+												activeProject?.projectName
+											) as string) || "Project"
+										)}
 									</motion.h1>
 
-									{/* Project Progress Card - Show loading or content based on permissions */}
-									{isWaitingForBorrowerResume ||
+									{/* Project Progress Card - Show skeleton or content based on loading state */}
+									{isInitialLoad ||
+									isWaitingForBorrowerResume ||
 									isWaitingForBorrowerDocs ? (
 										<motion.div
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											transition={{ duration: 0.2 }}
-											className="flex justify-center items-center py-12"
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{
+												duration: 0.3,
+												delay: 0.1,
+											}}
+											className="relative"
 										>
-											<Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-											<span className="ml-3 text-gray-600">
-												Loading borrower details...
-											</span>
+											<ProjectSummaryCardSkeleton />
 										</motion.div>
 									) : canViewBorrowerResume ||
 									  canViewBorrowerDocs ? (
@@ -1343,20 +1371,21 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 										</motion.div>
 									)}
 
-									{/* Project Documents - Show loading or content based on permissions */}
-									{isWaitingForProjectDocs ||
+									{/* Project Documents - Show skeleton or content based on loading state */}
+									{isInitialLoad ||
+									isWaitingForProjectDocs ||
 									isLoadingProjectDocsPermissions ? (
 										<motion.div
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											transition={{ duration: 0.2 }}
-											className="flex justify-center items-center py-12"
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{
+												duration: 0.3,
+												delay: 0.3,
+											}}
 											id="project-documents-section"
+											className="overflow-visible"
 										>
-											<Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-											<span className="ml-3 text-gray-600">
-												Loading project documents...
-											</span>
+											<DocumentManagerSkeleton title="Project Documents" />
 										</motion.div>
 									) : canViewProjectDocs ? (
 										<motion.div
@@ -1387,18 +1416,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 										</motion.div>
 									) : null}
 
-									{/* Project completion progress - Show loading or content based on permissions */}
-									{isWaitingForProjectResume ? (
+									{/* Project completion progress - Show skeleton or content based on loading state */}
+									{isInitialLoad ||
+									isWaitingForProjectResume ? (
 										<motion.div
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											transition={{ duration: 0.2 }}
-											className="flex justify-center items-center py-12"
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{
+												duration: 0.3,
+												delay: 0.4,
+											}}
 										>
-											<Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-											<span className="ml-3 text-gray-600">
-												Loading project details...
-											</span>
+											<ProjectCompletionCardSkeleton />
 										</motion.div>
 									) : canViewProjectResume ? (
 										<motion.div
@@ -1419,19 +1448,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 										</motion.div>
 									) : null}
 
-									{/* Project Resume (View or Edit) - Show loading or content based on permissions */}
-									{isWaitingForProjectResume ||
+									{/* Project Resume (View or Edit) - Show skeleton or content based on loading state */}
+									{isInitialLoad ||
+									isWaitingForProjectResume ||
 									isLoadingProjectResumePermissions ? (
 										<motion.div
-											initial={{ opacity: 0 }}
-											animate={{ opacity: 1 }}
-											transition={{ duration: 0.2 }}
-											className="flex justify-center items-center py-12"
+											initial={{ opacity: 0, y: 10 }}
+											animate={{ opacity: 1, y: 0 }}
+											transition={{
+												duration: 0.3,
+												delay: 0.5,
+											}}
 										>
-											<Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-											<span className="ml-3 text-gray-600">
-												Loading project resume...
-											</span>
+											<ProjectResumeViewSkeleton />
 										</motion.div>
 									) : canViewProjectResume ? (
 										<>
@@ -1455,7 +1484,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 														existingProject={
 															activeProject
 														}
-														initialStepId={initialProjectStepId}
+														initialStepId={
+															initialProjectStepId
+														}
 														onComplete={() =>
 															setIsEditing(false)
 														}

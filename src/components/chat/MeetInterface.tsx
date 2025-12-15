@@ -5,23 +5,23 @@ import { Card } from "../ui/card";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
 import {
-  Video,
-  FileText,
-  Clock,
-  ChevronRight,
-  ChevronDown,
-  Calendar,
-  Download,
-  Play,
-  Plus,
-  Users as UsersIcon,
-  Loader2,
-  Trash2,
-  MessageSquare,
-  CheckCircle,
-  AlertCircle,
-  TrendingUp,
-  X
+	Video,
+	FileText,
+	Clock,
+	ChevronRight,
+	ChevronDown,
+	Calendar,
+	Download,
+	Play,
+	Plus,
+	Users as UsersIcon,
+	Loader2,
+	Trash2,
+	MessageSquare,
+	CheckCircle,
+	AlertCircle,
+	TrendingUp,
+	X,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useOrgStore } from "@/stores/useOrgStore";
@@ -33,1266 +33,1987 @@ import { supabase } from "@/lib/supabaseClient";
 import type { MeetingSummary } from "@/lib/gemini-summarize";
 
 interface MeetInterfaceProps {
-  projectId: string;
-  embedded?: boolean; // when true, render without outer border/radius so parents can frame it
+	projectId: string;
+	embedded?: boolean; // when true, render without outer border/radius so parents can frame it
 }
 
 interface Meeting {
-  id: string;
-  title: string;
-  date: Date;
-  duration: number; // in minutes
-  participants: string[];
-  summary?: string;
-  transcript?: string;
-  recordingUrl?: string;
+	id: string;
+	title: string;
+	date: Date;
+	duration: number; // in minutes
+	participants: string[];
+	summary?: string;
+	transcript?: string;
+	recordingUrl?: string;
 }
 
 export const MeetInterface: React.FC<MeetInterfaceProps> = ({
-  projectId,
-  embedded = false,
+	projectId,
+	embedded = false,
 }) => {
-  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [viewMode, setViewMode] = useState<"summary" | "transcript">("summary");
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-  const [meetingTitle, setMeetingTitle] = useState("");
-  const [meetingDuration, setMeetingDuration] = useState("30");
-  const [selectedSlot, setSelectedSlot] = useState<{ start: string; end: string } | null>(null);
-  const [availableSlots, setAvailableSlots] = useState<Array<{ start: string; end: string }>>([]);
-  const [isFetchingSlots, setIsFetchingSlots] = useState(false);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
-  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
-  const [createMeetingError, setCreateMeetingError] = useState<string | null>(null);
-  const [isUpcomingExpanded, setIsUpcomingExpanded] = useState(true);
-  const [isPastExpanded, setIsPastExpanded] = useState(false);
-  const [cancellingMeetingId, setCancellingMeetingId] = useState<string | null>(null);
-  const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
-  const [selectedTranscriptMeeting, setSelectedTranscriptMeeting] = useState<any>(null);
-  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
-  const [selectedSummaryMeeting, setSelectedSummaryMeeting] = useState<any>(null);
-
-  // Get project members
-  const { members } = useOrgStore();
-  const { projects } = useProjects();
-  const { user } = useAuth();
-
-  // Get meetings from database with realtime subscriptions
-  const { upcomingMeetings, pastMeetings, isLoading: isMeetingsLoading, refreshMeetings } = useMeetings(projectId);
-
-  const activeProject = useMemo(
-    () => projects?.find((p) => p.id === projectId),
-    [projects, projectId]
-  );
-
-  // Memoize the projects array to prevent unnecessary re-fetches
-  const projectsArray = useMemo(
-    () => (activeProject ? [activeProject] : []),
-    [activeProject]
-  );
-
-  // Use useProjectMembers to get all members with access to this project
-  const { membersByProjectId, isLoading: isMembersLoading } = useProjectMembers(
-    projectsArray
-  );
-
-  // Get members for the current project
-  const projectMembers = useMemo(() => {
-    const members = membersByProjectId[projectId] || [];
-    // Filter out the current user
-    return members.filter(member => member.userId !== user?.id);
-  }, [membersByProjectId, projectId, user?.id]);
-
-  // Fetch available time slots when participants change
-  useEffect(() => {
-    const fetchAvailability = async () => {
-      // Only fetch if we have at least one participant selected
-      if (selectedParticipants.length === 0) {
-        setAvailableSlots([]);
-        setSlotsError(null);
-        return;
-      }
-
-      setIsFetchingSlots(true);
-      setSlotsError(null);
-
-      try {
-        // Calculate date range for next 3 days
-        const now = new Date();
-
-        // Round to next 15-minute interval
-        const startDate = new Date(now);
-        const minutes = startDate.getMinutes();
-        const roundedMinutes = Math.ceil(minutes / 15) * 15;
-        startDate.setMinutes(roundedMinutes, 0, 0);
-
-        const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 3);
-
-        // Include organizer's user ID to check their calendar for conflicts
-        const userIdsToCheck = user?.id
-          ? [user.id, ...selectedParticipants]
-          : selectedParticipants;
-
-        const response = await fetch('/api/meetings/availability', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userIds: userIdsToCheck,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-            duration: parseInt(meetingDuration) || 30,
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch availability');
-        }
-
-        const data = await response.json();
-        
-        // Filter slots to only show those starting at :00, :15, :30, or :45
-        // and between 9am and 6pm
-        const filteredSlots = (data.freeSlots || []).filter((slot: { start: string }) => {
-          const slotTime = new Date(slot.start);
-          const minutes = slotTime.getMinutes();
-          const hours = slotTime.getHours();
-          const validMinutes = minutes === 0 || minutes === 15 || minutes === 30 || minutes === 45;
-          const validHours = hours >= 9 && hours < 18; // 9am to 5:59pm (last slot at 5:30pm for 30min meeting)
-          return validMinutes && validHours;
-        });
-        
-        setAvailableSlots(filteredSlots);
-      } catch (error) {
-        console.error('Error fetching availability:', error);
-        setSlotsError('Unable to fetch available time slots');
-        setAvailableSlots([]);
-      } finally {
-        setIsFetchingSlots(false);
-      }
-    };
-
-    fetchAvailability();
-  }, [selectedParticipants, meetingDuration, user?.id]);
-
-  // Handle joining a video call
-  const handleJoinVideoCall = (meeting: any) => {
-    // Extract room name from meeting_link
-    const roomName = meeting.meeting_link?.split('/').pop();
-    if (roomName) {
-      window.open(`/meeting/${roomName}`, '_blank');
-    }
-  };
-
-  // Handle cancelling a meeting
-  const handleCancelMeeting = async (meetingId: string) => {
-    if (!confirm('Are you sure you want to cancel this meeting? This action cannot be undone.')) {
-      return;
-    }
-
-    setCancellingMeetingId(meetingId);
-
-    try {
-      // Get auth token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
-
-      const response = await fetch(`/api/meetings/${meetingId}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to cancel meeting');
-      }
-
-      const data = await response.json();
-      if (data.errors && data.errors.length > 0) {
-        console.warn('Meeting cancelled but some calendar events failed:', data.errors);
-        // Optional: Show a warning to the user
-      } else if (data.cancelledEvents > 0) {
-        console.log(`Meeting cancelled and ${data.cancelledEvents} calendar events removed`);
-      }
-
-      // Refresh meetings list
-      await refreshMeetings();
-    } catch (error) {
-      console.error('Error cancelling meeting:', error);
-      alert(error instanceof Error ? error.message : 'Failed to cancel meeting');
-    } finally {
-      setCancellingMeetingId(null);
-    }
-  };
-
-  // Handle meeting creation
-  const handleCreateMeeting = async () => {
-    if (!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || !user) {
-      return;
-    }
-
-    setIsCreatingMeeting(true);
-    setCreateMeetingError(null);
-
-    try {
-      // Get auth token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
-
-      const response = await fetch('/api/meetings/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: meetingTitle,
-          startTime: selectedSlot.start,
-          endTime: selectedSlot.end,
-          participantIds: [...selectedParticipants, user.id], // Include organizer
-          projectId,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create meeting');
-      }
-
-      const data = await response.json();
-      console.log('Meeting created:', data);
-
-      // Refresh meetings list
-      await refreshMeetings();
-
-      // Close modal and reset
-      setIsScheduleModalOpen(false);
-      setMeetingTitle("");
-      setMeetingDuration("30");
-      setSelectedParticipants([]);
-      setSelectedSlot(null);
-      setAvailableSlots([]);
-      setSlotsError(null);
-    } catch (error) {
-      console.error('Error creating meeting:', error);
-      setCreateMeetingError(error instanceof Error ? error.message : 'Failed to create meeting');
-    } finally {
-      setIsCreatingMeeting(false);
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(date);
-  };
-
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  };
-
-  const getTimeUntil = (date: Date) => {
-    const now = new Date();
-    const diffMs = date.getTime() - now.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 0) return `Started ${Math.abs(diffMins)}m ago`;
-    if (diffMins < 60) return `in ${diffMins}m`;
-    if (diffHours < 24) return `in ${diffHours}h`;
-    if (diffDays === 1) return "Tomorrow";
-    if (diffDays < 7) return `in ${diffDays} days`;
-    return formatDate(date);
-  };
-
-  return (
-    <div className={cn(
-      "flex flex-col h-full bg-gradient-to-br from-gray-50 to-white",
-      !embedded && "rounded-lg border border-gray-200 shadow-sm"
-    )}>
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="flex items-center space-x-2">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Video className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Meetings
-            </h3>
-            <p className="text-xs text-gray-500">
-              {upcomingMeetings.length} upcoming · {pastMeetings.length} past
-            </p>
-          </div>
-        </div>
-        <Button
-          size="sm"
-          onClick={() => setIsScheduleModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New Meeting
-        </Button>
-      </div>
-
-      {/* Meetings List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {isMeetingsLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-        ) : upcomingMeetings.length === 0 && pastMeetings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <div className="p-4 bg-gray-100 rounded-full mb-4">
-              <Video className="w-8 h-8 text-gray-400" />
-            </div>
-            <h4 className="text-lg font-medium text-gray-900 mb-2">
-              No Meetings Yet
-            </h4>
-            <p className="text-sm text-gray-500 max-w-sm">
-              Meeting summaries and transcripts will appear here once meetings are recorded.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Upcoming Meetings Section */}
-            {upcomingMeetings.length > 0 && (
-              <div className="space-y-3">
-                <button 
-                  onClick={() => setIsUpcomingExpanded(!isUpcomingExpanded)}
-                  className="flex items-center space-x-2 px-1 w-full hover:bg-gray-50 p-1 rounded-md transition-colors"
-                >
-                  {isUpcomingExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
-                  )}
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  <h4 className="text-sm font-semibold text-gray-900">
-                    Upcoming Meetings
-                  </h4>
-                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
-                    {upcomingMeetings.length}
-                  </span>
-                </button>
-                
-                {isUpcomingExpanded && (
-                  <div className="space-y-3">
-                    {upcomingMeetings.map((meeting, index) => {
-                      const startTime = new Date(meeting.start_time);
-                      const participants = meeting.participants || [];
-
-                      return (
-                      <motion.div
-                        key={meeting.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2, delay: index * 0.05 }}
-                      >
-                        <Card className="hover:shadow-md transition-all duration-200 border-l-4 border-l-blue-500 border-t border-r border-b border-gray-200 bg-white">
-                          <div className="p-4">
-                            {/* Meeting Header */}
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
-                                  {meeting.title}
-                                </h4>
-                                <div className="flex items-center space-x-3 text-xs">
-                                  <span className="flex items-center text-blue-700 font-medium">
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    {getTimeUntil(startTime)}
-                                  </span>
-                                  <span className="flex items-center text-gray-500">
-                                    <Calendar className="w-3 h-3 mr-1" />
-                                    {formatDate(startTime)}
-                                  </span>
-                                </div>
-                              </div>
-                              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-md flex-shrink-0">
-                                {formatDuration(meeting.duration_minutes)}
-                              </span>
-                            </div>
-
-                            {/* Participants */}
-                            <div className="mb-3">
-                              <p className="text-xs text-gray-500 mb-1">Participants:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {participants.map((participant, i) => (
-                                  <span
-                                    key={i}
-                                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
-                                  >
-                                    {participant.user?.full_name || participant.user?.email || 'Unknown'}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Video Call Actions */}
-                            <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                              {meeting.meeting_link && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleJoinVideoCall(meeting)}
-                                  className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
-                                >
-                                  <Video className="w-4 h-4 mr-1" />
-                                  Join Video Call
-                                </Button>
-                              )}
-                              
-                              {meeting.organizer_id === user?.id && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCancelMeeting(meeting.id)}
-                                  disabled={cancellingMeetingId === meeting.id}
-                                  className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
-                                >
-                                  {cancellingMeetingId === meeting.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="w-4 h-4" />
-                                  )}
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </Card>
-                      </motion.div>
-                    )})}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Past Meetings Section */}
-            {pastMeetings.length > 0 && (
-              <div className="space-y-3">
-                <button 
-                  onClick={() => setIsPastExpanded(!isPastExpanded)}
-                  className="flex items-center space-x-2 px-1 w-full hover:bg-gray-50 p-1 rounded-md transition-colors"
-                >
-                  {isPastExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
-                  )}
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  <h4 className="text-sm font-semibold text-gray-900">
-                    Past Meetings
-                  </h4>
-                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
-                    {pastMeetings.length}
-                  </span>
-                </button>
-                
-                {isPastExpanded && (
-                  <div className="space-y-3">
-                    {pastMeetings.map((meeting, index) => {
-                    const startTime = new Date(meeting.start_time);
-                    const participants = meeting.participants || [];
-
-                    return (
-                    <motion.div
-                      key={meeting.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.05 }}
-                    >
-                      <Card className="hover:shadow-md transition-all duration-200 border border-gray-200 bg-white">
-                        <div className="p-4">
-                          {/* Meeting Header */}
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
-                                {meeting.title}
-                              </h4>
-                              <div className="flex items-center space-x-3 text-xs text-gray-500">
-                                <span className="flex items-center">
-                                  <Calendar className="w-3 h-3 mr-1" />
-                                  {formatDate(startTime)}
-                                </span>
-                                <span className="flex items-center">
-                                  <Clock className="w-3 h-3 mr-1" />
-                                  {formatDuration(meeting.duration_minutes)}
-                                </span>
-                              </div>
-                            </div>
-                            {meeting.recording_url && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => window.open(meeting.recording_url, "_blank")}
-                                className="p-1.5 hover:bg-blue-50 hover:text-blue-600 transition-colors flex-shrink-0"
-                                title="Play recording"
-                              >
-                                <Play className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-
-                          {/* Participants */}
-                          <div className="mb-3">
-                            <p className="text-xs text-gray-500 mb-1">Participants:</p>
-                            <div className="flex flex-wrap gap-1">
-                              {participants.map((participant, i) => (
-                                <span
-                                  key={i}
-                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700"
-                                >
-                                  {participant.user?.full_name || participant.user?.email || 'Unknown'}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Summary - Parse and display structured summary */}
-                          {meeting.summary && (() => {
-                            try {
-                              const summaryData: MeetingSummary = typeof meeting.summary === 'string'
-                                ? JSON.parse(meeting.summary)
-                                : meeting.summary;
-
-                              return (
-                                <div className="mb-3">
-                                  <p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
-                                    <MessageSquare className="w-3 h-3 mr-1" />
-                                    Executive Summary
-                                  </p>
-                                  <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
-                                    {summaryData.executive_summary}
-                                  </p>
-                                  {(summaryData.key_points?.length > 0 || summaryData.action_items?.length > 0) && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedSummaryMeeting(meeting);
-                                        setIsSummaryModalOpen(true);
-                                      }}
-                                      className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 mt-2 p-0"
-                                    >
-                                      View Full Summary →
-                                    </Button>
-                                  )}
-                                </div>
-                              );
-                            } catch (error) {
-                              // Fallback for non-JSON summaries
-                              return (
-                                <div className="mb-3">
-                                  <p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
-                                    <FileText className="w-3 h-3 mr-1" />
-                                    Summary
-                                  </p>
-                                  <p className="text-xs text-gray-600 leading-relaxed">
-                                    {meeting.summary}
-                                  </p>
-                                </div>
-                              );
-                            }
-                          })()}
-
-                          {/* Actions */}
-                          <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                            {meeting.transcript_text && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedTranscriptMeeting(meeting);
-                                  setIsTranscriptModalOpen(true);
-                                }}
-                                className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                              >
-                                <FileText className="w-3 h-3 mr-1" />
-                                Transcript
-                              </Button>
-                            )}
-                            {meeting.recording_url && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  window.open(meeting.recording_url, '_blank');
-                                }}
-                                className="text-xs hover:bg-gray-50 hover:text-gray-700 transition-colors"
-                              >
-                                <Download className="w-3 h-3 mr-1" />
-                                Recording
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </Card>
-                    </motion.div>
-                  )})}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Footer Info */}
-      <div className="p-3 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
-          <FileText className="w-4 h-4" />
-          <span>All meeting summaries and transcripts</span>
-        </div>
-      </div>
-
-      {/* Schedule Meeting Modal */}
-      <Modal
-        isOpen={isScheduleModalOpen}
-        onClose={() => {
-          setIsScheduleModalOpen(false);
-          setMeetingTitle("");
-          setMeetingDuration("30");
-          setSelectedParticipants([]);
-          setSelectedSlot(null);
-          setAvailableSlots([]);
-          setSlotsError(null);
-        }}
-        title="Schedule New Meeting"
-        size="4xl"
-      >
-        <div className="space-y-4">
-          {/* Meeting Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Meeting Title
-            </label>
-            <input
-              type="text"
-              value={meetingTitle}
-              onChange={(e) => setMeetingTitle(e.target.value)}
-              placeholder="e.g., Project Review Meeting"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Meeting Duration */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Meeting Duration (minutes)
-            </label>
-            <input
-              type="number"
-              value={meetingDuration}
-              onChange={(e) => setMeetingDuration(e.target.value)}
-              min="15"
-              max="240"
-              step="15"
-              placeholder="30"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Two Column Layout: Participants on left, Time Slots on right */}
-          <div className="grid grid-cols-5 gap-4">
-            {/* Left Column: Participants */}
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Participants
-              </label>
-              <div className="border border-gray-300 rounded-lg h-80 overflow-y-auto">
-                {isMembersLoading ? (
-                  <div className="p-4 text-center text-sm text-gray-500">
-                    Loading members...
-                  </div>
-                ) : projectMembers.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-gray-500">
-                    No team members available
-                  </div>
-                ) : (
-                  <div className="p-2 space-y-1">
-                    {projectMembers.map((member) => {
-                      const displayName = member.userName || member.userEmail || "Unknown User";
-                      const isSelected = selectedParticipants.includes(member.userId);
-
-                      return (
-                        <label
-                          key={member.userId}
-                          className={cn(
-                            "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
-                            isSelected ? "bg-blue-50 border border-blue-200" : "hover:bg-gray-50"
-                          )}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedParticipants([...selectedParticipants, member.userId]);
-                              } else {
-                                setSelectedParticipants(
-                                  selectedParticipants.filter((id) => id !== member.userId)
-                                );
-                              }
-                            }}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <div className="flex items-center space-x-2 flex-1 min-w-0">
-                            <div className={cn(
-                              "w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0",
-                              "bg-gradient-to-br from-blue-500 to-blue-600"
-                            )}>
-                              {displayName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {displayName}
-                              </p>
-                              {member.userEmail && (
-                                <p className="text-xs text-gray-500 truncate">
-                                  {member.userEmail}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                </div>
-              )}
-              </div>
-            </div>
-            
-            {/* Right Column: Available Time Slots */}
-            <div className="col-span-3">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Available Time Slots
-              </label>
-              
-              {selectedParticipants.length === 0 ? (
-                <div className="border border-gray-200 rounded-lg p-8 bg-gray-50 h-80 flex items-center justify-center">
-                  <p className="text-sm text-gray-500 text-center">
-                    Select participants to see available times
-                  </p>
-                </div>
-              ) : isFetchingSlots ? (
-                <div className="flex items-center justify-center py-8 border border-gray-200 rounded-lg h-80">
-                  <div className="text-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
-                    <span className="text-sm text-gray-600">Finding available times...</span>
-                  </div>
-                </div>
-              ) : slotsError ? (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg h-80 flex items-center justify-center">
-                  <p className="text-sm text-red-600">{slotsError}</p>
-                </div>
-              ) : availableSlots.length === 0 ? (
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg h-80 flex items-center justify-center">
-                  <p className="text-sm text-gray-600 text-center">
-                    No common available times found. Try selecting different participants or manually enter a time.
-                  </p>
-                </div>
-              ) : (
-                <div className="border border-gray-200 rounded-lg h-80 overflow-y-auto">
-                  <div className="p-2 space-y-3">
-                    {(() => {
-                      // Group slots by day
-                      const slotsByDay: Record<string, Array<{ start: string; end: string }>> = {};
-                      availableSlots.forEach(slot => {
-                        const date = new Date(slot.start);
-                        const dayKey = date.toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        });
-                        if (!slotsByDay[dayKey]) {
-                          slotsByDay[dayKey] = [];
-                        }
-                        slotsByDay[dayKey].push(slot);
-                      });
-
-                      return Object.entries(slotsByDay).map(([day, slots]) => (
-                        <div key={day} className="space-y-2">
-                          <h4 className="text-xs font-semibold text-gray-700 px-2 py-1 bg-gray-100 rounded">
-                            {day}
-                          </h4>
-                          <div className="grid grid-cols-4 gap-2 px-2">
-                            {slots.map((slot, idx) => {
-                              const startTime = new Date(slot.start);
-                              const timeStr = startTime.toLocaleTimeString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true,
-                              });
-                              const isSelected = selectedSlot?.start === slot.start;
-
-                              return (
-                                <button
-                                  key={idx}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedSlot(slot);
-                                  }}
-                                  className={cn(
-                                    "px-3 py-2 text-xs font-medium rounded-md transition-colors",
-                                    isSelected
-                                      ? "bg-blue-600 text-white"
-                                      : "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300"
-                                  )}
-                                >
-                                  {timeStr}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {createMeetingError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{createMeetingError}</p>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsScheduleModalOpen(false);
-                setMeetingTitle("");
-                setMeetingDuration("30");
-                setSelectedParticipants([]);
-                setSelectedSlot(null);
-                setAvailableSlots([]);
-                setSlotsError(null);
-                setCreateMeetingError(null);
-              }}
-              disabled={isCreatingMeeting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateMeeting}
-              disabled={!meetingTitle || !selectedSlot || selectedParticipants.length === 0 || isCreatingMeeting}
-              className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isCreatingMeeting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Schedule Meeting'
-              )}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Transcript Modal */}
-      <Modal
-        isOpen={isTranscriptModalOpen}
-        onClose={() => {
-          setIsTranscriptModalOpen(false);
-          setSelectedTranscriptMeeting(null);
-        }}
-        title={selectedTranscriptMeeting?.title || 'Meeting Transcript'}
-        size="4xl"
-      >
-        <div className="space-y-4">
-          {/* Meeting Info */}
-          <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600">
-                {selectedTranscriptMeeting && formatDate(new Date(selectedTranscriptMeeting.start_time))}
-              </span>
-              <Clock className="w-4 h-4 text-gray-500 ml-4" />
-              <span className="text-sm text-gray-600">
-                {selectedTranscriptMeeting && formatDuration(selectedTranscriptMeeting.duration_minutes)}
-              </span>
-            </div>
-          </div>
-
-          {/* Transcript Content - Parsed WebVTT */}
-          <div className="max-h-[600px] overflow-y-auto">
-            {selectedTranscriptMeeting?.transcript_text ? (
-              <div className="space-y-4">
-                {(() => {
-                  // Parse WebVTT transcript
-                  const lines = selectedTranscriptMeeting.transcript_text.split('\n');
-                  const entries: Array<{ timestamp: string; speaker: string; text: string }> = [];
-
-                  let currentTimestamp = '';
-                  let currentSpeaker = '';
-                  let currentText = '';
-
-                  for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-
-                    // Skip WEBVTT header and empty lines
-                    if (line === '' || line.startsWith('WEBVTT') || line.startsWith('NOTE') || line.startsWith('transcript:')) {
-                      continue;
-                    }
-
-                    // Check for timestamp line (HH:MM:SS.mmm --> HH:MM:SS.mmm)
-                    if (line.match(/^\d{2}:\d{2}:\d{2}\.\d{3}/)) {
-                      // Save previous entry if exists
-                      if (currentSpeaker && currentText) {
-                        entries.push({
-                          timestamp: currentTimestamp,
-                          speaker: currentSpeaker,
-                          text: currentText.trim()
-                        });
-                      }
-
-                      // Extract start timestamp
-                      const timestampMatch = line.match(/^(\d{2}:\d{2}:\d{2})/);
-                      currentTimestamp = timestampMatch ? timestampMatch[1] : '';
-                      currentSpeaker = '';
-                      currentText = '';
-                      continue;
-                    }
-
-                    // Check for speaker tag: <v>Speaker Name:</v>text
-                    const speakerMatch = line.match(/<v>([^<]+):<\/v>(.*)/);
-                    if (speakerMatch) {
-                      currentSpeaker = speakerMatch[1].trim();
-                      currentText = speakerMatch[2].trim();
-                    } else if (currentSpeaker) {
-                      // Continuation of previous text
-                      currentText += ' ' + line;
-                    }
-                  }
-
-                  // Save last entry
-                  if (currentSpeaker && currentText) {
-                    entries.push({
-                      timestamp: currentTimestamp,
-                      speaker: currentSpeaker,
-                      text: currentText.trim()
-                    });
-                  }
-
-                  // Group consecutive messages by speaker
-                  const groupedEntries: Array<{ speaker: string; messages: Array<{ timestamp: string; text: string }> }> = [];
-
-                  for (const entry of entries) {
-                    const lastGroup = groupedEntries[groupedEntries.length - 1];
-
-                    if (lastGroup && lastGroup.speaker === entry.speaker) {
-                      // Same speaker, add to existing group
-                      lastGroup.messages.push({
-                        timestamp: entry.timestamp,
-                        text: entry.text
-                      });
-                    } else {
-                      // New speaker, create new group
-                      groupedEntries.push({
-                        speaker: entry.speaker,
-                        messages: [{
-                          timestamp: entry.timestamp,
-                          text: entry.text
-                        }]
-                      });
-                    }
-                  }
-
-                  // Render grouped transcript
-                  return groupedEntries.map((group, groupIndex) => (
-                    <div key={groupIndex} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                      {/* Speaker Avatar */}
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold">
-                          {group.speaker.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                        </div>
-                      </div>
-
-                      {/* Speaker Messages */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="text-sm font-semibold text-gray-900">
-                            {group.speaker}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {group.messages[0].timestamp}
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {group.messages.map((msg, msgIndex) => (
-                            <p key={msgIndex} className="text-sm text-gray-700 leading-relaxed">
-                              {msg.text}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                No transcript available.
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <Button
-              variant="outline"
-              onClick={() => {
-                // Copy transcript to clipboard (plain text format)
-                if (selectedTranscriptMeeting?.transcript_text) {
-                  const lines = selectedTranscriptMeeting.transcript_text.split('\n');
-                  const plainText: string[] = [];
-
-                  for (const line of lines) {
-                    const speakerMatch = line.match(/<v>([^<]+):<\/v>(.*)/);
-                    if (speakerMatch) {
-                      plainText.push(`${speakerMatch[1]}: ${speakerMatch[2]}`);
-                    }
-                  }
-
-                  navigator.clipboard.writeText(plainText.join('\n'));
-                }
-              }}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Copy to Clipboard
-            </Button>
-            <Button
-              onClick={() => {
-                setIsTranscriptModalOpen(false);
-                setSelectedTranscriptMeeting(null);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Full Summary Modal */}
-      <Modal
-        isOpen={isSummaryModalOpen}
-        onClose={() => {
-          setIsSummaryModalOpen(false);
-          setSelectedSummaryMeeting(null);
-        }}
-        title={selectedSummaryMeeting?.title || 'Meeting Summary'}
-        size="4xl"
-      >
-        <div className="space-y-4">
-          {/* Meeting Info */}
-          <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600">
-                {selectedSummaryMeeting && formatDate(new Date(selectedSummaryMeeting.start_time))}
-              </span>
-              <Clock className="w-4 h-4 text-gray-500 ml-4" />
-              <span className="text-sm text-gray-600">
-                {selectedSummaryMeeting && formatDuration(selectedSummaryMeeting.duration_minutes)}
-              </span>
-            </div>
-          </div>
-
-          {/* Summary Content */}
-          {selectedSummaryMeeting?.summary && (() => {
-            try {
-              const summaryData: MeetingSummary = typeof selectedSummaryMeeting.summary === 'string'
-                ? JSON.parse(selectedSummaryMeeting.summary)
-                : selectedSummaryMeeting.summary;
-
-              return (
-                <div className="max-h-[600px] overflow-y-auto space-y-6">
-                  {/* Executive Summary */}
-                  {summaryData.executive_summary && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                        <MessageSquare className="w-4 h-4 mr-2 text-blue-600" />
-                        Executive Summary
-                      </h3>
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        {summaryData.executive_summary}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Key Points */}
-                  {summaryData.key_points && summaryData.key_points.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                        <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                        Key Points
-                      </h3>
-                      <ul className="space-y-2">
-                        {summaryData.key_points.map((point, index) => (
-                          <li key={index} className="flex items-start">
-                            <span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0" />
-                            <span className="text-sm text-gray-700">{point}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Action Items */}
-                  {summaryData.action_items && summaryData.action_items.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                        <CheckCircle className="w-4 h-4 mr-2 text-blue-600" />
-                        Action Items
-                      </h3>
-                      <ul className="space-y-2">
-                        {summaryData.action_items.map((item, index) => (
-                          <li key={index} className="flex items-start">
-                            <span className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
-                            <span className="text-sm text-gray-700">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Important Numbers */}
-                  {summaryData.important_numbers && summaryData.important_numbers.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                        <TrendingUp className="w-4 h-4 mr-2 text-orange-600" />
-                        Important Numbers & Metrics
-                      </h3>
-                      <ul className="space-y-2">
-                        {summaryData.important_numbers.map((number, index) => (
-                          <li key={index} className="flex items-start">
-                            <span className="inline-block w-1.5 h-1.5 bg-orange-600 rounded-full mt-2 mr-3 flex-shrink-0" />
-                            <span className="text-sm text-gray-700">{number}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Questions Raised */}
-                  {summaryData.questions_raised && summaryData.questions_raised.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                        <MessageSquare className="w-4 h-4 mr-2 text-indigo-600" />
-                        Questions Raised
-                      </h3>
-                      <ul className="space-y-2">
-                        {summaryData.questions_raised.map((question, index) => (
-                          <li key={index} className="flex items-start">
-                            <span className="inline-block w-1.5 h-1.5 bg-indigo-600 rounded-full mt-2 mr-3 flex-shrink-0" />
-                            <span className="text-sm text-gray-700">{question}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Open Questions */}
-                  {summaryData.open_questions && summaryData.open_questions.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-2 text-red-600" />
-                        Open Questions
-                      </h3>
-                      <ul className="space-y-2">
-                        {summaryData.open_questions.map((question, index) => (
-                          <li key={index} className="flex items-start">
-                            <span className="inline-block w-1.5 h-1.5 bg-red-600 rounded-full mt-2 mr-3 flex-shrink-0" />
-                            <span className="text-sm text-gray-700">{question}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Speaker Insights */}
-                  {summaryData.speaker_insights && summaryData.speaker_insights.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
-                        <UsersIcon className="w-4 h-4 mr-2 text-blue-600" />
-                        Speaker Insights
-                      </h3>
-                      <ul className="space-y-2">
-                        {summaryData.speaker_insights.map((insight, index) => (
-                          <li key={index} className="flex items-start">
-                            <span className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
-                            <span className="text-sm text-gray-700">{insight}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              );
-            } catch (error) {
-              return (
-                <div className="text-sm text-gray-600">
-                  {selectedSummaryMeeting.summary}
-                </div>
-              );
-            }
-          })()}
-
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            {selectedSummaryMeeting?.transcript_text && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsSummaryModalOpen(false);
-                  setSelectedTranscriptMeeting(selectedSummaryMeeting);
-                  setIsTranscriptModalOpen(true);
-                }}
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                View Transcript
-              </Button>
-            )}
-            <Button
-              onClick={() => {
-                setIsSummaryModalOpen(false);
-                setSelectedSummaryMeeting(null);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    </div>
-  );
+	const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(
+		null
+	);
+	const [viewMode, setViewMode] = useState<"summary" | "transcript">(
+		"summary"
+	);
+	const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+	const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
+		[]
+	);
+	const [meetingTitle, setMeetingTitle] = useState("");
+	const [meetingDuration, setMeetingDuration] = useState("30");
+	const [selectedSlot, setSelectedSlot] = useState<{
+		start: string;
+		end: string;
+	} | null>(null);
+	const [availableSlots, setAvailableSlots] = useState<
+		Array<{ start: string; end: string }>
+	>([]);
+	const [isFetchingSlots, setIsFetchingSlots] = useState(false);
+	const [slotsError, setSlotsError] = useState<string | null>(null);
+	const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+	const [createMeetingError, setCreateMeetingError] = useState<string | null>(
+		null
+	);
+	const [isUpcomingExpanded, setIsUpcomingExpanded] = useState(true);
+	const [isPastExpanded, setIsPastExpanded] = useState(false);
+	const [cancellingMeetingId, setCancellingMeetingId] = useState<
+		string | null
+	>(null);
+	const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
+	const [selectedTranscriptMeeting, setSelectedTranscriptMeeting] =
+		useState<any>(null);
+	const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+	const [selectedSummaryMeeting, setSelectedSummaryMeeting] =
+		useState<any>(null);
+	// isEditModalOpen removed in favor of reusing isScheduleModalOpen
+	const [editingMeeting, setEditingMeeting] = useState<any>(null);
+	const [isUpdatingMeeting, setIsUpdatingMeeting] = useState(false);
+	const [updateMeetingError, setUpdateMeetingError] = useState<string | null>(
+		null
+	);
+
+	// Helper functions for response status styling
+	const getResponseStatusBorder = (responseStatus?: string) => {
+		switch (responseStatus) {
+			case "accepted":
+				return "border-2 border-green-500";
+			case "declined":
+				return "border-2 border-red-500";
+			case "tentative":
+				return "border-2 border-yellow-500";
+			case "pending":
+			default:
+				return "border border-gray-300";
+		}
+	};
+
+	const getResponseStatusIcon = (responseStatus?: string) => {
+		switch (responseStatus) {
+			case "accepted":
+				return "✓";
+			case "declined":
+				return "✗";
+			case "tentative":
+				return "?";
+			case "pending":
+			default:
+				return "⋯";
+		}
+	};
+
+	// Get project members
+	const { members } = useOrgStore();
+	const { projects } = useProjects();
+	const { user } = useAuth();
+
+	// Get meetings from database with realtime subscriptions
+	const {
+		upcomingMeetings,
+		pastMeetings,
+		isLoading: isMeetingsLoading,
+		refreshMeetings,
+		updateParticipantResponse,
+	} = useMeetings(projectId);
+
+	const activeProject = useMemo(
+		() => projects?.find((p) => p.id === projectId),
+		[projects, projectId]
+	);
+
+	// Memoize the projects array to prevent unnecessary re-fetches
+	const projectsArray = useMemo(
+		() => (activeProject ? [activeProject] : []),
+		[activeProject]
+	);
+
+	// Use useProjectMembers to get all members with access to this project
+	const { membersByProjectId, isLoading: isMembersLoading } =
+		useProjectMembers(projectsArray);
+
+	// Get members for the current project
+	const projectMembers = useMemo(() => {
+		const members = membersByProjectId[projectId] || [];
+		// Filter out the current user
+		return members.filter((member) => member.userId !== user?.id);
+	}, [membersByProjectId, projectId, user?.id]);
+
+	// Fetch available time slots when participants change
+	useEffect(() => {
+		const fetchAvailability = async () => {
+			// Only fetch if we have at least one participant selected
+			if (selectedParticipants.length === 0) {
+				setAvailableSlots([]);
+				setSlotsError(null);
+				return;
+			}
+
+			setIsFetchingSlots(true);
+			setSlotsError(null);
+
+			try {
+				// Calculate date range for next 3 days
+				const now = new Date();
+
+				// Round to next 15-minute interval
+				const startDate = new Date(now);
+				const minutes = startDate.getMinutes();
+				const roundedMinutes = Math.ceil(minutes / 15) * 15;
+				startDate.setMinutes(roundedMinutes, 0, 0);
+
+				const endDate = new Date(startDate);
+				endDate.setDate(endDate.getDate() + 3);
+
+				// Include organizer's user ID to check their calendar for conflicts
+				const userIdsToCheck = user?.id
+					? [user.id, ...selectedParticipants]
+					: selectedParticipants;
+
+				const response = await fetch("/api/meetings/availability", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						userIds: userIdsToCheck,
+						startDate: startDate.toISOString(),
+						endDate: endDate.toISOString(),
+						duration: parseInt(meetingDuration) || 30,
+						timeZone:
+							Intl.DateTimeFormat().resolvedOptions().timeZone,
+					}),
+				});
+
+				if (!response.ok) {
+					throw new Error("Failed to fetch availability");
+				}
+
+				const data = await response.json();
+
+				// Filter slots to only show those starting at :00, :15, :30, or :45
+				// and between 9am and 6pm
+				const filteredSlots = (data.freeSlots || []).filter(
+					(slot: { start: string }) => {
+						const slotTime = new Date(slot.start);
+						const minutes = slotTime.getMinutes();
+						const hours = slotTime.getHours();
+						const validMinutes =
+							minutes === 0 ||
+							minutes === 15 ||
+							minutes === 30 ||
+							minutes === 45;
+						const validHours = hours >= 9 && hours < 18; // 9am to 5:59pm (last slot at 5:30pm for 30min meeting)
+						return validMinutes && validHours;
+					}
+				);
+
+				setAvailableSlots(filteredSlots);
+			} catch (error) {
+				console.error("Error fetching availability:", error);
+				setSlotsError("Unable to fetch available time slots");
+				setAvailableSlots([]);
+			} finally {
+				setIsFetchingSlots(false);
+			}
+		};
+
+		fetchAvailability();
+	}, [selectedParticipants, meetingDuration, user?.id]);
+
+	// Handle joining a video call
+	const handleJoinVideoCall = (meeting: any) => {
+		// Extract room name from meeting_link
+		const roomName = meeting.meeting_link?.split("/").pop();
+		if (roomName) {
+			window.open(`/meeting/${roomName}`, "_blank");
+		}
+	};
+
+	// Handle cancelling a meeting
+	const handleCancelMeeting = async (meetingId: string) => {
+		if (
+			!confirm(
+				"Are you sure you want to cancel this meeting? This action cannot be undone."
+			)
+		) {
+			return;
+		}
+
+		setCancellingMeetingId(meetingId);
+
+		try {
+			// Get auth token
+			const { data: sessionData } = await supabase.auth.getSession();
+			const token = sessionData?.session?.access_token;
+
+			if (!token) {
+				throw new Error("Not authenticated");
+			}
+
+			const response = await fetch(`/api/meetings/${meetingId}/cancel`, {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${token}`,
+				},
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || "Failed to cancel meeting");
+			}
+
+			const data = await response.json();
+			if (data.errors && data.errors.length > 0) {
+				console.warn(
+					"Meeting cancelled but some calendar events failed:",
+					data.errors
+				);
+				// Optional: Show a warning to the user
+			} else if (data.cancelledEvents > 0) {
+				console.log(
+					`Meeting cancelled and ${data.cancelledEvents} calendar events removed`
+				);
+			}
+
+			// Refresh meetings list
+			await refreshMeetings();
+		} catch (error) {
+			console.error("Error cancelling meeting:", error);
+			alert(
+				error instanceof Error
+					? error.message
+					: "Failed to cancel meeting"
+			);
+		} finally {
+			setCancellingMeetingId(null);
+		}
+	};
+
+	// Handle meeting creation
+	const handleCreateMeeting = async () => {
+		if (
+			!meetingTitle ||
+			!selectedSlot ||
+			selectedParticipants.length === 0 ||
+			!user
+		) {
+			return;
+		}
+
+		setIsCreatingMeeting(true);
+		setCreateMeetingError(null);
+
+		try {
+			// Get auth token
+			const { data: sessionData } = await supabase.auth.getSession();
+			const token = sessionData?.session?.access_token;
+
+			if (!token) {
+				throw new Error("Not authenticated");
+			}
+
+			const response = await fetch("/api/meetings/create", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({
+					title: meetingTitle,
+					startTime: selectedSlot.start,
+					endTime: selectedSlot.end,
+					participantIds: [...selectedParticipants, user.id], // Include organizer
+					projectId,
+				}),
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || "Failed to create meeting");
+			}
+
+			const data = await response.json();
+			console.log("Meeting created:", data);
+
+			// Refresh meetings list
+			await refreshMeetings();
+
+			// Close modal and reset
+			setIsScheduleModalOpen(false);
+			setMeetingTitle("");
+			setMeetingDuration("30");
+			setSelectedParticipants([]);
+			setSelectedSlot(null);
+			setAvailableSlots([]);
+			setSlotsError(null);
+		} catch (error) {
+			console.error("Error creating meeting:", error);
+			setCreateMeetingError(
+				error instanceof Error
+					? error.message
+					: "Failed to create meeting"
+			);
+		} finally {
+			setIsCreatingMeeting(false);
+		}
+	};
+
+	// Handle opening edit modal
+	const handleEditMeeting = (meeting: any) => {
+		setEditingMeeting(meeting);
+		setMeetingTitle(meeting.title);
+		setMeetingDuration(meeting.duration_minutes.toString());
+
+		// Set participants (excluding organizer)
+		const participantIds = meeting.participants
+			.map((p: any) => p.user_id)
+			.filter((id: string) => id !== meeting.organizer_id);
+		setSelectedParticipants(participantIds);
+
+		// Set time slot
+		const start = new Date(meeting.start_time);
+		const end = new Date(meeting.end_time);
+		setSelectedSlot({
+			start: start.toISOString(),
+			end: end.toISOString(),
+		});
+
+		setIsScheduleModalOpen(true);
+	};
+
+	// Handle updating meeting
+	const handleUpdateMeeting = async () => {
+		if (
+			!editingMeeting ||
+			!meetingTitle ||
+			!selectedSlot ||
+			selectedParticipants.length === 0
+		) {
+			return;
+		}
+
+		setIsUpdatingMeeting(true);
+		setUpdateMeetingError(null);
+
+		try {
+			const { data: sessionData } = await supabase.auth.getSession();
+			const token = sessionData?.session?.access_token;
+
+			if (!token) {
+				throw new Error("Not authenticated");
+			}
+
+			const response = await fetch(
+				`/api/meetings/${editingMeeting.id}/update`,
+				{
+					method: "PUT",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({
+						title: meetingTitle,
+						startTime: selectedSlot.start,
+						endTime: selectedSlot.end,
+						participantIds: [...selectedParticipants, user?.id], // Include organizer
+						description: editingMeeting.description,
+					}),
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || "Failed to update meeting");
+			}
+
+			// Refresh meetings list
+			await refreshMeetings();
+
+			// Close modal and reset state
+			setIsScheduleModalOpen(false);
+			setEditingMeeting(null);
+			setMeetingTitle("");
+			setSelectedParticipants([]);
+			setSelectedSlot(null);
+		} catch (error) {
+			console.error("Error updating meeting:", error);
+			setUpdateMeetingError(
+				error instanceof Error
+					? error.message
+					: "Failed to update meeting"
+			);
+		} finally {
+			setIsUpdatingMeeting(false);
+		}
+	};
+
+	const formatDate = (date: Date) => {
+		return new Intl.DateTimeFormat("en-US", {
+			month: "short",
+			day: "numeric",
+			year: "numeric",
+			hour: "numeric",
+			minute: "2-digit",
+		}).format(date);
+	};
+
+	const formatDuration = (minutes: number) => {
+		if (minutes < 60) return `${minutes}m`;
+		const hours = Math.floor(minutes / 60);
+		const mins = minutes % 60;
+		return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+	};
+
+	const getTimeUntil = (date: Date) => {
+		const now = new Date();
+		const diffMs = date.getTime() - now.getTime();
+		const diffMins = Math.floor(diffMs / (1000 * 60));
+		const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+		const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+		if (diffMins < 0) return `Started ${Math.abs(diffMins)}m ago`;
+		if (diffMins < 60) return `in ${diffMins}m`;
+		if (diffHours < 24) return `in ${diffHours}h`;
+		if (diffDays === 1) return "Tomorrow";
+		if (diffDays < 7) return `in ${diffDays} days`;
+		return formatDate(date);
+	};
+
+	return (
+		<div
+			className={cn(
+				"flex flex-col h-full bg-gradient-to-br from-gray-50 to-white",
+				!embedded && "rounded-lg border border-gray-200 shadow-sm"
+			)}
+		>
+			{/* Header */}
+			<div className="p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+				<div className="flex items-center justify-between mb-2">
+					<div className="flex items-center space-x-2">
+						<div className="p-2 bg-blue-100 rounded-lg">
+							<Video className="w-5 h-5 text-blue-600" />
+						</div>
+						<div>
+							<h3 className="text-lg font-semibold text-gray-900">
+								Meetings
+							</h3>
+							<p className="text-xs text-gray-500">
+								{upcomingMeetings.length} upcoming ·{" "}
+								{pastMeetings.length} past
+							</p>
+						</div>
+					</div>
+					<Button
+						size="sm"
+						onClick={() => {
+							setEditingMeeting(null);
+							setMeetingTitle("");
+							setMeetingDuration("30");
+							setSelectedParticipants([]);
+							setSelectedSlot(null);
+							setAvailableSlots([]);
+							setSlotsError(null);
+							setIsScheduleModalOpen(true);
+						}}
+						className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+					>
+						<Plus className="w-4 h-4 mr-2" />
+						New Meeting
+					</Button>
+				</div>
+
+				{/* Response Status Legend */}
+				<div className="flex items-center gap-3 text-xs text-gray-600 pt-2 border-t border-gray-100">
+					<span className="font-medium text-gray-700">
+						Response Status:
+					</span>
+					<div className="flex items-center gap-1">
+						<span className="inline-block w-3 h-3 border-2 border-green-500 rounded-sm"></span>
+						<span>Accepted</span>
+					</div>
+					<div className="flex items-center gap-1">
+						<span className="inline-block w-3 h-3 border-2 border-yellow-500 rounded-sm"></span>
+						<span>Tentative</span>
+					</div>
+					<div className="flex items-center gap-1">
+						<span className="inline-block w-3 h-3 border-2 border-red-500 rounded-sm"></span>
+						<span>Declined</span>
+					</div>
+					<div className="flex items-center gap-1">
+						<span className="inline-block w-3 h-3 border border-gray-300 rounded-sm"></span>
+						<span>Pending</span>
+					</div>
+				</div>
+			</div>
+
+			{/* Meetings List */}
+			<div className="flex-1 overflow-y-auto p-4 space-y-4">
+				{isMeetingsLoading ? (
+					<div className="flex items-center justify-center h-full">
+						<Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+					</div>
+				) : upcomingMeetings.length === 0 &&
+				  pastMeetings.length === 0 ? (
+					<div className="flex flex-col items-center justify-center h-full text-center p-8">
+						<div className="p-4 bg-gray-100 rounded-full mb-4">
+							<Video className="w-8 h-8 text-gray-400" />
+						</div>
+						<h4 className="text-lg font-medium text-gray-900 mb-2">
+							No Meetings Yet
+						</h4>
+						<p className="text-sm text-gray-500 max-w-sm">
+							Meeting summaries and transcripts will appear here
+							once meetings are recorded.
+						</p>
+					</div>
+				) : (
+					<>
+						{/* Upcoming Meetings Section */}
+						{upcomingMeetings.length > 0 && (
+							<div className="space-y-3">
+								<button
+									onClick={() =>
+										setIsUpcomingExpanded(
+											!isUpcomingExpanded
+										)
+									}
+									className="flex items-center space-x-2 px-1 w-full hover:bg-gray-50 p-1 rounded-md transition-colors"
+								>
+									{isUpcomingExpanded ? (
+										<ChevronDown className="w-4 h-4 text-gray-500" />
+									) : (
+										<ChevronRight className="w-4 h-4 text-gray-500" />
+									)}
+									<Calendar className="w-4 h-4 text-blue-600" />
+									<h4 className="text-sm font-semibold text-gray-900">
+										Upcoming Meetings
+									</h4>
+									<span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+										{upcomingMeetings.length}
+									</span>
+								</button>
+
+								{isUpcomingExpanded && (
+									<div className="space-y-3">
+										{upcomingMeetings.map(
+											(meeting, index) => {
+												const startTime = new Date(
+													meeting.start_time
+												);
+												const participants =
+													meeting.participants || [];
+
+												return (
+													<motion.div
+														key={meeting.id}
+														initial={{
+															opacity: 0,
+															y: 10,
+														}}
+														animate={{
+															opacity: 1,
+															y: 0,
+														}}
+														transition={{
+															duration: 0.2,
+															delay: index * 0.05,
+														}}
+													>
+														<Card className="hover:shadow-md transition-all duration-200 border-l-4 border-l-blue-500 border-t border-r border-b border-gray-200 bg-white">
+															<div className="p-4">
+																{/* Meeting Header */}
+																<div className="flex items-start justify-between mb-3">
+																	<div className="flex-1 min-w-0">
+																		<h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
+																			{
+																				meeting.title
+																			}
+																		</h4>
+																		<div className="flex items-center space-x-3 text-xs">
+																			<span className="flex items-center text-blue-700 font-medium">
+																				<Clock className="w-3 h-3 mr-1" />
+																				{getTimeUntil(
+																					startTime
+																				)}
+																			</span>
+																			<span className="flex items-center text-gray-500">
+																				<Calendar className="w-3 h-3 mr-1" />
+																				{formatDate(
+																					startTime
+																				)}
+																			</span>
+																		</div>
+																	</div>
+																	<span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-md flex-shrink-0">
+																		{formatDuration(
+																			meeting.duration_minutes
+																		)}
+																	</span>
+																</div>
+
+																{/* Participants */}
+																<div className="mb-3">
+																	<p className="text-xs text-gray-500 mb-1">
+																		Participants:
+																	</p>
+																	<div className="flex flex-wrap gap-1">
+																		{participants.map(
+																			(
+																				participant,
+																				i
+																			) => (
+																				<span
+																					key={
+																						i
+																					}
+																					className={cn(
+																						"inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-white text-gray-700",
+																						getResponseStatusBorder(
+																							participant.response_status
+																						)
+																					)}
+																				>
+																					<span className="mr-1.5">
+																						{getResponseStatusIcon(
+																							participant.response_status
+																						)}
+																					</span>
+																					{participant
+																						.user
+																						?.full_name ||
+																						participant
+																							.user
+																							?.email ||
+																						"Unknown"}
+																				</span>
+																			)
+																		)}
+																	</div>
+																</div>
+
+																{/* RSVP Actions */}
+																{(() => {
+																	const myParticipant =
+																		participants.find(
+																			(
+																				p
+																			) =>
+																				p.user_id ===
+																				user?.id
+																		);
+																	if (
+																		!myParticipant
+																	)
+																		return null;
+
+																	// Don't show RSVP options for the organizer
+																	if (
+																		meeting.organizer_id ===
+																		user?.id
+																	)
+																		return null;
+
+																	const isUpdating =
+																		false; // We could track this state if needed
+
+																	return (
+																		<div className="flex items-center justify-between py-2 border-t border-gray-100">
+																			<span className="text-xs font-medium text-gray-700">
+																				Going?
+																			</span>
+																			<div className="flex items-center gap-1">
+																				<button
+																					onClick={() =>
+																						updateParticipantResponse(
+																							meeting.id,
+																							"accepted"
+																						)
+																					}
+																					className={cn(
+																						"px-3 py-1 text-xs font-medium rounded-full transition-colors border",
+																						myParticipant.response_status ===
+																							"accepted"
+																							? "bg-blue-600 text-white border-blue-600"
+																							: "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+																					)}
+																				>
+																					Yes
+																				</button>
+																				<button
+																					onClick={() =>
+																						updateParticipantResponse(
+																							meeting.id,
+																							"declined"
+																						)
+																					}
+																					className={cn(
+																						"px-3 py-1 text-xs font-medium rounded-full transition-colors border",
+																						myParticipant.response_status ===
+																							"declined"
+																							? "bg-blue-600 text-white border-blue-600"
+																							: "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+																					)}
+																				>
+																					No
+																				</button>
+																				<button
+																					onClick={() =>
+																						updateParticipantResponse(
+																							meeting.id,
+																							"tentative"
+																						)
+																					}
+																					className={cn(
+																						"px-3 py-1 text-xs font-medium rounded-full transition-colors border",
+																						myParticipant.response_status ===
+																							"tentative"
+																							? "bg-blue-600 text-white border-blue-600"
+																							: "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+																					)}
+																				>
+																					Maybe
+																				</button>
+																			</div>
+																		</div>
+																	);
+																})()}
+
+																{/* Video Call Actions */}
+																<div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+																	{meeting.meeting_link && (
+																		<Button
+																			size="sm"
+																			onClick={() =>
+																				handleJoinVideoCall(
+																					meeting
+																				)
+																			}
+																			className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+																		>
+																			<Video className="w-4 h-4 mr-1" />
+																			Join
+																			Video
+																			Call
+																		</Button>
+																	)}
+
+																	{meeting.organizer_id ===
+																		user?.id && (
+																		<>
+																			<Button
+																				size="sm"
+																				variant="outline"
+																				onClick={() =>
+																					handleEditMeeting(
+																						meeting
+																					)
+																				}
+																				className="text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300"
+																			>
+																				Edit
+																			</Button>
+																			<Button
+																				size="sm"
+																				variant="outline"
+																				onClick={() =>
+																					handleCancelMeeting(
+																						meeting.id
+																					)
+																				}
+																				disabled={
+																					cancellingMeetingId ===
+																					meeting.id
+																				}
+																				className="text-red-600 hover:bg-red-50 border-red-200 hover:border-red-300"
+																			>
+																				{cancellingMeetingId ===
+																				meeting.id ? (
+																					<Loader2 className="w-4 h-4 animate-spin" />
+																				) : (
+																					<Trash2 className="w-4 h-4" />
+																				)}
+																			</Button>
+																		</>
+																	)}
+																</div>
+															</div>
+														</Card>
+													</motion.div>
+												);
+											}
+										)}
+									</div>
+								)}
+							</div>
+						)}
+
+						{/* Past Meetings Section */}
+						{pastMeetings.length > 0 && (
+							<div className="space-y-3">
+								<button
+									onClick={() =>
+										setIsPastExpanded(!isPastExpanded)
+									}
+									className="flex items-center space-x-2 px-1 w-full hover:bg-gray-50 p-1 rounded-md transition-colors"
+								>
+									{isPastExpanded ? (
+										<ChevronDown className="w-4 h-4 text-gray-500" />
+									) : (
+										<ChevronRight className="w-4 h-4 text-gray-500" />
+									)}
+									<FileText className="w-4 h-4 text-blue-600" />
+									<h4 className="text-sm font-semibold text-gray-900">
+										Past Meetings
+									</h4>
+									<span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+										{pastMeetings.length}
+									</span>
+								</button>
+
+								{isPastExpanded && (
+									<div className="space-y-3">
+										{pastMeetings.map((meeting, index) => {
+											const startTime = new Date(
+												meeting.start_time
+											);
+											const participants =
+												meeting.participants || [];
+
+											return (
+												<motion.div
+													key={meeting.id}
+													initial={{
+														opacity: 0,
+														y: 10,
+													}}
+													animate={{
+														opacity: 1,
+														y: 0,
+													}}
+													transition={{
+														duration: 0.2,
+														delay: index * 0.05,
+													}}
+												>
+													<Card className="hover:shadow-md transition-all duration-200 border border-gray-200 bg-white">
+														<div className="p-4">
+															{/* Meeting Header */}
+															<div className="flex items-start justify-between mb-3">
+																<div className="flex-1 min-w-0">
+																	<h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
+																		{
+																			meeting.title
+																		}
+																	</h4>
+																	<div className="flex items-center space-x-3 text-xs text-gray-500">
+																		<span className="flex items-center">
+																			<Calendar className="w-3 h-3 mr-1" />
+																			{formatDate(
+																				startTime
+																			)}
+																		</span>
+																		<span className="flex items-center">
+																			<Clock className="w-3 h-3 mr-1" />
+																			{formatDuration(
+																				meeting.duration_minutes
+																			)}
+																		</span>
+																	</div>
+																</div>
+																{meeting.recording_url && (
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		onClick={() =>
+																			window.open(
+																				meeting.recording_url,
+																				"_blank"
+																			)
+																		}
+																		className="p-1.5 hover:bg-blue-50 hover:text-blue-600 transition-colors flex-shrink-0"
+																		title="Play recording"
+																	>
+																		<Play className="w-4 h-4" />
+																	</Button>
+																)}
+															</div>
+
+															{/* Participants */}
+															<div className="mb-3">
+																<p className="text-xs text-gray-500 mb-1">
+																	Participants:
+																</p>
+																<div className="flex flex-wrap gap-1">
+																	{participants.map(
+																		(
+																			participant,
+																			i
+																		) => (
+																			<span
+																				key={
+																					i
+																				}
+																				className={cn(
+																					"inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium transition-all bg-white text-gray-700",
+																					getResponseStatusBorder(
+																						participant.response_status
+																					)
+																				)}
+																			>
+																				<span className="mr-1.5">
+																					{getResponseStatusIcon(
+																						participant.response_status
+																					)}
+																				</span>
+																				{participant
+																					.user
+																					?.full_name ||
+																					participant
+																						.user
+																						?.email ||
+																					"Unknown"}
+																			</span>
+																		)
+																	)}
+																</div>
+															</div>
+
+															{/* Summary - Parse and display structured summary */}
+															{meeting.summary &&
+																(() => {
+																	try {
+																		const summaryData: MeetingSummary =
+																			typeof meeting.summary ===
+																			"string"
+																				? JSON.parse(
+																						meeting.summary
+																				  )
+																				: meeting.summary;
+
+																		return (
+																			<div className="mb-3">
+																				<p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
+																					<MessageSquare className="w-3 h-3 mr-1" />
+																					Executive
+																					Summary
+																				</p>
+																				<p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+																					{
+																						summaryData.executive_summary
+																					}
+																				</p>
+																				{(summaryData
+																					.key_points
+																					?.length >
+																					0 ||
+																					summaryData
+																						.action_items
+																						?.length >
+																						0) && (
+																					<Button
+																						variant="ghost"
+																						size="sm"
+																						onClick={() => {
+																							setSelectedSummaryMeeting(
+																								meeting
+																							);
+																							setIsSummaryModalOpen(
+																								true
+																							);
+																						}}
+																						className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 mt-2 p-0"
+																					>
+																						View
+																						Full
+																						Summary
+																						→
+																					</Button>
+																				)}
+																			</div>
+																		);
+																	} catch (error) {
+																		// Fallback for non-JSON summaries
+																		return (
+																			<div className="mb-3">
+																				<p className="text-xs font-medium text-gray-700 mb-1 flex items-center">
+																					<FileText className="w-3 h-3 mr-1" />
+																					Summary
+																				</p>
+																				<p className="text-xs text-gray-600 leading-relaxed">
+																					{
+																						meeting.summary
+																					}
+																				</p>
+																			</div>
+																		);
+																	}
+																})()}
+
+															{/* Actions */}
+															<div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+																{meeting.transcript_text && (
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		onClick={() => {
+																			setSelectedTranscriptMeeting(
+																				meeting
+																			);
+																			setIsTranscriptModalOpen(
+																				true
+																			);
+																		}}
+																		className="text-xs hover:bg-blue-50 hover:text-blue-600 transition-colors"
+																	>
+																		<FileText className="w-3 h-3 mr-1" />
+																		Transcript
+																	</Button>
+																)}
+																{meeting.recording_url && (
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		onClick={() => {
+																			window.open(
+																				meeting.recording_url,
+																				"_blank"
+																			);
+																		}}
+																		className="text-xs hover:bg-gray-50 hover:text-gray-700 transition-colors"
+																	>
+																		<Download className="w-3 h-3 mr-1" />
+																		Recording
+																	</Button>
+																)}
+															</div>
+														</div>
+													</Card>
+												</motion.div>
+											);
+										})}
+									</div>
+								)}
+							</div>
+						)}
+					</>
+				)}
+			</div>
+
+			{/* Footer Info */}
+			<div className="p-3 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
+				<div className="flex items-center justify-center space-x-2 text-xs text-gray-500">
+					<FileText className="w-4 h-4" />
+					<span>All meeting summaries and transcripts</span>
+				</div>
+			</div>
+
+			{/* Schedule/Edit Meeting Modal */}
+			<Modal
+				isOpen={isScheduleModalOpen}
+				onClose={() => {
+					setIsScheduleModalOpen(false);
+					setEditingMeeting(null);
+					setMeetingTitle("");
+					setMeetingDuration("30");
+					setSelectedParticipants([]);
+					setSelectedSlot(null);
+					setAvailableSlots([]);
+					setSlotsError(null);
+					setCreateMeetingError(null);
+					setUpdateMeetingError(null);
+				}}
+				title={editingMeeting ? "Edit Meeting" : "Schedule New Meeting"}
+				size="4xl"
+			>
+				<div className="space-y-4">
+					{/* Meeting Title */}
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-2">
+							Meeting Title
+						</label>
+						<input
+							type="text"
+							value={meetingTitle}
+							onChange={(e) => setMeetingTitle(e.target.value)}
+							placeholder="e.g., Project Review Meeting"
+							className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						/>
+					</div>
+
+					{/* Meeting Duration */}
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-2">
+							Meeting Duration (minutes)
+						</label>
+						<input
+							type="number"
+							value={meetingDuration}
+							onChange={(e) => setMeetingDuration(e.target.value)}
+							min="15"
+							max="240"
+							step="15"
+							placeholder="30"
+							className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						/>
+					</div>
+
+					{/* Two Column Layout: Participants on left, Time Slots on right */}
+					<div className="grid grid-cols-5 gap-4">
+						{/* Left Column: Participants */}
+						<div className="col-span-2">
+							<label className="block text-sm font-medium text-gray-700 mb-2">
+								Select Participants
+							</label>
+							<div className="border border-gray-300 rounded-lg h-80 overflow-y-auto">
+								{isMembersLoading ? (
+									<div className="p-4 text-center text-sm text-gray-500">
+										Loading members...
+									</div>
+								) : projectMembers.length === 0 ? (
+									<div className="p-4 text-center text-sm text-gray-500">
+										No team members available
+									</div>
+								) : (
+									<div className="p-2 space-y-1">
+										{projectMembers.map((member) => {
+											const displayName =
+												member.userName ||
+												member.userEmail ||
+												"Unknown User";
+											const isSelected =
+												selectedParticipants.includes(
+													member.userId
+												);
+
+											return (
+												<label
+													key={member.userId}
+													className={cn(
+														"flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors",
+														isSelected
+															? "bg-blue-50 border border-blue-200"
+															: "hover:bg-gray-50"
+													)}
+												>
+													<input
+														type="checkbox"
+														checked={isSelected}
+														onChange={(e) => {
+															if (
+																e.target.checked
+															) {
+																setSelectedParticipants(
+																	[
+																		...selectedParticipants,
+																		member.userId,
+																	]
+																);
+															} else {
+																setSelectedParticipants(
+																	selectedParticipants.filter(
+																		(id) =>
+																			id !==
+																			member.userId
+																	)
+																);
+															}
+														}}
+														className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+													/>
+													<div className="flex items-center space-x-2 flex-1 min-w-0">
+														<div
+															className={cn(
+																"w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0",
+																"bg-gradient-to-br from-blue-500 to-blue-600"
+															)}
+														>
+															{displayName
+																.split(" ")
+																.map(
+																	(n) => n[0]
+																)
+																.join("")
+																.toUpperCase()
+																.slice(0, 2)}
+														</div>
+														<div className="flex-1 min-w-0">
+															<p className="text-sm font-medium text-gray-900 truncate">
+																{displayName}
+															</p>
+															{member.userEmail && (
+																<p className="text-xs text-gray-500 truncate">
+																	{
+																		member.userEmail
+																	}
+																</p>
+															)}
+														</div>
+													</div>
+												</label>
+											);
+										})}
+									</div>
+								)}
+							</div>
+						</div>
+
+						{/* Right Column: Available Time Slots */}
+						<div className="col-span-3">
+							<label className="block text-sm font-medium text-gray-700 mb-2">
+								Available Time Slots
+							</label>
+
+							{selectedParticipants.length === 0 ? (
+								<div className="border border-gray-200 rounded-lg p-8 bg-gray-50 h-80 flex items-center justify-center">
+									<p className="text-sm text-gray-500 text-center">
+										Select participants to see available
+										times
+									</p>
+								</div>
+							) : isFetchingSlots ? (
+								<div className="flex items-center justify-center py-8 border border-gray-200 rounded-lg h-80">
+									<div className="text-center">
+										<Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
+										<span className="text-sm text-gray-600">
+											Finding available times...
+										</span>
+									</div>
+								</div>
+							) : slotsError ? (
+								<div className="p-4 bg-red-50 border border-red-200 rounded-lg h-80 flex items-center justify-center">
+									<p className="text-sm text-red-600">
+										{slotsError}
+									</p>
+								</div>
+							) : availableSlots.length === 0 ? (
+								<div className="p-4 bg-gray-50 border border-gray-200 rounded-lg h-80 flex items-center justify-center">
+									<p className="text-sm text-gray-600 text-center">
+										No common available times found. Try
+										selecting different participants or
+										manually enter a time.
+									</p>
+								</div>
+							) : (
+								<div className="border border-gray-200 rounded-lg h-80 overflow-y-auto">
+									<div className="p-2 space-y-3">
+										{(() => {
+											// Group slots by day
+											const slotsByDay: Record<
+												string,
+												Array<{
+													start: string;
+													end: string;
+												}>
+											> = {};
+											availableSlots.forEach((slot) => {
+												const date = new Date(
+													slot.start
+												);
+												const dayKey =
+													date.toLocaleDateString(
+														"en-US",
+														{
+															weekday: "short",
+															month: "short",
+															day: "numeric",
+														}
+													);
+												if (!slotsByDay[dayKey]) {
+													slotsByDay[dayKey] = [];
+												}
+												slotsByDay[dayKey].push(slot);
+											});
+
+											return Object.entries(
+												slotsByDay
+											).map(([day, slots]) => (
+												<div
+													key={day}
+													className="space-y-2"
+												>
+													<h4 className="text-xs font-semibold text-gray-700 px-2 py-1 bg-gray-100 rounded">
+														{day}
+													</h4>
+													<div className="grid grid-cols-4 gap-2 px-2">
+														{slots.map(
+															(slot, idx) => {
+																const startTime =
+																	new Date(
+																		slot.start
+																	);
+																const timeStr =
+																	startTime.toLocaleTimeString(
+																		"en-US",
+																		{
+																			hour: "numeric",
+																			minute: "2-digit",
+																			hour12: true,
+																		}
+																	);
+																const isSelected =
+																	selectedSlot?.start ===
+																	slot.start;
+
+																return (
+																	<button
+																		key={
+																			idx
+																		}
+																		type="button"
+																		onClick={() => {
+																			setSelectedSlot(
+																				slot
+																			);
+																		}}
+																		className={cn(
+																			"px-3 py-2 text-xs font-medium rounded-md transition-colors",
+																			isSelected
+																				? "bg-blue-600 text-white"
+																				: "bg-white border border-gray-300 text-gray-700 hover:bg-blue-50 hover:border-blue-300"
+																		)}
+																	>
+																		{
+																			timeStr
+																		}
+																	</button>
+																);
+															}
+														)}
+													</div>
+												</div>
+											));
+										})()}
+									</div>
+								</div>
+							)}
+						</div>
+					</div>
+
+					{/* Error Message */}
+					{(createMeetingError || updateMeetingError) && (
+						<div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+							<p className="text-sm text-red-600">
+								{createMeetingError || updateMeetingError}
+							</p>
+						</div>
+					)}
+
+					{/* Action Buttons */}
+					<div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+						<Button
+							variant="outline"
+							onClick={() => {
+								setIsScheduleModalOpen(false);
+								setEditingMeeting(null);
+								setMeetingTitle("");
+								setMeetingDuration("30");
+								setSelectedParticipants([]);
+								setSelectedSlot(null);
+								setAvailableSlots([]);
+								setSlotsError(null);
+								setCreateMeetingError(null);
+								setUpdateMeetingError(null);
+							}}
+							disabled={isCreatingMeeting || isUpdatingMeeting}
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={
+								editingMeeting
+									? handleUpdateMeeting
+									: handleCreateMeeting
+							}
+							disabled={
+								!meetingTitle ||
+								!selectedSlot ||
+								selectedParticipants.length === 0 ||
+								isCreatingMeeting ||
+								isUpdatingMeeting
+							}
+							className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{isCreatingMeeting || isUpdatingMeeting ? (
+								<>
+									<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+									{editingMeeting
+										? "Updating..."
+										: "Creating..."}
+								</>
+							) : editingMeeting ? (
+								"Update Meeting"
+							) : (
+								"Schedule Meeting"
+							)}
+						</Button>
+					</div>
+				</div>
+			</Modal>
+
+			{/* Transcript Modal */}
+			<Modal
+				isOpen={isTranscriptModalOpen}
+				onClose={() => {
+					setIsTranscriptModalOpen(false);
+					setSelectedTranscriptMeeting(null);
+				}}
+				title={selectedTranscriptMeeting?.title || "Meeting Transcript"}
+				size="4xl"
+			>
+				<div className="space-y-4">
+					{/* Meeting Info */}
+					<div className="flex items-center justify-between pb-4 border-b border-gray-200">
+						<div className="flex items-center space-x-3">
+							<Calendar className="w-4 h-4 text-gray-500" />
+							<span className="text-sm text-gray-600">
+								{selectedTranscriptMeeting &&
+									formatDate(
+										new Date(
+											selectedTranscriptMeeting.start_time
+										)
+									)}
+							</span>
+							<Clock className="w-4 h-4 text-gray-500 ml-4" />
+							<span className="text-sm text-gray-600">
+								{selectedTranscriptMeeting &&
+									formatDuration(
+										selectedTranscriptMeeting.duration_minutes
+									)}
+							</span>
+						</div>
+					</div>
+
+					{/* Transcript Content - Parsed WebVTT */}
+					<div className="max-h-[600px] overflow-y-auto">
+						{selectedTranscriptMeeting?.transcript_text ? (
+							<div className="space-y-4">
+								{(() => {
+									// Parse WebVTT transcript
+									const lines =
+										selectedTranscriptMeeting.transcript_text.split(
+											"\n"
+										);
+									const entries: Array<{
+										timestamp: string;
+										speaker: string;
+										text: string;
+									}> = [];
+
+									let currentTimestamp = "";
+									let currentSpeaker = "";
+									let currentText = "";
+
+									for (let i = 0; i < lines.length; i++) {
+										const line = lines[i].trim();
+
+										// Skip WEBVTT header and empty lines
+										if (
+											line === "" ||
+											line.startsWith("WEBVTT") ||
+											line.startsWith("NOTE") ||
+											line.startsWith("transcript:")
+										) {
+											continue;
+										}
+
+										// Check for timestamp line (HH:MM:SS.mmm --> HH:MM:SS.mmm)
+										if (
+											line.match(
+												/^\d{2}:\d{2}:\d{2}\.\d{3}/
+											)
+										) {
+											// Save previous entry if exists
+											if (currentSpeaker && currentText) {
+												entries.push({
+													timestamp: currentTimestamp,
+													speaker: currentSpeaker,
+													text: currentText.trim(),
+												});
+											}
+
+											// Extract start timestamp
+											const timestampMatch =
+												line.match(
+													/^(\d{2}:\d{2}:\d{2})/
+												);
+											currentTimestamp = timestampMatch
+												? timestampMatch[1]
+												: "";
+											currentSpeaker = "";
+											currentText = "";
+											continue;
+										}
+
+										// Check for speaker tag: <v>Speaker Name:</v>text
+										const speakerMatch =
+											line.match(/<v>([^<]+):<\/v>(.*)/);
+										if (speakerMatch) {
+											currentSpeaker =
+												speakerMatch[1].trim();
+											currentText =
+												speakerMatch[2].trim();
+										} else if (currentSpeaker) {
+											// Continuation of previous text
+											currentText += " " + line;
+										}
+									}
+
+									// Save last entry
+									if (currentSpeaker && currentText) {
+										entries.push({
+											timestamp: currentTimestamp,
+											speaker: currentSpeaker,
+											text: currentText.trim(),
+										});
+									}
+
+									// Group consecutive messages by speaker
+									const groupedEntries: Array<{
+										speaker: string;
+										messages: Array<{
+											timestamp: string;
+											text: string;
+										}>;
+									}> = [];
+
+									for (const entry of entries) {
+										const lastGroup =
+											groupedEntries[
+												groupedEntries.length - 1
+											];
+
+										if (
+											lastGroup &&
+											lastGroup.speaker === entry.speaker
+										) {
+											// Same speaker, add to existing group
+											lastGroup.messages.push({
+												timestamp: entry.timestamp,
+												text: entry.text,
+											});
+										} else {
+											// New speaker, create new group
+											groupedEntries.push({
+												speaker: entry.speaker,
+												messages: [
+													{
+														timestamp:
+															entry.timestamp,
+														text: entry.text,
+													},
+												],
+											});
+										}
+									}
+
+									// Render grouped transcript
+									return groupedEntries.map(
+										(group, groupIndex) => (
+											<div
+												key={groupIndex}
+												className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+											>
+												{/* Speaker Avatar */}
+												<div className="flex-shrink-0">
+													<div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-500 flex items-center justify-center text-white text-sm font-semibold">
+														{group.speaker
+															.split(" ")
+															.map((n) => n[0])
+															.join("")
+															.toUpperCase()
+															.slice(0, 2)}
+													</div>
+												</div>
+
+												{/* Speaker Messages */}
+												<div className="flex-1 min-w-0">
+													<div className="flex items-center space-x-2 mb-1">
+														<span className="text-sm font-semibold text-gray-900">
+															{group.speaker}
+														</span>
+														<span className="text-xs text-gray-500">
+															{
+																group
+																	.messages[0]
+																	.timestamp
+															}
+														</span>
+													</div>
+													<div className="space-y-2">
+														{group.messages.map(
+															(msg, msgIndex) => (
+																<p
+																	key={
+																		msgIndex
+																	}
+																	className="text-sm text-gray-700 leading-relaxed"
+																>
+																	{msg.text}
+																</p>
+															)
+														)}
+													</div>
+												</div>
+											</div>
+										)
+									);
+								})()}
+							</div>
+						) : (
+							<div className="text-center py-8 text-gray-500">
+								No transcript available.
+							</div>
+						)}
+					</div>
+
+					{/* Actions */}
+					<div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+						<Button
+							variant="outline"
+							onClick={() => {
+								// Copy transcript to clipboard (plain text format)
+								if (
+									selectedTranscriptMeeting?.transcript_text
+								) {
+									const lines =
+										selectedTranscriptMeeting.transcript_text.split(
+											"\n"
+										);
+									const plainText: string[] = [];
+
+									for (const line of lines) {
+										const speakerMatch =
+											line.match(/<v>([^<]+):<\/v>(.*)/);
+										if (speakerMatch) {
+											plainText.push(
+												`${speakerMatch[1]}: ${speakerMatch[2]}`
+											);
+										}
+									}
+
+									navigator.clipboard.writeText(
+										plainText.join("\n")
+									);
+								}
+							}}
+						>
+							<Download className="w-4 h-4 mr-2" />
+							Copy to Clipboard
+						</Button>
+						<Button
+							onClick={() => {
+								setIsTranscriptModalOpen(false);
+								setSelectedTranscriptMeeting(null);
+							}}
+							className="bg-blue-600 hover:bg-blue-700 text-white"
+						>
+							Close
+						</Button>
+					</div>
+				</div>
+			</Modal>
+
+			{/* Full Summary Modal */}
+			<Modal
+				isOpen={isSummaryModalOpen}
+				onClose={() => {
+					setIsSummaryModalOpen(false);
+					setSelectedSummaryMeeting(null);
+				}}
+				title={selectedSummaryMeeting?.title || "Meeting Summary"}
+				size="4xl"
+			>
+				<div className="space-y-4">
+					{/* Meeting Info */}
+					<div className="flex items-center justify-between pb-4 border-b border-gray-200">
+						<div className="flex items-center space-x-3">
+							<Calendar className="w-4 h-4 text-gray-500" />
+							<span className="text-sm text-gray-600">
+								{selectedSummaryMeeting &&
+									formatDate(
+										new Date(
+											selectedSummaryMeeting.start_time
+										)
+									)}
+							</span>
+							<Clock className="w-4 h-4 text-gray-500 ml-4" />
+							<span className="text-sm text-gray-600">
+								{selectedSummaryMeeting &&
+									formatDuration(
+										selectedSummaryMeeting.duration_minutes
+									)}
+							</span>
+						</div>
+					</div>
+
+					{/* Summary Content */}
+					{selectedSummaryMeeting?.summary &&
+						(() => {
+							try {
+								const summaryData: MeetingSummary =
+									typeof selectedSummaryMeeting.summary ===
+									"string"
+										? JSON.parse(
+												selectedSummaryMeeting.summary
+										  )
+										: selectedSummaryMeeting.summary;
+
+								return (
+									<div className="max-h-[600px] overflow-y-auto space-y-6">
+										{/* Executive Summary */}
+										{summaryData.executive_summary && (
+											<div>
+												<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+													<MessageSquare className="w-4 h-4 mr-2 text-blue-600" />
+													Executive Summary
+												</h3>
+												<p className="text-sm text-gray-700 leading-relaxed">
+													{
+														summaryData.executive_summary
+													}
+												</p>
+											</div>
+										)}
+
+										{/* Key Points */}
+										{summaryData.key_points &&
+											summaryData.key_points.length >
+												0 && (
+												<div>
+													<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+														<CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+														Key Points
+													</h3>
+													<ul className="space-y-2">
+														{summaryData.key_points.map(
+															(point, index) => (
+																<li
+																	key={index}
+																	className="flex items-start"
+																>
+																	<span className="inline-block w-1.5 h-1.5 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+																	<span className="text-sm text-gray-700">
+																		{point}
+																	</span>
+																</li>
+															)
+														)}
+													</ul>
+												</div>
+											)}
+
+										{/* Action Items */}
+										{summaryData.action_items &&
+											summaryData.action_items.length >
+												0 && (
+												<div>
+													<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+														<CheckCircle className="w-4 h-4 mr-2 text-blue-600" />
+														Action Items
+													</h3>
+													<ul className="space-y-2">
+														{summaryData.action_items.map(
+															(item, index) => (
+																<li
+																	key={index}
+																	className="flex items-start"
+																>
+																	<span className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+																	<span className="text-sm text-gray-700">
+																		{item}
+																	</span>
+																</li>
+															)
+														)}
+													</ul>
+												</div>
+											)}
+
+										{/* Important Numbers */}
+										{summaryData.important_numbers &&
+											summaryData.important_numbers
+												.length > 0 && (
+												<div>
+													<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+														<TrendingUp className="w-4 h-4 mr-2 text-orange-600" />
+														Important Numbers &
+														Metrics
+													</h3>
+													<ul className="space-y-2">
+														{summaryData.important_numbers.map(
+															(number, index) => (
+																<li
+																	key={index}
+																	className="flex items-start"
+																>
+																	<span className="inline-block w-1.5 h-1.5 bg-orange-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+																	<span className="text-sm text-gray-700">
+																		{number}
+																	</span>
+																</li>
+															)
+														)}
+													</ul>
+												</div>
+											)}
+
+										{/* Questions Raised */}
+										{summaryData.questions_raised &&
+											summaryData.questions_raised
+												.length > 0 && (
+												<div>
+													<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+														<MessageSquare className="w-4 h-4 mr-2 text-indigo-600" />
+														Questions Raised
+													</h3>
+													<ul className="space-y-2">
+														{summaryData.questions_raised.map(
+															(
+																question,
+																index
+															) => (
+																<li
+																	key={index}
+																	className="flex items-start"
+																>
+																	<span className="inline-block w-1.5 h-1.5 bg-indigo-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+																	<span className="text-sm text-gray-700">
+																		{
+																			question
+																		}
+																	</span>
+																</li>
+															)
+														)}
+													</ul>
+												</div>
+											)}
+
+										{/* Open Questions */}
+										{summaryData.open_questions &&
+											summaryData.open_questions.length >
+												0 && (
+												<div>
+													<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+														<AlertCircle className="w-4 h-4 mr-2 text-red-600" />
+														Open Questions
+													</h3>
+													<ul className="space-y-2">
+														{summaryData.open_questions.map(
+															(
+																question,
+																index
+															) => (
+																<li
+																	key={index}
+																	className="flex items-start"
+																>
+																	<span className="inline-block w-1.5 h-1.5 bg-red-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+																	<span className="text-sm text-gray-700">
+																		{
+																			question
+																		}
+																	</span>
+																</li>
+															)
+														)}
+													</ul>
+												</div>
+											)}
+
+										{/* Speaker Insights */}
+										{summaryData.speaker_insights &&
+											summaryData.speaker_insights
+												.length > 0 && (
+												<div>
+													<h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+														<UsersIcon className="w-4 h-4 mr-2 text-blue-600" />
+														Speaker Insights
+													</h3>
+													<ul className="space-y-2">
+														{summaryData.speaker_insights.map(
+															(
+																insight,
+																index
+															) => (
+																<li
+																	key={index}
+																	className="flex items-start"
+																>
+																	<span className="inline-block w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0" />
+																	<span className="text-sm text-gray-700">
+																		{
+																			insight
+																		}
+																	</span>
+																</li>
+															)
+														)}
+													</ul>
+												</div>
+											)}
+									</div>
+								);
+							} catch (error) {
+								return (
+									<div className="text-sm text-gray-600">
+										{selectedSummaryMeeting.summary}
+									</div>
+								);
+							}
+						})()}
+
+					{/* Actions */}
+					<div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+						{selectedSummaryMeeting?.transcript_text && (
+							<Button
+								variant="outline"
+								onClick={() => {
+									setIsSummaryModalOpen(false);
+									setSelectedTranscriptMeeting(
+										selectedSummaryMeeting
+									);
+									setIsTranscriptModalOpen(true);
+								}}
+							>
+								<FileText className="w-4 h-4 mr-2" />
+								View Transcript
+							</Button>
+						)}
+						<Button
+							onClick={() => {
+								setIsSummaryModalOpen(false);
+								setSelectedSummaryMeeting(null);
+							}}
+							className="bg-blue-600 hover:bg-blue-700 text-white"
+						>
+							Close
+						</Button>
+					</div>
+				</div>
+			</Modal>
+		</div>
+	);
 };

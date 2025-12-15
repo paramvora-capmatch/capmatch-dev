@@ -99,12 +99,12 @@ export default function ReturnsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-green-600">
-              {upsideScenario?.irr != null ? `${upsideScenario.irr}%` : null}
+              {upsideScenario?.irr != null ? `${formatFixed(upsideScenario.irr, 2)}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Projected IRR</p>
             <div className="mt-2">
               <Badge className="bg-green-100 text-green-800">
-                {upsideScenario?.multiple != null ? `${upsideScenario.multiple}x Multiple` : null}
+                {upsideScenario?.multiple != null ? `${formatFixed(upsideScenario.multiple, 2)}x Multiple` : null}
               </Badge>
             </div>
           </CardContent>
@@ -121,12 +121,12 @@ export default function ReturnsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-blue-600">
-              {baseScenario?.irr != null ? `${baseScenario.irr}%` : null}
+              {baseScenario?.irr != null ? `${formatFixed(baseScenario.irr, 2)}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Projected IRR</p>
             <div className="mt-2">
               <Badge className="bg-blue-100 text-blue-800">
-                {baseScenario?.multiple != null ? `${baseScenario.multiple}x Multiple` : null}
+                {baseScenario?.multiple != null ? `${formatFixed(baseScenario.multiple, 2)}x Multiple` : null}
               </Badge>
             </div>
           </CardContent>
@@ -143,12 +143,12 @@ export default function ReturnsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold text-red-600">
-              {downsideScenario?.irr != null ? `${downsideScenario.irr}%` : null}
+              {downsideScenario?.irr != null ? `${formatFixed(downsideScenario.irr, 2)}%` : null}
             </p>
             <p className="text-sm text-gray-500 mt-1">Projected IRR</p>
             <div className="mt-2">
               <Badge className="bg-red-100 text-red-800">
-                {downsideScenario?.multiple != null ? `${downsideScenario.multiple}x Multiple` : null}
+                {downsideScenario?.multiple != null ? `${formatFixed(downsideScenario.multiple, 2)}x Multiple` : null}
               </Badge>
             </div>
           </CardContent>
@@ -172,7 +172,7 @@ export default function ReturnsPage() {
               <div className="text-center">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <span className="text-2xl font-bold text-green-600">
-                    {upsideScenario?.irr != null ? `${upsideScenario.irr}%` : null}
+                    {upsideScenario?.irr != null ? `${formatFixed(upsideScenario.irr, 2)}%` : null}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">Projected IRR</p>
@@ -184,7 +184,7 @@ export default function ReturnsPage() {
                   <Badge
                     className={getMultipleColor(upsideScenario?.multiple)}
                   >
-                    {upsideScenario?.multiple != null ? `${upsideScenario.multiple}x` : null}
+                    {upsideScenario?.multiple != null ? `${formatFixed(upsideScenario.multiple, 2)}x` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -192,7 +192,7 @@ export default function ReturnsPage() {
                   <Badge
                     className={getProfitMarginColor(upsideScenario?.profitMargin)}
                   >
-                    {upsideScenario?.profitMargin != null ? `${upsideScenario.profitMargin}%` : null}
+                    {upsideScenario?.profitMargin != null ? `${formatFixed(upsideScenario.profitMargin, 2)}%` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -219,7 +219,7 @@ export default function ReturnsPage() {
               <div className="text-center">
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl font-bold text-blue-600">
-                    {baseScenario?.irr != null ? `${baseScenario.irr}%` : null}
+                    {baseScenario?.irr != null ? `${formatFixed(baseScenario.irr, 2)}%` : null}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">Projected IRR</p>
@@ -231,7 +231,7 @@ export default function ReturnsPage() {
                   <Badge
                     className={getMultipleColor(baseScenario?.multiple)}
                   >
-                    {baseScenario?.multiple != null ? `${baseScenario.multiple}x` : null}
+                    {baseScenario?.multiple != null ? `${formatFixed(baseScenario.multiple, 2)}x` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -239,7 +239,7 @@ export default function ReturnsPage() {
                   <Badge
                     className={getProfitMarginColor(baseScenario?.profitMargin)}
                   >
-                    {baseScenario?.profitMargin != null ? `${baseScenario.profitMargin}%` : null}
+                    {baseScenario?.profitMargin != null ? `${formatFixed(baseScenario.profitMargin, 2)}%` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -266,7 +266,7 @@ export default function ReturnsPage() {
               <div className="text-center">
                 <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-2xl font-bold text-red-600">
-                    {downsideScenario?.irr != null ? `${downsideScenario.irr}%` : null}
+                    {downsideScenario?.irr != null ? `${formatFixed(downsideScenario.irr, 2)}%` : null}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600">Projected IRR</p>
@@ -278,7 +278,7 @@ export default function ReturnsPage() {
                   <Badge
                     className={getMultipleColor(downsideScenario?.multiple)}
                   >
-                    {downsideScenario?.multiple != null ? `${downsideScenario.multiple}x` : null}
+                    {downsideScenario?.multiple != null ? `${formatFixed(downsideScenario.multiple, 2)}x` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -286,7 +286,7 @@ export default function ReturnsPage() {
                   <Badge
                     className={getProfitMarginColor(downsideScenario?.profitMargin)}
                   >
-                    {downsideScenario?.profitMargin != null ? `${downsideScenario.profitMargin}%` : null}
+                    {downsideScenario?.profitMargin != null ? `${formatFixed(downsideScenario.profitMargin, 2)}%` : null}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center">
@@ -340,21 +340,21 @@ export default function ReturnsPage() {
                   <Badge
                     className={getIRRColor(upsideScenario?.irr)}
                   >
-                    {upsideScenario?.irr != null ? `${upsideScenario.irr}%` : null}
+                    {upsideScenario?.irr != null ? `${formatFixed(upsideScenario.irr, 2)}%` : null}
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
                   <Badge
                     className={getMultipleColor(upsideScenario?.multiple)}
                   >
-                    {upsideScenario?.multiple != null ? `${upsideScenario.multiple}x` : null}
+                    {upsideScenario?.multiple != null ? `${formatFixed(upsideScenario.multiple, 2)}x` : null}
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
                   <Badge
                     className={getProfitMarginColor(upsideScenario?.profitMargin)}
                   >
-                    {upsideScenario?.profitMargin != null ? `${upsideScenario.profitMargin}%` : null}
+                    {upsideScenario?.profitMargin != null ? `${formatFixed(upsideScenario.profitMargin, 2)}%` : null}
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
@@ -372,21 +372,21 @@ export default function ReturnsPage() {
                   <Badge
                     className={getIRRColor(baseScenario?.irr)}
                   >
-                    {baseScenario?.irr != null ? `${baseScenario.irr}%` : null}
+                    {baseScenario?.irr != null ? `${formatFixed(baseScenario.irr, 2)}%` : null}
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
                   <Badge
                     className={getMultipleColor(baseScenario?.multiple)}
                   >
-                    {baseScenario?.multiple != null ? `${baseScenario.multiple}x` : null}
+                    {baseScenario?.multiple != null ? `${formatFixed(baseScenario.multiple, 2)}x` : null}
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
                   <Badge
                     className={getProfitMarginColor(baseScenario?.profitMargin)}
                   >
-                    {baseScenario?.profitMargin != null ? `${baseScenario.profitMargin}%` : null}
+                    {baseScenario?.profitMargin != null ? `${formatFixed(baseScenario.profitMargin, 2)}%` : null}
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
@@ -406,21 +406,21 @@ export default function ReturnsPage() {
                   <Badge
                     className={getIRRColor(downsideScenario?.irr)}
                   >
-                    {downsideScenario?.irr != null ? `${downsideScenario.irr}%` : null}
+                    {downsideScenario?.irr != null ? `${formatFixed(downsideScenario.irr, 2)}%` : null}
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
                   <Badge
                     className={getMultipleColor(downsideScenario?.multiple)}
                   >
-                    {downsideScenario?.multiple != null ? `${downsideScenario.multiple}x` : null}
+                    {downsideScenario?.multiple != null ? `${formatFixed(downsideScenario.multiple, 2)}x` : null}
                   </Badge>
                   </td>
                   <td className="py-4 px-4">
                   <Badge
                     className={getProfitMarginColor(downsideScenario?.profitMargin)}
                   >
-                    {downsideScenario?.profitMargin != null ? `${downsideScenario.profitMargin}%` : null}
+                    {downsideScenario?.profitMargin != null ? `${formatFixed(downsideScenario.profitMargin, 2)}%` : null}
                   </Badge>
                   </td>
                   <td className="py-4 px-4">

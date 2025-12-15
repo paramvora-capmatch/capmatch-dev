@@ -231,38 +231,39 @@ export default function SourcesUsesPage() {
               <h4 className="font-semibold text-gray-900 mb-4">
                 Capital Sources
               </h4>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {sources.map((source: { type?: string | null; amount?: number | null; percentage?: number | null }, index: number) => {
                   const sourceTotal = totalSources || 1;
-                  const previousAmount = sources
+                  const heightPercent = ((source.amount ?? 0) / sourceTotal) * 100;
+                  const cumulativePercent = sources
                     .slice(0, index)
-                    .reduce((sum: number, s: { amount?: number | null }) => sum + (s.amount ?? 0), 0);
-                  const startHeight = (previousAmount / sourceTotal) * 200;
-                  const height = ((source.amount ?? 0) / sourceTotal) * 200;
+                    .reduce((sum: number, s: { amount?: number | null }) => sum + ((s.amount ?? 0) / sourceTotal * 100), 0);
 
                   return (
                     <div key={index} className="flex items-center space-x-4">
-                      <div className="w-32 text-sm text-gray-600">
+                      <div className="w-40 text-sm font-medium text-gray-700">
                         {source.type}
                       </div>
                       <div className="flex-1 relative">
-                        <div className="relative h-48 bg-gray-100 rounded border">
+                        <div className="relative h-12 bg-gray-100 rounded border-2 border-gray-200 overflow-hidden">
                           <div
-                            className="absolute bottom-0 left-0 w-full bg-blue-500 rounded transition-all duration-300"
+                            className="absolute bottom-0 left-0 bg-blue-500 rounded transition-all duration-300 flex items-center justify-center"
                             style={{
-                              height: `${height}px`,
-                              bottom: `${startHeight}px`,
+                              width: `${heightPercent}%`,
+                              height: '100%',
+                              left: `${cumulativePercent}%`,
                             }}
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-white font-medium text-sm">
-                              {formatCurrency(source.amount)}
-                            </span>
+                          >
+                            {heightPercent > 10 && (
+                              <span className="text-white font-semibold text-xs px-2">
+                                {source.percentage != null ? `${source.percentage.toFixed(2)}%` : ''}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <div className="w-20 text-right">
-                        <div className="text-sm font-medium">
+                      <div className="w-32 text-right">
+                        <div className="text-sm font-semibold text-gray-800">
                           {formatCurrency(source.amount)}
                         </div>
                         <div className="text-xs text-gray-500">
@@ -272,44 +273,65 @@ export default function SourcesUsesPage() {
                     </div>
                   );
                 })}
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-40 text-sm font-semibold text-gray-900">
+                      Total Sources
+                    </div>
+                    <div className="flex-1">
+                      <div className="h-12 bg-blue-600 rounded border-2 border-blue-700 flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {formatCurrency(totalSources)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-32 text-right">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(totalSources)}
+                      </div>
+                      <div className="text-xs text-gray-500">100%</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Uses Waterfall */}
             <div>
               <h4 className="font-semibold text-gray-900 mb-4">Capital Uses</h4>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {uses.map((use: { type?: string | null; amount?: number | null; percentage?: number | null }, index: number) => {
                   const usesTotal = totalUses || 1;
-                  const previousAmount = uses
+                  const heightPercent = ((use.amount ?? 0) / usesTotal) * 100;
+                  const cumulativePercent = uses
                     .slice(0, index)
-                    .reduce((sum: number, u: { amount?: number | null }) => sum + (u.amount ?? 0), 0);
-                  const startHeight = (previousAmount / usesTotal) * 200;
-                  const height = ((use.amount ?? 0) / usesTotal) * 200;
+                    .reduce((sum: number, u: { amount?: number | null }) => sum + ((u.amount ?? 0) / usesTotal * 100), 0);
 
                   return (
                     <div key={index} className="flex items-center space-x-4">
-                      <div className="w-32 text-sm text-gray-600">
+                      <div className="w-40 text-sm font-medium text-gray-700">
                         {use.type}
                       </div>
                       <div className="flex-1 relative">
-                        <div className="relative h-48 bg-gray-100 rounded border">
+                        <div className="relative h-12 bg-gray-100 rounded border-2 border-gray-200 overflow-hidden">
                           <div
-                            className="absolute bottom-0 left-0 w-full bg-green-500 rounded transition-all duration-300"
+                            className="absolute bottom-0 left-0 bg-green-500 rounded transition-all duration-300 flex items-center justify-center"
                             style={{
-                              height: `${height}px`,
-                              bottom: `${startHeight}px`,
+                              width: `${heightPercent}%`,
+                              height: '100%',
+                              left: `${cumulativePercent}%`,
                             }}
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-white font-medium text-sm">
-                              {formatCurrency(use.amount)}
-                            </span>
+                          >
+                            {heightPercent > 10 && (
+                              <span className="text-white font-semibold text-xs px-2">
+                                {use.percentage != null ? `${use.percentage.toFixed(2)}%` : ''}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <div className="w-20 text-right">
-                        <div className="text-sm font-medium">
+                      <div className="w-32 text-right">
+                        <div className="text-sm font-semibold text-gray-800">
                           {formatCurrency(use.amount)}
                         </div>
                         <div className="text-xs text-gray-500">
@@ -319,6 +341,26 @@ export default function SourcesUsesPage() {
                     </div>
                   );
                 })}
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-40 text-sm font-semibold text-gray-900">
+                      Total Uses
+                    </div>
+                    <div className="flex-1">
+                      <div className="h-12 bg-green-600 rounded border-2 border-green-700 flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {formatCurrency(totalUses)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-32 text-right">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(totalUses)}
+                      </div>
+                      <div className="text-xs text-gray-500">100%</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

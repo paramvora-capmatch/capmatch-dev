@@ -16,7 +16,8 @@ import { formatFixed } from '@/lib/om-utils';
 
 export default function FinancialSponsorPage() {
     const params = useParams();
-    const projectId = params?.id as string;
+    // Extract id immediately to avoid read-only property issues in Next.js 15
+    const projectId = typeof params?.id === 'string' ? params.id : '';
     const { getProject } = useProjects();
     const project = projectId ? getProject(projectId) : null;
     const { scenario } = useOMDashboard();
@@ -187,19 +188,19 @@ export default function FinancialSponsorPage() {
                         <div>
                             <p className="text-gray-500">Base IRR</p>
                             <p className="font-medium text-blue-600">
-                              {baseIRR != null ? `${baseIRR}%` : null}
+                              {baseIRR != null ? `${formatFixed(baseIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Upside IRR</p>
                             <p className="font-medium text-green-600">
-                              {upsideIRR != null ? `${upsideIRR}%` : null}
+                              {upsideIRR != null ? `${formatFixed(upsideIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>
                             <p className="text-gray-500">Downside IRR</p>
                             <p className="font-medium text-red-600">
-                              {downsideIRR != null ? `${downsideIRR}%` : null}
+                              {downsideIRR != null ? `${formatFixed(downsideIRR, 2)}%` : null}
                             </p>
                         </div>
                         <div>

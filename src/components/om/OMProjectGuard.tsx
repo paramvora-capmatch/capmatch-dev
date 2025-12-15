@@ -29,7 +29,8 @@ export function OMProjectGuard({
 	showError = true,
 }: OMProjectGuardProps) {
 	const params = useParams();
-	const projectId = params?.id as string;
+	// Extract id immediately to avoid read-only property issues in Next.js 15
+	const projectId = typeof params?.id === 'string' ? params.id : '';
 	const projectsHook = useProjects();
 	const getProject = projectsHook.getProject;
 	const project = projectId ? getProject(projectId) : null;

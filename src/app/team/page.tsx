@@ -13,6 +13,8 @@ import { EditMemberPermissionsModal } from "@/components/team/EditMemberPermissi
 import { AnimatePresence } from "framer-motion";
 import { MemberView } from "@/components/team/MemberView";
 import { OwnerView } from "@/components/team/OwnerView";
+import { MemberViewSkeleton } from "@/components/team/MemberViewSkeleton";
+import { OwnerViewSkeleton } from "@/components/team/OwnerViewSkeleton";
 import { OrgMemberRole, ProjectGrant, OrgGrant, OrgMember } from "@/types/enhanced-types";
 import { ArrowLeft } from "lucide-react";
 
@@ -264,7 +266,14 @@ export default function TeamPage() {
                   </div>
                 )}
 
-                {isMember ? (
+                {isLoading ? (
+                  // Show skeleton components while loading
+                  isMember ? (
+                    <MemberViewSkeleton />
+                  ) : (
+                    <OwnerViewSkeleton />
+                  )
+                ) : isMember ? (
                   <MemberView
                     currentUserMember={currentUserMember}
                     userName={user?.name}
