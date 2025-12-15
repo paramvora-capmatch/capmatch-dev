@@ -163,7 +163,9 @@ export default function HomePage() {
 	const lenderMatchingSectionClasses = useMemo(
 		() =>
 			cn(
-				"min-h-screen py-16 relative flex items-center transition-colors duration-300"
+				// Removed max-h-content to allow natural growth
+				// Changed py-24 pb-12 to just py-24 for better spacing
+				"min-h-screen py-24 relative flex items-center transition-colors duration-300"
 			),
 		[]
 	);
@@ -191,7 +193,6 @@ export default function HomePage() {
         `,
 			}}
 		>
-			{/* Always render header so target ref exists for animation; keep logo hidden until handoff */}
 			<EnhancedHeader scrolled={scrolled} textVisible={true} />
 
 			<main
@@ -208,7 +209,6 @@ export default function HomePage() {
 						backgroundColor: "transparent",
 					}}
 				>
-					{/* Hero content with fade in-fade out */}
 					<motion.div
 						className="container mx-auto px-4 max-w-7xl text-center relative z-20"
 						initial={{ opacity: 0 }}
@@ -337,12 +337,17 @@ export default function HomePage() {
 							</p>
 						</motion.div>
 
-						{/* Two-column layout with filter card and graph */}
-						<div className="flex flex-col lg:flex-row gap-8">
+						{/* 
+                            Layout Changes:
+                            1. Added 'items-center' to vertically center the graph relative to filters.
+                            2. Removed fixed heights on parent container.
+                        */}
+						<div className="flex flex-col lg:flex-row gap-8 items-center">
 							<motion.div
 								className={cn(
-									"w-full lg:w-1/2 flex flex-col",
-									"lg:h-[75vh] lg:min-h-[600px]"
+									"w-full lg:w-1/2 flex flex-col"
+									// Removed fixed height (lg:h-[75vh]) so it grows with content
+									// Removed min-h that might be too small
 								)}
 								initial={{ opacity: 0, x: -50 }}
 								whileInView={{ opacity: 1, x: 0 }}
@@ -357,7 +362,8 @@ export default function HomePage() {
 											"0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
 									}}
 								>
-									<div className="flex-grow flex flex-col justify-between space-y-6 md:space-y-8 gap-8">
+									{/* Reduced gap from 8 to 6 to save some vertical space */}
+									<div className="flex-grow flex flex-col justify-between space-y-6 md:space-y-8 gap-6">
 										<FilterSection
 											formData={filters}
 											onChange={handleFilterChange}
@@ -483,7 +489,10 @@ export default function HomePage() {
 							</motion.div>
 
 							<motion.div
-								className="w-full lg:w-1/2 h-[75vh] min-h-[600px] relative overflow-visible lg:-mr-8 xl:-mr-16 transition-colors duration-300"
+								// Changed height strategy:
+								// 1. Removed h-[75vh] to prevent forcing parent height issues
+								// 2. Added fixed height h-[600px] and lg:h-[700px] to ensure graph is visible and matches approx height of filters
+								className="w-full lg:w-1/2 h-[600px] lg:h-[700px] relative overflow-visible lg:-mr-8 xl:-mr-16 transition-colors duration-300"
 								initial={{ opacity: 0, x: 50 }}
 								whileInView={{ opacity: 1, x: 0 }}
 								viewport={{ once: true, margin: "-100px" }}
@@ -503,6 +512,7 @@ export default function HomePage() {
 					</div>
 				</section>
 
+				{/* The process section will now naturally be pushed down */}
 				<ProcessSection />
 			</main>
 
