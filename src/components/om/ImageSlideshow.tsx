@@ -27,11 +27,12 @@ export function ImageSlideshow({
 	const [images, setImages] = useState<ImageData[]>([]);
 	const [currentIndex, setCurrentIndex] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
-	const [isImageLoaded, setIsImageLoaded] = useState(false);
+	const [imagesPreloaded, setImagesPreloaded] = useState(false);
 	const [isHovered, setIsHovered] = useState(false);
 	const intervalRef = useRef<NodeJS.Timeout | null>(null);
 	const touchStartX = useRef<number | null>(null);
 	const touchEndX = useRef<number | null>(null);
+	const preloadedImagesRef = useRef<Set<string>>(new Set());
 
 	// Load images from artifacts folder structure
 	useEffect(() => {
@@ -39,7 +40,8 @@ export function ImageSlideshow({
 			if (!projectId || !orgId) return;
 
 			setIsLoading(true);
-			setIsImageLoaded(false);
+			setImagesPreloaded(false);
+			preloadedImagesRef.current.clear();
 			try {
 				// Load images from artifacts, excluding "other" category (logos, abstract images, etc.)
 				// Only show site_images and architectural_diagrams
@@ -71,14 +73,62 @@ export function ImageSlideshow({
 		loadImages();
 	}, [projectId, orgId]);
 
-	// Reset image loaded state when current index changes
+	// Preload all images into browser cache once images are loaded
 	useEffect(() => {
-		setIsImageLoaded(false);
-	}, [currentIndex]);
+		if (isLoading || images.length === 0) return;
 
-	// Auto-play functionality
+		// Preload all images using native Image API for better browser cache utilization
+		const imageUrls = images.map((img) => img.url).filter(Boolean);
+
+		if (imageUrls.length === 0) {
+			setImagesPreloaded(true);
+			return;
+		}
+
+		let loadedCount = 0;
+		const totalImages = imageUrls.length;
+
+		const loadImage = (url: string): Promise<void> => {
+			return new Promise((resolve) => {
+				// Check if already preloaded
+				if (preloadedImagesRef.current.has(url)) {
+					resolve();
+					return;
+				}
+
+				const img = new window.Image();
+				img.onload = () => {
+					preloadedImagesRef.current.add(url);
+					loadedCount++;
+					// Mark as preloaded once all images are loaded
+					if (loadedCount === totalImages) {
+						setImagesPreloaded(true);
+					}
+					resolve();
+				};
+				img.onerror = () => {
+					// Still count as loaded to not block the UI
+					preloadedImagesRef.current.add(url);
+					loadedCount++;
+					if (loadedCount === totalImages) {
+						setImagesPreloaded(true);
+					}
+					resolve();
+				};
+				img.src = url;
+			});
+		};
+
+		// Load all images in parallel
+		Promise.all(imageUrls.map((url) => loadImage(url))).catch(() => {
+			// Even if some fail, mark as preloaded so slideshow can start
+			setImagesPreloaded(true);
+		});
+	}, [isLoading, images]);
+
+	// Auto-play functionality (only start after images are preloaded)
 	useEffect(() => {
-		if (images.length <= 1) {
+		if (images.length <= 1 || !imagesPreloaded) {
 			return () => {
 				if (intervalRef.current) {
 					clearInterval(intervalRef.current);
@@ -101,7 +151,7 @@ export function ImageSlideshow({
 				intervalRef.current = null;
 			}
 		};
-	}, [isHovered, images.length, autoPlayInterval]);
+	}, [isHovered, images.length, autoPlayInterval, imagesPreloaded]);
 
 	const goToNext = useCallback(() => {
 		setCurrentIndex((prev) => (prev + 1) % images.length);
@@ -113,11 +163,6 @@ export function ImageSlideshow({
 
 	const goToSlide = useCallback((index: number) => {
 		setCurrentIndex(index);
-	}, []);
-
-	// Handle image load
-	const handleImageLoad = useCallback(() => {
-		setIsImageLoaded(true);
 	}, []);
 
 	// Touch/swipe handlers
@@ -184,27 +229,15 @@ export function ImageSlideshow({
 			role={onClick ? "button" : undefined}
 			tabIndex={onClick ? 0 : undefined}
 		>
-			{/* Loading overlay - shows while current image is loading */}
-			{!isImageLoaded && (
-				<div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-20">
-					<div className="flex flex-col items-center gap-3">
-						<Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
-						<p className="text-sm text-gray-500">
-							Loading image...
-						</p>
-					</div>
-				</div>
-			)}
-
-			{/* Images */}
+			{/* Images - preloaded, no loading overlay */}
 			<div className="relative w-full h-full">
 				<AnimatePresence mode="wait" initial={false}>
 					<motion.div
 						key={currentIndex}
 						initial={{ opacity: 0, x: 300 }}
-						animate={{ opacity: isImageLoaded ? 1 : 0, x: 0 }}
+						animate={{ opacity: 1, x: 0 }}
 						exit={{ opacity: 0, x: -300 }}
-						transition={{ duration: 0.5, ease: "easeInOut" }}
+						transition={{ duration: 0.3, ease: "easeInOut" }}
 						className="absolute inset-0"
 					>
 						<Image
@@ -214,8 +247,7 @@ export function ImageSlideshow({
 							sizes="100vw"
 							className="object-cover"
 							priority={currentIndex === 0}
-							onLoad={handleImageLoad}
-							onError={() => setIsImageLoaded(true)} // Show content even if image fails to load
+							loading={currentIndex === 0 ? "eager" : "lazy"}
 						/>
 					</motion.div>
 				</AnimatePresence>

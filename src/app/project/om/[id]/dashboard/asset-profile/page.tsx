@@ -15,7 +15,8 @@ import { parseNumeric, calculateAverage, formatFixed, formatLocale } from '@/lib
 
 export default function AssetProfilePage() {
   const params = useParams();
-  const projectId = params?.id as string;
+  // Extract id immediately to avoid read-only property issues in Next.js 15
+  const projectId = typeof params?.id === 'string' ? params.id : '';
   const { getProject } = useProjects();
   const project = projectId ? getProject(projectId) : null;
   const router = useRouter();

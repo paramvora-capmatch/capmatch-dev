@@ -14,7 +14,8 @@ export interface FieldAccessData {
 
 export function useOMFieldLogger() {
 	const params = useParams();
-	const projectId = params?.id as string;
+	// Extract id immediately to avoid read-only property issues in Next.js 15
+	const projectId = typeof params?.id === 'string' ? params.id : '';
 	const logBuffer = useRef<FieldAccessData[]>([]);
 	const flushTimeout = useRef<NodeJS.Timeout | null>(null);
 	// Persistent deduplication: track logged fields across buffer flushes
