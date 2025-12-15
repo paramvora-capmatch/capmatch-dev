@@ -36,7 +36,7 @@ export default function MarketContextPage() {
 		parseNumeric(content?.medianAge3Mi) ??
 		parseNumeric(content?.medianAge1Mi) ??
 		null;
-	const collegeGrad = content?.bachelorsDegreePercent ?? null;
+	const collegeGrad = content?.bachelorsShare ?? null;
 
 	const unemployment = content?.unemploymentRate ?? null;
 	const jobGrowth = content?.projGrowth202429 ?? null;
@@ -163,7 +163,7 @@ export default function MarketContextPage() {
 							<p className="text-xs text-gray-500">Avg Growth</p>
 							<p className="text-sm font-medium text-green-600">
 								{avgGrowth != null ? (
-									`+${avgGrowth.toFixed(1)}%`
+									`+${avgGrowth.toFixed(2)}%`
 								) : (
 									<OMEmptyState />
 								)}

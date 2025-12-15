@@ -1,150 +1,229 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
-import { Modal } from '@/components/ui/Modal';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
+import { Modal } from "@/components/ui/Modal";
+import {
+	ChevronLeft,
+	ChevronRight,
+	ZoomIn,
+	ZoomOut,
+	RotateCcw,
+	Loader2,
+} from "lucide-react";
 
 interface MediaFile {
-  name: string;
-  url: string;
-  title?: string; // Optional AI-generated title
-  isPdf: boolean;
+	name: string;
+	url: string;
+	title?: string; // Optional AI-generated title
+	isPdf: boolean;
 }
 
 interface ImagePreviewModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  images: MediaFile[];
-  currentIndex: number;
-  onIndexChange: (index: number) => void;
+	isOpen: boolean;
+	onClose: () => void;
+	images: MediaFile[];
+	currentIndex: number;
+	onIndexChange: (index: number) => void;
 }
 
 export function ImagePreviewModal({
-  isOpen,
-  onClose,
-  images,
-  currentIndex,
-  onIndexChange,
+	isOpen,
+	onClose,
+	images,
+	currentIndex,
+	onIndexChange,
 }: ImagePreviewModalProps) {
-  const [zoom, setZoom] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
+	const [zoom, setZoom] = useState(1);
+	const [position, setPosition] = useState({ x: 0, y: 0 });
+	const [isDragging, setIsDragging] = useState(false);
+	const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+	const [imagesLoaded, setImagesLoaded] = useState(false);
+	const [loadingProgress, setLoadingProgress] = useState(0);
+	const containerRef = useRef<HTMLDivElement>(null);
+	const loadedImagesRef = useRef<Set<string>>(new Set());
 
-  const currentImage = images[currentIndex];
+	const currentImage = images[currentIndex];
 
-  // Reset zoom and position when image changes
-  useEffect(() => {
-    setZoom(1);
-    setPosition({ x: 0, y: 0 });
-  }, [currentIndex]);
+	// Preload all images when modal opens
+	useEffect(() => {
+		if (!isOpen || images.length === 0) {
+			setImagesLoaded(false);
+			setLoadingProgress(0);
+			loadedImagesRef.current.clear();
+			return;
+		}
 
-  // Keyboard navigation
-  useEffect(() => {
-    if (!isOpen) return;
+		// Filter out PDFs
+		const imageUrls = images
+			.filter((img) => !img.isPdf)
+			.map((img) => img.url);
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
-        if (currentIndex > 0) {
-          onIndexChange(currentIndex - 1);
-        } else {
-          onIndexChange(images.length - 1); // Wrap to last
-        }
-      } else if (e.key === 'ArrowRight') {
-        if (currentIndex < images.length - 1) {
-          onIndexChange(currentIndex + 1);
-        } else {
-          onIndexChange(0); // Wrap to first
-        }
-      } else if (e.key === 'Escape') {
-        onClose();
-      }
-    };
+		if (imageUrls.length === 0) {
+			setImagesLoaded(true);
+			return;
+		}
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex, images.length, onClose, onIndexChange]);
+		let loadedCount = 0;
+		const totalImages = imageUrls.length;
 
-  // Wheel zoom
-  useEffect(() => {
-    if (!isOpen || !containerRef.current) return;
+		const loadImage = (url: string): Promise<void> => {
+			return new Promise((resolve) => {
+				// Check if already loaded
+				if (loadedImagesRef.current.has(url)) {
+					resolve();
+					return;
+				}
 
-    const container = containerRef.current;
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        setZoom((prev) => Math.max(0.5, Math.min(5, prev + delta)));
-      }
-    };
+				const img = new window.Image();
+				img.onload = () => {
+					loadedImagesRef.current.add(url);
+					loadedCount++;
+					setLoadingProgress(
+						Math.round((loadedCount / totalImages) * 100)
+					);
+					resolve();
+				};
+				img.onerror = () => {
+					// Still count as loaded to not block the UI
+					loadedImagesRef.current.add(url);
+					loadedCount++;
+					setLoadingProgress(
+						Math.round((loadedCount / totalImages) * 100)
+					);
+					resolve();
+				};
+				img.src = url;
+			});
+		};
 
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {
-      container.removeEventListener('wheel', handleWheel);
-    };
-  }, [isOpen]);
+		// Load all images in parallel
+		Promise.all(imageUrls.map((url) => loadImage(url)))
+			.then(() => {
+				setImagesLoaded(true);
+				setLoadingProgress(100);
+			})
+			.catch(() => {
+				// Even if some fail, mark as loaded so user can still navigate
+				setImagesLoaded(true);
+			});
+	}, [isOpen, images]);
 
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      onIndexChange(currentIndex - 1);
-    } else {
-      onIndexChange(images.length - 1); // Wrap to last
-    }
-  };
+	// Reset zoom and position when image changes
+	useEffect(() => {
+		setZoom(1);
+		setPosition({ x: 0, y: 0 });
+	}, [currentIndex]);
 
-  const handleNext = () => {
-    if (currentIndex < images.length - 1) {
-      onIndexChange(currentIndex + 1);
-    } else {
-      onIndexChange(0); // Wrap to first
-    }
-  };
+	// Keyboard navigation
+	useEffect(() => {
+		if (!isOpen) return;
 
-  const handleZoomIn = () => {
-    setZoom((prev) => Math.min(5, prev + 0.25));
-  };
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "ArrowLeft") {
+				if (currentIndex > 0) {
+					onIndexChange(currentIndex - 1);
+				} else {
+					onIndexChange(images.length - 1); // Wrap to last
+				}
+			} else if (e.key === "ArrowRight") {
+				if (currentIndex < images.length - 1) {
+					onIndexChange(currentIndex + 1);
+				} else {
+					onIndexChange(0); // Wrap to first
+				}
+			} else if (e.key === "Escape") {
+				onClose();
+			}
+		};
 
-  const handleZoomOut = () => {
-    setZoom((prev) => Math.max(0.5, prev - 0.25));
-  };
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [isOpen, currentIndex, images.length, onClose, onIndexChange]);
 
-  const handleResetZoom = () => {
-    setZoom(1);
-    setPosition({ x: 0, y: 0 });
-  };
+	// Wheel zoom
+	useEffect(() => {
+		if (!isOpen || !containerRef.current) return;
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom > 1) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-    }
-  };
+		const container = containerRef.current;
+		const handleWheel = (e: WheelEvent) => {
+			if (e.ctrlKey || e.metaKey) {
+				e.preventDefault();
+				const delta = e.deltaY > 0 ? -0.1 : 0.1;
+				setZoom((prev) => Math.max(0.5, Math.min(5, prev + delta)));
+			}
+		};
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && zoom > 1) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
-    }
-  };
+		container.addEventListener("wheel", handleWheel, { passive: false });
+		return () => {
+			container.removeEventListener("wheel", handleWheel);
+		};
+	}, [isOpen]);
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+	const handlePrevious = () => {
+		if (currentIndex > 0) {
+			onIndexChange(currentIndex - 1);
+		} else {
+			onIndexChange(images.length - 1); // Wrap to last
+		}
+	};
 
-  // Get display title (prefer AI-generated title, fallback to filename without extension)
-  const getDisplayTitle = (image: MediaFile): string => {
-    if (image.title) return image.title;
-    const lastDotIndex = image.name.lastIndexOf('.');
-    return lastDotIndex === -1 ? image.name : image.name.substring(0, lastDotIndex);
-  };
+	const handleNext = () => {
+		if (currentIndex < images.length - 1) {
+			onIndexChange(currentIndex + 1);
+		} else {
+			onIndexChange(0); // Wrap to first
+		}
+	};
 
-  if (!currentImage) return null;
+	const handleZoomIn = () => {
+		setZoom((prev) => Math.min(5, prev + 0.25));
+	};
 
-  return (
+	const handleZoomOut = () => {
+		setZoom((prev) => Math.max(0.5, prev - 0.25));
+	};
+
+	const handleResetZoom = () => {
+		setZoom(1);
+		setPosition({ x: 0, y: 0 });
+	};
+
+	const handleMouseDown = (e: React.MouseEvent) => {
+		if (zoom > 1) {
+			setIsDragging(true);
+			setDragStart({
+				x: e.clientX - position.x,
+				y: e.clientY - position.y,
+			});
+		}
+	};
+
+	const handleMouseMove = (e: React.MouseEvent) => {
+		if (isDragging && zoom > 1) {
+			setPosition({
+				x: e.clientX - dragStart.x,
+				y: e.clientY - dragStart.y,
+			});
+		}
+	};
+
+	const handleMouseUp = () => {
+		setIsDragging(false);
+	};
+
+	// Get display title (prefer AI-generated title, fallback to filename without extension)
+	const getDisplayTitle = (image: MediaFile): string => {
+		if (image.title) return image.title;
+		const lastDotIndex = image.name.lastIndexOf(".");
+		return lastDotIndex === -1
+			? image.name
+			: image.name.substring(0, lastDotIndex);
+	};
+
+	if (!currentImage) return null;
+
+	return (
 		<Modal
 			isOpen={isOpen}
 			onClose={onClose}
@@ -203,45 +282,76 @@ export function ImagePreviewModal({
 								: "default",
 					}}
 				>
-					{currentImage.isPdf ? (
-						<div className="flex items-center justify-center h-full">
-							<div className="text-white text-center">
-								<p className="text-lg mb-2">
-									PDF Preview Not Available
-								</p>
-								<a
-									href={currentImage.url}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="text-blue-400 hover:text-blue-300 underline"
-								>
-									Open PDF in new tab
-								</a>
-							</div>
-						</div>
-					) : (
-						<div className="relative w-full h-full">
-							<Image
-								src={currentImage.url}
-								alt={currentImage.name}
-								fill
-								sizes="100vw"
-								className="object-contain transition-transform duration-200"
-								unoptimized
-								priority
-								loading="eager"
-								style={{
-									transform: `scale(${zoom}) translate(${
-										position.x / zoom
-									}px, ${position.y / zoom}px)`,
-									transformOrigin: "center center",
-								}}
-							/>
+					{/* Loading State */}
+					{!imagesLoaded && (
+						<div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 z-20">
+							<Loader2 className="h-12 w-12 animate-spin text-white mb-4" />
+							<p className="text-white text-sm">
+								Loading images... {loadingProgress}%
+							</p>
 						</div>
 					)}
 
+					{/* Hidden preloaded images for browser cache */}
+					{imagesLoaded &&
+						images.map(
+							(img, idx) =>
+								!img.isPdf && (
+									<img
+										key={idx}
+										src={img.url}
+										alt=""
+										className="hidden"
+										loading="eager"
+										decoding="async"
+									/>
+								)
+						)}
+
+					{/* Current Image Display */}
+					{imagesLoaded && (
+						<>
+							{currentImage.isPdf ? (
+								<div className="flex items-center justify-center h-full">
+									<div className="text-white text-center">
+										<p className="text-lg mb-2">
+											PDF Preview Not Available
+										</p>
+										<a
+											href={currentImage.url}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="text-blue-400 hover:text-blue-300 underline"
+										>
+											Open PDF in new tab
+										</a>
+									</div>
+								</div>
+							) : (
+								<div className="relative w-full h-full">
+									<Image
+										src={currentImage.url}
+										alt={currentImage.name}
+										fill
+										sizes="100vw"
+										className="object-contain transition-transform duration-200"
+										unoptimized
+										priority
+										loading="eager"
+										style={{
+											transform: `scale(${zoom}) translate(${
+												position.x / zoom
+											}px, ${position.y / zoom}px)`,
+											transformOrigin: "center center",
+										}}
+									/>
+								</div>
+							)}
+						</>
+					)}
+
 					{/* Navigation Arrows */}
-					{images.length > 1 && (
+					{images.length > 1 && imagesLoaded && (
 						<>
 							<button
 								onClick={handlePrevious}
@@ -262,6 +372,5 @@ export function ImagePreviewModal({
 				</div>
 			</div>
 		</Modal>
-  );
+	);
 }
-

@@ -75,7 +75,7 @@ const formatDate = (dateString: string | null | undefined): string => {
 
 const formatPercent = (
 	value: number | null | undefined,
-	decimals: number = 1
+	decimals: number = 2
 ): string => {
 	if (value === null || value === undefined) return "N/A";
 	return `${value.toFixed(decimals)}%`;
@@ -372,7 +372,7 @@ const getFieldLabel = (field: {
 		projGrowth202429: "Projected Growth (2024-2029)",
 		medianHHIncome: "Median Household Income",
 		renterOccupiedPercent: "Renter Occupied %",
-		bachelorsDegreePercent: "Bachelor's Degree %",
+		bachelorsShare: "Bachelor's Degree %",
 		opportunityZone: "Opportunity Zone",
 		affordableHousing: "Affordable Housing",
 		affordableUnitsNumber: "Affordable Units",

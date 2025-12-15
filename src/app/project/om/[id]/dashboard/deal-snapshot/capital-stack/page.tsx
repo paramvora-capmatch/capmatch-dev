@@ -291,7 +291,7 @@ export default function CapitalStackPage() {
 
 	const primaryDebt = sources[0] ?? null;
 	const formatPercent = (value: number | null | undefined) =>
-		value != null ? `${value}%` : null;
+		value != null ? `${formatFixed(value, 2)}%` : null;
 	const formatMillions = (value: number | null | undefined) =>
 		value != null
 			? `$${formatFixed(value / 1_000_000, 1) ?? "0.0"}M`
@@ -344,7 +344,7 @@ export default function CapitalStackPage() {
 				<MetricCard
 					label="Loan to Cost"
 					value={
-						parseNumeric(content?.loanToCost) ??
+						parseNumeric(content?.ltc) ??
 						primaryDebt?.percentage ??
 						null
 					}

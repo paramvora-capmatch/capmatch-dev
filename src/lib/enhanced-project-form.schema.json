@@ -235,7 +235,7 @@
 						"extensions",
 						"targetLtvPercent",
 						"targetLtcPercent",
-						"loanToCost",
+						"ltc",
 						"prepaymentTerms",
 						"prepaymentPremium",
 						"originationFee",
@@ -378,7 +378,7 @@
 				"extensions",
 				"targetLtvPercent",
 				"targetLtcPercent",
-				"loanToCost",
+				"ltc",
 				"prepaymentTerms",
 				"prepaymentPremium",
 				"originationFee",
@@ -1790,7 +1790,7 @@
 			"label": "Total Capitalization ($)",
 			"required": false
 		},
-		"loanToCost": {
+		"ltc": {
 			"label": "Loan to Cost (%)",
 			"required": false
 		},

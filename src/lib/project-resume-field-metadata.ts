@@ -1036,8 +1036,8 @@ export const projectResumeFieldMetadata: Record<string, FieldMetadata> = {
 		dataType: "Currency",
 		section: "financial-details",
 	},
-	loanToCost: {
-		fieldId: "loanToCost",
+	ltc: {
+		fieldId: "ltc",
 		description: "Loan-to-Cost ratio (Loan Amount / Total Development Cost).",
 		expectedValue: "Percentage, e.g., 60%",
 		dataType: "Percent",

@@ -169,7 +169,7 @@ export interface ProjectResumeContent {
 	projGrowth202429?: number;
 	medianHHIncome?: number;
 	renterOccupiedPercent?: number;
-	bachelorsDegreePercent?: number;
+	bachelorsShare?: number;
 	absorptionRate?: number;
 	penetrationRate?: number;
 	northStarComp?: string;

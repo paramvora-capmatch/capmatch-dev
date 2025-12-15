@@ -256,7 +256,7 @@ export default function SourcesUsesPage() {
                           >
                             {heightPercent > 10 && (
                               <span className="text-white font-semibold text-xs px-2">
-                                {source.percentage != null ? `${source.percentage.toFixed(1)}%` : ''}
+                                {source.percentage != null ? `${source.percentage.toFixed(2)}%` : ''}
                               </span>
                             )}
                           </div>
@@ -324,7 +324,7 @@ export default function SourcesUsesPage() {
                           >
                             {heightPercent > 10 && (
                               <span className="text-white font-semibold text-xs px-2">
-                                {use.percentage != null ? `${use.percentage.toFixed(1)}%` : ''}
+                                {use.percentage != null ? `${use.percentage.toFixed(2)}%` : ''}
                               </span>
                             )}
                           </div>

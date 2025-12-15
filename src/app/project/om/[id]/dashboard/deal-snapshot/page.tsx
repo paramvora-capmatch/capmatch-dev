@@ -42,7 +42,7 @@ export default function DealSnapshotPage() {
     const formatPercent = (value: number | null | undefined) => {
       if (value == null) return null;
       const numValue = typeof value === 'number' ? value : parseFloat(String(value));
-      return !Number.isNaN(numValue) ? `${numValue.toFixed(1)}%` : null;
+      return !Number.isNaN(numValue) ? `${numValue.toFixed(2)}%` : null;
     };
     
     // Build key terms from flat fields

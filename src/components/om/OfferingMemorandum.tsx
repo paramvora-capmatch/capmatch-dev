@@ -565,7 +565,7 @@ export const OfferingMemorandum: React.FC<OfferingMemorandumProps> = ({
           />
           <KeyValueDisplay
             label="% Bachelor's Degree"
-            value={project.bachelorsDegreePercent ? `${project.bachelorsDegreePercent}%` : "N/A"}
+            value={project.bachelorsShare ? `${project.bachelorsShare}%` : "N/A"}
           />
           <KeyValueDisplay
             label="Absorption Rate"

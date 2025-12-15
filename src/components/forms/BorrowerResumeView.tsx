@@ -45,7 +45,7 @@ const formatCurrency = (amount: number | null | undefined): string => {
 	}).format(amount);
 };
 
-const formatPercent = (value: number | null | undefined, decimals: number = 1): string => {
+const formatPercent = (value: number | null | undefined, decimals: number = 2): string => {
 	if (value === null || value === undefined) return "N/A";
 	return `${value.toFixed(decimals)}%`;
 };

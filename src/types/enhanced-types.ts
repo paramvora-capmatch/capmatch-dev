@@ -454,7 +454,7 @@ export interface ProjectProfile {
 	projGrowth202429?: number;
 	medianHHIncome?: number;
 	renterOccupiedPercent?: number;
-	bachelorsDegreePercent?: number;
+	bachelorsShare?: number;
 	msaName?: string;
 	unemploymentRate?: number;
 	largestEmployer?: string;

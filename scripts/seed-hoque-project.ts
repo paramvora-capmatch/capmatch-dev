@@ -317,7 +317,7 @@ function getDefaultValueForProjectField(fieldId: string): any {
 		"totalCapitalization",
 		"equityContribution",
 		"floorRate",
-		"loanToCost",
+		"ltc",
 		"exitCapRate",
 		"debtService",
 		"taxInsuranceReserve",
@@ -745,7 +745,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	extensions: "Two 6-month extensions available with lender approval",
 	targetLtvPercent: 44,
 	targetLtcPercent: 60,
-	loanToCost: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
+	ltc: 60.4, // Loan-to-Cost: $18M / $29.8M = 60.4%
 	prepaymentTerms: "Minimum interest",
 	prepaymentPremium: "None - prepayment allowed after interest-only period",
 	originationFee: "1.5% of loan amount",
