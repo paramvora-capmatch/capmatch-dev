@@ -737,6 +737,34 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 												"rentComps"
 											) as any[]
 										).length > 0;
+									const hasDeliveryByQuarter =
+										sectionId === "market-context" &&
+										Array.isArray(
+											getFieldValue(
+												project,
+												"deliveryByQuarter"
+											)
+										) &&
+										(
+											getFieldValue(
+												project,
+												"deliveryByQuarter"
+											) as any[]
+										).length > 0;
+									const hasMajorEmployers =
+										sectionId === "market-context" &&
+										Array.isArray(
+											getFieldValue(
+												project,
+												"majorEmployers"
+											)
+										) &&
+										(
+											getFieldValue(
+												project,
+												"majorEmployers"
+											) as any[]
+										).length > 0;
 									const hasDrawSchedule =
 										sectionId === "timeline" &&
 										Array.isArray(
@@ -770,7 +798,11 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 															fieldId ===
 																"commercialSpaceMix" ||
 															fieldId ===
-																"rentComps"
+																"rentComps" ||
+															fieldId ===
+																"deliveryByQuarter" ||
+															fieldId ===
+																"majorEmployers"
 														) {
 															return false;
 														}
@@ -804,6 +836,8 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 										!hasUnitMix &&
 										!hasCommercialMix &&
 										!hasRentComps &&
+										!hasDeliveryByQuarter &&
+										!hasMajorEmployers &&
 										!hasDrawSchedule &&
 										!hasValuesInSubsections
 									) {
@@ -868,6 +902,15 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																			if (
 																				field.fieldId ===
 																				"rentComps"
+																			) {
+																				return false;
+																			}
+																			// Special-case: deliveryByQuarter and majorEmployers are rendered as tables
+																			if (
+																				field.fieldId ===
+																					"deliveryByQuarter" ||
+																				field.fieldId ===
+																					"majorEmployers"
 																			) {
 																				return false;
 																			}
@@ -2304,6 +2347,164 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																</div>
 															);
 														})()}
+
+													{/* Delivery By Quarter Table */}
+													{sectionId ===
+														"market-context" &&
+														(() => {
+															const deliveryByQuarter =
+																getFieldValue(
+																	project,
+																	"deliveryByQuarter"
+																);
+															if (
+																!hasValue(
+																	deliveryByQuarter
+																) ||
+																!Array.isArray(
+																	deliveryByQuarter
+																) ||
+																deliveryByQuarter.length ===
+																	0
+															)
+																return null;
+
+															return (
+																<div className="mt-4">
+																	<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																		Delivery
+																		By
+																		Quarter
+																	</h4>
+																	<div className="overflow-x-auto">
+																		<table className="min-w-full divide-y divide-gray-200 text-sm">
+																			<thead className="bg-gray-50">
+																				<tr>
+																					<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																						Quarter
+																					</th>
+																					<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																						Units
+																					</th>
+																				</tr>
+																			</thead>
+																			<tbody className="bg-white divide-y divide-gray-200">
+																				{deliveryByQuarter.map(
+																					(
+																						quarter: any,
+																						idx: number
+																					) => (
+																						<tr
+																							key={
+																								idx
+																							}
+																						>
+																							<td className="px-3 py-2 whitespace-nowrap">
+																								{quarter.quarter ||
+																									"N/A"}
+																							</td>
+																							<td className="px-3 py-2 whitespace-nowrap">
+																								{typeof quarter.units ===
+																								"number"
+																									? quarter.units.toLocaleString()
+																									: quarter.units ||
+																									  "N/A"}
+																							</td>
+																						</tr>
+																					)
+																				)}
+																			</tbody>
+																		</table>
+																	</div>
+																</div>
+															);
+														})()}
+
+													{/* Major Employers Table */}
+													{sectionId ===
+														"market-context" &&
+														(() => {
+															const majorEmployers =
+																getFieldValue(
+																	project,
+																	"majorEmployers"
+																);
+															if (
+																!hasValue(
+																	majorEmployers
+																) ||
+																!Array.isArray(
+																	majorEmployers
+																) ||
+																majorEmployers.length ===
+																	0
+															)
+																return null;
+
+															return (
+																<div className="mt-4">
+																	<h4 className="text-sm font-semibold text-gray-600 mb-2">
+																		Major
+																		Employers
+																	</h4>
+																	<div className="overflow-x-auto">
+																		<table className="min-w-full divide-y divide-gray-200 text-sm">
+																			<thead className="bg-gray-50">
+																				<tr>
+																					<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																						Company
+																						Name
+																					</th>
+																					<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																						Employees
+																					</th>
+																					<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																						Growth
+																					</th>
+																					<th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+																						Distance
+																					</th>
+																				</tr>
+																			</thead>
+																			<tbody className="bg-white divide-y divide-gray-200">
+																				{majorEmployers.map(
+																					(
+																						employer: any,
+																						idx: number
+																					) => (
+																						<tr
+																							key={
+																								idx
+																							}
+																						>
+																							<td className="px-3 py-2 whitespace-nowrap">
+																								{employer.name ||
+																									"N/A"}
+																							</td>
+																							<td className="px-3 py-2 whitespace-nowrap">
+																								{typeof employer.employees ===
+																								"number"
+																									? employer.employees.toLocaleString()
+																									: employer.employees ||
+																									  "N/A"}
+																							</td>
+																							<td className="px-3 py-2 whitespace-nowrap">
+																								{employer.growth ||
+																									"N/A"}
+																							</td>
+																							<td className="px-3 py-2 whitespace-nowrap">
+																								{employer.distance ||
+																									"N/A"}
+																							</td>
+																						</tr>
+																					)
+																				)}
+																			</tbody>
+																		</table>
+																	</div>
+																</div>
+															);
+														})()}
 												</div>
 											) : (
 												// Fallback: section without explicit subsections
@@ -2335,7 +2536,11 @@ export const ProjectResumeView: React.FC<ProjectResumeViewProps> = ({
 																field.fieldId ===
 																	"riskMedium" ||
 																field.fieldId ===
-																	"riskLow"
+																	"riskLow" ||
+																field.fieldId ===
+																	"deliveryByQuarter" ||
+																field.fieldId ===
+																	"majorEmployers"
 															) {
 																return false;
 															}
