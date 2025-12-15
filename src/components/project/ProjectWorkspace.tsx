@@ -119,8 +119,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	const [isEditing, setIsEditing] = useState(false);
-	const [initialProjectStepId, setInitialProjectStepId] = useState<string | null>(null);
-	const [initialBorrowerStepId, setInitialBorrowerStepId] = useState<string | null>(null);
+	const [initialProjectStepId, setInitialProjectStepId] = useState<
+		string | null
+	>(null);
+	const [initialBorrowerStepId, setInitialBorrowerStepId] = useState<
+		string | null
+	>(null);
 	const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
 	const [chatTab, setChatTab] = useState<"team" | "ai" | "meet">("team");
 	const [shouldExpandChat, setShouldExpandChat] = useState(false);
@@ -953,7 +957,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 
 	// Instead of showing a full-page loader, we'll show skeleton components
 	// This provides better UX by showing the page structure immediately
-	const isInitialLoad = shouldShowLoader || !activeProject || activeProject.id !== projectId;
+	const isInitialLoad =
+		shouldShowLoader || !activeProject || activeProject.id !== projectId;
 
 	const projectResumeProgress = clampPercentage(
 		activeProject?.completenessPercent ?? 0
@@ -1092,14 +1097,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 	);
 
 	return (
-		<div className="relative min-h-screen w-full flex flex-row animate-fadeIn bg-gray-200">
+		<div
+			className="relative w-full flex flex-row animate-fadeIn bg-gray-200"
+			style={{ minHeight: "100vh", height: "auto" }}
+		>
 			<AskAIProvider
 				onFieldAskAI={(fieldId: string) => {
 					setActiveFieldId(fieldId); // This will be passed to the chat widget
 				}}
 			>
 				{/* Global page background (grid + blue tint) behind both columns */}
-				<div className="pointer-events-none absolute inset-0 z-0">
+				<div
+					className="pointer-events-none absolute inset-0 z-0"
+					style={{ minHeight: "100vh" }}
+				>
 					<div className="absolute inset-0 opacity-[0.5]">
 						<svg
 							className="absolute inset-0 h-full w-full text-blue-500"
@@ -1143,7 +1154,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									className="space-y-6"
 								>
 									{/* Borrower Documents - Show skeleton or content based on loading state */}
-									{isInitialLoad || isWaitingForBorrowerDocs ||
+									{isInitialLoad ||
+									isWaitingForBorrowerDocs ||
 									isLoadingBorrowerDocsPermissions ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
@@ -1168,7 +1180,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 										</motion.div>
 									) : null}
 									{/* Borrower Resume - Show skeleton or content based on loading state */}
-									{isInitialLoad || isWaitingForBorrowerResume ||
+									{isInitialLoad ||
+									isWaitingForBorrowerResume ||
 									isLoadingBorrowerResumePermissions ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
@@ -1182,9 +1195,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 												<div className="p-6 space-y-4">
 													<div className="h-7 bg-gray-200 rounded w-48 animate-pulse"></div>
 													<div className="space-y-3">
-														{[1, 2, 3, 4].map((i) => (
-															<div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"></div>
-														))}
+														{[1, 2, 3, 4].map(
+															(i) => (
+																<div
+																	key={i}
+																	className="h-16 bg-gray-100 rounded-lg animate-pulse"
+																></div>
+															)
+														)}
 													</div>
 												</div>
 											</div>
@@ -1228,7 +1246,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									</motion.h1>
 
 									{/* Project Progress Card - Show skeleton or content based on loading state */}
-									{isInitialLoad || isWaitingForBorrowerResume ||
+									{isInitialLoad ||
+									isWaitingForBorrowerResume ||
 									isWaitingForBorrowerDocs ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
@@ -1353,7 +1372,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									)}
 
 									{/* Project Documents - Show skeleton or content based on loading state */}
-									{isInitialLoad || isWaitingForProjectDocs ||
+									{isInitialLoad ||
+									isWaitingForProjectDocs ||
 									isLoadingProjectDocsPermissions ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
@@ -1397,7 +1417,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									) : null}
 
 									{/* Project completion progress - Show skeleton or content based on loading state */}
-									{isInitialLoad || isWaitingForProjectResume ? (
+									{isInitialLoad ||
+									isWaitingForProjectResume ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
 											animate={{ opacity: 1, y: 0 }}
@@ -1428,7 +1449,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 									) : null}
 
 									{/* Project Resume (View or Edit) - Show skeleton or content based on loading state */}
-									{isInitialLoad || isWaitingForProjectResume ||
+									{isInitialLoad ||
+									isWaitingForProjectResume ||
 									isLoadingProjectResumePermissions ? (
 										<motion.div
 											initial={{ opacity: 0, y: 10 }}
@@ -1462,7 +1484,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
 														existingProject={
 															activeProject
 														}
-														initialStepId={initialProjectStepId}
+														initialStepId={
+															initialProjectStepId
+														}
 														onComplete={() =>
 															setIsEditing(false)
 														}

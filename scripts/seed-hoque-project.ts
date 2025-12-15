@@ -461,7 +461,11 @@ function getDefaultValueForBorrowerField(fieldId: string): any {
 	}
 
 	// Check if it's a known numeric field
-	const numericFields = ["ownershipPercentage", "yearFounded", "activeProjects"];
+	const numericFields = [
+		"ownershipPercentage",
+		"yearFounded",
+		"activeProjects",
+	];
 	if (numericFields.includes(fieldId)) {
 		return 0;
 	}
@@ -583,8 +587,10 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	lossToLease: 5.0,
 	adaCompliantPercent: 5.0,
 	luxuryTier: "Class A",
-	targetMarket: "Young professionals, creative class, and workforce housing residents (50% at ≤80% AMI)",
-	competitivePosition: "Premium workforce housing with strong amenity package and prime location between Farmers Market and Deep Ellum",
+	targetMarket:
+		"Young professionals, creative class, and workforce housing residents (50% at ≤80% AMI)",
+	competitivePosition:
+		"Premium workforce housing with strong amenity package and prime location between Farmers Market and Deep Ellum",
 	unitPlanDescription:
 		"Modern studio, one-bedroom, and two-bedroom units with high-end finishes, in-unit washers/dryers, and energy-efficient appliances. Units feature open floor plans, large windows, and private balconies where applicable.",
 	hvacSystem: "Central",
@@ -794,30 +800,47 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	portfolioDSCR: 1.3,
 	debtService: 1814400, // Annual debt service on $18M loan at 8.0% interest
 	exitStrategy: "Refinance",
-	fiveYearCashFlow: {
-		year1: { noi: 2268000, debtService: 1814400, cashFlow: 453600 },
-		year2: { noi: 2336040, debtService: 1814400, cashFlow: 521640 },
-		year3: { noi: 2406121, debtService: 1814400, cashFlow: 591721 },
-		year4: { noi: 2478305, debtService: 1814400, cashFlow: 663905 },
-		year5: { noi: 2552654, debtService: 1814400, cashFlow: 738254 },
-	},
+	// fiveYearCashFlow: Array of annual cash flow values (used by ReturnsCharts component)
+	fiveYearCashFlow: [
+		453600, // Year 1 cash flow (NOI - Debt Service)
+		521640, // Year 2 cash flow
+		591721, // Year 3 cash flow
+		663905, // Year 4 cash flow
+		738254, // Year 5 cash flow
+	],
+	// returnsBreakdown: Percentage breakdown of return sources (used by ReturnsCharts component)
 	returnsBreakdown: {
-		yieldOnCost: 7.6,
-		irr: 18.5,
-		equityMultiple: 2.1,
-		holdPeriod: 7,
+		cashFlow: 40.0, // Percentage contribution from cash flow
+		assetAppreciation: 35.0, // Percentage contribution from appreciation
+		taxBenefits: 15.0, // Percentage contribution from tax benefits (PFC structure)
+		leverage: 10.0, // Percentage contribution from leverage
 	},
-	quarterlyDeliverySchedule: {
-		q1_2027: { units: 0, percentComplete: 0 },
-		q2_2027: { units: 0, percentComplete: 0 },
-		q3_2027: { units: 29, percentComplete: 25 },
-		q4_2027: { units: 58, percentComplete: 75 },
-		q1_2028: { units: 29, percentComplete: 100 },
-	},
+	// quarterlyDeliverySchedule: Array of quarterly delivery data (used by ReturnsCharts component)
+	quarterlyDeliverySchedule: [
+		{ quarter: "Q1 2027", units: 0 },
+		{ quarter: "Q2 2027", units: 0 },
+		{ quarter: "Q3 2027", units: 29 },
+		{ quarter: "Q4 2027", units: 58 },
+		{ quarter: "Q1 2028", units: 29 },
+	],
+	// sensitivityAnalysis: Sensitivity analysis data (used by ReturnsCharts component)
 	sensitivityAnalysis: {
-		baseCase: { noi: 2268000, irr: 18.5, equityMultiple: 2.1 },
-		downside: { noi: 2041200, irr: 15.2, equityMultiple: 1.8 },
-		upside: { noi: 2494800, irr: 21.8, equityMultiple: 2.4 },
+		// Rent growth impact on IRR
+		rentGrowthImpact: [
+			{ growth: "-2%", irr: 16.2 },
+			{ growth: "-1%", irr: 17.3 },
+			{ growth: "0%", irr: 18.5 },
+			{ growth: "+1%", irr: 19.7 },
+			{ growth: "+2%", irr: 21.0 },
+		],
+		// Construction cost impact on IRR
+		constructionCostImpact: [
+			{ cost: "+10%", irr: 15.8 },
+			{ cost: "+5%", irr: 17.1 },
+			{ cost: "Base", irr: 18.5 },
+			{ cost: "-5%", irr: 19.9 },
+			{ cost: "-10%", irr: 21.3 },
+		],
 	},
 	// Flat fields for returns page
 	upsideIRR: 21.8,
@@ -833,36 +856,42 @@ const hoqueProjectResumeBase: Record<string, any> = {
 	riskHigh: [
 		{
 			risk: "Construction cost overruns in current inflationary environment",
-			mitigation: "Fixed-price construction contract with established GC, 5% contingency reserve, and regular cost monitoring",
+			mitigation:
+				"Fixed-price construction contract with established GC, 5% contingency reserve, and regular cost monitoring",
 			probability: "30%",
 		},
 		{
 			risk: "Lease-up timeline delays affecting stabilization",
-			mitigation: "Pre-leased 30,000 SF Innovation Center, strong market fundamentals with 94.5% occupancy, experienced leasing team",
+			mitigation:
+				"Pre-leased 30,000 SF Innovation Center, strong market fundamentals with 94.5% occupancy, experienced leasing team",
 			probability: "25%",
 		},
 	],
 	riskMedium: [
 		{
 			risk: "Interest rate volatility on floating rate construction loan",
-			mitigation: "Interest reserve funded for 24-month construction period, rate floor at 4.5%, relationship with lender for potential rate cap",
+			mitigation:
+				"Interest reserve funded for 24-month construction period, rate floor at 4.5%, relationship with lender for potential rate cap",
 			probability: "40%",
 		},
 		{
 			risk: "Market rent growth assumptions may not materialize",
-			mitigation: "Conservative 3.0% rent growth assumption, strong market fundamentals with 6.9% population growth, diversified unit mix",
+			mitigation:
+				"Conservative 3.0% rent growth assumption, strong market fundamentals with 6.9% population growth, diversified unit mix",
 			probability: "20%",
 		},
 	],
 	riskLow: [
 		{
 			risk: "Pre-leased Innovation Center provides stable commercial income",
-			mitigation: "15-year lease with GSV Holdings executed, credit-worthy tenant, reduces lease-up risk",
+			mitigation:
+				"15-year lease with GSV Holdings executed, credit-worthy tenant, reduces lease-up risk",
 			probability: "10%",
 		},
 		{
 			risk: "Strong sponsor track record and lender relationships",
-			mitigation: "Proven track record with SoGood Phase A, established relationships with Frost Bank and Citi Community Capital",
+			mitigation:
+				"Proven track record with SoGood Phase A, established relationships with Frost Bank and Citi Community Capital",
 			probability: "5%",
 		},
 	],
@@ -870,7 +899,7 @@ const hoqueProjectResumeBase: Record<string, any> = {
 		month1_3: 0.15, // 15% in first 3 months
 		month4_6: 0.25, // 25% in months 4-6
 		month7_12: 0.35, // 35% in months 7-12
-		month13_18: 0.20, // 20% in months 13-18
+		month13_18: 0.2, // 20% in months 13-18
 		month19_24: 0.05, // 5% in months 19-24
 	},
 	businessPlanSummary:
@@ -1407,7 +1436,8 @@ const hoqueBorrowerResumeBase: Record<string, any> = {
 			firm: "Citi Community Capital",
 			relationship: "Affordable Housing Finance",
 			years: "5 years",
-			contact: "Affordable Housing Finance Team (communitycapital@citi.com)",
+			contact:
+				"Affordable Housing Finance Team (communitycapital@citi.com)",
 		},
 		{
 			lenderName: "Dallas Housing Finance Corporation",

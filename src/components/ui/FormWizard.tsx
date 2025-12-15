@@ -46,6 +46,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({
   const [showLeftGradient, setShowLeftGradient] = useState(false);
   const [showRightGradient, setShowRightGradient] = useState(false);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const tabButtonRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
 
   // Initialize internal completion based on external prop (if provided)
   useEffect(() => {
@@ -106,6 +107,25 @@ export const FormWizard: React.FC<FormWizardProps> = ({
     };
   }, [variant, updateScrollGradients]);
 
+  // Auto-scroll to active tab when currentStepIndex changes
+  useEffect(() => {
+    if (variant !== 'tabs') return;
+    
+    const activeTabButton = tabButtonRefs.current[currentStepIndex];
+    if (!activeTabButton || !scrollContainerRef.current) return;
+
+    // Scroll the active tab into view
+    activeTabButton.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
+
+    // Update gradients after scrolling
+    setTimeout(() => {
+      updateScrollGradients();
+    }, 300); // Wait for smooth scroll to complete
+  }, [currentStepIndex, variant, updateScrollGradients]);
 
   const currentStep = steps[currentStepIndex];
   const isFirstStep = currentStepIndex === 0;
@@ -209,6 +229,9 @@ export const FormWizard: React.FC<FormWizardProps> = ({
                 {steps.map((step, index) => (
                   <button
                     key={step.id}
+                    ref={(el) => {
+                      tabButtonRefs.current[index] = el;
+                    }}
                     className={cn(
                       "flex items-center justify-center px-3 py-2 rounded-md text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0",
                       index === currentStepIndex
