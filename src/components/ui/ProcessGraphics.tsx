@@ -32,7 +32,7 @@ const COLORS = {
 	FADED_GREEN: "rgba(16, 185, 129, 0.15)",
 	// Greys: medium + slightly darker accent
 	MEDIUM_GREY: "#cbd5e1", // base grey (slate-300)
-	DARK_GREY: "#94a3b8", // slightly darker grey (slate-400), still far from black
+	DARK_GREY: "#b6c2d1", // slightly darker grey (slate-400), still far from black
 	LIGHT_GREY: "rgba(209, 213, 219, 0.6)",
 	WHITE: "#ffffff",
 	SOFT_WHITE: "rgba(255, 255, 255, 0.9)",
