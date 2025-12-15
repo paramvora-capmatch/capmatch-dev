@@ -59,7 +59,6 @@ import { TrackRecordItem, ReferenceItem } from "@/lib/project-queries";
 import { useProjectBorrowerResumeRealtime } from "@/hooks/useProjectBorrowerResumeRealtime";
 import { BorrowerResumeView } from "./BorrowerResumeView";
 import { MultiSelectPills } from "../ui/MultiSelectPills";
-import { supabase } from "@/lib/supabaseClient";
 
 interface BorrowerResumeFormProps {
 	projectId: string;
