@@ -753,96 +753,103 @@ async function handleResumeIncompleteNudge(
 	// Get project name
 	const projectName = await getProjectName(supabaseAdmin, event.project_id);
 
-	// Get all org owners for this project
-	const { data: owners, error: ownersError } = await supabaseAdmin
+	// Verify that the user who edited is an owner
+	const { data: ownerCheck, error: ownerCheckError } = await supabaseAdmin
 		.from("org_members")
 		.select("user_id")
 		.eq("org_id", project.owner_org_id)
-		.eq("role", "owner");
+		.eq("role", "owner")
+		.eq("user_id", userId)
+		.maybeSingle();
 
-	if (ownersError || !owners || owners.length === 0) {
-		console.error("[notify-fan-out] Error fetching owners:", ownersError);
-		return jsonResponse({ inserted: 0, reason: "no_owners_found" });
+	if (ownerCheckError) {
+		console.error("[notify-fan-out] Error checking owner:", ownerCheckError);
+		return jsonResponse({ inserted: 0, reason: "owner_check_failed" });
 	}
 
-	// Notify all project owners (not just the user who edited)
-	// We'll create notifications for each owner
+	if (!ownerCheck) {
+		console.log(
+			`[notify-fan-out] Skipping notification - user ${userId} is not a project owner`
+		);
+		return jsonResponse({ inserted: 0, reason: "user_not_owner" });
+	}
+
+	// Only notify the specific owner who edited (userId from payload)
+	const ownerToNotify = userId;
 
 	// Build notification title and body based on tier
 	const resumeTypeLabel = resumeType === "project" ? "Project" : "Borrower";
 	const title = `Complete your ${resumeTypeLabel} Resume`;
 
-	let body = `Your ${resumeType.toLowerCase()} resume for **${projectName}** is **${completionPercent}%** complete. Finish it to generate your OM!`;
+	let body = `Your ${resumeTypeLabel} resume for **${projectName}** is **${completionPercent}%** complete. Finish it to generate your OM!`;
 
 	// Generate link URL
 	const linkUrl = `/project/workspace/${event.project_id}`;
 
-	let insertedCount = 0;
+	// Check if notification already exists for this owner/event
+	const { data: existingNotif } = await supabaseAdmin
+		.from("notifications")
+		.select("id")
+		.eq("user_id", ownerToNotify)
+		.eq("event_id", event.id)
+		.maybeSingle();
 
-	// Create notifications for all project owners
-	for (const owner of owners) {
-		const ownerUserId = owner.user_id;
+	if (existingNotif) {
+		console.log(
+			`[notify-fan-out] Notification already exists for owner ${ownerToNotify} and event ${event.id}`
+		);
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
 
-		// Check if notification already exists for this owner/event
-		const { data: existingNotif } = await supabaseAdmin
-			.from("notifications")
-			.select("id")
-			.eq("user_id", ownerUserId)
-			.eq("event_id", event.id)
-			.maybeSingle();
+	// Also check if a notification with same tier already exists for this owner
+	const { data: existingTierNotif } = await supabaseAdmin
+		.from("notifications")
+		.select("id")
+		.eq("user_id", ownerToNotify)
+		.eq("payload->>type", "resume_incomplete_nudge")
+		.eq("payload->>resume_type", resumeType)
+		.eq("payload->>nudge_tier", nudgeTier.toString())
+		.eq("payload->>project_id", event.project_id)
+		.maybeSingle();
 
-		if (existingNotif) {
-			continue; // Skip if already notified for this event
-		}
+	if (existingTierNotif) {
+		console.log(
+			`[notify-fan-out] Tier ${nudgeTier} nudge already sent to owner ${ownerToNotify}`
+		);
+		return jsonResponse({ inserted: 0, reason: "tier_already_sent" });
+	}
 
-		// Also check if a notification with same tier already exists for this owner
-		const { data: existingTierNotif } = await supabaseAdmin
-			.from("notifications")
-			.select("id")
-			.eq("user_id", ownerUserId)
-			.eq("payload->>type", "resume_incomplete_nudge")
-			.eq("payload->>resume_type", resumeType)
-			.eq("payload->>nudge_tier", nudgeTier.toString())
-			.eq("payload->>project_id", event.project_id)
-			.maybeSingle();
+	// Insert notification for the owner who edited
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: ownerToNotify,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "resume_incomplete_nudge",
+				resume_type: resumeType,
+				completion_percent: completionPercent,
+				nudge_tier: nudgeTier,
+				project_id: event.project_id,
+				project_name: projectName,
+			},
+		});
 
-		if (existingTierNotif) {
-			continue; // Skip if tier already sent to this owner
-		}
-
-		// Insert notification for this owner
-		const { error: insertError } = await supabaseAdmin
-			.from("notifications")
-			.insert({
-				user_id: ownerUserId,
-				event_id: event.id,
-				title,
-				body,
-				link_url: linkUrl,
-				payload: {
-					type: "resume_incomplete_nudge",
-					resume_type: resumeType,
-					completion_percent: completionPercent,
-					nudge_tier: nudgeTier,
-					project_id: event.project_id,
-					project_name: projectName,
-				},
-			});
-
-		if (insertError) {
-			console.error(
-				`[notify-fan-out] Failed to insert notification for owner ${ownerUserId}:`,
-				insertError
-			);
-		} else {
-			insertedCount++;
-		}
+	if (insertError) {
+		console.error(
+			`[notify-fan-out] Failed to insert notification for owner ${ownerToNotify}:`,
+			insertError
+		);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
 	console.log(
-		`[notify-fan-out] Created ${insertedCount} resume nudge notification(s) for project owners, tier ${nudgeTier}`
+		`[notify-fan-out] Created resume nudge notification for owner ${ownerToNotify}, tier ${nudgeTier}`
 	);
-	return jsonResponse({ inserted: insertedCount });
+	return jsonResponse({ inserted: 1 });
 }
 
 // =============================================================================

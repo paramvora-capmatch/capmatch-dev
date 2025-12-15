@@ -14,7 +14,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 // Nudge intervals in milliseconds: 45m, 1d, 3d, 1w
 const NUDGE_INTERVALS = [
   45 * 60 * 1000, // 45 minutes
-  1 * 24 * 60 * 60 * 1000, // 1 day
+  24 * 60 * 60 * 1000, // 1 day
   3 * 24 * 60 * 60 * 1000, // 3 days
   7 * 24 * 60 * 60 * 1000, // 1 week
 ];
@@ -87,6 +87,46 @@ async function sendResumeNudges(supabaseAdmin: any) {
   for (const activity of activities) {
     const { user_id, project_id, last_project_resume_edit_at, last_borrower_resume_edit_at } = activity;
 
+    // Check if user is a project owner before processing any resumes
+    // This avoids duplicate logs and unnecessary processing
+    const { data: project, error: projectError } = await supabaseAdmin
+      .from("projects")
+      .select("owner_org_id")
+      .eq("id", project_id)
+      .single();
+
+    if (projectError || !project) {
+      console.error(
+        `[resume-incomplete-nudges] Error fetching project ${project_id}:`,
+        projectError
+      );
+      continue; // Skip this activity
+    }
+
+    const { data: owners, error: ownersError } = await supabaseAdmin
+      .from("org_members")
+      .select("user_id")
+      .eq("org_id", project.owner_org_id)
+      .eq("role", "owner");
+
+    if (ownersError || !owners || owners.length === 0) {
+      console.error(
+        `[resume-incomplete-nudges] Error fetching owners for project ${project_id}:`,
+        ownersError
+      );
+      continue; // Skip this activity
+    }
+
+    const ownerUserIds = owners.map((o: any) => o.user_id);
+
+    // Only process if the editor is an owner
+    if (!ownerUserIds.includes(user_id)) {
+      console.log(
+        `[resume-incomplete-nudges] Skipping nudges - user ${user_id} is not a project owner for project ${project_id}`
+      );
+      continue; // Skip both project and borrower resume processing
+    }
+
     // Process Project Resume
     if (last_project_resume_edit_at) {
       const editTime = new Date(last_project_resume_edit_at).getTime();
@@ -109,7 +149,10 @@ async function sendResumeNudges(supabaseAdmin: any) {
           .select("completeness_percent")
           .eq("id", resource.current_version_id)
           .maybeSingle();
-        completenessPercent = projectResume?.completeness_percent;
+        // Ensure completeness is a number
+        completenessPercent = projectResume?.completeness_percent != null 
+          ? Number(projectResume.completeness_percent) 
+          : undefined;
       } else {
         // Fallback to latest resume
         const { data: projectResume } = await supabaseAdmin
@@ -119,17 +162,29 @@ async function sendResumeNudges(supabaseAdmin: any) {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        completenessPercent = projectResume?.completeness_percent;
+        // Ensure completeness is a number
+        completenessPercent = projectResume?.completeness_percent != null 
+          ? Number(projectResume.completeness_percent) 
+          : undefined;
       }
 
-      if (completenessPercent !== undefined && completenessPercent < 100) {
+      // Skip if resume is complete (100%) or completeness is undefined
+      if (completenessPercent === undefined) {
+        console.log(
+          `[resume-incomplete-nudges] Skipping project resume nudge for project ${project_id} - completeness not found`
+        );
+      } else if (completenessPercent >= 100) {
+        console.log(
+          `[resume-incomplete-nudges] Skipping project resume nudge for project ${project_id} - already complete (${completenessPercent}%)`
+        );
+      } else if (completenessPercent < 100) {
         const result = await processResumeNudge(
           supabaseAdmin,
           project_id,
           user_id,
           "project",
           timeSinceEdit,
-          completenessPercent ?? 0,
+          completenessPercent,
           new Date(last_project_resume_edit_at)
         );
 
@@ -161,7 +216,10 @@ async function sendResumeNudges(supabaseAdmin: any) {
           .select("completeness_percent")
           .eq("id", borrowerResource.current_version_id)
           .maybeSingle();
-        borrowerCompletenessPercent = borrowerResume?.completeness_percent;
+        // Ensure completeness is a number
+        borrowerCompletenessPercent = borrowerResume?.completeness_percent != null 
+          ? Number(borrowerResume.completeness_percent) 
+          : undefined;
       } else {
         // Fallback to latest resume
         const { data: borrowerResume } = await supabaseAdmin
@@ -171,17 +229,29 @@ async function sendResumeNudges(supabaseAdmin: any) {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        borrowerCompletenessPercent = borrowerResume?.completeness_percent;
+        // Ensure completeness is a number
+        borrowerCompletenessPercent = borrowerResume?.completeness_percent != null 
+          ? Number(borrowerResume.completeness_percent) 
+          : undefined;
       }
 
-      if (borrowerCompletenessPercent !== undefined && borrowerCompletenessPercent < 100) {
+      // Skip if resume is complete (100%) or completeness is undefined
+      if (borrowerCompletenessPercent === undefined) {
+        console.log(
+          `[resume-incomplete-nudges] Skipping borrower resume nudge for project ${project_id} - completeness not found`
+        );
+      } else if (borrowerCompletenessPercent >= 100) {
+        console.log(
+          `[resume-incomplete-nudges] Skipping borrower resume nudge for project ${project_id} - already complete (${borrowerCompletenessPercent}%)`
+        );
+      } else if (borrowerCompletenessPercent < 100) {
         const result = await processResumeNudge(
           supabaseAdmin,
           project_id,
           user_id,
           "borrower",
           timeSinceEdit,
-          borrowerCompletenessPercent ?? 0,
+          borrowerCompletenessPercent,
           new Date(last_borrower_resume_edit_at)
         );
 
@@ -226,43 +296,15 @@ async function processResumeNudge(
     return false;
   }
 
-  // Get project owners - we notify them, not the editor
-  const { data: project, error: projectError } = await supabaseAdmin
-    .from("projects")
-    .select("owner_org_id")
-    .eq("id", projectId)
-    .single();
+  // Note: Ownership check is done upfront in sendResumeNudges before calling this function
+  // We only notify the specific owner who edited
+  const ownerToNotify = userId;
 
-  if (projectError || !project) {
-    console.error(
-      `[resume-incomplete-nudges] Error fetching project:`,
-      projectError
-    );
-    return false;
-  }
-
-  const { data: owners, error: ownersError } = await supabaseAdmin
-    .from("org_members")
-    .select("user_id")
-    .eq("org_id", project.owner_org_id)
-    .eq("role", "owner");
-
-  if (ownersError || !owners || owners.length === 0) {
-    console.error(
-      `[resume-incomplete-nudges] Error fetching owners:`,
-      ownersError
-    );
-    return false;
-  }
-
-  const ownerUserIds = owners.map((o: any) => o.user_id);
-
-  // Check for existing nudges for project owners (not the editor)
-  // Query all notifications for owners with resume_incomplete_nudge type
+  // Check for existing nudges for this specific owner
   const { data: allOwnerNudges, error: nudgesError } = await supabaseAdmin
     .from("notifications")
     .select("id, user_id, created_at, payload")
-    .in("user_id", ownerUserIds)
+    .eq("user_id", ownerToNotify)
     .eq("payload->>type", "resume_incomplete_nudge");
 
   if (nudgesError) {
@@ -323,6 +365,22 @@ async function processResumeNudge(
     );
     return false;
   }
+
+  // Format time since edit for logging
+  const hoursSinceEdit = Math.floor(timeSinceEdit / (60 * 60 * 1000));
+  const minutesSinceEdit = Math.floor((timeSinceEdit % (60 * 60 * 1000)) / (60 * 1000));
+  const timeSinceEditStr = hoursSinceEdit > 0 
+    ? `${hoursSinceEdit}h ${minutesSinceEdit}m`
+    : `${minutesSinceEdit}m`;
+
+  // Log reason for creating domain event
+  console.log(
+    `[resume-incomplete-nudges] Creating domain event for ${resumeType} resume nudge:\n` +
+    `  Reason: Resume is ${completenessPercent}% complete and hasn't been edited in ${timeSinceEditStr} (Tier ${nudgeTier})\n` +
+    `  Project ID: ${projectId}\n` +
+    `  Owner who edited: ${userId} (will be notified)\n` +
+    `  Last edit time: ${lastEditTime.toISOString()}`
+  );
 
   // Create domain event
   const { data: domainEvent, error: eventError } = await supabaseAdmin
