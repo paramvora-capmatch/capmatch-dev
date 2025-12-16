@@ -291,7 +291,7 @@ export default function DashboardPage() {
         </AnimatePresence>
 
         {/* Decorative Background Layer */}
-        <div className="relative -mx-6 sm:-mx-6 lg:-mx-6 bg-gray-200">
+        <div className="relative -mx-6 sm:-mx-6 lg:-mx-6 bg-gray-200 min-h-screen">
 
           {/* Subtle grid pattern */}
           <div className="pointer-events-none absolute inset-0 opacity-[0.5]">
