@@ -117,6 +117,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     isLoadingAttachable,
     subscribeToMembershipChanges,
     unsubscribeFromMembershipChanges,
+    reset,
   } = useChatStore();
 
   const { user } = useAuthStore();
@@ -188,6 +189,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isProcessingBlocked, setIsProcessingBlocked] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
   const richTextInputRef = useRef<RichTextInputRef>(null);
+
+  // Clear chat state whenever we switch to a different project
+  useEffect(() => {
+    if (!projectId) return;
+    reset();
+  }, [projectId, reset]);
 
   const canCreateThreads = useMemo(() => {
     if (!user) return false;

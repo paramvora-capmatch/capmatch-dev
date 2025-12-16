@@ -104,7 +104,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     try {
       setOpenDropdown(null);
       await logout();
-      router.push("/login");
+      // Perform a hard reload to fully reset client state after logout
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      } else {
+        router.push("/login");
+      }
     } catch {
       console.error("Logout failed. Please try again.");
     }

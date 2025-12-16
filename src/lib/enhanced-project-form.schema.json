@@ -26,9 +26,7 @@
 						"assetType",
 						"constructionType",
 						"projectPhase",
-						"projectDescription",
-						"parcelNumber",
-						"zoningDesignation"
+						"projectDescription"
 					]
 				}
 			],
@@ -44,9 +42,7 @@
 				"assetType",
 				"constructionType",
 				"projectPhase",
-				"projectDescription",
-				"parcelNumber",
-				"zoningDesignation"
+				"projectDescription"
 			]
 		},
 		{
@@ -1190,6 +1186,10 @@
 			"label": "Amenity List",
 			"required": false
 		},
+		"amenitySF": {
+			"label": "Amenity Square Footage",
+			"required": false
+		},
 		"studioCount": {
 			"label": "Studio Count",
 			"required": false
@@ -2076,6 +2076,14 @@
 		},
 		"stabilizationStatus": {
 			"label": "Stabilization Status",
+			"required": false
+		},
+		"siteImages": {
+			"label": "Site Images",
+			"required": false
+		},
+		"architecturalDiagrams": {
+			"label": "Architectural Diagrams",
 			"required": false
 		}
 	}

@@ -165,8 +165,9 @@ export default function DashboardPage() {
 
   const combinedLoading = authLoading || projectsLoading || isCreatingProject;
 
-  // Only show splash screen during auth loading, not during project loading
-  const showSplashScreen = authLoading;
+  // Only show splash screen during the *initial* auth loading on first dashboard load.
+  // After initialLoadComplete, we avoid showing "Loading dashboard..." again (e.g. during logout).
+  const showSplashScreen = authLoading && !initialLoadComplete && !!user;
   const showProjectSkeletons = !authLoading && projectsLoading;
 
   const mostCompleteBorrowerProject = useMemo(() => {
@@ -290,7 +291,7 @@ export default function DashboardPage() {
         </AnimatePresence>
 
         {/* Decorative Background Layer */}
-        <div className="relative -mx-6 sm:-mx-6 lg:-mx-6 bg-gray-200">
+        <div className="relative -mx-6 sm:-mx-6 lg:-mx-6 bg-gray-200 min-h-screen">
 
           {/* Subtle grid pattern */}
           <div className="pointer-events-none absolute inset-0 opacity-[0.5]">
