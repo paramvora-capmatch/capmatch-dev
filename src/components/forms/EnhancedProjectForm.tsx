@@ -2311,7 +2311,7 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 				</div>
 			);
 		},
-		[onAskAI, renderFieldLockButton, fieldMetadata]
+		[onAskAI, renderFieldLockButton, fieldMetadata, mapWarningsToLabels]
 	);
 
 	useEffect(() => {

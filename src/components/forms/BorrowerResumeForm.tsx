@@ -300,8 +300,8 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 
 	// Replace raw field IDs in warning messages with user-friendly labels
 	const mapWarningsToLabels = useCallback(
-		(warnings?: string[] | null) => {
-			if (!warnings || warnings.length === 0) return warnings;
+		(warnings?: string[] | null): string[] | undefined => {
+			if (!warnings || warnings.length === 0) return undefined;
 			return warnings.map((w) => {
 				let result = w;
 				for (const [fid, label] of Object.entries(fieldLabelMap)) {
@@ -1364,7 +1364,7 @@ export const BorrowerResumeForm: React.FC<BorrowerResumeFormProps> = ({
 				</div>
 			);
 		},
-		[fieldMetadata, onAskAI, renderFieldLockButton]
+		[fieldMetadata, onAskAI, renderFieldLockButton, mapWarningsToLabels]
 	);
 
 	const renderDynamicField = useCallback(
