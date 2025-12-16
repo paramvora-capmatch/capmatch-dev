@@ -16,7 +16,12 @@ export default function LenderDashboardPage() {
   const handleLogout = async () => {
     try {
       await logout();
-      router.push("/login");
+      // Perform a hard reload to fully reset client state after logout
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      } else {
+        router.push("/login");
+      }
     } catch (error) {
       console.error("Failed to sign out:", error);
     }

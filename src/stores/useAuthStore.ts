@@ -29,6 +29,8 @@ interface AuthState {
   activeOrg: Org | null;
   orgMemberships: OrgMember[];
   currentOrgRole: "owner" | "member" | null;
+  // Tracks when a manual logout is in progress so we can skip "unexpected sign out" recovery
+  isManualLogout: boolean;
 }
 
 interface AuthActions {
@@ -75,6 +77,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   activeOrg: null,
   orgMemberships: [],
   currentOrgRole: null,
+  isManualLogout: false,
   clearJustLoggedIn: () => set({ justLoggedIn: false }),
   _setUser: (user) => set({ user, isAuthenticated: !!user }),
   _setLoading: (isLoading) => set({ isLoading }),
@@ -312,9 +315,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             // User is already logged in, this is just a session revalidation (e.g., tab switch)
             return; // Don't process this event, user is already set up
           } else if (event === "SIGNED_OUT") {
-            // Check if this is an unexpected sign out (user was authenticated)
             const currentState = get();
-            if (currentState.isAuthenticated && currentState.user) {
+            const isManualLogout = currentState.isManualLogout;
+
+            // Only attempt recovery for *unexpected* sign-outs
+            if (!isManualLogout && currentState.isAuthenticated && currentState.user) {
               console.warn("[AuthStore] Unexpected SIGNED_OUT event - user was authenticated");
               
               // Attempt recovery before signing out
@@ -482,6 +487,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 activeOrg: null,
                 orgMemberships: [],
                 currentOrgRole: null,
+                isManualLogout: false,
               });
             }
           } catch (e) {
@@ -599,7 +605,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   },
 
   logout: async () => {
-    set({ isLoading: true });
+    // Mark this as an intentional/manual logout and show auth loading
+    set({ isLoading: true, isManualLogout: true });
     // Reset recovery attempts on manual logout
     recoveryAttempts = 0;
 
@@ -607,12 +614,14 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error("[AuthStore] Logout error:", error.message);
+        // If signOut fails, clear manual logout flag so future unexpected events can still recover
+        set({ isManualLogout: false });
       }
       // Auth listener will handle state reset
       set({ justLoggedIn: false });
     } catch (error) {
       console.error("[AuthStore] Logout failed:", error);
-      set({ isLoading: false });
+      set({ isLoading: false, isManualLogout: false });
     }
   },
 

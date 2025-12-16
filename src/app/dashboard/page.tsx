@@ -165,8 +165,9 @@ export default function DashboardPage() {
 
   const combinedLoading = authLoading || projectsLoading || isCreatingProject;
 
-  // Only show splash screen during auth loading, not during project loading
-  const showSplashScreen = authLoading;
+  // Only show splash screen during the *initial* auth loading on first dashboard load.
+  // After initialLoadComplete, we avoid showing "Loading dashboard..." again (e.g. during logout).
+  const showSplashScreen = authLoading && !initialLoadComplete && !!user;
   const showProjectSkeletons = !authLoading && projectsLoading;
 
   const mostCompleteBorrowerProject = useMemo(() => {
