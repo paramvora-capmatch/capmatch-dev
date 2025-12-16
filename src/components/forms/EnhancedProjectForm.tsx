@@ -1259,6 +1259,34 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 		sanitizedExistingProject._metadata || {}
 	);
 
+	// Map field IDs to human-readable labels from the project form schema
+	const fieldLabelMap = useMemo(() => {
+		const cfg = (formSchema as any)?.fields || {};
+		const map: Record<string, string> = {};
+		for (const [fid, def] of Object.entries<any>(cfg)) {
+			if (def?.label) {
+				map[fid] = String(def.label);
+			}
+		}
+		return map;
+	}, []);
+
+	// Replace raw field IDs in warning messages with user-friendly labels
+	const mapWarningsToLabels = useCallback(
+		(warnings?: string[] | null): string[] | undefined => {
+			if (!warnings || warnings.length === 0) return undefined;
+			return warnings.map((w) => {
+				let result = w;
+				for (const [fid, label] of Object.entries(fieldLabelMap)) {
+					const pattern = new RegExp(`\\b${fid}\\b`, "g");
+					result = result.replace(pattern, label);
+				}
+				return result;
+			});
+		},
+		[fieldLabelMap]
+	);
+
 	// Initialize locked state from props
 	const [lockedFields, setLockedFields] = useState<Set<string>>(() => {
 		const saved = existingProject._lockedFields || {};
@@ -2262,7 +2290,9 @@ const EnhancedProjectForm: React.FC<EnhancedProjectFormProps> = ({
 						/>
 						{hasWarnings && fieldWrapperRef && (
 							<FieldWarningsTooltip
-								warnings={fieldMetadata[fieldId]?.warnings}
+								warnings={mapWarningsToLabels(
+									fieldMetadata[fieldId]?.warnings
+								)}
 								triggerRef={fieldWrapperRef}
 								showIcon={true}
 							/>
