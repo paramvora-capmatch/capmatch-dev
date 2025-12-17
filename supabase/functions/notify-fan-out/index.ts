@@ -94,6 +94,12 @@ serve(async (req) => {
 			return await handleResumeIncompleteNudge(supabaseAdmin, event);
 		} else if (event.event_type === "invite_accepted") {
 			return await handleInviteAccepted(supabaseAdmin, event);
+		} else if (event.event_type === "project_access_granted") {
+			return await handleProjectAccessGranted(supabaseAdmin, event);
+		} else if (event.event_type === "project_access_changed") {
+			return await handleProjectAccessChanged(supabaseAdmin, event);
+		} else if (event.event_type === "project_access_revoked") {
+			return await handleProjectAccessRevoked(supabaseAdmin, event);
 		} else {
 			return jsonResponse({
 				skipped: true,
@@ -982,6 +988,228 @@ async function handleInviteAccepted(
 		`[notify-fan-out] Created ${insertedCount} invite_accepted notifications for org ${orgId}`
 	);
 	return jsonResponse({ inserted: insertedCount });
+}
+
+// =============================================================================
+// Handler: Project Access Granted
+// =============================================================================
+
+async function handleProjectAccessGranted(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing project_access_granted event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string);
+	const projectName = (event.payload?.project_name as string) || "a project";
+	const newPermission = (event.payload?.new_permission as string) || "view";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for project_access_granted");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "project",
+		scopeId: projectId || "",
+		eventType: "project_access_granted",
+		channel: "in_app",
+		projectId: projectId || "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted project_access_granted notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification
+	const title = `You've been added to ${projectName}`;
+	const body = `You now have **${newPermission}** access to **${projectName}**`;
+	const linkUrl = `/project/workspace/${projectId}`;
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "project_access_granted",
+				project_id: projectId,
+				project_name: projectName,
+				new_permission: newPermission,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert project_access_granted notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	console.log(`[notify-fan-out] Created project_access_granted notification for user ${affectedUserId}`);
+	return jsonResponse({ inserted: 1 });
+}
+
+// =============================================================================
+// Handler: Project Access Changed
+// =============================================================================
+
+async function handleProjectAccessChanged(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing project_access_changed event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string);
+	const projectName = (event.payload?.project_name as string) || "a project";
+	const oldPermission = (event.payload?.old_permission as string) || "view";
+	const newPermission = (event.payload?.new_permission as string) || "view";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for project_access_changed");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "project",
+		scopeId: projectId || "",
+		eventType: "project_access_changed",
+		channel: "in_app",
+		projectId: projectId || "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted project_access_changed notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification
+	const title = `Your access to ${projectName} has changed`;
+	const body = `Your access changed from **${oldPermission}** to **${newPermission}**`;
+	const linkUrl = `/project/workspace/${projectId}`;
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "project_access_changed",
+				project_id: projectId,
+				project_name: projectName,
+				old_permission: oldPermission,
+				new_permission: newPermission,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert project_access_changed notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	console.log(`[notify-fan-out] Created project_access_changed notification for user ${affectedUserId}`);
+	return jsonResponse({ inserted: 1 });
+}
+
+// =============================================================================
+// Handler: Project Access Revoked
+// =============================================================================
+
+async function handleProjectAccessRevoked(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing project_access_revoked event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string);
+	const projectName = (event.payload?.project_name as string) || "a project";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for project_access_revoked");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "global",
+		scopeId: "",
+		eventType: "project_access_revoked",
+		channel: "in_app",
+		projectId: "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted project_access_revoked notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification - link to dashboard since they no longer have project access
+	const title = `Access removed - ${projectName}`;
+	const body = `Your access to **${projectName}** has been removed`;
+	const linkUrl = "/dashboard";
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "project_access_revoked",
+				project_id: projectId,
+				project_name: projectName,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert project_access_revoked notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	console.log(`[notify-fan-out] Created project_access_revoked notification for user ${affectedUserId}`);
+	return jsonResponse({ inserted: 1 });
 }
 
 // =============================================================================

@@ -114,6 +114,76 @@ serve(async (req) => {
     
     console.log(`[update-member-permissions] [${requestId}] Target user ${user_id} confirmed as member with role: ${memberCheck.role}`);
 
+    // =========================================================================
+    // BEFORE STATE: Capture existing project access for change detection
+    // =========================================================================
+    console.log(`[update-member-permissions] [${requestId}] Capturing BEFORE state of project access`);
+    
+    // Get all org projects with their names for later use
+    const { data: orgProjectsWithNames, error: orgProjectsNamesError } = await supabaseAdmin
+      .from("projects")
+      .select("id, name")
+      .eq("owner_org_id", org_id);
+    
+    if (orgProjectsNamesError) {
+      console.error(`[update-member-permissions] [${requestId}] Failed to fetch org projects for before state:`, orgProjectsNamesError.message);
+    }
+    
+    const projectNameMap = new Map<string, string>();
+    (orgProjectsWithNames || []).forEach((p: any) => projectNameMap.set(p.id, p.name));
+    const orgProjectIds = Array.from(projectNameMap.keys());
+    
+    // Get existing project_access_grants for this user in these projects
+    type BeforeGrant = { project_id: string; permission_level: string };
+    const beforeGrants: BeforeGrant[] = [];
+    
+    if (orgProjectIds.length > 0) {
+      const { data: existingGrants, error: existingGrantsError } = await supabaseAdmin
+        .from("project_access_grants")
+        .select("project_id")
+        .eq("user_id", user_id)
+        .in("project_id", orgProjectIds);
+      
+      if (existingGrantsError) {
+        console.error(`[update-member-permissions] [${requestId}] Failed to fetch existing grants:`, existingGrantsError.message);
+      } else if (existingGrants && existingGrants.length > 0) {
+        // For each project, determine the permission level by checking PROJECT_DOCS_ROOT permission
+        for (const grant of existingGrants) {
+          // Find the PROJECT_DOCS_ROOT resource for this project
+          const { data: docsRootResource } = await supabaseAdmin
+            .from("resources")
+            .select("id")
+            .eq("project_id", grant.project_id)
+            .eq("resource_type", "PROJECT_DOCS_ROOT")
+            .maybeSingle();
+          
+          let permissionLevel = "view"; // Default to view
+          if (docsRootResource) {
+            const { data: perm } = await supabaseAdmin
+              .from("permissions")
+              .select("permission")
+              .eq("resource_id", docsRootResource.id)
+              .eq("user_id", user_id)
+              .maybeSingle();
+            
+            if (perm?.permission === "edit") {
+              permissionLevel = "edit";
+            }
+          }
+          
+          beforeGrants.push({
+            project_id: grant.project_id,
+            permission_level: permissionLevel,
+          });
+        }
+      }
+    }
+    
+    console.log(`[update-member-permissions] [${requestId}] BEFORE state captured:`, {
+      projects_with_access: beforeGrants.length,
+      grants: beforeGrants.map(g => ({ project_id: g.project_id, level: g.permission_level })),
+    });
+
     // Step 1: Remove all existing permissions for this user in this org
     console.log(`[update-member-permissions] [${requestId}] Step 1: Removing existing permissions for user ${user_id} in org ${org_id}`);
     
@@ -345,11 +415,185 @@ serve(async (req) => {
       console.log(`[update-member-permissions] [${requestId}] No project grants to apply`);
     }
 
+    // =========================================================================
+    // AFTER STATE: Compare with before and create domain events for changes
+    // =========================================================================
+    console.log(`[update-member-permissions] [${requestId}] Comparing BEFORE vs AFTER states`);
+    
+    // Build AFTER state from the new project_grants
+    type AfterGrant = { project_id: string; permission_level: string };
+    const afterGrants: AfterGrant[] = projectGrantsArr.map((g: any) => {
+      // Determine permission level - if any permission is 'edit', they have edit access
+      const hasEdit = (g.permissions || []).some((p: any) => p.permission === "edit");
+      return {
+        project_id: g.projectId,
+        permission_level: hasEdit ? "edit" : "view",
+      };
+    });
+    
+    const beforeProjectMap = new Map(beforeGrants.map(g => [g.project_id, g.permission_level]));
+    const afterProjectMap = new Map(afterGrants.map(g => [g.project_id, g.permission_level]));
+    
+    // Detect changes
+    const accessGranted: { project_id: string; new_permission: string }[] = [];
+    const accessChanged: { project_id: string; old_permission: string; new_permission: string }[] = [];
+    const accessRevoked: { project_id: string; old_permission: string }[] = [];
+    
+    // Check for new grants and changes
+    for (const [projectId, newLevel] of afterProjectMap) {
+      const oldLevel = beforeProjectMap.get(projectId);
+      if (!oldLevel) {
+        // New access granted
+        accessGranted.push({ project_id: projectId, new_permission: newLevel });
+      } else if (oldLevel !== newLevel) {
+        // Permission level changed
+        accessChanged.push({ project_id: projectId, old_permission: oldLevel, new_permission: newLevel });
+      }
+    }
+    
+    // Check for revoked access
+    for (const [projectId, oldLevel] of beforeProjectMap) {
+      if (!afterProjectMap.has(projectId)) {
+        accessRevoked.push({ project_id: projectId, old_permission: oldLevel });
+      }
+    }
+    
+    console.log(`[update-member-permissions] [${requestId}] Access changes detected:`, {
+      granted: accessGranted.length,
+      changed: accessChanged.length,
+      revoked: accessRevoked.length,
+    });
+    
+    // Create domain events for each change
+    const domainEventIds: number[] = [];
+    
+    // Get org name for notifications
+    const { data: orgData } = await supabaseAdmin
+      .from("orgs")
+      .select("name")
+      .eq("id", org_id)
+      .single();
+    const orgName = orgData?.name || "your organization";
+    
+    // Events for access granted
+    for (const grant of accessGranted) {
+      const projectName = projectNameMap.get(grant.project_id) || "a project";
+      const { data: event, error: eventError } = await supabaseAdmin
+        .from("domain_events")
+        .insert({
+          event_type: "project_access_granted",
+          actor_id: user.id, // The admin who made the change
+          project_id: grant.project_id,
+          org_id: org_id,
+          payload: {
+            affected_user_id: user_id,
+            project_id: grant.project_id,
+            project_name: projectName,
+            new_permission: grant.new_permission,
+            changed_by_id: user.id,
+            org_id: org_id,
+            org_name: orgName,
+          },
+        })
+        .select("id")
+        .single();
+      
+      if (eventError) {
+        console.error(`[update-member-permissions] [${requestId}] Failed to create project_access_granted event:`, eventError.message);
+      } else if (event) {
+        domainEventIds.push(event.id);
+        console.log(`[update-member-permissions] [${requestId}] Created project_access_granted event ${event.id} for project ${grant.project_id}`);
+      }
+    }
+    
+    // Events for access changed
+    for (const change of accessChanged) {
+      const projectName = projectNameMap.get(change.project_id) || "a project";
+      const { data: event, error: eventError } = await supabaseAdmin
+        .from("domain_events")
+        .insert({
+          event_type: "project_access_changed",
+          actor_id: user.id,
+          project_id: change.project_id,
+          org_id: org_id,
+          payload: {
+            affected_user_id: user_id,
+            project_id: change.project_id,
+            project_name: projectName,
+            old_permission: change.old_permission,
+            new_permission: change.new_permission,
+            changed_by_id: user.id,
+            org_id: org_id,
+            org_name: orgName,
+          },
+        })
+        .select("id")
+        .single();
+      
+      if (eventError) {
+        console.error(`[update-member-permissions] [${requestId}] Failed to create project_access_changed event:`, eventError.message);
+      } else if (event) {
+        domainEventIds.push(event.id);
+        console.log(`[update-member-permissions] [${requestId}] Created project_access_changed event ${event.id} for project ${change.project_id}`);
+      }
+    }
+    
+    // Events for access revoked
+    for (const revoke of accessRevoked) {
+      const projectName = projectNameMap.get(revoke.project_id) || "a project";
+      const { data: event, error: eventError } = await supabaseAdmin
+        .from("domain_events")
+        .insert({
+          event_type: "project_access_revoked",
+          actor_id: user.id,
+          project_id: revoke.project_id,
+          org_id: org_id,
+          payload: {
+            affected_user_id: user_id,
+            project_id: revoke.project_id,
+            project_name: projectName,
+            old_permission: revoke.old_permission,
+            changed_by_id: user.id,
+            org_id: org_id,
+            org_name: orgName,
+          },
+        })
+        .select("id")
+        .single();
+      
+      if (eventError) {
+        console.error(`[update-member-permissions] [${requestId}] Failed to create project_access_revoked event:`, eventError.message);
+      } else if (event) {
+        domainEventIds.push(event.id);
+        console.log(`[update-member-permissions] [${requestId}] Created project_access_revoked event ${event.id} for project ${revoke.project_id}`);
+      }
+    }
+    
+    console.log(`[update-member-permissions] [${requestId}] Created ${domainEventIds.length} domain events`);
+
+    // Invoke notify-fan-out for each domain event
+    for (const eventId of domainEventIds) {
+      try {
+        console.log(`[update-member-permissions] [${requestId}] Invoking notify-fan-out for event ${eventId}`);
+        const { error: fanOutError } = await supabaseAdmin.functions.invoke("notify-fan-out", {
+          body: { eventId },
+        });
+        if (fanOutError) {
+          console.error(`[update-member-permissions] [${requestId}] notify-fan-out failed for event ${eventId}:`, fanOutError);
+        } else {
+          console.log(`[update-member-permissions] [${requestId}] notify-fan-out succeeded for event ${eventId}`);
+        }
+      } catch (fanOutException: any) {
+        console.error(`[update-member-permissions] [${requestId}] Exception invoking notify-fan-out for event ${eventId}:`, fanOutException?.message);
+      }
+    }
+
     const duration = Date.now() - startTime;
     console.log(`[update-member-permissions] [${requestId}] Permissions update completed successfully:`, {
       user_id,
       org_id,
       project_grants_count: projectGrantsArr.length,
+      events_created: domainEventIds.length,
       duration_ms: duration,
     });
 
