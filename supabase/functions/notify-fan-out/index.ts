@@ -100,6 +100,8 @@ serve(async (req) => {
 			return await handleProjectAccessChanged(supabaseAdmin, event);
 		} else if (event.event_type === "project_access_revoked") {
 			return await handleProjectAccessRevoked(supabaseAdmin, event);
+		} else if (event.event_type === "thread_unread_stale") {
+			return await handleThreadUnreadStale(supabaseAdmin, event);
 		} else {
 			return jsonResponse({
 				skipped: true,
@@ -1209,6 +1211,84 @@ async function handleProjectAccessRevoked(
 	}
 
 	console.log(`[notify-fan-out] Created project_access_revoked notification for user ${affectedUserId}`);
+	return jsonResponse({ inserted: 1 });
+}
+
+// =============================================================================
+// Handler: Thread Unread Stale (>3h unread messages)
+// =============================================================================
+
+async function handleThreadUnreadStale(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing thread_unread_stale event:", {
+		eventId: event.id,
+		threadId: event.thread_id,
+		projectId: event.project_id,
+		payload: event.payload,
+	});
+
+	// Extract user_id from payload (the recipient who has unread messages)
+	const userId = event.payload?.user_id as string | undefined;
+
+	if (!userId || !event.thread_id) {
+		console.error("[notify-fan-out] Missing user_id or thread_id for thread_unread_stale event");
+		return jsonResponse({ inserted: 0, reason: "missing_required_data" });
+	}
+
+	// Check if already notified for this event
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(userId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Get thread info
+	const threadInfo = await getThreadInfo(supabaseAdmin, event.thread_id);
+	const threadTopic = (event.payload?.thread_topic as string) || threadInfo?.topic || "general";
+	const threadLabel = threadTopic.startsWith("#") ? threadTopic : `#${threadTopic}`;
+
+	// Get unread count from payload
+	const unreadCount = (event.payload?.unread_count as number) || 1;
+
+	// Get project name
+	const projectName = event.project_id
+		? await getProjectName(supabaseAdmin, event.project_id)
+		: "your project";
+
+	// Build notification with unread count
+	const messageWord = unreadCount === 1 ? "message" : "messages";
+	const title = `${unreadCount} unread ${messageWord} in ${threadLabel} - ${projectName}`;
+	const body = `You have **${unreadCount} unread ${messageWord}** waiting for you in **${threadLabel}**`;
+	const linkUrl = event.project_id
+		? `/project/workspace/${event.project_id}?tab=chat&thread=${event.thread_id}`
+		: `/dashboard`;
+
+	// Insert notification
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: userId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "thread_unread_stale",
+				thread_id: event.thread_id,
+				thread_topic: threadTopic,
+				project_id: event.project_id,
+				project_name: projectName,
+				unread_count: unreadCount,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert thread_unread_stale notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	console.log(`[notify-fan-out] Created thread_unread_stale notification for user ${userId} in thread ${event.thread_id}`);
 	return jsonResponse({ inserted: 1 });
 }
 
