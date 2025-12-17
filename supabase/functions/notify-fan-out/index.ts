@@ -209,7 +209,28 @@ async function handleDocumentUpload(
 		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
-	return jsonResponse({ inserted: rows.length });
+	// Queue aggregated emails for document upload
+	const uploaderName = await getProfileName(supabaseAdmin, event.actor_id);
+	for (const userId of recipientsToInsert) {
+		await queueEmail(supabaseAdmin, {
+			userId,
+			eventId: event.id,
+			eventType: "document_uploaded",
+			deliveryType: "aggregated",
+			projectId: event.project_id,
+			projectName,
+			subject: `New document uploaded to ${projectName}`,
+			bodyData: {
+				file_name: fileName,
+				project_name: projectName,
+				uploader_name: uploaderName,
+				resource_id: event.resource_id,
+				link_url: linkUrl,
+			},
+		});
+	}
+
+	return jsonResponse({ inserted: rows.length, emails_queued: recipientsToInsert.length });
 }
 
 // =============================================================================
@@ -858,10 +879,29 @@ async function handleResumeIncompleteNudge(
 		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
+	// Queue immediate email for resume incomplete nudge
+	await queueEmail(supabaseAdmin, {
+		userId: ownerToNotify,
+		eventId: event.id,
+		eventType: "resume_incomplete_nudge",
+		deliveryType: "immediate",
+		projectId: event.project_id,
+		projectName,
+		subject: `Complete your ${resumeTypeLabel} Resume - ${projectName}`,
+		bodyData: {
+			resume_type: resumeType,
+			resume_type_label: resumeTypeLabel,
+			completion_percent: completionPercent,
+			nudge_tier: nudgeTier,
+			project_name: projectName,
+			link_url: linkUrl,
+		},
+	});
+
 	console.log(
 		`[notify-fan-out] Created resume nudge notification for owner ${ownerToNotify}, tier ${nudgeTier}`
 	);
-	return jsonResponse({ inserted: 1 });
+	return jsonResponse({ inserted: 1, emails_queued: 1 });
 }
 
 // =============================================================================
@@ -983,13 +1023,32 @@ async function handleInviteAccepted(
 			);
 		} else {
 			insertedCount++;
+
+			// Queue immediate email for invite accepted
+			await queueEmail(supabaseAdmin, {
+				userId,
+				eventId: event.id,
+				eventType: "invite_accepted",
+				deliveryType: "immediate",
+				projectId: null,
+				projectName: null,
+				subject: `${newMemberName} has joined ${orgName}`,
+				bodyData: {
+					org_id: orgId,
+					org_name: orgName,
+					new_member_id: newMemberId,
+					new_member_name: newMemberName,
+					new_member_email: newMemberEmail,
+					link_url: linkUrl,
+				},
+			});
 		}
 	}
 
 	console.log(
 		`[notify-fan-out] Created ${insertedCount} invite_accepted notifications for org ${orgId}`
 	);
-	return jsonResponse({ inserted: insertedCount });
+	return jsonResponse({ inserted: insertedCount, emails_queued: insertedCount });
 }
 
 // =============================================================================
@@ -1062,8 +1121,25 @@ async function handleProjectAccessGranted(
 		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
+	// Queue immediate email for project access granted
+	await queueEmail(supabaseAdmin, {
+		userId: affectedUserId,
+		eventId: event.id,
+		eventType: "project_access_granted",
+		deliveryType: "immediate",
+		projectId,
+		projectName,
+		subject: `You've been added to ${projectName}`,
+		bodyData: {
+			project_id: projectId,
+			project_name: projectName,
+			new_permission: newPermission,
+			link_url: linkUrl,
+		},
+	});
+
 	console.log(`[notify-fan-out] Created project_access_granted notification for user ${affectedUserId}`);
-	return jsonResponse({ inserted: 1 });
+	return jsonResponse({ inserted: 1, emails_queued: 1 });
 }
 
 // =============================================================================
@@ -1138,8 +1214,31 @@ async function handleProjectAccessChanged(
 		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
+	// Queue immediate email ONLY for view -> edit upgrades
+	let emailsQueued = 0;
+	if (oldPermission === "view" && newPermission === "edit") {
+		await queueEmail(supabaseAdmin, {
+			userId: affectedUserId,
+			eventId: event.id,
+			eventType: "project_access_changed",
+			deliveryType: "immediate",
+			projectId,
+			projectName,
+			subject: `Your access to ${projectName} has been upgraded`,
+			bodyData: {
+				project_id: projectId,
+				project_name: projectName,
+				old_permission: oldPermission,
+				new_permission: newPermission,
+				link_url: linkUrl,
+			},
+		});
+		emailsQueued = 1;
+		console.log(`[notify-fan-out] Queued email for view->edit upgrade for user ${affectedUserId}`);
+	}
+
 	console.log(`[notify-fan-out] Created project_access_changed notification for user ${affectedUserId}`);
-	return jsonResponse({ inserted: 1 });
+	return jsonResponse({ inserted: 1, emails_queued: emailsQueued });
 }
 
 // =============================================================================
@@ -1288,8 +1387,67 @@ async function handleThreadUnreadStale(
 		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
+	// Queue aggregated email for unread thread nudge
+	await queueEmail(supabaseAdmin, {
+		userId,
+		eventId: event.id,
+		eventType: "thread_unread_stale",
+		deliveryType: "aggregated",
+		projectId: event.project_id,
+		projectName,
+		subject: `${unreadCount} unread ${messageWord} in ${threadLabel}`,
+		bodyData: {
+			thread_id: event.thread_id,
+			thread_topic: threadTopic,
+			unread_count: unreadCount,
+			project_name: projectName,
+			link_url: linkUrl,
+		},
+	});
+
 	console.log(`[notify-fan-out] Created thread_unread_stale notification for user ${userId} in thread ${event.thread_id}`);
-	return jsonResponse({ inserted: 1 });
+	return jsonResponse({ inserted: 1, emails_queued: 1 });
+}
+
+// =============================================================================
+// Email Queue Helper
+// =============================================================================
+
+async function queueEmail(
+	supabaseAdmin: SupabaseClient,
+	params: {
+		userId: string;
+		eventId: number;
+		eventType: string;
+		deliveryType: "immediate" | "aggregated";
+		projectId?: string | null;
+		projectName?: string | null;
+		subject: string;
+		bodyData: Record<string, unknown>;
+	}
+): Promise<void> {
+	const { error } = await supabaseAdmin.from("pending_emails").upsert(
+		{
+			user_id: params.userId,
+			event_id: params.eventId,
+			event_type: params.eventType,
+			delivery_type: params.deliveryType,
+			project_id: params.projectId ?? null,
+			project_name: params.projectName ?? null,
+			subject: params.subject,
+			body_data: params.bodyData,
+			status: "pending",
+		},
+		{ onConflict: "event_id,user_id" }
+	);
+
+	if (error) {
+		console.error("[notify-fan-out] Failed to queue email:", error);
+	} else {
+		console.log(
+			`[notify-fan-out] Queued ${params.deliveryType} email for user ${params.userId}, event ${params.eventId}`
+		);
+	}
 }
 
 // =============================================================================

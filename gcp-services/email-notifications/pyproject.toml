@@ -1,0 +1,11 @@
+[project]
+name = "email-notifications"
+version = "0.1.0"
+description = "CapMatch email notifications service (hourly digests + instant emails from domain_events)"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "python-dotenv>=1.2.1",
+    "resend>=2.19.0",
+    "supabase>=2.24.0",
+]
