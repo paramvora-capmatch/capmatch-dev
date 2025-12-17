@@ -397,6 +397,54 @@ serve(async (req: any) => {
       console.log(`[accept-invite] [${requestId}] Invite marked as accepted successfully`);
     }
 
+    // Create domain event for invite_accepted
+    console.log(`[accept-invite] [${requestId}] Creating invite_accepted domain event`);
+    const projectGrantIds = projectGrants.map((g: any) => g.projectId).filter(Boolean);
+    const { data: domainEvent, error: domainEventError } = await supabase
+      .from("domain_events")
+      .insert({
+        event_type: "invite_accepted",
+        actor_id: userId,
+        org_id: invite.org_id,
+        project_id: null, // Org-level event, no specific project
+        payload: {
+          new_member_id: userId,
+          new_member_name: full_name,
+          new_member_email: invite.invited_email,
+          invited_by: invite.invited_by,
+          org_id: invite.org_id,
+          org_name: invite.org?.name || null,
+          project_grant_ids: projectGrantIds,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (domainEventError) {
+      // Log but don't fail the request - the invite acceptance is complete
+      console.error(`[accept-invite] [${requestId}] Failed to create domain event:`, {
+        error: domainEventError.message,
+        error_code: domainEventError.code,
+      });
+    } else {
+      console.log(`[accept-invite] [${requestId}] Domain event created: ${domainEvent.id}`);
+
+      // Invoke notify-fan-out to create notifications for org owners
+      try {
+        console.log(`[accept-invite] [${requestId}] Invoking notify-fan-out for event ${domainEvent.id}`);
+        const { error: fanOutError } = await supabase.functions.invoke("notify-fan-out", {
+          body: { eventId: domainEvent.id },
+        });
+        if (fanOutError) {
+          console.error(`[accept-invite] [${requestId}] notify-fan-out invocation failed:`, fanOutError);
+        } else {
+          console.log(`[accept-invite] [${requestId}] notify-fan-out invoked successfully`);
+        }
+      } catch (fanOutException: any) {
+        console.error(`[accept-invite] [${requestId}] Exception invoking notify-fan-out:`, fanOutException?.message);
+      }
+    }
+
     const duration = Date.now() - startTime;
     console.log(`[accept-invite] [${requestId}] Invite acceptance completed successfully:`, {
       user_id: userId,

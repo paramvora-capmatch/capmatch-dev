@@ -7,7 +7,8 @@ type DomainEventRow = {
 	id: number;
 	event_type: string;
 	actor_id: string | null;
-	project_id: string;
+	project_id: string | null;
+	org_id: string | null;
 	resource_id: string | null;
 	thread_id: string | null;
 	meeting_id: string | null;
@@ -60,6 +61,7 @@ serve(async (req) => {
         event_type,
         actor_id,
         project_id,
+        org_id,
         resource_id,
         thread_id,
         meeting_id,
@@ -90,6 +92,8 @@ serve(async (req) => {
 			return await handleMeetingReminder(supabaseAdmin, event);
 		} else if (event.event_type === "resume_incomplete_nudge") {
 			return await handleResumeIncompleteNudge(supabaseAdmin, event);
+		} else if (event.event_type === "invite_accepted") {
+			return await handleInviteAccepted(supabaseAdmin, event);
 		} else {
 			return jsonResponse({
 				skipped: true,
@@ -850,6 +854,134 @@ async function handleResumeIncompleteNudge(
 		`[notify-fan-out] Created resume nudge notification for owner ${ownerToNotify}, tier ${nudgeTier}`
 	);
 	return jsonResponse({ inserted: 1 });
+}
+
+// =============================================================================
+// Handler: Invite Accepted
+// =============================================================================
+
+async function handleInviteAccepted(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing invite_accepted event:", {
+		eventId: event.id,
+		actorId: event.actor_id,
+		orgId: event.org_id,
+		payload: event.payload,
+	});
+
+	// Extract org_id from event column or payload
+	const orgId = event.org_id || (event.payload?.org_id as string | undefined);
+
+	if (!orgId) {
+		console.error("[notify-fan-out] Missing org_id for invite_accepted event");
+		return jsonResponse({ inserted: 0, reason: "missing_org_id" });
+	}
+
+	// Extract payload data
+	const newMemberId = event.actor_id || (event.payload?.new_member_id as string);
+	const newMemberName = (event.payload?.new_member_name as string) || "A new member";
+	const newMemberEmail = event.payload?.new_member_email as string | undefined;
+	const orgName = (event.payload?.org_name as string) || "your organization";
+
+	if (!newMemberId) {
+		console.error("[notify-fan-out] Missing new_member_id for invite_accepted event");
+		return jsonResponse({ inserted: 0, reason: "missing_new_member_id" });
+	}
+
+	// Fetch all org owners to notify
+	const { data: orgOwners, error: ownersError } = await supabaseAdmin
+		.from("org_members")
+		.select("user_id")
+		.eq("org_id", orgId)
+		.eq("role", "owner");
+
+	if (ownersError) {
+		console.error("[notify-fan-out] Failed to fetch org owners:", ownersError);
+		return jsonResponse({ error: "failed_to_fetch_owners" }, 500);
+	}
+
+	if (!orgOwners || orgOwners.length === 0) {
+		console.log("[notify-fan-out] No org owners to notify");
+		return jsonResponse({ inserted: 0, reason: "no_owners" });
+	}
+
+	// Exclude the new member from recipients (they shouldn't get notified about themselves joining)
+	const recipientIds = orgOwners
+		.map((o) => o.user_id)
+		.filter((id): id is string => id !== null && id !== newMemberId);
+
+	if (recipientIds.length === 0) {
+		console.log("[notify-fan-out] No recipients after filtering out new member");
+		return jsonResponse({ inserted: 0, reason: "no_recipients_after_filter" });
+	}
+
+	// Check for already notified recipients
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	const recipientsToNotify = recipientIds.filter((id) => !alreadyNotified.has(id));
+
+	if (recipientsToNotify.length === 0) {
+		console.log("[notify-fan-out] All recipients already notified");
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Build notification content
+	const title = `New team member joined - ${orgName}`;
+	const body = `**${newMemberName}** has joined **${orgName}**`;
+	const linkUrl = "/team";
+
+	let insertedCount = 0;
+
+	// Create notifications for each org owner
+	for (const userId of recipientsToNotify) {
+		// Check user preferences
+		const isMuted = await checkUserPreference(supabaseAdmin, userId, {
+			scopeType: "global",
+			scopeId: "",
+			eventType: "invite_accepted",
+			channel: "in_app",
+			projectId: "",
+		});
+
+		if (isMuted) {
+			console.log(`[notify-fan-out] User ${userId} has muted invite_accepted notifications`);
+			continue;
+		}
+
+		// Insert notification
+		const { error: insertError } = await supabaseAdmin
+			.from("notifications")
+			.insert({
+				user_id: userId,
+				event_id: event.id,
+				title,
+				body,
+				link_url: linkUrl,
+				payload: {
+					type: "invite_accepted",
+					org_id: orgId,
+					org_name: orgName,
+					new_member_id: newMemberId,
+					new_member_name: newMemberName,
+					new_member_email: newMemberEmail,
+				},
+			});
+
+		if (insertError) {
+			console.error(
+				`[notify-fan-out] Failed to insert notification for user ${userId}:`,
+				insertError
+			);
+		} else {
+			insertedCount++;
+		}
+	}
+
+	console.log(
+		`[notify-fan-out] Created ${insertedCount} invite_accepted notifications for org ${orgId}`
+	);
+	return jsonResponse({ inserted: insertedCount });
 }
 
 // =============================================================================
