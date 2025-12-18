@@ -78,6 +78,12 @@ def main() -> None:
                     # Render email from body_data
                     html_body, text_body = render_email_from_body_data(email, user_profile)
 
+                    # Validate HTML body is not empty
+                    if not html_body or not html_body.strip():
+                        logger.error("Email %d has empty HTML body, skipping send", email.id)
+                        db.mark_email_failed(email.id)
+                        continue
+
                     # Send email
                     if send_email(
                         user_profile["email"],

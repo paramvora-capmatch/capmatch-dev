@@ -51,12 +51,17 @@ def _template_candidates() -> list[Path]:
     if docker_path not in candidates:
         candidates.append(docker_path)
 
+    # Actual location: relative to service directory (email-templates, not packages/email-templates)
+    service_dir_actual = Path(__file__).resolve().parent / "email-templates" / "dist" / "digest-template.html"
+    if service_dir_actual not in candidates:
+        candidates.append(service_dir_actual)
+
     # Fallback: look for template relative to repo root (for local dev)
     repo_root_fallback = Path(__file__).resolve().parent.parent.parent / "packages" / "email-templates" / "dist" / "digest-template.html"
     if repo_root_fallback not in candidates:
         candidates.append(repo_root_fallback)
 
-    # Another fallback: relative to current service directory
+    # Another fallback: relative to current service directory (old path)
     service_dir_fallback = Path(__file__).resolve().parent / "packages" / "email-templates" / "dist" / "digest-template.html"
     if service_dir_fallback not in candidates:
         candidates.append(service_dir_fallback)
@@ -68,13 +73,20 @@ def _load_template_html() -> tuple[str, Optional[Path]]:
     """Load the digest template HTML from the first available candidate path."""
     for candidate in _template_candidates():
         try:
+            if not candidate.exists():
+                logger.debug("Digest template not found at %s", candidate)
+                continue
             html = candidate.read_text(encoding="utf-8")
-            logger.info("Loaded digest template from %s", candidate)
+            if not html or not html.strip():
+                logger.warning("Digest template at %s is empty", candidate)
+                continue
+            logger.info("Loaded digest template from %s (%d bytes)", candidate, len(html))
             return html, candidate
         except FileNotFoundError:
             logger.debug("Digest template not found at %s", candidate)
         except Exception:
             logger.exception("Failed reading digest template at %s", candidate)
+    logger.warning("No digest template found in any candidate location. Emails will use fallback HTML.")
     return "", None
 
 
@@ -338,9 +350,15 @@ def build_instant_email(
         
         # Update hero section to show simple greeting without date
         # Match: "Hey <span>USER_NAME</span>, here's what happened on <strong>DATE</strong>."
-        hero_pattern = r'Hey\s+<span[^>]*>.*?</span>\s*,\s*here&#x27;s what happened on<!-- -->\s*<strong>.*?</strong>\.'
-        hero_replacement = f'Hi <span style="color:#111827;font-weight:600">{user_name}</span>,'
-        html_body = re.sub(hero_pattern, hero_replacement, html_body)
+        # Remove the entire hero box (light blue background) for instant emails
+        # Match the hero table and all its nested content
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        # Add simple greeting before the content sections (where PROJECT_SECTIONS will be inserted)
+        greeting_html = f'<p style="font-size:17px;line-height:26px;color:#111827;margin:0 0 24px 0;text-align:center;">Hi <span style="color:#111827;font-weight:600">{user_name}</span>,</p>'
+        # Insert greeting before the PROJECT_SECTIONS placeholder
+        html_body = html_body.replace('<!--PROJECT_SECTIONS-->', greeting_html + '\n<!--PROJECT_SECTIONS-->')
     else:
         logger.warning("Template not found, falling back to simple HTML")
         html_body = f"<h1>CapMatch Notification</h1><p>Hi {user_name},</p>{message_html}"
@@ -435,12 +453,10 @@ def _render_resume_nudge(body_data: Dict[str, Any], first_name: str) -> Tuple[st
     message_html = (
         f"<p>Your {resume_label} resume for <strong>{project_name}</strong> is "
         f"<strong>{completion}%</strong> complete. Finish it to generate your OM!</p>"
-        f'<p><a href="{CTA_URL}{link_url}" style="color:#3B82F6;text-decoration:underline;">Complete your resume →</a></p>'
     )
     message_text = (
         f"Your {resume_label} resume for {project_name} is {completion}% complete. "
-        f"Finish it to generate your OM!\n\n"
-        f"Complete your resume: {CTA_URL}{link_url}"
+        f"Finish it to generate your OM!"
     )
 
     # Build HTML using template
@@ -458,22 +474,44 @@ def _render_resume_nudge(body_data: Dict[str, Any], first_name: str) -> Tuple[st
             html_body,
             flags=re.DOTALL
         )
+        # Remove the entire hero box (light blue background) for instant emails
+        # Match the hero table and all its nested content
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        # Add simple greeting in a table structure (matching template layout)
+        greeting_html = f'''<table
+                              align="center"
+                              width="100%"
+                              border="0"
+                              cellpadding="0"
+                              cellspacing="0"
+                              role="presentation"
+                              style="margin:0 0 24px 0">
+                              <tbody>
+                                <tr>
+                                  <td style="text-align:center;">
+                                    <p style="font-size:17px;line-height:26px;color:#111827;margin:0;font-weight:400;">
+                                      Hi <span style="color:#111827;font-weight:600">{user_name}</span>,
+                                    </p>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>'''
+        
         html_body = (
             html_body.replace("{{USER_NAME}}", user_name)
             .replace("{{DIGEST_DATE}}", "")
             .replace("Daily Digest", "CapMatch Notification")
             .replace("Important activity across your projects.", "You have a new notification.")
-            .replace("{{CTA_URL}}", CTA_URL)
+            .replace("{{CTA_URL}}", f"{CTA_URL}{link_url}")
             .replace("{{MANAGE_PREFS_URL}}", MANAGE_PREFS_URL)
-            .replace("<!--PROJECT_SECTIONS-->", content_card)
+            .replace("<!--PROJECT_SECTIONS-->", greeting_html + '\n' + content_card)
         )
-        hero_pattern = r'Hey\s+<span[^>]*>.*?</span>\s*,\s*here&#x27;s what happened on<!-- -->\s*<strong>.*?</strong>\.'
-        hero_replacement = f'Hi <span style="color:#111827;font-weight:600">{user_name}</span>,'
-        html_body = re.sub(hero_pattern, hero_replacement, html_body)
     else:
         html_body = f"<h1>CapMatch Notification</h1><p>Hi {user_name},</p>{message_html}"
 
-    text_body = f"Hi {user_name},\n\n{message_text}\n\nOpen CapMatch: {CTA_URL}\nManage preferences: {MANAGE_PREFS_URL}"
+    text_body = f"Hi {user_name},\n\n{message_text}\n\nOpen CapMatch: {CTA_URL}{link_url}\nManage preferences: {MANAGE_PREFS_URL}"
     return html_body, text_body
 
 
@@ -499,11 +537,9 @@ def _render_invite_accepted(body_data: Dict[str, Any], first_name: str) -> Tuple
     message_html = (
         f"<p><strong>{new_member_name}</strong> has accepted their invite and joined "
         f"<strong>{org_name}</strong>.</p>"
-        f'<p><a href="{CTA_URL}{link_url}" style="color:#3B82F6;text-decoration:underline;">View team →</a></p>'
     )
     message_text = (
-        f"{new_member_name} has accepted their invite and joined {org_name}.\n\n"
-        f"View team: {CTA_URL}{link_url}"
+        f"{new_member_name} has accepted their invite and joined {org_name}."
     )
 
     if TEMPLATE_HTML:
@@ -520,17 +556,23 @@ def _render_invite_accepted(body_data: Dict[str, Any], first_name: str) -> Tuple
             .replace("{{DIGEST_DATE}}", "")
             .replace("Daily Digest", "New Team Member")
             .replace("Important activity across your projects.", "You have a new notification.")
-            .replace("{{CTA_URL}}", CTA_URL)
+            .replace("{{CTA_URL}}", f"{CTA_URL}{link_url}")
             .replace("{{MANAGE_PREFS_URL}}", MANAGE_PREFS_URL)
             .replace("<!--PROJECT_SECTIONS-->", content_card)
         )
-        hero_pattern = r'Hey\s+<span[^>]*>.*?</span>\s*,\s*here&#x27;s what happened on<!-- -->\s*<strong>.*?</strong>\.'
-        hero_replacement = f'Hi <span style="color:#111827;font-weight:600">{user_name}</span>,'
-        html_body = re.sub(hero_pattern, hero_replacement, html_body)
+        # Remove the entire hero box (light blue background) for instant emails
+        # Match the hero table and all its nested content
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        # Add simple greeting before the content sections (where PROJECT_SECTIONS will be inserted)
+        greeting_html = f'<p style="font-size:17px;line-height:26px;color:#111827;margin:0 0 24px 0;text-align:center;">Hi <span style="color:#111827;font-weight:600">{user_name}</span>,</p>'
+        # Insert greeting before the PROJECT_SECTIONS placeholder
+        html_body = html_body.replace('<!--PROJECT_SECTIONS-->', greeting_html + '\n<!--PROJECT_SECTIONS-->')
     else:
         html_body = f"<h1>New Team Member</h1><p>Hi {user_name},</p>{message_html}"
 
-    text_body = f"Hi {user_name},\n\n{message_text}\n\nOpen CapMatch: {CTA_URL}\nManage preferences: {MANAGE_PREFS_URL}"
+    text_body = f"Hi {user_name},\n\n{message_text}\n\nOpen CapMatch: {CTA_URL}{link_url}\nManage preferences: {MANAGE_PREFS_URL}"
     return html_body, text_body
 
 
@@ -554,11 +596,9 @@ def _render_project_access_granted(body_data: Dict[str, Any], first_name: str) -
     message_html = (
         f"<p>You've been granted <strong>{permission}</strong> access to "
         f"<strong>{project_name}</strong>.</p>"
-        f'<p><a href="{CTA_URL}{link_url}" style="color:#3B82F6;text-decoration:underline;">View project →</a></p>'
     )
     message_text = (
-        f"You've been granted {permission} access to {project_name}.\n\n"
-        f"View project: {CTA_URL}{link_url}"
+        f"You've been granted {permission} access to {project_name}."
     )
 
     if TEMPLATE_HTML:
@@ -575,13 +615,19 @@ def _render_project_access_granted(body_data: Dict[str, Any], first_name: str) -
             .replace("{{DIGEST_DATE}}", "")
             .replace("Daily Digest", "Project Access Granted")
             .replace("Important activity across your projects.", "You have a new notification.")
-            .replace("{{CTA_URL}}", CTA_URL)
+            .replace("{{CTA_URL}}", f"{CTA_URL}{link_url}")
             .replace("{{MANAGE_PREFS_URL}}", MANAGE_PREFS_URL)
             .replace("<!--PROJECT_SECTIONS-->", content_card)
         )
-        hero_pattern = r'Hey\s+<span[^>]*>.*?</span>\s*,\s*here&#x27;s what happened on<!-- -->\s*<strong>.*?</strong>\.'
-        hero_replacement = f'Hi <span style="color:#111827;font-weight:600">{user_name}</span>,'
-        html_body = re.sub(hero_pattern, hero_replacement, html_body)
+        # Remove the entire hero box (light blue background) for instant emails
+        # Match the hero table and all its nested content
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        # Add simple greeting before the content sections (where PROJECT_SECTIONS will be inserted)
+        greeting_html = f'<p style="font-size:17px;line-height:26px;color:#111827;margin:0 0 24px 0;text-align:center;">Hi <span style="color:#111827;font-weight:600">{user_name}</span>,</p>'
+        # Insert greeting before the PROJECT_SECTIONS placeholder
+        html_body = html_body.replace('<!--PROJECT_SECTIONS-->', greeting_html + '\n<!--PROJECT_SECTIONS-->')
     else:
         html_body = f"<h1>Project Access Granted</h1><p>Hi {user_name},</p>{message_html}"
 
@@ -611,11 +657,9 @@ def _render_project_access_changed(body_data: Dict[str, Any], first_name: str) -
     message_html = (
         f"<p>Your access to <strong>{project_name}</strong> has been upgraded from "
         f"<strong>{old_perm}</strong> to <strong>{new_perm}</strong>.</p>"
-        f'<p><a href="{CTA_URL}{link_url}" style="color:#3B82F6;text-decoration:underline;">View project →</a></p>'
     )
     message_text = (
-        f"Your access to {project_name} has been upgraded from {old_perm} to {new_perm}.\n\n"
-        f"View project: {CTA_URL}{link_url}"
+        f"Your access to {project_name} has been upgraded from {old_perm} to {new_perm}."
     )
 
     if TEMPLATE_HTML:
@@ -632,17 +676,23 @@ def _render_project_access_changed(body_data: Dict[str, Any], first_name: str) -
             .replace("{{DIGEST_DATE}}", "")
             .replace("Daily Digest", "Project Access Updated")
             .replace("Important activity across your projects.", "You have a new notification.")
-            .replace("{{CTA_URL}}", CTA_URL)
+            .replace("{{CTA_URL}}", f"{CTA_URL}{link_url}")
             .replace("{{MANAGE_PREFS_URL}}", MANAGE_PREFS_URL)
             .replace("<!--PROJECT_SECTIONS-->", content_card)
         )
-        hero_pattern = r'Hey\s+<span[^>]*>.*?</span>\s*,\s*here&#x27;s what happened on<!-- -->\s*<strong>.*?</strong>\.'
-        hero_replacement = f'Hi <span style="color:#111827;font-weight:600">{user_name}</span>,'
-        html_body = re.sub(hero_pattern, hero_replacement, html_body)
+        # Remove the entire hero box (light blue background) for instant emails
+        # Match the hero table and all its nested content
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        # Add simple greeting before the content sections (where PROJECT_SECTIONS will be inserted)
+        greeting_html = f'<p style="font-size:17px;line-height:26px;color:#111827;margin:0 0 24px 0;text-align:center;">Hi <span style="color:#111827;font-weight:600">{user_name}</span>,</p>'
+        # Insert greeting before the PROJECT_SECTIONS placeholder
+        html_body = html_body.replace('<!--PROJECT_SECTIONS-->', greeting_html + '\n<!--PROJECT_SECTIONS-->')
     else:
         html_body = f"<h1>Project Access Updated</h1><p>Hi {user_name},</p>{message_html}"
 
-    text_body = f"Hi {user_name},\n\n{message_text}\n\nOpen CapMatch: {CTA_URL}\nManage preferences: {MANAGE_PREFS_URL}"
+    text_body = f"Hi {user_name},\n\n{message_text}\n\nOpen CapMatch: {CTA_URL}{link_url}\nManage preferences: {MANAGE_PREFS_URL}"
     return html_body, text_body
 
 
@@ -695,9 +745,15 @@ def _render_document_uploaded(body_data: Dict[str, Any], first_name: str) -> Tup
             .replace("{{MANAGE_PREFS_URL}}", MANAGE_PREFS_URL)
             .replace("<!--PROJECT_SECTIONS-->", content_card)
         )
-        hero_pattern = r'Hey\s+<span[^>]*>.*?</span>\s*,\s*here&#x27;s what happened on<!-- -->\s*<strong>.*?</strong>\.'
-        hero_replacement = f'Hi <span style="color:#111827;font-weight:600">{user_name}</span>,'
-        html_body = re.sub(hero_pattern, hero_replacement, html_body)
+        # Remove the entire hero box (light blue background) for instant emails
+        # Match the hero table and all its nested content
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        # Add simple greeting before the content sections (where PROJECT_SECTIONS will be inserted)
+        greeting_html = f'<p style="font-size:17px;line-height:26px;color:#111827;margin:0 0 24px 0;text-align:center;">Hi <span style="color:#111827;font-weight:600">{user_name}</span>,</p>'
+        # Insert greeting before the PROJECT_SECTIONS placeholder
+        html_body = html_body.replace('<!--PROJECT_SECTIONS-->', greeting_html + '\n<!--PROJECT_SECTIONS-->')
     else:
         html_body = f"<h1>New Document</h1><p>Hi {user_name},</p>{message_html}"
 
@@ -754,9 +810,15 @@ def _render_thread_unread_stale(body_data: Dict[str, Any], first_name: str) -> T
             .replace("{{MANAGE_PREFS_URL}}", MANAGE_PREFS_URL)
             .replace("<!--PROJECT_SECTIONS-->", content_card)
         )
-        hero_pattern = r'Hey\s+<span[^>]*>.*?</span>\s*,\s*here&#x27;s what happened on<!-- -->\s*<strong>.*?</strong>\.'
-        hero_replacement = f'Hi <span style="color:#111827;font-weight:600">{user_name}</span>,'
-        html_body = re.sub(hero_pattern, hero_replacement, html_body)
+        # Remove the entire hero box (light blue background) for instant emails
+        # Match the hero table and all its nested content
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        # Add simple greeting before the content sections (where PROJECT_SECTIONS will be inserted)
+        greeting_html = f'<p style="font-size:17px;line-height:26px;color:#111827;margin:0 0 24px 0;text-align:center;">Hi <span style="color:#111827;font-weight:600">{user_name}</span>,</p>'
+        # Insert greeting before the PROJECT_SECTIONS placeholder
+        html_body = html_body.replace('<!--PROJECT_SECTIONS-->', greeting_html + '\n<!--PROJECT_SECTIONS-->')
     else:
         html_body = f"<h1>Unread Messages</h1><p>Hi {user_name},</p>{message_html}"
 
@@ -788,9 +850,15 @@ def _render_generic_email(body_data: Dict[str, Any], first_name: str) -> Tuple[s
             .replace("{{MANAGE_PREFS_URL}}", MANAGE_PREFS_URL)
             .replace("<!--PROJECT_SECTIONS-->", content_card)
         )
-        hero_pattern = r'Hey\s+<span[^>]*>.*?</span>\s*,\s*here&#x27;s what happened on<!-- -->\s*<strong>.*?</strong>\.'
-        hero_replacement = f'Hi <span style="color:#111827;font-weight:600">{user_name}</span>,'
-        html_body = re.sub(hero_pattern, hero_replacement, html_body)
+        # Remove the entire hero box (light blue background) for instant emails
+        # Match the hero table and all its nested content
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        # Add simple greeting before the content sections (where PROJECT_SECTIONS will be inserted)
+        greeting_html = f'<p style="font-size:17px;line-height:26px;color:#111827;margin:0 0 24px 0;text-align:center;">Hi <span style="color:#111827;font-weight:600">{user_name}</span>,</p>'
+        # Insert greeting before the PROJECT_SECTIONS placeholder
+        html_body = html_body.replace('<!--PROJECT_SECTIONS-->', greeting_html + '\n<!--PROJECT_SECTIONS-->')
     else:
         html_body = f"<h1>CapMatch Notification</h1><p>Hi {user_name},</p>{message_html}"
 
@@ -807,7 +875,7 @@ def build_aggregated_digest(
     user_profile: Dict[str, Any]
 ) -> Tuple[str, str, str]:
     """
-    Build a single digest email from multiple pending_emails for one user.
+    Build a single digest email from multiple pending_emails for one user using the template.
 
     Groups by project_id, then event_type within each project.
     Returns (subject, html_body, text_body)
@@ -833,7 +901,7 @@ def build_aggregated_digest(
             by_project[project_id] = []
         by_project[project_id].append(email)
 
-    # Build project cards (HTML fragments)
+    # Build project cards using template style
     project_cards = []
     for project_id, project_emails in by_project.items():
         project_name = project_emails[0].project_name or "Unknown Project"
@@ -846,29 +914,71 @@ def build_aggregated_digest(
                 by_event[event_type] = []
             by_event[event_type].append(email)
 
-        # Render each event group
-        event_sections = []
+        # Build sections for this project with proper spacing
+        sections = []
+        
         for event_type, event_emails in by_event.items():
             if event_type == "document_uploaded":
-                event_html = _render_document_uploads_digest(event_emails)
+                count = len(event_emails)
+                # Build document list with bullet points
+                doc_items = []
+                for email in event_emails[:10]:  # Show up to 10 documents
+                    doc_name = email.body_data.get("file_name", "New document")
+                    uploader_name = email.body_data.get("uploader_name", "Someone")
+                    doc_items.append(
+                        f'<li style="margin:8px 0;color:#1F2937;line-height:1.5;"><strong>{doc_name}</strong> uploaded by {uploader_name}</li>'
+                    )
+                if len(event_emails) > 10:
+                    doc_items.append(
+                        f'<li style="margin:8px 0;color:#6B7280;font-style:italic;">... and {len(event_emails) - 10} more</li>'
+                    )
+                
+                sections.append(f'''
+                    <div style="margin-bottom:20px;">
+                        <h3 style="color:#3B82F6;font-size:16px;font-weight:600;margin:0 0 12px 0;">New Documents</h3>
+                        <ul style="margin:0;padding-left:20px;list-style:none;">
+                            {''.join(doc_items)}
+                        </ul>
+                    </div>
+                ''')
+                
             elif event_type == "thread_unread_stale":
-                event_html = _render_unread_messages_digest(event_emails)
-            else:
-                # Fallback: render each individually and concatenate
-                event_html = "".join([
-                    _render_aggregated_email(e.event_type, e.body_data, first_name)[0]
-                    for e in event_emails
-                ])
-            event_sections.append(event_html)
+                total_unread = sum(e.body_data.get("unread_count", 1) for e in event_emails)
+                # Build thread list with bullet points
+                thread_items = []
+                for email in event_emails[:10]:  # Show up to 10 threads
+                    thread_topic = email.body_data.get("thread_topic", "Discussion")
+                    unread_count = email.body_data.get("unread_count", 1)
+                    thread_items.append(
+                        f'<li style="margin:8px 0;color:#1F2937;line-height:1.5;"><strong>{thread_topic}</strong> ({unread_count} unread)</li>'
+                    )
+                if len(event_emails) > 10:
+                    thread_items.append(
+                        f'<li style="margin:8px 0;color:#6B7280;font-style:italic;">... and {len(event_emails) - 10} more</li>'
+                    )
+                
+                sections.append(f'''
+                    <div style="margin-bottom:20px;">
+                        <h3 style="color:#3B82F6;font-size:16px;font-weight:600;margin:0 0 12px 0;">Unread Messages ({total_unread} total)</h3>
+                        <ul style="margin:0;padding-left:20px;list-style:none;">
+                            {''.join(thread_items)}
+                        </ul>
+                    </div>
+                ''')
 
-        # Build project card
-        project_card_html = f"""
-        <div style="margin-bottom: 30px; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; background-color: #ffffff;">
-            <h2 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">{project_name}</h2>
-            {''.join(event_sections)}
-        </div>
-        """
-        project_cards.append(project_card_html)
+        if not sections:
+            sections.append(
+                '<div style="margin-bottom:20px;"><p style="color:#94A3B8;font-size:14px;margin:0;">No activity in this project.</p></div>'
+            )
+
+        # Build project card with proper spacing (light blue background)
+        project_card = (
+            '<div style="background:#F8FAFF;border:1px solid #BFDBFE;border-radius:8px;padding:20px;margin-bottom:20px;">'
+            f'<h2 style="font-size:18px;font-weight:600;color:#111827;margin:0 0 16px 0;">{project_name}</h2>'
+            + "".join(sections)
+            + "</div>"
+        )
+        project_cards.append(project_card)
 
     # Determine subject line
     total_updates = len(pending_emails)
@@ -877,44 +987,89 @@ def build_aggregated_digest(
     else:
         subject = f"Your CapMatch Updates ({total_updates} new updates)"
 
-    # Build full HTML email
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #2563eb; margin: 0;">CapMatch</h1>
-        </div>
-
-        <p>Hi {user_name},</p>
-        <p>Here's a summary of your recent CapMatch activity:</p>
-
-        {''.join(project_cards)}
-
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #666; font-size: 12px;">
-            <p>This is an automated message from CapMatch. Please do not reply to this email.</p>
-        </div>
-    </body>
-    </html>
-    """
+    # Build HTML using template
+    if TEMPLATE_HTML:
+        # Get current date for the digest
+        from datetime import datetime
+        digest_date = datetime.now().strftime("%B %d, %Y")
+        
+        # Build preview text
+        preview_text = f"{total_updates} update(s) across {len(by_project)} project(s)"
+        
+        html_body = TEMPLATE_HTML.replace("{{PREVIEW_TEXT}}", preview_text)
+        
+        # Remove the preview text div to prevent expand button
+        html_body = re.sub(
+            r'<div[^>]*data-skip-in-text="true"[^>]*>.*?</div>\s*',
+            '',
+            html_body,
+            flags=re.DOTALL
+        )
+        
+        # Remove the entire hero box (light blue background) for aggregated emails
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        html_body = (
+            html_body.replace("{{USER_NAME}}", user_name)
+            .replace("{{DIGEST_DATE}}", digest_date)
+            .replace("Daily Digest", "Your CapMatch Updates")
+            .replace("Important activity across your projects.", f"Hey {user_name}, here's what you missed:")
+            .replace("{{CTA_URL}}", CTA_URL)
+            .replace("{{MANAGE_PREFS_URL}}", MANAGE_PREFS_URL)
+            .replace("<!--PROJECT_SECTIONS-->", "\n".join(project_cards) if project_cards else '<div style="background:#F8FAFF;border:1px solid #BFDBFE;border-radius:8px;padding:20px;margin-bottom:20px;"><p style="color:#94A3B8;font-size:14px;margin:0;">No new activity.</p></div>')
+        )
+    else:
+        logger.warning("Template not found, falling back to simple HTML")
+        # Fallback to simple HTML if template not found
+        html_body = f"<h1>Your CapMatch Updates</h1><p>Hi {user_name},</p><p>Here's a summary of your recent CapMatch activity:</p>"
+        html_body += "\n".join(project_cards)
 
     # Build plain text version
-    text_body = f"Hi {user_name},\n\nHere's a summary of your recent CapMatch activity:\n\n"
+    text_lines: List[str] = []
+    text_lines.append("Your CapMatch Updates")
+    text_lines.append("")
+    text_lines.append(f"Hey {user_name}, here's what you missed:")
+    text_lines.append("")
+
     for project_id, project_emails in by_project.items():
         project_name = project_emails[0].project_name or "Unknown Project"
-        text_body += f"{project_name}\n{'=' * len(project_name)}\n\n"
+        text_lines.append(f"{project_name}")
+        text_lines.append("-" * len(project_name))
+
+        # Group by event type for text
+        by_event: Dict[str, List[PendingEmail]] = {}
         for email in project_emails:
-            _, text = render_email_from_body_data(email, user_profile)
-            # Extract just the content (skip greeting)
-            text_parts = text.split('\n\n', 2)
-            if len(text_parts) > 2:
-                text_body += text_parts[2] + "\n\n"
-            else:
-                text_body += text + "\n\n"
+            event_type = email.event_type
+            if event_type not in by_event:
+                by_event[event_type] = []
+            by_event[event_type].append(email)
+
+        for event_type, event_emails in by_event.items():
+            if event_type == "document_uploaded":
+                count = len(event_emails)
+                text_lines.append(f"- {count} new document(s)")
+                for email in event_emails[:5]:
+                    doc_name = email.body_data.get("file_name", "New document")
+                    text_lines.append(f"  • {doc_name}")
+                if len(event_emails) > 5:
+                    text_lines.append(f"  ... and {len(event_emails) - 5} more")
+            elif event_type == "thread_unread_stale":
+                total_unread = sum(e.body_data.get("unread_count", 1) for e in event_emails)
+                text_lines.append(f"- {total_unread} unread message(s)")
+                for email in event_emails[:3]:
+                    thread_topic = email.body_data.get("thread_topic", "Discussion")
+                    unread_count = email.body_data.get("unread_count", 1)
+                    text_lines.append(f"  • {thread_topic} ({unread_count})")
+                if len(event_emails) > 3:
+                    text_lines.append(f"  ... and {len(event_emails) - 3} more")
+
+        text_lines.append("")
+
+    text_lines.append(f"Open CapMatch: {CTA_URL}")
+    text_lines.append(f"Manage preferences: {MANAGE_PREFS_URL}")
+
+    text_body = "\n".join(text_lines)
 
     return (subject, html_body, text_body)
 

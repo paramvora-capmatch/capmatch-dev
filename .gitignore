@@ -51,3 +51,6 @@ video-conferencing-app
 
 # logs
 logs/
+
+__pycache__
+*.pyc
