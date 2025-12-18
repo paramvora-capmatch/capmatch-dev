@@ -1493,27 +1493,8 @@ async function handleDocumentPermissionGranted(
 		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
-	// Queue immediate email for document permission granted
-	await queueEmail(supabaseAdmin, {
-		userId: affectedUserId,
-		eventId: event.id,
-		eventType: "document_permission_granted",
-		deliveryType: "immediate",
-		projectId,
-		projectName,
-		subject: `Document access granted - ${projectName}`,
-		bodyData: {
-			project_id: projectId,
-			project_name: projectName,
-			resource_id: resourceId,
-			resource_name: resourceName,
-			new_permission: newPermission,
-			link_url: linkUrl,
-		},
-	});
-
 	console.log(`[notify-fan-out] Created document_permission_granted notification for user ${affectedUserId}`);
-	return jsonResponse({ inserted: 1, emails_queued: 1 });
+	return jsonResponse({ inserted: 1 });
 }
 
 // =============================================================================
@@ -1604,28 +1585,8 @@ async function handleDocumentPermissionChanged(
 		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
-	// Queue immediate email for view -> edit upgrade
-	await queueEmail(supabaseAdmin, {
-		userId: affectedUserId,
-		eventId: event.id,
-		eventType: "document_permission_changed",
-		deliveryType: "immediate",
-		projectId,
-		projectName,
-		subject: `Document access upgraded - ${projectName}`,
-		bodyData: {
-			project_id: projectId,
-			project_name: projectName,
-			resource_id: resourceId,
-			resource_name: resourceName,
-			old_permission: oldPermission,
-			new_permission: newPermission,
-			link_url: linkUrl,
-		},
-	});
-
 	console.log(`[notify-fan-out] Created document_permission_changed notification for user ${affectedUserId}`);
-	return jsonResponse({ inserted: 1, emails_queued: 1 });
+	return jsonResponse({ inserted: 1 });
 }
 
 // =============================================================================
