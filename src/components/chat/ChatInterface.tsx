@@ -9,6 +9,7 @@ import { useAuthStore } from "../../stores/useAuthStore";
 import { useProjects } from "../../hooks/useProjects";
 import { useProjectEligibleMembers } from "../../hooks/useProjectEligibleMembers";
 import { usePermissionStore } from "@/stores/usePermissionStore";
+import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 import { supabase } from "../../../lib/supabaseClient";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/Button";
@@ -117,11 +118,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     isLoadingAttachable,
     subscribeToMembershipChanges,
     unsubscribeFromMembershipChanges,
+    subscribeToProjectUnreadCounts,
+    unsubscribeFromProjectUnreadCounts,
     reset,
   } = useChatStore();
 
   const { user } = useAuthStore();
   const { activeProject } = useProjects();
+  const { getThreadUnreadCount, hasUnreadMessages, formatUnreadCount } = useUnreadCounts();
 
   const [previewingResourceId, setPreviewingResourceId] = useState<
     string | null
@@ -234,18 +238,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // Check if user can grant access (has Edit permissions on all blocked docs OR is Owner/Advisor)
   const canGrantAccess = useMemo(() => {
     if (!blockedState || blockedState.docs.length === 0) return false;
-    
+
     // Owners and Advisors can always grant access
     if (hasOwnerPermissions) return true;
     const isAssignedAdvisor = activeProject?.assignedAdvisorUserId === user?.id;
     if (isAssignedAdvisor) return true;
-    
+
     // For members, check if they have Edit permissions on ALL blocked docs
     return blockedState.docs.every((doc) => {
       const permission = permissions[doc.resourceId];
       return permission === 'edit';
     });
   }, [blockedState, hasOwnerPermissions, activeProject?.assignedAdvisorUserId, user?.id, permissions]);
+
+  // Sort threads: unread threads first (WhatsApp-style), then by creation date
+  const sortedThreads = useMemo(() => {
+    return [...threads].sort((a, b) => {
+      const aUnread = hasUnreadMessages(a.id);
+      const bUnread = hasUnreadMessages(b.id);
+
+      // Unread threads come first
+      if (aUnread && !bUnread) return -1;
+      if (!aUnread && bUnread) return 1;
+
+      // If both unread or both read, sort by creation date (newest first)
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [threads, hasUnreadMessages]);
 
   // Check if user is an Owner (not advisor) - only Owners can create threads
   const isOwnerUser = useMemo(() => {
@@ -256,11 +275,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (projectId) {
       loadThreadsForProject(projectId);
       subscribeToMembershipChanges(projectId);
+      subscribeToProjectUnreadCounts(projectId);
     }
     return () => {
       unsubscribeFromMembershipChanges();
+      unsubscribeFromProjectUnreadCounts();
     };
-  }, [projectId, loadThreadsForProject, subscribeToMembershipChanges, unsubscribeFromMembershipChanges]);
+  }, [projectId, loadThreadsForProject, subscribeToMembershipChanges, unsubscribeFromMembershipChanges, subscribeToProjectUnreadCounts, unsubscribeFromProjectUnreadCounts]);
 
 
   useEffect(() => {
@@ -738,20 +759,33 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
           ) : (
             <div className="space-y-1 p-2">
-              {threads.map((thread) => (
-                <div key={thread.id} className="flex items-center">
-                  <div
-                    onClick={() => setActiveThread(thread.id)}
-                    className={`relative flex-1 text-left p-2 pr-8 rounded-md text-sm transition-all border cursor-pointer ${
-                      activeThreadId === thread.id
-                        ? "bg-blue-100/80 text-blue-800 font-semibold border-blue-200 shadow-sm"
-                        : "border-transparent hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-                    }`}
-                  >
-                    <Hash size={14} className="inline mr-1" />
-                    {thread.topic || "General"}
-                    {hasOwnerPermissions && (
-                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2">
+              {sortedThreads.map((thread) => {
+                const unreadCount = getThreadUnreadCount(thread.id);
+                const isUnread = unreadCount > 0;
+                const isActive = activeThreadId === thread.id;
+
+                return (
+                  <div key={thread.id} className="flex items-center group">
+                    <div
+                      onClick={() => setActiveThread(thread.id)}
+                      className={cn(
+                        "relative flex-1 text-left p-2 rounded-md text-sm transition-all border cursor-pointer",
+                        isActive
+                          ? "bg-blue-100/80 text-blue-800 font-semibold border-blue-200 shadow-sm"
+                          : isUnread
+                          ? "bg-blue-50/50 border-blue-100 font-semibold text-gray-900 hover:bg-blue-50 hover:border-blue-200"
+                          : "border-transparent hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                      )}
+                    >
+                      {/* Unread badge overlay (positioned on top) */}
+                      {isUnread && (
+                        <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-semibold shadow-sm z-10">
+                          {formatUnreadCount(unreadCount)}
+                        </span>
+                      )}
+
+                      {/* Manage button for owners - positioned in corner */}
+                      {hasOwnerPermissions && (
                         <button
                           type="button"
                           aria-label="Manage channel"
@@ -759,15 +793,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             e.stopPropagation();
                             setManagingThread(thread);
                           }}
-                          className="p-1 rounded-full hover:bg-gray-100"
+                          className="absolute top-1 right-1 p-1 rounded-full hover:bg-gray-100/80 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
-                          <MoreVertical size={14} className="text-gray-500" />
+                          <MoreVertical size={12} className="text-gray-500" />
                         </button>
-                      </span>
-                    )}
+                      )}
+
+                      <div className="flex items-center gap-1 pr-6">
+                        <Hash size={14} className="flex-shrink-0" />
+                        <span className="break-words">{thread.topic || "General"}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
             </div>

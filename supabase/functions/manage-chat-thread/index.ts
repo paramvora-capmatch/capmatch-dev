@@ -89,9 +89,14 @@ serve(async (req) => {
       }
 
       // Add current user as participant (idempotent)
+      // Set last_read_at to epoch so existing messages appear as unread
       const { error: currentUserError } = await supabaseAdmin
         .from("chat_thread_participants")
-        .upsert({ thread_id: thread.id, user_id: user.id }, { onConflict: 'thread_id,user_id' });
+        .upsert({ 
+          thread_id: thread.id, 
+          user_id: user.id,
+          last_read_at: '1970-01-01T00:00:00.000Z'
+        }, { onConflict: 'thread_id,user_id' });
 
       if (currentUserError) {
         throw new Error(
@@ -101,7 +106,11 @@ serve(async (req) => {
 
       // Add additional participants if provided
       if (participant_ids && participant_ids.length > 0) {
-        const participantInserts = participant_ids.map((pid) => ({ thread_id: thread.id, user_id: pid }));
+        const participantInserts = participant_ids.map((pid) => ({ 
+          thread_id: thread.id, 
+          user_id: pid,
+          last_read_at: '1970-01-01T00:00:00.000Z'
+        }));
 
         const { error: participantsError } = await supabaseAdmin
           .from("chat_thread_participants")
@@ -158,7 +167,11 @@ serve(async (req) => {
       }
 
       // Add participants
-      const participantInserts = participant_ids.map((pid) => ({ thread_id, user_id: pid }));
+      const participantInserts = participant_ids.map((pid) => ({ 
+        thread_id, 
+        user_id: pid,
+        last_read_at: '1970-01-01T00:00:00.000Z'
+      }));
 
       const { error: participantsError } = await supabaseAdmin
         .from("chat_thread_participants")

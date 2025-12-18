@@ -34,6 +34,7 @@ interface ProjectCardProps {
 	onPrimaryCtaClick?: (e: React.MouseEvent) => void;
 	showDeleteButton?: boolean;
 	unread?: boolean;
+	unreadCount?: number; // Number of unread messages in the project
 	borrowerName?: string; // Borrower name for advisor view
 	/**
 	 * Members for this project, fetched at the list level (e.g. via useProjectMembers).
@@ -58,6 +59,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 	onPrimaryCtaClick,
 	showDeleteButton = true,
 	unread = false,
+	unreadCount = 0,
 	borrowerName,
 	members,
 	isMembersLoading = false,
@@ -144,6 +146,18 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
 				aria-hidden
 				className="pointer-events-none absolute -inset-x-3 bottom-3 h-8 rounded-2xl bg-blue-400/40 blur-xl opacity-0 transition-opacity duration-300 group-hover:opacity-70 -z-10"
 			/>
+			{/* Unread count indicator badge - positioned on top-right corner of card */}
+			{unreadCount > 0 && (
+				<div className={`absolute -top-2 -right-2 z-20 flex items-center justify-center px-2.5 py-1.5 bg-white rounded-lg border-2 shadow-md ${
+					isComplete ? 'border-green-500' : 'border-blue-500'
+				}`}>
+					<span className={`text-xs font-semibold tracking-wide leading-none whitespace-nowrap italic ${
+						isComplete ? 'text-green-700' : 'text-blue-700'
+					}`}>
+						{unreadCount} unread {unreadCount === 1 ? 'message' : 'messages'}
+					</span>
+				</div>
+			)}
 			<Card
 				className="h-full flex flex-col rounded-xl overflow-hidden bg-white border border-gray-200 transition-all duration-300 group-hover:border-blue-200 group-hover:shadow-lg group-hover:-translate-y-0.5 cursor-pointer min-h-[210px] md:min-h-[250px] lg:min-h-[280px]"
 				onClick={() => {

@@ -134,32 +134,59 @@ export function useNotifications({
 
 		fetchNotifications();
 
-		const channel = supabase.channel(`notifications-${user.id}`).on(
-			"postgres_changes",
-			{
-				event: "INSERT",
-				schema: "public",
-				table: "notifications",
-				filter: `user_id=eq.${user.id}`,
-			},
-			(payload) => {
-				const incoming = payload.new as NotificationRecord;
-				setNotifications((prev) => {
-					const alreadyExists = prev.some(
-						(n) => n.id === incoming.id
+		const channel = supabase
+			.channel(`notifications-${user.id}`)
+			.on(
+				"postgres_changes",
+				{
+					event: "INSERT",
+					schema: "public",
+					table: "notifications",
+					filter: `user_id=eq.${user.id}`,
+				},
+				(payload) => {
+					console.log("[useNotifications] New notification received:", payload);
+					const incoming = payload.new as NotificationRecord;
+					setNotifications((prev) => {
+						const alreadyExists = prev.some(
+							(n) => n.id === incoming.id
+						);
+						if (alreadyExists) {
+							return prev;
+						}
+						const next = [incoming, ...prev];
+						return next.slice(0, limit);
+					});
+				}
+			)
+			.on(
+				"postgres_changes",
+				{
+					event: "UPDATE",
+					schema: "public",
+					table: "notifications",
+					filter: `user_id=eq.${user.id}`,
+				},
+				(payload) => {
+					console.log("[useNotifications] Notification updated:", payload);
+					const updated = payload.new as NotificationRecord;
+					setNotifications((prev) =>
+						prev.map((n) =>
+							n.id === updated.id ? updated : n
+						)
 					);
-					if (alreadyExists) {
-						return prev;
-					}
-					const next = [incoming, ...prev];
-					return next.slice(0, limit);
-				});
-			}
-		);
+				}
+			);
 
 		channel.subscribe((status) => {
 			if (status === "SUBSCRIBED") {
 				console.log("[useNotifications] Realtime channel subscribed");
+			} else if (status === "CHANNEL_ERROR") {
+				console.error("[useNotifications] Realtime channel error");
+			} else if (status === "TIMED_OUT") {
+				console.error("[useNotifications] Realtime subscription timed out");
+			} else {
+				console.log("[useNotifications] Realtime channel status:", status);
 			}
 		});
 

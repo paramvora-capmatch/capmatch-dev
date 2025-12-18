@@ -25,6 +25,7 @@ import { cn } from "../../utils/cn";
 import { GRID_LAYOUT_THRESHOLD, PROGRESS_THRESHOLDS } from "@/constants/dashboard";
 import { useProjectCreation } from "../../hooks/useProjectCreation";
 import { useProjectModals } from "../../hooks/useProjectModals";
+import { supabase } from "../../../lib/supabaseClient";
 
 interface OnboardingProgressCardProps {
   project: ProjectProfile | null;
@@ -135,6 +136,9 @@ export default function DashboardPage() {
 
   // Batch fetch project members to optimize performance
   const { membersByProjectId, isLoading: membersLoading } = useProjectMembers(projects);
+
+  // Store unread counts per project
+  const [unreadCountsByProject, setUnreadCountsByProject] = useState<Record<string, number>>({});
 
   // State to track if the initial loading cycle has completed.
   // We use this to prevent the redirect logic from firing on subsequent background re-fetches.
@@ -277,6 +281,51 @@ export default function DashboardPage() {
     }
   }, [combinedLoading, initialLoadComplete]);
 
+  // Fetch unread counts for all projects
+  useEffect(() => {
+    const fetchUnreadCounts = async () => {
+      if (!user?.id || projects.length === 0) {
+        setUnreadCountsByProject({});
+        return;
+      }
+
+      const unreadCounts: Record<string, number> = {};
+
+      // Fetch unread counts for each project
+      await Promise.all(
+        projects.map(async (project) => {
+          try {
+            const { data, error } = await supabase.rpc('get_unread_counts_for_project', {
+              p_project_id: project.id,
+              p_user_id: user.id,
+            });
+
+            if (error) {
+              console.error(`Failed to load unread counts for project ${project.id}:`, error);
+              return;
+            }
+
+            // Sum up all unread counts for this project
+            const totalUnread = (data || []).reduce(
+              (sum: number, row: { unread_count: number }) => sum + (Number(row.unread_count) || 0),
+              0
+            );
+
+            if (totalUnread > 0) {
+              unreadCounts[project.id] = totalUnread;
+            }
+          } catch (err) {
+            console.error(`Error fetching unread counts for project ${project.id}:`, err);
+          }
+        })
+      );
+
+      setUnreadCountsByProject(unreadCounts);
+    };
+
+    fetchUnreadCounts();
+  }, [user?.id, projects]);
+
 
   // --- Render Logic ---
 
@@ -403,6 +452,7 @@ export default function DashboardPage() {
                             showMembers={true}
                             members={membersByProjectId[project.id]}
                             isMembersLoading={membersLoading}
+                            unreadCount={unreadCountsByProject[project.id] || 0}
                           />
                         </div>
                       ))}
