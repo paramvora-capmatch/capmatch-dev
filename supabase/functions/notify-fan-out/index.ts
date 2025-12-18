@@ -102,6 +102,10 @@ serve(async (req) => {
 			return await handleProjectAccessRevoked(supabaseAdmin, event);
 		} else if (event.event_type === "thread_unread_stale") {
 			return await handleThreadUnreadStale(supabaseAdmin, event);
+		} else if (event.event_type === "document_permission_granted") {
+			return await handleDocumentPermissionGranted(supabaseAdmin, event);
+		} else if (event.event_type === "document_permission_changed") {
+			return await handleDocumentPermissionChanged(supabaseAdmin, event);
 		} else {
 			return jsonResponse({
 				skipped: true,
@@ -1406,6 +1410,221 @@ async function handleThreadUnreadStale(
 	});
 
 	console.log(`[notify-fan-out] Created thread_unread_stale notification for user ${userId} in thread ${event.thread_id}`);
+	return jsonResponse({ inserted: 1, emails_queued: 1 });
+}
+
+// =============================================================================
+// Handler: Document Permission Granted
+// =============================================================================
+
+async function handleDocumentPermissionGranted(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing document_permission_granted event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		resourceId: event.resource_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string) || "";
+	const projectName = (event.payload?.project_name as string) || "a project";
+	const resourceId = event.resource_id || (event.payload?.resource_id as string) || "";
+	const resourceName = (event.payload?.resource_name as string) || "a document";
+	const newPermission = (event.payload?.new_permission as string) || "view";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for document_permission_granted");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	if (!resourceId || !projectId) {
+		console.error("[notify-fan-out] Missing resource_id or project_id for document_permission_granted");
+		return jsonResponse({ inserted: 0, reason: "missing_resource_id_or_project_id" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "project",
+		scopeId: projectId || "",
+		eventType: "document_permission_granted",
+		channel: "in_app",
+		projectId: projectId || "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted document_permission_granted notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification
+	const title = `Document access granted - ${projectName}`;
+	const body = `You now have **${newPermission}** access to **"${resourceName}"** in **${projectName}**`;
+	const linkUrl = `/project/workspace/${projectId}?resourceId=${resourceId}`;
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "document_permission_granted",
+				project_id: projectId,
+				project_name: projectName,
+				resource_id: resourceId,
+				resource_name: resourceName,
+				new_permission: newPermission,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert document_permission_granted notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	// Queue immediate email for document permission granted
+	await queueEmail(supabaseAdmin, {
+		userId: affectedUserId,
+		eventId: event.id,
+		eventType: "document_permission_granted",
+		deliveryType: "immediate",
+		projectId,
+		projectName,
+		subject: `Document access granted - ${projectName}`,
+		bodyData: {
+			project_id: projectId,
+			project_name: projectName,
+			resource_id: resourceId,
+			resource_name: resourceName,
+			new_permission: newPermission,
+			link_url: linkUrl,
+		},
+	});
+
+	console.log(`[notify-fan-out] Created document_permission_granted notification for user ${affectedUserId}`);
+	return jsonResponse({ inserted: 1, emails_queued: 1 });
+}
+
+// =============================================================================
+// Handler: Document Permission Changed
+// =============================================================================
+
+async function handleDocumentPermissionChanged(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing document_permission_changed event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		resourceId: event.resource_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string) || "";
+	const projectName = (event.payload?.project_name as string) || "a project";
+	const resourceId = event.resource_id || (event.payload?.resource_id as string) || "";
+	const resourceName = (event.payload?.resource_name as string) || "a document";
+	const oldPermission = (event.payload?.old_permission as string) || "view";
+	const newPermission = (event.payload?.new_permission as string) || "view";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for document_permission_changed");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	if (!resourceId || !projectId) {
+		console.error("[notify-fan-out] Missing resource_id or project_id for document_permission_changed");
+		return jsonResponse({ inserted: 0, reason: "missing_resource_id_or_project_id" });
+	}
+
+	// Only notify for view -> edit upgrades
+	if (oldPermission !== "view" || newPermission !== "edit") {
+		console.log(`[notify-fan-out] Skipping document_permission_changed notification - not a view->edit upgrade (${oldPermission} -> ${newPermission})`);
+		return jsonResponse({ inserted: 0, reason: "not_view_to_edit_upgrade" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "project",
+		scopeId: projectId || "",
+		eventType: "document_permission_changed",
+		channel: "in_app",
+		projectId: projectId || "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted document_permission_changed notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification
+	const title = `Document access upgraded - ${projectName}`;
+	const body = `Your access to **"${resourceName}"** has been upgraded from **view** to **edit** in **${projectName}**`;
+	const linkUrl = `/project/workspace/${projectId}?resourceId=${resourceId}`;
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "document_permission_changed",
+				project_id: projectId,
+				project_name: projectName,
+				resource_id: resourceId,
+				resource_name: resourceName,
+				old_permission: oldPermission,
+				new_permission: newPermission,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert document_permission_changed notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	// Queue immediate email for view -> edit upgrade
+	await queueEmail(supabaseAdmin, {
+		userId: affectedUserId,
+		eventId: event.id,
+		eventType: "document_permission_changed",
+		deliveryType: "immediate",
+		projectId,
+		projectName,
+		subject: `Document access upgraded - ${projectName}`,
+		bodyData: {
+			project_id: projectId,
+			project_name: projectName,
+			resource_id: resourceId,
+			resource_name: resourceName,
+			old_permission: oldPermission,
+			new_permission: newPermission,
+			link_url: linkUrl,
+		},
+	});
+
+	console.log(`[notify-fan-out] Created document_permission_changed notification for user ${affectedUserId}`);
 	return jsonResponse({ inserted: 1, emails_queued: 1 });
 }
 
