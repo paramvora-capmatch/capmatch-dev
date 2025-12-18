@@ -76,12 +76,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Stream the response back to the client
-    return new NextResponse(backendResponse.body, {
+    // Create a TransformStream to pipe chunks through immediately
+    const { readable, writable } = new TransformStream();
+    
+    // Pipe the backend response through, chunk by chunk
+    (async () => {
+      const reader = backendResponse.body?.getReader();
+      const writer = writable.getWriter();
+      
+      if (!reader) {
+        await writer.close();
+        return;
+      }
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          await writer.write(value);
+        }
+      } catch (e) {
+        console.error('Stream pipe error:', e);
+      } finally {
+        await writer.close();
+      }
+    })();
+
+    // Return the readable side immediately
+    return new Response(readable, {
       headers: {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
       },
     });
   } catch (e: any) {

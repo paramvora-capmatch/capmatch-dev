@@ -1,9 +1,8 @@
 // src/hooks/useAskAI.ts
 import { useState, useCallback, useEffect } from 'react';
-import { experimental_useObject as useObject } from '@ai-sdk/react';
-import { Message, FieldContext, AIContextRequest, PresetQuestion } from '../types/ask-ai-types';
+import { useStreamingAI } from './useStreamingAI';
+import { Message, FieldContext, PresetQuestion } from '../types/ask-ai-types';
 import { AIContextBuilder } from '../services/aiContextBuilder';
-import { z } from 'zod';
 
 // Helper to create a standardized error message
 const createErrorMessage = (fieldContext: FieldContext | null): Message => ({
@@ -13,11 +12,6 @@ const createErrorMessage = (fieldContext: FieldContext | null): Message => ({
   timestamp: new Date(),
   fieldContext: fieldContext,
   isStreaming: false,
-});
-
-// Schema for AI response with markdown support
-const ProjectQASchema = z.object({
-  answer_markdown: z.string().describe('A comprehensive, helpful answer to the user\'s question about the form field, formatted in markdown')
 });
 
 interface UseAskAIOptions {
@@ -45,11 +39,71 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
     // Intentionally no-op to avoid resets on keystrokes
   }, [formData]);
   
-  // Streaming AI response
-  const { object, submit, isLoading: isStreaming, error: streamError, stop } = useObject({
+  // Custom streaming hook - replaces Vercel AI SDK's useObject
+  const { response, isLoading: isStreaming, error: streamError, submit, stop } = useStreamingAI({
     api: apiPath,
-    schema: ProjectQASchema,
   });
+
+  // Handle streaming response updates
+  useEffect(() => {
+    if (!response) return;
+
+    setMessages(prev => {
+      // Find the "thinking" message and replace it with the first chunk of the AI response,
+      // or update the last AI message with subsequent chunks.
+      const lastMessage = prev[prev.length - 1];
+
+      if (lastMessage?.type === 'ai') {
+        // Create a new array with the updated message to avoid mutation
+        return prev.map((msg, index) =>
+          index === prev.length - 1
+            ? { ...msg, content: response, isStreaming: isStreaming }
+            : msg
+        );
+      }
+      return prev;
+    });
+  }, [response, isStreaming]);
+
+  // Handle streaming errors
+  useEffect(() => {
+    if (streamError) {
+      console.error('Streaming error detected:', streamError);
+      setMessages(prev => {
+        const newMessages = prev.filter(m => !m.isStreaming);
+        // Only add error message if we don't already have content
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage?.type === 'ai' && lastMessage?.content && lastMessage.content.trim().length > 0) {
+          // If we have partial content, just mark it as complete
+          return newMessages.map((msg, index) =>
+            index === newMessages.length - 1 && msg.type === 'ai'
+              ? { ...msg, isStreaming: false }
+              : msg
+          );
+        }
+        return [...newMessages, createErrorMessage(fieldContext)];
+      });
+    }
+  }, [streamError, fieldContext]);
+
+  // When streaming finishes, ensure the last message's streaming flag is false
+  useEffect(() => {
+    if (!isStreaming) {
+      setMessages(prev => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage?.isStreaming) {
+          // If streaming stopped but we have no content, it might have stopped abruptly
+          if (lastMessage?.type === 'ai' && (!lastMessage.content || lastMessage.content.trim().length === 0)) {
+            console.warn('Streaming stopped with no content - possible abrupt stop');
+          }
+          return prev.map((msg, index) =>
+            index === prev.length - 1 ? { ...msg, isStreaming: false } : msg
+          );
+        }
+        return prev;
+      });
+    }
+  }, [isStreaming]);
 
   // Send message to AI - moved before activateField to resolve dependency issue
   const sendMessage = useCallback(async (content: string, displayMessage?: string, contextOverride?: FieldContext, replyTo?: Message | null) => {
@@ -103,7 +157,7 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
       }
       
       // Submit to streaming API
-      submit(requestBody);
+      await submit(requestBody);
       
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
@@ -207,67 +261,6 @@ Provide actionable advice that helps me make the best decision for my project.`;
     }
   }, [formData, stop, contextType, sendMessage]);
 
-  // Handle streaming response
-  useEffect(() => {
-    if (!object) return;
-
-    setMessages(prev => {
-      // Find the "thinking" message and replace it with the first chunk of the AI response,
-      // or update the last AI message with subsequent chunks.
-      const lastMessage = prev[prev.length - 1];
-
-      if (lastMessage?.type === 'ai') {
-        // Create a new array with the updated message to avoid mutation
-        return prev.map((msg, index) =>
-          index === prev.length - 1
-            ? { ...msg, content: object.answer_markdown || '', isStreaming: false }
-            : msg
-        );
-      }
-      return prev;
-    });
-  }, [object, fieldContext]);
-
-  // Handle streaming errors
-  useEffect(() => {
-    if (streamError) {
-      console.error('Streaming error detected:', streamError);
-      setMessages(prev => {
-        const newMessages = prev.filter(m => !m.isStreaming);
-        // Only add error message if we don't already have content
-        const lastMessage = prev[prev.length - 1];
-        if (lastMessage?.type === 'ai' && lastMessage?.content && lastMessage.content.trim().length > 0) {
-          // If we have partial content, just mark it as complete
-          return newMessages.map((msg, index) =>
-            index === newMessages.length - 1 && msg.type === 'ai'
-              ? { ...msg, isStreaming: false }
-              : msg
-          );
-        }
-        return [...newMessages, createErrorMessage(fieldContext)];
-      });
-    }
-  }, [streamError, fieldContext]);
-
-  // When streaming finishes, ensure the last message's streaming flag is false
-  useEffect(() => {
-    if (!isStreaming) {
-      setMessages(prev => {
-        const lastMessage = prev[prev.length - 1];
-        if (lastMessage?.isStreaming) {
-          // If streaming stopped but we have no content, it might have stopped abruptly
-          if (lastMessage?.type === 'ai' && (!lastMessage.content || lastMessage.content.trim().length === 0)) {
-            console.warn('Streaming stopped with no content - possible abrupt stop');
-          }
-          return prev.map((msg, index) =>
-            index === prev.length - 1 ? { ...msg, isStreaming: false } : msg
-          );
-        }
-        return prev;
-      });
-    }
-  }, [isStreaming]);
-
   // Remove implicit auto-send; sending occurs only on explicit Ask AI click path.
 
   return {
@@ -288,4 +281,4 @@ Provide actionable advice that helps me make the best decision for my project.`;
     hasActiveContext: !!fieldContext,
     hasMessages: messages.length > 0
   };
-}; 
+};
