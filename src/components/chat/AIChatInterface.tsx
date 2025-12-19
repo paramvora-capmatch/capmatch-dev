@@ -63,13 +63,6 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
         </div>
       )}
 
-      {isBuildingContext && (
-        <div className="flex items-center space-x-2 p-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-md mb-3 mx-3 shadow-sm">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-          <span className="text-sm text-blue-700 font-medium">Building context for field...</span>
-        </div>
-      )}
-
       <div className="flex-1 mx-3 mb-3 min-h-0">
         <Card className="h-full transition-all duration-300 hover:shadow-md hover:shadow-blue-100/30">
           <CardContent className="p-3 h-full">
