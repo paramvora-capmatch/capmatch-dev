@@ -160,19 +160,8 @@ export async function PUT(
         if (eventError) {
           console.error('Error creating meeting update event:', eventError);
         } else {
-          // Invoke notify-fan-out to process notifications
-          const { error: invokeError } = await supabaseAdmin.functions.invoke('notify-fan-out', {
-            body: { eventId: eventData },
-            headers: {
-              Authorization: `Bearer ${supabaseServiceKey}`,
-            },
-          });
-
-          if (invokeError) {
-            console.error('Error invoking notify-fan-out for meeting update:', invokeError);
-          } else {
-            console.log('Successfully triggered meeting update notifications');
-          }
+          // Note: Domain event created. The GCP notify-fan-out service will automatically
+          // poll and process this event within 0-60 seconds (avg 30s).
         }
 
         // For newly added participants, also send invitation notifications
@@ -187,15 +176,9 @@ export async function PUT(
             .in('payload->>invited_user_id', toAdd);
 
           if (!inviteEventsError && newInviteEvents && newInviteEvents.length > 0) {
-            for (const domainEvent of newInviteEvents) {
-              await supabaseAdmin.functions.invoke('notify-fan-out', {
-                body: { eventId: domainEvent.id },
-                headers: {
-                  Authorization: `Bearer ${supabaseServiceKey}`,
-                },
-              });
-            }
-            console.log(`Triggered ${newInviteEvents.length} new invitation notifications`);
+            // Note: Domain events created. The GCP notify-fan-out service will automatically
+            // poll and process these events within 0-60 seconds (avg 30s).
+            console.log(`Created ${newInviteEvents.length} new invitation domain events`);
           }
         }
       } catch (notificationError) {

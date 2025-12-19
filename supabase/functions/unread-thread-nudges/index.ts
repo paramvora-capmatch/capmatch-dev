@@ -328,30 +328,8 @@ async function processUnreadThreadNudges({
       );
     }
 
-    // Trigger notify-fan-out
-    try {
-      const functionUrl = `${SUPABASE_URL}/functions/v1/notify-fan-out`;
-      const response = await fetch(functionUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-        body: JSON.stringify({ eventId: domainEvent.id }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          `[unread-thread-nudges] Error triggering fan-out: ${response.status} ${errorText}`
-        );
-      }
-    } catch (err) {
-      console.error(
-        `[unread-thread-nudges] Exception triggering fan-out:`,
-        err
-      );
-    }
+    // Note: Domain event created. The GCP notify-fan-out service will automatically
+    // poll and process this event within 0-60 seconds (avg 30s).
 
     eventsCreated++;
   }

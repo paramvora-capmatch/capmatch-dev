@@ -36,17 +36,16 @@ def dispatch_event(db: Database, event: DomainEvent) -> tuple[int, int]:
         "document_uploaded": handlers.handle_document_uploaded,
         "chat_message_sent": handlers.handle_chat_message,
         "thread_unread_stale": handlers.handle_thread_unread_stale,
-        # TODO: Add remaining handlers as they are implemented
-        # "meeting_invited": handlers.handle_meeting_invited,
-        # "meeting_updated": handlers.handle_meeting_updated,
-        # "meeting_reminder": handlers.handle_meeting_reminder,
-        # "resume_incomplete_nudge": handlers.handle_resume_incomplete_nudge,
-        # "invite_accepted": handlers.handle_invite_accepted,
-        # "project_access_granted": handlers.handle_project_access_granted,
-        # "project_access_changed": handlers.handle_project_access_changed,
-        # "project_access_revoked": handlers.handle_project_access_revoked,
-        # "document_permission_granted": handlers.handle_document_permission_granted,
-        # "document_permission_changed": handlers.handle_document_permission_changed,
+        "meeting_invited": handlers.handle_meeting_invited,
+        "meeting_updated": handlers.handle_meeting_updated,
+        "meeting_reminder": handlers.handle_meeting_reminder,
+        "resume_incomplete_nudge": handlers.handle_resume_incomplete_nudge,
+        "invite_accepted": handlers.handle_invite_accepted,
+        "project_access_granted": handlers.handle_project_access_granted,
+        "project_access_changed": handlers.handle_project_access_changed,
+        "project_access_revoked": handlers.handle_project_access_revoked,
+        "document_permission_granted": handlers.handle_document_permission_granted,
+        "document_permission_changed": handlers.handle_document_permission_changed,
     }
 
     handler = handlers_map.get(event.event_type)

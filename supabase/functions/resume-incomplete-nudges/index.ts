@@ -469,31 +469,8 @@ async function processResumeNudge(
     `[resume-incomplete-nudges] Created domain event ${domainEvent.id} for ${resumeType} resume in "${projectName}" for "${userName}" (tier ${nudgeTier}, ${completenessPercent}% complete)`
   );
 
-  // Trigger notification fan-out (fire and forget)
-  // Use HTTP request to invoke the notify-fan-out function
-  try {
-    const functionUrl = `${SUPABASE_URL}/functions/v1/notify-fan-out`;
-    const response = await fetch(functionUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-      },
-      body: JSON.stringify({ eventId: domainEvent.id }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(
-        `[resume-incomplete-nudges] Error triggering fan-out: ${response.status} ${errorText}`
-      );
-    }
-  } catch (err) {
-    console.error(
-      `[resume-incomplete-nudges] Exception triggering fan-out:`,
-      err
-    );
-  }
+  // Note: Domain event created. The GCP notify-fan-out service will automatically
+  // poll and process this event within 0-60 seconds (avg 30s).
 
   return {
     created: true,

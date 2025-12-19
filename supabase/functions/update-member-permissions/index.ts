@@ -1226,23 +1226,8 @@ serve(async (req) => {
     console.log(
       `[update-member-permissions] [${requestId}] Created ${domainEventIds.length} domain events (project + document level)`
     );
-
-    // Invoke notify-fan-out for each domain event
-    for (const eventId of domainEventIds) {
-      try {
-        console.log(`[update-member-permissions] [${requestId}] Invoking notify-fan-out for event ${eventId}`);
-        const { error: fanOutError } = await supabaseAdmin.functions.invoke("notify-fan-out", {
-          body: { eventId },
-        });
-        if (fanOutError) {
-          console.error(`[update-member-permissions] [${requestId}] notify-fan-out failed for event ${eventId}:`, fanOutError);
-        } else {
-          console.log(`[update-member-permissions] [${requestId}] notify-fan-out succeeded for event ${eventId}`);
-        }
-      } catch (fanOutException: any) {
-        console.error(`[update-member-permissions] [${requestId}] Exception invoking notify-fan-out for event ${eventId}:`, fanOutException?.message);
-      }
-    }
+    // Note: Domain events created. The GCP notify-fan-out service will automatically
+    // poll and process these events within 0-60 seconds (avg 30s).
 
     const duration = Date.now() - startTime;
     console.log(`[update-member-permissions] [${requestId}] Permissions update completed successfully:`, {

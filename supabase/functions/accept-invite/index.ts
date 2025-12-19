@@ -596,22 +596,8 @@ serve(async (req: any) => {
         }
       }
       
-      // Invoke notify-fan-out for document events
-      for (const eventId of docDomainEventIds) {
-        try {
-          console.log(`[accept-invite] [${requestId}] Invoking notify-fan-out for document event ${eventId}`);
-          const { error: fanOutError } = await supabase.functions.invoke("notify-fan-out", {
-            body: { eventId },
-          });
-          if (fanOutError) {
-            console.error(`[accept-invite] [${requestId}] notify-fan-out failed for document event ${eventId}:`, fanOutError);
-          } else {
-            console.log(`[accept-invite] [${requestId}] notify-fan-out succeeded for document event ${eventId}`);
-          }
-        } catch (fanOutException: any) {
-          console.error(`[accept-invite] [${requestId}] Exception invoking notify-fan-out for document event ${eventId}:`, fanOutException?.message);
-        }
-      }
+      // Note: Domain events created. The GCP notify-fan-out service will automatically
+      // poll and process these events within 0-60 seconds (avg 30s).
       
       console.log(`[accept-invite] [${requestId}] Created ${docDomainEventIds.length} document permission events`);
     }
@@ -663,15 +649,8 @@ serve(async (req: any) => {
       });
     } else {
       console.log(`[accept-invite] [${requestId}] Domain event created: ${domainEvent.id}`);
-
-      // Invoke notify-fan-out to create notifications for org owners
-      try {
-        console.log(`[accept-invite] [${requestId}] Invoking notify-fan-out for event ${domainEvent.id}`);
-        const { error: fanOutError } = await supabase.functions.invoke("notify-fan-out", {
-          body: { eventId: domainEvent.id },
-        });
-        if (fanOutError) {
-          console.error(`[accept-invite] [${requestId}] notify-fan-out invocation failed:`, fanOutError);
+      // Note: Domain event created. The GCP notify-fan-out service will automatically
+      // poll and process this event within 0-60 seconds (avg 30s).
         } else {
           console.log(`[accept-invite] [${requestId}] notify-fan-out invoked successfully`);
         }

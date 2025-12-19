@@ -207,23 +207,9 @@ export async function POST(request: NextRequest) {
       if (eventsError) {
         console.error('Error fetching domain events:', eventsError);
       } else if (meetingEvents && meetingEvents.length > 0) {
-        console.log(`Found ${meetingEvents.length} meeting_invited events to process`);
-        
-        // Invoke notify-fan-out for each event
-        for (const domainEvent of meetingEvents) {
-          const { data, error: invokeError } = await supabaseAdmin.functions.invoke('notify-fan-out', {
-            body: { eventId: domainEvent.id },
-            headers: {
-              Authorization: `Bearer ${supabaseServiceKey}`,
-            },
-          });
-          
-          if (invokeError) {
-            console.error(`Error invoking notify-fan-out for event ${domainEvent.id}:`, invokeError);
-          } else {
-            console.log(`Successfully invoked notify-fan-out for event ${domainEvent.id}:`, data);
-          }
-        }
+        console.log(`Found ${meetingEvents.length} meeting_invited events`);
+        // Note: Domain events created. The GCP notify-fan-out service will automatically
+        // poll and process these events within 0-60 seconds (avg 30s).
         console.log(`Triggered ${meetingEvents.length} meeting invitation notifications`);
       } else {
         console.log('No domain events found for meeting', meeting.id);

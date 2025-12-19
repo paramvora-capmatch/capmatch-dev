@@ -588,14 +588,8 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         throw new Error('Failed to send message');
       }
 
-      // Trigger Notification Fan-Out (Fire and Forget)
-      if (eventId) {
-          void supabase.functions.invoke('notify-fan-out', {
-              body: { eventId: eventId }
-          }).then(({ error }) => {
-              if (error) console.error('Failed to trigger chat notification fan-out:', error);
-          });
-      }
+      // Note: Domain event created. The GCP notify-fan-out service will automatically
+      // poll and process this event within 0-60 seconds (avg 30s).
 
       // Keep message as "sending" - it will be updated to "delivered" when real message arrives
       // Real message will arrive via postgres_changes and replace this with "delivered" status

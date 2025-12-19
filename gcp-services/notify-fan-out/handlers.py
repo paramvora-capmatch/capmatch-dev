@@ -223,22 +223,33 @@ def handle_chat_message(db: Database, event: DomainEvent) -> HandlerResult:
             # GENERAL: Try to aggregate
             try:
                 # Find existing unread notification for this thread
+                # Note: Supabase Python client doesn't support JSONB operators in .eq(),
+                # so we fetch unread notifications and filter in Python
                 response = (
                     db.client.table("notifications")
                     .select("id, payload")
                     .eq("user_id", user_id)
                     .is_("read_at", "null")
-                    .eq("payload->>thread_id", event.thread_id)
-                    .eq("payload->>type", "thread_activity")
                     .order("created_at", desc=True)
-                    .limit(1)
-                    .maybe_single()
+                    .limit(50)  # Fetch more to filter by payload
                     .execute()
                 )
 
-                if response.data and response.data.get("id"):
+                # Filter by payload JSONB fields in Python
+                matching_notification = None
+                if response and response.data:
+                    for notification in response.data:
+                        payload = notification.get("payload") or {}
+                        if (
+                            payload.get("thread_id") == event.thread_id
+                            and payload.get("type") == "thread_activity"
+                        ):
+                            matching_notification = notification
+                            break
+
+                if matching_notification and matching_notification.get("id"):
                     # Increment existing notification
-                    success = db.increment_notification_count(response.data["id"])
+                    success = db.increment_notification_count(matching_notification["id"])
                     if success:
                         updated_count += 1
                 else:
@@ -675,21 +686,27 @@ def handle_resume_incomplete_nudge(db: Database, event: DomainEvent) -> HandlerR
         return (0, 0)
 
     # Check for existing tier notification
+    # Note: Supabase Python client doesn't support JSONB operators in .eq(),
+    # so we fetch notifications and filter in Python
     try:
         response = (
             db.client.table("notifications")
-            .select("id")
+            .select("id, payload")
             .eq("user_id", user_id)
-            .eq("payload->>type", "resume_incomplete_nudge")
-            .eq("payload->>resume_type", resume_type)
-            .eq("payload->>nudge_tier", str(nudge_tier))
-            .eq("payload->>project_id", event.project_id)
-            .maybe_single()
+            .limit(100)  # Fetch more to filter by payload
             .execute()
         )
-        if response.data:
-            logger.debug("Tier %d nudge already sent to user %s", nudge_tier, user_id)
-            return (0, 0)
+        if response and response.data:
+            for notification in response.data:
+                payload = notification.get("payload") or {}
+                if (
+                    payload.get("type") == "resume_incomplete_nudge"
+                    and payload.get("resume_type") == resume_type
+                    and str(payload.get("nudge_tier")) == str(nudge_tier)
+                    and payload.get("project_id") == event.project_id
+                ):
+                    logger.debug("Tier %d nudge already sent to user %s", nudge_tier, user_id)
+                    return (0, 0)
     except Exception as e:
         logger.debug("Error checking tier notification: %s", e)
 

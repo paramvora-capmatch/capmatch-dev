@@ -923,17 +923,8 @@ async function uploadDocumentToProject(
         error: eventError.message,
       });
     } else if (eventId) {
-      const { error: notifyError } = await supabaseAdmin.functions.invoke('notify-fan-out', {
-        body: { eventId },
-      });
-      if (notifyError) {
-        console.warn('[seed] notify-fan-out failed for seeded document', {
-          eventId,
-          projectId,
-          resourceId,
-          error: notifyError.message,
-        });
-      }
+      // Note: Domain event created. The GCP notify-fan-out service will automatically
+      // poll and process this event within 0-60 seconds (avg 30s).
     }
 
     console.log(`[seed] ✅ Uploaded document: ${fileName}`);
