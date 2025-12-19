@@ -253,13 +253,21 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
         setError(err as Error);
       });
     } finally {
-      flushSync(() => {
-        setIsLoading(false);
-      });
-      abortControllerRef.current = null;
-      console.log('[FRONTEND] Stream processing finished');
+      // Wait for queue to finish processing before setting isLoading to false
+      const waitForQueue = () => {
+        if (updateQueueRef.current.length === 0 && !isProcessingQueueRef.current) {
+          flushSync(() => {
+            setIsLoading(false);
+          });
+          abortControllerRef.current = null;
+          console.log('[FRONTEND] Stream processing finished');
+        } else {
+          setTimeout(waitForQueue, 10);
+        }
+      };
+      waitForQueue();
     }
-  }, [api, stop]);
+  }, [api, stop, processUpdateQueue]);
 
   return { response, isLoading, error, submit, stop, reset };
 };
