@@ -2,6 +2,7 @@
 // Custom streaming hook for AI responses - replaces Vercel AI SDK's useObject
 
 import { useState, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 
 interface StreamingResponse {
   text?: string;
