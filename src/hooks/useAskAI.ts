@@ -1,6 +1,5 @@
 // src/hooks/useAskAI.ts
 import { useState, useCallback, useEffect } from 'react';
-import { flushSync } from 'react-dom';
 import { useStreamingAI } from './useStreamingAI';
 import { Message, FieldContext, PresetQuestion } from '../types/ask-ai-types';
 import { AIContextBuilder } from '../services/aiContextBuilder';
@@ -49,8 +48,8 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
   useEffect(() => {
     if (!response) return;
 
-    // Use flushSync to ensure immediate UI update as chunks arrive
-    flushSync(() => {
+    // Schedule update in microtask to avoid calling flushSync during render
+    queueMicrotask(() => {
       setMessages(prev => {
         // Find the "thinking" message and replace it with the first chunk of the AI response,
         // or update the last AI message with subsequent chunks.

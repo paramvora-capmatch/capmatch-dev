@@ -73,19 +73,13 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
     setError(null);
     setResponse('');
 
-    const requestStartTime = Date.now();
-    console.log('[FRONTEND] Starting fetch request to', api);
-
     try {
-      const fetchStart = Date.now();
       const res = await fetch(api, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         signal: abortControllerRef.current.signal,
       });
-      const fetchTime = Date.now() - fetchStart;
-      console.log(`[FRONTEND] Fetch response received (took ${fetchTime}ms, status=${res.status})`);
 
       if (!res.ok) {
         const errorText = await res.text();
@@ -99,36 +93,12 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
-      let chunkCount = 0;
-      let firstChunkTime: number | null = null;
-      let messageCount = 0;
-      let firstMessageTime: number | null = null;
-
-      console.log('[FRONTEND] Starting to read stream chunks');
 
       while (true) {
-        const readStart = Date.now();
         const { done, value } = await reader.read();
-        const readTime = Date.now() - readStart;
         
         if (done) {
-          const elapsed = Date.now() - requestStartTime;
-          console.log(`[FRONTEND] Stream reading complete: ${chunkCount} raw chunks, ${messageCount} SSE messages, ${elapsed}ms elapsed`);
           break;
-        }
-
-        chunkCount++;
-        const currentTime = Date.now();
-        
-        if (firstChunkTime === null) {
-          firstChunkTime = currentTime;
-          const timeToFirstChunk = currentTime - requestStartTime;
-          console.log(`[FRONTEND] First raw chunk received (took ${timeToFirstChunk}ms, size=${value.length} bytes)`);
-        } else {
-          const timeSinceFirst = currentTime - firstChunkTime;
-          if (readTime > 10 || timeSinceFirst % 1000 < 100) { // Log every ~1s or slow reads
-            console.log(`[FRONTEND] Raw chunk #${chunkCount} (time=${timeSinceFirst}ms, size=${value.length} bytes, read_time=${readTime}ms)`);
-          }
         }
 
         buffer += decoder.decode(value, { stream: true });
@@ -140,14 +110,6 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
         for (const message of messages) {
           if (!message.trim()) continue;
           
-          messageCount++;
-          const messageTime = Date.now();
-          if (firstMessageTime === null) {
-            firstMessageTime = messageTime;
-            const timeToFirstMessage = messageTime - requestStartTime;
-            console.log(`[FRONTEND] First SSE message parsed (took ${timeToFirstMessage}ms)`);
-          }
-          
           // Parse SSE format: "data: {json}" or "data: [DONE]"
           const lines = message.split('\n');
           for (const line of lines) {
@@ -156,7 +118,6 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
               
               // Check for completion signal
               if (data === '[DONE]') {
-                console.log('[FRONTEND] Received [DONE] signal');
                 continue;
               }
               
@@ -169,11 +130,6 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
                     setError(new Error(parsed.error));
                   });
                 } else if (parsed.text !== undefined) {
-                  const textLength = parsed.text.length;
-                  const timeSinceFirstMsg = firstMessageTime ? messageTime - firstMessageTime : 0;
-                  if (messageCount <= 5 || messageCount % 10 === 0) {
-                    console.log(`[FRONTEND] SSE message #${messageCount} parsed (time=${timeSinceFirstMsg}ms, text_length=${textLength})`);
-                  }
                   // Force immediate React update to prevent batching
                   flushSync(() => {
                     setResponse(parsed.text);
@@ -190,7 +146,6 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
     } catch (err) {
       // Don't report abort errors
       if ((err as Error).name === 'AbortError') {
-        console.log('[FRONTEND] Request aborted');
         return;
       }
       console.error('[FRONTEND] Streaming error:', err);
@@ -202,7 +157,6 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
         setIsLoading(false);
       });
       abortControllerRef.current = null;
-      console.log('[FRONTEND] Stream processing finished');
     }
   }, [api, stop]);
 
