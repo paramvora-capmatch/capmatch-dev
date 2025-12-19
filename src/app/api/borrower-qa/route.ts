@@ -43,6 +43,12 @@ export async function POST(req: NextRequest) {
 
     // Create a TransformStream to pipe chunks through immediately
     const { readable, writable } = new TransformStream();
+    const requestStartTime = Date.now();
+    let chunkCount = 0;
+    let firstChunkTime: number | null = null;
+    let totalBytes = 0;
+    
+    console.log('[PROXY] Starting to pipe backend response to frontend');
     
     // Pipe the backend response through, chunk by chunk
     (async () => {
@@ -50,20 +56,49 @@ export async function POST(req: NextRequest) {
       const writer = writable.getWriter();
       
       if (!reader) {
+        console.warn('[PROXY] No response body reader available');
         await writer.close();
         return;
       }
       
       try {
         while (true) {
+          const readStart = Date.now();
           const { done, value } = await reader.read();
-          if (done) break;
+          const readTime = Date.now() - readStart;
+          
+          if (done) {
+            const elapsed = Date.now() - requestStartTime;
+            console.log(`[PROXY] Stream complete: ${chunkCount} chunks, ${totalBytes} bytes, ${elapsed}ms elapsed`);
+            break;
+          }
+          
+          chunkCount++;
+          totalBytes += value.length;
+          const currentTime = Date.now();
+          
+          if (firstChunkTime === null) {
+            firstChunkTime = currentTime;
+            const timeToFirstChunk = currentTime - requestStartTime;
+            console.log(`[PROXY] First chunk received from backend (took ${timeToFirstChunk}ms, size=${value.length} bytes)`);
+          } else {
+            const timeSinceFirst = currentTime - firstChunkTime;
+            const preview = new TextDecoder().decode(value.slice(0, Math.min(50, value.length)));
+            console.log(`[PROXY] Chunk #${chunkCount} from backend (time=${timeSinceFirst}ms, size=${value.length} bytes, read_time=${readTime}ms, preview=${JSON.stringify(preview)})`);
+          }
+          
+          const writeStart = Date.now();
           await writer.write(value);
+          const writeTime = Date.now() - writeStart;
+          if (writeTime > 10) {
+            console.log(`[PROXY] Chunk #${chunkCount} write took ${writeTime}ms`);
+          }
         }
       } catch (e) {
-        console.error('Stream pipe error:', e);
+        console.error('[PROXY] Stream pipe error:', e);
       } finally {
         await writer.close();
+        console.log('[PROXY] Writer closed');
       }
     })();
 
