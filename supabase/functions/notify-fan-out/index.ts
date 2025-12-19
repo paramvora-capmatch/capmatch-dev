@@ -1359,37 +1359,11 @@ async function handleThreadUnreadStale(
 		? await getProjectName(supabaseAdmin, event.project_id)
 		: "your project";
 
-	// Build notification with unread count
+	// Build email content (no in-app notification for this event type)
 	const messageWord = unreadCount === 1 ? "message" : "messages";
-	const title = `${unreadCount} unread ${messageWord} in ${threadLabel} - ${projectName}`;
-	const body = `You have **${unreadCount} unread ${messageWord}** waiting for you in **${threadLabel}**`;
 	const linkUrl = event.project_id
 		? `/project/workspace/${event.project_id}?tab=chat&thread=${event.thread_id}`
 		: `/dashboard`;
-
-	// Insert notification
-	const { error: insertError } = await supabaseAdmin
-		.from("notifications")
-		.insert({
-			user_id: userId,
-			event_id: event.id,
-			title,
-			body,
-			link_url: linkUrl,
-			payload: {
-				type: "thread_unread_stale",
-				thread_id: event.thread_id,
-				thread_topic: threadTopic,
-				project_id: event.project_id,
-				project_name: projectName,
-				unread_count: unreadCount,
-			},
-		});
-
-	if (insertError) {
-		console.error("[notify-fan-out] Failed to insert thread_unread_stale notification:", insertError);
-		return jsonResponse({ error: "notification_insert_failed" }, 500);
-	}
 
 	// Queue aggregated email for unread thread nudge
 	await queueEmail(supabaseAdmin, {
@@ -1409,8 +1383,8 @@ async function handleThreadUnreadStale(
 		},
 	});
 
-	console.log(`[notify-fan-out] Created thread_unread_stale notification for user ${userId} in thread ${event.thread_id}`);
-	return jsonResponse({ inserted: 1, emails_queued: 1 });
+	console.log(`[notify-fan-out] Queued thread_unread_stale email for user ${userId} in thread ${event.thread_id} (no in-app notification)`);
+	return jsonResponse({ inserted: 0, emails_queued: 1 });
 }
 
 // =============================================================================
