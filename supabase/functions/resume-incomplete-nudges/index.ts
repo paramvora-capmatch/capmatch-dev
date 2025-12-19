@@ -13,7 +13,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 // Nudge intervals in milliseconds: 45m, 1d, 3d, 1w
 const NUDGE_INTERVALS = [
-  1 * 60 * 1000, // 1 day
+  1 * 24 * 60 * 60 * 1000, // 1 day
   3 * 24 * 60 * 60 * 1000, // 3 days
   5 * 24 * 60 * 60 * 1000, // 5 days
   7 * 24 * 60 * 60 * 1000, // 1 week

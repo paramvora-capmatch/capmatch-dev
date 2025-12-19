@@ -651,12 +651,6 @@ serve(async (req: any) => {
       console.log(`[accept-invite] [${requestId}] Domain event created: ${domainEvent.id}`);
       // Note: Domain event created. The GCP notify-fan-out service will automatically
       // poll and process this event within 0-60 seconds (avg 30s).
-        } else {
-          console.log(`[accept-invite] [${requestId}] notify-fan-out invoked successfully`);
-        }
-      } catch (fanOutException: any) {
-        console.error(`[accept-invite] [${requestId}] Exception invoking notify-fan-out:`, fanOutException?.message);
-      }
     }
 
     const duration = Date.now() - startTime;
