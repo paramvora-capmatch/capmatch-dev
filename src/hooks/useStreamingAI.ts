@@ -47,57 +47,12 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const updateQueueRef = useRef<Array<{ text: string; timestamp: number }>>([]);
-  const isProcessingQueueRef = useRef(false);
-  const lastUpdateTimeRef = useRef<number>(0);
-  const minUpdateInterval = 50; // Minimum 50ms between updates for visible staggering
-
-  // Process queued updates with staggering
-  const processUpdateQueue = useCallback(() => {
-    if (isProcessingQueueRef.current || updateQueueRef.current.length === 0) {
-      return;
-    }
-
-    isProcessingQueueRef.current = true;
-
-    const processNext = () => {
-      if (updateQueueRef.current.length === 0) {
-        isProcessingQueueRef.current = false;
-        return;
-      }
-
-      const now = Date.now();
-      const timeSinceLastUpdate = now - lastUpdateTimeRef.current;
-
-      if (timeSinceLastUpdate >= minUpdateInterval) {
-        // Enough time has passed, process immediately
-        const update = updateQueueRef.current.shift();
-        if (update) {
-          lastUpdateTimeRef.current = now;
-          flushSync(() => {
-            setResponse(update.text);
-          });
-        }
-        requestAnimationFrame(processNext);
-      } else {
-        // Wait until minimum interval has passed
-        const waitTime = minUpdateInterval - timeSinceLastUpdate;
-        setTimeout(() => {
-          requestAnimationFrame(processNext);
-        }, waitTime);
-      }
-    };
-
-    requestAnimationFrame(processNext);
-  }, []);
 
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    updateQueueRef.current = [];
-    isProcessingQueueRef.current = false;
   }, []);
 
   const reset = useCallback(() => {
@@ -105,7 +60,6 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
     setResponse('');
     setError(null);
     setIsLoading(false);
-    lastUpdateTimeRef.current = 0;
   }, [stop]);
 
   const submit = useCallback(async (body: Record<string, unknown>) => {
@@ -118,8 +72,6 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
     setIsLoading(true);
     setError(null);
     setResponse('');
-    updateQueueRef.current = [];
-    lastUpdateTimeRef.current = 0;
 
     const requestStartTime = Date.now();
     console.log('[FRONTEND] Starting fetch request to', api);
@@ -162,8 +114,6 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
         if (done) {
           const elapsed = Date.now() - requestStartTime;
           console.log(`[FRONTEND] Stream reading complete: ${chunkCount} raw chunks, ${messageCount} SSE messages, ${elapsed}ms elapsed`);
-          // Process any remaining queued updates
-          processUpdateQueue();
           break;
         }
 
@@ -224,15 +174,10 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
                   if (messageCount <= 5 || messageCount % 10 === 0) {
                     console.log(`[FRONTEND] SSE message #${messageCount} parsed (time=${timeSinceFirstMsg}ms, text_length=${textLength})`);
                   }
-                  
-                  // Queue the update for staggered processing
-                  updateQueueRef.current.push({
-                    text: parsed.text,
-                    timestamp: messageTime,
+                  // Force immediate React update to prevent batching
+                  flushSync(() => {
+                    setResponse(parsed.text);
                   });
-                  
-                  // Trigger queue processing if not already processing
-                  processUpdateQueue();
                 }
               } catch (parseErr) {
                 // Skip malformed JSON - might be partial message
@@ -253,21 +198,13 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
         setError(err as Error);
       });
     } finally {
-      // Wait for queue to finish processing before setting isLoading to false
-      const waitForQueue = () => {
-        if (updateQueueRef.current.length === 0 && !isProcessingQueueRef.current) {
-          flushSync(() => {
-            setIsLoading(false);
-          });
-          abortControllerRef.current = null;
-          console.log('[FRONTEND] Stream processing finished');
-        } else {
-          setTimeout(waitForQueue, 10);
-        }
-      };
-      waitForQueue();
+      flushSync(() => {
+        setIsLoading(false);
+      });
+      abortControllerRef.current = null;
+      console.log('[FRONTEND] Stream processing finished');
     }
-  }, [api, stop, processUpdateQueue]);
+  }, [api, stop]);
 
   return { response, isLoading, error, submit, stop, reset };
 };
