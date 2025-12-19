@@ -29,7 +29,7 @@ fi
 if ! "$DOCKER_BIN" image inspect capmatch-email-notifications:prod >/dev/null 2>&1; then
   echo "Error: Docker image 'capmatch-email-notifications:prod' not found." >&2
   echo "Build it with:" >&2
-  echo "  docker build -f services/email-notifications/Dockerfile -t capmatch-email-notifications:prod ." >&2
+  echo "  docker build -f gcp-services/email-notifications/Dockerfile -t capmatch-email-notifications:prod ." >&2
   echo "  (run from the repo root directory)" >&2
   exit 1
 fi

@@ -75,7 +75,7 @@ echo ""
 echo "Step 6: Building Docker image..."
 if docker info > /dev/null 2>&1; then
   if [ "$HAS_GIT_ROOT" = true ]; then
-    docker build -f "$REPO_ROOT/services/email-notifications/Dockerfile" -t capmatch-email-notifications:prod "$REPO_ROOT"
+    docker build -f "$REPO_ROOT/gcp-services/email-notifications/Dockerfile" -t capmatch-email-notifications:prod "$REPO_ROOT"
   else
     docker build -f "$SCRIPT_DIR/Dockerfile" -t capmatch-email-notifications:prod "$SCRIPT_DIR"
   fi
@@ -84,7 +84,7 @@ else
   echo "⚠️  Docker daemon not accessible. Skipping image build."
   echo "   After logging out and back in (or running 'newgrp docker'), run:"
   if [ "$HAS_GIT_ROOT" = true ]; then
-    echo "   docker build -f $REPO_ROOT/services/email-notifications/Dockerfile -t capmatch-email-notifications:prod $REPO_ROOT"
+    echo "   docker build -f $REPO_ROOT/gcp-services/email-notifications/Dockerfile -t capmatch-email-notifications:prod $REPO_ROOT"
   else
     echo "   docker build -f $SCRIPT_DIR/Dockerfile -t capmatch-email-notifications:prod $SCRIPT_DIR"
   fi
@@ -92,10 +92,12 @@ fi
 
 echo ""
 echo "Step 7: Setting up cron jobs..."
-CRON_HOURLY="0 * * * * $SCRIPT_DIR/run-hourly.sh"
+# Hourly job: runs every hour at minute 0, between 6am and 6pm (6-18 in 24-hour format)
+CRON_HOURLY="0 6-18 * * * $SCRIPT_DIR/run-hourly.sh"
+# Instant job: runs every minute
 CRON_INSTANT="* * * * * $SCRIPT_DIR/run-instant.sh"
 (crontab -l 2>/dev/null | grep -v "run-hourly.sh" | grep -v "run-instant.sh"; echo "$CRON_HOURLY"; echo "$CRON_INSTANT") | crontab -
-echo "✓ Cron jobs added (hourly digest + instant notifications)"
+echo "✓ Cron jobs added (hourly digest 6am-6pm + instant notifications every minute)"
 
 echo ""
 echo "=========================================="

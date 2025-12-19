@@ -18,20 +18,15 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   onOpenChange,
 }) => {
   const { isAuthenticated, user } = useAuth();
-  const { notifications, unreadCount, isLoading, markAsRead } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    isLoading,
+    markAllAsRead,
+    isNewSinceLastView,
+    updateLastViewedAt
+  } = useNotifications();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"unread" | "read">("unread");
-
-  const unreadNotifications = useMemo(
-    () => notifications.filter((notification) => !notification.read_at),
-    [notifications]
-  );
-  const readNotifications = useMemo(
-    () => notifications.filter((notification) => notification.read_at),
-    [notifications]
-  );
-
-  const activeNotifications = activeTab === "unread" ? unreadNotifications : readNotifications;
 
   // Generate preview from full content (truncates at word/mention boundaries when possible)
   const generatePreview = useCallback((content: string, maxLength: number = 200): string => {
@@ -195,14 +190,22 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     return <span className="inline-flex flex-wrap gap-1">{parts}</span>;
   }, [renderBoldLine]);
 
+  const handleDropdownOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      // Mark all notifications as read when dropdown opens
+      markAllAsRead();
+      // Update the last viewed timestamp
+      updateLastViewedAt();
+    }
+    onOpenChange?.(open);
+  }, [markAllAsRead, onOpenChange, updateLastViewedAt]);
+
   const closeDropdown = useCallback(() => {
     onOpenChange?.(false);
   }, [onOpenChange]);
 
-
   const handleNotificationClick = useCallback(
-    async (notificationId: number, linkUrl: string | null) => {
-      await markAsRead(notificationId);
+    async (linkUrl: string | null) => {
       closeDropdown();
       if (linkUrl) {
         // Rewrite URL based on user role
@@ -215,7 +218,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
         router.push(finalUrl);
       }
     },
-    [closeDropdown, markAsRead, router, user?.role]
+    [closeDropdown, router, user?.role]
   );
 
   if (!isAuthenticated) {
@@ -225,7 +228,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   return (
     <DropdownButton
       isOpen={controlledOpen}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleDropdownOpenChange}
       trigger={
         <div className="inline-flex items-center justify-center h-8 w-8 bg-gray-100 text-gray-700 rounded-full border border-gray-300 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors relative">
           <Bell className="h-4 w-4" />
@@ -238,88 +241,59 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
       }
     >
       <div className="w-[26rem] overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <p className="text-sm font-semibold text-gray-700">Notifications</p>
           {isLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
         </div>
-        <div className="px-4 py-3 border-b border-gray-100 bg-white/60">
-          <div className="flex bg-gradient-to-r from-gray-100 to-gray-50 p-1 rounded-lg shadow-inner">
-            <button
-              type="button"
-              onClick={() => setActiveTab("unread")}
-              className={cn(
-                "flex-1 rounded-md text-sm font-medium px-3 py-2 transition-all duration-300",
-                activeTab === "unread"
-                  ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm border border-blue-200/50"
-                  : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.01]"
-              )}
-              aria-pressed={activeTab === "unread"}
-            >
-              Unread ({unreadNotifications.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("read")}
-              className={cn(
-                "flex-1 rounded-md text-sm font-medium px-3 py-2 transition-all duration-300",
-                activeTab === "read"
-                  ? "bg-gradient-to-r from-white to-gray-50 text-blue-600 shadow-sm border border-blue-200/50"
-                  : "text-gray-600 hover:text-gray-800 hover:bg-white/50 hover:scale-[1.01]"
-              )}
-              aria-pressed={activeTab === "read"}
-            >
-              Read ({readNotifications.length})
-            </button>
-          </div>
-        </div>
         <div className="max-h-80 overflow-y-auto">
-          {activeNotifications.length === 0 ? (
-            <div className="px-4 py-6 flex flex-col items-center gap-2 text-center text-sm text-gray-500">
+          {notifications.length === 0 ? (
+            <div className="px-4 py-8 flex flex-col items-center gap-2 text-center text-sm text-gray-500">
               <CheckCircle2 className="h-6 w-6 text-emerald-400" />
-              <p>
-                {activeTab === "unread"
-                  ? "No unread notifications."
-                  : readNotifications.length === 0
-                  ? "You haven't read any notifications yet."
-                  : "No read notifications to show."}
-              </p>
+              <p>No notifications yet</p>
             </div>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {activeNotifications.map((notification) => (
-                <li key={notification.id}>
-                  <button
-                    onClick={() =>
-                      handleNotificationClick(notification.id, notification.link_url)
-                    }
-                    className="w-full text-left px-4 py-3 transition-colors bg-white hover:bg-gray-50"
-                  >
-                    <div className="flex gap-3">
-                      <div className="pt-1 w-4 flex justify-center">
-                        {!notification.read_at && (
-                          <span className="relative flex h-2.5 w-2.5">
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-blue-300 opacity-75 animate-ping" />
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className={cn("text-sm font-semibold", notification.read_at ? "text-gray-800" : "text-gray-900")}>
-                          {notification.title}
-                        </p>
-                        {notification.body && (
-                          <div className="text-sm text-gray-600 mt-1 line-clamp-2">
-                            {renderNotificationContent(notification.body, notification.payload)}
+              {notifications.map((notification) => {
+                const isNew = isNewSinceLastView(notification);
+                return (
+                  <li key={notification.id}>
+                    <button
+                      onClick={() => handleNotificationClick(notification.link_url)}
+                      className="w-full text-left px-4 py-3 transition-colors bg-white hover:bg-gray-50"
+                    >
+                      <div className="flex gap-3">
+                        <div className="pt-1 w-4 flex justify-center">
+                          {isNew && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400/50" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {notification.title}
+                            </p>
+                            {isNew && (
+                              <span className="text-[10px] font-medium text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">
+                                NEW
+                              </span>
+                            )}
                           </div>
-                        )}
-                        <p className="text-xs text-gray-400 mt-2">
-                          {new Date(notification.created_at).toLocaleString()}
-                        </p>
+                          {notification.body && (
+                            <div className="text-sm text-gray-600 mt-1 line-clamp-2">
+                              {renderNotificationContent(notification.body, notification.payload)}
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-400 mt-2">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                </li>
-              ))}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
