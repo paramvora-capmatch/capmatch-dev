@@ -13,7 +13,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 // Nudge intervals in milliseconds: 45m, 1d, 3d, 1w
 const NUDGE_INTERVALS = [
-  1 * 24 * 60 * 60 * 1000, // 1 day
+  1 * 60 * 1000, // 1 day
   3 * 24 * 60 * 60 * 1000, // 3 days
   5 * 24 * 60 * 60 * 1000, // 5 days
   7 * 24 * 60 * 60 * 1000, // 1 week
@@ -363,11 +363,11 @@ async function processResumeNudge(
 
   const ownerUserIds = owners.map((o: any) => o.user_id);
 
-  // Check for existing nudges for this specific owner
+  // Check for existing nudges for this specific user
   const { data: allOwnerNudges, error: nudgesError } = await supabaseAdmin
     .from("notifications")
     .select("id, user_id, created_at, payload")
-    .eq("user_id", ownerToNotify)
+    .eq("user_id", userId)
     .eq("payload->>type", "resume_incomplete_nudge");
 
   if (nudgesError) {
