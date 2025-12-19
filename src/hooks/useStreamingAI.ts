@@ -194,9 +194,13 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
         return;
       }
       console.error('[FRONTEND] Streaming error:', err);
-      setError(err as Error);
+      flushSync(() => {
+        setError(err as Error);
+      });
     } finally {
-      setIsLoading(false);
+      flushSync(() => {
+        setIsLoading(false);
+      });
       abortControllerRef.current = null;
       console.log('[FRONTEND] Stream processing finished');
     }
