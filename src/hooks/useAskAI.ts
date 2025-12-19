@@ -1,5 +1,6 @@
 // src/hooks/useAskAI.ts
 import { useState, useCallback, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { useStreamingAI } from './useStreamingAI';
 import { Message, FieldContext, PresetQuestion } from '../types/ask-ai-types';
 import { AIContextBuilder } from '../services/aiContextBuilder';
@@ -48,20 +49,23 @@ export const useAskAI = ({ formData, apiPath = '/api/project-qa', contextType = 
   useEffect(() => {
     if (!response) return;
 
-    setMessages(prev => {
-      // Find the "thinking" message and replace it with the first chunk of the AI response,
-      // or update the last AI message with subsequent chunks.
-      const lastMessage = prev[prev.length - 1];
+    // Use flushSync to ensure immediate UI update as chunks arrive
+    flushSync(() => {
+      setMessages(prev => {
+        // Find the "thinking" message and replace it with the first chunk of the AI response,
+        // or update the last AI message with subsequent chunks.
+        const lastMessage = prev[prev.length - 1];
 
-      if (lastMessage?.type === 'ai') {
-        // Create a new array with the updated message to avoid mutation
-        return prev.map((msg, index) =>
-          index === prev.length - 1
-            ? { ...msg, content: response, isStreaming: isStreaming }
-            : msg
-        );
-      }
-      return prev;
+        if (lastMessage?.type === 'ai') {
+          // Create a new array with the updated message to avoid mutation
+          return prev.map((msg, index) =>
+            index === prev.length - 1
+              ? { ...msg, content: response, isStreaming: isStreaming }
+              : msg
+          );
+        }
+        return prev;
+      });
     });
   }, [response, isStreaming]);
 

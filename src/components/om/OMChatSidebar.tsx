@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { flushSync } from 'react-dom';
 import { Button } from '@/components/ui/Button';
 import { MessageSquare, Send, Table2, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -120,17 +121,20 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
   React.useEffect(() => {
     if (!response) return;
 
-    setMessages(prev => {
-      const lastMessage = prev[prev.length - 1];
-      if (lastMessage?.role === 'assistant' || lastMessage?.role === 'thinking') {
-        // Update last assistant/thinking message with streaming content
-        return prev.map((msg, index) =>
-          index === prev.length - 1
-            ? { ...msg, role: 'assistant' as const, content: response }
-            : msg
-        );
-      }
-      return prev;
+    // Use flushSync to ensure immediate UI update as chunks arrive
+    flushSync(() => {
+      setMessages(prev => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage?.role === 'assistant' || lastMessage?.role === 'thinking') {
+          // Update last assistant/thinking message with streaming content
+          return prev.map((msg, index) =>
+            index === prev.length - 1
+              ? { ...msg, role: 'assistant' as const, content: response }
+              : msg
+          );
+        }
+        return prev;
+      });
     });
   }, [response]);
 

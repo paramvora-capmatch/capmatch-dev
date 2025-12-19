@@ -120,17 +120,22 @@ export const AIChatInterface: React.FC<AIChatInterfaceProps> = ({
                           <Reply size={14} />
                         </button>
                       )}
-                      {message.type === "ai" && message.isStreaming ? (
-                        <div className="flex items-center space-x-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Thinking...</span>
-                        </div>
-                      ) : message.type === "ai" ? (
-                        <div className="prose prose-sm max-w-none prose-p:mb-4" style={{ whiteSpace: 'pre-wrap' }}>
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {message.content}
-                          </ReactMarkdown>
-                        </div>
+                      {message.type === "ai" ? (
+                        message.content && message.content.trim() ? (
+                          <div className="prose prose-sm max-w-none prose-p:mb-4" style={{ whiteSpace: 'pre-wrap' }}>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {message.content}
+                            </ReactMarkdown>
+                            {message.isStreaming && (
+                              <span className="inline-block w-2 h-4 ml-1 bg-gray-400 animate-pulse" />
+                            )}
+                          </div>
+                        ) : message.isStreaming ? (
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Thinking...</span>
+                          </div>
+                        ) : null
                       ) : (
                         <div className="whitespace-pre-wrap text-white">{message.content}</div>
                       )}
