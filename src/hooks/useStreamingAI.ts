@@ -165,14 +165,19 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
                 
                 if (parsed.error) {
                   console.error('[FRONTEND] Error in SSE message:', parsed.error);
-                  setError(new Error(parsed.error));
+                  flushSync(() => {
+                    setError(new Error(parsed.error));
+                  });
                 } else if (parsed.text !== undefined) {
                   const textLength = parsed.text.length;
                   const timeSinceFirstMsg = firstMessageTime ? messageTime - firstMessageTime : 0;
                   if (messageCount <= 5 || messageCount % 10 === 0) {
                     console.log(`[FRONTEND] SSE message #${messageCount} parsed (time=${timeSinceFirstMsg}ms, text_length=${textLength})`);
                   }
-                  setResponse(parsed.text);
+                  // Force immediate React update to prevent batching
+                  flushSync(() => {
+                    setResponse(parsed.text);
+                  });
                 }
               } catch (parseErr) {
                 // Skip malformed JSON - might be partial message
