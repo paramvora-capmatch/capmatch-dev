@@ -288,16 +288,15 @@ def process_unread_thread_nudges(
                     "occurred_at": now.isoformat(),
                 }
             )
-            .select("id")
-            .single()
             .execute()
+            .data
         )
 
-        if not event_response.data:
+        if not event_response or not event_response[0]:
             logger.error("Error creating domain event")
             continue
 
-        domain_event = event_response.data
+        domain_event = event_response[0]
         logger.info(f"Created domain event {domain_event['id']} for user {entry['user_id']} in thread {entry['thread_id']}")
 
         # Insert into dedupe log (keyed by latest_message_at so new messages trigger new nudges)

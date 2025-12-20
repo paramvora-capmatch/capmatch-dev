@@ -2,6 +2,11 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_DIR="${HOME}/.capmatch/logs"
+LOG_FILE="${LOG_DIR}/unread-thread-nudges.log"
+
+# Create log directory if it doesn't exist
+mkdir -p "$LOG_DIR"
 
 # Load environment variables
 if [ -f "$SCRIPT_DIR/.env" ]; then
@@ -17,4 +22,4 @@ docker run --rm \
     -e DRY_RUN="${DRY_RUN:-false}" \
     -e THRESHOLD_MINUTES="${THRESHOLD_MINUTES:-180}" \
     capmatch-unread-thread-nudges:prod \
-    >> /var/log/unread-thread-nudges.log 2>&1
+    >> "$LOG_FILE" 2>&1

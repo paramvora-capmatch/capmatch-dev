@@ -271,7 +271,7 @@ def main():
         response = (
             supabase.from_("calendar_connections")
             .select("*")
-            .not_("watch_channel_id", "is", None)
+            .not_.is_("watch_channel_id", "null")
             .lte("watch_expiration", expiration_threshold.isoformat())
             .execute()
         )

@@ -2,6 +2,11 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_DIR="${HOME}/.capmatch/logs"
+LOG_FILE="${LOG_DIR}/renew-calendar-watches.log"
+
+# Create log directory if it doesn't exist
+mkdir -p "$LOG_DIR"
 
 # Load environment variables
 if [ -f "$SCRIPT_DIR/.env" ]; then
@@ -19,4 +24,4 @@ docker run --rm \
     -e LOG_LEVEL="${LOG_LEVEL:-INFO}" \
     -e DRY_RUN="${DRY_RUN:-false}" \
     capmatch-renew-calendar-watches:prod \
-    >> /var/log/renew-calendar-watches.log 2>&1
+    >> "$LOG_FILE" 2>&1

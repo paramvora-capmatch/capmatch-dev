@@ -179,16 +179,15 @@ def process_resume_nudge(
                 "occurred_at": datetime.now(timezone.utc).isoformat(),
             }
         )
-        .select("id")
-        .single()
         .execute()
+        .data
     )
 
-    if not event_response.data:
+    if not event_response or not event_response[0]:
         logger.error("Error creating domain event")
         return {"created": False, "reason": "Failed to create domain event"}
 
-    domain_event = event_response.data
+    domain_event = event_response[0]
 
     logger.info(
         f"Created domain event {domain_event['id']} for {resume_type} resume in '{project_name}' for '{user_name}' (tier {nudge_tier}, {completeness_percent}% complete)"

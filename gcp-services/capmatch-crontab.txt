@@ -1,0 +1,78 @@
+# CapMatch GCP Services Crontab Configuration
+# This file contains all cron jobs for CapMatch services
+# To install: crontab capmatch-crontab.txt
+# To view: crontab -l
+# To edit: crontab -e
+#
+# IMPORTANT: Update the REPO_ROOT path below to match your VM deployment path
+# Example: /home/ubuntu/capmatch-dev or /opt/capmatch/capmatch-dev
+
+REPO_ROOT=/home/vatsalhariramani/capmatch-dev
+
+# ==============================================================================
+# SCHEDULED JOBS
+# ==============================================================================
+
+# Meeting Reminders - Every 5 minutes
+# Checks for upcoming meetings and sends reminders
+*/5 * * * * $REPO_ROOT/gcp-services/scheduled/meeting-reminders/run.sh >> /var/log/meeting-reminders.log 2>&1
+
+# Unread Thread Nudges - Every 15 minutes
+# Sends notifications for unread chat threads
+*/15 * * * * $REPO_ROOT/gcp-services/scheduled/unread-thread-nudges/run.sh >> /var/log/unread-thread-nudges.log 2>&1
+
+# Resume Incomplete Nudges - Every 6 hours (at :00)
+# Reminds users to complete their project/borrower resumes
+0 */6 * * * $REPO_ROOT/gcp-services/scheduled/resume-incomplete-nudges/run.sh >> /var/log/resume-incomplete-nudges.log 2>&1
+
+# Renew Calendar Watches - Daily at 2 AM UTC
+# Renews Google Calendar watch subscriptions (they expire after ~7 days)
+0 2 * * * $REPO_ROOT/gcp-services/scheduled/renew-calendar-watches/run.sh >> /var/log/renew-calendar-watches.log 2>&1
+
+# ==============================================================================
+# NOTIFICATION SERVICES
+# ==============================================================================
+
+# Notify Fan-Out - Every minute
+# Processes domain events and fans out notifications to users
+* * * * * $REPO_ROOT/gcp-services/notify-fan-out/run.sh >> /var/log/notify-fan-out.log 2>&1
+
+# ==============================================================================
+# EMAIL SERVICES
+# ==============================================================================
+
+# Email Notifications (Hourly Digest) - Every hour between 6 AM and 6 PM Pacific
+# Sends hourly digest emails with batched notifications
+0 6-18 * * * $REPO_ROOT/gcp-services/email-notifications/run-hourly.sh >> /var/log/email-notifications-hourly.log 2>&1
+
+# Email Notifications (Instant) - Every minute
+# Sends instant email notifications for urgent events
+* * * * * $REPO_ROOT/gcp-services/email-notifications/run-instant.sh >> /var/log/email-notifications-instant.log 2>&1
+
+# ==============================================================================
+# NOTES
+# ==============================================================================
+# - All jobs redirect output to /var/log/*.log files
+# - Ensure log files exist and have proper permissions:
+#   sudo touch /var/log/{meeting-reminders,unread-thread-nudges,resume-incomplete-nudges,renew-calendar-watches,notify-fan-out,email-notifications-hourly,email-notifications-instant}.log
+#   sudo chown $USER:$USER /var/log/{meeting-reminders,unread-thread-nudges,resume-incomplete-nudges,renew-calendar-watches,notify-fan-out,email-notifications-hourly,email-notifications-instant}.log
+#
+# - Ensure all run scripts are executable:
+#   chmod +x $REPO_ROOT/gcp-services/*/run*.sh
+#   chmod +x $REPO_ROOT/gcp-services/scheduled/*/run.sh
+#
+# - Docker images must be built before cron jobs will work:
+#   Run each setup-vm.sh script or build manually with:
+#   docker build -f gcp-services/[service]/Dockerfile -t capmatch-[service]:prod gcp-services/[service]
+#
+# - To monitor logs in real-time:
+#   tail -f /var/log/meeting-reminders.log
+#   tail -f /var/log/unread-thread-nudges.log
+#   tail -f /var/log/resume-incomplete-nudges.log
+#   tail -f /var/log/renew-calendar-watches.log
+#   tail -f /var/log/notify-fan-out.log
+#   tail -f /var/log/email-notifications-hourly.log
+#   tail -f /var/log/email-notifications-instant.log
+#
+# - To view all CapMatch cron jobs:
+#   crontab -l | grep capmatch-dev

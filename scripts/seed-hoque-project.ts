@@ -26,8 +26,8 @@ if (isProduction) {
 	// Load production env file first (highest priority)
 	config({ path: resolve(process.cwd(), ".env.production") });
 	// Also load .env.local and .env as fallbacks
-	config({ path: resolve(process.cwd(), ".env.local") });
-	config({ path: resolve(process.cwd(), ".env") });
+	// config({ path: resolve(process.cwd(), ".env.local") });
+	// config({ path: resolve(process.cwd(), ".env") });
 
 	// Warn if production env file doesn't exist
 	const prodEnvPath = resolve(process.cwd(), ".env.production");
