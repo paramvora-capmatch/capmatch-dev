@@ -1028,8 +1028,16 @@ serve(async (req) => {
       }
     }
     
-    // Events for access changed
+    // Events for access changed (only for upgrades: view -> edit, not downgrades)
     for (const change of accessChanged) {
+      // Only create events for upgrades (view -> edit), skip downgrades (edit -> view)
+      if (change.old_permission !== "view" || change.new_permission !== "edit") {
+        console.log(
+          `[update-member-permissions] [${requestId}] Skipping project_access_changed event for project ${change.project_id} - downgrade from ${change.old_permission} to ${change.new_permission}`
+        );
+        continue;
+      }
+      
       const projectName = projectNameMap.get(change.project_id) || "a project";
       const { data: event, error: eventError } = await supabaseAdmin
         .from("domain_events")
@@ -1063,38 +1071,12 @@ serve(async (req) => {
       }
     }
     
-    // Events for access revoked
-    for (const revoke of accessRevoked) {
-      const projectName = projectNameMap.get(revoke.project_id) || "a project";
-      const { data: event, error: eventError } = await supabaseAdmin
-        .from("domain_events")
-        .insert({
-          event_type: "project_access_revoked",
-          actor_id: user.id,
-          project_id: revoke.project_id,
-          org_id: org_id,
-          payload: {
-            affected_user_id: user_id,
-            project_id: revoke.project_id,
-            project_name: projectName,
-            old_permission: revoke.old_permission,
-            changed_by_id: user.id,
-            org_id: org_id,
-            org_name: orgName,
-          },
-        })
-        .select("id")
-        .single();
-      
-      if (eventError) {
-        console.error(
-          `[update-member-permissions] [${requestId}] Failed to create project_access_revoked event:`,
-          eventError.message
-        );
-      } else if (event) {
-        domainEventIds.push(event.id);
-        console.log(`[update-member-permissions] [${requestId}] Created project_access_revoked event ${event.id} for project ${revoke.project_id}`);
-      }
+    // Events for access revoked - SKIPPED: No notifications should be sent when access is revoked
+    // Skipping event creation to prevent notifications for access revocation
+    if (accessRevoked.length > 0) {
+      console.log(
+        `[update-member-permissions] [${requestId}] Skipping ${accessRevoked.length} project_access_revoked events - notifications not sent for access revocation`
+      );
     }
     
     // Document-level events: granted
@@ -1139,9 +1121,18 @@ serve(async (req) => {
       }
     }
 
-    // Document-level events: changed
+    // Document-level events: changed (only for upgrades: view -> edit, not downgrades)
     for (const change of docChanged) {
       if (!change.project_id) continue;
+      
+      // Only create events for upgrades (view -> edit), skip downgrades (edit -> view)
+      if (change.old_permission !== "view" || change.new_permission !== "edit") {
+        console.log(
+          `[update-member-permissions] [${requestId}] Skipping document_permission_changed event for resource ${change.resource_id} - downgrade from ${change.old_permission} to ${change.new_permission}`
+        );
+        continue;
+      }
+      
       const projectName =
         projectNameMap.get(change.project_id) || "a project";
       const { data: event, error: eventError } = await supabaseAdmin
@@ -1181,46 +1172,12 @@ serve(async (req) => {
       }
     }
 
-    // Document-level events: revoked
-    for (const revoke of docRevoked) {
-      if (!revoke.project_id) continue;
-      const projectName =
-        projectNameMap.get(revoke.project_id) || "a project";
-      const { data: event, error: eventError } = await supabaseAdmin
-        .from("domain_events")
-        .insert({
-          event_type: "document_permission_revoked",
-          actor_id: user.id,
-          project_id: revoke.project_id,
-          org_id: org_id,
-          resource_id: revoke.resource_id,
-          payload: {
-            affected_user_id: user_id,
-            project_id: revoke.project_id,
-            project_name: projectName,
-            resource_id: revoke.resource_id,
-            resource_name: revoke.resource_name,
-            old_permission: revoke.old_permission, // initial permission (view or edit)
-            new_permission: revoke.new_permission, // null - access removed
-            changed_by_id: user.id,
-            org_id: org_id,
-            org_name: orgName,
-          },
-        })
-        .select("id")
-        .single();
-
-      if (eventError) {
-        console.error(
-          `[update-member-permissions] [${requestId}] Failed to create document_permission_revoked event:`,
-          eventError.message
-        );
-      } else if (event) {
-        domainEventIds.push(event.id);
-        console.log(
-          `[update-member-permissions] [${requestId}] Created document_permission_revoked event ${event.id} for resource ${revoke.resource_id}`
-        );
-      }
+    // Document-level events: revoked - SKIPPED: No notifications should be sent when document access is revoked
+    // Skipping event creation to prevent notifications for document permission revocation
+    if (docRevoked.length > 0) {
+      console.log(
+        `[update-member-permissions] [${requestId}] Skipping ${docRevoked.length} document_permission_revoked events - notifications not sent for document access revocation`
+      );
     }
 
     console.log(
