@@ -434,6 +434,119 @@ def handle_meeting_invited(db: Database, event: DomainEvent) -> HandlerResult:
 
 
 # =============================================================================
+# Handler: Chat Thread Participant Added
+# =============================================================================
+
+
+def handle_chat_thread_participant_added(db: Database, event: DomainEvent) -> HandlerResult:
+    """Handle chat_thread_participant_added event."""
+    logger.info("Processing chat_thread_participant_added event %d", event.id)
+
+    added_user_id = event.payload.get("added_user_id")
+    if not added_user_id or not event.thread_id:
+        logger.error(
+            "Missing added_user_id or thread_id for event %d", event.id
+        )
+        return (0, 0)
+
+    # Check if already notified
+    already_notified = db.fetch_existing_recipients(event.id)
+    if added_user_id in already_notified:
+        return (0, 0)
+
+    # Check preferences
+    is_muted = db.check_user_preference(
+        user_id=added_user_id,
+        scope_type="thread",
+        scope_id=event.thread_id,
+        event_type="chat_thread_participant_added",
+        channel="in_app",
+        project_id=event.project_id or "",
+    )
+    if is_muted:
+        return (0, 0)
+
+    # Get thread info
+    thread_info = db.get_thread_info(event.thread_id)
+    thread_topic = thread_info.topic if thread_info else "thread"
+    thread_name = thread_topic if thread_topic else "thread"
+    thread_label = thread_name if thread_name.startswith("#") else f"#{thread_name}"
+    project_id = (thread_info.project_id if thread_info else None) or event.project_id
+    project_name = db.get_project_name(project_id) if project_id else None
+
+    # Get actor name (person who added the participant)
+    actor_name = db.get_profile_name(event.actor_id)
+
+    # Build notification
+    title = (
+        f"You've been added to {thread_label} - {project_name}"
+        if project_name
+        else f"You've been added to {thread_label}"
+    )
+    body = f"**{actor_name}** added you to **{thread_label}**"
+
+    link_url = (
+        f"/project/workspace/{project_id}?threadId={event.thread_id}"
+        if project_id
+        else f"/dashboard?threadId={event.thread_id}"
+    )
+
+    success = db.create_notification(
+        user_id=added_user_id,
+        event_id=event.id,
+        title=title,
+        body=body,
+        link_url=link_url,
+        payload={
+            "type": "chat_thread_participant_added",
+            "thread_id": event.thread_id,
+            "thread_name": thread_name,
+            "thread_label": thread_label,
+            "actor_id": event.actor_id,
+            "actor_name": actor_name,
+            "project_id": project_id,
+            "project_name": project_name,
+        },
+    )
+
+    if not success:
+        inserted = 0
+        emails_queued = 0
+    else:
+        inserted = 1
+
+        # Queue immediate email
+        email_success = db.queue_email(
+            user_id=added_user_id,
+            event_id=event.id,
+            event_type="chat_thread_participant_added",
+            delivery_type="immediate",
+            project_id=project_id,
+            project_name=project_name,
+            subject=title,
+            body_data={
+                "thread_id": event.thread_id,
+                "thread_name": thread_name,
+                "thread_label": thread_label,
+                "actor_id": event.actor_id,
+                "actor_name": actor_name,
+                "project_id": project_id,
+                "project_name": project_name,
+                "link_url": link_url,
+            },
+        )
+        emails_queued = 1 if email_success else 0
+
+    logger.info(
+        "Event %d: created %d notifications, queued %d emails",
+        event.id,
+        inserted,
+        emails_queued,
+    )
+    return (inserted, emails_queued)
+
+
+# =============================================================================
 # Handler: Meeting Updated
 # =============================================================================
 

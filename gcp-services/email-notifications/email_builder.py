@@ -310,6 +310,26 @@ def build_instant_email(
         )
         message_text = f"You've been added as a member to {project_label} on CapMatch."
 
+    elif etype == "chat_thread_participant_added":
+        thread_topic = event.payload.get("thread_topic") or "a thread"
+        thread_name = thread_topic if thread_topic.startswith("#") else f"#{thread_topic}"
+        actor_name = event.payload.get("actor_name") or "Someone"
+        project_label = project_name or None
+        
+        if project_label:
+            subject = f"You've been added to {thread_name} - {project_label}"
+            message_html = (
+                f"<p><strong>{actor_name}</strong> added you to <strong>{thread_name}</strong> in "
+                f"<strong>{project_label}</strong>.</p>"
+            )
+            message_text = f"{actor_name} added you to {thread_name} in {project_label}."
+        else:
+            subject = f"You've been added to {thread_name}"
+            message_html = (
+                f"<p><strong>{actor_name}</strong> added you to <strong>{thread_name}</strong>.</p>"
+            )
+            message_text = f"{actor_name} added you to {thread_name}."
+
     else:
         # Fallback generic email
         subject = "CapMatch Notification"
@@ -413,6 +433,8 @@ def _render_immediate_email(event_type: str, body_data: Dict[str, Any], first_na
         return _render_project_access_granted(body_data, first_name)
     elif event_type == "project_access_changed":
         return _render_project_access_changed(body_data, first_name)
+    elif event_type == "chat_thread_participant_added":
+        return _render_chat_thread_participant_added(body_data, first_name)
     else:
         logger.warning(f"Unknown immediate event_type: {event_type}")
         return _render_generic_email(body_data, first_name)
@@ -691,6 +713,78 @@ def _render_project_access_changed(body_data: Dict[str, Any], first_name: str) -
         html_body = html_body.replace('<!--PROJECT_SECTIONS-->', greeting_html + '\n<!--PROJECT_SECTIONS-->')
     else:
         html_body = f"<h1>Project Access Updated</h1><p>Hi {user_name},</p>{message_html}"
+
+    text_body = f"Hi {user_name},\n\n{message_text}\n\nOpen CapMatch: {CTA_URL}{link_url}\nManage preferences: {MANAGE_PREFS_URL}"
+    return html_body, text_body
+
+
+def _render_chat_thread_participant_added(body_data: Dict[str, Any], first_name: str) -> Tuple[str, str]:
+    """
+    Render chat_thread_participant_added email.
+
+    Expected body_data:
+    {
+        "thread_id": "{thread_id}",
+        "thread_name": "General",
+        "thread_label": "#General",
+        "actor_id": "{actor_id}",
+        "actor_name": "John Smith",
+        "project_id": "{project_id}",
+        "project_name": "Downtown Office Tower",
+        "link_url": "/project/workspace/{project_id}?threadId={thread_id}"
+    }
+    """
+    thread_label = body_data.get("thread_label", body_data.get("thread_name", "a thread"))
+    actor_name = body_data.get("actor_name", "Someone")
+    project_name = body_data.get("project_name")
+    link_url = body_data.get("link_url", "/dashboard")
+    user_name = first_name if first_name else "there"
+
+    if project_name:
+        message_html = (
+            f"<p><strong>{actor_name}</strong> added you to <strong>{thread_label}</strong> in "
+            f"<strong>{project_name}</strong>.</p>"
+        )
+        message_text = (
+            f"{actor_name} added you to {thread_label} in {project_name}."
+        )
+    else:
+        message_html = (
+            f"<p><strong>{actor_name}</strong> added you to <strong>{thread_label}</strong>.</p>"
+        )
+        message_text = (
+            f"{actor_name} added you to {thread_label}."
+        )
+
+    if TEMPLATE_HTML:
+        content_card = (
+            '<div style="background:#F8FAFF;border-radius:20px;border:1px solid #BFDBFE;padding:24px;margin-bottom:16px;">'
+            f'{message_html}'
+            '</div>'
+        )
+        preview_text = message_text[:100]
+        html_body = TEMPLATE_HTML.replace("{{PREVIEW_TEXT}}", preview_text)
+        html_body = re.sub(r'<div[^>]*data-skip-in-text="true"[^>]*>.*?</div>\s*', '', html_body, flags=re.DOTALL)
+        html_body = (
+            html_body.replace("{{USER_NAME}}", user_name)
+            .replace("{{DIGEST_DATE}}", "")
+            .replace("Daily Digest", "Added to Chat Thread")
+            .replace("Important activity across your projects.", "You have a new notification.")
+            .replace("{{CTA_URL}}", f"{CTA_URL}{link_url}")
+            .replace("{{MANAGE_PREFS_URL}}", MANAGE_PREFS_URL)
+            .replace("<!--PROJECT_SECTIONS-->", content_card)
+        )
+        # Remove the entire hero box (light blue background) for instant emails
+        # Match the hero table and all its nested content
+        hero_table_pattern = r'<table[^>]*class="hero"[^>]*>.*?</table>\s*'
+        html_body = re.sub(hero_table_pattern, '', html_body, flags=re.DOTALL)
+        
+        # Add simple greeting before the content sections (where PROJECT_SECTIONS will be inserted)
+        greeting_html = f'<p style="font-size:17px;line-height:26px;color:#111827;margin:0 0 24px 0;text-align:center;">Hi <span style="color:#111827;font-weight:600">{user_name}</span>,</p>'
+        # Insert greeting before the PROJECT_SECTIONS placeholder
+        html_body = html_body.replace('<!--PROJECT_SECTIONS-->', greeting_html + '\n<!--PROJECT_SECTIONS-->')
+    else:
+        html_body = f"<h1>Added to Chat Thread</h1><p>Hi {user_name},</p>{message_html}"
 
     text_body = f"Hi {user_name},\n\n{message_text}\n\nOpen CapMatch: {CTA_URL}{link_url}\nManage preferences: {MANAGE_PREFS_URL}"
     return html_body, text_body
