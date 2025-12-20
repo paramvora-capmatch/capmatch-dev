@@ -158,15 +158,15 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 					throw invokeError;
 				}
 
-				// We don't need to manually refresh here because the Realtime subscription
-				// will detect the change in 'meeting_participants' and trigger a refresh automatically.
-			} catch (err) {
-				console.error("Error updating participant response:", err);
-				setError("Failed to update response");
-			}
-		},
-		[user, refreshMeetings]
-	);
+			// We don't need to manually refresh here because the Realtime subscription
+			// will detect the change in 'meeting_participants' and trigger a refresh automatically.
+		} catch (err) {
+			console.error("Error updating participant response:", err);
+			setError("Failed to update response");
+		}
+	},
+	[user]
+);
 
 	/**
 	 * Update participant status in local state without refetching
@@ -210,6 +210,9 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 	 */
 	useEffect(() => {
 		if (!user) return;
+
+		// Capture ref value for cleanup
+		const timeoutId = refreshTimeoutRef.current;
 
 		// Initial fetch
 		fetchUpcomingMeetings();
@@ -271,8 +274,8 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 				supabase.removeChannel(channel);
 			}
 			// Clear any pending refresh timeout
-			if (refreshTimeoutRef.current) {
-				clearTimeout(refreshTimeoutRef.current);
+			if (timeoutId) {
+				clearTimeout(timeoutId);
 			}
 		};
 	}, [

@@ -132,7 +132,7 @@ export const useStreamingAI = ({ api }: UseStreamingAIOptions): UseStreamingAIRe
                 } else if (parsed.text !== undefined) {
                   // Force immediate React update to prevent batching
                   flushSync(() => {
-                    setResponse(parsed.text);
+                    setResponse(parsed.text ?? '');
                   });
                 }
               } catch (parseErr) {

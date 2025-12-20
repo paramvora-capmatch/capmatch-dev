@@ -297,6 +297,7 @@ export function ImagePreviewModal({
 						images.map(
 							(img, idx) =>
 								!img.isPdf && (
+									// eslint-disable-next-line @next/next/no-img-element
 									<img
 										key={idx}
 										src={img.url}
