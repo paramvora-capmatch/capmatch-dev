@@ -2,13 +2,10 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/Button';
-import { MessageSquare, Send, ChevronDown, Table2, RotateCcw } from 'lucide-react';
+import { MessageSquare, Send, Table2, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { experimental_useObject as useObject } from '@ai-sdk/react';
-import { OmQaSchema } from '@/types/om-types';
-import { z } from 'zod';
-import { cn } from '@/utils/cn';
+import { useStreamingAI } from '@/hooks/useStreamingAI';
 import { Modal } from '@/components/ui/Modal';
 
 interface OMChatSidebarProps {
@@ -20,7 +17,7 @@ interface Message {
   id: string;
   role: 'user' | 'assistant' | 'thinking';
   question?: string;
-  data?: Partial<z.infer<typeof OmQaSchema>>;
+  content?: string;
 }
 
 const CHAT_STORAGE_KEY = 'om-chat-messages';
@@ -69,25 +66,26 @@ const TableWrapper: React.FC<{
 export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onCollapse }) => {
   const [question, setQuestion] = React.useState('');
   const [messages, setMessages] = React.useState<Message[]>([]);
-  const [assumptionsOpen, setAssumptionsOpen] = React.useState(false);
   const [tableModalOpen, setTableModalOpen] = React.useState(false);
   const [tableContent, setTableContent] = React.useState<string>('');
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
-  const { object, submit, isLoading, error } = useObject({
+  // Custom streaming hook - replaces Vercel AI SDK's useObject
+  const { response, isLoading, error, submit, stop, reset } = useStreamingAI({
     api: '/api/om-qa',
-    schema: OmQaSchema,
   });
 
   const handleResetChat = React.useCallback(() => {
     setQuestion('');
     setMessages([]);
+    stop();
+    reset();
     try {
       sessionStorage.removeItem(CHAT_STORAGE_KEY);
-    } catch (error) {
-      console.warn('Failed to clear chat messages from session storage:', error);
+    } catch (err) {
+      console.warn('Failed to clear chat messages from session storage:', err);
     }
-  }, []);
+  }, [stop, reset]);
 
   // Load messages from session storage on component mount
   React.useEffect(() => {
@@ -96,8 +94,8 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
       if (storedMessages) {
         setMessages(JSON.parse(storedMessages));
       }
-    } catch (error) {
-      console.warn('Failed to load chat messages from session storage:', error);
+    } catch (err) {
+      console.warn('Failed to load chat messages from session storage:', err);
     }
   }, []);
 
@@ -105,8 +103,8 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
   React.useEffect(() => {
     try {
       sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
-    } catch (error) {
-      console.warn('Failed to save chat messages to session storage:', error);
+    } catch (err) {
+      console.warn('Failed to save chat messages to session storage:', err);
     }
   }, [messages]);
 
@@ -118,37 +116,60 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
     }
   }, [question]);
 
+  // Handle streaming response updates
+  React.useEffect(() => {
+    if (!response) return;
+
+    // Schedule update in microtask to avoid calling flushSync during render
+    queueMicrotask(() => {
+      setMessages(prev => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage?.role === 'assistant' || lastMessage?.role === 'thinking') {
+          // Update last assistant/thinking message with streaming content
+          return prev.map((msg, index) =>
+            index === prev.length - 1
+              ? { ...msg, role: 'assistant' as const, content: response }
+              : msg
+          );
+        }
+        return prev;
+      });
+    });
+  }, [response]);
+
+  // When streaming finishes, ensure the assistant message is finalized
+  React.useEffect(() => {
+    if (!isLoading && response) {
+      setMessages(prev => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage?.role === 'thinking') {
+          return prev.map((msg, index) =>
+            index === prev.length - 1
+              ? { ...msg, role: 'assistant' as const, content: response }
+              : msg
+          );
+        }
+        return prev;
+      });
+    }
+  }, [isLoading, response]);
+
   const askQuestion = async (e?: React.FormEvent, queryOverride?: string) => {
     e?.preventDefault();
     const queryToUse = queryOverride || question;
     if (!queryToUse.trim() || isLoading) return;
     
+    // Abort any previous request
+    stop();
+    reset();
+    
     const userMessage: Message = { id: Date.now().toString(), role: 'user', question: queryToUse };
     const thinkingMessage: Message = { id: (Date.now() + 1).toString(), role: 'thinking' };
     setMessages(prev => [...prev, userMessage, thinkingMessage]);
 
-    submit({ question: queryToUse });
+    await submit({ question: queryToUse });
     setQuestion('');
   };
-
-  React.useEffect(() => {
-    if (object) {
-      setMessages(prev => {
-        const newMessages = prev.filter(m => m.role !== 'thinking');
-        const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage?.role === 'assistant') {
-          // Update last assistant message
-          lastMessage.data = object as Partial<z.infer<typeof OmQaSchema>>;
-          return [...newMessages];
-        } else {
-          // Add new assistant message
-          return [...newMessages, { id: Date.now().toString(), role: 'assistant', data: object as Partial<z.infer<typeof OmQaSchema>> }];
-        }
-      });
-    }
-  }, [object]);
-
-  const assumptionsId = React.useId();
 
   // Custom components for react-markdown to handle tables
   const markdownComponents = {
@@ -263,66 +284,16 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
               );
             }
 
-            if (message.role === 'assistant' && message.data) {
-              const { answer_markdown, assumptions } = message.data;
+            if (message.role === 'assistant' && message.content) {
               return (
                 <div key={message.id} className="flex justify-start">
                   <div className="bg-white border border-gray-200 text-gray-800 rounded-lg px-4 py-3 max-w-[80%] shadow-sm">
-                    {/* Assumptions card at the top, collapsed by default */}
-                    {assumptions?.length ? (
-                      <div className="mb-4 pb-4 border-b border-gray-200">
-                        <button
-                          type="button"
-                          onClick={() => setAssumptionsOpen(o => !o)}
-                          className="w-full flex items-center justify-between text-left mb-3"
-                          aria-expanded={assumptionsOpen}
-                          aria-controls={assumptionsId}
-                        >
-                          <span className="text-sm font-semibold text-gray-700">
-                            Assumptions ({assumptions.length})
-                          </span>
-                          <ChevronDown
-                            className={`h-4 w-4 text-gray-500 transition-transform ${
-                              assumptionsOpen ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </button>
-                        <div
-                          id={assumptionsId}
-                          className={`${assumptionsOpen ? 'block' : 'hidden'} space-y-3`}
-                        >
-                          {assumptions?.map((a, idx) => {
-                            if (!a) return null;
-                            return (
-                              <div key={idx} className="bg-gray-50 border border-gray-100 rounded-md p-4">
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-1">
-                                    <p className="text-sm text-gray-800 leading-relaxed">{a.text}</p>
-                                    {a.citation && (
-                                      <p className="text-xs text-gray-500 mt-2">
-                                        <span className="font-medium">Section:</span> {a.citation}
-                                      </p>
-                                    )}
-                                  </div>
-                                  {a.source && (
-                                    <span className="shrink-0 text-xs px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 capitalize font-medium">
-                                      {a.source}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ) : null}
-
                     <div className="prose prose-sm max-w-none">
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
                         components={markdownComponents}
                       >
-                        {answer_markdown || ''}
+                        {message.content}
                       </ReactMarkdown>
                     </div>
                   </div>
@@ -421,4 +392,4 @@ export const OMChatSidebar: React.FC<OMChatSidebarProps> = ({ setIsChatOpen, onC
       </Modal>
     </div>
   );
-}; 
+};

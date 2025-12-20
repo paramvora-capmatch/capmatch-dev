@@ -127,6 +127,11 @@ export function createTrackedContent(
 
 				return undefined;
 			},
+			set() {
+				// Prevent property assignment on read-only objects
+				// This prevents errors when trying to assign to read-only properties like 'params'
+				return false;
+			},
 		});
 	}
 
@@ -174,6 +179,12 @@ export function createTrackedContent(
 
 			// Return the original value (preserve rich format if present)
 			return actualValue;
+		},
+		set(target, prop: string | symbol, value: any) {
+			// Prevent property assignment to avoid errors with read-only properties
+			// This is a read-only proxy for tracking field access
+			// Silently ignore assignment attempts instead of throwing errors
+			return true;
 		},
 	});
 }
