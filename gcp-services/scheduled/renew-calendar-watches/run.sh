@@ -2,11 +2,10 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${HOME}/.capmatch/logs"
-LOG_FILE="${LOG_DIR}/renew-calendar-watches.log"
+LOG_FILE="/var/log/renew-calendar-watches.log"
 
-# Create log directory if it doesn't exist
-mkdir -p "$LOG_DIR"
+# Create log file if it doesn't exist
+sudo touch "$LOG_FILE" 2>/dev/null || touch "$LOG_FILE" 2>/dev/null || true
 
 # Load environment variables
 if [ -f "$SCRIPT_DIR/.env" ]; then

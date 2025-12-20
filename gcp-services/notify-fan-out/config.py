@@ -9,8 +9,8 @@ class Config:
     """Environment-driven configuration."""
 
     # Supabase
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").strip()
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 
     # Job Configuration
     BATCH_SIZE: int = int(os.getenv("NOTIFY_FANOUT_BATCH_SIZE", "500"))
@@ -18,7 +18,7 @@ class Config:
     MAX_EVENT_AGE_HOURS: int = int(os.getenv("NOTIFY_FANOUT_MAX_EVENT_AGE_HOURS", "24"))
 
     # Logging
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").strip()
 
     @classmethod
     def validate(cls) -> None:
