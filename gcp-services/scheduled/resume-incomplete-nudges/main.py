@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Nudge intervals in milliseconds: 1d, 3d, 5d, 7d
 NUDGE_INTERVALS = [
-    1  * 1000,  # 1 day
+    1 * 24 * 60 * 60 * 1000,  # 1 day
     3 * 24 * 60 * 60 * 1000,  # 3 days
     5 * 24 * 60 * 60 * 1000,  # 5 days
     7 * 24 * 60 * 60 * 1000,  # 1 week
