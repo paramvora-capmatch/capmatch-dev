@@ -1,26 +1,38 @@
 # Scheduled Jobs
 
-This directory contains all Python-based scheduled jobs that replace Supabase Edge Functions.
+This directory contains all Python-based scheduled jobs for the CapMatch platform.
 
-## Migrated Jobs
+## All Services
 
-### Phase 1 - Simple Jobs (✅ Complete)
+### Scheduled Jobs
 1. **[meeting-reminders/](./meeting-reminders/)** - Every 5 minutes
    - Sends 30-minute meeting reminders to participants
-   - Status: ✅ Migrated
+   - Status: ✅ Complete
 
 2. **[renew-calendar-watches/](./renew-calendar-watches/)** - Daily at 2 AM UTC
    - Renews Google Calendar watch channels before expiry
-   - Status: ✅ Migrated
+   - Status: ✅ Complete
 
-### Phase 2 - Moderate Jobs (🚧 In Progress)
 3. **[unread-thread-nudges/](./unread-thread-nudges/)** - Every 15 minutes
    - Nudges users about stale unread messages
-   - Status: ✅ Migrated
+   - Status: ✅ Complete
 
 4. **[resume-incomplete-nudges/](./resume-incomplete-nudges/)** - Every 6 hours
    - Nudges users to complete project/borrower resumes
-   - Status: 🚧 TODO
+   - Status: ✅ Complete
+
+### Notification Services
+5. **[notify-fan-out/](./notify-fan-out/)** - Every 1 minute
+   - Processes domain events and creates in-app notifications + email queue
+   - Handles 13 event types (3 implemented, 10 TODO)
+   - Status: 🚧 In Progress
+
+### Email Services
+6. **[email-notifications/](./email-notifications/)** - Dual mode:
+   - **Instant**: Every 1 minute - sends high-priority emails immediately
+   - **Hourly**: 6 AM - 6 PM Pacific - sends digest emails in batches
+   - Uses Resend API for delivery
+   - Status: ✅ Complete
 
 ## Architecture
 
@@ -107,20 +119,25 @@ tail -f /var/log/job-name.log
 
 ## Cron Schedules
 
-| Job | Schedule | Cron Syntax |
-|-----|----------|-------------|
+| Service | Schedule | Cron Syntax |
+|---------|----------|-------------|
 | meeting-reminders | Every 5 minutes | `*/5 * * * *` |
-| renew-calendar-watches | Daily at 2 AM UTC | `0 2 * * *` |
 | unread-thread-nudges | Every 15 minutes | `*/15 * * * *` |
 | resume-incomplete-nudges | Every 6 hours | `0 */6 * * *` |
+| renew-calendar-watches | Daily at 2 AM UTC | `0 2 * * *` |
+| notify-fan-out | Every 1 minute | `* * * * *` |
+| email-notifications (hourly) | 6 AM - 6 PM Pacific | `0 6-18 * * *` |
+| email-notifications (instant) | Every 1 minute | `* * * * *` |
 
 ## Migrated From
 
-All jobs replace corresponding Supabase Edge Functions:
+All services replace corresponding Supabase Edge Functions:
 - `supabase/functions/meeting-reminders/` → `meeting-reminders/`
 - `supabase/functions/renew-calendar-watches/` → `renew-calendar-watches/`
 - `supabase/functions/unread-thread-nudges/` → `unread-thread-nudges/`
 - `supabase/functions/resume-incomplete-nudges/` → `resume-incomplete-nudges/`
+- Email functionality previously in edge functions now handled by `email-notifications/`
+- `notify-fan-out` consolidates notification logic previously scattered across edge functions
 
 ## Dependencies
 
@@ -172,12 +189,16 @@ DRY_RUN=true python main.py
 docker run --rm --env-file .env job-name:prod env | grep SUPABASE
 ```
 
+## Service Organization
+
+All scheduled services are now consolidated under `/gcp-services/scheduled/`:
+- **Scheduled Jobs**: Time-based cron jobs (meeting-reminders, unread-thread-nudges, resume-incomplete-nudges, renew-calendar-watches)
+- **Notification Services**: Event-driven processing (notify-fan-out)
+- **Email Services**: Notification delivery (email-notifications with instant and hourly modes)
+
 ## Next Steps
 
-After all jobs are migrated:
-1. Monitor production for 1 week
-2. Delete obsolete Supabase Edge Functions:
-   - `resume-nudges` (too complex, replaced by resume-incomplete-nudges)
-   - `project-completion-reminders` (obsolete)
-3. Disable Supabase cron triggers
-4. Clean up `_shared/resume-nudge-logic.mjs`
+1. Complete notify-fan-out event handlers (10 remaining out of 13)
+2. Monitor production for 1 week
+3. Delete obsolete Supabase Edge Functions after confirming all functionality works
+4. Update deployment documentation with new paths
