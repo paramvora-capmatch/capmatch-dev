@@ -1,0 +1,14 @@
+[project]
+name = "capmatch-renew-calendar-watches"
+version = "1.0.0"
+description = "Calendar watch renewal scheduled job"
+requires-python = ">=3.13"
+dependencies = [
+    "supabase>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -5,6 +5,8 @@ import React from 'react';
 import { AuthRedirector } from '../auth/AuthRedirector';
 import { useAppHydration } from '@/hooks/useAppHydration';
 import { SplashScreen } from '../ui/SplashScreen';
+import { ToastProvider } from '@/contexts/ToastContext';
+import { NotificationToastContainer } from '@/components/notifications/NotificationToastContainer';
 
 export const ClientAppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isHydrated = useAppHydration();
@@ -17,9 +19,10 @@ export const ClientAppProviders: React.FC<{ children: React.ReactNode }> = ({ ch
   }
 
   return (
-    <>
+    <ToastProvider>
       <AuthRedirector />
       {children}
-    </>
+      <NotificationToastContainer />
+    </ToastProvider>
   );
 };

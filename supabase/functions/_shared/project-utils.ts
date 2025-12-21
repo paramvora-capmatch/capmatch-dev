@@ -1024,6 +1024,7 @@ export async function createProjectWithResumeAndStorage(
 			const participants = Array.from(participantIds).map((userId) => ({
 				thread_id: chatThread.id,
 				user_id: userId,
+				last_read_at: '1970-01-01T00:00:00.000Z',
 			}));
 
 			return supabaseAdmin

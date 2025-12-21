@@ -315,20 +315,8 @@ export const useDocumentManagement = ({
             resourceId,
           });
         } else {
-          if (eventId) {
-            const { error: notifyError } = await supabase.functions.invoke(
-              "notify-fan-out",
-              {
-                body: { eventId },
-              }
-            );
-            if (notifyError) {
-              console.error(
-                "[useDocumentManagement] Failed to fan out document_uploaded notification:",
-                notifyError
-              );
-            }
-          }
+          // Note: Domain event created. The GCP notify-fan-out service will automatically
+          // poll and process this event within 0-60 seconds (avg 30s).
         }
 
         await listDocuments();

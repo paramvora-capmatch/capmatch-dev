@@ -1,0 +1,13 @@
+[project]
+name = "capmatch-meeting-reminders"
+version = "1.0.0"
+description = "Meeting reminders scheduled job"
+requires-python = ">=3.13"
+dependencies = [
+    "supabase>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

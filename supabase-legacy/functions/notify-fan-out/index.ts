@@ -7,7 +7,8 @@ type DomainEventRow = {
 	id: number;
 	event_type: string;
 	actor_id: string | null;
-	project_id: string;
+	project_id: string | null;
+	org_id: string | null;
 	resource_id: string | null;
 	thread_id: string | null;
 	meeting_id: string | null;
@@ -60,6 +61,7 @@ serve(async (req) => {
         event_type,
         actor_id,
         project_id,
+        org_id,
         resource_id,
         thread_id,
         meeting_id,
@@ -90,6 +92,20 @@ serve(async (req) => {
 			return await handleMeetingReminder(supabaseAdmin, event);
 		} else if (event.event_type === "resume_incomplete_nudge") {
 			return await handleResumeIncompleteNudge(supabaseAdmin, event);
+		} else if (event.event_type === "invite_accepted") {
+			return await handleInviteAccepted(supabaseAdmin, event);
+		} else if (event.event_type === "project_access_granted") {
+			return await handleProjectAccessGranted(supabaseAdmin, event);
+		} else if (event.event_type === "project_access_changed") {
+			return await handleProjectAccessChanged(supabaseAdmin, event);
+		} else if (event.event_type === "project_access_revoked") {
+			return await handleProjectAccessRevoked(supabaseAdmin, event);
+		} else if (event.event_type === "thread_unread_stale") {
+			return await handleThreadUnreadStale(supabaseAdmin, event);
+		} else if (event.event_type === "document_permission_granted") {
+			return await handleDocumentPermissionGranted(supabaseAdmin, event);
+		} else if (event.event_type === "document_permission_changed") {
+			return await handleDocumentPermissionChanged(supabaseAdmin, event);
 		} else {
 			return jsonResponse({
 				skipped: true,
@@ -197,7 +213,28 @@ async function handleDocumentUpload(
 		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
-	return jsonResponse({ inserted: rows.length });
+	// Queue aggregated emails for document upload
+	const uploaderName = await getProfileName(supabaseAdmin, event.actor_id);
+	for (const userId of recipientsToInsert) {
+		await queueEmail(supabaseAdmin, {
+			userId,
+			eventId: event.id,
+			eventType: "document_uploaded",
+			deliveryType: "aggregated",
+			projectId: event.project_id,
+			projectName,
+			subject: `New document uploaded to ${projectName}`,
+			bodyData: {
+				file_name: fileName,
+				project_name: projectName,
+				uploader_name: uploaderName,
+				resource_id: event.resource_id,
+				link_url: linkUrl,
+			},
+		});
+	}
+
+	return jsonResponse({ inserted: rows.length, emails_queued: recipientsToInsert.length });
 }
 
 // =============================================================================
@@ -846,10 +883,725 @@ async function handleResumeIncompleteNudge(
 		return jsonResponse({ error: "notification_insert_failed" }, 500);
 	}
 
+	// Queue immediate email for resume incomplete nudge
+	await queueEmail(supabaseAdmin, {
+		userId: ownerToNotify,
+		eventId: event.id,
+		eventType: "resume_incomplete_nudge",
+		deliveryType: "immediate",
+		projectId: event.project_id,
+		projectName,
+		subject: `Complete your ${resumeTypeLabel} Resume - ${projectName}`,
+		bodyData: {
+			resume_type: resumeType,
+			resume_type_label: resumeTypeLabel,
+			completion_percent: completionPercent,
+			nudge_tier: nudgeTier,
+			project_name: projectName,
+			link_url: linkUrl,
+		},
+	});
+
 	console.log(
 		`[notify-fan-out] Created resume nudge notification for owner ${ownerToNotify}, tier ${nudgeTier}`
 	);
+	return jsonResponse({ inserted: 1, emails_queued: 1 });
+}
+
+// =============================================================================
+// Handler: Invite Accepted
+// =============================================================================
+
+async function handleInviteAccepted(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing invite_accepted event:", {
+		eventId: event.id,
+		actorId: event.actor_id,
+		orgId: event.org_id,
+		payload: event.payload,
+	});
+
+	// Extract org_id from event column or payload
+	const orgId = event.org_id || (event.payload?.org_id as string | undefined);
+
+	if (!orgId) {
+		console.error("[notify-fan-out] Missing org_id for invite_accepted event");
+		return jsonResponse({ inserted: 0, reason: "missing_org_id" });
+	}
+
+	// Extract payload data
+	const newMemberId = event.actor_id || (event.payload?.new_member_id as string);
+	const newMemberName = (event.payload?.new_member_name as string) || "A new member";
+	const newMemberEmail = event.payload?.new_member_email as string | undefined;
+	const orgName = (event.payload?.org_name as string) || "your organization";
+
+	if (!newMemberId) {
+		console.error("[notify-fan-out] Missing new_member_id for invite_accepted event");
+		return jsonResponse({ inserted: 0, reason: "missing_new_member_id" });
+	}
+
+	// Fetch all org owners to notify
+	const { data: orgOwners, error: ownersError } = await supabaseAdmin
+		.from("org_members")
+		.select("user_id")
+		.eq("org_id", orgId)
+		.eq("role", "owner");
+
+	if (ownersError) {
+		console.error("[notify-fan-out] Failed to fetch org owners:", ownersError);
+		return jsonResponse({ error: "failed_to_fetch_owners" }, 500);
+	}
+
+	if (!orgOwners || orgOwners.length === 0) {
+		console.log("[notify-fan-out] No org owners to notify");
+		return jsonResponse({ inserted: 0, reason: "no_owners" });
+	}
+
+	// Exclude the new member from recipients (they shouldn't get notified about themselves joining)
+	const recipientIds = orgOwners
+		.map((o) => o.user_id)
+		.filter((id): id is string => id !== null && id !== newMemberId);
+
+	if (recipientIds.length === 0) {
+		console.log("[notify-fan-out] No recipients after filtering out new member");
+		return jsonResponse({ inserted: 0, reason: "no_recipients_after_filter" });
+	}
+
+	// Check for already notified recipients
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	const recipientsToNotify = recipientIds.filter((id) => !alreadyNotified.has(id));
+
+	if (recipientsToNotify.length === 0) {
+		console.log("[notify-fan-out] All recipients already notified");
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Build notification content
+	const title = `New team member joined - ${orgName}`;
+	const body = `**${newMemberName}** has joined **${orgName}**`;
+	const linkUrl = "/team";
+
+	let insertedCount = 0;
+
+	// Create notifications for each org owner
+	for (const userId of recipientsToNotify) {
+		// Check user preferences
+		const isMuted = await checkUserPreference(supabaseAdmin, userId, {
+			scopeType: "global",
+			scopeId: "",
+			eventType: "invite_accepted",
+			channel: "in_app",
+			projectId: "",
+		});
+
+		if (isMuted) {
+			console.log(`[notify-fan-out] User ${userId} has muted invite_accepted notifications`);
+			continue;
+		}
+
+		// Insert notification
+		const { error: insertError } = await supabaseAdmin
+			.from("notifications")
+			.insert({
+				user_id: userId,
+				event_id: event.id,
+				title,
+				body,
+				link_url: linkUrl,
+				payload: {
+					type: "invite_accepted",
+					org_id: orgId,
+					org_name: orgName,
+					new_member_id: newMemberId,
+					new_member_name: newMemberName,
+					new_member_email: newMemberEmail,
+				},
+			});
+
+		if (insertError) {
+			console.error(
+				`[notify-fan-out] Failed to insert notification for user ${userId}:`,
+				insertError
+			);
+		} else {
+			insertedCount++;
+
+			// Queue immediate email for invite accepted
+			await queueEmail(supabaseAdmin, {
+				userId,
+				eventId: event.id,
+				eventType: "invite_accepted",
+				deliveryType: "immediate",
+				projectId: null,
+				projectName: null,
+				subject: `${newMemberName} has joined ${orgName}`,
+				bodyData: {
+					org_id: orgId,
+					org_name: orgName,
+					new_member_id: newMemberId,
+					new_member_name: newMemberName,
+					new_member_email: newMemberEmail,
+					link_url: linkUrl,
+				},
+			});
+		}
+	}
+
+	console.log(
+		`[notify-fan-out] Created ${insertedCount} invite_accepted notifications for org ${orgId}`
+	);
+	return jsonResponse({ inserted: insertedCount, emails_queued: insertedCount });
+}
+
+// =============================================================================
+// Handler: Project Access Granted
+// =============================================================================
+
+async function handleProjectAccessGranted(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing project_access_granted event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string);
+	const projectName = (event.payload?.project_name as string) || "a project";
+	const newPermission = (event.payload?.new_permission as string) || "view";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for project_access_granted");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "project",
+		scopeId: projectId || "",
+		eventType: "project_access_granted",
+		channel: "in_app",
+		projectId: projectId || "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted project_access_granted notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification
+	const title = `You've been added to ${projectName}`;
+	const body = `You now have **${newPermission}** access to **${projectName}**`;
+	const linkUrl = `/project/workspace/${projectId}`;
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "project_access_granted",
+				project_id: projectId,
+				project_name: projectName,
+				new_permission: newPermission,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert project_access_granted notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	// Queue immediate email for project access granted
+	await queueEmail(supabaseAdmin, {
+		userId: affectedUserId,
+		eventId: event.id,
+		eventType: "project_access_granted",
+		deliveryType: "immediate",
+		projectId,
+		projectName,
+		subject: `You've been added to ${projectName}`,
+		bodyData: {
+			project_id: projectId,
+			project_name: projectName,
+			new_permission: newPermission,
+			link_url: linkUrl,
+		},
+	});
+
+	console.log(`[notify-fan-out] Created project_access_granted notification for user ${affectedUserId}`);
+	return jsonResponse({ inserted: 1, emails_queued: 1 });
+}
+
+// =============================================================================
+// Handler: Project Access Changed
+// =============================================================================
+
+async function handleProjectAccessChanged(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing project_access_changed event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string);
+	const projectName = (event.payload?.project_name as string) || "a project";
+	const oldPermission = (event.payload?.old_permission as string) || "view";
+	const newPermission = (event.payload?.new_permission as string) || "view";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for project_access_changed");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "project",
+		scopeId: projectId || "",
+		eventType: "project_access_changed",
+		channel: "in_app",
+		projectId: projectId || "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted project_access_changed notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification
+	const title = `Your access to ${projectName} has changed`;
+	const body = `Your access changed from **${oldPermission}** to **${newPermission}**`;
+	const linkUrl = `/project/workspace/${projectId}`;
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "project_access_changed",
+				project_id: projectId,
+				project_name: projectName,
+				old_permission: oldPermission,
+				new_permission: newPermission,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert project_access_changed notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	// Queue immediate email ONLY for view -> edit upgrades
+	let emailsQueued = 0;
+	if (oldPermission === "view" && newPermission === "edit") {
+		await queueEmail(supabaseAdmin, {
+			userId: affectedUserId,
+			eventId: event.id,
+			eventType: "project_access_changed",
+			deliveryType: "immediate",
+			projectId,
+			projectName,
+			subject: `Your access to ${projectName} has been upgraded`,
+			bodyData: {
+				project_id: projectId,
+				project_name: projectName,
+				old_permission: oldPermission,
+				new_permission: newPermission,
+				link_url: linkUrl,
+			},
+		});
+		emailsQueued = 1;
+		console.log(`[notify-fan-out] Queued email for view->edit upgrade for user ${affectedUserId}`);
+	}
+
+	console.log(`[notify-fan-out] Created project_access_changed notification for user ${affectedUserId}`);
+	return jsonResponse({ inserted: 1, emails_queued: emailsQueued });
+}
+
+// =============================================================================
+// Handler: Project Access Revoked
+// =============================================================================
+
+async function handleProjectAccessRevoked(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing project_access_revoked event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string);
+	const projectName = (event.payload?.project_name as string) || "a project";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for project_access_revoked");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "global",
+		scopeId: "",
+		eventType: "project_access_revoked",
+		channel: "in_app",
+		projectId: "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted project_access_revoked notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification - link to dashboard since they no longer have project access
+	const title = `Access removed - ${projectName}`;
+	const body = `Your access to **${projectName}** has been removed`;
+	const linkUrl = "/dashboard";
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "project_access_revoked",
+				project_id: projectId,
+				project_name: projectName,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert project_access_revoked notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	console.log(`[notify-fan-out] Created project_access_revoked notification for user ${affectedUserId}`);
 	return jsonResponse({ inserted: 1 });
+}
+
+// =============================================================================
+// Handler: Thread Unread Stale (>3h unread messages)
+// =============================================================================
+
+async function handleThreadUnreadStale(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing thread_unread_stale event:", {
+		eventId: event.id,
+		threadId: event.thread_id,
+		projectId: event.project_id,
+		payload: event.payload,
+	});
+
+	// Extract user_id from payload (the recipient who has unread messages)
+	const userId = event.payload?.user_id as string | undefined;
+
+	if (!userId || !event.thread_id) {
+		console.error("[notify-fan-out] Missing user_id or thread_id for thread_unread_stale event");
+		return jsonResponse({ inserted: 0, reason: "missing_required_data" });
+	}
+
+	// Check if already notified for this event
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(userId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Get thread info
+	const threadInfo = await getThreadInfo(supabaseAdmin, event.thread_id);
+	const threadTopic = (event.payload?.thread_topic as string) || threadInfo?.topic || "general";
+	const threadLabel = threadTopic.startsWith("#") ? threadTopic : `#${threadTopic}`;
+
+	// Get unread count from payload
+	const unreadCount = (event.payload?.unread_count as number) || 1;
+
+	// Get project name
+	const projectName = event.project_id
+		? await getProjectName(supabaseAdmin, event.project_id)
+		: "your project";
+
+	// Build email content (no in-app notification for this event type)
+	const messageWord = unreadCount === 1 ? "message" : "messages";
+	const linkUrl = event.project_id
+		? `/project/workspace/${event.project_id}?tab=chat&thread=${event.thread_id}`
+		: `/dashboard`;
+
+	// Queue aggregated email for unread thread nudge
+	await queueEmail(supabaseAdmin, {
+		userId,
+		eventId: event.id,
+		eventType: "thread_unread_stale",
+		deliveryType: "aggregated",
+		projectId: event.project_id,
+		projectName,
+		subject: `${unreadCount} unread ${messageWord} in ${threadLabel}`,
+		bodyData: {
+			thread_id: event.thread_id,
+			thread_topic: threadTopic,
+			unread_count: unreadCount,
+			project_name: projectName,
+			link_url: linkUrl,
+		},
+	});
+
+	console.log(`[notify-fan-out] Queued thread_unread_stale email for user ${userId} in thread ${event.thread_id} (no in-app notification)`);
+	return jsonResponse({ inserted: 0, emails_queued: 1 });
+}
+
+// =============================================================================
+// Handler: Document Permission Granted
+// =============================================================================
+
+async function handleDocumentPermissionGranted(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing document_permission_granted event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		resourceId: event.resource_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string) || "";
+	const projectName = (event.payload?.project_name as string) || "a project";
+	const resourceId = event.resource_id || (event.payload?.resource_id as string) || "";
+	const resourceName = (event.payload?.resource_name as string) || "a document";
+	const newPermission = (event.payload?.new_permission as string) || "view";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for document_permission_granted");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	if (!resourceId || !projectId) {
+		console.error("[notify-fan-out] Missing resource_id or project_id for document_permission_granted");
+		return jsonResponse({ inserted: 0, reason: "missing_resource_id_or_project_id" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "project",
+		scopeId: projectId || "",
+		eventType: "document_permission_granted",
+		channel: "in_app",
+		projectId: projectId || "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted document_permission_granted notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification
+	const title = `Document access granted - ${projectName}`;
+	const body = `You now have **${newPermission}** access to **"${resourceName}"** in **${projectName}**`;
+	const linkUrl = `/project/workspace/${projectId}?resourceId=${resourceId}`;
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "document_permission_granted",
+				project_id: projectId,
+				project_name: projectName,
+				resource_id: resourceId,
+				resource_name: resourceName,
+				new_permission: newPermission,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert document_permission_granted notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	console.log(`[notify-fan-out] Created document_permission_granted notification for user ${affectedUserId}`);
+	return jsonResponse({ inserted: 1 });
+}
+
+// =============================================================================
+// Handler: Document Permission Changed
+// =============================================================================
+
+async function handleDocumentPermissionChanged(
+	supabaseAdmin: SupabaseClient,
+	event: DomainEventRow
+) {
+	console.log("[notify-fan-out] Processing document_permission_changed event:", {
+		eventId: event.id,
+		projectId: event.project_id,
+		resourceId: event.resource_id,
+		payload: event.payload,
+	});
+
+	const affectedUserId = event.payload?.affected_user_id as string | undefined;
+	const projectId = event.project_id || (event.payload?.project_id as string) || "";
+	const projectName = (event.payload?.project_name as string) || "a project";
+	const resourceId = event.resource_id || (event.payload?.resource_id as string) || "";
+	const resourceName = (event.payload?.resource_name as string) || "a document";
+	const oldPermission = (event.payload?.old_permission as string) || "view";
+	const newPermission = (event.payload?.new_permission as string) || "view";
+
+	if (!affectedUserId) {
+		console.error("[notify-fan-out] Missing affected_user_id for document_permission_changed");
+		return jsonResponse({ inserted: 0, reason: "missing_affected_user_id" });
+	}
+
+	if (!resourceId || !projectId) {
+		console.error("[notify-fan-out] Missing resource_id or project_id for document_permission_changed");
+		return jsonResponse({ inserted: 0, reason: "missing_resource_id_or_project_id" });
+	}
+
+	// Only notify for view -> edit upgrades
+	if (oldPermission !== "view" || newPermission !== "edit") {
+		console.log(`[notify-fan-out] Skipping document_permission_changed notification - not a view->edit upgrade (${oldPermission} -> ${newPermission})`);
+		return jsonResponse({ inserted: 0, reason: "not_view_to_edit_upgrade" });
+	}
+
+	// Check if already notified
+	const alreadyNotified = await fetchExistingRecipients(supabaseAdmin, event.id);
+	if (alreadyNotified.has(affectedUserId)) {
+		return jsonResponse({ inserted: 0, reason: "already_notified" });
+	}
+
+	// Check user preferences
+	const isMuted = await checkUserPreference(supabaseAdmin, affectedUserId, {
+		scopeType: "project",
+		scopeId: projectId || "",
+		eventType: "document_permission_changed",
+		channel: "in_app",
+		projectId: projectId || "",
+	});
+
+	if (isMuted) {
+		console.log(`[notify-fan-out] User ${affectedUserId} has muted document_permission_changed notifications`);
+		return jsonResponse({ inserted: 0, reason: "user_muted" });
+	}
+
+	// Build notification
+	const title = `Document access upgraded - ${projectName}`;
+	const body = `Your access to **"${resourceName}"** has been upgraded from **view** to **edit** in **${projectName}**`;
+	const linkUrl = `/project/workspace/${projectId}?resourceId=${resourceId}`;
+
+	const { error: insertError } = await supabaseAdmin
+		.from("notifications")
+		.insert({
+			user_id: affectedUserId,
+			event_id: event.id,
+			title,
+			body,
+			link_url: linkUrl,
+			payload: {
+				type: "document_permission_changed",
+				project_id: projectId,
+				project_name: projectName,
+				resource_id: resourceId,
+				resource_name: resourceName,
+				old_permission: oldPermission,
+				new_permission: newPermission,
+			},
+		});
+
+	if (insertError) {
+		console.error("[notify-fan-out] Failed to insert document_permission_changed notification:", insertError);
+		return jsonResponse({ error: "notification_insert_failed" }, 500);
+	}
+
+	console.log(`[notify-fan-out] Created document_permission_changed notification for user ${affectedUserId}`);
+	return jsonResponse({ inserted: 1 });
+}
+
+// =============================================================================
+// Email Queue Helper
+// =============================================================================
+
+async function queueEmail(
+	supabaseAdmin: SupabaseClient,
+	params: {
+		userId: string;
+		eventId: number;
+		eventType: string;
+		deliveryType: "immediate" | "aggregated";
+		projectId?: string | null;
+		projectName?: string | null;
+		subject: string;
+		bodyData: Record<string, unknown>;
+	}
+): Promise<void> {
+	const { error } = await supabaseAdmin.from("pending_emails").upsert(
+		{
+			user_id: params.userId,
+			event_id: params.eventId,
+			event_type: params.eventType,
+			delivery_type: params.deliveryType,
+			project_id: params.projectId ?? null,
+			project_name: params.projectName ?? null,
+			subject: params.subject,
+			body_data: params.bodyData,
+			status: "pending",
+		},
+		{ onConflict: "event_id,user_id" }
+	);
+
+	if (error) {
+		console.error("[notify-fan-out] Failed to queue email:", error);
+	} else {
+		console.log(
+			`[notify-fan-out] Queued ${params.deliveryType} email for user ${params.userId}, event ${params.eventId}`
+		);
+	}
 }
 
 // =============================================================================

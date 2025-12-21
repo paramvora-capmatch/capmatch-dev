@@ -19,7 +19,7 @@ import { useProjectMembers } from "../../../hooks/useProjectMembers";
 // =============================================================================
 
 type BorrowerData = Record<string, { name: string; email: string }>;
-type UnreadMap = Record<string, boolean>;
+type UnreadMap = Record<string, number>; // Changed from boolean to number for unread counts
 
 interface BorrowerResumeRow {
   project_id: string;
@@ -139,7 +139,7 @@ async function fetchBorrowerData(
 }
 
 /**
- * Computes unread indicators for each project based on latest message author
+ * Computes unread message counts for each project
  */
 async function computeUnreadIndicators(
   projectIds: string[],
@@ -147,52 +147,36 @@ async function computeUnreadIndicators(
 ): Promise<UnreadMap> {
   if (projectIds.length === 0 || !advisorUserId) return {};
 
-  const { data: threads, error: threadsError } = await supabase
-    .from("chat_threads")
-    .select("id, project_id")
-    .in("project_id", projectIds);
-
-  if (threadsError) {
-    console.error("[AdvisorDashboard] Failed to fetch chat threads:", threadsError);
-    return {};
-  }
-
-  if (!threads || threads.length === 0) return {};
-
-  const threadIds = threads.map((t) => t.id);
-  const { data: messages, error: messagesError } = await supabase
-    .from("project_messages")
-    .select("thread_id, user_id, created_at")
-    .in("thread_id", threadIds)
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  if (messagesError) {
-    console.error("[AdvisorDashboard] Failed to fetch messages:", messagesError);
-    return {};
-  }
-
-  // Map thread_id to project_id
-  const threadToProject: Record<string, string> = {};
-  threads.forEach((t) => {
-    threadToProject[t.id as string] = t.project_id as string;
-  });
-
-  // Get latest message per project
-  const latestByProject = new Map<string, { user_id: string }>();
-  (messages || []).forEach((m: { thread_id: string; user_id: string }) => {
-    const projectId = threadToProject[m.thread_id];
-    if (projectId && !latestByProject.has(projectId)) {
-      latestByProject.set(projectId, { user_id: m.user_id });
-    }
-  });
-
-  // Build unread map: true if latest message is not from advisor
   const unreadMap: UnreadMap = {};
-  projectIds.forEach((projectId) => {
-    const latest = latestByProject.get(projectId);
-    unreadMap[projectId] = latest ? latest.user_id !== advisorUserId : false;
-  });
+
+  // Fetch unread counts for each project using the RPC function
+  await Promise.all(
+    projectIds.map(async (projectId) => {
+      try {
+        const { data, error } = await supabase.rpc('get_unread_counts_for_project', {
+          p_project_id: projectId,
+          p_user_id: advisorUserId,
+        });
+
+        if (error) {
+          console.error(`Failed to load unread counts for project ${projectId}:`, error);
+          return;
+        }
+
+        // Sum up all unread counts for this project
+        const totalUnread = (data || []).reduce(
+          (sum: number, row: { unread_count: number }) => sum + (Number(row.unread_count) || 0),
+          0
+        );
+
+        if (totalUnread > 0) {
+          unreadMap[projectId] = totalUnread;
+        }
+      } catch (err) {
+        console.error(`Error fetching unread counts for project ${projectId}:`, err);
+      }
+    })
+  );
 
   return unreadMap;
 }
@@ -328,7 +312,7 @@ export default function AdvisorDashboardPage() {
                               primaryCtaHref={`/advisor/project/${project.id}`}
                               primaryCtaLabel="View Project"
                               showDeleteButton={false}
-                              unread={!!unreadByProject[project.id]}
+                              unreadCount={unreadByProject[project.id] || 0}
                               borrowerName={borrowerData[project.owner_org_id]?.name}
                               showMembers={true}
                               members={membersByProjectId[project.id]}

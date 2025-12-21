@@ -8,6 +8,7 @@ import { MeetInterface } from "@/components/chat/MeetInterface";
 import { useChatStore } from "@/stores/useChatStore";
 import { AIChatInterface } from "@/components/chat/AIChatInterface";
 import { Message, FieldContext } from "@/types/ask-ai-types";
+import { useUnreadCounts } from "@/hooks/useUnreadCounts";
 
 interface StickyChatCardProps {
   projectId?: string;
@@ -80,9 +81,10 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
     }
   }, [externalShouldExpand, isChatCollapsed]);
 
-  // Placeholder counts
+  // Thread and unread counts (WhatsApp-style)
   const threadCount = useChatStore((s) => s.threads.length);
-  const unreadCount = 3; // TODO: replace with real unread count when available
+  const { getTotalUnreadCount, formatUnreadCount } = useUnreadCounts();
+  const unreadCount = getTotalUnreadCount();
 
   const askAiEnabled = true; // presentation only; parent governs availability
 
@@ -136,7 +138,7 @@ export const StickyChatCard: React.FC<StickyChatCardProps> = ({
               <MessageSquare className="h-5 w-5 text-blue-600" />
               {unreadCount > 0 && (
                 <span className="absolute -top-2 -right-2 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-blue-600 text-white text-[10px] font-semibold">
-                  {unreadCount > 99 ? "99+" : unreadCount}
+                  {formatUnreadCount(unreadCount)}
                 </span>
               )}
             </div>

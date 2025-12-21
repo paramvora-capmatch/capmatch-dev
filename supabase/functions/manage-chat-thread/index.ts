@@ -89,9 +89,14 @@ serve(async (req) => {
       }
 
       // Add current user as participant (idempotent)
+      // Set last_read_at to epoch so existing messages appear as unread
       const { error: currentUserError } = await supabaseAdmin
         .from("chat_thread_participants")
-        .upsert({ thread_id: thread.id, user_id: user.id }, { onConflict: 'thread_id,user_id' });
+        .upsert({ 
+          thread_id: thread.id, 
+          user_id: user.id,
+          last_read_at: '1970-01-01T00:00:00.000Z'
+        }, { onConflict: 'thread_id,user_id' });
 
       if (currentUserError) {
         throw new Error(
@@ -101,7 +106,11 @@ serve(async (req) => {
 
       // Add additional participants if provided
       if (participant_ids && participant_ids.length > 0) {
-        const participantInserts = participant_ids.map((pid) => ({ thread_id: thread.id, user_id: pid }));
+        const participantInserts = participant_ids.map((pid) => ({ 
+          thread_id: thread.id, 
+          user_id: pid,
+          last_read_at: '1970-01-01T00:00:00.000Z'
+        }));
 
         const { error: participantsError } = await supabaseAdmin
           .from("chat_thread_participants")
@@ -112,6 +121,27 @@ serve(async (req) => {
             `Failed to add some participants: ${participantsError.message}`
           );
           // Don't fail the entire operation for participant errors
+        } else {
+          // Create domain events for each participant added (excluding the actor)
+          // This is necessary because the trigger can't get auth.uid() when using service role
+          for (const pid of participant_ids) {
+            if (pid !== user.id && project_id) {
+              try {
+                await supabaseAdmin.rpc("insert_chat_thread_participant_added_event", {
+                  p_actor_id: user.id,
+                  p_project_id: project_id,
+                  p_thread_id: thread.id,
+                  p_added_user_id: pid,
+                  p_payload: {
+                    thread_topic: topic || null
+                  }
+                });
+              } catch (eventError) {
+                // Log error but don't fail the operation if event creation fails
+                console.error(`Failed to create domain event for participant ${pid}:`, eventError);
+              }
+            }
+          }
         }
       }
 
@@ -157,8 +187,23 @@ serve(async (req) => {
         );
       }
 
+      // Get thread details for events
+      const { data: threadData, error: threadDataError } = await supabaseAdmin
+        .from("chat_threads")
+        .select("id, topic, project_id")
+        .eq("id", thread_id)
+        .single();
+
+      if (threadDataError) {
+        throw new Error(`Failed to get thread details: ${threadDataError.message}`);
+      }
+
       // Add participants
-      const participantInserts = participant_ids.map((pid) => ({ thread_id, user_id: pid }));
+      const participantInserts = participant_ids.map((pid) => ({ 
+        thread_id, 
+        user_id: pid,
+        last_read_at: '1970-01-01T00:00:00.000Z'
+      }));
 
       const { error: participantsError } = await supabaseAdmin
         .from("chat_thread_participants")
@@ -168,6 +213,27 @@ serve(async (req) => {
         throw new Error(
           `Failed to add participants: ${participantsError.message}`
         );
+      }
+
+      // Create domain events for each participant added (excluding the actor)
+      // This is necessary because the trigger can't get auth.uid() when using service role
+      for (const pid of participant_ids) {
+        if (pid !== user.id && threadData.project_id) {
+          try {
+            await supabaseAdmin.rpc("insert_chat_thread_participant_added_event", {
+              p_actor_id: user.id,
+              p_project_id: threadData.project_id,
+              p_thread_id: thread_id,
+              p_added_user_id: pid,
+              p_payload: {
+                thread_topic: threadData.topic
+              }
+            });
+          } catch (eventError) {
+            // Log error but don't fail the operation if event creation fails
+            console.error(`Failed to create domain event for participant ${pid}:`, eventError);
+          }
+        }
       }
 
       return new Response(

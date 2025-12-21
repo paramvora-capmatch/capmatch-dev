@@ -26,9 +26,11 @@
   "exclude": [
     "node_modules",
     "supabase/functions/**/*",
+    "supabase-legacy/**/*",
     "scripts/**/*",
     "components/**/*",
     "temp/**/*",
-    "video-conferencing-app/**/*"
+    "video-conferencing-app/**/*",
+    "gcp-services/**/*"
   ]
 }

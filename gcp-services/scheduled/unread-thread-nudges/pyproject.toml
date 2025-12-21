@@ -1,0 +1,8 @@
+[project]
+name = "capmatch-unread-thread-nudges"
+version = "1.0.0"
+description = "Scheduled job to nudge users about stale unread messages"
+dependencies = [
+    "supabase>=2.0.0",
+    "python-dotenv>=1.0.0",
+]

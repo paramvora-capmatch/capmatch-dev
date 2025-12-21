@@ -36,6 +36,7 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.template
+!.env.example
 
 # vercel
 .vercel
@@ -51,3 +52,12 @@ video-conferencing-app
 
 # logs
 logs/
+
+# Python
+__pycache__/
+*$py.class
+*.so
+.venv/
+venv/
+ENV/
+env/

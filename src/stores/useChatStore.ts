@@ -59,21 +59,27 @@ interface ChatState {
   participants: ChatParticipant[];
   messages: ProjectMessage[];
   attachments: MessageAttachment[];
-  
+
   // UI state
   isLoading: boolean;
   error: string | null;
-  
+
   // Realtime
   messageChannel: RealtimeChannel | null;
   membershipChannel: RealtimeChannel | null;
-  
+  projectUnreadChannel: RealtimeChannel | null; // For monitoring unread counts across all threads
+
   // Safe attachment UX
   attachableDocuments: AttachableDocument[];
   isLoadingAttachable: boolean;
-  
+
   // Message cache per thread (prevents reloads when switching tabs)
   messageCache: Map<string, ProjectMessage[]>;
+
+  // Unread counts (WhatsApp-style)
+  threadUnreadCounts: Map<string, number>; // threadId -> unread count
+  totalUnreadCount: number; // aggregate across all threads in current project
+  isLoadingUnreadCounts: boolean;
 }
 
 interface ChatActions {
@@ -81,12 +87,12 @@ interface ChatActions {
   loadThreadsForProject: (projectId: string) => Promise<void>;
   createThread: (projectId: string, topic?: string, participantIds?: string[]) => Promise<string>;
   setActiveThread: (threadId: string | null) => void;
-  
+
   // Participants
   addParticipant: (threadId: string, userIds: string[]) => Promise<void>;
   removeParticipant: (threadId: string, userIds: string) => Promise<void>;
   loadParticipants: (threadId: string) => Promise<void>;
-  
+
   // Messages
   loadMessages: (threadId: string) => Promise<void>;
   sendMessage: (threadId: string, content: string, replyTo?: number | null) => Promise<void>;
@@ -94,12 +100,20 @@ interface ChatActions {
   unsubscribeFromMessages: () => void;
   subscribeToMembershipChanges: (projectId: string) => Promise<void>;
   unsubscribeFromMembershipChanges: () => void;
-  
+  subscribeToProjectUnreadCounts: (projectId: string) => Promise<void>;
+  unsubscribeFromProjectUnreadCounts: () => void;
+
   // Attachments
   loadAttachments: (messageId: number) => Promise<void>;
   attachDocument: (messageId: number, documentPath: string) => Promise<void>;
   loadAttachableDocuments: (threadId: string) => Promise<void>;
-  
+
+  // Unread counts (WhatsApp-style)
+  loadUnreadCounts: (projectId: string, userId: string) => Promise<void>;
+  updateThreadUnreadCount: (threadId: string, count: number) => void;
+  incrementUnreadCount: (threadId: string) => void;
+  resetThreadUnreadCount: (threadId: string) => void;
+
   // Utility
   markThreadRead: (threadId: string) => Promise<void>;
   reset: () => void;
@@ -167,9 +181,13 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
   error: null,
   messageChannel: null,
   membershipChannel: null,
+  projectUnreadChannel: null,
   attachableDocuments: [],
   isLoadingAttachable: false,
   messageCache: new Map<string, ProjectMessage[]>(),
+  threadUnreadCounts: new Map<string, number>(),
+  totalUnreadCount: 0,
+  isLoadingUnreadCounts: false,
 
   // Actions
   loadThreadsForProject: async (projectId: string) => {
@@ -183,10 +201,16 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
 
       if (error) throw error;
       set({ threads: data || [], isLoading: false });
+
+      // Load unread counts for this project
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await get().loadUnreadCounts(projectId, user.id);
+      }
     } catch (err) {
-      set({ 
+      set({
         error: err instanceof Error ? err.message : 'Failed to load threads',
-        isLoading: false 
+        isLoading: false
       });
     }
   },
@@ -256,6 +280,9 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       get().subscribeToMessages(threadId);
       get().loadAttachableDocuments(threadId);
       void get().markThreadRead(threadId);
+
+      // Reset unread count for this thread (WhatsApp-style)
+      get().resetThreadUnreadCount(threadId);
     } else {
       set({ activeThreadId: null, messages: [], participants: [], attachableDocuments: [] });
     }
@@ -561,14 +588,8 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
         throw new Error('Failed to send message');
       }
 
-      // Trigger Notification Fan-Out (Fire and Forget)
-      if (eventId) {
-          void supabase.functions.invoke('notify-fan-out', {
-              body: { eventId: eventId }
-          }).then(({ error }) => {
-              if (error) console.error('Failed to trigger chat notification fan-out:', error);
-          });
-      }
+      // Note: Domain event created. The GCP notify-fan-out service will automatically
+      // poll and process this event within 0-60 seconds (avg 30s).
 
       // Keep message as "sending" - it will be updated to "delivered" when real message arrives
       // Real message will arrive via postgres_changes and replace this with "delivered" status
@@ -652,9 +673,11 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           
           // Only show "Delivered" status for messages sent by current user (iMessage-style)
           const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (currentUser && newMessage.user_id === currentUser.id) {
+          const isOwnMessage = currentUser && newMessage.user_id === currentUser.id;
+
+          if (isOwnMessage) {
             newMessage.status = 'delivered'; // Real message is delivered
-            
+
             // Clear "Delivered" status after 5 seconds (iMessage-style ephemeral status)
             clearDeliveredStatusAfterTimeout(newMessage.id, 5000);
           }
@@ -662,7 +685,7 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
           // Replace optimistic message with real one, or append if no match
           set((state) => {
             let updatedMessages: ProjectMessage[];
-            
+
             if (optimisticMatch) {
               // Replace optimistic message with real one
               const optimisticIndex = state.messages.findIndex((msg) => msg.id === optimisticMatch.id);
@@ -672,16 +695,21 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
               // Append new message (from another user or no optimistic match)
               updatedMessages = [...state.messages, newMessage];
             }
-            
+
             // Update cache with new messages
             const cache = new Map(state.messageCache);
             cache.set(threadId, updatedMessages);
-            
+
             return {
               messages: updatedMessages,
               messageCache: cache,
             };
           });
+
+          // Increment unread count if message is from another user and thread is not active (WhatsApp-style)
+          if (!isOwnMessage && get().activeThreadId !== threadId) {
+            get().incrementUnreadCount(threadId);
+          }
         }
       )
       .subscribe();
@@ -772,6 +800,84 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     }
   },
 
+  subscribeToProjectUnreadCounts: async (projectId: string) => {
+    const { projectUnreadChannel } = get();
+
+    // Clean up existing subscription
+    if (projectUnreadChannel) {
+      supabase.removeChannel(projectUnreadChannel);
+      set({ projectUnreadChannel: null });
+    }
+
+    if (!projectId) {
+      return;
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.warn("[ChatStore] Cannot subscribe to project unread counts without auth user");
+      return;
+    }
+
+    // Get all thread IDs for this project that the user is a participant of
+    const { data: threads } = await supabase
+      .from('chat_threads')
+      .select('id')
+      .eq('project_id', projectId);
+
+    if (!threads || threads.length === 0) {
+      return;
+    }
+
+    const threadIds = threads.map(t => t.id);
+
+    // Subscribe to new messages in ANY thread in this project
+    const channel = supabase
+      .channel(`project-unread-counts-${projectId}-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'project_messages',
+        },
+        async (payload) => {
+          const newMessage = payload.new as { id: number; thread_id: string; user_id: string; created_at: string };
+          
+          // Check if this message is for a thread in the current project
+          if (!threadIds.includes(newMessage.thread_id)) {
+            return;
+          }
+
+          // Check if message is from another user
+          const isOwnMessage = newMessage.user_id === user.id;
+          
+          // Check if this is not the active thread
+          const state = get();
+          const isActiveThread = state.activeThreadId === newMessage.thread_id;
+
+          // Only increment if: not own message AND not active thread
+          if (!isOwnMessage && !isActiveThread) {
+            console.log('[ChatStore] Incrementing unread count for thread:', newMessage.thread_id);
+            get().incrementUnreadCount(newMessage.thread_id);
+          }
+        }
+      )
+      .subscribe();
+
+    set({ projectUnreadChannel: channel });
+    console.log('[ChatStore] Subscribed to project-wide unread counts for project:', projectId);
+  },
+
+  unsubscribeFromProjectUnreadCounts: () => {
+    const { projectUnreadChannel } = get();
+    if (projectUnreadChannel) {
+      supabase.removeChannel(projectUnreadChannel);
+      set({ projectUnreadChannel: null });
+      console.log('[ChatStore] Unsubscribed from project-wide unread counts');
+    }
+  },
+
   loadAttachments: async (messageId: number) => { /* Implementation... */ },
   attachDocument: async (messageId: number, documentPath: string) => { /* Implementation... */ },
   loadAttachableDocuments: async (threadId: string) => {
@@ -802,15 +908,73 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
     }
   },
 
+  // Unread count management (WhatsApp-style)
+  loadUnreadCounts: async (projectId: string, userId: string) => {
+    set({ isLoadingUnreadCounts: true });
+    try {
+      const { data, error } = await supabase.rpc('get_unread_counts_for_project', {
+        p_project_id: projectId,
+        p_user_id: userId,
+      });
+
+      if (error) throw error;
+
+      // Convert array of {thread_id, unread_count} to Map
+      const unreadMap = new Map<string, number>();
+      let total = 0;
+
+      (data || []).forEach((row: { thread_id: string; unread_count: number }) => {
+        const count = Number(row.unread_count) || 0;
+        unreadMap.set(row.thread_id, count);
+        total += count;
+      });
+
+      set({
+        threadUnreadCounts: unreadMap,
+        totalUnreadCount: total,
+        isLoadingUnreadCounts: false,
+      });
+    } catch (err) {
+      console.error('Failed to load unread counts:', err);
+      set({ isLoadingUnreadCounts: false });
+    }
+  },
+
+  updateThreadUnreadCount: (threadId: string, count: number) => {
+    const state = get();
+    const oldCount = state.threadUnreadCounts.get(threadId) || 0;
+    const newCounts = new Map(state.threadUnreadCounts);
+    newCounts.set(threadId, count);
+
+    const totalDiff = count - oldCount;
+
+    set({
+      threadUnreadCounts: newCounts,
+      totalUnreadCount: Math.max(0, state.totalUnreadCount + totalDiff),
+    });
+  },
+
+  incrementUnreadCount: (threadId: string) => {
+    const state = get();
+    const currentCount = state.threadUnreadCounts.get(threadId) || 0;
+    get().updateThreadUnreadCount(threadId, currentCount + 1);
+  },
+
+  resetThreadUnreadCount: (threadId: string) => {
+    get().updateThreadUnreadCount(threadId, 0);
+  },
+
   reset: () => {
     get().unsubscribeFromMessages();
-    
+    get().unsubscribeFromMembershipChanges();
+    get().unsubscribeFromProjectUnreadCounts();
+
     // Clear all status timeouts when resetting (iMessage-style ephemeral status cleanup)
     statusTimeouts.forEach((timeout) => clearTimeout(timeout));
     statusTimeouts.clear();
     fadeOutTimeouts.forEach((timeout) => clearTimeout(timeout));
     fadeOutTimeouts.clear();
-    
+
     set({
       activeThreadId: null,
       threads: [],
@@ -822,6 +986,9 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => {
       attachableDocuments: [],
       isLoadingAttachable: false,
       messageCache: new Map<string, ProjectMessage[]>(),
+      threadUnreadCounts: new Map<string, number>(),
+      totalUnreadCount: 0,
+      isLoadingUnreadCounts: false,
     });
   },
 

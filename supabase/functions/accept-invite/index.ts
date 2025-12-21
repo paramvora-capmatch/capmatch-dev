@@ -315,22 +315,31 @@ serve(async (req: any) => {
         // 2) Apply per-doc overrides (none/view/edit) and back-compat exclusions
         if (grant.fileOverrides && Array.isArray(grant.fileOverrides) && grant.fileOverrides.length > 0) {
           console.log(`[accept-invite] [${requestId}] Applying ${grant.fileOverrides.length} file overrides for project ${grant.projectId}`);
-          const rows = grant.fileOverrides.map((o: any) => ({
-            resource_id: o.resource_id,
-            user_id: userId,
-            permission: o.permission,
-            granted_by: invite.invited_by,
-          }));
-          const { error: ovErr } = await supabase
-            .from('permissions')
-            .upsert(rows, { onConflict: 'resource_id,user_id' });
-          if (ovErr) {
-            console.error(`[accept-invite] [${requestId}] Failed to apply file overrides for project ${grant.projectId}:`, {
-              error: ovErr.message,
-              error_code: ovErr.code,
-            });
-          } else {
-            console.log(`[accept-invite] [${requestId}] File overrides applied successfully for project ${grant.projectId}`);
+          
+          // Upsert all permissions including 'none' (which explicitly blocks inheritance)
+          const rows = grant.fileOverrides
+            .filter((o: any) => o.permission === 'none' || o.permission === 'view' || o.permission === 'edit')
+            .map((o: any) => ({
+              resource_id: o.resource_id,
+              user_id: userId,
+              permission: o.permission, // Can be 'none', 'view', or 'edit'
+              granted_by: invite.invited_by,
+            }));
+          
+          if (rows.length > 0) {
+            const { error: ovErr } = await supabase
+              .from('permissions')
+              .upsert(rows, { onConflict: 'resource_id,user_id' });
+            if (ovErr) {
+              console.error(`[accept-invite] [${requestId}] Failed to apply file overrides for project ${grant.projectId}:`, {
+                error: ovErr.message,
+                error_code: ovErr.code,
+              });
+            } else {
+              const noneCount = rows.filter((r: any) => r.permission === 'none').length;
+              const otherCount = rows.length - noneCount;
+              console.log(`[accept-invite] [${requestId}] File overrides applied successfully for project ${grant.projectId} (${otherCount} view/edit, ${noneCount} none)`);
+            }
           }
         } else if (grant.exclusions && Array.isArray(grant.exclusions) && grant.exclusions.length > 0) {
           console.log(`[accept-invite] [${requestId}] Applying ${grant.exclusions.length} exclusions for project ${grant.projectId}`);
@@ -363,7 +372,11 @@ serve(async (req: any) => {
           } else if (generalThread) {
             const { error: addPartErr } = await supabase
               .from('chat_thread_participants')
-              .upsert({ thread_id: generalThread.id, user_id: userId }, { onConflict: 'thread_id,user_id' });
+              .upsert({ 
+                thread_id: generalThread.id, 
+                user_id: userId,
+                last_read_at: '1970-01-01T00:00:00.000Z'
+              }, { onConflict: 'thread_id,user_id' });
             if (addPartErr) {
               console.error(`[accept-invite] [${requestId}] Failed to add user to General chat thread for project ${grant.projectId}:`, {
                 error: addPartErr.message,
@@ -381,6 +394,214 @@ serve(async (req: any) => {
       console.log(`[accept-invite] [${requestId}] No project grants to process`);
     }
 
+    // =========================================================================
+    // Create document-level permission events for newly granted access
+    // =========================================================================
+    // Since this is a new user, BEFORE state is empty - all documents they have
+    // access to should generate document_permission_granted events
+    console.log(`[accept-invite] [${requestId}] Creating document-level permission events`);
+    
+    const docDomainEventIds: number[] = [];
+    
+    if (projectGrants.length > 0) {
+      // Get org name for events
+      const { data: orgData } = await supabase
+        .from("orgs")
+        .select("name")
+        .eq("id", invite.org_id)
+        .single();
+      const orgName = orgData?.name || "your organization";
+      
+      // Get project names
+      const projectIds = projectGrants.map((g: any) => g.projectId).filter(Boolean);
+      const { data: projectsWithNames } = await supabase
+        .from("projects")
+        .select("id, name")
+        .in("id", projectIds);
+      const projectNameMap = new Map<string, string>();
+      (projectsWithNames || []).forEach((p: any) => projectNameMap.set(p.id, p.name));
+      
+      // Capture AFTER state of document permissions (same logic as update-member-permissions)
+      type AfterDocPerm = {
+        resource_id: string;
+        project_id: string | null;
+        permission_level: string;
+        resource_name: string | null;
+      };
+      
+      const afterDocPerms: AfterDocPerm[] = [];
+      
+      // Get all FILE resources for these projects
+      const { data: allFileResources, error: filesError } = await supabase
+        .from("resources")
+        .select("id, project_id, name, parent_id, resource_type")
+        .in("project_id", projectIds)
+        .eq("resource_type", "FILE");
+      
+      if (!filesError && allFileResources && allFileResources.length > 0) {
+        // Get explicit document permissions
+        const fileResourceIds = allFileResources.map((r: any) => r.id);
+        const { data: explicitPerms, error: explicitPermsError } = await supabase
+          .from("permissions")
+          .select("resource_id, permission")
+          .eq("user_id", userId)
+          .in("resource_id", fileResourceIds);
+        
+        const explicitPermsMap = new Map<string, string>();
+        if (!explicitPermsError && explicitPerms) {
+          for (const perm of explicitPerms) {
+            const level =
+              perm.permission === "edit" || perm.permission === "view" || perm.permission === "none"
+                ? perm.permission
+                : "view";
+            explicitPermsMap.set(perm.resource_id, level);
+          }
+        }
+        
+        // Get project root permissions for inheritance
+        const { data: rootResources, error: rootResourcesError } = await supabase
+          .from("resources")
+          .select("id, project_id, resource_type")
+          .in("project_id", projectIds)
+          .in("resource_type", ["PROJECT_DOCS_ROOT", "BORROWER_DOCS_ROOT"]);
+        
+        const rootPermsMap = new Map<string, string>();
+        if (!rootResourcesError && rootResources) {
+          const rootResourceIds = rootResources.map((r: any) => r.id);
+          const { data: rootPerms, error: rootPermsError } = await supabase
+            .from("permissions")
+            .select("resource_id, permission")
+            .eq("user_id", userId)
+            .in("resource_id", rootResourceIds);
+          
+          if (!rootPermsError && rootPerms) {
+            for (const perm of rootPerms) {
+              const rootRes = rootResources.find((r: any) => r.id === perm.resource_id);
+              if (rootRes) {
+                const key = `${rootRes.project_id}:${rootRes.resource_type}`;
+                const level =
+                  perm.permission === "edit" || perm.permission === "view" || perm.permission === "none"
+                    ? perm.permission
+                    : "view";
+                rootPermsMap.set(key, level);
+              }
+            }
+          }
+        }
+        
+        // Build resource-to-root map for inheritance
+        const resourceToRootMap = new Map<string, { project_id: string; root_type: string }>();
+        const { data: allResources, error: allResourcesError } = await supabase
+          .from("resources")
+          .select("id, project_id, parent_id, resource_type")
+          .in("project_id", projectIds);
+        
+        if (!allResourcesError && allResources) {
+          const findRootForResource = (resourceId: string): { project_id: string; root_type: string } | null => {
+            const resource = allResources.find((r: any) => r.id === resourceId);
+            if (!resource) return null;
+            
+            let current: any = resource;
+            const visited = new Set<string>();
+            
+            while (current.parent_id && !visited.has(current.id)) {
+              visited.add(current.id);
+              const parent = allResources.find((r: any) => r.id === current.parent_id);
+              if (!parent) break;
+              
+              if (parent.resource_type === "PROJECT_DOCS_ROOT" || parent.resource_type === "BORROWER_DOCS_ROOT") {
+                return { project_id: current.project_id, root_type: parent.resource_type };
+              }
+              
+              current = parent;
+            }
+            return null;
+          };
+          
+          for (const fileRes of allFileResources) {
+            const rootInfo = findRootForResource(fileRes.id);
+            if (rootInfo) {
+              resourceToRootMap.set(fileRes.id, rootInfo);
+            }
+          }
+        }
+        
+        // Build afterDocPerms with effective permissions
+        for (const fileRes of allFileResources) {
+          const explicitPerm = explicitPermsMap.get(fileRes.id);
+          
+          if (explicitPerm) {
+            // Has explicit permission (including 'none')
+            if (explicitPerm !== 'none') {
+              // Only include non-'none' permissions (skip 'none' as it means no access)
+              afterDocPerms.push({
+                resource_id: fileRes.id,
+                project_id: fileRes.project_id,
+                permission_level: explicitPerm,
+                resource_name: fileRes.name ?? null,
+              });
+            }
+          } else {
+            // No explicit permission - inherit from root
+            const rootInfo = resourceToRootMap.get(fileRes.id);
+            if (rootInfo) {
+              const rootKey = `${rootInfo.project_id}:${rootInfo.root_type}`;
+              const inheritedPerm = rootPermsMap.get(rootKey);
+              if (inheritedPerm && inheritedPerm !== 'none') {
+                afterDocPerms.push({
+                  resource_id: fileRes.id,
+                  project_id: fileRes.project_id,
+                  permission_level: inheritedPerm,
+                  resource_name: fileRes.name ?? null,
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // Create document_permission_granted events for all documents (BEFORE state is empty for new user)
+      for (const docPerm of afterDocPerms) {
+        if (!docPerm.project_id) continue;
+        const projectName = projectNameMap.get(docPerm.project_id) || "a project";
+        const { data: event, error: eventError } = await supabase
+          .from("domain_events")
+          .insert({
+            event_type: "document_permission_granted",
+            actor_id: invite.invited_by, // The person who sent the invite
+            project_id: docPerm.project_id,
+            org_id: invite.org_id,
+            resource_id: docPerm.resource_id,
+            payload: {
+              affected_user_id: userId,
+              project_id: docPerm.project_id,
+              project_name: projectName,
+              resource_id: docPerm.resource_id,
+              resource_name: docPerm.resource_name,
+              old_permission: null, // No previous access (new user)
+              new_permission: docPerm.permission_level, // Final permission (view or edit)
+              changed_by_id: invite.invited_by,
+              org_id: invite.org_id,
+              org_name: orgName,
+            },
+          })
+          .select("id")
+          .single();
+        
+        if (eventError) {
+          console.error(`[accept-invite] [${requestId}] Failed to create document_permission_granted event:`, eventError.message);
+        } else if (event) {
+          docDomainEventIds.push(event.id);
+          console.log(`[accept-invite] [${requestId}] Created document_permission_granted event ${event.id} for resource ${docPerm.resource_id}`);
+        }
+      }
+      
+      // Note: Domain events created. The GCP notify-fan-out service will automatically
+      // poll and process these events within 0-60 seconds (avg 30s).
+      
+      console.log(`[accept-invite] [${requestId}] Created ${docDomainEventIds.length} document permission events`);
+    }
+
     // Mark invite accepted
     console.log(`[accept-invite] [${requestId}] Marking invite ${invite.id} as accepted`);
     const { error: updateInviteError } = await supabase
@@ -395,6 +616,41 @@ serve(async (req: any) => {
       });
     } else {
       console.log(`[accept-invite] [${requestId}] Invite marked as accepted successfully`);
+    }
+
+    // Create domain event for invite_accepted
+    console.log(`[accept-invite] [${requestId}] Creating invite_accepted domain event`);
+    const projectGrantIds = projectGrants.map((g: any) => g.projectId).filter(Boolean);
+    const { data: domainEvent, error: domainEventError } = await supabase
+      .from("domain_events")
+      .insert({
+        event_type: "invite_accepted",
+        actor_id: userId,
+        org_id: invite.org_id,
+        project_id: null, // Org-level event, no specific project
+        payload: {
+          new_member_id: userId,
+          new_member_name: full_name,
+          new_member_email: invite.invited_email,
+          invited_by: invite.invited_by,
+          org_id: invite.org_id,
+          org_name: invite.org?.name || null,
+          project_grant_ids: projectGrantIds,
+        },
+      })
+      .select("id")
+      .single();
+
+    if (domainEventError) {
+      // Log but don't fail the request - the invite acceptance is complete
+      console.error(`[accept-invite] [${requestId}] Failed to create domain event:`, {
+        error: domainEventError.message,
+        error_code: domainEventError.code,
+      });
+    } else {
+      console.log(`[accept-invite] [${requestId}] Domain event created: ${domainEvent.id}`);
+      // Note: Domain event created. The GCP notify-fan-out service will automatically
+      // poll and process this event within 0-60 seconds (avg 30s).
     }
 
     const duration = Date.now() - startTime;

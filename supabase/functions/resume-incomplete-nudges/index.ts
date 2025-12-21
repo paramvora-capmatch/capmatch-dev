@@ -13,9 +13,9 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 // Nudge intervals in milliseconds: 45m, 1d, 3d, 1w
 const NUDGE_INTERVALS = [
-  45 * 60 * 1000, // 45 minutes
-  24 * 60 * 60 * 1000, // 1 day
+  1 * 24 * 60 * 60 * 1000, // 1 day
   3 * 24 * 60 * 60 * 1000, // 3 days
+  5 * 24 * 60 * 60 * 1000, // 5 days
   7 * 24 * 60 * 60 * 1000, // 1 week
 ];
 
@@ -53,106 +53,114 @@ serve(async (req) => {
 async function sendResumeNudges(supabaseAdmin: any) {
   console.log("[resume-incomplete-nudges] Starting resume nudge processing");
 
-  // Query project_workspace_activity for users with edit history
-  const { data: activities, error: activitiesError } = await supabaseAdmin
-    .from("project_workspace_activity")
-    .select(
-      "user_id, project_id, last_project_resume_edit_at, last_borrower_resume_edit_at"
-    )
-    .or(
-      "last_project_resume_edit_at.not.is.null,last_borrower_resume_edit_at.not.is.null"
-    );
+  // Query all projects with their resumes and workspace activity
+  // This catches both users who HAVE edited and users who HAVEN'T even started
+  const { data: projects, error: projectsError } = await supabaseAdmin
+    .from("projects")
+    .select(`
+      id,
+      name,
+      owner_org_id,
+      created_at,
+      project_workspace_activity (
+        user_id,
+        last_project_resume_edit_at,
+        last_borrower_resume_edit_at
+      )
+    `);
 
-  if (activitiesError) {
+  if (projectsError) {
     console.error(
-      "[resume-incomplete-nudges] Error fetching workspace activities:",
-      activitiesError
+      "[resume-incomplete-nudges] Error fetching projects:",
+      projectsError
     );
     return;
   }
 
-  if (!activities || activities.length === 0) {
-    console.log("[resume-incomplete-nudges] No workspace activities found");
+  if (!projects || projects.length === 0) {
+    console.log("[resume-incomplete-nudges] No projects found");
     return;
   }
 
   console.log(
-    `[resume-incomplete-nudges] Found ${activities.length} workspace activities to check`
+    `[resume-incomplete-nudges] Found ${projects.length} projects to check`
   );
 
   let totalEventsCreated = 0;
+  let totalSkipped = 0;
   const now = Date.now();
 
-  // Process each activity
-  for (const activity of activities) {
-    const { user_id, project_id, last_project_resume_edit_at, last_borrower_resume_edit_at } = activity;
+  // Process each project
+  for (const project of projects) {
+    const { id: project_id, name: project_name, owner_org_id, created_at: project_created_at, project_workspace_activity } = project;
 
-    // Check if user is a project owner before processing any resumes
-    // This avoids duplicate logs and unnecessary processing
-    const { data: project, error: projectError } = await supabaseAdmin
-      .from("projects")
-      .select("owner_org_id")
-      .eq("id", project_id)
-      .single();
-
-    if (projectError || !project) {
-      console.error(
-        `[resume-incomplete-nudges] Error fetching project ${project_id}:`,
-        projectError
-      );
-      continue; // Skip this activity
-    }
-
-    const { data: owners, error: ownersError } = await supabaseAdmin
+    // Get project owners
+    const { data: orgMembers, error: ownersError } = await supabaseAdmin
       .from("org_members")
       .select("user_id")
-      .eq("org_id", project.owner_org_id)
+      .eq("org_id", owner_org_id)
       .eq("role", "owner");
 
-    if (ownersError || !owners || owners.length === 0) {
-      console.error(
-        `[resume-incomplete-nudges] Error fetching owners for project ${project_id}:`,
-        ownersError
-      );
-      continue; // Skip this activity
-    }
-
-    const ownerUserIds = owners.map((o: any) => o.user_id);
-
-    // Only process if the editor is an owner
-    if (!ownerUserIds.includes(user_id)) {
+    if (ownersError || !orgMembers || orgMembers.length === 0) {
       console.log(
-        `[resume-incomplete-nudges] Skipping nudges - user ${user_id} is not a project owner for project ${project_id}`
+        `[resume-incomplete-nudges] Skipped project "${project_name}" (${project_id}): No owners found (org_id: ${owner_org_id})`
       );
-      continue; // Skip both project and borrower resume processing
+      totalSkipped++;
+      continue;
     }
 
-    // Process Project Resume
-    if (last_project_resume_edit_at) {
-      const editTime = new Date(last_project_resume_edit_at).getTime();
-      const timeSinceEdit = now - editTime;
+    // Get profiles for all owners
+    const ownerUserIds = orgMembers.map((m: any) => m.user_id);
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", ownerUserIds);
 
-      // Check if resume is incomplete - use current version if available
-      let completenessPercent: number | undefined;
-      
+    // Create a map of user_id -> profile for easy lookup
+    const profileMap = new Map<string, any>(
+      (profiles || []).map((p: any) => [p.id, p])
+    );
+
+    // For each owner, check if they need nudges
+    for (const member of orgMembers) {
+      const user_id = member.user_id;
+      const profile = profileMap.get(user_id) as any;
+      const user_name = profile?.full_name || profile?.email || user_id;
+
+      // Find workspace activity for this owner (if it exists)
+      const activity = (project_workspace_activity || []).find(
+        (a: any) => a.user_id === user_id
+      );
+
+      const last_project_resume_edit_at = activity?.last_project_resume_edit_at;
+      const last_borrower_resume_edit_at = activity?.last_borrower_resume_edit_at;
+
+      // Process Project Resume
+      // If user never edited, use project creation time as the "inactivity" start
+      const projectResumeReferenceTime = last_project_resume_edit_at
+        ? new Date(last_project_resume_edit_at)
+        : new Date(project_created_at);
+
+      const timeSinceProjectResumeActivity = now - projectResumeReferenceTime.getTime();
+
+      // Check if project resume is incomplete
+      let projectCompletenessPercent: number | undefined;
+
       // Try to get current version from resources table
-      const { data: resource } = await supabaseAdmin
+      const { data: projectResource } = await supabaseAdmin
         .from("resources")
         .select("current_version_id")
         .eq("project_id", project_id)
         .eq("resource_type", "PROJECT_RESUME")
         .maybeSingle();
 
-      if (resource?.current_version_id) {
+      if (projectResource?.current_version_id) {
         const { data: projectResume } = await supabaseAdmin
           .from("project_resumes")
           .select("completeness_percent")
-          .eq("id", resource.current_version_id)
+          .eq("id", projectResource.current_version_id)
           .maybeSingle();
-        // Ensure completeness is a number
-        completenessPercent = projectResume?.completeness_percent != null 
-          ? Number(projectResume.completeness_percent) 
-          : undefined;
+        projectCompletenessPercent = projectResume?.completeness_percent;
       } else {
         // Fallback to latest resume
         const { data: projectResume } = await supabaseAdmin
@@ -162,46 +170,51 @@ async function sendResumeNudges(supabaseAdmin: any) {
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
-        // Ensure completeness is a number
-        completenessPercent = projectResume?.completeness_percent != null 
-          ? Number(projectResume.completeness_percent) 
-          : undefined;
+        projectCompletenessPercent = projectResume?.completeness_percent;
       }
 
-      // Skip if resume is complete (100%) or completeness is undefined
-      if (completenessPercent === undefined) {
-        console.log(
-          `[resume-incomplete-nudges] Skipping project resume nudge for project ${project_id} - completeness not found`
-        );
-      } else if (completenessPercent >= 100) {
-        console.log(
-          `[resume-incomplete-nudges] Skipping project resume nudge for project ${project_id} - already complete (${completenessPercent}%)`
-        );
-      } else if (completenessPercent < 100) {
+      // Process project resume nudge if incomplete (or doesn't exist - 0% complete)
+      const effectiveProjectCompleteness = projectCompletenessPercent ?? 0;
+
+      if (effectiveProjectCompleteness < 100) {
         const result = await processResumeNudge(
           supabaseAdmin,
           project_id,
           user_id,
           "project",
-          timeSinceEdit,
-          completenessPercent,
-          new Date(last_project_resume_edit_at)
+          timeSinceProjectResumeActivity,
+          effectiveProjectCompleteness,
+          projectResumeReferenceTime,
+          project_name,
+          user_name
         );
 
-        if (result) {
+        if (result.created) {
           totalEventsCreated++;
+        } else {
+          totalSkipped++;
+          console.log(
+            `[resume-incomplete-nudges] Skipped project resume for "${user_name}" in project "${project_name}": ${result.reason}`
+          );
         }
+      } else {
+        totalSkipped++;
+        console.log(
+          `[resume-incomplete-nudges] Skipped project resume for "${user_name}" in project "${project_name}": Resume is ${effectiveProjectCompleteness}% complete`
+        );
       }
-    }
 
-    // Process Borrower Resume
-    if (last_borrower_resume_edit_at) {
-      const editTime = new Date(last_borrower_resume_edit_at).getTime();
-      const timeSinceEdit = now - editTime;
+      // Process Borrower Resume
+      // If user never edited borrower resume, use project creation time as reference
+      const borrowerResumeReferenceTime = last_borrower_resume_edit_at
+        ? new Date(last_borrower_resume_edit_at)
+        : new Date(project_created_at);
 
-      // Check if resume is incomplete - use current version if available
+      const timeSinceBorrowerResumeActivity = now - borrowerResumeReferenceTime.getTime();
+
+      // Check if borrower resume is incomplete
       let borrowerCompletenessPercent: number | undefined;
-      
+
       // Try to get current version from resources table
       const { data: borrowerResource } = await supabaseAdmin
         .from("resources")
@@ -235,36 +248,47 @@ async function sendResumeNudges(supabaseAdmin: any) {
           : undefined;
       }
 
-      // Skip if resume is complete (100%) or completeness is undefined
-      if (borrowerCompletenessPercent === undefined) {
-        console.log(
-          `[resume-incomplete-nudges] Skipping borrower resume nudge for project ${project_id} - completeness not found`
-        );
-      } else if (borrowerCompletenessPercent >= 100) {
-        console.log(
-          `[resume-incomplete-nudges] Skipping borrower resume nudge for project ${project_id} - already complete (${borrowerCompletenessPercent}%)`
-        );
-      } else if (borrowerCompletenessPercent < 100) {
+      // Process borrower resume nudge if incomplete (or doesn't exist - 0% complete)
+      const effectiveBorrowerCompleteness = borrowerCompletenessPercent ?? 0;
+
+      if (effectiveBorrowerCompleteness < 100) {
         const result = await processResumeNudge(
           supabaseAdmin,
           project_id,
           user_id,
           "borrower",
-          timeSinceEdit,
-          borrowerCompletenessPercent,
-          new Date(last_borrower_resume_edit_at)
+          timeSinceBorrowerResumeActivity,
+          effectiveBorrowerCompleteness,
+          borrowerResumeReferenceTime,
+          project_name,
+          user_name
         );
 
-        if (result) {
+        if (result.created) {
           totalEventsCreated++;
+        } else {
+          totalSkipped++;
+          console.log(
+            `[resume-incomplete-nudges] Skipped borrower resume for "${user_name}" in project "${project_name}": ${result.reason}`
+          );
         }
+      } else {
+        totalSkipped++;
+        console.log(
+          `[resume-incomplete-nudges] Skipped borrower resume for "${user_name}" in project "${project_name}": Resume is ${effectiveBorrowerCompleteness}% complete`
+        );
       }
     }
   }
 
   console.log(
-    `[resume-incomplete-nudges] Completed. Created ${totalEventsCreated} domain events.`
+    `[resume-incomplete-nudges] Completed. Created ${totalEventsCreated} domain events, skipped ${totalSkipped} resume checks.`
   );
+}
+
+interface NudgeResult {
+  created: boolean;
+  reason?: string;
 }
 
 async function processResumeNudge(
@@ -274,8 +298,10 @@ async function processResumeNudge(
   resumeType: "project" | "borrower",
   timeSinceEdit: number,
   completenessPercent: number,
-  lastEditTime: Date
-): Promise<boolean> {
+  lastEditTime: Date,
+  projectName: string,
+  userName: string
+): Promise<NudgeResult> {
   // Determine which nudge tier should be sent
   let nudgeTier: number | null = null;
 
@@ -293,18 +319,55 @@ async function processResumeNudge(
 
   // If time since edit is less than first interval (45m), don't send nudge yet
   if (!nudgeTier) {
-    return false;
+    const minutesSinceEdit = Math.floor(timeSinceEdit / (60 * 1000));
+    return {
+      created: false,
+      reason: `Time since edit (${minutesSinceEdit} minutes) is less than the first nudge interval (45 minutes)`,
+    };
   }
 
-  // Note: Ownership check is done upfront in sendResumeNudges before calling this function
-  // We only notify the specific owner who edited
-  const ownerToNotify = userId;
+  // Get project owners - we notify them, not the editor
+  const { data: project, error: projectError } = await supabaseAdmin
+    .from("projects")
+    .select("owner_org_id")
+    .eq("id", projectId)
+    .single();
 
-  // Check for existing nudges for this specific owner
+  if (projectError || !project) {
+    console.error(
+      `[resume-incomplete-nudges] Error fetching project:`,
+      projectError
+    );
+    return {
+      created: false,
+      reason: `Failed to fetch project: ${projectError?.message || "Project not found"}`,
+    };
+  }
+
+  const { data: owners, error: ownersError } = await supabaseAdmin
+    .from("org_members")
+    .select("user_id")
+    .eq("org_id", project.owner_org_id)
+    .eq("role", "owner");
+
+  if (ownersError || !owners || owners.length === 0) {
+    console.error(
+      `[resume-incomplete-nudges] Error fetching owners:`,
+      ownersError
+    );
+    return {
+      created: false,
+      reason: `Failed to fetch project owners: ${ownersError?.message || "No owners found"}`,
+    };
+  }
+
+  const ownerUserIds = owners.map((o: any) => o.user_id);
+
+  // Check for existing nudges for this specific user
   const { data: allOwnerNudges, error: nudgesError } = await supabaseAdmin
     .from("notifications")
     .select("id, user_id, created_at, payload")
-    .eq("user_id", ownerToNotify)
+    .eq("user_id", userId)
     .eq("payload->>type", "resume_incomplete_nudge");
 
   if (nudgesError) {
@@ -312,7 +375,10 @@ async function processResumeNudge(
       `[resume-incomplete-nudges] Error checking existing nudges:`,
       nudgesError
     );
-    return false;
+    return {
+      created: false,
+      reason: `Failed to check existing nudges: ${nudgesError.message}`,
+    };
   }
 
   // Filter to only nudges for this project and resume type
@@ -337,7 +403,7 @@ async function processResumeNudge(
 
     if (nudgeIdsToDelete.length > 0) {
       console.log(
-        `[resume-incomplete-nudges] Resetting tier for ${resumeType} resume - deleting ${nudgeIdsToDelete.length} old nudges`
+        `[resume-incomplete-nudges] Resetting tier for ${resumeType} resume in "${projectName}" for "${userName}" - deleting ${nudgeIdsToDelete.length} old nudges`
       );
       const { error: deleteError } = await supabaseAdmin
         .from("notifications")
@@ -360,27 +426,15 @@ async function processResumeNudge(
   });
 
   if (existingTierNudge) {
+    const nudgeCreatedAt = new Date(existingTierNudge.created_at).toISOString();
     console.log(
-      `[resume-incomplete-nudges] Tier ${nudgeTier} nudge already sent for ${resumeType} resume in project ${projectId}`
+      `[resume-incomplete-nudges] Tier ${nudgeTier} nudge already sent for ${resumeType} resume in "${projectName}" for "${userName}"`
     );
-    return false;
+    return {
+      created: false,
+      reason: `Tier ${nudgeTier} nudge already sent at ${nudgeCreatedAt}`,
+    };
   }
-
-  // Format time since edit for logging
-  const hoursSinceEdit = Math.floor(timeSinceEdit / (60 * 60 * 1000));
-  const minutesSinceEdit = Math.floor((timeSinceEdit % (60 * 60 * 1000)) / (60 * 1000));
-  const timeSinceEditStr = hoursSinceEdit > 0 
-    ? `${hoursSinceEdit}h ${minutesSinceEdit}m`
-    : `${minutesSinceEdit}m`;
-
-  // Log reason for creating domain event
-  console.log(
-    `[resume-incomplete-nudges] Creating domain event for ${resumeType} resume nudge:\n` +
-    `  Reason: Resume is ${completenessPercent}% complete and hasn't been edited in ${timeSinceEditStr} (Tier ${nudgeTier})\n` +
-    `  Project ID: ${projectId}\n` +
-    `  Owner who edited: ${userId} (will be notified)\n` +
-    `  Last edit time: ${lastEditTime.toISOString()}`
-  );
 
   // Create domain event
   const { data: domainEvent, error: eventError } = await supabaseAdmin
@@ -405,39 +459,22 @@ async function processResumeNudge(
       `[resume-incomplete-nudges] Error creating domain event:`,
       eventError
     );
-    return false;
+    return {
+      created: false,
+      reason: `Failed to create domain event: ${eventError.message}`,
+    };
   }
 
   console.log(
-    `[resume-incomplete-nudges] Created domain event ${domainEvent.id} for ${resumeType} resume (tier ${nudgeTier}, ${completenessPercent}% complete)`
+    `[resume-incomplete-nudges] Created domain event ${domainEvent.id} for ${resumeType} resume in "${projectName}" for "${userName}" (tier ${nudgeTier}, ${completenessPercent}% complete)`
   );
 
-  // Trigger notification fan-out (fire and forget)
-  // Use HTTP request to invoke the notify-fan-out function
-  try {
-    const functionUrl = `${SUPABASE_URL}/functions/v1/notify-fan-out`;
-    const response = await fetch(functionUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-      },
-      body: JSON.stringify({ eventId: domainEvent.id }),
-    });
+  // Note: Domain event created. The GCP notify-fan-out service will automatically
+  // poll and process this event within 0-60 seconds (avg 30s).
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(
-        `[resume-incomplete-nudges] Error triggering fan-out: ${response.status} ${errorText}`
-      );
-    }
-  } catch (err) {
-    console.error(
-      `[resume-incomplete-nudges] Exception triggering fan-out:`,
-      err
-    );
-  }
-
-  return true;
+  return {
+    created: true,
+    reason: `Created tier ${nudgeTier} nudge for ${completenessPercent}% complete resume`,
+  };
 }
 

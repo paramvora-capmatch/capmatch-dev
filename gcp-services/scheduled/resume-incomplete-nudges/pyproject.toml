@@ -1,0 +1,8 @@
+[project]
+name = "capmatch-resume-incomplete-nudges"
+version = "1.0.0"
+description = "Scheduled job to nudge users about incomplete project and borrower resumes"
+dependencies = [
+    "supabase>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
