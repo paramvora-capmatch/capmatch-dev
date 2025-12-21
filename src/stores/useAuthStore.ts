@@ -685,18 +685,16 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   },
 
   acceptInvite: async (token: string, accept: boolean = true) => {
-    try {
-      const { error } = await supabase.functions.invoke("accept-invite", {
-        // Removed 'data' as it's unused
-        body: { token, accept },
-      });
-      if (error) throw error;
-      // Refresh memberships after accepting/cancelling
-      await get().loadOrgMemberships();
-    } catch (e) {
-      console.error("[AuthStore] acceptInvite failed:", e);
-      throw e;
-    }
+    // NOTE: This function signature is incomplete - the API requires password and full_name
+    // This function may be unused or needs to be updated to match the new API signature
+    // For accepting invites, use useOrgStore.acceptInvite() instead
+    console.warn(
+      "[AuthStore] acceptInvite called with incomplete signature. " +
+      "Use useOrgStore.acceptInvite() with password and full_name instead."
+    );
+    throw new Error(
+      "acceptInvite requires password and full_name. Use useOrgStore.acceptInvite() instead."
+    );
   },
 }));
 
