@@ -252,7 +252,7 @@ async def accept_invite(
                 extra={"request_id": request_id, "accept": request.accept},
             )
             raise HTTPException(
-                status_code=400, detail="Invalid request", code="invalid_request"
+                status_code=400, detail="Invalid request"
             )
 
         if not request.password or len(request.password) < 8:
@@ -266,7 +266,6 @@ async def accept_invite(
             raise HTTPException(
                 status_code=400,
                 detail="Password required (min 8 chars)",
-                code="invalid_password",
             )
 
         if not request.full_name or not request.full_name.strip():
@@ -275,7 +274,7 @@ async def accept_invite(
                 extra={"request_id": request_id, "has_full_name": bool(request.full_name)},
             )
             raise HTTPException(
-                status_code=400, detail="Full name required", code="invalid_full_name"
+                status_code=400, detail="Full name required"
             )
 
         supabase = get_supabase_admin()
@@ -329,7 +328,7 @@ async def accept_invite(
         if not invite.get("invited_email"):
             logger.error("Invalid invite - no email", extra={"request_id": request_id})
             raise HTTPException(
-                status_code=400, detail="Invalid invite - no email", code="invalid_invite"
+                status_code=400, detail="Invalid invite - no email"
             )
 
         logger.info(
@@ -393,7 +392,6 @@ async def accept_invite(
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to create user account: {error_msg}",
-                code="create_user_failed",
             )
 
         logger.info(
@@ -431,7 +429,7 @@ async def accept_invite(
                     extra={"request_id": request_id, "error": str(cleanup_error)},
                 )
             raise HTTPException(
-                status_code=500, detail="Failed to create user profile", code="create_profile_failed"
+                status_code=500, detail="Failed to create user profile"
             )
 
         logger.info(
