@@ -247,4 +247,68 @@ export const apiClient = {
       }),
     });
   },
+
+  /**
+   * Create a new project
+   *
+   * @param params - Project creation parameters
+   * @returns Created project with borrower resume
+   */
+  createProject: async (params: {
+    name: string;
+    owner_org_id: string;
+    assigned_advisor_id?: string;
+    address?: string;
+  }) => {
+    return apiRequest<{
+      project: any;
+      borrowerResumeContent: any;
+      borrowerResumeSourceProjectId: string | null;
+    }>('/projects/create', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Update an existing project
+   *
+   * @param params - Project update parameters
+   * @returns Success response
+   */
+  updateProject: async (params: {
+    project_id: string;
+    core_updates?: {
+      name?: string;
+      assigned_advisor_id?: string;
+    };
+    resume_updates?: any;
+  }) => {
+    return apiRequest<{
+      ok: boolean;
+    }>('/projects/update', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Copy borrower profile from source project to target project
+   *
+   * @param params - Copy parameters
+   * @returns Success response with copied content
+   */
+  copyBorrowerProfile: async (params: {
+    source_project_id: string;
+    target_project_id: string;
+  }) => {
+    return apiRequest<{
+      success: boolean;
+      borrowerResumeContent: any;
+      sourceProjectId: string;
+    }>('/projects/copy-borrower-profile', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
 };

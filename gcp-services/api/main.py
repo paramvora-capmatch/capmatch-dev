@@ -71,15 +71,14 @@ setup_error_handlers(app)
 app.add_middleware(AuthMiddleware)
 
 # Register routers
-from routes import auth, users
+from routes import auth, projects, users
 
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/users", tags=["User Management"])
+app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 
 # Additional routers will be added as we migrate more functions
-# from routes import users, projects, chat, calendar, webhooks
-# app.include_router(users.router, prefix="/users", tags=["User Management"])
-# app.include_router(projects.router, prefix="/projects", tags=["Projects"])
+# from routes import chat, calendar, webhooks
 # app.include_router(chat.router, prefix="/chat", tags=["Chat"])
 # app.include_router(calendar.router, prefix="/calendar", tags=["Calendar"])
 # app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])

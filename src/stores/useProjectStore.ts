@@ -7,6 +7,7 @@ import {
 	BorrowerResumeContent,
 } from "@/lib/project-queries";
 import { supabase } from "../../lib/supabaseClient";
+import { apiClient } from "@/lib/apiClient";
 import { useAuthStore } from "./useAuthStore";
 import { usePermissionStore } from "./usePermissionStore"; // Import the new store
 import { ProjectProfile } from "@/types/enhanced-types";
@@ -459,23 +460,18 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			if (!activeOrg)
 				throw new Error("Must be part of an org to create a project.");
 
-		// Use the create-project edge function (advisor auto-assignment happens server-side)
+		// Use the create-project FastAPI endpoint (advisor auto-assignment happens server-side)
 		const projectSections = projectData.projectSections as any;
 		const address = projectSections?.propertyAddress;
-		
-		const { data, error } = await supabase.functions.invoke(
-			"create-project",
-			{
-				body: {
-					name:
-						projectData.projectName ||
-						`New Project ${get().projects.length + 1}`,
-					owner_org_id: activeOrg.id,
-					address: address || undefined,
-					// assigned_advisor_id is optional - edge function will auto-assign if not provided
-				},
-			}
-		);
+
+		const { data, error } = await apiClient.createProject({
+			name:
+				projectData.projectName ||
+				`New Project ${get().projects.length + 1}`,
+			owner_org_id: activeOrg.id,
+			address: address || undefined,
+			// assigned_advisor_id is optional - FastAPI will auto-assign if not provided
+		});
 
 			if (error) throw error;
 			if (!data?.project) throw new Error("Failed to create project");
@@ -532,13 +528,11 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			try {
 				// Only update completeness if we need to - name and address are already saved
 				if (progressResult.completenessPercent > 0) {
-					await supabase.functions.invoke("update-project", {
-						body: {
-							project_id: data.project.id,
-							core_updates: {},
-							resume_updates: {
-								completenessPercent: progressResult.completenessPercent,
-							},
+					await apiClient.updateProject({
+						project_id: data.project.id,
+						core_updates: {},
+						resume_updates: {
+							completenessPercent: progressResult.completenessPercent,
 						},
 					});
 				}
@@ -586,7 +580,7 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 			}));
 
 			try {
-				// Delegate update to edge function so RLS and permissions are enforced server-side
+				// Delegate update to FastAPI so RLS and permissions are enforced server-side
 				const coreUpdates = projectProfileToDbProject(updates);
 				// Note: completenessPercent is now stored in a separate column, not in content
 				// saveProjectResume will calculate and save it automatically
@@ -613,16 +607,11 @@ export const useProjectStore = create<ProjectState & ProjectActions>(
 					delete (resumeContent as any)._lockedSections;
 				}
 
-				const { error } = await supabase.functions.invoke(
-					"update-project",
-					{
-						body: {
-							project_id: id,
-							core_updates: coreUpdates,
-							resume_updates: resumeContent,
-						},
-					}
-				);
+				const { error } = await apiClient.updateProject({
+					project_id: id,
+					core_updates: Object.keys(coreUpdates).length > 0 ? coreUpdates as any : undefined,
+					resume_updates: resumeContent,
+				});
 				if (error) throw error;
 
 				return finalUpdatedProject;
