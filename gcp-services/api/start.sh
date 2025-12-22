@@ -28,7 +28,6 @@ docker run -d \
     -e LOG_LEVEL="${LOG_LEVEL:-INFO}" \
     -e ENVIRONMENT="${ENVIRONMENT:-production}" \
     --restart unless-stopped \
-    --network host \
     capmatch-api:prod
 
 echo "CapMatch API started successfully"
