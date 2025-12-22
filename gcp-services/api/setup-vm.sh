@@ -21,12 +21,12 @@ After=docker.service
 Requires=docker.service
 
 [Service]
-Type=simple
-Restart=always
-RestartSec=10
+Type=oneshot
+RemainAfterExit=yes
 WorkingDirectory=$SCRIPT_DIR
 ExecStart=$SCRIPT_DIR/start.sh
 ExecStop=/usr/bin/docker stop capmatch-api
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
