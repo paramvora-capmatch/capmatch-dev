@@ -140,7 +140,7 @@ export function useMeetings(projectId?: string): UseMeetingsReturn {
 	 */
 	const updateParticipantResponse = useCallback(
 		async (meetingId: string, status: ParticipantResponseStatus) => {
-			if (!user) return;
+			if (!user?.id) return;
 
 		try {
 			// Call FastAPI endpoint to update DB and sync with Google Calendar
