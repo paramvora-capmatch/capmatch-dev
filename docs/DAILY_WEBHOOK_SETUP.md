@@ -7,7 +7,7 @@ This guide will help you set up Daily.co webhooks for local development using ng
 The webhook system automatically processes meeting transcripts and generates AI summaries:
 1. Meeting ends with transcription enabled
 2. Daily.co processes the transcript
-3. Daily.co sends webhook to your server
+3. Daily.co sends webhook to your FastAPI server
 4. Your server downloads the transcript
 5. Gemini AI generates a structured summary
 6. Transcript and summary saved to `meetings` table
@@ -17,11 +17,11 @@ The webhook system automatically processes meeting transcripts and generates AI 
 1. **Daily.co Account & API Key**
    - Sign up at https://dashboard.daily.co/
    - Get your API key from https://dashboard.daily.co/developers
-   - Add to `.env.local`: `DAILY_API_KEY=your_key_here`
+   - Add to `gcp-services/api/.env`: `DAILY_API_KEY=your_key_here`
 
 2. **Google Gemini API Key** (for AI summaries)
    - Get your key from https://makersuite.google.com/app/apikey
-   - Add to `.env.local`: `GEMINI_API_KEY=your_key_here`
+   - Add to `gcp-services/api/.env`: `GEMINI_API_KEY=your_key_here`
 
 3. **ngrok** (for local development)
    - Install: `brew install ngrok` (macOS)
@@ -39,20 +39,21 @@ supabase db push
 
 This adds the `room_name` field to the `meetings` table.
 
-### 2. Start Your Development Server
+### 2. Start Your FastAPI Development Server
 
 ```bash
-npm run dev
+cd gcp-services/api
+python -m uvicorn main:app --reload --port 8000
 ```
 
-Your app should be running at http://localhost:3000
+Your FastAPI server should be running at http://localhost:8000
 
 ### 3. Expose Local Server with ngrok
 
 In a **new terminal window**:
 
 ```bash
-ngrok http 3000
+ngrok http 8000
 ```
 
 You'll see output like:
@@ -63,7 +64,7 @@ Version                       3.x.x
 Region                        United States (us)
 Latency                       -
 Web Interface                 http://127.0.0.1:4040
-Forwarding                    https://abc123.ngrok-free.app -> http://localhost:3000
+Forwarding                    https://abc123.ngrok-free.app -> http://localhost:8000
 ```
 
 **Copy the `https://` URL** (e.g., `https://abc123.ngrok-free.app`)
@@ -73,8 +74,8 @@ Forwarding                    https://abc123.ngrok-free.app -> http://localhost:
 ### 4. Export Your Daily API Key
 
 ```bash
-# Load your .env.local file
-export DAILY_API_KEY=$(grep DAILY_API_KEY .env.local | cut -d '=' -f2)
+# Load your .env file
+export DAILY_API_KEY=$(grep DAILY_API_KEY gcp-services/api/.env | cut -d '=' -f2)
 ```
 
 Or manually:
@@ -94,7 +95,7 @@ You should see a JSON response with your webhook details:
 ```json
 {
   "uuid": "webhook-uuid-here",
-  "url": "https://abc123.ngrok-free.app/api/webhooks/daily",
+  "url": "https://abc123.ngrok-free.app/webhooks/daily",
   "event_types": ["transcript.ready-to-download"],
   ...
 }
@@ -137,13 +138,13 @@ await supabase.from('meetings').insert({
 
 ### 3. Monitor Webhook Activity
 
-**In your Next.js terminal**, you'll see logs like:
+**In your FastAPI terminal**, you'll see logs like:
 ```
-Received Daily.co webhook - Full payload: { ... }
-Transcript ready: { room_name: 'my-room', transcript_id: '...' }
-Generating AI summary for transcript...
-Successfully generated AI summary
-Successfully saved transcript and summary for room: my-room
+INFO:     Received Daily.co webhook - event: transcript.ready-to-download
+INFO:     Transcript ready: room_name=my-room, transcript_id=...
+INFO:     Generating AI summary for transcript...
+INFO:     Successfully generated AI summary
+INFO:     Successfully saved transcript and summary for room: my-room
 ```
 
 **In ngrok's web interface** (http://localhost:4040):
@@ -168,13 +169,13 @@ WHERE room_name = 'my-unique-room-name';
 
 ### List All Webhooks
 ```bash
-export DAILY_API_KEY=$(grep DAILY_API_KEY .env.local | cut -d '=' -f2)
+export DAILY_API_KEY=$(grep DAILY_API_KEY gcp-services/api/.env | cut -d '=' -f2)
 ./scripts/list-daily-webhooks.sh
 ```
 
 ### Delete a Webhook
 ```bash
-export DAILY_API_KEY=$(grep DAILY_API_KEY .env.local | cut -d '=' -f2)
+export DAILY_API_KEY=$(grep DAILY_API_KEY gcp-services/api/.env | cut -d '=' -f2)
 ./scripts/delete-daily-webhook.sh <webhook-uuid>
 ```
 
@@ -206,20 +207,20 @@ export DAILY_API_KEY=$(grep DAILY_API_KEY .env.local | cut -d '=' -f2)
    - Must exactly match Daily.co room name
 
 2. **Check server logs**
-   - Look for errors in Next.js terminal
+   - Look for errors in FastAPI terminal
    - Check for "Error updating meeting with transcript"
 
 3. **Verify API keys are set**
    ```bash
-   echo $DAILY_API_KEY
-   cat .env.local | grep GEMINI_API_KEY
+   cat gcp-services/api/.env | grep DAILY_API_KEY
+   cat gcp-services/api/.env | grep GEMINI_API_KEY
    ```
 
 ### AI Summary Not Generated
 
 1. **Check Gemini API key**
    ```bash
-   cat .env.local | grep GEMINI_API_KEY
+   cat gcp-services/api/.env | grep GEMINI_API_KEY
    ```
 
 2. **Check server logs for AI errors**
@@ -234,18 +235,19 @@ export DAILY_API_KEY=$(grep DAILY_API_KEY .env.local | cut -d '=' -f2)
 
 When deploying to production:
 
-1. **Use your production URL instead of ngrok**
+1. **Use your production FastAPI URL instead of ngrok**
    ```bash
-   ./scripts/create-daily-webhook.sh https://your-domain.com
+   ./scripts/create-daily-webhook.sh https://api.your-domain.com
    ```
 
 2. **Set environment variables on your hosting platform**
    - `DAILY_API_KEY`
    - `GEMINI_API_KEY`
+   - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
 
 3. **Secure your webhook endpoint** (optional but recommended)
-   - Verify webhook signatures
+   - Verify webhook signatures using `DAILY_WEBHOOK_SECRET`
    - Add IP allowlisting
    - Use webhook secrets
 
@@ -271,7 +273,7 @@ When deploying to production:
 │ Service processes audio │
 └────────┬────────────────┘
          │
-         │ POST /api/webhooks/daily
+         │ POST /webhooks/daily
          ▼
 ┌─────────────────────────┐
 │   ngrok Tunnel          │
@@ -280,8 +282,8 @@ When deploying to production:
          │
          ▼
 ┌─────────────────────────┐
-│  Your Next.js App       │
-│  /api/webhooks/daily    │
+│  FastAPI Server         │
+│  /webhooks/daily        │
 │  1. Fetch transcript    │
 │  2. Parse WebVTT        │
 │  3. Call Gemini AI      │

@@ -10,7 +10,7 @@ if [ -z "$1" ]; then
 fi
 
 NGROK_URL=$1
-WEBHOOK_URL="${NGROK_URL}/api/webhooks/daily"
+WEBHOOK_URL="${NGROK_URL}/webhooks/daily"
 
 # Check if DAILY_API_KEY is set
 if [ -z "$DAILY_API_KEY" ]; then

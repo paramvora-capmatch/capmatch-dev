@@ -57,6 +57,14 @@ async def daily_webhook(request: DailyWebhookPayload, req: Request):
     )
 
     try:
+        # Handle verification/ping requests (no type or event)
+        if not request.type:
+            logger.info(
+                "Daily.co webhook verification request received",
+                extra={"request_id": request_id},
+            )
+            return DailyWebhookResponse(received=True)
+
         supabase = get_supabase_admin()
         event_type = request.type
         payload = request.payload or {}
@@ -372,16 +380,16 @@ async def _process_transcript_async(
                 .execute()
             )
 
-            if update_response.error:
-                logger.error(
-                    "Error updating meeting with transcript",
+            # Check if any rows were updated
+            if not update_response.data or len(update_response.data) == 0:
+                logger.warning(
+                    "No meeting found to update with transcript",
                     extra={
                         "request_id": request_id,
-                        "error": str(update_response.error),
+                        "room_name": room_name,
                     },
                 )
                 processed_transcripts.discard(transcript_id)
-                raise update_response.error
             else:
                 logger.info(
                     "Successfully saved transcript and summary",
