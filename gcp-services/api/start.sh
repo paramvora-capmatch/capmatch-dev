@@ -15,7 +15,7 @@ docker rm capmatch-api 2>/dev/null || true
 # Run new container
 docker run -d \
     --name capmatch-api \
-    -p 127.0.0.1:8080:8080 \
+    -p 8080:8080 \
     -e SUPABASE_URL="$SUPABASE_URL" \
     -e SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
     -e SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
