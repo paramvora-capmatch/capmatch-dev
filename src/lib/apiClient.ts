@@ -311,4 +311,111 @@ export const apiClient = {
       body: JSON.stringify(params),
     });
   },
+
+  /**
+   * Manage chat threads - create, add participants, remove participants, or get threads
+   *
+   * @param params - Thread management parameters
+   * @returns Response with thread data or success message
+   */
+  manageChatThread: async (params: {
+    action: 'create' | 'add_participant' | 'remove_participant' | 'get_thread';
+    thread_id?: string;
+    project_id?: string;
+    topic?: string;
+    participant_ids?: string[];
+  }) => {
+    return apiRequest<{
+      thread_id?: string;
+      thread?: any;
+      message: string;
+    }>('/chat/threads', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Update meeting participant response status and sync to Google Calendar
+   *
+   * @param params - Update parameters
+   * @returns Success message
+   */
+  updateCalendarResponse: async (params: {
+    meeting_id: string;
+    user_id: string;
+    status: 'accepted' | 'declined' | 'tentative' | 'pending';
+  }) => {
+    return apiRequest<{
+      message: string;
+    }>('/calendar/update-response', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Onboard a new borrower user or reuse existing user
+   *
+   * @param params - Onboard parameters
+   * @returns User data
+   */
+  onboardBorrower: async (params: {
+    email: string;
+    password?: string;
+    full_name: string;
+    existing_user?: boolean;
+    user_id?: string;
+  }) => {
+    return apiRequest<{
+      user: {
+        id: string;
+        email: string;
+      };
+    }>('/users/onboard-borrower', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /**
+   * Update member permissions for a user in an organization
+   *
+   * @param params - Permission update parameters
+   * @returns Success response
+   */
+  updateMemberPermissions: async (params: {
+    org_id: string;
+    user_id: string;
+    project_grants?: Array<{
+      projectId: string;
+      permissions: Array<{
+        resource_type: string;
+        permission: string;
+      }>;
+      fileOverrides?: Array<{
+        resource_id: string;
+        permission: string;
+      }>;
+      exclusions?: string[];
+    }>;
+    org_grants?: {
+      permissions?: Array<{
+        resource_type: string;
+        permission: string;
+      }>;
+      fileOverrides?: Array<{
+        resource_id: string;
+        permission: string;
+      }>;
+    } | null;
+  }) => {
+    return apiRequest<{
+      success: boolean;
+      message: string;
+    }>('/users/update-member-permissions', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
 };

@@ -340,20 +340,15 @@ export const useOrgStore = create<OrgState & OrgActions>((set, get) => ({
       const { currentOrg } = get();
       if (!currentOrg) throw new Error("No active org");
 
-      // Use the update-member-permissions edge function
-      const { error: invokeError } = await supabase.functions.invoke(
-        "update-member-permissions",
-        {
-          body: {
-            org_id: currentOrg.id,
-            user_id: userId,
-            project_grants: projectGrants,
-            org_grants: orgGrants,
-          },
-        }
-      );
+      // Use the FastAPI endpoint to update member permissions
+      const { error: apiError } = await apiClient.updateMemberPermissions({
+        org_id: currentOrg.id,
+        user_id: userId,
+        project_grants: projectGrants,
+        org_grants: orgGrants,
+      });
 
-      if (invokeError) throw invokeError;
+      if (apiError) throw apiError;
 
       // Refresh members list after successful update
       await get().refreshMembers();

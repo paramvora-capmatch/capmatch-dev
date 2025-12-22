@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = Field(default="", description="Google Gemini API key")
 
     # Daily.co config
+    DAILY_API_KEY: str = Field(default="", description="Daily.co API key")
     DAILY_WEBHOOK_SECRET: str = Field(default="", description="Daily.co webhook secret")
 
     # CORS config

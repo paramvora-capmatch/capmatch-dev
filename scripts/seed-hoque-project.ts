@@ -1562,12 +1562,24 @@ interface OnboardResponse {
 	error?: string;
 }
 
+/**
+ * Get the FastAPI backend URL from environment variables
+ */
+function getBackendUrl(): string {
+	const url = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || "http://127.0.0.1:8080";
+	// Remove trailing slash to prevent double slashes when constructing paths
+	return url.replace(/\/+$/, "");
+}
+
 async function callOnboardBorrower(
 	email: string,
 	password: string,
 	fullName: string,
 	retries = 3
 ): Promise<OnboardResponse> {
+	const backendUrl = getBackendUrl();
+	const endpoint = `${backendUrl}/users/onboard-borrower`;
+
 	for (let attempt = 1; attempt <= retries; attempt++) {
 		try {
 			if (attempt > 1) {
@@ -1580,52 +1592,52 @@ async function callOnboardBorrower(
 				);
 			} else {
 				console.log(
-					`[onboard-borrower] Calling edge function for ${email}...`
+					`[onboard-borrower] Calling FastAPI endpoint for ${email}...`
 				);
 			}
 
-			const { data, error } = await supabaseAdmin.functions.invoke(
-				"onboard-borrower",
-				{
-					body: { email, password, full_name: fullName },
+			const response = await fetch(endpoint, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					email,
+					password,
+					full_name: fullName,
+				}),
+			});
+
+			// Handle non-2xx responses
+			if (!response.ok) {
+				let errorMessage: string;
+				try {
+					const errorData = await response.json();
+					// FastAPI uses 'detail' for HTTP exceptions
+					errorMessage = errorData.detail || errorData.error || errorData.message || response.statusText;
+				} catch {
+					errorMessage = `HTTP ${response.status}: ${response.statusText}`;
 				}
-			);
 
-			if (error) {
-				const actualErrorMessage = error.message || String(error);
-
-				// Check if it's a retryable error (502, 503, 504, or AuthRetryableFetchError)
+				// Check if it's a retryable error (502, 503, 504)
 				const isRetryable =
-					error.status === 502 ||
-					error.status === 503 ||
-					error.status === 504 ||
-					(error as any).name === "AuthRetryableFetchError" ||
-					actualErrorMessage.includes("502") ||
-					actualErrorMessage.includes("503") ||
-					actualErrorMessage.includes("504");
+					response.status === 502 ||
+					response.status === 503 ||
+					response.status === 504;
 
 				if (isRetryable && attempt < retries) {
 					console.warn(
-						`[onboard-borrower] Retryable error for ${email} (attempt ${attempt}): ${actualErrorMessage}`
+						`[onboard-borrower] Retryable error for ${email} (attempt ${attempt}): ${errorMessage}`
 					);
 					continue; // Retry
 				}
 
-				if (data) {
-					if (typeof data === "object" && "error" in data) {
-						const dataError = (data as any).error;
-						return {
-							error:
-								typeof dataError === "string"
-									? dataError
-									: JSON.stringify(dataError),
-						};
-					}
-				}
-
-				return { error: actualErrorMessage };
+				return { error: errorMessage };
 			}
 
+			const data = await response.json();
+
+			// Validate response structure
 			if (data && typeof data === "object") {
 				if ("error" in data) {
 					const responseError = (data as any).error;
@@ -1650,7 +1662,7 @@ async function callOnboardBorrower(
 				errorMessage.includes("502") ||
 				errorMessage.includes("503") ||
 				errorMessage.includes("504") ||
-				errorMessage.includes("AuthRetryableFetchError") ||
+				errorMessage.includes("ECONNREFUSED") ||
 				errorMessage.includes("fetch");
 
 			if (isRetryable && attempt < retries) {
@@ -2072,23 +2084,11 @@ async function uploadDocumentToProject(
 				}
 			);
 		} else if (eventId) {
-			const { error: notifyError } = await supabaseAdmin.functions.invoke(
-				"notify-fan-out",
-				{
-					body: { eventId },
-				}
-			);
-			if (notifyError) {
-				console.warn(
-					"[seed] notify-fan-out failed for seeded document",
-					{
-						eventId,
-						projectId,
-						resourceId,
-						error: notifyError.message,
-					}
-				);
-			}
+			// Note: Notifications are handled by the notification system separately.
+			// The domain event has been logged, which will trigger notifications
+			// through the regular notification processing pipeline.
+			// We no longer call the notify-fan-out edge function as it's not critical
+			// for seed script execution.
 		}
 
 		console.log(`[seed] ✅ Uploaded document: ${fileName}`);

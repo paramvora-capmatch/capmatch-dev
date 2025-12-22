@@ -1,6 +1,6 @@
 """Pydantic models for authentication endpoints."""
 
-from typing import List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -65,3 +65,19 @@ class AcceptInviteResponse(BaseModel):
     """Response model for accept-invite endpoint."""
 
     status: str = Field(..., description="Status of the invite acceptance (accepted or cancelled)")
+
+
+class OnboardBorrowerRequest(BaseModel):
+    """Request model for onboard-borrower endpoint."""
+
+    email: str = Field(..., description="Email address for the user")
+    password: Optional[str] = Field(None, description="Password for new user (required if existing_user=False)")
+    full_name: str = Field(..., description="Full name of the user")
+    existing_user: bool = Field(default=False, description="Whether to use an existing user")
+    user_id: Optional[str] = Field(None, description="User ID (required if existing_user=True)")
+
+
+class OnboardBorrowerResponse(BaseModel):
+    """Response model for onboard-borrower endpoint."""
+
+    user: Dict[str, Any] = Field(..., description="Created or existing user object")

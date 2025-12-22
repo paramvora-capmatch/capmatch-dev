@@ -126,11 +126,27 @@ async def ensure_storage_folders(
     """
     Create placeholder files in storage to ensure folders exist.
 
+    Raises:
+        Exception: If bucket doesn't exist or folder creation fails
+
     Args:
         supabase: Supabase client
         bucket_id: Storage bucket ID (org_id)
         project_id: Project ID
     """
+    # Verify bucket exists first
+    try:
+        buckets = supabase.storage.list_buckets()
+        bucket_exists = any(b.id == bucket_id for b in buckets)
+
+        if not bucket_exists:
+            raise Exception(f"Bucket '{bucket_id}' does not exist. Cannot create folders.")
+
+        logger.info(f"[project-utils] Bucket '{bucket_id}' verified, creating folders")
+    except Exception as list_error:
+        logger.error(f"[project-utils] Failed to verify bucket existence: {list_error}")
+        raise
+
     placeholder_content = b"keep"
     paths = [
         f"{project_id}/{PROJECT_DOCS_SUBDIR}/{PLACEHOLDER_FILENAME}",
@@ -144,11 +160,52 @@ async def ensure_storage_folders(
             supabase.storage.from_(bucket_id).upload(
                 path, placeholder_content, {"upsert": "true"}
             )
+            logger.debug(f"[project-utils] Created placeholder: {path}")
         except Exception as error:
-            logger.error(
-                f"[project-utils] Failed to create placeholder {path}: {error}"
+            # More detailed error with bucket_id context
+            error_msg = f"Bucket '{bucket_id}', Path '{path}': {error}"
+            logger.error(f"[project-utils] Failed to create placeholder: {error_msg}")
+            raise Exception(error_msg)
+
+    logger.info(f"[project-utils] All storage folders created for project {project_id}")
+
+
+async def ensure_storage_folders_with_retry(
+    supabase: Client, bucket_id: str, project_id: str, max_retries: int = 3
+) -> None:
+    """
+    Wrapper with retry logic for ensure_storage_folders.
+
+    Args:
+        supabase: Supabase client
+        bucket_id: Storage bucket ID (org_id)
+        project_id: Project ID
+        max_retries: Maximum number of retry attempts (default: 3)
+
+    Raises:
+        Exception: If all retry attempts fail
+    """
+    import asyncio
+
+    for attempt in range(max_retries):
+        try:
+            await ensure_storage_folders(supabase, bucket_id, project_id)
+            logger.info(f"[project-utils] Storage folders created on attempt {attempt + 1}")
+            return  # Success
+        except Exception as error:
+            if attempt == max_retries - 1:
+                logger.error(
+                    f"[project-utils] Storage folder creation failed after {max_retries} attempts: {error}"
+                )
+                raise  # Last attempt, re-raise
+
+            # Exponential backoff
+            delay = 0.5 * (2 ** attempt)
+            logger.warning(
+                f"[project-utils] Folder creation attempt {attempt + 1}/{max_retries} failed, "
+                f"retrying in {delay}s: {error}"
             )
-            raise
+            await asyncio.sleep(delay)
 
 
 async def fetch_most_complete_borrower_resume(
@@ -298,3 +355,294 @@ def is_descendant(
             return False
         current_parent = parent.get("parent_id")
     return False
+
+
+async def create_project_with_resume_and_storage(
+    supabase: Client,
+    name: str,
+    owner_org_id: str,
+    creator_id: str,
+    assigned_advisor_id: Optional[str] = None,
+    address: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Create a project with resume, storage, and permissions.
+
+    Orchestrates the full project creation flow in 4 phases:
+    - Phase 1: Project + parallel resource creation
+    - Phase 2: Borrower resume + document cloning
+    - Phase 3: Batch permission grants
+    - Phase 4: Non-critical deferred operations
+
+    Args:
+        supabase: Supabase client
+        name: Project name
+        owner_org_id: Organization ID
+        creator_id: User ID creating the project
+        assigned_advisor_id: Optional advisor user ID
+        address: Optional project address
+
+    Returns:
+        Dict with project, borrowerResumeContent, borrowerResumeSourceProjectId
+
+    Raises:
+        Exception: If project creation fails
+    """
+    import asyncio
+
+    logger.info(f"[project-utils] Creating project: {name} for org: {owner_org_id}")
+
+    # Build initial project resume content
+    initial_resume_content = {
+        "projectName": {
+            "value": name,
+            "source": {"type": "user_input"},
+            "warnings": [],
+            "other_values": [],
+        }
+    }
+
+    if address and address.strip():
+        initial_resume_content["propertyAddressStreet"] = {
+            "value": address.strip(),
+            "source": {"type": "user_input"},
+            "warnings": [],
+            "other_values": [],
+        }
+
+    # STEP 1: Create project record
+    logger.info("[project-utils] Creating project record")
+    project_response = (
+        supabase.table("projects")
+        .insert({
+            "name": name,
+            "owner_org_id": owner_org_id,
+            "assigned_advisor_id": assigned_advisor_id,
+        })
+        .execute()
+    )
+
+    if not project_response.data:
+        raise Exception("Project creation failed - no data returned")
+
+    project = project_response.data[0]
+    project_id = project["id"]
+
+    # Helper: cleanup on error
+    async def cleanup_project():
+        supabase.table("projects").delete().eq("id", project_id).execute()
+
+    try:
+        # PHASE 1: Parallel independent operations
+        logger.info("[project-utils] Phase 1: Creating project resources in parallel")
+
+        (
+            _resume_result,
+            _storage_result,
+            project_resume_resource,
+            project_docs_root_resource,
+            borrower_roots_result,
+            borrower_resume_fetch_result,
+            owner_members_result,
+        ) = await asyncio.gather(
+            # Create project resume
+            asyncio.to_thread(
+                lambda: supabase.table("project_resumes")
+                .insert({
+                    "project_id": project_id,
+                    "content": initial_resume_content,
+                    "created_by": creator_id,
+                })
+                .execute()
+            ),
+            # Ensure storage folders (with retry)
+            ensure_storage_folders_with_retry(supabase, owner_org_id, project_id, max_retries=3),
+            # Create PROJECT_RESUME resource
+            asyncio.to_thread(
+                lambda: supabase.table("resources")
+                .insert({
+                    "org_id": owner_org_id,
+                    "project_id": project_id,
+                    "resource_type": "PROJECT_RESUME",
+                    "name": f"{name} Resume",
+                })
+                .execute()
+            ),
+            # Create PROJECT_DOCS_ROOT resource
+            asyncio.to_thread(
+                lambda: supabase.table("resources")
+                .insert({
+                    "org_id": owner_org_id,
+                    "project_id": project_id,
+                    "resource_type": "PROJECT_DOCS_ROOT",
+                    "name": f"{name} Documents",
+                })
+                .execute()
+            ),
+            # Ensure borrower root resources
+            asyncio.to_thread(
+                lambda: supabase.rpc(
+                    "ensure_project_borrower_roots",
+                    {"p_project_id": project_id},
+                ).execute()
+            ),
+            # Fetch most complete borrower resume
+            fetch_most_complete_borrower_resume(supabase, owner_org_id, project_id),
+            # Load org owners
+            asyncio.to_thread(
+                lambda: supabase.table("org_members")
+                .select("user_id")
+                .eq("org_id", owner_org_id)
+                .eq("role", "owner")
+                .execute()
+            ),
+        )
+
+        # Extract results
+        project_resume_resource_data = project_resume_resource.data[0]
+        project_docs_root_resource_data = project_docs_root_resource.data[0]
+        borrower_roots = borrower_roots_result.data or []
+        borrower_root_row = borrower_roots[0] if borrower_roots else None
+
+        borrower_resume_content = borrower_resume_fetch_result["content"]
+        source_resume_project_id = borrower_resume_fetch_result["projectId"]
+        source_completeness_percent = borrower_resume_fetch_result["completeness_percent"]
+        source_locked_fields = borrower_resume_fetch_result["locked_fields"]
+        source_created_by = borrower_resume_fetch_result["created_by"]
+
+        # Build owner IDs set
+        owner_ids = {creator_id}
+        for member in owner_members_result.data or []:
+            if member.get("user_id"):
+                owner_ids.add(member["user_id"])
+
+        # PHASE 2: Create borrower resume + clone documents
+        logger.info("[project-utils] Phase 2: Creating borrower resume")
+
+        await asyncio.to_thread(
+            lambda: supabase.table("borrower_resumes")
+            .insert({
+                "project_id": project_id,
+                "content": borrower_resume_content,
+                "completeness_percent": source_completeness_percent or 0,
+                "locked_fields": source_locked_fields or {},
+                "created_by": source_created_by,
+            })
+            .execute()
+        )
+
+        # PHASE 3: Grant permissions
+        logger.info("[project-utils] Phase 3: Batch granting permissions")
+
+        # Build permission targets
+        permission_targets = [
+            project_docs_root_resource_data["id"],
+            project_resume_resource_data["id"],
+        ]
+
+        if borrower_root_row:
+            if borrower_root_row.get("borrower_docs_root_resource_id"):
+                permission_targets.append(borrower_root_row["borrower_docs_root_resource_id"])
+            if borrower_root_row.get("borrower_resume_resource_id"):
+                permission_targets.append(borrower_root_row["borrower_resume_resource_id"])
+
+        # Batch grant project access
+        project_access_grants = [
+            {
+                "project_id": project_id,
+                "org_id": owner_org_id,
+                "user_id": owner_id,
+                "granted_by": creator_id,
+            }
+            for owner_id in owner_ids
+        ]
+
+        # Batch grant permissions
+        permission_grants = [
+            {
+                "resource_id": resource_id,
+                "user_id": owner_id,
+                "permission": "edit",
+                "granted_by": creator_id,
+            }
+            for owner_id in owner_ids
+            for resource_id in permission_targets
+        ]
+
+        await asyncio.gather(
+            asyncio.to_thread(
+                lambda: supabase.table("project_access_grants")
+                .upsert(project_access_grants, on_conflict="project_id,user_id")
+                .execute()
+            ),
+            asyncio.to_thread(
+                lambda: supabase.table("permissions")
+                .upsert(permission_grants, on_conflict="resource_id,user_id")
+                .execute()
+            ),
+        )
+
+        logger.info(f"[project-utils] Granted access to {len(owner_ids)} owners")
+
+        # PHASE 4: Non-critical deferred operations (fire-and-forget)
+        logger.info("[project-utils] Phase 4: Deferring non-critical operations")
+
+        # Create chat thread (background task)
+        async def create_chat_thread_deferred():
+            try:
+                chat_thread_response = (
+                    supabase.table("chat_threads")
+                    .insert({"project_id": project_id, "topic": "General"})
+                    .execute()
+                )
+
+                if chat_thread_response.data:
+                    chat_thread = chat_thread_response.data[0]
+                    participant_ids = set(owner_ids)
+                    if assigned_advisor_id:
+                        participant_ids.add(assigned_advisor_id)
+
+                    participants = [
+                        {
+                            "thread_id": chat_thread["id"],
+                            "user_id": uid,
+                            "last_read_at": "1970-01-01T00:00:00.000Z",
+                        }
+                        for uid in participant_ids
+                    ]
+
+                    supabase.table("chat_thread_participants").insert(participants).execute()
+            except Exception as error:
+                logger.warning(f"Failed to create chat thread (non-critical): {error}")
+
+        # Grant advisor permissions (background task)
+        async def grant_advisor_perms_deferred():
+            if assigned_advisor_id:
+                try:
+                    supabase.rpc(
+                        "grant_advisor_project_permissions",
+                        {
+                            "p_project_id": project_id,
+                            "p_advisor_id": assigned_advisor_id,
+                            "p_granted_by_id": creator_id,
+                        },
+                    ).execute()
+                except Exception as error:
+                    logger.warning(f"Failed to grant advisor permissions (non-critical): {error}")
+
+        # Launch background tasks
+        asyncio.create_task(create_chat_thread_deferred())
+        asyncio.create_task(grant_advisor_perms_deferred())
+
+        logger.info(f"[project-utils] Project creation completed: {project_id}")
+
+        return {
+            "project": project,
+            "borrowerResumeContent": borrower_resume_content,
+            "borrowerResumeSourceProjectId": source_resume_project_id,
+        }
+
+    except Exception as error:
+        logger.error(f"[project-utils] Error during project creation: {error}")
+        await cleanup_project()
+        raise

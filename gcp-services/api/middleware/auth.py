@@ -21,6 +21,7 @@ EXCLUDED_PATHS = [
     "/webhooks/daily",  # Daily.co webhook uses signature verification
     "/auth/accept-invite",  # New users don't have authentication tokens yet
     "/auth/validate-invite",  # Used to validate invite tokens before authentication
+    "/users/onboard-borrower",  # New user sign-up doesn't require authentication
 ]
 
 

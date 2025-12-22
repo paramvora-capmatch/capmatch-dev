@@ -42,10 +42,13 @@ class JSONFormatter(logging.Formatter):
 
 
 def setup_logging() -> None:
-    """Setup structured JSON logging."""
-    # Create handler
+    """Setup logging with a human-readable text format (no JSON)."""
+    # Create console handler with a simple, readable format
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JSONFormatter())
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+    )
+    handler.setFormatter(formatter)
 
     # Configure root logger
     root_logger = logging.getLogger()

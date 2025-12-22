@@ -9,6 +9,7 @@ import {
   OrgMember,
 } from "@/types/enhanced-types";
 import { Session } from "@supabase/supabase-js"; // Import Session type
+import { apiClient } from "@/lib/apiClient";
 
 interface AuthState {
   user: EnhancedUser | null;
@@ -152,17 +153,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 throw new Error("Authenticated user has no email");
               }
 
-              const { error: onboardError } = await supabase.functions.invoke(
-                "onboard-borrower",
-                {
-                  body: {
-                    existing_user: true,
-                    user_id: authUser.id,
-                    email: userEmail,
-                    full_name: fullName,
-                  },
-                }
-              );
+              const { error: onboardError } = await apiClient.onboardBorrower({
+                existing_user: true,
+                user_id: authUser.id,
+                email: userEmail,
+                full_name: fullName,
+              });
 
               if (onboardError) {
                 console.error(
@@ -417,17 +413,12 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                   if (!userEmail) {
                     throw new Error("Authenticated user has no email");
                   }
-                  const { error: onboardError } = await supabase.functions.invoke(
-                    "onboard-borrower",
-                    {
-                      body: {
-                        existing_user: true,
-                        user_id: authUser.id,
-                        email: userEmail,
-                        full_name: fullName,
-                      },
-                    }
-                  );
+                  const { error: onboardError } = await apiClient.onboardBorrower({
+                    existing_user: true,
+                    user_id: authUser.id,
+                    email: userEmail,
+                    full_name: fullName,
+                  });
                   if (onboardError) {
                     console.error("[AuthStore] Onboarding existing user failed:", onboardError);
                     await supabase.auth.signOut();
@@ -565,24 +556,18 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
   signUp: async (email, password) => {
     try {
 
-      // We are now calling our custom Edge Function
-      const { data, error } = await supabase.functions.invoke(
-        "onboard-borrower",
-        {
-          body: { email, password, full_name: "New User" }, // Assuming a default name for now
-        }
-      );
+      // Use the FastAPI endpoint to onboard the borrower
+      const { data, error } = await apiClient.onboardBorrower({
+        email,
+        password,
+        full_name: "New User", // Assuming a default name for now
+      });
 
       if (error) {
-        // The error from the function might be a string or an object
-        const errorMessage =
-          typeof error === "object" && error !== null && "message" in error
-            ? error.message
-            : String(error);
-        throw new Error(errorMessage);
+        throw error;
       }
 
-      // After a successful sign-up via edge function, the user is created
+      // After a successful sign-up via API, the user is created
       // but is not yet logged in on the client. We now sign them in.
       if (data?.user) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
