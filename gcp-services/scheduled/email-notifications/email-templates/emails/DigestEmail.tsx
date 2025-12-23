@@ -238,6 +238,7 @@ const container: CSSProperties = {
 
 const headerSection: CSSProperties = {
   marginBottom: "32px",
+  paddingTop: "32px",
 };
 
 const headerRow: CSSProperties = {
@@ -288,7 +289,7 @@ const brandColumn: CSSProperties = {
 };
 
 const headingCell: CSSProperties = {
-  paddingTop: "16px",
+  paddingTop: "0",
 };
 
 const logo: CSSProperties = {
@@ -302,6 +303,7 @@ const logo: CSSProperties = {
 
 const contentWrapper: CSSProperties = {
   padding: "0 48px 48px 48px",
+  paddingTop: "0",
   backgroundColor: backgroundColor,
 };
 
@@ -309,7 +311,7 @@ const mainHeading: CSSProperties = {
   fontSize: "36px",
   lineHeight: "40px",
   color: textColor,
-  margin: "0 0 12px 0",
+  margin: "0 0 4px 0",
   fontWeight: 700,
   textAlign: "center",
   letterSpacing: "-0.02em",
@@ -319,7 +321,7 @@ const subheading: CSSProperties = {
   fontSize: "18px",
   lineHeight: "28px",
   color: textColorMuted,
-  margin: "0 0 32px 0",
+  margin: "0",
   textAlign: "center",
   fontWeight: 400,
 };
@@ -329,6 +331,7 @@ const hero: CSSProperties = {
   borderRadius: "12px",
   padding: "32px",
   margin: "0 0 32px 0",
+  marginTop: "-4px",
   border: `1px solid ${borderColor}`,
   textAlign: "center",
 };

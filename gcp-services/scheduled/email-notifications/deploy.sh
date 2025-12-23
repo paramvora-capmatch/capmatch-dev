@@ -32,9 +32,9 @@ fi
 echo ""
 echo "Step 2: Rebuilding Docker image..."
 if [ -d "$GIT_ROOT/.git" ]; then
-  docker build -f "$GIT_ROOT/gcp-services/scheduled/email-notifications/Dockerfile" -t capmatch-email-notifications:prod "$GIT_ROOT"
+  docker build --no-cache -f "$GIT_ROOT/gcp-services/scheduled/email-notifications/Dockerfile" -t capmatch-email-notifications:prod "$GIT_ROOT"
 else
-  docker build -f "$SCRIPT_DIR/Dockerfile" -t capmatch-email-notifications:prod "$SCRIPT_DIR"
+  docker build --no-cache -f "$SCRIPT_DIR/Dockerfile" -t capmatch-email-notifications:prod "$SCRIPT_DIR"
 fi
 echo "✓ Docker image rebuilt"
 
