@@ -289,7 +289,7 @@ const brandColumn: CSSProperties = {
 };
 
 const headingCell: CSSProperties = {
-  paddingTop: "0",
+  paddingTop: "30px",
 };
 
 const logo: CSSProperties = {
